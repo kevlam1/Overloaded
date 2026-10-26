@@ -43,7 +43,7 @@ Each section has **Kevin wants** (his notes) and **Claude's notes** (questions a
 - Lobby codes are stored like PokeGuess: only while the lobby is active, then cleaned up.
 - **Do not store anything unnecessary.** Cost means more than money.
 
-**Claude's notes** (Scryfall checked 2026-10-25, details in `scryfall.md`: free, 2 batch lookups a second of up to 75 cards, a 1.6 MB gzipped trimmed list of every card, image links rebuilt from the card id)
+**Claude's notes** (Scryfall checked 2026-10-25, details in `scryfall.md`: free, 2 batch lookups a second of up to 75 cards, a trimmed list of every deck card at about 1.4 MB gzipped (audited 2026-10-26), image links rebuilt from the card id)
 - Likely cheapest: **no card database at all.** When a deck is imported, the browser looks up only that deck's cards on Scryfall, in batches, and caches the results. Image links point at Scryfall. The server stores only live lobbies. To check: Scryfall's batch endpoint and limits, its terms for linking images, and whether a site may call it from users' browsers.
 - Every browser downloading all cards is probably too heavy for phones. Check the real size of the bulk files before ruling it in or out.
 

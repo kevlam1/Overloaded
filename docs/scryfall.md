@@ -24,8 +24,8 @@ Read from `scryfall.com/docs/api` (the main page, `rate-limits`, `bulk-data`, `c
 
 ## Fields we would use (seen in the sample reply)
 - `id`, `oracle_id`, `name`, `layout`, `type_line`, `mana_cost`, `cmc`, `oracle_text`, `colors`, `keywords`, `produced_mana`, `image_uris`, `card_faces`, `artist`.
-- `type_line` contains "Land" for lands (`"Basic Land — Forest"`), so the land row needs no rules engine.
-- `keywords`: Serra Angel `["Flying","Vigilance"]`. It lists abilities for the whole card, including the other face (Delver of Secrets has `["Flying","Transform"]`, but only its back face flies). Use per-face data for icons.
+- `type_line` contains "Land" for lands (`"Basic Land — Forest"`), so the land row needs no rules engine. **Corrected 2026-10-26:** for multi-face cards, `type_line` joins both faces, and 82 cards say "Land" only on the back (`"Instant // Land"`). Use the face that is showing (`card_faces[0].type_line` until flipped).
+- `keywords`: Serra Angel `["Flying","Vigilance"]`. It lists abilities for the whole card, including the other face (Delver of Secrets has `["Flying","Transform"]`, but only its back face flies). **Corrected 2026-10-26:** faces have no `keywords` field (0 records do), so "per-face data" doesn't exist. The build can work it out by checking which keywords appear in each face's `oracle_text`, then ship only the result.
 - `produced_mana`: Forest `["G"]`, missing on cards that make no mana. Useful later for a "can I afford this" hint.
 - **Double-faced cards** (`layout` `transform`, `modal_dfc` and others) have no top-level `image_uris` or `mana_cost`. They are under `card_faces[n]`.
 
@@ -65,7 +65,7 @@ One player importing one deck is well inside the limit. The risk comes from many
 **Options:**
 1. **Batch lookup per deck.** No file to build or host. Costs: Scryfall's limit is shared by every player, there's a wait for big decks, and new decks need a network trip.
 2. **Our own card list, built from the bulk file (recommended).** A script turns Oracle Cards into a 1.5 MB gzipped list, and Vercel serves it as a static file that the browser caches. A deck of any size, sideboard included, is matched by name **in the browser with zero Scryfall API calls**. Images still load straight from `cards.scryfall.io`, which has no rate limit, so they cost us nothing.
-   - Cost on Vercel: 1.5 MB per player's first visit. With 100 GB a month, that's about 68,000 first visits before the limit, and repeat visits are served from the browser cache.
+   - Cost on Vercel: 1.5 MB per player's first visit. With 100 GB a month, that's about 68,000 first visits before the limit, and repeat visits are served from the browser cache. (Recomputed after the audit below: 1.41 MB, about 67,000 visits; the 68,000 here mixed binary and decimal units and was really about 63,000.)
    - New cards: a name that isn't in our list (a set released after the last build) falls back to the batch lookup for just those few names.
    - Freshness: rebuild the list weekly or after a set release, as Scryfall suggests. Building it in Vercel's build step keeps a generated 4 MB file out of git history. Not decided.
    - Scryfall says not to "simply repackage" its data. Our list only serves our game, which adds value, but that's my reading and not confirmed with Scryfall.
@@ -77,7 +77,7 @@ One player importing one deck is well inside the limit. The risk comes from many
 - In a game, other players get only card ids from the server and look up names and types in their own copy of the same list. Version one uses one printing per card, so both sides always agree.
 
 ## Decided 2026-10-26
-- **Our own card list (option 2).** It's a static JSON file, not a database: the 36,230 cards that can be in a deck, with name, type, cost, keywords and id. New cards do not join it on their own. They appear when the list is rebuilt from Scryfall's newest bulk file. Until then, names the list doesn't have go to the batch lookup.
+- **Our own card list (option 2).** It's a static JSON file, not a database: the cards that can be in a deck (33,974 after the audit below, not the 36,230 first counted), with name, type, cost, keywords and id. New cards do not join it on their own. They appear when the list is rebuilt from Scryfall's newest bulk file. Until then, names the list doesn't have go to the batch lookup.
 - **Built during Vercel's build step, not committed** (Claude's choice; Kevin said to do what is best). The build downloads the Oracle Cards file from `data.scryfall.io` (no rate limit) and writes the list into the site's output. Reasons: no 1.5 MB file changing in git history on every refresh, and every deploy gets current cards. If Scryfall is down, the build fails and Vercel keeps serving the previous deploy. A weekly rebuild (for example, a scheduled GitHub Action calling a Vercel deploy hook, with the hook URL kept as a secret) is for later. This needs a build command, so it comes with the stack choice.
 - **Cap: 200 cards for main plus sideboard together**, checked at import (Kevin's number, 2026-10-26). Bigger pastes are refused with a message saying how many cards were found.
 - **The format decides if a game can start, not the import.** For example, Commander needs exactly 100 cards in the main deck, and 60-card formats need at least 60. Proposal: the host picks the format in the lobby, and a player can't ready up with a deck that doesn't fit it. Which formats to offer is open.
@@ -108,6 +108,52 @@ One player importing one deck is well inside the limit. The risk comes from many
 
 **Recommendation: A.** It is the only option that is both small and free of API calls. The lookup runs only at import, and opponents never need it. If per-set files prove awkward, B is the simple fallback.
 - Not checked yet: whether Moxfield, Archidekt and ManaBox exports actually include set and number, and in what form (open question 15).
+
+## Audit (2026-10-26): bugs found, fixes, and costs again
+Run with `node --max-old-space-size=4096 scripts/audit-card-data.mjs` on the cached bulk files. Every number below comes from that run or from the docs quoted.
+
+**What was wrong or missing in the plan, and the fix:**
+
+| Found | Count | Fix |
+|---|---|---|
+| Tokens and emblems share names with real cards (`Storm Crow` is both) | 87 names; 1,095 tokens | Tokens go in their own small list (0.04 MB) for making tokens in a game, never matched against a decklist |
+| Collectible records that are not game cards (`Surprise!`, type "Card"; decklist and bio cards) | 442 | Drop `set_type` `memorabilia` and layout `front_card` |
+| Online-only cards: **every** printing marked `digital: true`, almost all from Scryfall's `alchemy` set type | 811 | **Dropped** (Kevin, 2026-10-26: drop if confirmed not paper and no extra calls; the check uses the same cached file) |
+| "No paper printing" is the wrong test: a **preview card of an unreleased set** has an empty `games` list (`Geordi La Forge, Innovator`, Star Trek Commander, releases 2026-11-13) | 1 today, more before each set release | Drop only when every printing is `digital: true`, never because `paper` is missing |
+| Cards on paper whose chosen picture is an online-only printing (`Palinchron`) | 1,062 | Keep the card. The build can pick a paper printing's id as the default picture, since it reads every printing anyway |
+| The `games` field describes one printing, not the card, so "drop if not on paper" would drop `Palinchron` | - | Decide paper availability from every printing (Default Cards), as the audit does |
+| Land row read from the joined `type_line` | 82 cards | Use the showing face's type line |
+| "Per-face keywords" don't exist | 0 faces have them | The build works out each face's keywords from its text |
+| Decklists may give only the front name of a multi-face card (`Delver of Secrets`) | 975 multi-face names | Match the full name first, then the front name |
+| Front names shared by two cards (`Fast`, `Monster`, `Royal`, `Start`) or equal to another card (`Smelt`, `Bind`) | 6 | Full-name match wins; a shared front name asks the player to pick |
+| Two deck cards with the same name, mostly joke-set variants (`Everythingamajig` x6) and two playtest cards | 14 names | Prefer the non-joke set; joke variants need set and number, otherwise ask the player |
+| Accented names (`Lim-Dûl's Cohort`, `Éowyn, Lady of Rohan`) | 107 | Match after removing accents, turning `Æ` into `Ae`, curly quotes into straight ones, and `/` into ` // ` |
+| A typo or junk paste would send its unmatched names to the batch lookup | - | Send at most one batch request (75 names) per import, remember names that weren't found, and never retry a 429 automatically |
+| `fetch-scryfall.mjs` saved whatever came back, even an error page, and never checked HTTP status | - | Fixed: it stops on any failed request and checks the download size before saving. Tested with a fake `fetch` (no network): a 429 stops both modes with exit code 1, and a 10-byte download against an expected 999 is refused; the cached files kept their size and time |
+
+**Sizes of the cleaned list** (33,974 deck cards after the corrected online-only rule, current shape `{n,t,m,k,i}`):
+- 3.99 MB raw, **1.41 MB gzip**, 1.05 MB Brotli at maximum quality.
+- A compact array shape is 1.37 MB gzip. Not worth the extra code.
+- Vercel compresses `json` automatically (its compression page lists `json` among the auto-compressed types, Brotli when the browser supports it). Brotli at the CDN's quality may not reach the 1.05 MB measured here, so the cost math uses gzip.
+
+**Costs, recomputed:**
+
+| Item | Cost |
+|---|---|
+| Scryfall data and images | $0. Images load from `cards.scryfall.io` (no rate limit) straight to the player |
+| Scryfall API calls per import | 0 normally; at most 1 for names newer than our list |
+| Card list per player's first visit | about 1.41 MB, then from the browser cache |
+| Vercel Hobby transfer | 100 GB a month ÷ 1.41 MB ≈ **67,000 first visits** before the limit. Going over pauses the site for up to 30 days; it never bills. (Sizes here are binary MB, 1,048,576 bytes; Vercel's GB is taken as 10⁹ bytes, the conservative reading, not verified. The earlier "68,000 at 1.51 MB" mixed the two and was really about 63,000) |
+| Per-set printing files | a few dozen KB per import |
+| Build | Hobby builds run on the included Basic machine (2 CPUs, 8 GB memory). The build cache holds 1.5 GB, enough for both bulk files (about 100 MB) |
+
+**The build-download fix is now checked against the docs** (`vercel.com/docs/deployments/troubleshoot-a-build`): "Files under `.vercel/cache` ... persist across builds." The cache is restored before the build command runs, is kept per branch (and per account, project and Node version), and lasts a month. So the build can keep the bulk files in `.vercel/cache/scryfall/` with their `updated_at`, make one `GET /bulk-data` call, and download only when Scryfall has published a newer file: at most once a day per branch, since Scryfall rebuilds daily. Not tested on Vercel yet.
+
+**Checked again, still open (2026-10-26):**
+- **Per player or per site?** Scryfall's docs say nothing, and they mention no app registration, tokens or sign-up; a web search found no statement from Scryfall either. Only Scryfall could answer. It no longer matters much: imports make 0 API calls, at most 1 for brand-new cards, and even a site-wide 2 a second allows about 7,200 such lookups an hour. Testing it by sending many requests is ruled out, since that is what gets apps banned.
+- **Vercel's GB, decimal or binary?** Not defined in the docs pages read or found by search. The difference is about 7%, and the math above uses the smaller (decimal) reading. The Vercel dashboard's usage page will show real numbers once the site has traffic.
+- **The build cache on a real build:** can only be tested with a deploy, which needs the build step and a push. Planned for when the build exists.
+- **Request count so far (2026-10-25 and 26):** 2 batch lookups and about 10 `GET /bulk-data` calls to the API, never more than 2 a minute, and no 429. Far inside the limits.
 
 ### How often to rebuild (2026-10-26)
 - "Rebuild" means a build script does what `fetch-scryfall.mjs bulk` does today (download the bulk file and trim it), but writes the card list and per-set files into the site instead of only printing sizes. It runs inside Vercel's build, so every deploy rebuilds.

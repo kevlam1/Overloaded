@@ -192,6 +192,57 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 9. Auditing the card-data plan for bugs, and the costs again (2026-10-26)
+
+**What I asked for**
+- Asked Claude to look for bugs and optimizations, rerun the API costs and go through everything again carefully, taking its time.
+
+**What changed**
+- New `scripts/audit-card-data.mjs` (no network): checks the cached bulk files for what would break matching decklists by name, and prints list sizes.
+- `scripts/fetch-scryfall.mjs`: it saved whatever came back, even an error page, and never checked HTTP status. It now stops on any failed request (including 429) and checks the download's size before saving.
+- `docs/scryfall.md`: two wrong statements are corrected in place, and a new audit section has a table of findings and fixes, the cleaned list's sizes, and the costs again. Updated numbers in `CLAUDE.md`, `docs/design-notes.md` and `docs/todo.md`.
+
+**What I checked**
+- From the audit run: 1,095 tokens and emblems (87 share a name with a real card, like Storm Crow), 442 collectibles that aren't game cards, 812 cards with no paper printing, 82 cards that say "Land" only on their back face, 975 multi-face names, 107 names with accents, and 0 card faces with their own keywords.
+- After filtering out tokens, collectibles and online-only cards: 33,973 deck cards, 1.41 MB gzipped. Only 14 names are still shared, mostly joke-set variants.
+- Scryfall's rate limits and the 75-card batch limit are unchanged. Their docs still don't say whether the limit counts per player or for the whole site.
+- Vercel's docs: JSON is compressed automatically, files in `.vercel/cache` persist between builds (kept per branch, for a month, up to 1.5 GB), and Hobby builds use a 2-CPU, 8 GB machine.
+- Re-ran both script modes after the fix: they work. The new error path wasn't triggered, so it is only checked by reading the code.
+- Not checked: whether Vercel's GB is decimal or binary, and whether the build cache works as described on a real build.
+
+**Decisions**
+- Tokens get their own small list. Collectibles are dropped. The land row and icons use the face that is showing. Names are matched in full first, then by front face, after removing accents and fixing quotes and slashes.
+- At most one fallback batch request per import, so a typo-filled paste can't flood Scryfall.
+- The compact list shape saves too little (1.41 to 1.37 MB) to be worth the extra code.
+- The build will keep bulk files in Vercel's build cache and download only when Scryfall publishes a newer file.
+- Still mine to decide: whether online-only cards stay out (Claude recommends leaving them out).
+
+---
+
+## 10. Online-only cards dropped, the open checks done, and am I at risk of a ban? (2026-10-26)
+
+**What I asked for**
+- Drop cards with no paper printing, but only if they are confirmed not to exist in paper Magic and checking needs no more calls.
+- Check the items Claude had listed as "still not checked".
+- Asked whether all this rechecking could get me banned from Scryfall.
+
+**What changed**
+- `scripts/audit-card-data.mjs`: online-only now means every printing is marked `digital: true`, not "no paper printing".
+- `docs/scryfall.md`, `CLAUDE.md`, `docs/todo.md`: online-only cards are dropped, and there is a new "Checked again, still open" note with the request count.
+
+**What I checked**
+- In the cached every-printing file (no new calls): 885 of the 886 cards with no paper printing have every printing marked digital. The odd one, Geordi La Forge, Innovator, is a preview card from Star Trek Commander, releasing 2026-11-13. "No paper printing" would have wrongly dropped it. With the corrected rule, 811 deck-list cards are dropped and 33,974 remain.
+- Tested the script's new error handling with a fake `fetch`, so Scryfall wasn't involved. A 429 stops both modes, and a short download is refused. The cached files were untouched.
+- Scryfall's docs and a web search say nothing about whether the limit counts per player or for the whole site, and the docs mention no app registration. Our imports make 0 API calls, so it barely matters.
+- Vercel's docs don't say whether their GB is decimal or binary. The cost math uses the smaller reading.
+- Not checked: the build cache on a real Vercel build. That needs a deploy.
+
+**Decisions**
+- Online-only cards are out of the card list. Previews of unreleased sets stay in.
+- My requests so far: 2 batch lookups and about 10 file-list requests over two days, with no 429, far inside the limits. Claude said it won't test the limit by sending many requests, because that is what gets apps banned.
+
+---
+
 ## Where AI misread me, or I had to correct course
 
 - In my first message I said to put the folder in my Portfolio project, which was wrong: the other artifacts live next to the Portfolio. I corrected it in my next message.
@@ -199,6 +250,11 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - **Reused a variable name (Claude's slip, entry 7):** a new `line` variable inside a loop that already had one crashed the measurement script. Renamed it to `printing` and ran it again.
 - **Made-up example (Claude's slip, entries 6 to 8):** the docs used `Sol Ring (CMM) 400` as a decklist example, but the real data shows Sol Ring in that set is number 410 or 703. Claude had invented the number. It is gone from the rewritten section, and the one older mention now says 410.
 - **Build-step choice had a cost Claude missed (entry 7):** building the card data on every deploy would download about 100 MB from Scryfall per push. Claude caught it in entry 8, and the fix is on the todo list.
+- **Two wrong statements in the Scryfall notes (Claude's slip, entries 5 to 8, found in entry 9):** it said the land row could read "Land" from `type_line` (wrong for 82 double-faced cards) and that icons should use per-face keywords (faces have none). It had also called all 36,230 kept records "cards that can be in a deck", but that count included tokens, collectibles and online-only cards. All are corrected in `docs/scryfall.md`.
+- **Mixed units in the cost math (Claude's slip, entry 6, found in entry 9):** "about 68,000 first visits" divided decimal GB by binary MB. The consistent figure was about 63,000, and it is about 67,000 now that the list is smaller.
+- **Bugs in its own checker (Claude's slip, entry 9):** the first audit printed three wrong counts because it shortened lists before counting them (for example "5" instead of 975 multi-face names). Claude spotted it, fixed it, and the committed script prints the right counts.
+- **The research script saved error pages (Claude's slip, entry 5, found in entry 9):** `fetch-scryfall.mjs` never checked whether a request succeeded. Fixed.
+- **Wrong test for online-only cards (Claude's slip, entry 9, found in entry 10):** it called a card online-only when no printing listed paper. That would have dropped preview cards of unreleased sets. It now requires every printing to be marked digital.
 
 ---
 

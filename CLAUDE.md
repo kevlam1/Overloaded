@@ -7,7 +7,7 @@ Read this file first. My shared preferences are in `../CLAUDE.md` (the `TCSS 490
 ## What this project is
 - A browser-based virtual Magic: The Gathering tabletop simulator, named **Overloaded**. Friends open it, build or load a deck, join a table, and play a game by moving cards around a shared play area in real time.
 - Artifact 5 of TCSS 490 (Generative AI and Software Development, UW Tacoma, Autumn 2026): the moonshot, possibly deployed to real users. Due **Sunday, December 13, 2026 at 11:59 PM** on Canvas. I have about 5 to 7 weeks. It is the biggest and hardest thing I have built, so plan in phases and expect to cut scope.
-- Repo: `https://github.com/kevlam1/Overloaded` (public, created by me, `origin` is set, the two setup commits are pushed, and a Vercel project named `Overloaded` imports it). The name and URL go on the portfolio card, so they can't change.
+- Repo: `https://github.com/kevlam1/Overloaded` (public, created by me, `origin` is set, `main` is pushed, and a Vercel project named `Overloaded` imports it). The name and URL go on the portfolio card, so they can't change. The capital O is part of the name: the repo was briefly renamed to lowercase `overloaded` on 2026-10-26 and renamed back.
 - Owner: Kevin Lam. Windows, IntelliJ IDEA Ultimate.
 - The Portfolio's Artifact 4 and 5 ideas were swapped on 2026-10-25: my original Artifact 5 (a game reference tool for League of Legends, Valorant and Overwatch) moved to Artifact 4, and this project took Artifact 5. Do not work on Artifact 4 here.
 - **The Artifact 5 course page has not been read.** It is not in `../Unit 3/`. The only thing known is the overview line (from `../Portfolio/docs/PROJECT_CONTEXT.md`, local only): "the moonshot, possibly deployed to real users". When the page is available, read it and copy its real requirements and grading into a section here before building further.
@@ -43,7 +43,7 @@ A multi-page site with a backend, not one `index.html`. The pieces and the folde
 - `shared/`: card, deck and game-state shapes, and the messages sent over the live connection, so both sides agree. No browser-only or server-only code, so Node tests can load it.
 - `scripts/`: tests and data tools, plain Node (`test-*.mjs`, `fetch-*.mjs`).
 - `docs/`: `todo.md` and longer notes.
-- Ideas to evaluate, not decisions: the server holds the game state and sends each player only what that player may see (so hidden cards can't be read from the browser); players send small actions ("move card X to the graveyard"), not whole states; card data comes from a 1.5 MB gzipped card list that a script builds from Scryfall's bulk file and Vercel serves, with images loaded straight from Scryfall and no card database of our own (see `docs/scryfall.md`); the table is drawn with plain DOM or Canvas, whichever tests faster with a hundred cards.
+- Ideas to evaluate, not decisions: the server holds the game state and sends each player only what that player may see (so hidden cards can't be read from the browser); players send small actions ("move card X to the graveyard"), not whole states; card data comes from a 1.4 MB gzipped card list (deck cards only, tokens in a separate small list) that a script builds from Scryfall's bulk file and Vercel serves, with images loaded straight from Scryfall and no card database of our own (see `docs/scryfall.md`); the table is drawn with plain DOM or Canvas, whichever tests faster with a hundred cards.
 - Keep game logic (zones, moving a card, drawing, shuffling, what each player may see) in plain modules with no browser or network code, so it can be tested in Node.
 
 ## Stack
@@ -58,15 +58,17 @@ A multi-page site with a backend, not one `index.html`. The pieces and the folde
 - `docs/todo.md`: open items.
 - `docs/design-notes.md`: my design notes restated, with Claude's notes and risks per idea.
 - `docs/scryfall.md`: Scryfall's rules, rate limits, batch lookup, fields, image links and bulk file sizes, checked 2026-10-25.
-- `scripts/fetch-scryfall.mjs`: research tool. `sample` saves one batch lookup. `bulk [type]` downloads a bulk file and measures the card list, the list with rules text, and the per-set printing files. Writes only to `data/cache/scryfall/` (gitignored).
+- `scripts/fetch-scryfall.mjs`: research tool. `sample` saves one batch lookup. `bulk [type]` downloads a bulk file and measures the card list, the list with rules text, and the per-set printing files. Writes only to `data/cache/scryfall/` (gitignored). Stops on any failed request.
+- `scripts/audit-card-data.mjs`: checks the cached bulk files for what breaks name matching (tokens, collectibles, online-only cards, multi-face names, accents) and prints list sizes. No network.
 - `docs/private-lobby.md`: how PokeGuess does private rooms (code, player token, reconnect, hidden data) and what it suggests here. Draft ideas.
-- `.gitignore`: ignores `node_modules/`, `dist/`, `build/`, `.env` and `.env.*` (not `.env.example`), `*.local`, `*.log`, `.idea/`, `scratch*`, `CLAUDE.local.md`, `.claude/settings.local.json`, `*.sqlite`, `*.db` and `data/cache/`.
+- `.gitignore`: ignores `node_modules/`, `dist/`, `build/`, `.env` and `.env.*` (not `.env.example`), `*.local`, `*.log`, `.idea/`, `scratch*`, `CLAUDE.local.md`, `.claude/settings.local.json`, `.vercel/`, `coverage/`, OS files (`Thumbs.db`, `desktop.ini`, `.DS_Store`), `*.pdf` (keeps my design notes out), `*.sqlite`, `*.db` and `data/cache/`.
 - `.claude/settings.json`: `Read` deny rules for `.env` and key files, copied from readme-architect. Best-effort only (the docs call `Read` rules best-effort), not a hard block.
 - `frontend/`, `backend/`, `shared/`, `scripts/`: each has a short `README.md` saying what goes there. Empty folders hold a `.gitkeep`.
 - Not set up yet, on purpose: a `/logs/` page (see "Reuse"), CI, a database. A Vercel project exists, but nothing builds yet.
 
 ## Run and check
-- No site yet. Research tool (Node 18 or later, no install): `node scripts/fetch-scryfall.mjs sample` (one API request) and `node scripts/fetch-scryfall.mjs bulk [oracle_cards|default_cards]` (a 24 MB or 76 MB download, skipped if today's copy is cached, then sizes printed).
+- No site yet. Research tool (Node 18 or later, no install): `node scripts/fetch-scryfall.mjs sample` (one API request) and `node scripts/fetch-scryfall.mjs bulk [oracle_cards|default_cards]` (a 24 MB or 76 MB download, skipped if today's copy is cached, then sizes printed). After both downloads: `node --max-old-space-size=4096 scripts/audit-card-data.mjs`.
+- Card-list rules from the 2026-10-26 audit (details in `docs/scryfall.md`): tokens in their own list, no collectibles, no online-only cards (only when every printing is `digital: true`, never because `paper` is missing, which would drop previews of unreleased sets), land row and icons from the showing face, match full name then front name after normalizing accents and quotes, at most one fallback batch request per import.
 - Any code that calls Scryfall must send `User-Agent` and `Accept`, keep `/cards/collection` to 2 requests a second, back off on HTTP 429, and cache results for at least 24 hours.
 - **The card-data build must not download Scryfall's bulk files (about 100 MB) on every push.** Before writing the build step, check whether Vercel's build cache keeps files between builds, skip the download when the bulk file's `updated_at` hasn't changed, or rebuild card data only on production deploys. Show me which one before building it. See "How often to rebuild" in `docs/scryfall.md`.
 - Check what you build by running it, and say what you checked and what you could not. For a page, drive headless Chrome as described in `../CLAUDE.md` and look at a screenshot at desktop and phone width.
