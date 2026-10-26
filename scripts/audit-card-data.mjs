@@ -1,5 +1,5 @@
 // Checks the cached Scryfall bulk files for things that would break matching decklists by name.
-// Plain Node 18+, no dependencies, no network. Run `node scripts/fetch-scryfall.mjs bulk oracle_cards`
+// Plain Node 20.11+ (import.meta.dirname), no dependencies, no network. Run `node scripts/fetch-scryfall.mjs bulk oracle_cards`
 // and `... bulk default_cards` first, then: node --max-old-space-size=4096 scripts/audit-card-data.mjs
 // (the extra memory is for reading every printing; a real build should keep fewer fields).
 import { createReadStream } from 'node:fs';
@@ -52,6 +52,20 @@ show('Names still shared by two deck cards', [...byName].filter(([, v]) => v.len
 const fronts = new Map();
 for (const c of cards) if (c.name.includes(' // ')) { const f = c.name.split(' // ')[0]; fronts.set(f, [...(fronts.get(f) ?? []), c.name]); }
 show('Front-face names shared or equal to another card\'s name', [...fronts].filter(([f, v]) => v.length > 1 || byName.has(f)), ([f, v]) => `${f} -> ${v.join(' | ')}${byName.has(f) ? ' | (also a card named ' + f + ')' : ''}`);
+
+// The planned name normalization for matching typed decklists (see "Name matching" in docs/scryfall.md).
+const norm = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/Æ/g, 'Ae').replace(/æ/g, 'ae')
+  .replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/꞉/g, ':')
+  .replace(/\s*\/\/?\s*/g, ' // ').replace(/\s+/g, ' ').trim().toLowerCase();
+const keys = new Map();
+for (const c of cards) (keys.get(norm(c.name)) ?? keys.set(norm(c.name), new Set()).get(norm(c.name))).add(c.name);
+show('Different names that become the same after normalizing', [...keys].filter(([, v]) => v.size > 1), ([k, v]) => `${k}: ${[...v].join(' | ')}`);
+show('Names with a lone "/" (still match: both sides are normalized the same way)', cards.filter((c) => c.name.replace(/ \/\/ /g, '').includes('/')));
+const backs = new Map();
+for (const c of cards) for (const b of c.name.split(' // ').slice(1)) (backs.get(norm(b)) ?? backs.set(norm(b), new Set()).get(norm(b))).add(c.name);
+const frontKeys = new Set([...fronts.keys()].map(norm));
+show('Back-face names that clash with a card, a front name, or each other (so never auto-match back faces)',
+  [...backs].filter(([k, v]) => keys.has(k) || frontKeys.has(k) || v.size > 1), ([k, v]) => `${k} -> ${[...v].join(' | ')}${keys.has(k) ? ' (also a card)' : ''}`);
 
 const mb = (b) => (b / 1048576).toFixed(2);
 const size = (label, value) => {
