@@ -17,6 +17,13 @@ const HEADERS = {
   Accept: 'application/json',
 };
 
+// Stop on any failed request (including HTTP 429), so an error page is never saved or parsed as card data.
+async function fetchOk(url, options) {
+  const res = await fetch(url, options);
+  if (!res.ok) throw new Error(`${url} answered HTTP ${res.status}. Stopping${res.status === 429 ? ' (rate limited: wait before trying again)' : ''}.`);
+  return res;
+}
+
 async function sample() {
   const identifiers = [
     { name: 'Forest' },
@@ -25,7 +32,7 @@ async function sample() {
     { name: 'Lightning Bolt' },
     { name: 'Not A Real Card Name' }, // should land in not_found
   ];
-  const res = await fetch('https://api.scryfall.com/cards/collection', {
+  const res = await fetchOk('https://api.scryfall.com/cards/collection', {
     method: 'POST',
     headers: { ...HEADERS, 'Content-Type': 'application/json' },
     body: JSON.stringify({ identifiers }),
@@ -51,17 +58,20 @@ async function sample() {
 const NOT_IN_DECKS = new Set(['art_series', 'vanguard', 'planar', 'scheme']);
 
 async function bulk(type) {
-  const list = await (await fetch('https://api.scryfall.com/bulk-data', { headers: HEADERS })).json();
+  const list = await (await fetchOk('https://api.scryfall.com/bulk-data', { headers: HEADERS })).json();
   const item = list.data.find((b) => b.type === type);
   if (!item) throw new Error(`No bulk file of type ${type}. Types: ${list.data.map((b) => b.type).join(', ')}`);
   const file = join(OUT, `${type}.jsonl.gz`);
   await mkdir(OUT, { recursive: true });
   let have = false;
+  // Same size as today's file means same file. Good enough for a research tool; the real build should compare updated_at.
   try { have = (await stat(file)).size === item.compressed_size; } catch {}
   if (!have) {
     console.log(`Downloading ${item.jsonl_download_uri} (${(item.compressed_size / 1048576).toFixed(1)} MB)...`);
-    const res = await fetch(item.jsonl_download_uri, { headers: HEADERS });
-    await writeFile(file, Buffer.from(await res.arrayBuffer()));
+    const res = await fetchOk(item.jsonl_download_uri, { headers: HEADERS });
+    const body = Buffer.from(await res.arrayBuffer());
+    if (body.length !== item.compressed_size) throw new Error(`Download is ${body.length} bytes, expected ${item.compressed_size}. Not saved.`);
+    await writeFile(file, body);
   } else console.log('Using the cached copy (same size as today\'s file).');
 
   // Stream line by line: the larger files unpack to more than a JavaScript string can hold.
