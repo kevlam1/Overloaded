@@ -1,15 +1,29 @@
 # Open work (as of 2026-10-25)
 
-Setup only so far. Nothing is built, and no requirement below is final.
+Planning only. Nothing is built. My design notes are in `docs/design-notes.md`.
 
-- [ ] Read the Artifact 5 page on the course site (the moonshot) as soon as it is posted, and copy its real requirements into `CLAUDE.md`. It is not in `../Unit 3/` yet, so everything about it in `CLAUDE.md` is from the overview in the Portfolio notes.
-- [ ] Pick the stack (frontend and backend), after the questions in `CLAUDE.md` "Open questions" are answered. Show me each option's license and cost before adding it.
-- [ ] Decide the smallest playable version (two players, one shared table, cards you can move) and write it into `CLAUDE.md` as phase 1.
-- [ ] Check the card data source (Scryfall) by printing real responses: fields, rate limits, image rules, and whether bulk data can be downloaded. Write what was found in `log.md`.
-- [ ] Read Wizards of the Coast's rules for fan projects (card images, names, disclaimers) and write down what is allowed and what the site must say.
-- [ ] Decide how two browsers stay in sync (WebSockets or something else) and who is the source of truth, the server or a player.
-- [ ] Pick hosting that can run a backend. The Portfolio is on GitHub Pages and MIDI Companion on Vercel, and neither is a given for a long-running real-time server. Check current docs and limits, and check the cost.
-- [ ] Decide accounts and saved decks: none (saved in the browser), or logins. Logins mean storing personal details, which has to be decided before building.
-- [ ] Choose a test plan: plain Node scripts for game logic with no browser code (like MIDI Companion), plus headless Chrome for pages.
-- [ ] Plan a week-by-week schedule once the scope is chosen (5 to 7 weeks, due Sun Dec 13).
+## Decided
+- [x] Hosting: Vercel (the project exists, nothing builds yet).
+- [x] No accounts. A name per lobby, and decks cached in the browser as text.
+- [x] Lobby: a generated link `/lobby/CODE` or a typed code, the host picks the seats, players ready up, the host starts.
+- [x] Casual mode only. Forge's rules engine skipped for now. Deck builder later, if there is time.
+- [x] Scryfall checked: rules, rate limits, batch lookup, fields, images, bulk sizes (`docs/scryfall.md`).
+- [x] Card data: our own card list built during Vercel's build, a 200-card cap on main plus sideboard, and no rules text in version one.
+
+## Research next (print real data or docs, write what was found in `log.md`)
+- [ ] Read the Artifact 5 course page when it is posted and copy its requirements into `CLAUDE.md`. My design notes are not the course requirements.
+- [ ] Which formats the lobby offers, and the deck-size rule for each (Commander exactly 100, 60-card formats at least 60).
+- [ ] Later: a weekly rebuild of the card list, and exact printings from one small file per set (flow in `docs/scryfall.md`).
+- [ ] When the build is set up: avoid downloading about 100 MB from Scryfall on every push. Check whether Vercel's build cache keeps files between builds, or rebuild card data only on production deploys.
+- [ ] Wizards of the Coast's fan-content rules: card images, names, the disclaimer the site must show.
+- [ ] Live play and the lobby store: can Vercel hold live connections? Compare Supabase, Firebase and others on free-tier limits, idle pausing, and whether hands can stay hidden. Plan mode.
+- [ ] Deck import: real text exports from Moxfield, Archidekt and ManaBox.
+
+## Decide later
+- [ ] Stack (frontend and backend), after the research. Show me each option's license and cost before adding it.
+- [ ] Lobby details: code length, how long an idle lobby lives, whether changing a deck unreadies a player. Notes in `docs/private-lobby.md`; I have not read PokeGuess's lobby page or WebSocket server yet.
+- [ ] Playmat and card-back uploads: proposed to stay in the uploader's browser only.
+- [ ] Touch versions of hover features (enlarge a card, the icon legend) for phones and tablets.
+- [ ] Test plan: plain Node scripts for game logic, plus headless Chrome with two sessions for live play.
+- [ ] A week-by-week schedule once the scope is chosen (due Sun Dec 13).
 - [ ] Tell the Portfolio session when this is real enough to put a card on: its card is "Artifact 5" and stays locked until then.

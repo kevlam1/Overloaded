@@ -36,12 +36,175 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 2. Private lobby idea from PokeGuess (2026-10-25)
+
+**What I asked for**
+- Told Claude I want a private lobby like the one I built in PokeGuess, and to update something with that info.
+
+**What changed**
+- Claude read PokeGuess's README, file list and `roomService.ts` through the public GitHub API (nothing cloned or run) and wrote `docs/private-lobby.md`: 6-character room codes, no accounts, a hashed player token so a refresh rejoins the same seat, host starts, and the server removes hidden data before sending a room to a player.
+- Added a pointer in `CLAUDE.md` (Files list and open question 5) and one item in `docs/todo.md`.
+
+**What I checked**
+- The notes match what is in `roomService.ts`. Not read: PokeGuess's lobby page, its WebSocket server file and its database layer.
+- Nothing is built. The notes are ideas, not decisions.
+
+**Decisions**
+- Take the ideas only. PokeGuess is under my friend's account, so no code is copied.
+- Open: how many seats (2 or up to 4), how long a table lives, and where table state is kept.
+- Told Claude the idea is similar to PokeGuess and nothing more: a custom link and a code, players change their deck, name and so on in the lobby, then ready up to begin. A fuller plan comes later. Claude wrote this into `docs/private-lobby.md` and left its guesses about "custom link" marked as unconfirmed.
+
+---
+
+## 3. Choosing Vercel for hosting (2026-10-25)
+
+**What I asked for**
+- Showed Claude the Vercel "New Project" screen for `kevlam1/Overloaded` and asked if I was doing it right or should wait. Claude suggested waiting, because nothing is built and hosting was still open. I decided hosting will be on Vercel and to continue.
+
+**What changed**
+- `CLAUDE.md` open question 8 now says Vercel is decided, and what is still open.
+
+**What I checked**
+- Only the two screenshots (Hobby plan, root `./`, preset Other, empty build settings and environment variables). Claude did not read Vercel's docs, so it has not checked whether Vercel can run a WebSocket server, or what the Hobby terms and limits are.
+
+**Decisions**
+- Vercel it is. The project name stays `Overloaded`, because it sets the URL the portfolio card will use.
+- If Vercel cannot hold live connections, the pages stay on Vercel and a small server goes elsewhere. To be checked before the sync is built.
+
+---
+
+## 4. My first in-depth design notes (2026-10-25)
+
+**What I asked for**
+- Wrote my thoughts for Overloaded by hand into a PDF (in my Unit 5 folder) and gave it to Claude. I asked it to read it, make its own version in the repo if useful, and update whatever files needed it.
+- In the notes, I asked Claude not to name the products I used as visual references anywhere in the files.
+
+**What changed**
+- New `docs/design-notes.md`: my notes restated by section (product, lobby, rules, card data and storage, database, look and feel, gameplay), each with Claude's questions and risks. The PDF and its screenshots stay out of the repo, since it is public and they name the references.
+- `CLAUDE.md`: the vision, the phases, the lobby page and several open questions now follow my notes. There are new hard rules about not naming the references and not storing anything unneeded. It also said nothing was pushed, which was out of date, so that is fixed.
+- `docs/private-lobby.md`: the link is generated (`/lobby/CODE`), the host picks the seats and the host starts.
+- `docs/todo.md`: reorganized into decided, research next, and decide later.
+
+**What I checked**
+- Claude read all four pages of the PDF. Nothing about Scryfall, Forge, Supabase, Firebase or the deck sites was checked. Every claim about them in the notes is marked unverified.
+
+**Decisions**
+- No accounts. Decks are cached in the browser as text. Card data comes from Scryfall, and the proposal is to look up only each deck's cards with no card database of our own.
+- Casual mode first. A rules-enforced mode with Forge's engine depends on research into its license and how it would run behind a website.
+- Deck builder moved to a stretch goal. Deck import from text comes first.
+- Claude pointed out that a row for lands and a row for other permanents, ability icons and summoning sickness do not need a rules engine, so they stay in scope without Forge.
+- Supabase is my lean for the database and live play, but nothing is chosen until the free tiers are compared in plan mode.
+
+---
+
+## 5. Checking Scryfall, and skipping Forge (2026-10-25)
+
+**What I asked for**
+- Told Claude to skip Forge's rules engine for now and asked what Scryfall's rate limits are. I said it could keep Scryfall's API replies in a gitignored file, even a bulk cache, and that whether players cache all cards in their browsers can be decided later.
+
+**What changed**
+- New `docs/scryfall.md` with what Scryfall's docs say and what real replies showed. New `scripts/fetch-scryfall.mjs` (plain Node, no dependencies): `sample` makes one batch lookup, and `bulk` downloads the Oracle Cards file once. Both write only to `data/cache/scryfall/`, which is gitignored.
+- `CLAUDE.md`: casual mode only, Forge is out of scope, the Scryfall rules and run commands are added, and the card-data question is narrowed to two options. It also fixes a line break Claude broke in entry 4 (open questions 13 and 14 had merged).
+- `docs/todo.md` and `docs/design-notes.md` are updated to match.
+
+**What I checked**
+- Rate limits from Scryfall's page: 2 requests a second for search and the batch lookup, 10 a second for most other calls, and none for image and bulk files. Every request needs `User-Agent` and `Accept`, and ignoring HTTP 429 can get the app banned.
+- One real batch lookup of 5 names: 4 cards came back and the fake name was listed in `not_found`. Double-faced cards keep their image and cost under `card_faces`. `keywords` lists the back face's abilities too.
+- Downloaded the Oracle Cards bulk file: 38,998 cards, 23.9 MB compressed and 199.5 MB unpacked. A trimmed list (name, type, cost, keywords, id) is 1.6 MB gzipped.
+- A card image loads from a link built from the card id alone (HTTP 200), so image links don't need to be stored.
+- Not checked: Wizards of the Coast's Fan Content Policy itself. Scryfall's terms point to it.
+
+**Decisions**
+- Forge is skipped for now.
+- No card database of our own. Still open: look up each deck's cards from the browser, or serve a small trimmed file of every card from Vercel.
+
+---
+
+## 6. Big decks, sideboards, and how to ask Scryfall for cards (2026-10-26)
+
+**What I asked for**
+- Raised a concern: main boards can be over 100 cards and some sideboards hold hundreds, so looking them up could hit Scryfall's limits and get us banned. My idea was to cap the first import at 100 cards and give the sideboard its own category that players swap from without more lookups. I asked whether to use batch requests or one cached bulk file, and what each would cost.
+
+**What changed**
+- `scripts/fetch-scryfall.mjs`: `bulk` now takes a file type, reads the file line by line (the bigger one unpacks to 620 MB), skips cards that never go in a deck, and measures a card list and a printing list.
+- `docs/scryfall.md`: new sections on Vercel's free limits and on deck size, sideboards and request plans, with the costs of each option.
+- `CLAUDE.md`, `docs/todo.md`: phase 1, the architecture note and open question 3 now point to the recommended plan.
+
+**What I checked**
+- Measured, not estimated: one record per card is 36,230 cards and 1.51 MB gzipped. A list of every printing (set, number, id) is 115,869 printings and 2.67 MB gzipped.
+- Read Vercel's Hobby page: the first 100 GB a month of data transfer and 1,000,000 CDN requests are included. Going over pauses the feature for up to 30 days instead of charging, and Hobby is for non-commercial use.
+- Worked out the batch-lookup cost: a 100-card deck is 2 requests, and 100 main plus 300 sideboard is 6 requests over about 2.5 seconds.
+- Not checked: whether Scryfall counts its limit per player or for the whole site, and whether Scryfall would see our trimmed list as repackaging its data.
+
+**Decisions**
+- Claude recommended building our own card list from the bulk file. A deck of any size, sideboard included, is then matched in the browser with no API calls, and the batch lookup is used only for a few cards newer than the list. I have not decided yet.
+- Claude disagreed with the reason for my 100-card cap: with our own list, a cap isn't needed to protect Scryfall. It suggested one generous cap on main plus sideboard (for example 250) so a huge paste can't freeze the page. The numbers are mine to pick.
+- The sideboard stays its own section, and swapping in the lobby needs no new lookups (my idea, kept).
+- Exact printings (matching set and collector number) come after version one.
+
+---
+
+## 7. Card list decided, 200-card cap, exact printings (2026-10-26)
+
+**What I asked for**
+- Said yes to our own card list, and asked whether new cards would join it or whether it's just a file.
+- Picked a 200-card cap, and said players shouldn't be able to start a Commander game without exactly 100 cards anyway.
+- Told Claude to decide where the list is built.
+- Asked whether exact printings could get their own image for free, since the list's main job is the card text.
+
+**What changed**
+- `docs/scryfall.md`: new sections "Decided 2026-10-26" and "Rules text and exact printings".
+- `scripts/fetch-scryfall.mjs`: also measures the list with rules text and one printing file per set.
+- `CLAUDE.md` (open question 3, the script description) and `docs/todo.md` now match the decisions.
+
+**What I checked**
+- The list is a static file, not a database. New cards appear only when it is rebuilt, and until then they use the batch lookup.
+- Our list doesn't actually have the rules text. Adding it takes the list from 1.51 MB to 3.00 MB gzipped, and the card image already shows the text.
+- Exact printings: an image link needs that printing's id, which our list doesn't have. One file per set fixes that: 1,008 sets, a median of 0.5 KB gzipped, the largest 140 KB.
+- Claude's first run of the new measurement crashed because it reused a variable name. It renamed the variable and ran it again.
+
+**Decisions**
+- Our own card list, built during Vercel's build and not committed (Claude's choice when I left it to it). Every deploy gets current cards, git history stays small, and a failed download leaves the last deploy live.
+- 200 cards maximum for main plus sideboard, checked at import. The format decides whether a deck is the right size before a player can ready up. Which formats to offer is still open.
+- No rules text in version one. Default printings first, with exact printings from per-set files soon after.
+
+---
+
+## 8. What a rebuild is, and exact printings rethought (2026-10-26)
+
+**What I asked for**
+- Asked whether a rebuild is basically what we've been doing with the script, and how often I should rebuild.
+- Said I was still confused about exact printings and asked Claude to rethink whether its plan was the best way.
+
+**What changed**
+- `docs/scryfall.md`: the exact-printings part is rewritten as a step-by-step flow with three options compared, plus a new "How often to rebuild" section.
+- `docs/todo.md`: a new item about not downloading about 100 MB from Scryfall on every push.
+- I asked how I could be sure Claude would remember that item. Claude said it remembers nothing between sessions, and only `CLAUDE.md` loads every time. So the rule is now in `CLAUDE.md` under "Run and check", and it says to show me the fix before the build step is written.
+
+**What I checked**
+- In the Default Cards file, set plus collector number names exactly one printing (119,203 pairs, no duplicates). Sol Ring has 144 printings. Collector numbers can have letters and symbols (`268p`, `213★`, `XLN-217`).
+- Not checked: whether the deck sites' exports include set and number, and whether Vercel's build cache keeps files between builds.
+
+**Decisions**
+- A printing changes only the picture. The printing id is looked up once at import and saved with the deck, and other players get the id from the server, so they never look anything up.
+- One small file per set is still the plan for finding printing ids, because it is the only option that is both small and needs no API calls. One big file of all printings is the fallback.
+- Rebuild weekly and after a set release. Claude flagged a flaw in its own build-step choice: every push would download about 100 MB from Scryfall. That gets fixed when the build is set up.
+
+---
+
 ## Where AI misread me, or I had to correct course
 
 - In my first message I said to put the folder in my Portfolio project, which was wrong: the other artifacts live next to the Portfolio. I corrected it in my next message.
+- **Guessed field names (Claude's slip, entry 5):** its first bulk-data check read `size` and `content_type`, which don't exist, and printed `NaN MB`. Printing the raw object showed the real field, `compressed_size`. Claude also broke a line break in `CLAUDE.md` in entry 4, which merged two open questions. It was fixed in entry 5.
+- **Reused a variable name (Claude's slip, entry 7):** a new `line` variable inside a loop that already had one crashed the measurement script. Renamed it to `printing` and ran it again.
+- **Made-up example (Claude's slip, entries 6 to 8):** the docs used `Sol Ring (CMM) 400` as a decklist example, but the real data shows Sol Ring in that set is number 410 or 703. Claude had invented the number. It is gone from the rewritten section, and the one older mention now says 410.
+- **Build-step choice had a cost Claude missed (entry 7):** building the card data on every deploy would download about 100 MB from Scryfall per push. Claude caught it in entry 8, and the fix is on the todo list.
 
 ---
 
 ## Decisions and abandoned ideas
 
 - Not building a full rules engine or an AI opponent in the first plan. They can come back after the requirements are expanded.
+- Moved the deck builder to a stretch goal (entry 4). Importing a decklist as text comes first.
+- No user accounts (entry 4). Players pick a name in each lobby.
+- Skipped Forge's rules engine for now (entry 5). Casual mode only, where players manage their own cards.
