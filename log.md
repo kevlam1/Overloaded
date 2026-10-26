@@ -243,6 +243,32 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 11. Second audit: name matching, browser caching, and a hidden daily cost (2026-10-26)
+
+**What I asked for**
+- Asked Claude again to look for bugs and optimizations, rerun the API costs and go through everything carefully, taking its time.
+
+**What changed**
+- `scripts/audit-card-data.mjs`: now also tests the planned name normalization (collisions, names with a slash, back-face clashes).
+- Both scripts' comments, `CLAUDE.md` and `scripts/README.md` now say Node 20.11 or later instead of 18.
+- `docs/scryfall.md`: a new "Second audit" section. `CLAUDE.md`: the matching order, image loading, and a weekly limit on card-list changes. `docs/design-notes.md`: four stale notes are marked as changed. `docs/todo.md`: the build item now includes the weekly limit and sorted output.
+
+**What I checked**
+- Node's docs say `import.meta.dirname`, which both scripts use, was added in v20.11.0, so "Node 18 or later" was wrong.
+- Name matching on the cached data: normalizing makes 0 different names collide, and real spellings like `Lim-Dul's Cohort`, `Æther Vial`, `Jotun Grunt`, `Fire/Ice` and curly quotes all match. 29 back-face names clash with other cards (`Ancestral Recall` is a card and a back face), so back faces must never match automatically.
+- Caching on my own MIDI Companion site on Vercel: static files come with `max-age=0, must-revalidate` and an ETag, and a repeat request gets `304 Not Modified`. So an unchanged list is nearly free, but a changed one is downloaded again by every returning player.
+- Costs: if the list changed daily, about 2,250 regular players would fit in Vercel's free transfer. Weekly gives about 15,500, and monthly about 67,600.
+- Card images (one card): `small` 12 KB, `normal` 71 KB. A 100-card deck at `normal` is about 7 MB of a player's phone data.
+- Scryfall API requests this round: 0. Only 4 header requests to the image server, which has no rate limit.
+- Not checked: whether Vercel keeps the same ETag for an unchanged file across deploys, and whether Node 20.11 really runs the scripts (only 24 is installed).
+
+**Decisions**
+- Card data changes at most weekly, and the list is written sorted by name, so frequent deploys don't make players re-download it.
+- Matching order: full name, then front name, then a "did you mean" from back-face names, then the one fallback request.
+- Images load only for cards that are showing, small where cards are small.
+
+---
+
 ## Where AI misread me, or I had to correct course
 
 - In my first message I said to put the folder in my Portfolio project, which was wrong: the other artifacts live next to the Portfolio. I corrected it in my next message.
@@ -255,6 +281,9 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - **Bugs in its own checker (Claude's slip, entry 9):** the first audit printed three wrong counts because it shortened lists before counting them (for example "5" instead of 975 multi-face names). Claude spotted it, fixed it, and the committed script prints the right counts.
 - **The research script saved error pages (Claude's slip, entry 5, found in entry 9):** `fetch-scryfall.mjs` never checked whether a request succeeded. Fixed.
 - **Wrong test for online-only cards (Claude's slip, entry 9, found in entry 10):** it called a card online-only when no printing listed paper. That would have dropped preview cards of unreleased sets. It now requires every printing to be marked digital.
+- **Wrong Node version (Claude's slip, entry 5, found in entry 11):** `CLAUDE.md` said the scripts need Node 18 or later, but they use `import.meta.dirname`, which needs 20.11.
+- **A daily cost in the build plan (Claude's slip, entry 9, found in entry 11):** "download when Scryfall's file changes" meant a new card list almost every day, so every returning player would re-download it. Fixed by changing the list at most weekly.
+- **Same trap twice (Claude's slip, entry 11):** its throwaway name test filtered on the chosen printing's `digital` flag, the mistake fixed in entry 10, and wrongly reported `Lim-Dul's Cohort` as not found. Claude noticed because the count was exactly 1,062 short, and fixed the test before using any result.
 
 ---
 

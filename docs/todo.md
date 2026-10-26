@@ -15,7 +15,7 @@ Planning only. Nothing is built. My design notes are in `docs/design-notes.md`.
 - [ ] Read the Artifact 5 course page when it is posted and copy its requirements into `CLAUDE.md`. My design notes are not the course requirements.
 - [ ] Which formats the lobby offers, and the deck-size rule for each (Commander exactly 100, 60-card formats at least 60).
 - [ ] Later: a weekly rebuild of the card list, and exact printings from one small file per set (flow in `docs/scryfall.md`).
-- [ ] When the build is set up: avoid downloading about 100 MB from Scryfall on every push. Vercel's docs say files in `.vercel/cache` persist between builds, so keep the bulk files there and download only when `updated_at` changes. Test it on a real Vercel build.
+- [ ] When the build is set up: avoid downloading about 100 MB from Scryfall on every push, and change the card list at most weekly (each change makes every returning player re-download 1.41 MB). Keep the bulk files and the built list in `.vercel/cache`, reuse the list if it is younger than 7 days, and sort it by name so the bytes stay identical. Test on a real Vercel build that an unchanged list keeps its ETag across deploys.
 - [ ] Wizards of the Coast's fan-content rules: card images, names, the disclaimer the site must show.
 - [ ] Live play and the lobby store: can Vercel hold live connections? Compare Supabase, Firebase and others on free-tier limits, idle pausing, and whether hands can stay hidden. Plan mode.
 - [ ] Deck import: real text exports from Moxfield, Archidekt and ManaBox.

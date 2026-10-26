@@ -1,4 +1,4 @@
-# Scryfall: what was checked (2026-10-25)
+# Scryfall: what was checked (2026-10-25, audited twice on 2026-10-26)
 
 Read from `scryfall.com/docs/api` (the main page, `rate-limits`, `bulk-data`, `cards/collection`, `images`, `http-concerns`) and from real responses saved by `scripts/fetch-scryfall.mjs` into `data/cache/scryfall/` (gitignored). Re-check before launch: these pages can change.
 
@@ -155,7 +155,37 @@ Run with `node --max-old-space-size=4096 scripts/audit-card-data.mjs` on the cac
 - **The build cache on a real build:** can only be tested with a deploy, which needs the build step and a push. Planned for when the build exists.
 - **Request count so far (2026-10-25 and 26):** 2 batch lookups and about 10 `GET /bulk-data` calls to the API, never more than 2 a minute, and no 429. Far inside the limits.
 
+## Second audit (2026-10-26): name matching, caching, and costs again
+
+**Name matching, tested** (`scripts/audit-card-data.mjs` and a throwaway test of typed spellings):
+- The normalization (remove accents, `Æ` to `Ae`, curly quotes to straight, `꞉` (U+A789, in `Ratonhnhaké꞉ton`) to `:`, any `/` to ` // `, lowercase) makes **0** different names collide.
+- Typed spellings that resolved correctly: `sol ring`, `Lim-Dul's Cohort`, `Æther Vial` and `Aether Vial`, `Jotun Grunt` (stored as `Jötun Grunt`), `Fire/Ice`, `Urza’s Saga` with a curly apostrophe, `Kongming, “Sleeping Dragon”`, `Who/What/When/Where/Why`.
+- Two names have a lone `/` (`SP//dr, Piloted by Peni`, `Summon: Choco/Mog`). They still match, because the list and the typed text are normalized the same way.
+- **Back-face names must not auto-match.** `Insectile Aberration` (Delver's back) isn't found, and matching back faces automatically would be wrong: 29 back-face names clash. For example, `Ancestral Recall` is a real card and also the back of `Emeritus of Ideation`, and `Peer Review` is the back of three cards.
+- **Matching order:** full name, then front-face name, then (if still not found) a "did you mean …?" suggestion from back-face names, then the one fallback batch request.
+
+**Caching, checked on a real Vercel site** (headers of `midi-companion.vercel.app`, which is mine):
+- Static files, even hashed bundles, are served with `Cache-Control: public, max-age=0, must-revalidate` and an `ETag`. A repeat request that sends the ETag gets `304 Not Modified` with no body.
+- Vercel's CDN docs: static files are cached on its network "for the lifetime of the deployment"; for the browser to keep a file, the site must send `max-age=N` itself.
+- So an **unchanged** card list costs a returning player one small request and almost no transfer. A **changed** list makes every returning player download all 1.41 MB again.
+
+**What this changes in the cost math** (100 GB a month, decimal reading, 1.41 MB list):
+
+| How often the list changes | A returning player downloads | Regular players that fit |
+|---|---|---|
+| Daily | 42.3 MB a month | about 2,250 |
+| Weekly | 6.1 MB a month | about 15,500 |
+| Monthly | 1.4 MB a month | about 67,600 |
+
+- **Bug in the plan:** the build fetched new card data whenever Scryfall's file changed, and Scryfall rebuilds daily. Every deploy would then ship a new list, and every returning player would re-download it. **Fix:** refresh card data at most once a week (reuse the cached list if it is younger than 7 days), and write the list in a fixed order (sorted by name) so unchanged data gives identical bytes and the same ETag. That ETags match across deploys for identical bytes is not verified; the 32-character ETags look like content hashes.
+- A content-hashed file name with `Cache-Control: public, max-age=31536000, immutable` would skip even the 304 request. It's optional and only saves CDN requests (1,000,000 a month included).
+- Cards released between weekly refreshes use the one fallback batch request, as planned.
+
+**Card images, cost to the player** (one card, headers from `cards.scryfall.io`): `small` 146×204 is 12 KB, `normal` 488×680 is 71 KB, `large` 105 KB, `art_crop` 38 KB. A 100-card deck at `normal` is about 7 MB on a phone, or about 1.2 MB at `small`. Images cost us nothing but cost players data. **Plan:** load an image only when its card is showing (never the library), use `small` where cards are drawn small, and `normal` when a card is enlarged. Scryfall's image server lets browsers cache images for a year.
+
+**Node version bug:** both scripts use `import.meta.dirname`, which Node's docs say was "Added in: v21.2.0, v20.11.0". `CLAUDE.md` said "Node 18 or later". Corrected to Node 20.11 or later; tested on Node 24 only.
+
 ### How often to rebuild (2026-10-26)
 - "Rebuild" means a build script does what `fetch-scryfall.mjs bulk` does today (download the bulk file and trim it), but writes the card list and per-set files into the site instead of only printing sizes. It runs inside Vercel's build, so every deploy rebuilds.
-- **How often:** Scryfall says gameplay data changes rarely, and weekly or right after a set release is enough. Recommendation: an automatic weekly rebuild, plus a manual redeploy on a set's release day if players want the new cards at once.
+- **How often:** Scryfall says gameplay data changes rarely, and weekly or right after a set release is enough. Recommendation: an automatic weekly rebuild, plus a manual redeploy on a set's release day if players want the new cards at once. **Updated in the second audit:** deploying often must not refresh card data more than weekly, because each change makes every returning player re-download the list.
 - **Caveat on my build-step choice:** per-set files need the Default Cards file (76 MB) as well as Oracle Cards (24 MB). Rebuilding on every push would download about 100 MB from Scryfall each time, many times a day while developing. That is allowed (no rate limit on `data.scryfall.io`) but not courteous. Fix to check when the build is set up: skip the download when the bulk file's `updated_at` hasn't changed (needs Vercel's build cache to keep files between builds, not verified), or only rebuild card data on production deploys.
