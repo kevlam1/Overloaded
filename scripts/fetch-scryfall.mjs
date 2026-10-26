@@ -1,4 +1,4 @@
-// Research tool for Scryfall card data. Plain Node 18+, no dependencies.
+// Research tool for Scryfall card data. Plain Node 20.11+ (import.meta.dirname), no dependencies.
 //   node scripts/fetch-scryfall.mjs sample  -> one POST /cards/collection, raw reply saved, key fields printed
 //   node scripts/fetch-scryfall.mjs bulk [oracle_cards|default_cards]
 //        -> downloads that bulk file once (default oracle_cards), measures a trimmed card list and printing list
