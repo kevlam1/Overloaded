@@ -1,0 +1,115 @@
+# Scryfall: what was checked (2026-10-25)
+
+Read from `scryfall.com/docs/api` (the main page, `rate-limits`, `bulk-data`, `cards/collection`, `images`, `http-concerns`) and from real responses saved by `scripts/fetch-scryfall.mjs` into `data/cache/scryfall/` (gitignored). Re-check before launch: these pages can change.
+
+## Rules we must follow (quoted or close to the docs)
+- **Required headers:** every request to `api.scryfall.com` needs `User-Agent` and `Accept`. A script names the app (we send `Overloaded/0.1 (+repo link)`). From browser JavaScript, keep the browser's own User-Agent.
+- **Rate limits** (hard limits on `api.scryfall.com`):
+  - `/cards/search`, `/cards/named`, `/cards/random`, `/cards/collection`: **2 per second** (500 ms apart).
+  - `/cards/manifest`: 10 per minute.
+  - All other methods: 10 per second.
+  - Files on `*.scryfall.io` (images, bulk downloads): **no rate limit**.
+- **HTTP 429** means our access is limited for 30 seconds. Ignoring 429s can get the app banned temporarily or permanently. We must slow down.
+- **Cache** what we download, for at least 24 hours. "If you need to rapidly look up card names ... or resolve a large number of card images, you must use the bulk data files."
+- Gameplay data (names, rules text, costs) changes rarely: weekly or after a set release is enough.
+- **Data use:** free, as part of the Wizards of the Coast Fan Content Policy. No paywall, no implying Scryfall endorses us, no using the data for a different game, and no plain repackaging (the site must add value).
+- **Images:** do not crop off the copyright or artist name, stretch, blur, recolor, or watermark card images. If we show an `art_crop` (for example as a playmat), show the artist and copyright somewhere on the same screen.
+- **CORS:** the API and image servers send CORS headers, so browser JavaScript can call them directly. The request must carry an `Origin` header (browsers add it). If we set a Content Security Policy: `connect-src api.scryfall.com`, `img-src *.scryfall.io`.
+
+## Batch lookup: `POST /cards/collection`
+- Up to **75 cards per request**, `Content-Type: application/json`, body `{"identifiers": [...]}`.
+- Identifiers can be `{"name"}`, `{"name","set"}`, `{"set","collector_number"}`, `{"id"}` and others. A decklist line usually gives a name and often a set and number.
+- Names that are not found come back in `not_found`. Don't match results to requests by position.
+- A 100-card Commander deck is 2 requests, at least 0.5 s apart.
+
+## Fields we would use (seen in the sample reply)
+- `id`, `oracle_id`, `name`, `layout`, `type_line`, `mana_cost`, `cmc`, `oracle_text`, `colors`, `keywords`, `produced_mana`, `image_uris`, `card_faces`, `artist`.
+- `type_line` contains "Land" for lands (`"Basic Land — Forest"`), so the land row needs no rules engine.
+- `keywords`: Serra Angel `["Flying","Vigilance"]`. It lists abilities for the whole card, including the other face (Delver of Secrets has `["Flying","Transform"]`, but only its back face flies). Use per-face data for icons.
+- `produced_mana`: Forest `["G"]`, missing on cards that make no mana. Useful later for a "can I afford this" hint.
+- **Double-faced cards** (`layout` `transform`, `modal_dfc` and others) have no top-level `image_uris` or `mana_cost`. They are under `card_faces[n]`.
+
+## Images
+- Sizes include `small` 146×204, `normal` 488×680, `large` 672×936, `png` 744×1040, `art_crop`.
+- The link is `https://cards.scryfall.io/<size>/<front|back>/<id[0]>/<id[1]>/<id>.jpg`. Scryfall adds `?<timestamp>`, but the link works without it (checked: HTTP 200, `image/jpeg`, about 70 KB for `normal`, `Access-Control-Allow-Origin: *`, cached for a year). So **an image link can be rebuilt from the card id, and there's no need to store it**. The trade-off: without the timestamp, a re-scanned image can stay stale in caches.
+
+## Bulk data (measured 2026-10-25 and 2026-10-26)
+- `GET /bulk-data` lists the files. Each item has `type`, `jsonl_download_uri`, `compressed_size` and `updated_at`. The files are gzipped JSON Lines, rebuilt every 12 to 24 hours.
+- Compressed sizes: Oracle Cards 23.9 MB (one record per card), Unique Artwork 36.8 MB, Default Cards 76.3 MB (every printing in English), All Cards 382.5 MB, Rulings 5.2 MB.
+- Measured with `node scripts/fetch-scryfall.mjs bulk oracle_cards` and `bulk default_cards`. Art cards, vanguards, planes and schemes are dropped; tokens and emblems are kept.
+
+| File | Records | Unpacked | Kept for decks | Card list (name, type, cost, keywords, id), gzipped | Printing list (set, number, id), gzipped |
+|---|---|---|---|---|---|
+| Oracle Cards | 38,998 | 199.5 MB | 36,230 | **1.51 MB** | 0.84 MB |
+| Default Cards | 119,203 | 620.1 MB | 115,869 | 4.49 MB | **2.67 MB** |
+
+## Vercel's free limits that apply (read 2026-10-26 from `vercel.com/docs/plans/hobby` and `/docs/limits`)
+- Hobby includes the first **100 GB of Fast Data Transfer**, 10 GB of Fast Origin Transfer and 1,000,000 CDN requests. "If you exceed your usage limits on the Hobby plan, you will have to wait until 30 days have passed before you can use the feature again." So going over costs no money, but the site can stop working.
+- Hobby is "non-commercial, personal use only". A class project fits.
+- A CLI deploy can upload at most 100 MB of source files.
+
+## Deck size, sideboards, and how many requests (Kevin's concerns, 2026-10-26)
+**The concern:** main boards can be over 100 cards, and some sideboards hold hundreds. Looking all of that up one deck at a time could break Scryfall's limits and get the site banned. Kevin's idea: cap the first import at 100 cards, and keep the sideboard as its own category that players swap from without new lookups.
+
+**What the batch lookup would cost.** At 75 cards a request and 2 requests a second:
+
+| Deck | Requests | Shortest time |
+|---|---|---|
+| 60-card main | 1 | 0 s |
+| 100-card Commander | 2 | 0.5 s |
+| 100 main + 300 sideboard | 6 | 2.5 s |
+| 500 cards | 7 | 3 s |
+
+One player importing one deck is well inside the limit. The risk comes from many players at once. The docs don't say whether the limit counts per user or for the whole site (not checked), and they say large lookups "must use the bulk data files". If the limit counts for the whole site, ten players importing at the same moment would go over it.
+
+**Options:**
+1. **Batch lookup per deck.** No file to build or host. Costs: Scryfall's limit is shared by every player, there's a wait for big decks, and new decks need a network trip.
+2. **Our own card list, built from the bulk file (recommended).** A script turns Oracle Cards into a 1.5 MB gzipped list, and Vercel serves it as a static file that the browser caches. A deck of any size, sideboard included, is matched by name **in the browser with zero Scryfall API calls**. Images still load straight from `cards.scryfall.io`, which has no rate limit, so they cost us nothing.
+   - Cost on Vercel: 1.5 MB per player's first visit. With 100 GB a month, that's about 68,000 first visits before the limit, and repeat visits are served from the browser cache.
+   - New cards: a name that isn't in our list (a set released after the last build) falls back to the batch lookup for just those few names.
+   - Freshness: rebuild the list weekly or after a set release, as Scryfall suggests. Building it in Vercel's build step keeps a generated 4 MB file out of git history. Not decided.
+   - Scryfall says not to "simply repackage" its data. Our list only serves our game, which adds value, but that's my reading and not confirmed with Scryfall.
+3. **Exact printings** (a decklist line like `1 Sol Ring (CMM) 410`) need the printing list: 2.7 MB more for every printing, or split into one small file per set so a deck loads only its sets. Version one can match by name only and show each card's default printing. Exact art comes later.
+
+**Caps and sideboards (proposal):**
+- With option 2, a cap isn't needed to protect Scryfall. A cap is still worth having so a pasted 10,000-line text can't freeze a browser or flood a lobby. Proposal: one generous limit on main plus sideboard (for example 250), plus a warning when a main deck is outside the format's size. Numbers are Kevin's call.
+- The sideboard is its own section of an imported deck, matched against the same list at import. Swapping cards between main and sideboard in the lobby only changes the deck stored in the browser, with no new lookups.
+- In a game, other players get only card ids from the server and look up names and types in their own copy of the same list. Version one uses one printing per card, so both sides always agree.
+
+## Decided 2026-10-26
+- **Our own card list (option 2).** It's a static JSON file, not a database: the 36,230 cards that can be in a deck, with name, type, cost, keywords and id. New cards do not join it on their own. They appear when the list is rebuilt from Scryfall's newest bulk file. Until then, names the list doesn't have go to the batch lookup.
+- **Built during Vercel's build step, not committed** (Claude's choice; Kevin said to do what is best). The build downloads the Oracle Cards file from `data.scryfall.io` (no rate limit) and writes the list into the site's output. Reasons: no 1.5 MB file changing in git history on every refresh, and every deploy gets current cards. If Scryfall is down, the build fails and Vercel keeps serving the previous deploy. A weekly rebuild (for example, a scheduled GitHub Action calling a Vercel deploy hook, with the hook URL kept as a secret) is for later. This needs a build command, so it comes with the stack choice.
+- **Cap: 200 cards for main plus sideboard together**, checked at import (Kevin's number, 2026-10-26). Bigger pastes are refused with a message saying how many cards were found.
+- **The format decides if a game can start, not the import.** For example, Commander needs exactly 100 cards in the main deck, and 60-card formats need at least 60. Proposal: the host picks the format in the lobby, and a player can't ready up with a deck that doesn't fit it. Which formats to offer is open.
+
+## Rules text and exact printings (measured 2026-10-26)
+- **Rules text** would double the list: 1.51 MB without it, 3.00 MB with it. The card image already shows the text, so version one leaves it out. If search by text or a text view is wanted later, it can be a second file that loads only when needed.
+### Exact printings, rethought (2026-10-26)
+**What a printing changes:** only the picture. Name, type, cost and keywords are the same in every printing, so they always come from the card list. The image link needs the printing's **id** (`cards.scryfall.io/normal/front/<id[0]>/<id[1]>/<id>.jpg`). Our list holds one id per card, the default printing's.
+
+**Facts checked in the Default Cards file:**
+- Set code plus collector number names exactly one printing: 119,203 pairs, 0 duplicates.
+- One card can have many printings (Sol Ring has 144). In Commander Masters (`cmm`) it is number 410 or 703.
+- Collector numbers are text, not always numbers: `268p`, `213★`, `XLN-217`, `S3`. Match them exactly. Set codes are lowercase in Scryfall (`cmm`), so lowercase the decklist's code.
+
+**The flow:**
+1. **At import, once.** For each line, find the card by name in the card list (game data). If the line gives a set and number, find that printing's id; otherwise use the default id.
+2. **Save the id with the deck** in the browser. A saved deck never looks anything up again.
+3. **In a game**, the server sends other players the card with its printing id when it becomes visible. They build the image link from the id, with no lookup and no list of printings.
+4. **If the printing isn't found** (a typo, or a set newer than our files), show the default printing and mark the line, so the player still gets the right card.
+
+**Where step 1 gets the printing id:**
+
+| Option | Download | Scryfall API calls | Work |
+|---|---|---|---|
+| A. One small file per set | Only the deck's sets: median 0.5 KB each, largest 140 KB | 0 | The build writes about 1,000 small files |
+| B. One file of every printing | 2.67 MB gzipped, once per browser | 0 | Simplest code; heavy on a phone |
+| C. Batch lookup by set and number | none | Up to 3 per 200-card import | No build work, but it depends on Scryfall's shared limit again |
+
+**Recommendation: A.** It is the only option that is both small and free of API calls. The lookup runs only at import, and opponents never need it. If per-set files prove awkward, B is the simple fallback.
+- Not checked yet: whether Moxfield, Archidekt and ManaBox exports actually include set and number, and in what form (open question 15).
+
+### How often to rebuild (2026-10-26)
+- "Rebuild" means a build script does what `fetch-scryfall.mjs bulk` does today (download the bulk file and trim it), but writes the card list and per-set files into the site instead of only printing sizes. It runs inside Vercel's build, so every deploy rebuilds.
+- **How often:** Scryfall says gameplay data changes rarely, and weekly or right after a set release is enough. Recommendation: an automatic weekly rebuild, plus a manual redeploy on a set's release day if players want the new cards at once.
+- **Caveat on my build-step choice:** per-set files need the Default Cards file (76 MB) as well as Oracle Cards (24 MB). Rebuilding on every push would download about 100 MB from Scryfall each time, many times a day while developing. That is allowed (no rate limit on `data.scryfall.io`) but not courteous. Fix to check when the build is set up: skip the download when the bulk file's `updated_at` hasn't changed (needs Vercel's build cache to keep files between builds, not verified), or only rebuild card data on production deploys.
