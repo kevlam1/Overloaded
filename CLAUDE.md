@@ -60,6 +60,8 @@ A multi-page site with a backend, not one `index.html`. The pieces and the folde
 - `docs/scryfall.md`: Scryfall's rules, rate limits, batch lookup, fields, image links and bulk file sizes (checked 2026-10-25), two audits with fixes and costs (2026-10-26).
 - `scripts/fetch-scryfall.mjs`: research tool. `sample` saves one batch lookup. `bulk [type]` downloads a bulk file and measures the card list, the list with rules text, and the per-set printing files. Writes only to `data/cache/scryfall/` (gitignored). Stops on any failed request.
 - `scripts/audit-card-data.mjs`: checks the cached bulk files for what breaks name matching (tokens, collectibles, online-only cards, multi-face names, accents, normalization collisions, back-face clashes) and prints list sizes. No network.
+- `docs/deck-import.md`: what the deck sites document about their export text, the test deck, the real exports, and the link-import analysis.
+- `shared/deck-text.mjs`: the pasted-decklist parser (text to entries; no card lookup). `scripts/test-deck-text.mjs` tests it.
 - `docs/private-lobby.md`: how PokeGuess does private rooms (code, player token, reconnect, hidden data) and what it suggests here. Draft ideas.
 - `.gitignore`: ignores `node_modules/`, `dist/`, `build/`, `.env` and `.env.*` (not `.env.example`), `*.local`, `*.log`, `.idea/`, `scratch*`, `CLAUDE.local.md`, `.claude/settings.local.json`, `.vercel/`, `coverage/`, OS files (`Thumbs.db`, `desktop.ini`, `.DS_Store`), `*.pdf` (keeps my design notes out), `*.sqlite`, `*.db` and `data/cache/`.
 - `.claude/settings.json`: `Read` deny rules for `.env` and key files, copied from readme-architect. Best-effort only (the docs call `Read` rules best-effort), not a hard block.
@@ -68,6 +70,7 @@ A multi-page site with a backend, not one `index.html`. The pieces and the folde
 
 ## Run and check
 - No site yet. Research tool (Node 20.11 or later, because the scripts use `import.meta.dirname`; no install): `node scripts/fetch-scryfall.mjs sample` (one API request) and `node scripts/fetch-scryfall.mjs bulk [oracle_cards|default_cards]` (a 24 MB or 76 MB download, skipped if today's copy is cached, then sizes printed). After both downloads: `node --max-old-space-size=4096 scripts/audit-card-data.mjs`.
+- Tests: `node scripts/test-deck-text.mjs` (prints "All deck text checks passed."). Checked on 2026-10-26 by running it against 34 deliberately broken copies of the parser (20, then 14 after the commander header change); every one failed it.
 - Card-list rules from the 2026-10-26 audit (details in `docs/scryfall.md`): tokens in their own list, no collectibles, no online-only cards (only when every printing is `digital: true`, never because `paper` is missing, which would drop previews of unreleased sets), land row and icons from the showing face, match full name then front name after normalizing accents, quotes and slashes (back-face names only as a "did you mean" suggestion, since 29 clash), at most one fallback batch request per import. Load card images only when the card is showing, `small` where cards are small.
 - Any code that calls Scryfall must send `User-Agent` and `Accept`, keep `/cards/collection` to 2 requests a second, back off on HTTP 429, and cache results for at least 24 hours.
 - **The card-data build must not download Scryfall's bulk files (about 100 MB) on every push, and must not change the card list more than once a week.** Vercel's docs say files in `.vercel/cache` persist between builds: keep the bulk files and the built list there, and reuse the list if it is younger than 7 days. Write the list in a fixed order (sorted by name) so unchanged data gives identical bytes. A changed list makes every returning player download all of it again (Vercel serves static files with `max-age=0, must-revalidate` and an ETag, checked on MIDI Companion). Show me the plan before building it. See the second audit and "How often to rebuild" in `docs/scryfall.md`.
@@ -75,6 +78,18 @@ A multi-page site with a backend, not one `index.html`. The pieces and the folde
 - For real-time play, a check needs two browser sessions at once. Say plainly that one session cannot prove sync, and test with two.
 - Game logic gets plain Node tests that print "All ... checks passed." Make sure the tests really run (an assertion in a comment passes forever).
 - Spot-check card data against the real source (print the raw fields first). Record every disagreement in `log.md`.
+
+## Unknowns to check when their trigger happens (added 2026-10-26)
+Desk research can't answer these. When a trigger below happens in a session, do the check in that session, record the result in `log.md` and `docs/scryfall.md`, and delete the row here. Tell me when one is due.
+
+| Still unknown | Trigger: check it when... | How |
+|---|---|---|
+| How often the trimmed card list really changes | we next work on card data and Scryfall's `oracle_cards` file is newer than the cached one | Steps in `docs/todo.md` (copy the cached file aside first, since the script overwrites it) |
+| Same ETag across deploys for an unchanged list; whether `.vercel/cache` really keeps files between builds | the first real Vercel build that writes the card list | Deploy twice without changing card data; compare the list's `ETag` and the build log |
+| ManaBox's export text (Moxfield and Archidekt text are known) | before writing the decklist parser (phase 1) | Kevin pastes ManaBox's Export and Share → Custom text file (see `docs/deck-import.md`) |
+| Whether Archidekt or Moxfield allow automated deck requests from our server | before building any deck-link import | Kevin decides whether to ask each site; read both terms in a browser (Archidekt's were read only through a summarizer). **Make no more requests to either site until a site says yes.** |
+| Real data transfer against the free 100 GB | the site has real players | Vercel dashboard usage page; redo the math in `docs/scryfall.md` |
+| Whether the scripts run on Node 20.11 (only 24 tested) | Vercel's build Node version is chosen, or someone runs them on 20 | Run both scripts on that version |
 
 ## Hard rules
 - No keys, tokens or secrets in the repo, not even in `log.md` or `README.md`. Use environment variables and a gitignored `.env` with a committed `.env.example` that has names only. My repos are public.
@@ -125,4 +140,4 @@ A multi-page site with a backend, not one `index.html`. The pieces and the folde
 12. **Does the AI-built-software angle need to show up?** The course is about generative AI and software development. Whether the product itself uses a model is not required by anything I have read for this artifact.
 13. **Testing real-time and drag-and-drop** on phones and in two browsers at once. How, with headless Chrome only? Phones have no hover or `Alt` key, so every hover feature needs a touch version.
 14. **Monorepo layout.** Whether `frontend`, `backend` and `shared` stay in one repo with one `package.json` or become workspaces. The current layout is a guess.
-15. **Deck import formats.** What text each site (Moxfield, Archidekt, ManaBox) exports. Print real examples before writing the parser.
+15. **Deck import formats.** What text each site (Moxfield, Archidekt, ManaBox) exports. Print real examples before writing the parser. 2026-10-26: real exports from Moxfield (two options) and Archidekt are in `docs/deck-import.md` and parse with a draft parser; set and number are in "Copy for Moxfield" and Archidekt text but not Moxfield plain text. Sideboard (Moxfield only) and commander (position only) markers are known; a typed `Commander` or `Companion` line marks only the next card, and the import page must make the player confirm the commander in Commander games (the first-card guess was right for 1 of 3 exports; see "Finding the commander" in `docs/deck-import.md`). Still missing: ManaBox. Link import (public and unlisted decks) is analysed there: Archidekt's API returns Scryfall ids and categories but a browser can't call it (CORS), its terms forbid automated requests, and Moxfield's terms are unread. No more requests to either site without permission. Paste text stays the main path; link import only if a site agrees.

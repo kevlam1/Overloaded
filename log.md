@@ -269,6 +269,113 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 12. Starting on deck import formats (2026-10-26)
+
+**What I asked for**
+- Asked whether deck import formats would be smoother to do next than live play, and to start on it if so.
+
+**What changed**
+- New `docs/deck-import.md`: what Moxfield, Archidekt and ManaBox document about their export text, a 10-card test deck covering every tricky case from the audits, and exactly which exports to paste back.
+- `CLAUDE.md` (open question 15 and the Files list) and `docs/todo.md` point to it.
+
+**What I checked**
+- Claude said yes, it's smoother: a small question with no architecture change that unblocks phase 1. Live play is bigger and needs plan mode.
+- Read ManaBox's official guide: lines like `3 Verdant Catacombs (MH2) 260`, with set and number optional. Archidekt's FAQ doesn't give the syntax, and nothing official from Moxfield was found, only third-party guides (MTGO-style lines, a `*F*` foil marker in other tools).
+- Every card in the test deck exists under that exact name in the cached Scryfall data, and so does the Commander Masters #410 Sol Ring.
+- Not checked: any real export. Claude can't log in to my accounts, so I have to export them.
+
+**Decisions**
+- Deck import formats before live play.
+- I'll import the test deck into each site, set Sol Ring to Commander Masters #410, mark one card foil, add a category on Archidekt, and paste every text export option back, after checking it has no username or private link.
+
+---
+
+## 13. Real deck exports, and importing from a link (2026-10-26)
+
+**What I asked for**
+- Pasted real exports of the test deck from Moxfield ("Copy for Moxfield" and "Copy Plain Text") and Archidekt (text). I also said we should consider users pasting a Moxfield or Archidekt link instead of text, for public and unlisted decks only.
+
+**What changed**
+- `docs/deck-import.md`: the exports, a table of what they show, a first-draft line parser, and a section on link import. `CLAUDE.md` (open question 15 and the unknowns table), `docs/todo.md` updated to match.
+
+**What I checked**
+- All 16 set and number pairs in the exports exist in Scryfall's data and match the right card, and every name resolves with the planned name matching. A draft line parser handles every real line plus awkward names like `B.F.M. (Big Furry Monster)`.
+- Findings: set and number appear in "Copy for Moxfield" and Archidekt but not Moxfield's plain text, so the import page should tell Moxfield users which to use. `*F*` marks foil on both. Two-faced cards use `/` on Moxfield and `//` on Archidekt. `plst` numbers like `ELD-115` match Scryfall's exactly.
+- Link import: neither site's docs say what "unlisted" allows. No official Moxfield API was found, a third-party note says its terms forbid scraping, and its terms page returned 403 to automation, so I couldn't read them. Archidekt's API is unofficial and in "open beta". My one test request (the package's example deck) returned 404, and its CORS header allowed only `http://localhost:3000`, so a browser on our site probably can't call it. That was on a 404 reply, not a real deck.
+- Not checked: ManaBox's export, how sideboards and commanders are marked on Archidekt, anything about a real Archidekt or Moxfield deck link, and Vercel function limits.
+
+**Decisions**
+- Paste text stays the main import path for version one. Link import is a convenience to decide later, probably Archidekt only, through a server function that accepts only exact deck-link patterns.
+- Moxfield's internal API is not called until its terms are read or Moxfield agrees.
+- Still to do: ManaBox exports, sideboard and commander markers, and test decks on Archidekt (public, unlisted, private).
+
+---
+
+## 14. Archidekt link test, Moxfield, and a clause that changes the plan (2026-10-26)
+
+**What I asked for**
+- Told Claude the exports were the literal copy-and-paste text, that Moxfield puts the commander on top ("Copy for Moxfield") or at the bottom (plain text), and shared a public Archidekt deck link. Asked whether Moxfield has no API, how Tabletop Simulator turns a Moxfield link into a list, and what to make of Gemini's answer, with the condition that nothing be bypassed.
+
+**What changed**
+- `docs/deck-import.md`: the commander and sideboard rows are corrected, and the link-import section is rewritten with the Archidekt test, the terms, Moxfield, and a proposal. `CLAUDE.md` (open question 15, the unknowns table) and `docs/todo.md` updated to match.
+
+**What I checked**
+- One request to Archidekt's deck API for the link I shared: 200 OK, 202,700 bytes, and a CORS header allowing only `http://localhost:3000`, so a browser on our site can't read it. Each card's `uid` is Scryfall's id (67 of 67 match), and the deck's categories mark the sideboard, maybeboard and commander.
+- Archidekt's terms, read through a summarizing tool: they prohibit automated agents or scripts from generating automated requests to the site. My one test request was that, strictly. It was a single request on a public deck, but there will be no more until a site agrees.
+- Moxfield: no official API found, a request thread with no official reply, third-party libraries that rely on scraping. Tabletop Simulator's Moxfield import is a community mod that has broken when Moxfield changed. The Gemini answer's advice to match browser headers or use Puppeteer is a disguise to get past Cloudflare, so I'm not doing it.
+- Not checked: Moxfield's terms (403 to automation), an unlisted or private Archidekt deck, ManaBox's exports, anything about Vercel function limits.
+
+**Decisions**
+- Paste text is the main import path for version one, and the import page lets the player confirm the commander and move cards to the sideboard, since the exports mark them only by position or not at all.
+- Deck-link import is deferred, and happens only if Archidekt or Moxfield agrees. I decide whether to ask them. No requests to either site from this project until then.
+
+---
+
+## 15. First code: the pasted-decklist parser (2026-10-26)
+
+**What I asked for**
+- Said to focus on pasted decks only, and leave deck links for another time.
+
+**What changed**
+- New `shared/deck-text.mjs`: turns pasted text into entries (quantity, name, set, number, foil, section), plain JavaScript with no dependencies. New `scripts/test-deck-text.mjs` tests it using my real Moxfield and Archidekt exports.
+- `CLAUDE.md`, `docs/deck-import.md`, `docs/todo.md`, and the two README files describe it.
+
+**What I checked**
+- Ran the test: "All deck text checks passed." All three real exports parse to the same 19 cards.
+- Checked the real data first: Scryfall set codes are 3 to 6 characters (my draft said 2 to 6), and collector numbers never have spaces but can contain stars, daggers, Φ and underscores.
+- Ran the tests against 20 deliberately broken copies of the parser in a throwaway folder. All 20 failed the test, so it can actually fail.
+- Not checked: ManaBox's format, any header name besides `SIDEBOARD:`, matching names to cards, and anything in a browser.
+
+**Decisions**
+- Only a header sets a section. A card after a blank line that follows a labeled section is `unlabeled`, because that's where Moxfield plain text puts the commander. The page asks me, and the parser never guesses.
+- The 200 card cap counts main, sideboard, commander and companion by quantity, and leaves out the maybeboard. Input over 100,000 characters or 1,000 lines is refused. Those two limits are Claude's guesses.
+- Lines that aren't cards are reported with their line number, never skipped silently.
+
+---
+
+## 16. Finding the commander in a pasted deck (2026-10-26)
+
+**What I asked for**
+- Suggested assuming the first card in a pasted list is the commander, unless I type "Commander" above a card, with a preview page later to confirm the deck and the commander, and to pick a partner, companion or duo commander that wasn't picked up.
+
+**What changed**
+- `shared/deck-text.mjs`: a `Commander` or `Companion` line now marks only the next card, then the parser goes back to the section it was in. An empty one gives a `header_without_card` warning.
+- `scripts/test-deck-text.mjs`: new checks for it. `docs/deck-import.md` has a new "Finding the commander" section. `CLAUDE.md` and `docs/todo.md` updated.
+
+**What I checked**
+- Claude tried three rules on my three real exports: the first card is right for 1 of 3 (the commander is last in Moxfield plain text, and Archidekt sorts alphabetically with no marker). Using the blank-line block as well gets 2 of 3. Adding "first legendary creature" gets 3 of 3, but that is weak evidence, because my test deck has one other legendary creature and he sorts after the commander.
+- Before the change, one typed `Commander` line turned the whole rest of the pasted list into commanders, in the middle of a list and at the top. Both cases are fixed and tested.
+- 14 deliberately broken copies of the parser were run against the new tests, and all 14 were caught. The first run passed immediately, which is why Claude checked.
+- Scryfall's keywords include `Partner` (143 cards), `Partner with` (54), `Choose a background` (32), `Companion` (12) and `Doctor's companion` (27). `Friends forever` isn't one. So the preview can suggest partners and companions.
+- Not checked: the preview page, card matching, and whether a site writes a partner as two lines under one header.
+
+**Decisions**
+- Typed headers keep my idea, but Claude changed one thing: `Commander` marks only the next card, so partners need a second `Commander` line or the preview. I can reverse this.
+- The first-card guess stays only as the last fallback. In Commander games the player must confirm the commander before they can ready up. The guess saves clicks, and it never decides.
+- Commander size check (open): commander plus 99 is the 100, and a companion and a sideboard are outside it.
+
+---
+
 ## Where AI misread me, or I had to correct course
 
 - In my first message I said to put the folder in my Portfolio project, which was wrong: the other artifacts live next to the Portfolio. I corrected it in my next message.
@@ -284,6 +391,13 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - **Wrong Node version (Claude's slip, entry 5, found in entry 11):** `CLAUDE.md` said the scripts need Node 18 or later, but they use `import.meta.dirname`, which needs 20.11.
 - **A daily cost in the build plan (Claude's slip, entry 9, found in entry 11):** "download when Scryfall's file changes" meant a new card list almost every day, so every returning player would re-download it. Fixed by changing the list at most weekly.
 - **Same trap twice (Claude's slip, entry 11):** its throwaway name test filtered on the chosen printing's `digital` flag, the mistake fixed in entry 10, and wrongly reported `Lim-Dul's Cohort` as not found. Claude noticed because the count was exactly 1,062 short, and fixed the test before using any result.
+- **Misread my answer (after entry 11):** Claude asked whether to compare Scryfall's files "in a few days". I answered that it should happen when we're working on something, not after a wait. Claude read that as a new design question and started researching a different way to refresh card data (one Scryfall API call and two header requests, no file changes). I pointed out it was an answer, and the comparison is now a todo item for our next card-data session. I then asked for the list of things still unknown to be kept somewhere Claude will surely check. It is now a table in `CLAUDE.md`, the only file every session loads, with an event that makes each row due.
+- **Made-up conclusions about the exports (Claude's slip, entry 13, corrected in entry 14):** it said the commander had "no marker" and the Archidekt sideboard was "unknown". Kevin pointed out that commanders are marked by position on Moxfield (top in "Copy for Moxfield", bottom in plain text) and that the Archidekt text is the literal export. It also expected a link test to need three deck links from Kevin, but one public link was enough to learn most of it.
+- **A request I should have asked about first (Claude's slip, entry 13):** it sent a script's request to Archidekt's API (the package's example deck) before reading Archidekt's terms, which say scripts must not make automated requests. It was one request and returned 404, then one more on Kevin's deck, but the terms should have been read first.
+- **Invisible characters in the first parser (Claude's slip, entry 15):** the `﻿` and ` ` escapes in `shared/deck-text.mjs` were saved as real, invisible characters inside the regexes. It worked, but nobody could read or safely edit that line, and my first mutation check couldn't find the text to change, which exposed it. I rewrote the file, and noticed JavaScript's `\s` already covers both, so those two replace calls were removed. A search now shows the only non-ASCII characters are the intended ones.
+- **Wrong expected line number in the first test (Claude's slip, entry 15):** I wrote line 11 for Lightning Bolt, but it is line 12 (9 cards, a blank line, then `SIDEBOARD:` on 11). I recounted by hand and fixed the test, not the parser.
+- **A typed Commander line swallowed the deck (Claude's slip, entry 15, found in entry 16):** the first parser let a `Commander` header cover every card below it, so typing it above one card made the rest of the list commanders, and a correct paste left the 99 cards `unlabeled`. I only noticed when I tested the idea of typing it into a pasted list. It is fixed and tested.
+- **Mutation checks that checked nothing (Claude's slip, entry 15):** three of my first ten broken copies didn't change the file because of shell quoting, so they proved nothing. I redid them in Node with exact text swaps. The first run also exposed two weak spots (only `\r\n` line ends and runs of spaces were not tested), which got new tests.
 
 ---
 
