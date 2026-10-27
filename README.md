@@ -2,7 +2,7 @@
 
 A browser-based virtual Magic: The Gathering tabletop simulator. Artifact 5 of TCSS 490, "The Moonshot".
 
-**Status:** planning only. The folder structure and `CLAUDE.md` are set up, and nothing is built yet. This file will be rewritten once there is something to run.
+**Status:** planning and research, with the first code written: a pasted-decklist parser (`shared/deck-text.mjs`, tests in `scripts/test-deck-text.mjs`, run with `node scripts/test-deck-text.mjs`). There is no site to open yet. This file will be rewritten once there is something to run.
 
 ## Idea
 
@@ -18,6 +18,8 @@ Play Magic with friends in the browser: build a deck, join a table, and move car
 
 The structure is a starting point and will change as the requirements are decided.
 
-## Not affiliated with Wizards of the Coast
+## Fan content notice
 
-Magic: The Gathering is a trademark of Wizards of the Coast. This is a student project, not endorsed by them. The exact wording the site must carry is still to be checked.
+Overloaded is unofficial Fan Content permitted under the Fan Content Policy. Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC.
+
+This is a student project. The wording above is the policy's own disclaimer as read on 2026-10-26 through a summarizing tool, and still has to be checked against the policy page itself before the site goes public. Card data and images come from Scryfall.
