@@ -4,4 +4,6 @@ Code and types the frontend and backend both use, so they cannot drift apart: th
 
 Keep it free of browser-only and server-only code, so the plain Node tests in `../scripts/` can load it.
 
-Empty on purpose until the stack is chosen.
+- `deck-text.mjs`: turns pasted decklist text into entries (quantity, name, set, number, foil, section). It does not look cards up. Plain ES module with no dependencies, so it needs no stack decision. Tested by `../scripts/test-deck-text.mjs`.
+
+The rest is empty on purpose until the stack is chosen.
