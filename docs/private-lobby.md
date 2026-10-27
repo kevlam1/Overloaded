@@ -23,5 +23,5 @@ Source: `github.com/ChristianDedios23/PokeGuess` (built with a friend, under the
 - Server as the source of truth, with a per-viewer filter for hands and libraries. Same pattern as `sanitizeRoomForViewer`.
 - Player tokens so a refresh rejoins the same seat.
 - Differences to decide: Magic needs 2 to 4 seats, so "full" and "host starts" need rules. A table may last hours, so the 1 hour expiry must be refreshed on activity or lengthened.
-- Hosting: PokeGuess runs the backend on EC2 with Docker, nginx, TLS, and DynamoDB. That is real cost and ops work. Check it against the free options before copying the idea (open question 8).
-- Simpler-than-DynamoDB idea to evaluate: table state in server memory, since a table is short-lived. Cost: a restart loses live tables.
+- Hosting: PokeGuess runs the backend on EC2 with Docker, nginx, TLS, and DynamoDB. That is real cost and ops work. **Settled 2026-10-26 (`live-play.md`):** Overloaded has no server. The lobby is a table in the Firebase Realtime Database, a player token is replaced by Firebase's anonymous user id (it survives a refresh, so reconnecting works), and the "only that player can see their secret" rule is a Security Rule instead of server code. A table closes after 1 hour with no activity and after 8 hours at most, enforced by the rules from the database's clock, with idle tables deleted lazily since the database has no timers (see `live-play.md`).
+- The older idea of keeping table state in server memory is dropped: there is no server.

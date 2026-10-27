@@ -52,7 +52,7 @@ Each section has **Kevin wants** (his notes) and **Claude's notes** (questions a
 - Supabase looks best and might also hold decks for the deck builder later. Firebase is the other candidate. Compare them and others on free tiers.
 
 **Claude's notes**
-- The real question is where the live game runs. Hidden hands need something trusted to hold the full state and send each player only what they may see. Vercel's functions probably cannot hold live connections (unverified). Candidates to compare, by free tier and by whether they can keep a hand hidden: Supabase (Realtime plus database), Firebase, and a small real-time server host.
+- The real question is where the live game runs. **Decided 2026-10-26** (`live-play.md`): Firebase Realtime Database with anonymous sign-in and Security Rules, so the database itself keeps each hand hidden and we write no server. The earlier note here that Vercel's functions probably can't hold live connections was wrong: they can (public beta), but they aren't used. Supabase is the fallback.
 - Free tiers can pause or limit idle projects. Check each one's current terms.
 - This changes the architecture, so it gets a plan-mode session.
 
