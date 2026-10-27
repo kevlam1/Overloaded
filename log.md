@@ -376,6 +376,49 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 17. Reading the course page, and the fan content policy (2026-10-26)
+
+**What I asked for**
+- Told Claude the course page is in my Unit 5 folder. I said I think the Wizards of the Coast fan content policy is fine because Moxfield has its own playtest feature, and that we could look at card matching next.
+
+**What changed**
+- `CLAUDE.md`: the course page's real requirements and dates replace "not read yet", plus new rows in the unknowns table and a fan content rule under the hard rules. `README.md`: the fan content disclaimer and a current status line. New `docs/fan-content.md`. `docs/todo.md` updated.
+
+**What I checked**
+- The page says a complete Artifact 5 is a genuine five-week attempt, a repository log of plans and changes, and the card on my portfolio. It doesn't have to land. The final show and tell is in class **Monday, December 7**, earlier than the December 13 due date, and the card has to show where I am at the end of **each of Weeks 6 to 9**.
+- Not on the page: the dates of those weeks, and the linked "Keep a log" and "Labor-Based Grading" pages. Claude inferred Nov 8, 15, 22 and 29 from Artifacts 2 and 3 being due a week apart. That is an inference, so I should confirm it on Canvas. If it's right, the first card update is in about two weeks.
+- The page doesn't ask for a model inside the product (that was Artifact 3), but it lists LO 12 and LO 13 among the objectives. My cost and security analysis fits LO 13.
+- The fan content policy, read once through a summarizing tool (the page is dated 2017): free access only, no logos or trademarks, a required disclaimer, and Wizards can stop use at any time. A virtual tabletop isn't mentioned. Claude disagreed a little with my reasoning: Moxfield having a playtest feature shows the practice exists but isn't Wizards' permission for us. I still judge it fine for a free class project, and it's recorded as my judgment.
+- Not checked: the policy's exact wording in a browser, the week dates, and the log page.
+
+**Decisions**
+- The Artifact 5 card does not stay locked until the end. I need a Portfolio session each week from Week 6.
+- Free, no sign-up, no Wizards logos, no "Magic: The Gathering" in the site's name, and the policy's disclaimer on every page and in the README.
+- Card matching is next. Claude pointed out it isn't a re-review: the rules are decided but nothing is built yet, so this time it becomes code with tests.
+
+---
+
+## 18. Card matching, as code (2026-10-26)
+
+**What I asked for**
+- Said we could look at card matching next, and added that we'd mostly be going over it again.
+
+**What changed**
+- New `shared/card-match.mjs`: the card matching rules turned into code, with no dependencies. New `scripts/test-card-match.mjs` with a 29-card real-data fixture, and `scripts/check-card-match.mjs`, which runs over every real card name. I also moved the three real exports into one `scripts/fixtures/exports.mjs` so the tests share them.
+- `CLAUDE.md`, `docs/deck-import.md`, `docs/todo.md` and the two README files updated.
+
+**What I checked**
+- Not a re-review: until now the rules existed only in the notes. They were not code.
+- On the real Oracle Cards file (34,785 cards after dropping tokens and collectibles): every card's own name finds it, every two-faced front name finds its card, normalizing twice changes nothing and no two different names collide, typed spellings without accents, with curly apostrophes and with single slashes all find their card, and all three real exports match 10 of 10. Building the index took 48 ms.
+- Tests: 17 deliberately broken copies of the matcher were run against the unit tests, all caught. The data check was broken six ways and caught five. The sixth cannot show up in real names (no real name contains `Æ`), so only the unit test covers it.
+- Not checked: choosing between ambiguous cards, printings, the card list build, any page, and the matcher in a browser.
+
+**Decisions**
+- Whole name before front face (so `Bind` is Bind), back faces only suggest, and at most 75 unmatched names go in one fallback request.
+- Next in order: merge repeated lines, resolve printings, build the card list, then the preview page. How the 14 shared names are settled is still open.
+
+---
+
 ## Where AI misread me, or I had to correct course
 
 - In my first message I said to put the folder in my Portfolio project, which was wrong: the other artifacts live next to the Portfolio. I corrected it in my next message.
@@ -397,6 +440,7 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - **Invisible characters in the first parser (Claude's slip, entry 15):** the `﻿` and ` ` escapes in `shared/deck-text.mjs` were saved as real, invisible characters inside the regexes. It worked, but nobody could read or safely edit that line, and my first mutation check couldn't find the text to change, which exposed it. I rewrote the file, and noticed JavaScript's `\s` already covers both, so those two replace calls were removed. A search now shows the only non-ASCII characters are the intended ones.
 - **Wrong expected line number in the first test (Claude's slip, entry 15):** I wrote line 11 for Lightning Bolt, but it is line 12 (9 cards, a blank line, then `SIDEBOARD:` on 11). I recounted by hand and fixed the test, not the parser.
 - **A typed Commander line swallowed the deck (Claude's slip, entry 15, found in entry 16):** the first parser let a `Commander` header cover every card below it, so typing it above one card made the rest of the list commanders, and a correct paste left the 99 cards `unlabeled`. I only noticed when I tested the idea of typing it into a pasted list. It is fixed and tested.
+- **An untested line and a blind check (Claude's slip, entry 18):** the first matcher tests passed straight away, so Claude broke the matcher on purpose. One broken copy survived: the lowercase `æ` mapping had no test. Later the data check could not see broken accent handling, because it normalized both sides the same way, so any consistent mistake cancelled out. Both were fixed with new checks (a lowercase `æ` test, and typed spellings built without the module's own code).
 - **Mutation checks that checked nothing (Claude's slip, entry 15):** three of my first ten broken copies didn't change the file because of shell quoting, so they proved nothing. I redid them in Node with exact text swaps. The first run also exposed two weak spots (only `\r\n` line ends and runs of spaces were not tested), which got new tests.
 
 ---

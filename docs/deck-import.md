@@ -126,6 +126,16 @@ Text in, entries out; it never looks a card up. `parseDeckText(text)` returns `{
 - **Not done:** matching names to cards (rules are in `scryfall.md`), merging duplicate lines, the page that asks which card is the commander, and any format not seen yet.
 - **Unknown:** whether ManaBox or other sites add suffixes (condition, language, category tags) or section names the parser doesn't know. Collect ManaBox's exports first.
 
+## The matcher: `shared/card-match.mjs` (built 2026-10-26)
+Turns parser entries into cards. `buildCardIndex(cards)` takes the planned card list (`{ n, t, m, k, i }`), `matchEntry(index, entry)` returns `{ entry, status, method, card, candidates }`, and `matchDeck(index, entries)` does a whole deck and also returns `fallbackNames`.
+- **Order:** the whole name first, then the front face. So `Bind` is the card Bind, not `Bind // Liberate`, and `Smelt` likewise (the only two such cases in the data).
+- **Statuses:** `matched` (one card; method `full` or `front`), `ambiguous` (two or more cards share the name; the page asks, or a printing decides later), `suggestion` (only a back face has that name: "did you mean ..."; back faces never match by themselves because 29 clash with real cards), `not_found`.
+- **Normalizing:** removes accents, turns `Æ`/`æ` into `Ae`/`ae`, curly quotes into straight ones, the modifier colon in `Ratonhnhaké꞉ton` into `:`, any `/` or `//` into ` // `, collapses spaces and lowercases. The same function runs on the list and on what was typed, so a consistent change can't break matching.
+- **Fallback:** `fallbackNames` are the `not_found` names, each spelling once, at most 75 (one batch request); `fallbackOverflow` says some were left out. Suggestions and ambiguous names are not sent: they are not "newer than the list".
+- **What it does not do:** pick a printing (set and number stay on the entry), merge repeated lines, or decide between ambiguous cards. Those are the next steps. The 14 shared names (mostly joke-set cards) could be settled at build time by preferring the non-joke card, or by the page; not decided.
+- **Checked on all real data** (the Oracle Cards file, 34,785 cards after dropping tokens and collectibles; online-only cards left in): every card's own name finds it (34,721 matched, 64 cards ambiguous because their name is shared); every two-faced front name finds its card; normalizing twice changes nothing and no two different names collide; typed spellings made independently of the module (94 names without accents, 2,462 with curly apostrophes, 895 with a single slash) all find their card; all three real exports match 10 of 10. Building the index took 48 ms and matching every name 42 ms on this machine.
+- **Tests:** 17 deliberately broken copies of the matcher were run against the unit tests and all were caught (one only after I added a lowercase `æ` test). The data check was broken six ways: five were caught, and the sixth (`Æ` not replaced) cannot show up in real names, since Scryfall spells it `Aether`.
+
 ## Finding the commander (Kevin's idea, and what the data says, 2026-10-26)
 **Kevin's idea:** assume the first card in a pasted list is the commander, unless the player types `Commander` above a card. Later, a preview page lets the player check every card and the commander, and pick a partner, companion or second commander that wasn't picked up.
 
