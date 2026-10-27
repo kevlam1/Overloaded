@@ -1,0 +1,17 @@
+{
+  "name": "overloaded-backend",
+  "private": true,
+  "description": "Database rules for Overloaded and the tools that test them. No server. Dev tools only; nothing here ships to players.",
+  "type": "module",
+  "scripts": {
+    "test": "node run-tests.mjs"
+  },
+  "engines": {
+    "node": ">=24.12.0"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^6.0.0",
+    "firebase": "^13.1.0",
+    "firebase-tools": "^15.34.1"
+  }
+}

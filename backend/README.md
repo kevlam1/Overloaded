@@ -1,7 +1,13 @@
 # backend
 
-The server: the API (decks, cards, tables) and the live connection that keeps players' tables in step.
+There is no server. Live play runs on the Firebase Realtime Database, and this folder holds the rules that decide who may read and write what, and the tests that prove it (see `../docs/live-play.md`).
 
-- `src/`: server code.
+- `database.rules.json`: the Security Rules (first draft). Not deployed: the real project is still locked.
+- `firebase.json`: points the local emulator at the rules file. Without this the emulator runs open.
+- `test-rules.mjs`: the rule tests. Run `npm install` once, then `npm test`. They start the local database emulator (needs Java and Node 24.12 or newer) under the project id `demo-overloaded`, which cannot reach the real project. Prints "All N rule checks passed."
+- `package.json`: dev tools only (`firebase-tools`, `@firebase/rules-unit-testing`, `firebase`). It is separate from the repo root so Vercel never installs them, and nothing here ships to players.
+- `src/`: unused placeholder.
 
-Empty on purpose. The language, framework, database and hosting are not chosen yet, see `../CLAUDE.md` "Open questions". Secrets go in a gitignored `.env` (with a committed `.env.example` listing only the names), never in the repo.
+- `run-tests.mjs`: what `npm test` runs. On Windows the emulator's Java process outlives the test run, keeps port 9000 and makes the next run fail with "port taken", so after every run (pass or fail) this wrapper stops a Java process whose command line has both `firebase-database-emulator` and `--port 9000`, and nothing else. It also hides the console windows, and exits with the tests' own exit code.
+
+Secrets go in the gitignored `.env` at the repo root (with a committed `.env.example` listing only the names), never in the repo.
