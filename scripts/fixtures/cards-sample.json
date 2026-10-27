@@ -1,0 +1,230 @@
+{
+ "_note": "Real Scryfall Oracle Cards records, trimmed to the planned card list shape (n name, t type line, m mana cost, k keywords, i Scryfall id). Taken from the 2026-10-25 bulk file with scripts/fetch-scryfall.mjs. Chosen for the test deck and for the name clashes found in docs/scryfall.md. Used only by scripts/test-card-match.mjs.",
+ "cards": [
+  {
+   "n": "Aether Vial",
+   "t": "Artifact",
+   "m": "{1}",
+   "k": [],
+   "i": "11e8d2fd-b132-4807-9410-8edeffa519ed"
+  },
+  {
+   "n": "Ancestral Recall",
+   "t": "Instant",
+   "m": "{U}",
+   "k": [],
+   "i": "2398892d-28e9-4009-81ec-0d544af79d2b"
+  },
+  {
+   "n": "B.F.M. (Big Furry Monster)",
+   "t": "Creature — The Biggest, Baddest, Nastiest,",
+   "m": "",
+   "k": [],
+   "i": "a9f9c279-e382-4feb-9575-196e7cf5d7dc"
+  },
+  {
+   "n": "B.F.M. (Big Furry Monster)",
+   "t": "Scariest Creature You'll Ever See",
+   "m": "{B}{B}{B}{B}{B}{B}{B}{B}{B}{B}{B}{B}{B}{B}{B}",
+   "k": [],
+   "i": "d15c6375-2e4e-47f7-88e1-d90794e7f724"
+  },
+  {
+   "n": "Bind",
+   "t": "Instant",
+   "m": "{1}{G}",
+   "k": [],
+   "i": "cfa51783-9ef8-4e51-ba0d-ce8439d83bdf"
+  },
+  {
+   "n": "Bind // Liberate",
+   "t": "Instant // Instant",
+   "m": "{1}{G} // {1}{W}",
+   "k": [],
+   "i": "0087fdee-acb4-4449-b4cc-370f0f3c88a9"
+  },
+  {
+   "n": "Bonecrusher Giant // Stomp",
+   "t": "Creature — Giant // Instant — Adventure",
+   "m": "{2}{R} // {1}{R}",
+   "k": [],
+   "i": "b5b71cd2-de35-451f-b16e-2e3936169407"
+  },
+  {
+   "n": "Delver of Secrets // Insectile Aberration",
+   "t": "Creature — Human Wizard // Creature — Human Insect",
+   "m": "{U}",
+   "k": [
+    "Flying",
+    "Transform"
+   ],
+   "i": "6904ea20-e504-47da-95a0-08739fdde260"
+  },
+  {
+   "n": "Emeritus of Ideation // Ancestral Recall",
+   "t": "Creature — Human Wizard // Instant",
+   "m": "{3}{U}{U} // {U}",
+   "k": [
+    "Flying",
+    "Prepared",
+    "Ward"
+   ],
+   "i": "75961d36-acf6-425f-9698-0bf52af74f31"
+  },
+  {
+   "n": "Éowyn, Lady of Rohan",
+   "t": "Legendary Creature — Human Noble",
+   "m": "{2}{W}",
+   "k": [],
+   "i": "e59710c4-24de-419e-a8a0-e8392d450c23"
+  },
+  {
+   "n": "Everythingamajig",
+   "t": "Artifact",
+   "m": "{5}",
+   "k": [],
+   "i": "b3ab7126-4191-4632-be2b-3e972a96bc30"
+  },
+  {
+   "n": "Everythingamajig",
+   "t": "Artifact",
+   "m": "{5}",
+   "k": [
+    "Proliferate"
+   ],
+   "i": "e09bef24-a186-4697-bd33-446fe6e25376"
+  },
+  {
+   "n": "Fast // Furious",
+   "t": "Instant // Sorcery",
+   "m": "{2}{R} // {3}{R}{R}",
+   "k": [],
+   "i": "5b209759-6215-49e8-a6a0-a6c94040adb2"
+  },
+  {
+   "n": "Fast // Furious",
+   "t": "Instant // Instant",
+   "m": "{1}{R} // {2}{R}",
+   "k": [
+    "Fuse"
+   ],
+   "i": "62d881f3-32d0-482c-99d2-73c79e57700a"
+  },
+  {
+   "n": "Fire // Ice",
+   "t": "Instant // Instant",
+   "m": "{1}{R} // {1}{U}",
+   "k": [],
+   "i": "18303862-4726-4136-814f-157aa7006579"
+  },
+  {
+   "n": "Forest",
+   "t": "Basic Land — Forest",
+   "m": "",
+   "k": [],
+   "i": "2e781bfd-f8cb-4d20-b977-4359f3a21311"
+  },
+  {
+   "n": "Jötun Grunt",
+   "t": "Creature — Giant Soldier",
+   "m": "{1}{W}",
+   "k": [
+    "Cumulative upkeep"
+   ],
+   "i": "91a2217c-8478-479b-a146-2d78f407a36f"
+  },
+  {
+   "n": "Kongming, \"Sleeping Dragon\"",
+   "t": "Legendary Creature — Human Advisor",
+   "m": "{2}{W}{W}",
+   "k": [],
+   "i": "70c9e4fd-e987-4653-abb1-e32971745db2"
+  },
+  {
+   "n": "Lightning Bolt",
+   "t": "Instant",
+   "m": "{R}",
+   "k": [],
+   "i": "7673784e-db4b-43a1-8d55-1bb9fc1e284f"
+  },
+  {
+   "n": "Lim-Dûl's Cohort",
+   "t": "Creature — Zombie",
+   "m": "{1}{B}{B}",
+   "k": [],
+   "i": "082cf845-5a24-4f00-bad2-a3d0d07f59e6"
+  },
+  {
+   "n": "Monster // Sorcerer",
+   "t": "Token Enchantment — Aura Role // Token Enchantment — Aura Role",
+   "m": "",
+   "k": [
+    "Enchant",
+    "Scry"
+   ],
+   "i": "6b8a810b-8538-41c3-a792-dbd1a1845faa"
+  },
+  {
+   "n": "Monster // Virtuous",
+   "t": "Token Enchantment — Aura Role // Token Enchantment — Aura Role",
+   "m": "",
+   "k": [
+    "Enchant"
+   ],
+   "i": "27927100-2587-4e05-9957-eb183d46c1f0"
+  },
+  {
+   "n": "Royal // Virtuous",
+   "t": "Token Enchantment — Aura Role // Token Enchantment — Aura Role",
+   "m": "",
+   "k": [
+    "Enchant"
+   ],
+   "i": "ce7ac41f-ea0e-46b5-bab4-be1a4e451524"
+  },
+  {
+   "n": "Smelt",
+   "t": "Instant",
+   "m": "{R}",
+   "k": [],
+   "i": "9a13293d-89a7-400c-8309-9f62eeb4769c"
+  },
+  {
+   "n": "Smelt // Herd // Saw",
+   "t": "Instant // Sorcery // Sorcery",
+   "m": "{R} // {5}{G} // {1}{B}",
+   "k": [],
+   "i": "097165ee-f959-49e3-a5c1-f78043e538d9"
+  },
+  {
+   "n": "Sol Ring",
+   "t": "Artifact",
+   "m": "{1}",
+   "k": [],
+   "i": "8ee443cc-e17a-493b-9c93-1f9e141a30e4"
+  },
+  {
+   "n": "SP//dr, Piloted by Peni",
+   "t": "Legendary Artifact Creature — Spider Hero",
+   "m": "{3}{W}{U}",
+   "k": [
+    "Vigilance"
+   ],
+   "i": "c47c1d83-e76d-4939-9ed6-05a9e709dea1"
+  },
+  {
+   "n": "Summon: Choco/Mog",
+   "t": "Enchantment Creature — Saga Bird Moogle",
+   "m": "{2}{W}",
+   "k": [],
+   "i": "00546117-018a-4286-bc20-b5446c5be56f"
+  },
+  {
+   "n": "Who // What // When // Where // Why",
+   "t": "Instant",
+   "m": "{X}{W} // {2}{R} // {2}{U} // {3}{B} // {1}{G}",
+   "k": [],
+   "i": "fea4a077-718b-44af-87be-90df61aab643"
+  }
+ ]
+}
