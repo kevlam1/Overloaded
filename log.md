@@ -536,6 +536,71 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 25. Setting up the Firebase project (2026-10-26)
+
+**What I asked for**
+- Asked what the two dev tools do and how to start the Firebase account, then worked through the console steps with Claude, sending screenshots when I got stuck.
+
+**What changed**
+- New `.env.example` with names only (`FIREBASE_API_KEY`, `FIREBASE_AUTH_DOMAIN`, `FIREBASE_DATABASE_URL`, `FIREBASE_PROJECT_ID`, `FIREBASE_APP_ID`). `docs/todo.md` records what is done and what is left.
+
+**What I checked**
+- From my screenshots: Anonymous sign-in is switched on, the Realtime Database is in `us-central1`, and its rules are `.read: false` and `.write: false` (Locked), so nobody can read or write from a browser yet. A web app is registered.
+- I pasted the config values in a screenshot by mistake, since Claude had asked me not to. Claude read Firebase's own page: API keys for Firebase services are "public by design", and security comes from the database rules, not from hiding the key. So it isn't a leak, but none of the values went into any file. A search of every file in the repo found none of them.
+- The console turned Google Analytics on (the config has a `measurementId`). I don't need it, so the pages will not load the Analytics SDK.
+- `git` shows `.env.example` as a new file and ignores a real `.env`, as intended.
+- Not checked: that Auto clean-up was saved, that the project is still on the free Spark plan, and that I put the values into my own `.env`.
+
+**Decisions**
+- Only five of the config fields are used. The rest are left out of `.env.example`.
+- I don't edit rules in the console. They will come from a tested file in the repo.
+
+---
+
+## 26. First checks against the real Firebase project (2026-10-27)
+
+**What I asked for**
+- Asked Claude to create my `.env`. Its tool was blocked by my own deny rule, so I created the file myself and told it. Then I said it could continue.
+
+**What changed**
+- `docs/live-play.md` has a new section with the results, `docs/todo.md` and `CLAUDE.md` record them, and `.env.example` is still names only.
+
+**What I checked**
+- A script checked my `.env` without printing it: all five values present and well shaped, the project id and auth domain consistent, and the file ignored by git.
+- Five single requests to my real project, with the endpoints read from Firebase's REST docs first. A read with no sign-in: refused (HTTP 401, "Permission denied"). Anonymous sign-up: worked (HTTP 200, a token and a 28-character uid, no email). A signed-in read and a signed-in write: both refused, because the rules deny everyone. The throwaway user was deleted again (HTTP 200). Plain HTTPS reads took 46 ms at best, 49 ms median and 233 ms at worst, from my machine.
+- These do not yet prove the spike. No per-player rules exist, nothing ran in a browser, and no refresh was tested. The round trips are not a held-open connection.
+- Not checked: that the project is on the free Spark plan, and whether I saved Auto clean-up.
+
+**Decisions**
+- Claude read my "you may continue" as a yes to these two small tests and not as approval to install `firebase-tools` or `@firebase/rules-unit-testing`. I still have to approve those.
+- When the file creation was blocked, Claude did not write it with a shell command. The deny rule stands.
+
+---
+
+## 27. Dev tools, the first database rules and emulator tests (2026-10-27)
+
+**What I asked for**
+- I said to continue with the dev tools and the console checks, and told Claude to ignore the Week 6 to 9 dates on Canvas, because those are only progress checks.
+
+**What changed**
+- New in `backend/`: `package.json` (its own, not workspaces, so Vercel never installs these), `firebase.json` (emulator on port 9000, pointing at the rules file), `database.rules.json` (first draft: a player's `private` branch readable and writable only by them, public zones readable by members and writable by the owner, a person can add only themselves as a member), and `test-rules.mjs` (33 checks after the review below, run with `npm test` in `backend/`).
+- Installed `firebase-tools`, `@firebase/rules-unit-testing` and `firebase` as dev dependencies only, with `--ignore-scripts`. `npm audit` lists 11 findings (6 moderate, 5 high), all inside those packages' own dependencies. npm's only fixes are major downgrades, so I did not apply them.
+
+**What I checked**
+- `npm test` against the local emulator (project id `demo-overloaded`, which cannot reach my real project): "All 18 rule checks passed." That includes an opponent's read and write of a private path being denied, and a signed-out read being denied.
+- A broken copy of the rules (private read allowed to any signed-in user) made the tests fail with "Expected request to fail, but it succeeded", and the real file was restored and passed again.
+- Not checked: nothing ran in a browser, no refresh or two-browser test, and the lifetime rules (`lastActive`, 8 hours, seat slots) are not written yet.
+- **Then I asked for a review in the style of the API cost audits.** Claude read the files again, checked `assertFails` in the library source (it only accepts a permission-denied error, so a typo or a network failure cannot fake a pass), and probed the rules with a throwaway script. A member reading the whole table, the whole `private` branch or `tables` is denied, and so is a multi-path update that touches an opponent's hand. None of that was in the tests, so all of it is now (33 checks).
+- **A bug in my own rules, found by the probe:** a member could not change their own entry or leave, because I had made it create-only. The lobby needs a name change and a ready flag, so a member may now write their own entry. Names must be a string of 1 to 30 characters, `ready` a boolean, and unknown fields are refused.
+- **Mutation check, done by a script this time:** 17 deliberately broken copies of the rules, one at a time, each run through `npm test`. 16 failed the tests. One survived: removing the `isString()` check on the name. A number name is still denied without it (a number has no `.length` in the rules language), so I believe it is redundant, but I kept it so the intent is readable. All scratch files were deleted and the rules restored byte for byte.
+- **The cmd windows and the leftover process:** I saw console windows pop up and asked if that was normal. It was my 17-run mutation script, since each `npm test` opens windows for npm, Java and PowerShell, nothing hidden or networked. Claude then found why the emulator's Java process stayed alive after every run, and I told it to clean up. `backend/run-tests.mjs` now runs the same test command with windows hidden and stops only a Java process whose command line has `firebase-database-emulator` and `--port 9000`, even when the tests fail. Checked twice: real rules gave exit 0 and "All 33 rule checks passed.", a deliberately broken copy gave exit 1, and both left port 9000 free with the rules file restored byte for byte. Not checked: any other operating system.
+- Still open, found by the probe: anyone signed in can create a table out of nothing by writing a member entry under any code, and a player's public zone accepts 1 MB. Both need the `meta`, seat and size rules, which are not written yet (listed in `docs/todo.md`).
+
+**Decisions**
+- The dev tools are approved by my "continue" (licenses were shown earlier). The audit findings are accepted because they only run on my machine.
+
+---
+
 ## Where AI misread me, or I had to correct course
 
 - In my first message I said to put the folder in my Portfolio project, which was wrong: the other artifacts live next to the Portfolio. I corrected it in my next message.
@@ -552,11 +617,14 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - **A daily cost in the build plan (Claude's slip, entry 9, found in entry 11):** "download when Scryfall's file changes" meant a new card list almost every day, so every returning player would re-download it. Fixed by changing the list at most weekly.
 - **Same trap twice (Claude's slip, entry 11):** its throwaway name test filtered on the chosen printing's `digital` flag, the mistake fixed in entry 10, and wrongly reported `Lim-Dul's Cohort` as not found. Claude noticed because the count was exactly 1,062 short, and fixed the test before using any result.
 - **Misread my answer (after entry 11):** Claude asked whether to compare Scryfall's files "in a few days". I answered that it should happen when we're working on something, not after a wait. Claude read that as a new design question and started researching a different way to refresh card data (one Scryfall API call and two header requests, no file changes). I pointed out it was an answer, and the comparison is now a todo item for our next card-data session. I then asked for the list of things still unknown to be kept somewhere Claude will surely check. It is now a table in `CLAUDE.md`, the only file every session loads, with an event that makes each row due.
+- **Rules too strict, and stale docs (Claude's slips, entry 27, found in the review):** the first member rule was create-only, which would have blocked changing a name, readying up and leaving. The tests had even asserted that block, so they passed while checking the wrong behavior. Also `backend/README.md` still said the backend was empty and unchosen, and `CLAUDE.md` still said there was no `package.json`. Both are fixed.
+- **Left processes running and swallowed a test result (Claude's slip, entry 27):** my first mutation check filtered the test output so hard that it showed nothing, so it proved nothing. I redid it with the exit code. Each `npm test` also leaves the emulator's Java process listening on port 9000 on this machine, which made one later run fail with "port taken". I checked the command line (the emulator jar from my `firebase.json`) and stopped only those processes. The leftover process still has to be dealt with in the test script.
 - **Made-up conclusions about the exports (Claude's slip, entry 13, corrected in entry 14):** it said the commander had "no marker" and the Archidekt sideboard was "unknown". Kevin pointed out that commanders are marked by position on Moxfield (top in "Copy for Moxfield", bottom in plain text) and that the Archidekt text is the literal export. It also expected a link test to need three deck links from Kevin, but one public link was enough to learn most of it.
 - **A request I should have asked about first (Claude's slip, entry 13):** it sent a script's request to Archidekt's API (the package's example deck) before reading Archidekt's terms, which say scripts must not make automated requests. It was one request and returned 404, then one more on Kevin's deck, but the terms should have been read first.
 - **Invisible characters in the first parser (Claude's slip, entry 15):** the `﻿` and ` ` escapes in `shared/deck-text.mjs` were saved as real, invisible characters inside the regexes. It worked, but nobody could read or safely edit that line, and my first mutation check couldn't find the text to change, which exposed it. I rewrote the file, and noticed JavaScript's `\s` already covers both, so those two replace calls were removed. A search now shows the only non-ASCII characters are the intended ones.
 - **Wrong expected line number in the first test (Claude's slip, entry 15):** I wrote line 11 for Lightning Bolt, but it is line 12 (9 cards, a blank line, then `SIDEBOARD:` on 11). I recounted by hand and fixed the test, not the parser.
 - **A typed Commander line swallowed the deck (Claude's slip, entry 15, found in entry 16):** the first parser let a `Commander` header cover every card below it, so typing it above one card made the rest of the list commanders, and a correct paste left the 99 cards `unlabeled`. I only noticed when I tested the idea of typing it into a pasted list. It is fixed and tested.
+- **A claim from memory, checked afterwards (Claude, entry 25):** I told Kevin the Firebase config values "aren't passwords" without having read it. When he pasted them in a screenshot I checked Firebase's page, and it says what I had said, but I should have read it before saying it. Also, my first search for Firebase code in the repo was denied because I named `.env` in an `ls`; that was the deny rule working, and I redid it with the search tools.
 - **An ambiguous phrase and a missing notice (Claude's slip, entry 22, found in entry 23):** "the last 5 minutes" didn't say which limit it meant, and when I looked, the 8-hour limit had no warning at all, so an active game would have been cut off without notice. Both are fixed in the docs.
 - **Overstated an objection (Claude's slip, entry 21, found in entry 22):** I advised against a shorter "everyone left" timer because it "needs presence tracking and a refresh would look like leaving". Presence is a documented Firebase pattern that stores one entry per tab, which makes a refresh harmless. Skipping the extra timer is still reasonable, but the reason was weaker than I made it sound.
 - **A rule function that doesn't exist (Claude's slip, entry 19, found in entry 21):** the plan limited seats by counting members with `numChildren()`. I had listed that as "not verified", and when I checked Firebase's rules reference it isn't there. Seats are create-only slots now. It was caught before any code depended on it.

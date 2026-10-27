@@ -84,6 +84,18 @@ A 4-player, 3-hour game at about 24 actions a minute is 4,320 actions. At about 
 | `firebase-tools` (the emulator, dev only) | MIT | 67 direct dependencies; the emulator needs Java, and Java 22 is installed |
 | `@firebase/rules-unit-testing` (rule tests, dev only) | Apache-2.0 | needs Node 24.12 or newer; this machine has 24.14.1 |
 
+## Pre-spike checks against the real project (2026-10-27)
+Kevin created the project on 2026-10-26 (Anonymous sign-in on, Realtime Database in `us-central1`, rules `.read: false` and `.write: false`, a web app registered; the console also turned Google Analytics on, which we do not load). Five single requests from a Node script, with the endpoints and fields read from Firebase's REST docs first, nothing secret printed, and the throwaway user deleted afterwards:
+| Check | Result |
+|---|---|
+| Read the database, not signed in | HTTP 401 "Permission denied" |
+| Anonymous sign-up (`accounts:signUp`) | HTTP 200: an id token and a 28-character uid came back, the email was empty, the token lasts 3600 s. **Anonymous sign-in works from a script.** |
+| Read the database, signed in | HTTP 401: the locked rules deny signed-in users too |
+| Write to the database, signed in | HTTP 401 (nothing was written) |
+| Delete the throwaway user (`accounts:delete`) | HTTP 200 |
+| Round trip, 5 unauthenticated reads over HTTPS | 46 ms minimum, 49 ms median, 233 ms maximum (the first includes connection setup). An upper bound for a held-open socket, from Kevin's machine, not yet measured through the SDK |
+These show the project, the key and the locked rules work. They do **not** yet prove any of the spike's five checks: no per-player rules exist yet, nothing ran in a browser, and no refresh test ran. Not confirmed: that the project is on the free Spark plan, and whether Auto clean-up was saved.
+
 ## The spike (first live-play session): pass or fail
 1. Two browsers join one table by code.
 2. A second player's read of the first player's `private` path is **denied**.
