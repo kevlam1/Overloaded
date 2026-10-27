@@ -419,6 +419,123 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 19. Live play and the lobby store: research, plan and decision (2026-10-26)
+
+**What I asked for**
+- Committed and pushed the earlier work, then told Claude to continue. It took that as the live-play decision it had recommended, and used plan mode because it changes the architecture.
+
+**What changed**
+- New `docs/live-play.md` with the research, a plain-words explainer, the data model, the setup steps, the tools needing my approval, the spike checklist and the sources. `CLAUDE.md` (questions 5, 6, 7, 8 and 10, the Stack and Architecture sections, a new unknowns row, the Files list), `docs/todo.md`, `docs/design-notes.md` and `docs/private-lobby.md` updated to match.
+
+**What I checked**
+- Read each service's own docs and printed the numbers. **Vercel Functions can hold WebSocket connections** (public beta since June 22, 2026, on the free plan, at most 300 seconds each, and rooms need Redis because connections pin to one instance). That corrects what I wrote earlier: Claude's notes had said Vercel probably couldn't.
+- Firebase's free plan: 100 simultaneous connections, 1 GB stored, 10 GB/month downloads, never billed. Rules can restrict each path to its owner, and a multi-path write is atomic. Supabase's free plan: 200 connections, 2M messages/month, but "we may pause applications ... that exhibit low activity in a 7-day period" and anonymous sign-in is limited to 30 requests per hour per IP. Cloudflare and Redis numbers are in the file.
+- Licenses from the npm registry: the Firebase SDK is Apache-2.0, `firebase-tools` MIT (67 direct dependencies, needs Java, and Java 22 is installed), `@firebase/rules-unit-testing` Apache-2.0 (needs Node 24.12 or newer, and I have 24.14.1).
+- Not checked: the Firebase console steps themselves, anonymous-account limits per IP, the `numChildren()` and `now` rule functions, round-trip time from Tacoma, and the SDK size on a phone. The spike covers those.
+
+**Decisions**
+- Firebase Realtime Database with anonymous sign-in and Security Rules, no server code. The database enforces hidden hands. Supabase is the fallback if the spike fails.
+- Claude disagreed with my lean toward Supabase, for the pause rule, the sign-in cap and the heavier setup. I approved the plan anyway as written.
+- Before building more, a 1 to 2 session spike: two browsers join by code, an opponent's private read is denied, a refresh keeps the seat, and a measured round trip.
+- I still have to create the Firebase project, and approve the two dev tools.
+
+---
+
+## 20. Weighing the Supabase argument from my phone chat (2026-10-26)
+
+**What I asked for**
+- Shared what an earlier Claude chat on my phone had said before this project was scoped, which favored Supabase, and said I wasn't trying to change Claude's mind, just to add other considerations.
+
+**What changed**
+- `docs/live-play.md` has a new section weighing each point, and a note that the 1.2 KB per action figure is a guess. `docs/todo.md` has one new item: keep every database call behind one small module so the service can be swapped.
+
+**What I checked**
+- The "20K writes a day" cap is Cloud Firestore's free quota, per Firebase's quotas page. The Realtime Database we chose has no daily or monthly write cap (only a soft 1,000 writes a second), so that point does not apply.
+- The other chat's 100 to 200 games a month on Supabase's 2M messages matches Claude's own estimate of 93 to 116 for four players.
+- Not checked: whether Supabase restricts or stops a free project that goes over its message quota.
+
+**Decisions**
+- Firebase stays for this scope: no accounts, small temporary state, no deck builder yet. Claude conceded that Supabase is better if I add accounts, saved decks or a deck builder, or move to TypeScript, and that the 7-day pause is a chore, not a blocker. It had weighted that too heavily.
+- The spike still decides. If I later want honor-system hidden hands, Supabase Broadcast is the simplest option.
+
+---
+
+## 21. Table lifetime: idle timeout and an absolute limit (2026-10-26)
+
+**What I asked for**
+- Suggested that a table should close after an hour with no activity, like a banking app's inactivity check, plus an enforced room limit of something like 8 hours, and asked what Claude thought.
+
+**What changed**
+- `docs/live-play.md`: the data model now has `createdAt`, `lastActive` and seat slots, plus a lifetime section with draft rules, the 55-minute warning, throttling, cleanup, and one open table per user. `CLAUDE.md` question 5 and the Firebase unknowns row, `docs/private-lobby.md` and `docs/todo.md` updated.
+
+**What I checked**
+- Idle plus absolute timeouts is the standard session pattern. Claude agreed with my numbers: Commander games run about 1.5 to 3 hours, so 8 hours is generous.
+- In Firebase's rules reference, `now` is the database server's clock, and `root`, `data`, `newData`, `exists()`, `hasChild()` and `hasChildren([...])` exist. Indexed queries with `orderByChild`, `endAt` and `limitToFirst` exist. That is enough to enforce both timeouts in the rules, with no timers and no server.
+- **`numChildren` is not in the rules reference**, so the plan's way of limiting seats by counting members can't work. Seats are now create-only slots.
+- Not checked: any rule on the emulator. The rule snippets are drafts, and the spike tests them: arithmetic in rules, the server timestamp matching `now`, and an expired table being deleted by any signed-in user.
+
+**Decisions**
+- 1 hour of no player activity or 8 hours from creation, enforced by the rules from the database's clock, with a warning at 55 minutes idle and a "keep it open" button. An open tab doesn't count as activity.
+- Claude suggested three additions: throttled activity writes, one open table per anonymous user, and a clear "this table closed" message. It advised against a second shorter "everyone left" timer, which needs presence tracking and would treat a refresh as leaving.
+- Open: whether a table still in the lobby needs a shorter idle time than a game.
+
+---
+
+## 22. Shorter lobbies, background activity detection and a "Reconnecting" indicator (2026-10-26)
+
+**What I asked for**
+- Said the lobby should close sooner than a game. Instead of an "are you still there" popup, I suggested a background check for activity, if the cost stays low. I also wanted other players to see "reconnecting" with a loading animation on a player's icon or board when they close their tab.
+
+**What changed**
+- `docs/live-play.md`: the data model now has `idleLimit`, a separate `activity/lastActive` path and per-tab presence entries. The lifetime section is rewritten, and there is a new presence section. `CLAUDE.md` question 5 and `docs/todo.md` updated.
+
+**What I checked**
+- Firebase's offline docs: `onDisconnect` runs on the database server "whether the client disconnects cleanly or not", `/.info/connected` gives each browser its own state, and Firebase's own presence sample stores one entry per browser tab and queues the disconnect operation before marking the user online. That per-tab design is what keeps a refresh from showing "offline".
+- Not stated in the docs: how long the server waits before it decides a silently dropped connection is dead. A closed tab should show promptly, a network drop may lag. The spike measures it.
+- Not checked: any of it on the emulator or a real project.
+
+**Decisions**
+- 30 minutes idle in the lobby, 1 hour once playing, 8 hours absolute.
+- Activity is detected in the background from taps, clicks, key presses, scrolling and moves, only while the tab is visible, with no popup. The timestamp goes to a path nobody listens to, so it costs almost nothing. Claude suggested keeping one quiet banner in the last 5 minutes for the case of a screen left on with nobody touching it. That is still my call.
+- Players see a "Reconnecting..." avatar and board with a loading animation, then "Disconnected, last seen N min ago" after about 2 minutes. The animation must respect `prefers-reduced-motion`.
+
+---
+
+## 23. Which limit the "last 5 minutes" banner belongs to (2026-10-26)
+
+**What I asked for**
+- Asked whether "the last 5 minutes" meant the end of the 1-hour idle check or of the 8-hour limit.
+
+**What changed**
+- `docs/live-play.md` and `docs/todo.md` now describe two banners for two different limits.
+
+**What I checked**
+- It meant the idle timer (minutes 25 to 30 in a lobby, 55 to 60 in a game). A tap clears it, because activity resets the idle timer.
+- The 8-hour limit counts from creation and activity never resets it, and no notice had been defined for it. A game with people actively playing would have ended without warning at hour 8.
+
+**Decisions**
+- Claude recommended a banner 30 minutes before the 8-hour limit and a more visible one at 10 minutes, saying when the table closes and that it can't be extended. Nothing clears it. It is my call, and it is on the todo list. A new table starts fresh, so the notice only gives players time to finish.
+- The 8-hour cap stays: it is what stops a script from keeping a table alive forever.
+
+---
+
+## 24. Banner decisions, and a list of UI pieces to remember (2026-10-26)
+
+**What I asked for**
+- Said I understood the idle banner now and we should definitely have it, with the design to come later and Claude to remember it. I said a 30 and a 10 minute warning before the 8-hour limit is good enough. Then I asked Claude to commit and push.
+
+**What changed**
+- `CLAUDE.md` has a new section, "Decided UI pieces, design still to come", listing the idle banner, the 8-hour banners, the "Reconnecting..." indicator, the closed-table message, the deck preview page and the fan content disclaimer, with an instruction to include all of them at design time and remind me if I forget one. `docs/todo.md` and `docs/live-play.md` record the decisions.
+
+**What I checked**
+- Nothing new to test. I put the list in `CLAUDE.md` because it is the one file every session loads automatically, as with the table of unknowns.
+
+**Decisions**
+- Idle banner: yes. 8-hour warnings at 30 and 10 minutes before the limit: yes.
+- The designs themselves come later.
+
+---
+
 ## Where AI misread me, or I had to correct course
 
 - In my first message I said to put the folder in my Portfolio project, which was wrong: the other artifacts live next to the Portfolio. I corrected it in my next message.
@@ -440,6 +557,12 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - **Invisible characters in the first parser (Claude's slip, entry 15):** the `﻿` and ` ` escapes in `shared/deck-text.mjs` were saved as real, invisible characters inside the regexes. It worked, but nobody could read or safely edit that line, and my first mutation check couldn't find the text to change, which exposed it. I rewrote the file, and noticed JavaScript's `\s` already covers both, so those two replace calls were removed. A search now shows the only non-ASCII characters are the intended ones.
 - **Wrong expected line number in the first test (Claude's slip, entry 15):** I wrote line 11 for Lightning Bolt, but it is line 12 (9 cards, a blank line, then `SIDEBOARD:` on 11). I recounted by hand and fixed the test, not the parser.
 - **A typed Commander line swallowed the deck (Claude's slip, entry 15, found in entry 16):** the first parser let a `Commander` header cover every card below it, so typing it above one card made the rest of the list commanders, and a correct paste left the 99 cards `unlabeled`. I only noticed when I tested the idea of typing it into a pasted list. It is fixed and tested.
+- **An ambiguous phrase and a missing notice (Claude's slip, entry 22, found in entry 23):** "the last 5 minutes" didn't say which limit it meant, and when I looked, the 8-hour limit had no warning at all, so an active game would have been cut off without notice. Both are fixed in the docs.
+- **Overstated an objection (Claude's slip, entry 21, found in entry 22):** I advised against a shorter "everyone left" timer because it "needs presence tracking and a refresh would look like leaving". Presence is a documented Firebase pattern that stores one entry per tab, which makes a refresh harmless. Skipping the extra timer is still reasonable, but the reason was weaker than I made it sound.
+- **A rule function that doesn't exist (Claude's slip, entry 19, found in entry 21):** the plan limited seats by counting members with `numChildren()`. I had listed that as "not verified", and when I checked Firebase's rules reference it isn't there. Seats are create-only slots now. It was caught before any code depended on it.
+- **A check that couldn't find anything (Claude's slip, entry 21):** my first search of the Firebase docs for these rule functions reported every word "not found", even one on a page that is all about it. The search itself was broken, so I redid it with plain string search and printed counts before trusting any result.
+- **Over-weighted the pause risk (Claude's slip, entry 19, found in entry 20):** I called Supabase's 7-day pause a "demo-day risk" in the plan. A request every few days during the term prevents it, so it is a chore to remember, not a reason to rule Supabase out. The decision still holds on other grounds, but the argument was stronger than the facts.
+- **A claim about Vercel I never checked (Claude's slip, entries 3 and 5, found in entry 19):** I wrote in `CLAUDE.md` and in the design notes that Vercel's functions probably can't hold live connections, and told me to check it later. When I finally read Vercel's docs, they do (public beta). It cost nothing, because I had marked it "unverified", but it shaped how I framed the question for weeks.
 - **An untested line and a blind check (Claude's slip, entry 18):** the first matcher tests passed straight away, so Claude broke the matcher on purpose. One broken copy survived: the lowercase `æ` mapping had no test. Later the data check could not see broken accent handling, because it normalized both sides the same way, so any consistent mistake cancelled out. Both were fixed with new checks (a lowercase `æ` test, and typed spellings built without the module's own code).
 - **Mutation checks that checked nothing (Claude's slip, entry 15):** three of my first ten broken copies didn't change the file because of shell quoting, so they proved nothing. I redid them in Node with exact text swaps. The first run also exposed two weak spots (only `\r\n` line ends and runs of spaces were not tested), which got new tests.
 
