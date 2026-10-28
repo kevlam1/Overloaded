@@ -295,5 +295,30 @@ export function createTableOps({ sdk, db, getUid, makeCode = makeTableCode }) {
     await update(ref(db), { [`hosts/${uid}`]: code });
   }
 
-  return { findMyTable, createTable, rejoinTable, joinTable, watchMembers, setReady, clearReady, startMatch, concede, endMatch, endTable, leaveTable, passHost, claimHostSlot };
+  // ---- Keeping a table alive, and knowing when it will close ----
+
+  // Tells the database the table is still in use (activity/lastActive, the server's time). Returns true if it was
+  // recorded and false if the database refused: that is either another player's heartbeat landing less than 30 seconds
+  // ago (it already kept the table alive) or the table is closed. A refusal is not an error; the page's listeners tell
+  // it if the table closed. Other failures (offline) are thrown.
+  async function heartbeat(code) {
+    try {
+      await update(ref(db), { [`tables/${code}/activity/lastActive`]: serverTimestamp() });
+      return true;
+    } catch (error) {
+      if (isPermissionDenied(error)) return false;
+      throw error;
+    }
+  }
+
+  // Each watcher calls onChange(value) now and on every change, and onChange(null, error) if it can no longer be read
+  // (the table closed or you left it). Each returns a function that stops watching.
+  const watch = (path, onChange) => onValue(ref(db, path), (snapshot) => onChange(snapshot.val()), (error) => onChange(null, error));
+  const watchActivity = (code, onChange) => watch(`tables/${code}/activity/lastActive`, onChange); // a time in ms
+  const watchMeta = (code, onChange) => watch(`tables/${code}/meta`, onChange); // { createdAt, idleLimit, status, match, ... }
+  // How far this computer's clock is from the database's (ms): the server's time is Date.now() + offset. The limits are
+  // judged on the server's time, so the page must not trust its own clock.
+  const watchServerOffset = (onChange) => watch('.info/serverTimeOffset', (offset) => onChange(typeof offset === 'number' ? offset : 0));
+
+  return { findMyTable, createTable, rejoinTable, joinTable, watchMembers, setReady, clearReady, startMatch, concede, endMatch, endTable, leaveTable, passHost, claimHostSlot, heartbeat, watchActivity, watchMeta, watchServerOffset };
 }

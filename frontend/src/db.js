@@ -60,3 +60,7 @@ export const endTable = (...args) => tableOps().endTable(...args);
 export const leaveTable = (...args) => tableOps().leaveTable(...args);
 export const passHost = (...args) => tableOps().passHost(...args);
 export const claimHostSlot = (...args) => tableOps().claimHostSlot(...args);
+export const heartbeat = (...args) => tableOps().heartbeat(...args);
+export const watchActivity = (...args) => tableOps().watchActivity(...args);
+export const watchMeta = (...args) => tableOps().watchMeta(...args);
+export const watchServerOffset = (...args) => tableOps().watchServerOffset(...args);

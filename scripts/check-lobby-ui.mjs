@@ -33,7 +33,9 @@ try {
       lang: document.documentElement.lang,
       viewport: !!document.querySelector('meta[name=viewport]'),
       h1s: document.querySelectorAll('h1').length,
-      ids: ['name', 'seats', 'create', 'join-code', 'join', 'status', 'table', 'code', 'seat', 'players'].every((id) => !!byId(id)),
+      ids: ['name', 'seats', 'create', 'join-code', 'join', 'status', 'banner', 'table', 'code', 'link', 'seat', 'players'].every((id) => !!byId(id)),
+      bannerHiddenAtStart: byId('banner').hidden && byId('banner').textContent === '',
+      bannerIsLive: byId('banner').getAttribute('aria-live') === 'polite' && byId('banner').getAttribute('role') === 'status',
       fieldsWithoutLabel: fields.filter((f) => !document.querySelector('label[for="' + f.id + '"]')).map((f) => f.id),
       buttonsWithoutText: Array.from(document.querySelectorAll('button')).filter((b) => !b.textContent.trim()).length,
       tableHiddenAtStart: byId('table').hidden,
@@ -56,6 +58,8 @@ try {
   check('every button has text', facts.buttonsWithoutText === 0);
   check('the table section is hidden until there is a table', facts.tableHiddenAtStart);
   check('the status line is a polite live region', facts.statusIsLive);
+  check('the table warning banner is empty and hidden until there is something to warn about', facts.bannerHiddenAtStart);
+  check('the table warning banner is a polite live region (a screen reader hears it without being interrupted)', facts.bannerIsLive);
   check('the name field stops at the 30-character rule', facts.nameMax === 30, String(facts.nameMax));
   check('four seats is the default', facts.seatOptions.includes('4:true') && facts.seatOptions.length === 3, facts.seatOptions.join(' '));
   check('the Fan Content disclaimer is visible', facts.disclaimerVisible);

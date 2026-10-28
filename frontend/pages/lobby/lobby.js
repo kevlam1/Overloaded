@@ -1,5 +1,7 @@
 // The lobby page: make a table or join one by code. All database calls live in ../../src/db.js.
-import { createTable, joinTable, rejoinTable, findMyTable, watchMembers } from '../../src/db.js';
+import { createTable, joinTable, rejoinTable, findMyTable, watchMembers, heartbeat, watchActivity, watchMeta, watchServerOffset } from '../../src/db.js';
+import { createHeartbeat } from '../../../shared/heartbeat.mjs';
+import { renderBanner } from '../../src/banner.js';
 import { normalizeCode, isValidCode } from '../../../shared/table-code.mjs';
 import { cleanPlayerName } from '../../../shared/player-name.mjs';
 import { friendlyMessage } from '../../../shared/friendly-error.mjs';
@@ -18,6 +20,50 @@ const NAME_KEY = 'overloaded.name';
 const TABLE_KEY = 'overloaded.lastTable';
 
 let stopWatching = null;
+let stopKeepAlive = null;
+const bannerElement = $('banner');
+const formatTime = (ms) => new Date(ms).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+
+// Keeps the table alive while someone is using it, and warns before it closes (decided with Kevin, 2026-10-26):
+//  - a tap, key or input in a VISIBLE tab sends a heartbeat (at most one a minute); an idle or hidden tab sends none;
+//  - the banner is quiet in the last 5 minutes of the idle limit and in the last 30 minutes before the 8-hour limit,
+//    and says so once the table has closed. All of it is judged on the SERVER's time, not this computer's clock.
+function keepAlive(code) {
+  if (stopKeepAlive) stopKeepAlive();
+  let offset = 0;
+  let meta = null;
+  let lastActive = null;
+  let closed = false;
+  const beat = createHeartbeat({
+    // A refused heartbeat (another player's just landed, or the table closed) is not an error; only a failed send is retried.
+    send: () => { heartbeat(code).catch(() => beat.sendFailed()); },
+  });
+  const draw = () => {
+    const table = meta && lastActive !== null ? { createdAt: meta.createdAt, lastActive, idleLimit: meta.idleLimit } : null;
+    const state = renderBanner(bannerElement, { now: Date.now() + offset, table, formatTime });
+    if (state?.closed) closed = true; // a closed table cannot be revived, so stop sending heartbeats for it
+  };
+  const onActivity = () => { if (!closed) beat.activity(Date.now()); };
+  const onVisibility = () => { if (!closed) beat.setVisible(document.visibilityState === 'visible', Date.now()); draw(); };
+  const activityEvents = ['pointerdown', 'keydown', 'input', 'touchstart'];
+  for (const name of activityEvents) document.addEventListener(name, onActivity, { passive: true });
+  document.addEventListener('visibilitychange', onVisibility);
+  const stops = [
+    watchServerOffset((value) => { offset = value; draw(); }),
+    watchMeta(code, (value) => { if (value) meta = value; draw(); }),
+    watchActivity(code, (value) => { if (value !== null) lastActive = value; draw(); }),
+  ];
+  const timer = setInterval(() => { if (!closed) beat.tick(Date.now()); draw(); }, 15000);
+  beat.activity(Date.now()); // making or joining a table is activity
+  stopKeepAlive = () => {
+    for (const name of activityEvents) document.removeEventListener(name, onActivity);
+    document.removeEventListener('visibilitychange', onVisibility);
+    clearInterval(timer);
+    for (const stop of stops) stop();
+    bannerElement.hidden = true;
+    stopKeepAlive = null;
+  };
+}
 
 function say(message, isError = false) {
   statusLine.textContent = message;
@@ -35,6 +81,7 @@ function show(table) {
   $('link').textContent = linkForCode(location.origin, table.code);
   $('seat').textContent = table.seat;
   localStorage.setItem(TABLE_KEY, table.code);
+  keepAlive(table.code);
   if (stopWatching) stopWatching();
   stopWatching = watchMembers(table.code, (members, error) => {
     const list = $('players');

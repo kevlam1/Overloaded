@@ -187,5 +187,64 @@ await kai.ops.leaveTable(HT);
 await jon.ops.leaveTable(HT);
 check('the table is gone and the last host\'s slot is cleared', (await readAdmin(`tables/${HT}`)) === null && (await readAdmin('hosts/jon')) === null);
 
+console.log('the heartbeat and the watchers the page uses to warn before a table closes');
+const beth = person('beth');
+const cal = person('cal');
+const eli2 = person('eli2'); // never joins
+const bethTable = await beth.ops.createTable({ name: 'Beth', seats: 2 });
+const BT = bethTable.code;
+await cal.ops.joinTable({ code: BT, name: 'Cal' });
+const lastActive = () => readAdmin(`tables/${BT}/activity/lastActive`);
+const backdate = (ms) => admin((db) => set(ref(db, `tables/${BT}/activity/lastActive`), Date.now() - ms));
+const created = await lastActive();
+check('a new table has its first heartbeat from creation', Math.abs(created - Date.now()) < 60000);
+check('a heartbeat straight after creation is refused by the 30-second cap (and is not an error)', (await beth.ops.heartbeat(BT)) === false && (await lastActive()) === created);
+await backdate(40 * 1000);
+const old40 = await lastActive();
+check('a heartbeat 40 seconds after the last one is recorded', (await cal.ops.heartbeat(BT)) === true);
+const fresh = await lastActive();
+check('and it moved lastActive forward to about the server time', fresh > old40 && Math.abs(fresh - Date.now()) < 60000, `${old40} -> ${fresh}`);
+check('a second heartbeat right after that is refused, from either player', (await beth.ops.heartbeat(BT)) === false && (await cal.ops.heartbeat(BT)) === false && (await lastActive()) === fresh);
+await backdate(40 * 1000);
+check('someone who is not at the table cannot send a heartbeat', (await eli2.ops.heartbeat(BT)) === false);
+await backdate(45 * 60 * 1000);
+const stale = await lastActive();
+check('a heartbeat cannot revive a table that has been idle past its limit', (await beth.ops.heartbeat(BT)) === false && (await lastActive()) === stale);
+check('a heartbeat for a table that does not exist is refused, not thrown', (await beth.ops.heartbeat('ZZZZZZ')) === false);
+
+// Watchers
+await backdate(40 * 1000);
+const seenActive = []; let activityError = null;
+const stopActivity = cal.ops.watchActivity(BT, (value, error) => { if (error) activityError = error; else seenActive.push(value); });
+await waitFor(() => seenActive.length >= 1);
+check('a member watching lastActive gets its current value', typeof seenActive[0] === 'number' && seenActive[0] === (await lastActive()), String(seenActive[0]));
+await cal.ops.heartbeat(BT);
+await waitFor(() => seenActive.length >= 2);
+await new Promise((r) => setTimeout(r, 300)); // the SDK reports its own estimate of the server time first and the confirmed value a moment later
+const final = seenActive[seenActive.length - 1];
+check('and is told when a heartbeat changes it (moving forward, never back)', final > seenActive[0] && seenActive.every((v, i) => i === 0 || v >= seenActive[i - 1]) && final === (await lastActive()), seenActive.join(' -> '));
+stopActivity();
+let strangerActivity = 'no callback';
+const stopStrangerActivity = eli2.ops.watchActivity(BT, (value, error) => { strangerActivity = error ? 'error' : 'value'; });
+await waitFor(() => strangerActivity !== 'no callback');
+check('someone not at the table gets an error callback, not the time', strangerActivity === 'error', strangerActivity);
+stopStrangerActivity();
+
+const seenMeta = [];
+const stopMeta = beth.ops.watchMeta(BT, (meta, error) => { if (!error) seenMeta.push(meta); });
+await waitFor(() => seenMeta.length >= 1);
+check('a member watching the table gets its limits and status', seenMeta[0]?.idleLimit === 1800000 && seenMeta[0]?.status === 'lobby' && typeof seenMeta[0]?.createdAt === 'number', JSON.stringify(seenMeta[0]));
+await admin((db) => set(ref(db, `tables/${BT}/meta/status`), 'playing'));
+await admin((db) => set(ref(db, `tables/${BT}/meta/idleLimit`), 3600000));
+await waitFor(() => seenMeta.some((m) => m?.status === 'playing' && m.idleLimit === 3600000));
+check('and is told when the match starts (status and the 1-hour limit)', seenMeta.some((m) => m?.status === 'playing' && m.idleLimit === 3600000));
+stopMeta();
+
+let offset = null;
+const stopOffset = beth.ops.watchServerOffset((value) => { offset = value; });
+await waitFor(() => offset !== null);
+check('the server clock offset arrives as a number close to zero on this machine', typeof offset === 'number' && Math.abs(offset) < 5000, String(offset));
+stopOffset();
+
 await env.cleanup();
 console.log(`All ${checks} table logic checks passed.`);

@@ -16,6 +16,9 @@ const suites = [
   { name: 'table codes', cmd: node, args: ['scripts/test-table-code.mjs'] },
   { name: 'player names', cmd: node, args: ['scripts/test-player-name.mjs'] },
   { name: 'shared table links', cmd: node, args: ['scripts/test-lobby-link.mjs'] },
+  { name: 'heartbeat decisions', cmd: node, args: ['scripts/test-heartbeat.mjs'] },
+  { name: 'table limits and warnings', cmd: node, args: ['scripts/test-table-limits.mjs'] },
+  { name: 'warning banner', cmd: node, args: ['scripts/test-banner.mjs'] },
   { name: 'refused-request check', cmd: node, args: ['scripts/test-permission-error.mjs'] },
   { name: 'friendly error messages', cmd: node, args: ['scripts/test-friendly-error.mjs'] },
 ];
@@ -27,6 +30,7 @@ if (live) {
   suites.push({ name: 'LIVE: published rules match the file', cmd: node, args: ['--env-file=.env', 'scripts/check-live-rules.mjs'] });
   suites.push({ name: 'LIVE: two browsers against the real project', cmd: node, args: ['--env-file=.env', 'scripts/spike-two-browsers.mjs'] });
   suites.push({ name: 'LIVE: built site, vercel.json and share links', cmd: node, args: ['--env-file=.env', 'scripts/check-deploy-config.mjs'] });
+  suites.push({ name: 'LIVE: the heartbeat keeps a table alive (70 s)', cmd: node, args: ['--env-file=.env', 'scripts/check-heartbeat-live.mjs'] });
 }
 
 let failed = 0;
