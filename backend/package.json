@@ -4,7 +4,8 @@
   "description": "Database rules for Overloaded and the tools that test them. No server. Dev tools only; nothing here ships to players.",
   "type": "module",
   "scripts": {
-    "test": "node run-tests.mjs"
+    "test": "node run-tests.mjs",
+    "mutate": "node mutate-rules.mjs"
   },
   "engines": {
     "node": ">=24.12.0"
