@@ -601,6 +601,197 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 28. Table creation and lifetime rules, and a saved mutation script (2026-10-27)
+
+**What I asked for**
+- After the review I said to continue. Before that I had said I am "pretty sure" the Firebase project is on the free Spark plan and that I ticked Auto clean-up. Claude has not seen either, so they are still unconfirmed in the docs.
+
+**What changed**
+- `backend/database.rules.json`: a table now has `meta` (host, `createdAt`, seats 2 to 4, status, idle limit, format) and `activity/lastActive`, both only the database's own time. Writes to members, public, private, `meta` and the heartbeat are refused once a table is 8 hours old or idle past its limit (30 minutes in the lobby, 1 hour playing), so a heartbeat can't revive an expired table. Any signed-in user can delete an expired table and nothing else. A member entry on a table with no `meta` is refused, which closes the hole where anyone could create a table by joining it.
+- `backend/test-rules.mjs` went from 33 to 95 checks. New `backend/mutate-rules.mjs` (`npm run mutate`) replaces the throwaway script I deleted last time. `docs/live-play.md` has a new section with the details.
+
+**What I checked**
+- `npm test`: "All 95 rule checks passed." The first full run of 91 checks failed once, and a probe showed why: on a table with no `meta`, my member rule evaluated "is the table alive" first, that raised an error, and an error in the first half of `||` denies the whole rule. I put the "host is creating it" branch first.
+- Mutation run, 60 broken copies: 52 killed and 8 survived. Four survivors were real gaps in my tests: a host could have reset `createdAt` to the server time to extend the 8-hour limit (my test only tried a client time, so it was denied for the wrong reason), a host's `meta` change after 8 hours, a table without `seats`, and a non-member writing a public zone. I added tests, and those four are now killed (rerun one by one). The other four are rules that duplicate another rule, listed with reasons in the script. I did not rerun the other 52 after adding tests.
+- The rules accept `newData.val() === now` with the web SDK's server timestamp, arithmetic and the `?:` conditional, and `newData.parent()` inside a multi-path write. **That was on the local emulator, not my real project.**
+- Not checked: any of this against the real project, any browser, seats, presence, size limits.
+
+**Decisions**
+- I found a flaw in my own cleanup design: the plan queried all of `tables` for expired ones, which needs a read rule that would expose every table code and every hand. I did not build it. A host's own expired table can be deleted through a per-user slot, but tables of players who never return would linger. I have to decide that before deploying (`docs/todo.md`).
+- Heartbeats must be their own write, never part of a move's update, because the 30-second cap would make the whole move fail.
+
+---
+
+## 29. A new table replaces the old one, and what "anonymous" means (2026-10-27)
+
+**What I asked for**
+- I answered Claude's open question about cleaning up tables: if a host makes a new table, their previous active one is deleted, and the host gets a popup warning first. I also asked whether we had skipped personal accounts, because the word "user" kept appearing.
+
+**What changed**
+- `CLAUDE.md` (decided UI pieces: the new-table popup, and a new reason in the closed-table message), `docs/todo.md` and `docs/live-play.md`. No code or rules changed yet.
+
+**What I checked**
+- Nothing was run. This entry is a decision and a clarification.
+
+**Decisions**
+- A popup is right for this one because deleting a table is destructive and the host should confirm it, unlike the idle banner, which stays quiet and has no popup. Its design comes later.
+- We are still skipping accounts. Firebase's anonymous sign-in has no email, password or name: the browser gets a random id that only the rules see. "Per user" in the notes means per browser.
+- That means the one-table limit can be bypassed with a new browser or cleared site data, and clearing site data also loses your seat. Tables whose host never returns still linger; that is still open.
+
+---
+
+## 30. Can a second person take over a code already in use? (2026-10-27)
+
+**What I asked for**
+- I said to do options A and C for expired tables, and asked whether anything stops person A creating a lobby with code ABCDEF while person B is playing at that code.
+
+**What changed**
+- `backend/database.rules.json`: `meta` and `activity/lastActive` can now be written but not deleted. `backend/test-rules.mjs` went from 95 to 106 checks (a new "code collisions" section), and `backend/mutate-rules.mjs` got two more mutations (62 in all). Docs: `docs/live-play.md`, `docs/todo.md`, `CLAUDE.md`, `backend/README.md`.
+
+**What I checked**
+- A throwaway probe on the emulator first. Denied: a full table, a whole-table write or a bare `meta` at a live code; creating at an expired but undeleted code. Allowed, by design: deleting the expired table first and then creating at that code.
+- The probe found two holes: the host could delete their own `meta` (leaving a table nobody could delete, with the code open to a bare `meta` write that would make a stranger the host) or delete `lastActive` and write it back (skipping the 30-second cap). Fixed; both new mutations are killed, and `npm test` gives "All 106 rule checks passed."
+- Not checked: true simultaneous creation by two people (I believe the database handles writes one at a time, but I did not test that), the real project, and a browser.
+- Still open: anyone who knows a code can add themselves as a member of a started table, because there is no seat or status check yet.
+
+**Decisions**
+- A and C for cleaning expired tables. A (anyone may delete an expired table, which the rules already allow) needs the client to do it. C (a free scheduled job) needs a plan from me first, with the host, limits, cost and where its admin key lives.
+
+---
+
+## 31. Seat slots and the join gate (2026-10-27)
+
+**What I asked for**
+- I asked what the remaining security gap was and told Claude to continue. The gap: anyone who knew a table's code could add themselves as a member of any live table, including one already playing or full.
+
+**What changed**
+- `backend/database.rules.json`: seat slots `seats/1` to `seats/4`, each created only while empty, and a member entry that records its seat. Joining is one write that takes a seat and creates the entry, allowed only while the table is in the lobby, alive, and within the host's seat count. One seat per player. The host takes a seat when creating the table. The seat count can no longer change after creation. `backend/test-rules.mjs` went from 106 to 203 checks, and `backend/mutate-rules.mjs` from 62 to 122 mutations. Docs: `docs/live-play.md`, `docs/todo.md`, `CLAUDE.md`, `backend/README.md`.
+
+**What I checked**
+- `npm test`: "All 203 rule checks passed" (run twice in a row at 201, once at 203). Nothing ran against my real project or in a browser.
+- The first full mutation run had 77 killed and 42 survived. The seat rules are four copies, and my tests only tried each guard on some seat numbers (for example "a taken seat can be overwritten" was caught on seats 2 and 3 but not 1 and 4). I added loop tests that run every guard on all four seats, plus tests for a player re-adding a dropped member entry on a started, idle or expired table.
+- The second full run: 112 killed, 8 redundant, 2 survived. One survivor was a real gap (the host re-adding their own member entry on a started table, which my tests only tried with a non-host) and I added tests for it. The other was redundant. After rerunning those two, there are 113 killed and 9 documented as redundant, 0 survivors. I did not rerun the whole set after that last change.
+- One test run exited 1 earlier with no output captured, and I do not know why. It passed on the five runs since. It is open.
+- Not checked: two people grabbing the same seat at the same moment (I believe the database handles writes one at a time, but I did not test it), the real project, and a browser.
+
+**Decisions**
+- Claude made three choices I have not weighed in on, and they are in `docs/todo.md`: the seat count is fixed after creation, a leave mid-game is final (the seat stays held and the member entry cannot be re-added), and anyone with the code can take the free seats of an open lobby, since the code is the join secret.
+
+---
+
+## 32. Ending a table, conceding, end match, and the popping windows (2026-10-27)
+
+**What I asked for**
+- I asked whether End game covers conceding. I decided: a player concedes for themselves (a flag), "end match" is host-only and sends everyone back to the lobby to start again, the last player standing can end the table, leaving and freeing seats stays a lobby thing, and host handover can wait. I also said the command windows popping up were annoying and changed my window focus.
+
+**What changed**
+- `backend/database.rules.json`: the one-table-per-host slot (`hosts/{uid}`), the host deleting their own table, the last member remaining deleting it, a `conceded` flag, and the status now able to go from `playing` back to `lobby` (host only). `backend/test-rules.mjs` went from 106 to 268 checks, `backend/mutate-rules.mjs` from 62 to 147 mutations. `backend/run-tests.mjs` was rewritten to start the emulator's jar directly with no window. Docs: `docs/live-play.md`, `docs/todo.md`, `docs/scryfall.md` (the Game Changers flag), `CLAUDE.md`, `backend/README.md`.
+
+**What I checked**
+- `npm test` passed three times in a row at 268 checks (and 12 in a row at 228 before the new section). The emulator's Java processes have no window attached, and the runner refuses to run when port 9000 is already taken, tested with a dummy listener of my own. I cannot see my screen from here, so whether the flashing is gone is for me to confirm.
+- The full mutation run: 130 killed, 12 redundant, 5 survived. I added tests for three real gaps, documented two as redundant, and reran those five: 133 killed, 14 redundant, 0 survivors. I did not rerun the other 142 after those test changes.
+- Checked in real data: Scryfall's documentation lists `game_changer` on cards, and my cached bulk file has it on all 38,998 cards with 53 true (no Scryfall request made). Not checked: whether the list changes, and the bracket rules.
+- Not checked: any of this on my real project or in a browser, and two people writing at the same instant.
+
+**Decisions**
+- Deck name, card count and commander(s) will be visible to the table in the lobby, and changing your deck un-readies you. Sideboard swaps persist with a reset button (I said do what's best). A bracket check from the Game Changers flag is later, after reading Wizards' rules. I have not chosen between a match counter and each page clearing its own flags.
+
+---
+
+## 33. The match counter, and a hole in my concede flag (2026-10-27)
+
+**What I asked for**
+- I chose option B, the match counter, over having each page clear its own flags. I also asked whether we should consider a player connecting or disconnecting.
+
+**What changed**
+- `backend/database.rules.json`: `meta.match` starts at 1 and goes up by exactly one, only when the host ends a match. `ready` and `conceded` are now match numbers instead of true or false: you can only ready up for the current match, and concede for the current match during a match. A concession that has counted for the current match cannot be changed or deleted. `backend/test-rules.mjs` went from 268 to 307 checks, `backend/mutate-rules.mjs` from 147 to 157 mutations. Docs: `docs/live-play.md`, `docs/todo.md`, `CLAUDE.md`.
+
+**What I checked**
+- `npm test`: "All 307 rule checks passed." The full mutation run: 138 killed, 14 redundant, 5 survived. I read each survivor and all five are redundant (strict equality with a number already refuses strings and booleans, and one lock cannot be reached outside a match). They are now listed with reasons, and I reran those five to confirm the script reports them as redundant: 138 killed, 19 redundant, 0 survivors. I did not rerun the 138 kills after that edit, since it only changed the list of documented survivors.
+- Each kill now names the check that caught it, and I read the list for kills that looked unrelated. One looked odd (the delete-rule mutation caught by "member overwrites opponent entry"), and it is legitimate: without it the host could write anything to the table.
+- Not checked: the real project, a browser, and presence.
+
+**Decisions**
+- Connecting and disconnecting is already a decided UI piece but not built. A disconnect does not concede or un-ready anyone, and presence never keeps a table alive. Before writing its rules I have to check whether Firebase evaluates a server-side `onDisconnect` write against our rules when it fires. I proposed building the lobby deck fields next, then presence.
+
+---
+
+## 34. A full audit of everything so far (2026-10-27)
+
+**What I asked for**
+- Before moving on, I asked Claude for a big check of everything we have done.
+
+**What changed**
+- Only documentation: `backend/README.md` said 147 mutations (now 157), and three bullets in `docs/live-play.md` still described designs that had since changed (the cleanup query over all tables, the one-table slot being replaceable only when expired, and the lifetime rules being "drafts to test in the spike"). They now say what was built.
+
+**What I checked**
+- The rules suite 6 times in a row: 307 checks (92 allowed, 215 denied) every time. The 157 mutations all apply, 19 are documented as redundant. The last full mutation run on these rules: 138 killed, 14 redundant, 5 survived, then the five were reviewed and rerun as redundant. The parser and matcher suites pass, and the check of every real card name passes.
+- A static scan of the rules file: all 19 read and write rules require `auth != null` (apart from the literal `false` at the root), and the 8-hour, 30-minute, 1-hour and 30-second constants are the right numbers.
+- My real Firebase project still refuses signed-out reads of `/tables` and `/hosts` and a signed-out write (all HTTP 401), so the rules are not deployed. Those were three requests to my own project.
+- No keys, tokens, phone numbers, IP addresses or Windows user paths in the repo. The one email-shaped string is a third party's public support address quoted in a draft. `.env` is ignored and untracked, the Fan Content disclaimer is in the README, no file has a BOM.
+- Not checked: anything in a browser, the rules on the real project, whether the project is on the Spark plan, two people writing at the same instant.
+
+**Decisions**
+- None. Claude's honest summary of the biggest risk: the rules are very well tested, but there is still no page, no card list build, no deployment and no browser test, with about five weeks to the Dec 7 show and tell.
+
+---
+
+## 35. The first page: Vite, Firebase from npm, and a lobby (2026-10-27)
+
+**What I asked for**
+- After the audit I confirmed the project is on the free Spark plan and will stay there. I said the site should grow far past this class, so Claude revised its CDN suggestion to Vite and npm. I asked what Claude thought of three.js (verdict: not now, maybe a layer later). I said "lets continue", which Claude read as approval of `vite` and `firebase`.
+
+**What changed**
+- New: a root `package.json` and lockfile (vite 8.3.5, firebase 13.1.0), `vite.config.js`, `frontend/pages/lobby/` (`index.html`, `lobby.js`), `frontend/src/` (`db.js`, `style.css`), `shared/table-code.mjs`, `shared/player-name.mjs`, and tests `scripts/test-table-code.mjs` and `scripts/test-player-name.mjs`. Updated: `README.md` (status and how to run), `CLAUDE.md`, `docs/live-play.md`, `docs/todo.md`.
+
+**What I checked**
+- The two new helpers each passed their tests, and then failed them on deliberately broken copies (18 for the codes, 11 for the names; none survived). All other suites still pass, including 307 rule checks.
+- `npm run build` works: 233 KB, 70 KB gzipped, no gRPC or Firestore code in it. A canary secret in the environment did not reach the page. A missing setting fails the build and names only the variable (my first attempt at that test was invalid, because PowerShell deletes a variable you set to an empty string; I redid it in a throwaway folder).
+- Headless Chrome at desktop, phone and phone dark mode, with screenshots I looked at: no sideways scroll, buttons 44 px tall, the Fan Content disclaimer visible, no console errors, no network request on bad input. The screenshots caught a dropdown label clipped on the phone, which I fixed.
+- `npm audit` at the root shows 4 high findings from `@grpc/grpc-js` through Firestore. The page does not import Firestore and the bundle has no gRPC code, so I judged them not reachable, but that is a judgment.
+- Not checked: the page against the real database (the rules are not published yet), two browsers, whether Firebase's sign-in keeps the same id across a refresh by default, and a real phone.
+
+**Decisions**
+- Dependencies approved by "lets continue" (licenses MIT and Apache-2.0 shown). Join by link, the heartbeat, presence and the table page are not built. Still open: how the rules get published to my real project (paste into the console, or run `firebase login` once).
+
+---
+
+## 36. The two-browser test script, run once against the locked rules (2026-10-28)
+
+**What I asked for**
+- A new day. I said "lets continue" without answering the open question of how to publish my rules to the real Firebase project, so Claude prepared everything that did not need me.
+
+**What changed**
+- New `scripts/spike-two-browsers.mjs`: it starts the page, opens two separate headless Chrome profiles (Alice makes a table, Bob joins), and checks live sync, that Bob cannot read or write Alice's private cards, that a stranger cannot read the table, that a refresh keeps Bob's account and seat, that a second table replaces the first, and timings. It deletes its throwaway table and accounts. Docs: `CLAUDE.md`, `docs/live-play.md`, `docs/todo.md`.
+
+**What I checked**
+- I ran it once while the rules were still locked. Anonymous sign-in worked in a real browser against my real project, and creating a table was refused with "Permission denied", which is correct. It exited with code 2 ("rules not published") and left no browser processes, profile folders or server behind.
+- Not checked: any of the 33 live checks that need the rules published (join, sync, hidden cards, refresh, replacement, timings). The script itself has not yet had a passing run, so I should expect to find bugs in it when it first runs for real.
+
+**Decisions**
+- None new. Still open: how to publish the rules (paste into the console, or run `firebase login` once).
+
+---
+
+## 37. The spike passes: two real browsers against my real Firebase project (2026-10-28)
+
+**What I asked for**
+- I pasted the rules into the Firebase console and told Claude it was done.
+
+**What changed**
+- New `shared/permission-error.mjs` and `scripts/test-permission-error.mjs`. `frontend/src/db.js` now uses the shared check, `frontend/pages/lobby/index.html` has an empty favicon (it silences a harmless 404), and `scripts/spike-two-browsers.mjs` got page-status and console output on failures, a wait for Bob's player list, and a check that its test data was really removed. Docs: `CLAUDE.md`, `README.md`, `docs/live-play.md`, `docs/todo.md`.
+
+**What I checked**
+- The first live run passed 20 of 31 and showed a real bug (below). After the fix, 31 of 31 passed, then 31 of 31 twice more, each time with the test table and accounts removed and verified gone (the last run printed "2 test table(s) removed and verified gone" and "host slot cleared"), and no browser processes, profile folders or servers left. The privacy results, in one line: Bob's read and write of Alice's private cards were refused and her cards were unchanged, and a stranger holding the code was refused on all five reads.
+- The new `permission-error` tests pass, and 10 of 11 broken copies fail them (the 11th was redundant code I removed).
+- Timings: HTTPS reads a median of 46 to 50 ms; a join took 0.8 to 0.9 s. One machine, one network, headless Chrome, and not the live socket.
+- Not checked: a real phone, a held-open-connection round trip, per-IP limits on anonymous accounts, and whether the old test accounts are all gone from the Auth list (the script deletes them, but I cannot list them).
+
+**Decisions**
+- Firebase stays: the spike passed. Still open: the rules have no size limits yet, so the page stays on my machine until they do; and I paste the rules again each time the file changes.
+
+---
+
 ## Where AI misread me, or I had to correct course
 
 - In my first message I said to put the folder in my Portfolio project, which was wrong: the other artifacts live next to the Portfolio. I corrected it in my next message.
@@ -617,6 +808,14 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - **A daily cost in the build plan (Claude's slip, entry 9, found in entry 11):** "download when Scryfall's file changes" meant a new card list almost every day, so every returning player would re-download it. Fixed by changing the list at most weekly.
 - **Same trap twice (Claude's slip, entry 11):** its throwaway name test filtered on the chosen printing's `digital` flag, the mistake fixed in entry 10, and wrongly reported `Lim-Dul's Cohort` as not found. Claude noticed because the count was exactly 1,062 short, and fixed the test before using any result.
 - **Misread my answer (after entry 11):** Claude asked whether to compare Scryfall's files "in a few days". I answered that it should happen when we're working on something, not after a wait. Claude read that as a new design question and started researching a different way to refresh card data (one Scryfall API call and two header requests, no file changes). I pointed out it was an answer, and the comparison is now a todo item for our next card-data session. I then asked for the list of things still unknown to be kept somewhere Claude will surely check. It is now a table in `CLAUDE.md`, the only file every session loads, with an event that makes each row due.
+- **A bug in the page that only a real browser could find (Claude's slip, entry 37):** I assumed the Firebase SDK words a refused request one way. It words a refused write "PERMISSION_DENIED" and a refused read "Permission denied" (a space, no code), and my check looked only for the first. So the normal answer to "am I already at this table?" for a newcomer was treated as a crash, and joining and replacing a table failed. All 307 rule tests passed the whole time, because they test the rules and not the page. I also wrote a test with a race in it (it read Bob's list in the same instant his page appeared), and I had claimed my script cleaned up after itself without checking; both are fixed.
+- **A recommendation that did not fit the goal, and a test that tested nothing (Claude's slips, entry 35):** I recommended loading the Firebase SDK from a CDN because it needs no build step, which suited a class project. When Kevin said this will grow into something much bigger, I had to reverse it. Separately, my first test of "a missing setting fails the build" passed for the wrong reason: PowerShell removes a variable you set to an empty string, so the setting came from the real settings file and the build succeeded. I redid it in a throwaway folder. And the number checks on the phone layout all passed while the dropdown text was visibly clipped; only looking at the screenshot caught it.
+- **A concede flag that could be deleted (Claude's slip, entry 33, found while redesigning it):** the first version of `conceded` had a rule saying it could not be taken back mid-match, but that rule only ran when the value was written, and deleting the field is not a write that rule sees, so a player could have deleted their own concession. I found it by reading the rule while building the counter, not by a test, so I cannot show that it was exploitable; the new version blocks it and has tests for deleting and for rewriting the whole entry. Same lesson as entry 30: a validate rule does not run on a delete.
+- **My mutation counts were inflated by a flaky test, and I broke the rules file while stopping a run (Claude's slips, entry 32):** a test sent the exact current time as "a client time", and about 1 run in 3 it matched the emulator's clock to the millisecond and was correctly accepted, failing the suite. My mutation script counts any such failure as the rules catching a mutation, so earlier kill counts (including the 113 in entry 31) may be a little high. I found it only because one mutation was killed once and survived later. Fixed (a time 5 seconds in the past), and kills now print the check that caught them. Separately, when I stopped a mutation run to fix the windows, killing it skipped its restore step and left one deliberately broken rule in my rules file. I rebuilt the file from my own record and diffed it against the broken copy (exactly one rule differed, the mutation in progress), and the script now keeps a backup and repairs itself on the next start. I also spent several turns calling the cmd windows "hidden" before finding that the emulator launcher, not my script, opened them.
+- **Tests that looked complete but covered only some copies of a rule (Claude's slip, entry 31, found by the mutation run):** the four seat rules are separate copies, and I tested each guard on only the seat numbers that were convenient. 42 of 122 mutations survived the first run, nearly all "this guard on seat 1 or 4". A test passing on seat 3 says nothing about seat 4. Fixed with loop tests over every seat. Also my first run of the new tests exited 1 once with no output saved and I could not find out why.
+- **Forgot that validate rules don't run on deletes (Claude's slip, entry 30, found by Kevin's question):** I made sure `meta` and `lastActive` were well-formed when written, but never forbade deleting them. The host could delete `meta` and leave a table nobody could delete, with the code open to a takeover, or delete `lastActive` to skip the heartbeat cap. A probe found it; fixed and tested.
+- **Overstated a risk and used a confusing word (Claude's slips, entry 29, caught by Kevin's questions):** I wrote that "stored decks add up toward the 1 GB limit". Kevin asked what decks, since decks live in the browser. The database holds only the running game's zones (library order, hand, sideboard), and my own data-model draft also listed "the deck list" there, which conflicts with that rule. My size worry was a guess with no measurement (a few tens of KB per table, so tens of thousands of tables per GB), and the real cost of an abandoned table is privacy, not space. I corrected `docs/todo.md` and `docs/live-play.md`.
+- **Tests that passed for the wrong reason, and a rule-order trap (Claude's slips, entry 28):** my "host changes createdAt" test used a client time, which two rules denied, so the real danger (a host resetting it to the server time to extend the 8-hour limit) was untested until the mutation run showed it. My member rule also checked "alive" before "host is creating", and the error on a table with no `meta` denied the host's own creation. And I said the cleanup query was fine in the plan without noticing it needs a read rule that leaks every table.
 - **Rules too strict, and stale docs (Claude's slips, entry 27, found in the review):** the first member rule was create-only, which would have blocked changing a name, readying up and leaving. The tests had even asserted that block, so they passed while checking the wrong behavior. Also `backend/README.md` still said the backend was empty and unchosen, and `CLAUDE.md` still said there was no `package.json`. Both are fixed.
 - **Left processes running and swallowed a test result (Claude's slip, entry 27):** my first mutation check filtered the test output so hard that it showed nothing, so it proved nothing. I redid it with the exit code. Each `npm test` also leaves the emulator's Java process listening on port 9000 on this machine, which made one later run fail with "port taken". I checked the command line (the emulator jar from my `firebase.json`) and stopped only those processes. The leftover process still has to be dealt with in the test script.
 - **Made-up conclusions about the exports (Claude's slip, entry 13, corrected in entry 14):** it said the commander had "no marker" and the Archidekt sideboard was "unknown". Kevin pointed out that commanders are marked by position on Moxfield (top in "Copy for Moxfield", bottom in plain text) and that the Archidekt text is the literal export. It also expected a link test to need three deck links from Kevin, but one public link was enough to learn most of it.

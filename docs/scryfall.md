@@ -29,6 +29,12 @@ Read from `scryfall.com/docs/api` (the main page, `rate-limits`, `bulk-data`, `c
 - `produced_mana`: Forest `["G"]`, missing on cards that make no mana. Useful later for a "can I afford this" hint.
 - **Double-faced cards** (`layout` `transform`, `modal_dfc` and others) have no top-level `image_uris` or `mana_cost`. They are under `card_faces[n]`.
 
+## Commander Game Changers (checked 2026-10-27, for a possible bracket check)
+- **Verified:** Scryfall's card documentation (`scryfall.com/docs/api/cards`) lists `game_changer` as "Boolean, Nullable: True if this card is on the Commander Game Changer list". The cached `oracle_cards` file (38,998 cards, downloaded 2026-10-25) has the field on every record, and **53 are `true`** (first samples: Teferi's Protection, Jeska's Will, Survival of the Fittest, Smothering Tithe, Imperial Seal, Thassa's Oracle). It needs no extra request, since it is in the bulk file we already use.
+- **Cheapest way to carry it:** a separate list of the flagged names (53 names, roughly 1 to 2 KB, not measured) instead of a field on every card, so the card list barely changes and the weekly-rebuild rule is not affected.
+- **Not verified:** whether the list is static (Wizards can change it, and I did not check how often; the flag stays current through the weekly rebuild), and the bracket rules themselves (which bracket allows how many Game Changers). Read Wizards' official bracket page before building a check.
+- **What it can and cannot do:** counting Game Changers in a deck is automatic. Other bracket criteria that need judgment (for example mass land denial, extra-turn chains, tutors) cannot be checked automatically, so the page could show "N Game Changers" and the bracket those would allow, not a ruling.
+
 ## Images
 - Sizes include `small` 146×204, `normal` 488×680, `large` 672×936, `png` 744×1040, `art_crop`.
 - The link is `https://cards.scryfall.io/<size>/<front|back>/<id[0]>/<id[1]>/<id>.jpg`. Scryfall adds `?<timestamp>`, but the link works without it (checked: HTTP 200, `image/jpeg`, about 70 KB for `normal`, `Access-Control-Allow-Origin: *`, cached for a year). So **an image link can be rebuilt from the card id, and there's no need to store it**. The trade-off: without the timestamp, a re-scanned image can stay stale in caches.
