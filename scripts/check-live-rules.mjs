@@ -129,6 +129,16 @@ try {
   await expect('the host frees the seat nobody sits in', call(host, 'DELETE', `${T}/seats/2`), 'allowed');
   await expect('the member joins the lobby again and takes seat 2', update(member, { [`${T}/members/${member.uid}`]: { name: 'Member', seat: '2' }, [`${T}/seats/2`]: member.uid }), 'allowed');
 
+  // Host handover (added 2026-10-28). The OLD rules refused all of these: the host was fixed for the life of the table.
+  await expect('a member who is not the host makes themselves host', call(member, 'PUT', `${T}/meta/host`, member.uid), 'refused');
+  await expect('the host hands the table to someone who is not at it', call(host, 'PUT', `${T}/meta/host`, stranger.uid), 'refused');
+  await expect('the host hands the table to a member and clears their own host slot', update(host, { [`${T}/meta/host`]: member.uid, [`hosts/${host.uid}`]: null }), 'allowed');
+  await expect('the former host can no longer start a match', call(host, 'PATCH', `${T}/meta`, { status: 'playing', idleLimit: PLAYING_IDLE }), 'refused');
+  await expect('the new host claims their own host slot', call(member, 'PUT', `hosts/${member.uid}`, code), 'allowed');
+  await expect('the former host cannot claim the host slot back', call(host, 'PUT', `hosts/${host.uid}`, code), 'refused');
+  await expect('the new host hands the table back and clears their slot', update(member, { [`${T}/meta/host`]: host.uid, [`hosts/${member.uid}`]: null }), 'allowed');
+  await expect('the original host claims their host slot again', call(host, 'PUT', `hosts/${host.uid}`, code), 'allowed');
+
   // The last player standing may end the table
   await expect('a member ends the table while the host is still in it', call(member, 'DELETE', T), 'refused');
   await expect('the host leaves (deletes their member entry)', call(host, 'DELETE', `${T}/members/${host.uid}`), 'allowed');

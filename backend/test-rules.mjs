@@ -170,7 +170,10 @@ await denied('non-host changes status', update(ref(bob, 'tables/META11/meta'), {
 await denied('host changes status but not the idle limit', update(ref(alice, 'tables/META11/meta'), { status: 'playing' }));
 await denied('host changes createdAt to a client time', update(ref(alice, 'tables/META11/meta'), { createdAt: clientTime() }));
 await denied('host resets createdAt to the server time (would extend the 8-hour limit)', update(ref(alice, 'tables/META11/meta'), { createdAt: serverTimestamp() }));
-await denied('host changes host', update(ref(alice, 'tables/META11/meta'), { host: 'bob' }));
+// Changed 2026-10-28 (host handover): the host used to be fixed for the life of the table. Now the host may hand the
+// table to another current member (see "host handover" near the end for the full set of cases).
+await seed('META12');
+await ok('host hands the table to a member', update(ref(alice, 'tables/META12/meta'), { host: 'bob' }));
 await ok('host starts the game with the playing idle limit', update(ref(alice, 'tables/META11/meta'), { status: 'playing', idleLimit: PLAYING_IDLE }));
 await ok('host sets playing back to lobby (end match)', update(ref(alice, 'tables/META11/meta'), { status: 'lobby', idleLimit: LOBBY_IDLE, match: 2 }));
 await denied('host changes the seat count after creation', update(ref(alice, 'tables/META11/meta'), { seats: 3 }));
@@ -528,6 +531,52 @@ await denied('another user writes someone else\'s slot', set(ref(abe, 'hosts/hos
 await seed('HT0041', { host: 'hostF', members: [['hostF', '1']] });
 await env.withSecurityRulesDisabled((ctx) => set(ref(ctx.database(), 'hosts/hostF'), 'HT0041'));
 await denied('another user clears someone else\'s slot', set(ref(abe, 'hosts/hostF'), null));
+
+console.log('host handover: the host hands the table to another member (2026-10-28)');
+const hostSlot = (uid, code) => env.withSecurityRulesDisabled((ctx) => set(ref(ctx.database(), `hosts/${uid}`), code));
+await seed('HAND01');
+await ok('the host hands over and clears their own host slot in one write', update(ref(alice), { 'tables/HAND01/meta/host': 'bob', 'hosts/alice': null }));
+await denied('the former host can no longer start the match', update(ref(alice), { 'tables/HAND01/meta/status': 'playing', 'tables/HAND01/meta/idleLimit': PLAYING_IDLE }));
+await denied('the former host can no longer end the table as host (they are still a member, not the last one)', set(ref(alice, 'tables/HAND01'), null));
+await ok('the new host starts the match', update(ref(bob), { 'tables/HAND01/meta/status': 'playing', 'tables/HAND01/meta/idleLimit': PLAYING_IDLE }));
+await denied('the former host cannot claim the host slot', set(ref(alice, 'hosts/alice'), 'HAND01'));
+await ok('the new host claims their own host slot', set(ref(bob, 'hosts/bob'), 'HAND01'));
+await ok('the new host can hand it back (and clear their slot)', update(ref(bob), { 'tables/HAND01/meta/host': 'alice', 'hosts/bob': null }));
+await ok('the original host claims their slot again', set(ref(alice, 'hosts/alice'), 'HAND01'));
+await seed('HAND02');
+await denied('a member who is not the host makes themselves host', update(ref(bob, 'tables/HAND02/meta'), { host: 'bob' }));
+await denied('a member who is not the host hands the table to someone else', update(ref(bob, 'tables/HAND02/meta'), { host: 'alice' }));
+await denied('a stranger makes themselves host', update(ref(carol, 'tables/HAND02/meta'), { host: 'carol' }));
+await denied('the host hands the table to someone who is not at it', update(ref(alice, 'tables/HAND02/meta'), { host: 'carol' }));
+await denied('the host hands the table to a number', update(ref(alice, 'tables/HAND02/meta'), { host: 7 }));
+await denied('the host hands the table to nobody (deletes the field)', update(ref(alice, 'tables/HAND02/meta'), { host: null }));
+await ok('the host "hands over" to themselves (unchanged, harmless)', update(ref(alice, 'tables/HAND02/meta'), { host: 'alice' }));
+await seed('HAND03', { members: [['alice', '1'], ['bob', '2'], ['dave', '3']] });
+await seed('HAND3X', { host: 'bob', members: [['bob', '1']] });
+await hostSlot('bob', 'HAND3X');
+await denied('handing the table to a member who already hosts another live table', update(ref(alice, 'tables/HAND03/meta'), { host: 'bob' }));
+await ok('handing it to a member who hosts nothing instead', update(ref(alice, 'tables/HAND03/meta'), { host: 'dave' }));
+await env.withSecurityRulesDisabled((ctx) => set(ref(ctx.database(), 'tables/HAND3X'), null));
+await seed('HAND04', { members: [['alice', '1'], ['bob', '2']] });
+await ok('a member whose host slot points at a table that is gone can take over', update(ref(alice, 'tables/HAND04/meta'), { host: 'bob' }));
+await ok('and then claims the slot (the stale one is replaced)', set(ref(bob, 'hosts/bob'), 'HAND04'));
+// Bob now hosts a live table, which the next cases must not trip over: end that table and clear his slot.
+await env.withSecurityRulesDisabled(async (ctx) => { await set(ref(ctx.database(), 'tables/HAND04'), null); await set(ref(ctx.database(), 'hosts/bob'), null); });
+await seed('HAND05', { created: 9 * HOUR });
+await denied('an expired table cannot be handed over', update(ref(alice, 'tables/HAND05/meta'), { host: 'bob' }));
+await seed('HAND06', { active: 31 * MINUTE });
+await denied('a lobby idle past its limit cannot be handed over', update(ref(alice, 'tables/HAND06/meta'), { host: 'bob' }));
+await seed('HAND07', { status: 'playing' });
+await ok('the host hands a match in progress to a member', update(ref(alice, 'tables/HAND07/meta'), { host: 'bob' }));
+await seed('HAND08');
+await ok('the host leaves in one write: hand over, leave, free the seat, clear the slot', update(ref(alice), { 'tables/HAND08/meta/host': 'bob', 'tables/HAND08/members/alice': null, 'tables/HAND08/seats/1': null, 'hosts/alice': null }));
+await seed('HAND09', { status: 'playing' });
+await ok('the host leaves a match in one write: hand over and leave (the seat stays held)', update(ref(alice), { 'tables/HAND09/meta/host': 'bob', 'tables/HAND09/members/alice': null }));
+await ok('the former host comes back to their own seat as a member', set(ref(alice, 'tables/HAND09/members/alice'), { name: 'alice', seat: '1' }));
+await denied('the former host cannot hand the table back (they are not the host now)', update(ref(alice, 'tables/HAND09/meta'), { host: 'alice' }));
+await seed('HAND10');
+await denied('handing over cannot also change the seat count', update(ref(alice, 'tables/HAND10/meta'), { host: 'bob', seats: 2 }));
+await denied('handing over cannot also reset the creation time', update(ref(alice, 'tables/HAND10/meta'), { host: 'bob', createdAt: serverTimestamp() }));
 
 await env.cleanup();
 console.log(`All ${checks} rule checks passed.`);
