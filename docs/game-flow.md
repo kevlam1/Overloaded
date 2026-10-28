@@ -66,6 +66,24 @@ Kevin's requirement: a table must carry on when the host is gone but the others 
    - **Checks:** 372 rule tests (28 for hand-over), 18 new page checks, the flow comparison (the model hands over and compares who is host and who holds the slot after every step; a new host really does host-only things 57 times in a run), 6 new rule mutations (5 caught, 1 redundant), and 8 new live checks that pass only once the rules are published.
 2. **A host who vanished: not built.** A crashed host's entry is still there, so the database cannot tell "gone" from "quiet". It needs presence first (each client writes a "last seen" time, which is also what the "Reconnecting..." banner needs). Then a rule: any member may claim the host role if the host's last-seen time is older than a few minutes. I would do it together with the heartbeat and presence. Until then, a table whose host vanished carries on (see above) but cannot start or end a match; someone can still leave, or the host can come back to their own seat after a crash.
 
+## Keeping a table alive: the heartbeat and the warnings (built 2026-10-28)
+
+**Design (Kevin, 2026-10-26):** like a banking app. A table closes after 30 minutes with no activity in the lobby, 1 hour with none while playing, and never lives past 8 hours from creation. Activity keeps it alive, with no popup.
+
+| Part | Where | Enforced by |
+|---|---|---|
+| A tap, key or input in a **visible** tab sends a heartbeat, at most one a minute per player; hidden or idle tabs send none | `shared/heartbeat.mjs`, wired in `frontend/pages/lobby/lobby.js` | the page (decision logic tested with a fake clock) |
+| The database accepts a heartbeat only from a member, only with its own clock (never the client's), at most one per 30 seconds for the whole table, and never on a closed table | `backend/database.rules.json` (`activity/lastActive`) | the rules |
+| Members can read `lastActive` (they could not before) so the page can tell how long the table has been idle | `activity/.read` | the rules (new 2026-10-28) |
+| A quiet banner in the last 5 minutes of the idle limit; a quiet one 30 minutes before the 8-hour limit and a firmer one at 10 minutes (nothing clears these); a plain message once the table has closed | `shared/table-limits.mjs`, `frontend/src/banner.js` | the page |
+| All of it is judged on the **server's** time (`.info/serverTimeOffset`), so a wrong computer clock cannot hide or invent a warning | `watchServerOffset` | the page |
+
+The page's interval is one minute, not the rules' 30-second floor: a heartbeat is a few dozen bytes and the cap is per table, so the cost is negligible either way, and several players' heartbeats rarely collide. A heartbeat refused because another player's just landed is not an error and is not retried.
+
+**Checked by:** 36 heartbeat decision checks (11 of 11 broken copies caught), 40 limit and wording checks at exact boundaries (21 of 21), 20 banner checks (9 of 12 caught, the 3 survivors are redundant guards), 385 rule tests (13 new for the read rule), 78 table logic checks (14 new: heartbeat accepted, refused by the cap, refused for outsiders and for an idle table, and the three watchers), and a 70-second check on the real project in a real browser (`scripts/check-heartbeat-live.mjs`: no heartbeat while idle, one after a tap, none for a second tap straight after).
+
+**Not covered:** the flow model above does not include the heartbeat (its "expire" step only moves the creation time), so "activity keeps a table alive" is covered by the rule tests and the live check, not by the model comparison. Presence ("Reconnecting..." and taking over from a vanished host) is not built.
+
 ## Solo play (goldfishing)
 
 Playing alone does not need a table. It is Phase 2, the "solo table", running entirely in the browser with the same game logic modules in `shared/` and no database: no code, no seats, no rules, nothing to clean up. When the table page is built, a solo game is the same page with the "opponents" and live connection switched off.

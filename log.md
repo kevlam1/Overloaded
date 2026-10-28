@@ -934,6 +934,48 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - A link with extra path parts (`/lobby/ABC234/extra`) is a 404, like on Vercel, not the lobby page.
 - The referrer policy is `strict-origin-when-cross-origin`, not `no-referrer`, so a Google Cloud API key restricted by website would not silently break sign-in.
 
+## 45. The deployed site checked for real (2026-10-28)
+
+**What I asked for**
+- I pushed, gave Claude the live address (`https://overloaded-spell.vercel.app`), and asked whether I should test the site.
+
+**What changed**
+- `scripts/check-deploy-config.mjs` can now check a deployed site: with `DEPLOY_URL=<address>` it skips the build and the stand-in, reads the real response headers, and Chrome and Firebase see the real address. It also checks that none of the repository's own files (`package.json`, `.env`, `vite.config.js`, the rules file, `log.md`, `CLAUDE.md`) can be fetched from the site.
+- `CLAUDE.md` now records the live address.
+
+**What I checked**
+- Plain GETs to the live site: `/` and `/lobby/ABC234` serve the lobby page, `/lobby/ABC234/extra` is a 404, and every response carries the content policy, `nosniff`, no framing, the referrer policy and the permissions policy.
+- The full Chrome check against the live site passed 40 of 40: a table made from the real address (so the Google API key is not restricted away from it), a second browser joining through the shared link, the host seeing both players live, and nothing blocked by the content policy. It cleaned up its table and accounts. Locally it passes 43 of 43.
+- Real Vercel answers a path-traversal attempt (`/..%2Fpackage.json`) with 400, not the 404 my stand-in gave; either way nothing is served, and the repository files all return 404.
+- I then tried the live site by hand in my own browser: I made a table and the page showed its code, a link to share and my seat; a second browser joined and the database showed both members, seats 1 and 2, the host, and a host slot for the host only. A refresh put me back in the same seat, the shared link works in a private window, and making a second table while I had one showed the warning popup. I cleared my test tables from the console afterwards. A leftover table from an early test run (before the cleanup was verified) was also in the database; I deleted that myself.
+- Seen while testing, not a bug: `lastActive` equals `createdAt`, because the heartbeat is not built, so a table stops accepting writes 30 minutes after it was made even if people are active. There are also no Ready or Start buttons yet.
+- Not checked: Firebase's long-polling fallback (needs WebSockets blocked), a real phone, and a school network.
+
+**Decisions**
+- The test I could run myself, I ran. What is left for me to try by hand is what a script cannot judge: how the page looks and feels in my own browser, a share link opened on a second real device, and a phone.
+
+## 46. The heartbeat, and warnings before a table closes (2026-10-28)
+
+**What I asked for**
+- While testing the live site I saw that `lastActive` never moves, so a table would stop working 30 minutes after it was made even with people active. Claude suggested building the heartbeat, and I asked whether 30 seconds is too fast, because I was afraid of cost. Claude explained that 30 seconds is the database's floor, not the page's rate (the page sends at most one a minute), and that nothing here costs money on the free plan. I said to continue.
+
+**What changed**
+- `shared/heartbeat.mjs` (new): when to send. Only a tap, key or input in a visible tab sends one, at most one a minute; idle or hidden tabs send none; a failed send is retried, a refused one is not. `shared/table-limits.mjs` (new): when a table closes and when to warn (the idle banner in the last 5 minutes, quiet 30 and firmer 10 minutes before the 8-hour limit, and what to say once it has closed), always judged on the server's time. `frontend/src/banner.js` (new): what the page shows.
+- `backend/database.rules.json`: members may now read `activity/lastActive` (one line). **Has to be pasted into the Firebase console again.**
+- `shared/table-ops.mjs`, `frontend/src/db.js`: `heartbeat`, and watchers for the activity, the table's limits and the server clock offset.
+- `frontend/pages/lobby/lobby.js`, `index.html`, `style.css`: the page sends the heartbeat and shows the banner.
+- Tests: `scripts/test-heartbeat.mjs`, `test-table-limits.mjs`, `test-banner.mjs`; 13 new rule tests (385), 14 new table logic checks (78), 2 new live rule requests, 2 new page checks (44), 3 new rule mutations (176), and `scripts/check-heartbeat-live.mjs`, a 70-second check on the real project that is part of `npm run test:live`. I also changed two of my site checks to accept my "(BETA)" heading.
+
+**What I checked**
+- All 12 local suites pass: 385 rule checks, 78 table checks, 1,675 flow steps, 44 page checks, and the new unit suites. Broken copies: the heartbeat logic 11 of 11 caught (the first run missed one because my test had activity already pending; I added a case), the limits 21 of 21, the banner 9 of 12 (the 3 survivors are the explicit "missing data" guards, which are redundant: missing numbers become `NaN`, which shows nothing anyway), the closed text 2 of 2, the 3 new rule mutations 2 caught and 1 redundant (a signed-out user has no `auth.uid`, so the member check already refuses it).
+- Before I pasted the rules, the live heartbeat check correctly stopped with "rules not published" (exit 2) and cleaned up. After I pasted the rules with the new read permission and published them, `npm run test:live` passed all 16 suites: the live rules check 62 of 62 (the 2 new requests included) and the 70-second heartbeat check 7 of 7 on the real project in a real browser: nothing sent while idle, one heartbeat after a tap that moved `lastActive` by about a minute, none for a second tap straight after, the banner stayed hidden, no page errors. I also looked at screenshots of the three banner looks at desktop width in dark mode.
+- Not checked yet: the banner on a real table nearing its limit (I cannot wait 25 minutes in a test; the wording, boundaries and display are tested with a fake clock and forced screenshots), and a full re-run of all 176 rule mutations. Not built: presence.
+
+**Decisions**
+- The page sends at most one heartbeat a minute, not every 30 seconds. The database's 30-second cap is only a floor against abuse.
+- The warnings use the server's clock, so a wrong clock on one computer cannot hide or invent a warning.
+- Left for later: the heartbeat is not in the flow model (its "expire" step only moves the creation time); it is covered by the rule tests and the live check.
+
 ---
 
 ## Where AI misread me, or I had to correct course
@@ -952,6 +994,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - **A daily cost in the build plan (Claude's slip, entry 9, found in entry 11):** "download when Scryfall's file changes" meant a new card list almost every day, so every returning player would re-download it. Fixed by changing the list at most weekly.
 - **Same trap twice (Claude's slip, entry 11):** its throwaway name test filtered on the chosen printing's `digital` flag, the mistake fixed in entry 10, and wrongly reported `Lim-Dul's Cohort` as not found. Claude noticed because the count was exactly 1,062 short, and fixed the test before using any result.
 - **Misread my answer (after entry 11):** Claude asked whether to compare Scryfall's files "in a few days". I answered that it should happen when we're working on something, not after a wait. Claude read that as a new design question and started researching a different way to refresh card data (one Scryfall API call and two header requests, no file changes). I pointed out it was an answer, and the comparison is now a todo item for our next card-data session. I then asked for the list of things still unknown to be kept somewhere Claude will surely check. It is now a table in `CLAUDE.md`, the only file every session loads, with an event that makes each row due.
+- **Old tests that asserted the old design, and a test that wanted one event (Claude's slips, entry 46):** the rule test "member reads activity" was written as "denied" when I first locked the database down, so when I opened that read on purpose it failed and I had to flip it knowingly. A watcher test expected exactly one change when a heartbeat is written, but the Firebase SDK reports its own estimate of the server time first and the confirmed value a moment later; I changed the check to "moved forward, never backward". I also edited `index.html`'s heading before noticing, in a tool message, that you had changed it to "(BETA)" and that two of my checks depended on the exact text.
+- **A check that assumed my stand-in was the real thing (Claude's slip, entry 45):** the first run against the live site failed one check because it demanded a 404 for a path-traversal attempt and real Vercel answers 400. The site was fine (nothing was served); my expectation copied my stand-in's behaviour. I changed it to accept either and added the repository-file probes. I had also called the earlier headers "verified" while they were only checked against my stand-in; the live GETs are what verified them.
 - **A new check whose own test was wrong, and a first policy choice that could have broken sign-in (Claude's slips, entry 44):** the site check first failed with "the check script itself ran without an error" because I had asked Chrome to read the code box on a page that correctly does not exist (`/lobby/ABC234/extra` is a 404); the expectation was wrong, not the site. My first draft of the referrer policy was `no-referrer`, which would have removed the website from requests to Google, and I changed it before it shipped because a website-restricted API key would then fail sign-in. I also tried to read a task output path directly and the sandbox refused it, so I asked a narrower question instead.
 - **I let three pushes go out that I knew could not deploy (Claude's slip, entry 43):** `CLAUDE.md` and the todo both said the Vercel project existed but "nothing builds yet", and the todo listed the five Vercel settings as "before any real deploy". Once the Vite build was in the repo and Vercel was importing `main`, every push was going to fail, and I never told Kevin to expect that or to add the settings. He found it from the red crosses on GitHub.
 - **My own tests tripped my own new rule, twice (Claude's slips, entry 42):** I flipped an old "the host cannot change" check in place, so a later check that still expected Alice to be host failed; and a case that left Bob hosting a live table made my own rule (no hand-over to someone who hosts another table) refuse the next case. Both were test-order mistakes, not rule bugs, and I fixed them by giving each case its own table and clearing the slot. A mutation was also written with the wrong text and "did not apply", and the first version of the flow test printed its coverage warning before the disagreement that caused it, which made two real catches look like coverage problems; it now prints disagreements first.
