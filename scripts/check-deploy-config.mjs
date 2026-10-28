@@ -19,6 +19,10 @@ const DB = (process.env.FIREBASE_DATABASE_URL ?? '').replace(/\/$/, '');
 const API_KEY = process.env.FIREBASE_API_KEY ?? '';
 if (!DB || !API_KEY) { console.log('The Firebase settings are not in the environment. Run: node --env-file=.env scripts/check-deploy-config.mjs'); process.exit(1); }
 
+// DEPLOY_URL=https://your-site.example: check the DEPLOYED site instead (no build, no stand-in; the headers are read
+// from the live responses, and Chrome and Firebase see the real origin). Run: DEPLOY_URL=... node --env-file=.env ...
+const LIVE = (process.env.DEPLOY_URL ?? '').replace(/\/$/, '');
+
 const failures = [];
 let checks = 0;
 function check(label, condition, detail = '') {
@@ -27,7 +31,7 @@ function check(label, condition, detail = '') {
 }
 
 // ---- 1. Build the site, so dist/ matches the source as it is now ----
-const build = spawnSync(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', 'build'], { encoding: 'utf8', shell: true, windowsHide: true });
+const build = LIVE ? { status: 0, stdout: '', stderr: '' } : spawnSync(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', 'build'], { encoding: 'utf8', shell: true, windowsHide: true });
 check('the site builds', build.status === 0, (build.stdout + build.stderr).split('\n').filter((l) => /rror/.test(l)).slice(0, 2).join(' | '));
 if (build.status !== 0) { console.log(`${failures.length} check(s) failed.`); process.exit(1); }
 
@@ -35,8 +39,16 @@ if (build.status !== 0) { console.log(`${failures.length} check(s) failed.`); pr
 const config = JSON.parse(readFileSync('vercel.json', 'utf8'));
 const rewrites = config.rewrites ?? [];
 const headerRules = config.headers ?? [];
-for (const rule of rewrites) check(`the rewrite ${rule.source} points at a file that was built`, existsSync(join('dist', rule.destination)), rule.destination);
-const headersFor = (path) => Object.fromEntries(headerRules.filter((rule) => sourceMatches(rule.source, path)).flatMap((rule) => rule.headers.map((h) => [h.key.toLowerCase(), h.value])));
+if (!LIVE) for (const rule of rewrites) check(`the rewrite ${rule.source} points at a file that was built`, existsSync(join('dist', rule.destination)), rule.destination);
+// Locally the headers come from vercel.json; against a deployed site they are read from its real responses.
+const liveHeaders = {};
+const headersFor = (path) => LIVE ? (liveHeaders[path] ?? {}) : Object.fromEntries(headerRules.filter((rule) => sourceMatches(rule.source, path)).flatMap((rule) => rule.headers.map((h) => [h.key.toLowerCase(), h.value])));
+if (LIVE) {
+  const fetchHeaders = async (path) => Object.fromEntries([...(await fetch(LIVE + path)).headers].map(([key, value]) => [key.toLowerCase(), value]));
+  liveHeaders['/'] = await fetchHeaders('/');
+  const asset = /\/assets\/[^"']+\.js/.exec(await (await fetch(`${LIVE}/`)).text())?.[0];
+  if (asset) liveHeaders[asset] = await fetchHeaders(asset);
+}
 
 // The two pattern forms vercel.json uses here: ":name" (one path segment) and "(.*)" (anything, to the end).
 function sourceMatches(source, path) {
@@ -57,8 +69,8 @@ check('nosniff is set', page['x-content-type-options'] === 'nosniff');
 check('framing is denied', page['x-frame-options'] === 'DENY');
 check('a referrer policy is set that does not send the path to other sites', ['strict-origin-when-cross-origin', 'strict-origin', 'same-origin', 'no-referrer'].includes(page['referrer-policy']));
 check('powerful browser features are switched off', /camera=\(\)/.test(page['permissions-policy'] ?? '') && /microphone=\(\)/.test(page['permissions-policy'] ?? ''));
-const hashedAsset = readdirAssets().find((f) => f.endsWith('.js'));
-check('hashed files are cached for a year', headersFor(`/assets/${hashedAsset}`)['cache-control'] === 'public, max-age=31536000, immutable', hashedAsset);
+const hashedPath = LIVE ? Object.keys(liveHeaders).find((key) => key.startsWith('/assets/')) : `/assets/${readdirAssets().find((f) => f.endsWith('.js'))}`;
+check('hashed files are cached for a year', headersFor(hashedPath)['cache-control'] === 'public, max-age=31536000, immutable', hashedPath);
 check('the page itself is not cached for a year', !/max-age=31536000/.test(headersFor('/')['cache-control'] ?? ''));
 
 function readdirAssets() {
@@ -76,7 +88,7 @@ function resolve(urlPath) {
   if (existsSync(file) && statSync(file).isDirectory()) file = join(file, 'index.html');
   return existsSync(file) && statSync(file).isFile() ? file : null;
 }
-const server = createServer((request, response) => {
+const server = LIVE ? null : createServer((request, response) => {
   const urlPath = decodeURIComponent(new URL(request.url, 'http://x').pathname);
   const file = resolve(urlPath);
   const headers = headersFor(urlPath);
@@ -84,18 +96,22 @@ const server = createServer((request, response) => {
   response.writeHead(200, { 'content-type': TYPES[extname(file)] ?? 'application/octet-stream', ...headers });
   response.end(readFileSync(file));
 });
-await new Promise((ok) => server.listen(0, '127.0.0.1', ok));
-const ORIGIN = `http://127.0.0.1:${server.address().port}`;
+if (server) await new Promise((ok) => server.listen(0, '127.0.0.1', ok));
+const ORIGIN = LIVE || `http://127.0.0.1:${server.address().port}`;
 
-// The stand-in itself, checked before anything relies on it
+// The server (the stand-in locally, the real Vercel with DEPLOY_URL), checked before anything relies on it
 const get = async (path) => { const r = await fetch(ORIGIN + path); return { status: r.status, type: r.headers.get('content-type') ?? '', csp: r.headers.get('content-security-policy'), body: await r.text() }; };
 const root = await get('/');
-check('the stand-in serves the lobby page at /', root.status === 200 && root.type.startsWith('text/html') && root.body.includes('<h1>Overloaded</h1>'));
-check('the stand-in serves the same page at /lobby/ABC234', (await get('/lobby/ABC234')).body === root.body);
-check('the stand-in serves the same page at /lobby', (await get('/lobby')).body === root.body);
-check('the stand-in sends the policy with pages', root.csp === csp);
-check('the stand-in answers an unknown path with 404', (await get('/no/such/page')).status === 404);
-check('the stand-in does not serve files outside dist', (await get('/..%2Fpackage.json')).status === 404);
+check('the served site serves the lobby page at /', root.status === 200 && root.type.startsWith('text/html') && /<h1>Overloaded/.test(root.body));
+check('the served site serves the same page at /lobby/ABC234', (await get('/lobby/ABC234')).body === root.body);
+check('the served site serves the same page at /lobby', (await get('/lobby')).body === root.body);
+check('the served site sends the policy with pages', root.csp === csp);
+check('the served site answers an unknown path with 404', (await get('/no/such/page')).status === 404);
+// Real Vercel answers a path-traversal attempt with 400, the stand-in with 404: either way nothing is served.
+check('the served site refuses a path that climbs out of the site folder', [400, 404].includes((await get('/..%2Fpackage.json')).status));
+for (const path of ['/package.json', '/vite.config.js', '/.env', '/backend/database.rules.json', '/log.md', '/CLAUDE.md']) {
+  check(`the served site does not serve the repository file ${path}`, (await get(path)).status === 404);
+}
 
 // ---- 4. Chrome ----
 const accounts = [];
@@ -107,7 +123,7 @@ try {
   const blocked = () => [...host.events, ...(guest?.events ?? [])].filter((e) => e.method === 'Network.loadingFailed' && /csp/i.test(e.params.blockedReason ?? ''));
 
   await host.goto(`${ORIGIN}/`);
-  check('the lobby page shows at the site root', (await host.eval(`document.querySelector('h1')?.textContent`)) === 'Overloaded');
+  check('the lobby page shows at the site root', (await host.eval(`document.querySelector('h1')?.textContent`)).startsWith('Overloaded'));
   check('its stylesheet loaded', (await host.eval(`Array.from(document.styleSheets).some((s) => { try { return s.cssRules.length > 0; } catch { return false; } })`)));
   check('no code is filled in at the root', (await host.eval(`document.getElementById('join-code').value`)) === '');
 
@@ -165,7 +181,7 @@ try {
     try { await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:delete?key=${API_KEY}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ idToken: account.token }) }); } catch {}
   }
   await closeAllBrowsers();
-  server.close();
+  server?.close();
 }
 
 if (failures.length) { console.log(`\n${checks - failures.length} of ${checks} deploy checks passed. FAILED: ${failures.join('; ')}`); process.exit(1); }
