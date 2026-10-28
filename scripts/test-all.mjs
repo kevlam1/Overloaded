@@ -32,7 +32,9 @@ for (const suite of suites) {
   const started = Date.now();
   const result = spawnSync(suite.cmd, suite.args, { cwd: suite.cwd ?? '.', encoding: 'utf8', windowsHide: true, shell: suite.shell ?? false, timeout: 600000 });
   const output = `${result.stdout ?? ''}\n${result.stderr ?? ''}`.split('\n').map((l) => l.trim()).filter(Boolean);
-  const summary = [...output].reverse().find((l) => /passed|matched|All \d+/.test(l)) ?? output.at(-1) ?? '(no output)';
+  // Every "All N ... passed" line, so a suite made of several test files (the database one) shows each count.
+  const summaryLines = output.filter((l) => /^(All \d+.*(passed|matched)|RESULT:.*passed)/.test(l));
+  const summary = summaryLines.length ? summaryLines.join('  +  ') : (output.at(-1) ?? '(no output)');
   const seconds = ((Date.now() - started) / 1000).toFixed(1);
   const pass = result.status === 0;
   if (!pass) failed++;

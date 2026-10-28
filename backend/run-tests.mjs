@@ -16,6 +16,8 @@ import net from 'node:net';
 const HOST = '127.0.0.1';
 const PORT = 9000;
 const here = new URL('.', import.meta.url);
+// ONLY_TESTS=test-table-flow.mjs runs just that file (used to check a test against deliberately broken copies).
+const TEST_FILES = process.env.ONLY_TESTS ? process.env.ONLY_TESTS.split(',') : ['test-rules.mjs', 'test-table-ops.mjs', 'test-table-flow.mjs'];
 
 function findJar() {
   const dir = join(homedir(), '.cache', 'firebase', 'emulators');
@@ -63,8 +65,12 @@ async function runWithJar(jar) {
       if (Date.now() > deadline) { console.error('The emulator was not ready after 60 seconds.'); return 1; }
       await new Promise((resolve) => setTimeout(resolve, 200));
     }
-    const result = spawnSync(process.execPath, ['test-rules.mjs'], { cwd: here, stdio: 'inherit', windowsHide: true });
-    return result.status ?? 1;
+    // Both files share the one emulator; each seeds its own tables, so they cannot disturb each other.
+    for (const file of TEST_FILES) {
+      const result = spawnSync(process.execPath, [file], { cwd: here, stdio: 'inherit', windowsHide: true });
+      if ((result.status ?? 1) !== 0) return result.status ?? 1;
+    }
+    return 0;
   } finally {
     emulator.kill();
     stopLeftoverEmulators();
@@ -72,7 +78,7 @@ async function runWithJar(jar) {
 }
 
 function runWithFirebaseTools() {
-  const command = 'npx firebase emulators:exec --only database --project demo-overloaded "node test-rules.mjs"';
+  const command = `npx firebase emulators:exec --only database --project demo-overloaded "${TEST_FILES.map((f) => `node ${f}`).join(' && ')}"`;
   const result = spawnSync(command, { shell: true, stdio: 'inherit', windowsHide: true, cwd: here });
   stopLeftoverEmulators();
   return result.status ?? 1;

@@ -1,22 +1,12 @@
-// Every database call the page makes goes through this file: sign in, create a table, join a table, watch the
-// players. The pages never import Firebase themselves, so changing the service means rewriting only this file.
-//
-// What the rules allow (backend/database.rules.json) shapes the code here:
-// - a table is created in ONE write: meta, the first heartbeat, your member entry, seat 1 and your host slot;
-// - joining is one write that takes a free seat and creates your member entry (a taken seat refuses the whole write);
-// - a person who is not at the table cannot read it, so joining tries seats one at a time;
-// - a host holds one table at a time: making a new one deletes the old one in the same write.
+// The wiring between the page and Firebase: start the app, sign in anonymously, and hand the database to the table
+// logic in shared/table-ops.mjs. The pages never import Firebase themselves, so changing the service means rewriting
+// this file (and the database calls passed to createTableOps), not the pages or the game.
 import { initializeApp } from 'firebase/app';
 import { initializeAuth, indexedDBLocalPersistence, browserLocalPersistence, signInAnonymously } from 'firebase/auth';
 import { getDatabase, ref, get, update, onValue, serverTimestamp } from 'firebase/database';
-import { makeTableCode, isValidCode } from '../../shared/table-code.mjs';
-import { cleanPlayerName } from '../../shared/player-name.mjs';
-import { isPermissionDenied } from '../../shared/permission-error.mjs';
+import { createTableOps, TableUnavailableError, FlowRefusedError } from '../../shared/table-ops.mjs';
 
-const LOBBY_IDLE_MS = 30 * 60 * 1000; // must equal the lobby idle limit in the rules
-const SEAT_COUNTS = [2, 3, 4];
-const MAX_SEATS = 4;
-const CREATE_ATTEMPTS = 5;
+export { TableUnavailableError, FlowRefusedError };
 
 let services = null;
 function start() {
@@ -29,13 +19,6 @@ function start() {
     services = { auth, db: getDatabase(app) };
   }
   return services;
-}
-
-export class TableUnavailableError extends Error {
-  constructor() {
-    super('Could not join that table. It may not exist, may be full, may have started, or may have closed.');
-    this.name = 'TableUnavailableError';
-  }
 }
 
 // An anonymous account: no email or password, just a random id the browser keeps. Returns that id.
@@ -57,101 +40,21 @@ export function signIn() {
   return signingIn;
 }
 
-// The host's current table, if it still exists: { code, players }. A host holds one table at a time.
-export async function findMyTable() {
-  const uid = await signIn();
-  const { db } = start();
-  const code = (await get(ref(db, `hosts/${uid}`))).val();
-  if (!code) return null;
-  try {
-    // Read the parts a member may read. Reading the whole table at once is refused for everyone on purpose (it
-    // would include other players' private cards), so asking for it here always failed and no one was ever
-    // warned before their old table was closed (found by the spike on 2026-10-28).
-    const [meta, members] = await Promise.all([get(ref(db, `tables/${code}/meta`)), get(ref(db, `tables/${code}/members`))]);
-    // The host slot can outlive its table (the table closed or was deleted). Then there is nothing to warn about.
-    if (!meta.exists()) return null;
-    return { code, players: Object.keys(members.val() ?? {}).length };
-  } catch (error) {
-    if (isPermissionDenied(error)) return null; // not readable: the table is gone or is not ours any more
-    throw error;
-  }
+let ops = null;
+function tableOps() {
+  if (!ops) ops = createTableOps({ sdk: { ref, get, update, onValue, serverTimestamp }, db: start().db, getUid: signIn });
+  return ops;
 }
 
-// Creates a table and takes seat 1. If the host already holds a table, it is deleted in the same write.
-// The page should warn first (findMyTable); this function does what it is told.
-export async function createTable({ name, seats = 4, format = 'commander' }) {
-  const playerName = cleanPlayerName(name);
-  if (!SEAT_COUNTS.includes(seats)) throw new Error('A table has 2, 3 or 4 seats.');
-  const uid = await signIn();
-  const { db } = start();
-  const oldCode = (await get(ref(db, `hosts/${uid}`))).val();
-
-  for (let attempt = 0; attempt < CREATE_ATTEMPTS; attempt++) {
-    const code = makeTableCode();
-    const table = `tables/${code}`;
-    const writes = {
-      [`${table}/meta`]: { host: uid, createdAt: serverTimestamp(), seats, format, status: 'lobby', idleLimit: LOBBY_IDLE_MS, match: 1 },
-      [`${table}/activity/lastActive`]: serverTimestamp(),
-      [`${table}/members/${uid}`]: { name: playerName, seat: '1' },
-      [`${table}/seats/1`]: uid,
-      [`hosts/${uid}`]: code,
-    };
-    if (oldCode) writes[`tables/${oldCode}`] = null;
-    try {
-      await update(ref(db), writes);
-      return { code, uid, seat: '1', replaced: oldCode || null };
-    } catch (error) {
-      // A refused write is almost always a code that is already in use, so try another one.
-      if (!isPermissionDenied(error)) throw error;
-    }
-  }
-  throw new Error('Could not create a table. Please try again in a moment.');
-}
-
-// Already at this table (for example after a refresh)? Returns { code, uid, seat } or null.
-export async function rejoinTable(code) {
-  if (!isValidCode(code)) return null;
-  const uid = await signIn();
-  const { db } = start();
-  try {
-    const mine = (await get(ref(db, `tables/${code}/members/${uid}`))).val();
-    return mine ? { code, uid, seat: mine.seat } : null;
-  } catch (error) {
-    if (isPermissionDenied(error)) return null; // not a member (or the table is gone)
-    throw error;
-  }
-}
-
-// Joins a table by code: takes the first free seat. Returns { code, uid, seat, rejoined }.
-export async function joinTable({ code, name }) {
-  if (!isValidCode(code)) throw new Error('That does not look like a table code.');
-  const playerName = cleanPlayerName(name);
-  const existing = await rejoinTable(code);
-  if (existing) return { ...existing, rejoined: true };
-  const uid = await signIn();
-  const { db } = start();
-  for (let n = 1; n <= MAX_SEATS; n++) {
-    const seat = String(n);
-    try {
-      await update(ref(db), {
-        [`tables/${code}/members/${uid}`]: { name: playerName, seat },
-        [`tables/${code}/seats/${seat}`]: uid,
-      });
-      return { code, uid, seat, rejoined: false };
-    } catch (error) {
-      if (!isPermissionDenied(error)) throw error; // that seat is taken (or the join is not allowed): try the next
-    }
-  }
-  throw new TableUnavailableError();
-}
-
-// Calls onChange with the table's members ({ uid: { name, seat } }) now and whenever they change.
-// onChange(null, error) if the list can no longer be read. Returns a function that stops watching.
-export function watchMembers(code, onChange) {
-  const { db } = start();
-  return onValue(
-    ref(db, `tables/${code}/members`),
-    (snapshot) => onChange(snapshot.val() ?? {}),
-    (error) => onChange(null, error),
-  );
-}
+export const findMyTable = (...args) => tableOps().findMyTable(...args);
+export const createTable = (...args) => tableOps().createTable(...args);
+export const rejoinTable = (...args) => tableOps().rejoinTable(...args);
+export const joinTable = (...args) => tableOps().joinTable(...args);
+export const watchMembers = (...args) => tableOps().watchMembers(...args);
+export const setReady = (...args) => tableOps().setReady(...args);
+export const clearReady = (...args) => tableOps().clearReady(...args);
+export const startMatch = (...args) => tableOps().startMatch(...args);
+export const concede = (...args) => tableOps().concede(...args);
+export const endMatch = (...args) => tableOps().endMatch(...args);
+export const endTable = (...args) => tableOps().endTable(...args);
+export const leaveTable = (...args) => tableOps().leaveTable(...args);
