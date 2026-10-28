@@ -874,6 +874,44 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - Playing alone is a browser-only solo table (Phase 2), not a table with seats.
 - The host hand-over is a proposal: a voluntary hand-over now (small), and taking over from a host who vanished together with presence and the heartbeat (bigger). Not built; it needs my go-ahead.
 
+## 42. The host can hand the table to another player (2026-10-28)
+
+**What I asked for**
+- "Voluntary host handover can continue", after I asked how possible it is to let the host pass the host role to another table member. I also asked that a table keeps going when the host is gone but the others are still playing (entry 41 covered that part).
+
+**What changed**
+- `backend/database.rules.json` (one rule): `meta.host` may now change, written by the current host, to a current member who does not host another live table (a host slot that points at a table that is gone does not count). **The file changed, so it has to be pasted into the Firebase console again.**
+- `shared/table-ops.mjs`: `passHost(code, uid)` (the old host's slot is cleared in the same write), `claimHostSlot(code)` (the new host takes the one-table-per-host slot afterwards, because only they can write it), and `leaveTable` for a host with others at the table now hands the table to the player in the lowest seat as they leave, and offers it to the next seat if the rules refuse that player. `frontend/src/db.js` exports them.
+- `shared/table-flow.mjs`: the model has `passHost` and the host-leaves hand-over. `backend/test-table-flow.mjs` follows the current host, claims the slot the way the new host's page would, and compares who the host is and who holds the slot after every step. `backend/test-rules.mjs` 344 to 372, `backend/test-table-ops.mjs` 46 to 64, `backend/mutate-rules.mjs` 6 new mutations (173 in all), `scripts/check-live-rules.mjs` 8 new requests that pass only once the rules are published. `docs/game-flow.md` is updated.
+
+**What I checked**
+- All 8 local suites pass: 372 rule checks, 64 table checks, 1,675 flow steps with no disagreement. In that run a host left with others at the table and the table was handed on 64 times, and someone other than the original host did a host-only action 57 times.
+- I broke the handover 10 ways (7 in the page, 3 in the model): 9 are caught by their real disagreement (the wrong host, a slot left behind, the wrong seat chosen, a verdict that differs). The 10th, the page not checking that you are the host, survives because the database already refuses a non-host: a second lock, not the only one. The 6 new rule mutations: 5 caught, 1 redundant (a host that is not a string cannot be a member's id).
+- After I pasted the changed rules into the Firebase console and published them, `npm run test:live` passed all 10 suites: 60 of 60 live rule requests (8 of them are the new hand-over ones, which the old rules refused) and the two-browser run.
+- Not checked yet: the full 173-mutation run, which I have not repeated since this change (only the 6 new ones, plus the 5 earlier ones already run). Not built: taking over from a host who vanished, which needs presence.
+
+**Decisions**
+- A hand-over to a player who already hosts another live table is refused, to keep the one-table-per-host rule.
+- A host who leaves hands the table to the lowest seat. The host can still close the table instead.
+
+## 43. Why every Vercel deployment since the lobby page has failed (2026-10-28)
+
+**What I asked for**
+- After the push, the GitHub commit list showed a red cross ("Deployment has failed") on the last three pushes. I asked Claude to look into it.
+
+**What changed**
+- Nothing in the code yet. This entry records the diagnosis and the fix I have to make in Vercel.
+
+**What I checked**
+- The page's `vite.config.js` stops the build with "Missing Firebase settings" when any of the five Firebase settings is missing, on purpose, so a page that cannot connect never ships. The settings live in my gitignored `.env` locally and have to be added to Vercel as environment variables. `docs/todo.md` already said "Before any real deploy: add the five Firebase setting names to Vercel's environment variables", and I had not.
+- Claude reproduced it by running `npm run build` with the five settings forced empty: it fails with exactly that error (exit code 1). With the settings present the build passes (225.91 kB, 67.11 kB gzipped).
+- It fits the commit list: the red crosses are on the last commit of each push (`d23a224`, `0c3f72a`, `df8b741`), and Vercel reports on the push's final commit, not the ones before it in the same push.
+- Not checked: Vercel's own build log. Claude cannot read it (that needs my Vercel login), so this is a reproduction and an inference, not a read of the real failure. I will confirm by opening "Details" on a failed deployment.
+
+**Decisions**
+- The fix is mine to make in the Vercel dashboard (Project, Settings, Environment Variables: add `FIREBASE_API_KEY`, `FIREBASE_AUTH_DOMAIN`, `FIREBASE_DATABASE_URL`, `FIREBASE_PROJECT_ID`, `FIREBASE_APP_ID` for Production and Preview, then redeploy). Claude does not read or print my `.env`.
+- Not done yet, and it matters right after: the built site has no page at `/` (the lobby builds to `/pages/lobby/`), and `/lobby/CODE` links need a rewrite, so a Vercel config (`vercel.json`) is still to do.
+
 ---
 
 ## Where AI misread me, or I had to correct course
@@ -892,6 +930,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - **A daily cost in the build plan (Claude's slip, entry 9, found in entry 11):** "download when Scryfall's file changes" meant a new card list almost every day, so every returning player would re-download it. Fixed by changing the list at most weekly.
 - **Same trap twice (Claude's slip, entry 11):** its throwaway name test filtered on the chosen printing's `digital` flag, the mistake fixed in entry 10, and wrongly reported `Lim-Dul's Cohort` as not found. Claude noticed because the count was exactly 1,062 short, and fixed the test before using any result.
 - **Misread my answer (after entry 11):** Claude asked whether to compare Scryfall's files "in a few days". I answered that it should happen when we're working on something, not after a wait. Claude read that as a new design question and started researching a different way to refresh card data (one Scryfall API call and two header requests, no file changes). I pointed out it was an answer, and the comparison is now a todo item for our next card-data session. I then asked for the list of things still unknown to be kept somewhere Claude will surely check. It is now a table in `CLAUDE.md`, the only file every session loads, with an event that makes each row due.
+- **I let three pushes go out that I knew could not deploy (Claude's slip, entry 43):** `CLAUDE.md` and the todo both said the Vercel project existed but "nothing builds yet", and the todo listed the five Vercel settings as "before any real deploy". Once the Vite build was in the repo and Vercel was importing `main`, every push was going to fail, and I never told Kevin to expect that or to add the settings. He found it from the red crosses on GitHub.
+- **My own tests tripped my own new rule, twice (Claude's slips, entry 42):** I flipped an old "the host cannot change" check in place, so a later check that still expected Alice to be host failed; and a case that left Bob hosting a live table made my own rule (no hand-over to someone who hosts another table) refuse the next case. Both were test-order mistakes, not rule bugs, and I fixed them by giving each case its own table and clearing the slot. A mutation was also written with the wrong text and "did not apply", and the first version of the flow test printed its coverage warning before the disagreement that caused it, which made two real catches look like coverage problems; it now prints disagreements first.
 - **A stale test I did not re-run, and a result I nearly misread (Claude's slips, entry 41):** after changing the rules I re-ran the rule tests and the flow comparison but not `test-table-ops.mjs`, which still asserted the old behaviour (a dropped player cannot come back). It only showed up because the full mutation run reported 19 "suspicious" results: those mutations are the ones I had documented as redundant, and the failing file was this stale test, which made every one of them fail for a reason unrelated to the mutation. I fixed the test and re-ran those 19 one at a time: all equivalent, none survived. Also, my first generator for the new behaviour made players return so fast that no match ever ended with a reserved seat, which the coverage guard caught; and one command had a PowerShell syntax error, so a re-run silently did nothing until I looked at the output.
 - **A comparison that agreed with itself (Claude's slip, entry 40):** my first run of the game-flow comparison reported 1,677 of 1,677 steps agreeing, which looked like a good result. The coverage numbers I added showed that no table ever reached "playing" and "start" was never allowed: random moves cannot satisfy "everyone ready, then host starts" often enough. So it had tested only the lobby. I also wrote a label for the one known finding that would have hidden a different bug (a seat not freed after a lobby leave), and tightened it to count only seats left by someone who left mid-match. Both were caught by looking at what the run covered, not by the result.
 - **A page that could not replace an old table that was already gone (Claude's slip, entry 39):** `createTable` always asked the database to delete the host's previous table in the same write. If that table had already expired and been cleaned up, the rules refuse the delete, so every attempt failed. I wrote the rules test for this case without the delete, so it passed, and nothing tested the page's own code until the new test ran it. Two smaller slips in that test: the helper I used to read with the rules switched off returns nothing (the emulator library throws away what its callback returns), and a code generator I wrote ran out of codes. Both were my test's fault and are fixed.

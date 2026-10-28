@@ -14,7 +14,8 @@ A table is in one of two states: **lobby** (people join, leave, ready up) and **
 | Start | the host | lobby, at least 2 players, everyone ready | The table moves to playing. |
 | Concede | a player | playing | Your own mark for this match. It cannot be taken back during the match. |
 | End match | the host | playing | Back to the lobby, match number plus one, so every ready and concede mark from before means nothing. |
-| Leave (or crash) | a player | anytime | In the lobby your seat is freed. Mid-match your seat stays **reserved for you**: you come back to it by joining with the same code from the same browser, until the host ends the match, which releases every seat nobody is sitting in. The last one out closes the table. The host cannot leave while others are there; they close the table instead (see "Host handover" below). |
+| Leave (or crash) | a player | anytime | In the lobby your seat is freed. Mid-match your seat stays **reserved for you**: you come back to it by joining with the same code from the same browser, until the host ends the match, which releases every seat nobody is sitting in. The last one out closes the table. If the host leaves while others are there, the table is handed to the player in the lowest seat as they go (see "Host handover" below). |
+| Hand over the table | the host | anytime the table is alive | The host picks another player at the table and becomes an ordinary player. The new host claims the one-table-per-host slot afterwards. Refused if the new host already hosts another live table. |
 | Come back | a player who left or crashed | mid-match | Join again with the same code. You get your own seat back (with a fresh ready/concede mark: see question 3). A different browser, or cleared browser data, is a different person to the database, so it cannot reclaim the seat. |
 | Close table | the host | anytime | The table is deleted for everyone. |
 | Expire | the clock | 8 hours after creation, or idle 30 min in the lobby / 1 h playing | Nothing can change except closing it. |
@@ -30,7 +31,7 @@ A table is in one of two states: **lobby** (people join, leave, ready up) and **
 | End match: host only, playing only, match number plus one | yes | yes |
 | Join only in the lobby, free seat, one seat per person | yes | yes |
 | Last one out closes the table | yes | yes |
-| Host cannot leave with others present | **no** | yes |
+| A host who leaves hands the table to the lowest seat | yes (the host may change to a current member who hosts no other live table) | yes (`leaveTable`, `passHost`, `claimHostSlot`) |
 | A mid-match leaver's seat is reserved for them, and released when the match ends | yes (a member entry may return to a held seat; the host may free a seat whose holder has no entry, in the lobby only) | yes (`joinTable`, `endMatch`) |
 | Expired table accepts no changes | yes | refused by the database |
 
@@ -44,9 +45,9 @@ The model and the page plus rules agreed on every step of 1,673 steps in 120 ran
 
 Open design questions that the comparison cannot settle (the model and the code agree, but you may not):
 
-2. **The rules are looser than the page** (start without everyone ready, ready during a match, a host leaving with others present). Accept this for a friendly game, or tighten the rules (more rules, more tests, and one more paste)? I lean toward accepting it for now.
+2. **The rules are looser than the page** (start without everyone ready, ready during a match). Accept this for a friendly game, or tighten the rules (more rules, more tests, and one more paste)? I lean toward accepting it for now.
 3. **A conceded player can still be on the table**, can leave, and can ready up for the next match. Is that right? (The model says yes.) One consequence of coming back to your seat: leaving and coming back clears your concede mark, so a conceded player could "undo" it. In a casual game among friends that is harmless; stopping it would mean keeping the mark outside the member entry.
-4. **The host cannot hand over the table yet.** See "Host handover" below: it is possible, small for a voluntary hand-over, and bigger for taking over from a host who vanished.
+4. **Handing over the table (voluntary part built 2026-10-28, see "Host handover" below).** Taking over from a host who vanished (a crashed host's entry is still there) is not built; it needs presence.
 5. **Ending a match does not need the players' agreement.** The host alone can end it, as you described. Fine?
 6. **Conceding does not end the match** by itself, even if everyone concedes. The host ends it. (Matches what you described.)
 
@@ -54,14 +55,16 @@ Open design questions that the comparison cannot settle (the model and the code 
 
 Kevin's requirement: a table must carry on when the host is gone but the others are still playing. **What already works, and is now tested** (`backend/test-rules.mjs`, "a match carries on when the host is gone"): any member can write the heartbeat that keeps the table from going idle, write their own public and private zones, concede, leave, and the last one standing can close the table. Nothing in play depends on the host. **What needs a host** and so is stuck without one: starting a match, ending a match, closing the table (the table still closes by itself when it goes idle or reaches 8 hours). The next match is the real problem, because the host is the only one who can end the current one.
 
-## Host handover (proposal, not built)
+## Host handover
 
-Is it possible? Yes. `meta.host` is fixed today (a rule says it can never change), and that is a deliberate rule, not a limit of Firebase.
+`meta.host` used to be fixed for the life of the table (a deliberate rule, not a limit of Firebase).
 
-1. **Voluntary hand-over (small).** Let the current host change `meta.host` to the uid of a current member. One rule changes (the `host` check and the meta write rule), the host slot moves (the old host clears theirs in the same write, the new host claims theirs once they are host), and the page gets a `passHost(code, uid)` operation. The host can then also leave: leaving would hand the table to the next seat automatically. New rule tests, mutations and flow-model steps.
-2. **A host who vanished (bigger).** A crashed host's entry is still there, so the database cannot tell "gone" from "quiet". We need presence first (each client writes a "last seen" time, which is also what the "Reconnecting..." banner needs). Then a rule: any member may claim the host role if the host's last-seen time is older than a few minutes. That is the same presence work already on the to-do list, so I would do it with the heartbeat.
-
-Recommendation: do (1) now, because it is small and removes the "host must stay" problem for a planned exit; do (2) together with presence and the heartbeat.
+1. **Voluntary hand-over: built 2026-10-28.**
+   - **Rule:** `meta.host` may change, written by the current host, to a current member who does not host another live table (a stale slot, whose table is gone, does not count). Nothing else about `meta` can change in the same write that the rules would not allow alone.
+   - **Slots:** the old host clears their own host slot in the same write (`passHost`); the new host claims theirs afterwards (`claimHostSlot`), because only they can write it.
+   - **Leaving:** a host who leaves with others at the table hands it to the player in the lowest seat as they go; if the rules refuse that player (they host another table) it is offered to the next seat; if nobody can take it the leave is refused in words.
+   - **Checks:** 372 rule tests (28 for hand-over), 18 new page checks, the flow comparison (the model hands over and compares who is host and who holds the slot after every step; a new host really does host-only things 57 times in a run), 6 new rule mutations (5 caught, 1 redundant), and 8 new live checks that pass only once the rules are published.
+2. **A host who vanished: not built.** A crashed host's entry is still there, so the database cannot tell "gone" from "quiet". It needs presence first (each client writes a "last seen" time, which is also what the "Reconnecting..." banner needs). Then a rule: any member may claim the host role if the host's last-seen time is older than a few minutes. I would do it together with the heartbeat and presence. Until then, a table whose host vanished carries on (see above) but cannot start or end a match; someone can still leave, or the host can come back to their own seat after a crash.
 
 ## Solo play (goldfishing)
 
