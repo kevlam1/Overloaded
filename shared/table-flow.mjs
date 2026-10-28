@@ -7,11 +7,13 @@
 //   match's marks mean nothing; the model just clears them when the match ends).
 //   `expired`: the table passed its 8-hour limit or its idle limit. Nothing can change except closing it.
 //
-// step(table, uid, action) returns { ok, table, why }. When ok is false the table is unchanged and `why` says why.
-// Actions: join, ready, unready, start, concede, endMatch, leave, endTable.
+// step(table, uid, action, arg) returns { ok, table, why }. When ok is false the table is unchanged and `why` says why.
+// Actions: join, ready, unready, start, concede, endMatch, leave, endTable, passHost (arg: the new host's uid).
+// The host can change (2026-10-28): the host hands the table to another player, or leaves and it passes to the player in
+// the lowest seat. Host-only actions then belong to the new host.
 // `expire` is not something a person does; apply it with expireTable().
 
-export const ACTIONS = ['join', 'ready', 'unready', 'start', 'concede', 'endMatch', 'leave', 'endTable'];
+export const ACTIONS = ['join', 'ready', 'unready', 'start', 'concede', 'endMatch', 'leave', 'endTable', 'passHost'];
 
 //   reserved: { uid: seat } seats held for players who left DURING a match. They can come back to that seat until
 //   the host ends the match, which releases them (Kevin, 2026-10-28: a crash must not cost you your seat).
@@ -32,7 +34,7 @@ function freeSeat(table) {
   return null;
 }
 
-export function step(table, uid, action) {
+export function step(table, uid, action, arg) {
   if (!table.exists) return no(table, 'the table is gone');
   const mine = table.members[uid];
   const isHost = uid === table.host;
@@ -92,10 +94,20 @@ export function step(table, uid, action) {
       if (!mine) return no(table, 'not at the table');
       const others = Object.keys(table.members).filter((id) => id !== uid);
       if (others.length === 0) { next.exists = false; return yes(next); } // the last one out closes the table (even an expired one)
-      if (isHost) return no(table, 'the host closes the table instead of leaving');
       if (table.expired) return no(table, 'the table has closed');
+      if (isHost) { // the host leaving hands the table to the player in the lowest seat
+        next.host = others.sort((a, b) => Number(table.members[a].seat) - Number(table.members[b].seat))[0];
+      }
       delete next.members[uid];
       if (table.status === 'playing') next.reserved[uid] = mine.seat; // held for them to come back; released when the match ends
+      return yes(next);
+    }
+    case 'passHost': { // arg is the uid of the player who should become host
+      if (!isHost) return no(table, 'only the host hands over the table');
+      if (table.expired) return no(table, 'the table has closed');
+      if (arg === uid) return no(table, 'already the host');
+      if (!table.members[arg]) return no(table, 'that player is not at the table');
+      next.host = arg;
       return yes(next);
     }
     case 'endTable': {

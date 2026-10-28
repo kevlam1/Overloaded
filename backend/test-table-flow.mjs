@@ -39,7 +39,7 @@ function random(seed) {
   };
 }
 const pick = (rand, list) => list[Math.floor(rand() * list.length)];
-const WEIGHTED = [['join', 4], ['ready', 4], ['unready', 1], ['start', 3], ['concede', 2], ['endMatch', 3], ['leave', 2], ['endTable', 0.3], ['expire', 0.3]];
+const WEIGHTED = [['join', 4], ['ready', 4], ['unready', 1], ['start', 3], ['concede', 2], ['endMatch', 3], ['leave', 2], ['endTable', 0.3], ['passHost', 2], ['expire', 0.3]];
 function pickAction(rand) {
   const total = WEIGHTED.reduce((sum, [, w]) => sum + w, 0);
   let r = rand() * total;
@@ -66,8 +66,14 @@ async function realState(code) {
   // Firebase hands back numeric keys as an array with holes, so build a plain { seat: uid } map.
   const seats = {};
   for (const [seat, holder] of Object.entries(table.seats ?? {})) if (holder) seats[seat] = holder;
-  return { status: table.meta.status, match: table.meta.match, members, seats };
+  return { host: table.meta.host, status: table.meta.status, match: table.meta.match, members, seats };
 }
+// Who holds the one-table-per-host slot for this table right now (the slots of all the people in this sequence).
+const slotHolders = async (names, code) => {
+  const holders = [];
+  for (const uid of names) if ((await admin(async (db) => (await get(ref(db, `hosts/${uid}`))).val())) === code) holders.push(uid);
+  return holders;
+};
 
 // Who should hold which seat according to the model: the people at the table, plus seats reserved for people who left mid-match.
 const modelSeats = (model) => {
@@ -80,12 +86,12 @@ const modelSeats = (model) => {
 const same = (model, real) => {
   if (!model.exists) return real === null;
   if (real === null) return false;
-  return model.status === real.status && model.match === real.match
+  return model.host === real.host && model.status === real.status && model.match === real.match
     && JSON.stringify(sortKeys(model.members)) === JSON.stringify(sortKeys(real.members))
     && JSON.stringify(sortKeys(modelSeats(model))) === JSON.stringify(sortKeys(real.seats));
 };
 const sortKeys = (o) => Object.fromEntries(Object.entries(o).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => [k, v]));
-const show = (model) => (model.exists ? `${model.status} #${model.match}${model.expired ? ' EXPIRED' : ''} members ${JSON.stringify(sortKeys(model.members))} seats ${JSON.stringify(sortKeys(modelSeats(model)))}` : 'table gone');
+const show = (model) => (model.exists ? `${model.status} #${model.match} host ${model.host}${model.expired ? ' EXPIRED' : ''} members ${JSON.stringify(sortKeys(model.members))} seats ${JSON.stringify(sortKeys(modelSeats(model)))}` : 'table gone');
 
 const findings = new Map(); // key -> { count, example }
 const record = (key, example) => { const f = findings.get(key) ?? { count: 0, example }; f.count++; findings.set(key, f); };
@@ -98,7 +104,7 @@ let stoppedSequences = 0;
 const coverage = new Map();
 const cover = (key) => coverage.set(key, (coverage.get(key) ?? 0) + 1);
 // Situations that only arise after a particular history, counted separately because they hide the awkward cases.
-const situations = { cameBackToAReservedSeat: 0, matchEndedWithReservedSeats: 0 };
+const situations = { cameBackToAReservedSeat: 0, matchEndedWithReservedSeats: 0, hostLeftAndHandedOver: 0, newHostActed: 0 };
 
 async function run() {
 for (let s = 0; s < SEQUENCES; s++) {
@@ -122,28 +128,34 @@ for (let s = 0; s < SEQUENCES; s++) {
     // Most random moves are tried by someone who IS at the table (an outsider is refused for the obvious reason and
     // would hide whether the real checks work), a fifth by anyone.
     const seated = names.filter((n) => model.members[n]);
-    let uid = action === 'expire' ? host : (seated.length && rand() < 0.8 ? pick(rand, seated) : pick(rand, names));
+    const hostNow = model.host; // the host can change, so "the host" means whoever it is now
+    let uid = action === 'expire' ? hostNow : (seated.length && rand() < 0.8 ? pick(rand, seated) : pick(rand, names));
+    let target = pick(rand, names); // only used by passHost: who should become host (a member or not)
     // Near misses: the host tries to start whenever (often too early: alone, or before everyone is ready), and a
     // seated player tries an action meant for the other state (ready during a match, conceding in the lobby).
-    if (action !== 'expire' && rand() < 0.15) { action = 'start'; uid = host; }
-    else if (action !== 'expire' && seated.length && rand() < 0.2) { action = pick(rand, ['ready', 'unready', 'concede', 'endTable', 'leave']); uid = pick(rand, seated); }
+    if (action !== 'expire' && rand() < 0.15) { action = 'start'; uid = hostNow; }
+    else if (action !== 'expire' && seated.length && rand() < 0.2) { action = pick(rand, ['ready', 'unready', 'concede', 'endTable', 'leave', 'passHost']); uid = pick(rand, seated); }
     // Someone whose seat is reserved tries to come back (their browser crashed, say), and a mid-match leave is common.
     const away = Object.keys(model.reserved);
     if (away.length && rand() < 0.2) { action = 'join'; uid = pick(rand, away); }
-    else if (away.length && model.status === 'playing' && rand() < 0.2) { action = 'endMatch'; uid = host; }
-    else if (model.exists && model.status === 'playing' && seated.length > 1 && rand() < 0.12) { action = 'leave'; uid = pick(rand, seated.filter((n) => n !== host)); }
+    else if (away.length && model.status === 'playing' && rand() < 0.2) { action = 'endMatch'; uid = hostNow; }
+    else if (model.exists && model.status === 'playing' && seated.length > 1 && rand() < 0.12) { action = 'leave'; uid = pick(rand, seated.filter((n) => n !== hostNow)); }
+    // The host hands the table to another player often enough that the new host does things too.
+    else if (model.exists && seated.length > 1 && rand() < 0.12) { action = 'passHost'; uid = hostNow; target = pick(rand, seated.filter((n) => n !== hostNow)); }
     if (rand() < 0.67 && !(away.length && action === 'join' && model.reserved[uid])) {
       const possible = [];
       for (const [name, weight] of WEIGHTED) {
         if (name === 'expire') continue;
         for (const who of names) {
           if (name === 'join' && model.members[who]) continue; // a rejoin by a member is not interesting here
-          if (step(model, who, name).ok) possible.push([name, who, weight]);
+          for (const aim of name === 'passHost' ? names : [undefined]) {
+            if (step(model, who, name, aim).ok) possible.push([name, who, weight, aim]);
+          }
         }
       }
       const total = possible.reduce((sum, p) => sum + p[2], 0);
       let r = rand() * total;
-      for (const [name, who, weight] of possible) { if ((r -= weight) < 0) { action = name; uid = who; break; } }
+      for (const [name, who, weight, aim] of possible) { if ((r -= weight) < 0) { action = name; uid = who; target = aim ?? target; break; } }
     }
     const before = model;
     let modelOk;
@@ -156,21 +168,28 @@ for (let s = 0; s < SEQUENCES; s++) {
       model = expireTable(model);
       realOk = modelOk = true;
     } else {
-      const result = step(model, uid, action);
+      const result = step(model, uid, action, target);
       modelOk = result.ok;
       model = result.table;
       detail = result.why ?? '';
-      const op = { join: () => people[uid].joinTable({ code, name: `P${uid}` }), ready: () => people[uid].setReady(code), unready: () => people[uid].clearReady(code), start: () => people[uid].startMatch(code), concede: () => people[uid].concede(code), endMatch: () => people[uid].endMatch(code), leave: () => people[uid].leaveTable(code), endTable: () => people[uid].endTable(code) }[action];
+      const op = { join: () => people[uid].joinTable({ code, name: `P${uid}` }), ready: () => people[uid].setReady(code), unready: () => people[uid].clearReady(code), start: () => people[uid].startMatch(code), concede: () => people[uid].concede(code), endMatch: () => people[uid].endMatch(code), leave: () => people[uid].leaveTable(code), endTable: () => people[uid].endTable(code), passHost: () => people[uid].passHost(code, target) }[action];
       try { await op(); realOk = true; } catch (error) { realOk = false; detail = `${detail}${detail ? '; ' : ''}real: ${error.name}`; }
+      // The new host's page claims the host slot as soon as it sees it is the host (only they can write their slot).
+      if (realOk && modelOk && model.exists && model.host !== before.host) {
+        try { await people[model.host].claimHostSlot(code); } catch (error) { realOk = false; detail = `${detail}${detail ? '; ' : ''}the new host could not claim the slot: ${error.name}: ${error.message}`; }
+      }
     }
     stepsRun++;
-    const who = uid === host ? 'host' : uid.replace(/\d+$/, '');
-    trace.push(`${who} ${action}: model ${modelOk ? 'allows' : 'refuses'}, real ${realOk ? 'allowed' : 'refused'}`);
+    const who = uid === before.host ? 'host' : uid.replace(/\d+$/, '');
+    trace.push(`${who} ${action}${action === 'passHost' ? ' to ' + target.replace(/\d+$/, '') : ''}: model ${modelOk ? 'allows' : 'refuses'}, real ${realOk ? 'allowed' : 'refused'}`);
 
     const tag = (before.status === 'playing' ? 'playing' : 'lobby') + (before.expired ? '+expired' : '') + (before.exists ? '' : '+gone');
     cover(`${action}|${tag}|${modelOk ? 'allowed' : 'refused'}`);
     if (action === 'join' && modelOk && before.reserved[uid]) situations.cameBackToAReservedSeat++;
     if (action === 'endMatch' && modelOk && Object.keys(before.reserved).length) situations.matchEndedWithReservedSeats++;
+    if (action === 'leave' && modelOk && uid === before.host && Object.keys(before.members).length > 1) situations.hostLeftAndHandedOver++;
+    // A host-only action done by someone who was not the original host: the table really works under a new host.
+    if (['start', 'endMatch', 'endTable', 'passHost'].includes(action) && modelOk && uid !== host) situations.newHostActed++;
     if (modelOk !== realOk) {
       record(`${action}|${tag}|model ${modelOk ? 'allows' : 'refuses'}, real ${realOk ? 'allows' : 'refuses'}`, `${trace.join(' > ')}  [${detail}]`);
       stoppedSequences++;
@@ -181,6 +200,15 @@ for (let s = 0; s < SEQUENCES; s++) {
       record(`${action}|${tag}|same verdict, different state`, `${trace.join(' > ')}\n      model: ${show(model)}\n      real:  ${real ? JSON.stringify(real) : 'table gone'}`);
       stoppedSequences++;
       break;
+    }
+    // The host slot: after a hand-over, only the current host holds the slot for this table.
+    if (model.exists && action !== 'expire') {
+      const holders = await slotHolders(names, code);
+      if (holders.length !== 1 || holders[0] !== model.host) {
+        record(`${action}|${tag}|wrong host slot`, `${trace.join(' > ')}\n      host is ${model.host}, slot holders: ${JSON.stringify(holders)}`);
+        stoppedSequences++;
+        break;
+      }
     }
     agreed++;
   }
@@ -193,19 +221,8 @@ console.log('Coverage (action | table state | what the model said): count');
 for (const [key, count] of [...coverage].sort()) console.log(`  ${key}: ${count}`);
 console.log(`Situation: a player came back to their reserved seat mid-match: ${situations.cameBackToAReservedSeat} time(s)`);
 console.log(`Situation: a match ended while seats were reserved for players who had left: ${situations.matchEndedWithReservedSeats} time(s)`);
-// These two situations are the point of the 2026-10-28 change, so a run that never reached them proves nothing about it.
-if (!situations.cameBackToAReservedSeat || !situations.matchEndedWithReservedSeats) {
-  console.log('COVERAGE GAP: the run never reached a return to a reserved seat, or a match ending with reserved seats.');
-  await env.cleanup();
-  process.exit(1);
-}
-// A clean run only means something if every action really happened (a passing run that never started a match proves nothing).
-const neverWorked = ACTIONS.filter((a) => ![...coverage.keys()].some((k) => k.startsWith(`${a}|`) && k.endsWith('|allowed')));
-if (neverWorked.length) {
-  console.log(`\nCOVERAGE GAP: these actions never succeeded in this run, so they were not compared: ${neverWorked.join(', ')}`);
-  await env.cleanup();
-  process.exit(1);
-}
+console.log(`Situation: a host left with others at the table and the table was handed on: ${situations.hostLeftAndHandedOver} time(s)`);
+console.log(`Situation: someone other than the original host did a host-only action: ${situations.newHostActed} time(s)`);
 let unknown = 0;
 for (const [key, f] of [...findings].sort()) {
   const known = KNOWN[key];
@@ -215,8 +232,18 @@ for (const [key, f] of [...findings].sort()) {
   console.log(`  example: ${f.example}`);
 }
 await env.cleanup();
+// Disagreements come first: they are the cause, and a sequence stopped by one also lowers the coverage numbers below.
 if (unknown) {
   console.log(`\n${unknown} disagreement kind(s) are not in KNOWN. Decide each: a bug in the code, a bug in the model, or a design question.`);
+  process.exit(1);
+}
+// A clean run only means something if the awkward situations and every action really happened (a passing run that never
+// started a match, or never handed a table over, proves nothing).
+const gaps = Object.entries(situations).filter(([, count]) => !count).map(([name]) => name);
+const neverWorked = ACTIONS.filter((a) => ![...coverage.keys()].some((k) => k.startsWith(`${a}|`) && k.endsWith('|allowed')));
+if (gaps.length || neverWorked.length) {
+  if (gaps.length) console.log(`\nCOVERAGE GAP: the run never reached these situations: ${gaps.join(', ')}`);
+  if (neverWorked.length) console.log(`\nCOVERAGE GAP: these actions never succeeded in this run, so they were not compared: ${neverWorked.join(', ')}`);
   process.exit(1);
 }
 console.log(`\nAll ${agreed} flow steps passed: the design and the code agree (${findings.size} known finding(s) listed above).`);

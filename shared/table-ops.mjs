@@ -238,22 +238,62 @@ export function createTableOps({ sdk, db, getUid, makeCode = makeTableCode }) {
 
   // You leave. In the lobby your seat is freed. Mid-match your entry goes and your seat stays RESERVED for you, so you
   // can come back to it (joinTable with the same code, from the same browser) until the host ends the match, which
-  // releases it. If you are the only one left, the table closes. The host cannot leave a table with other people at
-  // it: they close it instead.
+  // releases it. If you are the only one left, the table closes. If you are the host and others are at the table, the
+  // table is handed to the player in the lowest seat as you leave (the next one if the rules refuse that player, for
+  // example because they already host another table).
   async function leaveTable(code) {
     const { uid, meta, members, mine } = await look(code);
     if (!meta || !mine) refuse('You are not at that table.');
     const others = Object.keys(members).filter((id) => id !== uid);
+    const isHost = meta.host === uid;
+    const ownSlotIsThisTable = isHost && (await get(ref(db, `hosts/${uid}`))).val() === code;
     if (others.length === 0) {
       const writes = { [`tables/${code}`]: null };
-      if (meta.host === uid && (await get(ref(db, `hosts/${uid}`))).val() === code) writes[`hosts/${uid}`] = null;
+      if (ownSlotIsThisTable) writes[`hosts/${uid}`] = null;
       return update(ref(db), writes);
     }
-    if (meta.host === uid) refuse('The host cannot leave while other players are at the table. Close the table instead.');
     const writes = { [`tables/${code}/members/${uid}`]: null };
     if (meta.status === 'lobby') writes[`tables/${code}/seats/${mine.seat}`] = null;
-    await update(ref(db), writes);
+    if (!isHost) return update(ref(db), writes);
+    if (ownSlotIsThisTable) writes[`hosts/${uid}`] = null;
+    const bySeat = others.sort((a, b) => Number(members[a].seat) - Number(members[b].seat));
+    for (const next of bySeat) {
+      try {
+        await update(ref(db), { ...writes, [`tables/${code}/meta/host`]: next });
+        return { newHost: next };
+      } catch (error) {
+        if (!isPermissionDenied(error)) throw error; // that player cannot take over: offer it to the next one
+      }
+    }
+    refuse('Nobody at the table can take it over right now. Close the table instead.');
   }
 
-  return { findMyTable, createTable, rejoinTable, joinTable, watchMembers, setReady, clearReady, startMatch, concede, endMatch, endTable, leaveTable };
+  // The host hands the table to another player at it. Your host slot is cleared in the same write; the new host claims
+  // theirs afterwards with claimHostSlot (only they can write it).
+  async function passHost(code, newHost) {
+    const { uid, meta, members } = await look(code);
+    if (!meta) refuse('That table is not available.');
+    if (meta.host !== uid) refuse('Only the host can hand over the table.');
+    if (newHost === uid) refuse('You are already the host.');
+    if (!members[newHost]) refuse('That player is not at the table.');
+    const writes = { [`tables/${code}/meta/host`]: newHost };
+    if ((await get(ref(db, `hosts/${uid}`))).val() === code) writes[`hosts/${uid}`] = null;
+    try {
+      await update(ref(db), writes);
+    } catch (error) {
+      if (isPermissionDenied(error)) refuse('That player cannot take over the table right now. They may already host another table.');
+      throw error;
+    }
+  }
+
+  // The new host (after a hand-over) takes the one-table-per-host slot. Safe to call again.
+  async function claimHostSlot(code) {
+    const { uid, meta } = await look(code);
+    if (!meta) refuse('That table is not available.');
+    if (meta.host !== uid) refuse('You are not the host of this table.');
+    if ((await get(ref(db, `hosts/${uid}`))).val() === code) return;
+    await update(ref(db), { [`hosts/${uid}`]: code });
+  }
+
+  return { findMyTable, createTable, rejoinTable, joinTable, watchMembers, setReady, clearReady, startMatch, concede, endMatch, endTable, leaveTable, passHost, claimHostSlot };
 }

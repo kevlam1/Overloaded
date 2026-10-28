@@ -58,3 +58,5 @@ export const concede = (...args) => tableOps().concede(...args);
 export const endMatch = (...args) => tableOps().endMatch(...args);
 export const endTable = (...args) => tableOps().endTable(...args);
 export const leaveTable = (...args) => tableOps().leaveTable(...args);
+export const passHost = (...args) => tableOps().passHost(...args);
+export const claimHostSlot = (...args) => tableOps().claimHostSlot(...args);

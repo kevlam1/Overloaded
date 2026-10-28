@@ -142,5 +142,50 @@ await admin(async (db) => { await set(ref(db, `tables/${evesTable.code}/meta/cre
 const eve2 = await eve.ops.createTable({ name: 'Eve', seats: 2 });
 check('replacing works when the old table has passed 8 hours', eve2.replaced === evesTable.code && (await readAdmin(`tables/${evesTable.code}`)) === null);
 
+console.log('host handover');
+const hana = person('hana');
+const ivo = person('ivo');
+const jon = person('jon');
+const kai = person('kai');
+const hanaTable = await hana.ops.createTable({ name: 'Hana', seats: 3 });
+const HT = hanaTable.code;
+await ivo.ops.joinTable({ code: HT, name: 'Ivo' }); // seat 2
+await jon.ops.joinTable({ code: HT, name: 'Jon' }); // seat 3
+await throwsWith('a player who is not the host cannot hand over the table', ivo.ops.passHost(HT, 'jon'), 'FlowRefusedError');
+await throwsWith('the host cannot hand the table to someone who is not at it', hana.ops.passHost(HT, 'zed'), 'FlowRefusedError');
+await throwsWith('the host cannot hand the table to themselves', hana.ops.passHost(HT, 'hana'), 'FlowRefusedError');
+await hana.ops.passHost(HT, 'ivo');
+check('the table now belongs to the new host', (await readAdmin(`tables/${HT}/meta/host`)) === 'ivo');
+check('the old host\'s slot is cleared and the new host has not claimed theirs yet', (await readAdmin('hosts/hana')) === null && (await readAdmin('hosts/ivo')) === null);
+await ivo.ops.claimHostSlot(HT);
+check('the new host claims their host slot', (await readAdmin('hosts/ivo')) === HT);
+await ivo.ops.claimHostSlot(HT);
+check('claiming the slot again is harmless', (await readAdmin('hosts/ivo')) === HT);
+await throwsWith('the former host cannot claim the slot', hana.ops.claimHostSlot(HT), 'FlowRefusedError');
+await throwsWith('the former host can no longer start the match', hana.ops.startMatch(HT), 'FlowRefusedError');
+check('findMyTable finds the table for the new host and not for the old one', (await ivo.ops.findMyTable())?.code === HT && (await hana.ops.findMyTable()) === null);
+
+console.log('a host who leaves hands the table to the lowest seat');
+const left = await ivo.ops.leaveTable(HT);
+check('the table goes to the player in the lowest seat (Hana, seat 1)', left?.newHost === 'hana' && (await readAdmin(`tables/${HT}/meta/host`)) === 'hana', JSON.stringify(left));
+check('the leaving host is out of the table, their seat is free and their slot is cleared', (await readAdmin(`tables/${HT}/members/ivo`)) === null && (await readAdmin(`tables/${HT}/seats/2`)) === null && (await readAdmin('hosts/ivo')) === null);
+await hana.ops.claimHostSlot(HT);
+
+console.log('a player who already hosts another table cannot take over');
+const kaiOwn = await kai.ops.createTable({ name: 'Kai', seats: 2 });
+await kai.ops.joinTable({ code: HT, name: 'Kai' }); // takes the freed seat 2
+check('Kai is at Hana\'s table and hosts his own', (await readAdmin(`tables/${HT}/members/kai`))?.seat === '2' && (await readAdmin('hosts/kai')) === kaiOwn.code);
+const refusal = await throwsWith('handing the table to someone who hosts another live table is refused in words', hana.ops.passHost(HT, 'kai'), 'FlowRefusedError');
+check('and says why', /already host another table/i.test(refusal.message), refusal.message);
+const handed = await hana.ops.leaveTable(HT);
+check('a leaving host skips a player who cannot take over and hands it to the next seat (Jon, seat 3)', handed?.newHost === 'jon' && (await readAdmin(`tables/${HT}/meta/host`)) === 'jon', JSON.stringify(handed));
+check('Kai still hosts only his own table', (await readAdmin('hosts/kai')) === kaiOwn.code);
+
+console.log('the last person out of a handed-over table closes it');
+await jon.ops.claimHostSlot(HT);
+await kai.ops.leaveTable(HT);
+await jon.ops.leaveTable(HT);
+check('the table is gone and the last host\'s slot is cleared', (await readAdmin(`tables/${HT}`)) === null && (await readAdmin('hosts/jon')) === null);
+
 await env.cleanup();
 console.log(`All ${checks} table logic checks passed.`);
