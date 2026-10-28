@@ -337,6 +337,22 @@ for (const n of SEATS) {
   await seed(`SN${n}E`, { members: [['bob', n]] });
   await denied(`seat ${n}: a stranger frees someone else's seat`, set(ref(sam, `tables/SN${n}E/seats/${n}`), null));
   await ok(`seat ${n}: the owner frees their own seat in the lobby`, set(ref(bob, `tables/SN${n}E/seats/${n}`), null));
+  // The host can free a seat nobody is sitting in (its holder has no member entry), but only in a live lobby.
+  await seed(`SN${n}I`, { members: [['bob', n]] });
+  await dropMember(`SN${n}I`, 'bob');
+  await ok(`seat ${n}: the host frees a seat whose holder has left`, set(ref(alice, `tables/SN${n}I/seats/${n}`), null));
+  await seed(`SN${n}J`, { members: [['bob', n]] });
+  await denied(`seat ${n}: the host cannot free a seat whose holder is still at the table`, set(ref(alice, `tables/SN${n}J/seats/${n}`), null));
+  await seed(`SN${n}K`, { members: [['bob', n]] });
+  await dropMember(`SN${n}K`, 'bob');
+  await denied(`seat ${n}: a stranger cannot free a seat whose holder has left`, set(ref(sam, `tables/SN${n}K/seats/${n}`), null));
+  await denied(`seat ${n}: another signed-in user (not the host) cannot free a seat whose holder has left`, set(ref(carol, `tables/SN${n}K/seats/${n}`), null));
+  await seed(`SN${n}L`, { status: 'playing', members: [['bob', n]] });
+  await dropMember(`SN${n}L`, 'bob');
+  await denied(`seat ${n}: the host cannot free an empty seat during a match (it is held for the player to return)`, set(ref(alice, `tables/SN${n}L/seats/${n}`), null));
+  await seed(`SN${n}M`, { active: 31 * MINUTE, members: [['bob', n]] });
+  await dropMember(`SN${n}M`, 'bob');
+  await denied(`seat ${n}: the host cannot free an empty seat in a lobby idle past its limit`, set(ref(alice, `tables/SN${n}M/seats/${n}`), null));
   await seed(`SN${n}F`, { active: 31 * MINUTE, members: [] });
   await denied(`seat ${n}: taking a seat in a lobby idle past its limit`, set(ref(sam, `tables/SN${n}F/seats/${n}`), 'sam'));
   await seed(`SN${n}G`, { created: 8 * HOUR + MINUTE, members: [] });
@@ -356,7 +372,23 @@ for (const n of SEATS) {
 console.log('a player who dropped their member entry but still holds a seat');
 await seed('REJ111', { status: 'playing', members: [['bob', '2']] });
 await dropMember('REJ111', 'bob');
-await denied('started table: re-adding the member entry', set(ref(bob, 'tables/REJ111/members/bob'), { name: 'bob', seat: '2' }));
+// Changed 2026-10-28 (Kevin: a player whose browser or computer crashes must be able to come back mid-match). These two
+// used to be denied. A new member entry still has to name a seat the person holds, and a seat can only be taken in the
+// lobby, so in a match this means exactly "come back to your own seat".
+await ok('started table: a player who dropped out comes back to the seat they hold', set(ref(bob, 'tables/REJ111/members/bob'), { name: 'bob', seat: '2' }));
+await seed('REJ112', { status: 'playing', members: [['bob', '2']] });
+await dropMember('REJ112', 'bob');
+await denied('started table: coming back with a seat number they do not hold', set(ref(bob, 'tables/REJ112/members/bob'), { name: 'bob', seat: '3' }));
+await denied('started table: coming back to the seat the host holds', set(ref(bob, 'tables/REJ112/members/bob'), { name: 'bob', seat: '1' }));
+await seed('REJ113', { status: 'playing', members: [['bob', '2']] });
+await denied('started table: a stranger adds a member entry for a seat that is held by someone else', set(ref(sam, 'tables/REJ113/members/sam'), { name: 'sam', seat: '2' }));
+await denied('started table: a stranger adds a member entry for a free seat', set(ref(sam, 'tables/REJ113/members/sam'), { name: 'sam', seat: '3' }));
+await seed('REJ114', { status: 'playing', members: [['bob', '2']] });
+await dropMember('REJ114', 'bob');
+await denied('started table: coming back with an extra field', set(ref(bob, 'tables/REJ114/members/bob'), { name: 'bob', seat: '2', host: true }));
+await seed('REJ115', { status: 'playing', members: [['bob', '2']] });
+await dropMember('REJ115', 'bob');
+await denied('started table: someone else adds the entry for the player who dropped out', set(ref(carol, 'tables/REJ115/members/bob'), { name: 'bob', seat: '2' }));
 await seed('REJ222', { active: 31 * MINUTE, members: [['bob', '2']] });
 await dropMember('REJ222', 'bob');
 await denied('lobby idle past its limit: re-adding the member entry', set(ref(bob, 'tables/REJ222/members/bob'), { name: 'bob', seat: '2' }));
@@ -365,13 +397,24 @@ await dropMember('REJ333', 'bob');
 await denied('lobby past 8 hours: re-adding the member entry', set(ref(bob, 'tables/REJ333/members/bob'), { name: 'bob', seat: '2' }));
 await seed('REJ555', { status: 'playing', members: [['alice', '1']] });
 await dropMember('REJ555', 'alice');
-await denied('started table: the host re-adding their own member entry', set(ref(alice, 'tables/REJ555/members/alice'), { name: 'alice', seat: '1' }));
+await ok('started table: the host comes back to their own seat', set(ref(alice, 'tables/REJ555/members/alice'), { name: 'alice', seat: '1' }));
 await seed('REJ666', { active: 31 * MINUTE, members: [['alice', '1']] });
 await dropMember('REJ666', 'alice');
 await denied('lobby idle past its limit: the host re-adding their own member entry', set(ref(alice, 'tables/REJ666/members/alice'), { name: 'alice', seat: '1' }));
 await seed('REJ444', { members: [['bob', '2']] });
 await dropMember('REJ444', 'bob');
 await ok('live lobby: re-adding the member entry for the seat they hold', set(ref(bob, 'tables/REJ444/members/bob'), { name: 'bob', seat: '2' }));
+
+console.log('a match carries on when the host is gone (Kevin, 2026-10-28)');
+await seed('HOSTGONE', { status: 'playing', active: 20 * MINUTE, members: [['alice', '1'], ['bob', '2'], ['carol', '3']] });
+await dropMember('HOSTGONE', 'alice');
+await ok('host gone: a player keeps the table alive with the heartbeat', set(ref(bob, 'tables/HOSTGONE/activity/lastActive'), serverTimestamp()));
+await ok('host gone: a player writes their own public zone', set(ref(bob, 'tables/HOSTGONE/public/bob'), { life: 38 }));
+await ok('host gone: a player writes their own private zone', set(ref(bob, 'tables/HOSTGONE/private/bob'), { hand: ['Island'] }));
+await ok('host gone: a player concedes', set(ref(carol, 'tables/HOSTGONE/members/carol/conceded'), 1));
+await ok('host gone: a player leaves', set(ref(carol, 'tables/HOSTGONE/members/carol'), null));
+await denied('host gone: nobody else can end the match (only the host can, until the role can be handed over)', update(ref(bob), { 'tables/HOSTGONE/meta/status': 'lobby', 'tables/HOSTGONE/meta/idleLimit': LOBBY_IDLE, 'tables/HOSTGONE/meta/match': 2 }));
+await ok('host gone: the last player standing can still close the table', set(ref(bob, 'tables/HOSTGONE'), null));
 
 console.log('heartbeat (activity/lastActive)');
 await seed('BEAT11');

@@ -62,7 +62,7 @@ M.push(
   ['members: a seat need not be held by the joiner', at('members', '$uid', '.validate'), "newData.parent().parent().child('seats').child(newData.child('seat').val()).val() === $uid", 'true'],
   ['members: seat number may change', at('members', '$uid', '.validate'), "newData.child('seat').val() === data.child('seat').val()", 'true'],
   ['members: seat value any string', at('members', '$uid', 'seat', '.validate'), "newData.isString() && (newData.val() === '1' || newData.val() === '2' || newData.val() === '3' || newData.val() === '4')", 'true'],
-  ['members write: new entries need no lobby status', at('members', '$uid', '.write'), `${T}.child('meta').child('status').val() === 'lobby' && `, ''],
+  // (Removed 2026-10-28: "new entries need the lobby status". A returning player's entry is now allowed during a match.)
   ['members write (new entries): 8-hour limit ignored', at('members', '$uid', '.write'), `${A} && `, '', 2],
   ['members write (new entries): idle limit ignored', at('members', '$uid', '.write'), ` && ${B}`, '', 2],
   ['seats read: any signed-in user', at('seats', '.read'), `auth != null && ${MEMBER}`, 'auth != null'],
@@ -134,6 +134,8 @@ const EQUIVALENT = {
   'seat 4: table-creation branch needs no host check': 'the seat-count check reads the new meta, which does not exist, so a stranger cannot reach this branch',
 };
 
+// The start of the free-a-seat branch: the owner, or the host when the holder has no member entry (changed 2026-10-28).
+const OWNER_OR_HOST_FREES = `!newData.exists() && (data.val() === auth.uid || (${T}.child('meta').child('host').val() === auth.uid && !${T}.child('members').child(data.val()).exists())`;
 // The four seat rules differ only in the seat number and the other seats they check.
 for (const n of ['1', '2', '3', '4']) {
   const path = at('seats', n, '.write');
@@ -142,8 +144,11 @@ for (const n of ['1', '2', '3', '4']) {
     [`${label}: a taken seat can be overwritten`, path, 'newData.exists() && !data.exists() && ', 'newData.exists() && '],
     [`${label}: another uid can be put in the seat`, path, 'newData.val() === auth.uid && ', ''],
     [`${label}: taking a seat allowed after the game starts`, path, `${T}.child('meta').child('status').val() === 'lobby' && `, ''],
-    [`${label}: freeing a seat allowed after the game starts`, path, `!newData.exists() && data.val() === auth.uid && ${T}.child('meta').child('status').val() === 'lobby' && `, '!newData.exists() && data.val() === auth.uid && '],
-    [`${label}: anyone can free anyone's seat`, path, '!newData.exists() && data.val() === auth.uid && ', '!newData.exists() && '],
+    [`${label}: freeing a seat allowed after the game starts`, path, `${OWNER_OR_HOST_FREES}) && ${T}.child('meta').child('status').val() === 'lobby' && `, `${OWNER_OR_HOST_FREES}) && `],
+    [`${label}: anyone can free anyone's seat`, path, OWNER_OR_HOST_FREES, '(true'],
+    [`${label}: the owner cannot free their own seat`, path, 'data.val() === auth.uid || ', ''],
+    [`${label}: the host can free the seat of someone still at the table`, path, ` && !${T}.child('members').child(data.val()).exists())`, ')'],
+    [`${label}: anyone can free the seat of someone who left`, path, `${T}.child('meta').child('host').val() === auth.uid && !${T}.child('members')`, `!${T}.child('members')`],
     [`${label}: taking a seat ignores the 8-hour limit`, path, `${A} && `, ''],
     [`${label}: taking a seat ignores the idle limit`, path, ` && ${B}`, ''],
     [`${label}: table-creation branch needs no host check`, path, "newData.parent().parent().child('meta').child('host').val() === auth.uid", 'true'],
@@ -238,7 +243,12 @@ try {
       const failed = /FAILED CHECK[^\n]*?: ([^\n]*)/.exec(out);
       console.log('killed    ', m[0], failed ? `  <- ${failed[1].trim()}` : '  <- (no named check)'); killed++;
     }
-    else { console.log('FAILED, NOT BY AN ASSERTION (check)', m[0]); suspicious++; }
+    else {
+      console.log('FAILED, NOT BY AN ASSERTION (check)', m[0]); suspicious++;
+      // Show what actually failed (the last lines that are not Firebase warnings), so it can be judged.
+      const tail = out.split('\n').filter((l) => l.trim() && !/FIREBASE WARNING/.test(l)).slice(-4).map((l) => `      ${l.trim().slice(0, 200)}`);
+      console.log(tail.join('\n'));
+    }
   }
 } finally {
   restore();

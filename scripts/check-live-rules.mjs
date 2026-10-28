@@ -117,6 +117,18 @@ try {
   await expect('the host starts the next match (the number stays 2)', call(host, 'PATCH', `${T}/meta`, { status: 'playing', idleLimit: PLAYING_IDLE }), 'allowed');
   await expect('the member concedes for match 2', call(member, 'PUT', `${T}/members/${member.uid}/conceded`, 2), 'allowed');
 
+  // Coming back to your own seat mid-match, and the host freeing a seat nobody sits in (added 2026-10-28). The OLD
+  // rules refused both of these, so these checks pass only once the new file has been published.
+  await expect('a member drops out of the match (their entry goes, their seat stays held)', call(member, 'DELETE', `${T}/members/${member.uid}`), 'allowed');
+  await expect('a stranger adds an entry for the seat held for the member', update(stranger, { [`${T}/members/${stranger.uid}`]: { name: 'S', seat: '2' } }), 'refused');
+  await expect('the member comes back to their own seat mid-match', call(member, 'PUT', `${T}/members/${member.uid}`, { name: 'Member', seat: '2' }), 'allowed');
+  await expect('the member drops out again', call(member, 'DELETE', `${T}/members/${member.uid}`), 'allowed');
+  await expect('the host cannot free the held seat during the match', call(host, 'DELETE', `${T}/seats/2`), 'refused');
+  await expect('the host ends the match (back to the lobby, match 3)', call(host, 'PATCH', `${T}/meta`, { status: 'lobby', idleLimit: LOBBY_IDLE, match: 3 }), 'allowed');
+  await expect('a stranger frees the empty seat', call(stranger, 'DELETE', `${T}/seats/2`), 'refused');
+  await expect('the host frees the seat nobody sits in', call(host, 'DELETE', `${T}/seats/2`), 'allowed');
+  await expect('the member joins the lobby again and takes seat 2', update(member, { [`${T}/members/${member.uid}`]: { name: 'Member', seat: '2' }, [`${T}/seats/2`]: member.uid }), 'allowed');
+
   // The last player standing may end the table
   await expect('a member ends the table while the host is still in it', call(member, 'DELETE', T), 'refused');
   await expect('the host leaves (deletes their member entry)', call(host, 'DELETE', `${T}/members/${host.uid}`), 'allowed');
