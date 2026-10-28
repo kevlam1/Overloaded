@@ -1,0 +1,110 @@
+/* Shared styles. Plain CSS, no animation (so nothing here needs a prefers-reduced-motion rule yet). */
+:root {
+  color-scheme: light dark;
+  --bg: #f6f5f1;
+  --text: #1c1b19;
+  --muted: #5a5750;
+  --card: #ffffff;
+  --line: #cfcbc0;
+  --accent: #2b5fd9;
+  --accent-text: #ffffff;
+  --danger: #a3261a;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #16161a;
+    --text: #ecebe6;
+    --muted: #a9a69c;
+    --card: #1f2026;
+    --line: #3a3b44;
+    --accent: #7ea2ff;
+    --accent-text: #0e1220;
+    --danger: #ff8f84;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+main {
+  max-width: 34rem;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 1rem;
+}
+
+h1 { margin: 0 0 0.25rem; font-size: 1.75rem; }
+h2 { margin: 0 0 0.5rem; font-size: 1.15rem; }
+.lede { margin: 0 0 1.25rem; color: var(--muted); }
+
+section {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+label { display: block; margin: 0 0 0.25rem; font-weight: 600; }
+
+input, select, button {
+  font: inherit;
+  color: inherit;
+  min-height: 2.75rem; /* a comfortable touch target */
+  border-radius: 0.5rem;
+}
+
+input, select {
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--line);
+  background: var(--bg);
+}
+
+input:focus-visible, select:focus-visible, button:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.field { margin-bottom: 0.75rem; }
+
+.row { display: flex; gap: 0.5rem; align-items: flex-end; }
+.row .field { flex: 1; margin-bottom: 0; }
+
+button {
+  padding: 0.4rem 1rem;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button:disabled { opacity: 0.55; cursor: progress; }
+
+#join-code { text-transform: uppercase; letter-spacing: 0.15em; font-family: ui-monospace, Menlo, Consolas, monospace; }
+
+.hint { margin: 0.5rem 0 0; color: var(--muted); font-size: 0.875rem; }
+
+.status { min-height: 1.5rem; margin: 0 0 1rem; }
+.status.error { color: var(--danger); font-weight: 600; }
+
+.code { font: 700 1.6rem ui-monospace, Menlo, Consolas, monospace; letter-spacing: 0.2em; }
+
+#players { margin: 0.5rem 0 0; padding-left: 1.25rem; }
+
+footer {
+  max-width: 34rem;
+  margin: 0 auto;
+  padding: 0 1rem 2rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+[hidden] { display: none !important; }

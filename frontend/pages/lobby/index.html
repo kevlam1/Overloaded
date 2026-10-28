@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Overloaded: lobby</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="../../src/style.css">
+  </head>
+  <body>
+    <main>
+      <h1>Overloaded</h1>
+      <p class="lede">Make a table, or join your friends' table with its code.</p>
+
+      <p id="status" class="status" role="status" aria-live="polite"></p>
+
+      <section aria-labelledby="who-heading">
+        <h2 id="who-heading">Who are you?</h2>
+        <div class="field">
+          <label for="name">Your name at the table</label>
+          <input id="name" name="name" type="text" maxlength="30" autocomplete="nickname" spellcheck="false">
+        </div>
+      </section>
+
+      <section aria-labelledby="create-heading">
+        <h2 id="create-heading">Make a table</h2>
+        <div class="row">
+          <div class="field">
+            <label for="seats">Seats</label>
+            <select id="seats" name="seats">
+              <option value="2">2 players</option>
+              <option value="3">3 players</option>
+              <option value="4" selected>4 players</option>
+            </select>
+          </div>
+          <button id="create" type="button">Make table</button>
+        </div>
+        <p class="hint">Four seats is a Commander table.</p>
+      </section>
+
+      <section aria-labelledby="join-heading">
+        <h2 id="join-heading">Join a table</h2>
+        <div class="row">
+          <div class="field">
+            <label for="join-code">Table code</label>
+            <input id="join-code" name="code" type="text" maxlength="9" autocomplete="off" autocapitalize="characters" spellcheck="false" inputmode="text">
+          </div>
+          <button id="join" type="button">Join</button>
+        </div>
+      </section>
+
+      <section id="table" aria-labelledby="table-heading" hidden>
+        <h2 id="table-heading">Your table</h2>
+        <p>Share this code: <span id="code" class="code"></span></p>
+        <p>You have seat <span id="seat"></span>.</p>
+        <h3>At the table</h3>
+        <ul id="players"></ul>
+      </section>
+    </main>
+
+    <footer>
+      <p>Overloaded is unofficial Fan Content permitted under the Fan Content Policy. Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. &copy;Wizards of the Coast LLC.</p>
+    </footer>
+
+    <script type="module" src="./lobby.js"></script>
+  </body>
+</html>

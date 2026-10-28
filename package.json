@@ -1,0 +1,20 @@
+{
+  "name": "overloaded",
+  "private": true,
+  "type": "module",
+  "description": "Overloaded: a browser tabletop for playing a card game with friends. The page; the database rules and their tests live in backend/.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "dependencies": {
+    "firebase": "^13.1.0"
+  },
+  "devDependencies": {
+    "vite": "^8.3.5"
+  }
+}
