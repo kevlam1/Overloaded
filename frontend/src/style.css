@@ -96,6 +96,7 @@ button:disabled { opacity: 0.55; cursor: progress; }
 .status.error { color: var(--danger); font-weight: 600; }
 
 .code { font: 700 1.6rem ui-monospace, Menlo, Consolas, monospace; letter-spacing: 0.2em; }
+.link { font: 0.95rem ui-monospace, Menlo, Consolas, monospace; overflow-wrap: anywhere; user-select: all; }
 
 #players { margin: 0.5rem 0 0; padding-left: 1.25rem; }
 

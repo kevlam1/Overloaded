@@ -3,6 +3,7 @@ import { createTable, joinTable, rejoinTable, findMyTable, watchMembers } from '
 import { normalizeCode, isValidCode } from '../../../shared/table-code.mjs';
 import { cleanPlayerName } from '../../../shared/player-name.mjs';
 import { friendlyMessage } from '../../../shared/friendly-error.mjs';
+import { codeFromPath, linkForCode } from '../../../shared/lobby-link.mjs';
 
 const $ = (id) => document.getElementById(id);
 const nameInput = $('name');
@@ -31,6 +32,7 @@ function busy(isBusy) {
 function show(table) {
   $('table').hidden = false;
   $('code').textContent = table.code;
+  $('link').textContent = linkForCode(location.origin, table.code);
   $('seat').textContent = table.seat;
   localStorage.setItem(TABLE_KEY, table.code);
   if (stopWatching) stopWatching();
@@ -93,6 +95,16 @@ codeInput.addEventListener('keydown', (event) => { if (event.key === 'Enter') jo
 
 // On load: restore the name, and if this browser was at a table, put it back (a refresh keeps your seat).
 nameInput.value = localStorage.getItem(NAME_KEY) ?? '';
+
+// Arriving by a shared link (/lobby/ABC234): put the code in the box and leave the rest to the person. It never joins
+// by itself, so a link cannot put someone at a table they have not looked at.
+const linkedCode = codeFromPath(location.pathname);
+if (linkedCode) {
+  codeInput.value = linkedCode;
+  say(`Table ${linkedCode}: ${nameInput.value ? 'press Join.' : 'type your name, then press Join.'}`);
+  (nameInput.value ? joinButton : nameInput).focus();
+}
+
 (async () => {
   const last = localStorage.getItem(TABLE_KEY);
   if (!last) return;
