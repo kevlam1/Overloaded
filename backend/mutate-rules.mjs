@@ -54,6 +54,10 @@ for (const [label, path] of [
 }
 M.push(
   ['members read: any signed-in user', at('members', '.read'), `auth != null && ${MEMBER}`, 'auth != null'],
+  // Reading the heartbeat (2026-10-28): members only.
+  ['activity read: any signed-in user', at('activity', '.read'), `auth != null && ${MEMBER}`, 'auth != null'],
+  ['activity read: anyone, even signed out', at('activity', '.read'), `auth != null && ${MEMBER}`, 'true'],
+  ['activity read: no sign-in needed', at('activity', '.read'), 'auth != null && ', ''],
   ['members write: any uid', at('members', '$uid', '.write'), ' && auth.uid === $uid', ''],
   ['members write: table-creation branch needs no host check', at('members', '$uid', '.write'), "newData.parent().parent().child('meta').child('host').val() === auth.uid", 'true'],
   ['members write: table-creation branch without "no meta yet"', at('members', '$uid', '.write'), `!${T}.child('meta').exists() && `, ''],
@@ -123,6 +127,7 @@ const EQUIVALENT = {
   'meta write: anyone may create (no host check)': 'the host child validate still requires host === auth.uid when the table is created',
   'meta: idle limit any value': 'the status/idle-limit coupling at meta level already allows only the two exact values',
   'activity: unknown fields allowed': 'paths under activity other than lastActive have no write rule, so they are denied anyway',
+  'activity read: no sign-in needed': 'for a signed-out user auth is null, so auth.uid in the member check raises an error and the read is denied anyway (the signed-out read test is still denied without this check)',
   'meta: host need not be a string': 'a host that is not a string cannot be the key of a member entry, so the "is a current member" check already denies it (the test with a number as the new host is still denied without this check)',
   'members: seat required removed': 'a member entry with no seat fails the seat-held check (a missing seat is not a held seat)',
   'members: seat value any string': 'a seat key that is not 1 to 4 is not held by anyone, so the seat-held check already denies it',

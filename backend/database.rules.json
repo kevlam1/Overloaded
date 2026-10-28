@@ -42,6 +42,7 @@
           }
         },
         "activity": {
+          ".read": "auth != null && root.child('tables').child($code).child('members').child(auth.uid).exists()",
           "lastActive": {
             ".write": "auth != null && newData.exists() && (!data.exists() || now >= data.val() + 30000) && ((!data.exists() && newData.parent().parent().child('meta').child('host').val() === auth.uid) || (root.child('tables').child($code).child('members').child(auth.uid).exists() && root.child('tables').child($code).child('meta').child('createdAt').val() + 28800000 > now && data.val() + root.child('tables').child($code).child('meta').child('idleLimit').val() > now))",
             ".validate": "newData.val() === now"

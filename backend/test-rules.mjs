@@ -115,7 +115,9 @@ await denied('multi-path update reaching opponent private',
   update(ref(bob), { 'tables/ABC123/private/alice/hand': [], 'tables/ABC123/public/bob/life': 40 }));
 await denied('write outside tables', set(ref(alice, 'other/x'), 1));
 await denied('read whole database', get(ref(alice, '/')));
-await denied('member reads activity', get(ref(alice, 'tables/ABC123/activity')));
+// Changed 2026-10-28: members may now read activity (the page needs lastActive to warn before an idle table closes).
+await ok('member reads activity', get(ref(alice, 'tables/ABC123/activity')));
+await denied('a stranger reads activity', get(ref(as('zed'), 'tables/ABC123/activity')));
 
 console.log('creating a table');
 const newTable = (code, over = {}, host = 'zoe') => ({
@@ -430,6 +432,26 @@ await denied('non-member heartbeat', set(ref(carol, 'tables/BEAT22/activity/last
 await denied('signed-out heartbeat', set(ref(anon, 'tables/BEAT22/activity/lastActive'), serverTimestamp()));
 await denied('unknown field under activity', set(ref(bob, 'tables/BEAT22/activity/junk'), 1));
 await denied('heartbeat on a table that does not exist', set(ref(carol, 'tables/NOPE88/activity/lastActive'), serverTimestamp()));
+
+// Reading the heartbeat (added 2026-10-28): members see when the table was last active, so the page can warn before it closes.
+console.log('reading activity: members only');
+await seed('BEAT33');
+await ok('a member reads lastActive', get(ref(bob, 'tables/BEAT33/activity/lastActive')));
+await ok('the host reads lastActive', get(ref(alice, 'tables/BEAT33/activity/lastActive')));
+await ok('a member reads the whole activity node', get(ref(bob, 'tables/BEAT33/activity')));
+await denied('a signed-in stranger cannot read lastActive', get(ref(carol, 'tables/BEAT33/activity/lastActive')));
+await denied('a signed-out user cannot read lastActive', get(ref(anon, 'tables/BEAT33/activity/lastActive')));
+await denied('a member of another table cannot read lastActive', get(ref(as('dora'), 'tables/BEAT33/activity/lastActive')));
+await denied('nobody can read the activity of a table that does not exist', get(ref(carol, 'tables/NOPE77/activity/lastActive')));
+await seed('BEAT44');
+await dropMember('BEAT44', 'bob');
+await denied('someone who left the table cannot read lastActive', get(ref(bob, 'tables/BEAT44/activity/lastActive')));
+await denied('opening activity does not open the whole table to a member', get(ref(bob, 'tables/BEAT33')));
+await denied('a member cannot read the whole table through its parent either', get(ref(bob, 'tables')));
+await seed('BEAT55', { status: 'playing' });
+await ok('a member reads lastActive while the match is on', get(ref(bob, 'tables/BEAT55/activity/lastActive')));
+await seed('BEAT66', { active: 45 * MINUTE });
+await ok('a member can still read lastActive of an idle (expired) table, to see why it closed', get(ref(bob, 'tables/BEAT66/activity/lastActive')));
 
 console.log('expiry: lobby idle limit is 30 minutes');
 await seed('IDLE11', { active: 29 * MINUTE });

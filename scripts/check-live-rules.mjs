@@ -91,6 +91,9 @@ try {
 
   // The heartbeat cap (the table is only seconds old) and who may start a match
   await expect('a heartbeat straight after creation (30 second cap)', call(member, 'PUT', `${T}/activity/lastActive`, SERVER_TIME), 'refused');
+  // Reading the heartbeat (added 2026-10-28): members only. The OLD rules refused a member too.
+  await expect('a member reads lastActive', call(member, 'GET', `${T}/activity/lastActive`), 'allowed');
+  await expect('a stranger cannot read lastActive', call(stranger, 'GET', `${T}/activity/lastActive`), 'refused');
   await expect('a member who is not the host starts the match', call(member, 'PATCH', `${T}/meta`, { status: 'playing', idleLimit: PLAYING_IDLE }), 'refused');
   await expect('the host starts the match', call(host, 'PATCH', `${T}/meta`, { status: 'playing', idleLimit: PLAYING_IDLE }), 'allowed');
   await expect('the host changes the seat count after creation', call(host, 'PUT', `${T}/meta/seats`, 2), 'refused');
