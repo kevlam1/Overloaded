@@ -6,7 +6,7 @@ A browser-based virtual Magic: The Gathering tabletop simulator. Artifact 5 of T
 
 **Run the page:** copy `.env.example` to `.env` and fill in the five Firebase settings (the project's web app config; the real values never go in the repo), then `npm install` and `npm run dev`. `npm run build` makes the site in `dist/` and fails, naming the missing setting, if one is not set.
 
-**Run the tests:** `node scripts/test-deck-text.mjs`, `node scripts/test-card-match.mjs`, `node scripts/test-table-code.mjs`, `node scripts/test-player-name.mjs`, `node scripts/test-permission-error.mjs`, and for the database rules `npm install` then `npm test` inside `backend/` (needs Java and Node 24.12 or newer).
+**Run the tests:** `npm test` (everything that needs no login: the unit suites, the lobby page in headless Chrome and the database rules; about 20 seconds), `npm run test:quick` (the unit suites only, instant) and `npm run test:live` (also the checks against the real Firebase project, about 40 seconds; they create and delete a throwaway table and accounts). The pieces are `node scripts/test-*.mjs`, `node scripts/check-lobby-ui.mjs` and, for the database rules, `npm install` then `npm test` inside `backend/` (needs Java and Node 24.12 or newer).
 
 ## Idea
 
