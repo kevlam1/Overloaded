@@ -1,0 +1,126 @@
+// Checks the lobby page in a real headless Chrome (desktop width). No database traffic: everything here is the
+// page's own behavior. Run from the repo root:  node scripts/check-lobby-ui.mjs
+// Optional: add  --screenshot  to save scratch-lobby-ui.png (git ignores scratch files; delete it afterward).
+import { createServer } from 'vite';
+import { openBrowser, closeAllBrowsers, waitFor, sleep, text, setValue, click } from './lib/browser.mjs';
+
+const PORT = 5197;
+const ORIGIN = `http://127.0.0.1:${PORT}`;
+const PAGE = `${ORIGIN}/pages/lobby/index.html`;
+
+let checks = 0;
+const failures = [];
+function check(label, pass, detail = '') {
+  checks++;
+  if (!pass) { failures.push(label); console.log(`FAIL  ${label}${detail ? '  (' + detail + ')' : ''}`); }
+}
+
+let server = null;
+try {
+  server = await createServer({ configFile: 'vite.config.js', logLevel: 'error', server: { port: PORT, strictPort: true, host: '127.0.0.1' } });
+  await server.listen();
+  const browser = await openBrowser('lobby-ui', { width: 1280, height: 800 });
+  await browser.goto(PAGE);
+
+  // ---- the page's structure ----
+  const facts = await browser.eval(`(() => {
+    const byId = (id) => document.getElementById(id);
+    const fields = Array.from(document.querySelectorAll('input, select'));
+    const footer = document.querySelector('footer');
+    const rect = (el) => { const r = el.getBoundingClientRect(); return { w: r.width, h: r.height }; };
+    return {
+      title: document.title,
+      lang: document.documentElement.lang,
+      viewport: !!document.querySelector('meta[name=viewport]'),
+      h1s: document.querySelectorAll('h1').length,
+      ids: ['name', 'seats', 'create', 'join-code', 'join', 'status', 'table', 'code', 'seat', 'players'].every((id) => !!byId(id)),
+      fieldsWithoutLabel: fields.filter((f) => !document.querySelector('label[for="' + f.id + '"]')).map((f) => f.id),
+      buttonsWithoutText: Array.from(document.querySelectorAll('button')).filter((b) => !b.textContent.trim()).length,
+      tableHiddenAtStart: byId('table').hidden,
+      statusIsLive: byId('status').getAttribute('aria-live') === 'polite' && byId('status').getAttribute('role') === 'status',
+      nameMax: byId('name').maxLength,
+      seatOptions: Array.from(byId('seats').options).map((o) => o.value + ':' + o.selected),
+      disclaimer: footer ? footer.textContent.replace(/\\s+/g, ' ').trim() : '',
+      disclaimerVisible: !!footer && rect(footer).h > 0,
+      buttonHeights: [rect(byId('create')).h, rect(byId('join')).h],
+      scrollsSideways: document.documentElement.scrollWidth > window.innerWidth,
+      headingOrder: Array.from(document.querySelectorAll('h1,h2,h3')).map((h) => h.tagName).join(','),
+    };
+  })()`);
+  check('page title names the site', /Overloaded/.test(facts.title), facts.title);
+  check('the page declares its language', facts.lang === 'en');
+  check('the page has a viewport tag', facts.viewport);
+  check('there is exactly one h1', facts.h1s === 1);
+  check('every expected element exists', facts.ids);
+  check('every input and select has a label', facts.fieldsWithoutLabel.length === 0, facts.fieldsWithoutLabel.join(','));
+  check('every button has text', facts.buttonsWithoutText === 0);
+  check('the table section is hidden until there is a table', facts.tableHiddenAtStart);
+  check('the status line is a polite live region', facts.statusIsLive);
+  check('the name field stops at the 30-character rule', facts.nameMax === 30, String(facts.nameMax));
+  check('four seats is the default', facts.seatOptions.includes('4:true') && facts.seatOptions.length === 3, facts.seatOptions.join(' '));
+  check('the Fan Content disclaimer is visible', facts.disclaimerVisible);
+  for (const phrase of ['unofficial Fan Content', 'Fan Content Policy', 'Not approved/endorsed by Wizards', 'property of Wizards of the Coast']) check(`the disclaimer contains "${phrase}"`, facts.disclaimer.includes(phrase));
+  check('the disclaimer does not use a Wizards or Magic logo or call the site by the trademarked name in its title', !/Magic: The Gathering/i.test(facts.title));
+  check('buttons are at least 44 px tall', facts.buttonHeights.every((h) => h >= 44), facts.buttonHeights.join(','));
+  check('nothing scrolls sideways at desktop width', !facts.scrollsSideways);
+  check('headings go h1, h2, h2, h2, then h3 inside the table', facts.headingOrder === 'H1,H2,H2,H2,H2,H3', facts.headingOrder);
+
+  // ---- loading: nothing from anyone else, and nothing sent to the database yet ----
+  const loadRequests = browser.events.filter((e) => e.method === 'Network.requestWillBeSent').map((e) => e.params.request.url);
+  const thirdParty = loadRequests.filter((url) => !url.startsWith(ORIGIN) && !url.startsWith('data:'));
+  check('loading the page contacts only this site (no third parties, no database)', thirdParty.length === 0, thirdParty.join(' '));
+  check('the page has no console errors after loading', browser.logs.filter((l) => /^(exception|error)/.test(l)).length === 0, browser.logs.filter((l) => /^(exception|error)/.test(l)).join(' | '));
+
+  // ---- messages for bad input: shown, in the error style, and with no network request ----
+  browser.events.length = 0;
+  const say = async () => ({ message: await text(browser, 'status'), error: await browser.eval(`document.getElementById('status').classList.contains('error')`) });
+  const cases = [
+    ['make table, empty name', async () => { await setValue(browser, 'name', ''); await click(browser, 'create'); }, /Type a name/],
+    ['make table, 31-character name', async () => { await setValue(browser, 'name', 'x'.repeat(31)); await click(browser, 'create'); }, /30 characters/],
+    ['join, short code', async () => { await setValue(browser, 'name', 'Kevin'); await setValue(browser, 'join-code', 'abc'); await click(browser, 'join'); }, /6 letters and digits/],
+    ['join, code containing a zero', async () => { await setValue(browser, 'join-code', 'ABC230'); await click(browser, 'join'); }, /6 letters and digits/],
+    ['join, empty code', async () => { await setValue(browser, 'join-code', ''); await click(browser, 'join'); }, /6 letters and digits/],
+    ['join, good code, empty name', async () => { await setValue(browser, 'name', ''); await setValue(browser, 'join-code', 'ABC234'); await click(browser, 'join'); }, /Type a name/],
+    ['join, name of only spaces', async () => { await setValue(browser, 'name', '    '); await click(browser, 'join'); }, /Type a name/],
+  ];
+  for (const [label, act, expected] of cases) {
+    await act(); await sleep(250);
+    const { message, error } = await say();
+    check(`${label}: shows a readable message`, expected.test(message), message);
+    check(`${label}: uses the error style`, error);
+  }
+  const requestsAfterBadInput = browser.events.filter((e) => e.method === 'Network.requestWillBeSent').map((e) => e.params.request.url).filter((u) => !u.startsWith('data:'));
+  check('bad input sends no network request at all', requestsAfterBadInput.length === 0, requestsAfterBadInput.join(' '));
+  check('the buttons are enabled again after each refusal', await browser.eval(`!document.getElementById('create').disabled && !document.getElementById('join').disabled`));
+
+  // ---- pressing Enter in the code box joins (it should not need the mouse) ----
+  await setValue(browser, 'name', 'Kevin'); await setValue(browser, 'join-code', 'abc');
+  await browser.eval(`document.getElementById('status').textContent = ''`);
+  await browser.eval(`document.getElementById('join-code').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))`);
+  await sleep(300);
+  check('Enter in the code box tries to join (a short code gets the code message)', /6 letters and digits/.test(await text(browser, 'status')), await text(browser, 'status'));
+
+  // ---- offline: a readable message, no hang, buttons usable again ----
+  const offlineErrors = browser.logs.length;
+  await browser.send('Network.emulateNetworkConditions', { offline: true, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+  await setValue(browser, 'name', 'Kevin');
+  await browser.eval(`document.getElementById('status').textContent = ''`);
+  await click(browser, 'create');
+  const settled = await waitFor(async () => { const m = await text(browser, 'status'); return m && !/Making your table/.test(m) ? m : null; }, 25000, 100);
+  check('offline: the page answers within 25 seconds instead of hanging', Boolean(settled), String(settled));
+  check('offline: the message says the server cannot be reached, in plain words', /can.?t reach|connection|offline/i.test(settled ?? '') && !/Firebase|auth\//.test(settled ?? ''), String(settled));
+  check('offline: the buttons are enabled again', await browser.eval(`!document.getElementById('create').disabled && !document.getElementById('join').disabled`));
+  await browser.send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+  void offlineErrors;
+
+  if (process.argv.includes('--screenshot')) await browser.screenshot('scratch-lobby-ui.png');
+} catch (error) {
+  failures.push('the check script itself ran without an error: ' + error.message);
+  console.log('FAIL  the check script itself ran without an error:', error.message);
+} finally {
+  await closeAllBrowsers();
+  if (server) await server.close();
+}
+
+if (failures.length) { console.log(`\n${checks - failures.length} of ${checks} lobby page checks passed. FAILED: ${failures.join('; ')}`); process.exit(1); }
+console.log(`All ${checks} lobby page checks passed.`);

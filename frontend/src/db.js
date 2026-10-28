@@ -7,7 +7,7 @@
 // - a person who is not at the table cannot read it, so joining tries seats one at a time;
 // - a host holds one table at a time: making a new one deletes the old one in the same write.
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously } from 'firebase/auth';
+import { initializeAuth, indexedDBLocalPersistence, browserLocalPersistence, signInAnonymously } from 'firebase/auth';
 import { getDatabase, ref, get, update, onValue, serverTimestamp } from 'firebase/database';
 import { makeTableCode, isValidCode } from '../../shared/table-code.mjs';
 import { cleanPlayerName } from '../../shared/player-name.mjs';
@@ -22,7 +22,11 @@ let services = null;
 function start() {
   if (!services) {
     const app = initializeApp(__FIREBASE_CONFIG__); // filled in by vite.config.js from .env or Vercel's environment
-    services = { auth: getAuth(app), db: getDatabase(app) };
+    // initializeAuth with only the storage we need, instead of getAuth, which also pulls in the sign-in-with-popup
+    // code we never use (a smaller download). A persistence MUST be given: with none the SDK keeps the account in
+    // memory only, and a refresh would create a new one. IndexedDB first, local storage if that is unavailable.
+    const auth = initializeAuth(app, { persistence: [indexedDBLocalPersistence, browserLocalPersistence] });
+    services = { auth, db: getDatabase(app) };
   }
   return services;
 }
@@ -35,12 +39,22 @@ export class TableUnavailableError extends Error {
 }
 
 // An anonymous account: no email or password, just a random id the browser keeps. Returns that id.
-export async function signIn() {
-  const { auth } = start();
-  await auth.authStateReady(); // waits for the saved sign-in (if any) to load, so a refresh keeps the same id
-  if (auth.currentUser) return auth.currentUser.uid;
-  const credential = await signInAnonymously(auth);
-  return credential.user.uid;
+// Every caller shares ONE attempt. Without that, two calls made at the same moment on a fresh browser both saw "no
+// account yet" and both created one; the second silently replaced the first, so the page could act as two people
+// (found by the spike on 2026-10-28: three simultaneous calls gave three different accounts).
+let signingIn = null;
+export function signIn() {
+  if (!signingIn) {
+    signingIn = (async () => {
+      const { auth } = start();
+      await auth.authStateReady(); // waits for the saved sign-in (if any) to load, so a refresh keeps the same id
+      if (auth.currentUser) return auth.currentUser.uid;
+      const credential = await signInAnonymously(auth);
+      return credential.user.uid;
+    })();
+    signingIn.catch(() => { signingIn = null; }); // a failed attempt can be tried again; callers still see the failure
+  }
+  return signingIn;
 }
 
 // The host's current table, if it still exists: { code, players }. A host holds one table at a time.
@@ -50,10 +64,13 @@ export async function findMyTable() {
   const code = (await get(ref(db, `hosts/${uid}`))).val();
   if (!code) return null;
   try {
-    const table = (await get(ref(db, `tables/${code}`))).val();
+    // Read the parts a member may read. Reading the whole table at once is refused for everyone on purpose (it
+    // would include other players' private cards), so asking for it here always failed and no one was ever
+    // warned before their old table was closed (found by the spike on 2026-10-28).
+    const [meta, members] = await Promise.all([get(ref(db, `tables/${code}/meta`)), get(ref(db, `tables/${code}/members`))]);
     // The host slot can outlive its table (the table closed or was deleted). Then there is nothing to warn about.
-    if (!table || !table.meta) return null;
-    return { code, players: Object.keys(table.members ?? {}).length };
+    if (!meta.exists()) return null;
+    return { code, players: Object.keys(members.val() ?? {}).length };
   } catch (error) {
     if (isPermissionDenied(error)) return null; // not readable: the table is gone or is not ours any more
     throw error;

@@ -2,6 +2,7 @@
 import { createTable, joinTable, rejoinTable, findMyTable, watchMembers } from '../../src/db.js';
 import { normalizeCode, isValidCode } from '../../../shared/table-code.mjs';
 import { cleanPlayerName } from '../../../shared/player-name.mjs';
+import { friendlyMessage } from '../../../shared/friendly-error.mjs';
 
 const $ = (id) => document.getElementById(id);
 const nameInput = $('name');
@@ -55,7 +56,7 @@ async function run(task) {
   try {
     await task();
   } catch (error) {
-    say(error instanceof Error ? error.message : 'Something went wrong.', true);
+    say(friendlyMessage(error), true);
   } finally {
     busy(false);
   }
@@ -86,6 +87,9 @@ joinButton.addEventListener('click', () => run(async () => {
   say(table.rejoined ? `Back at table ${table.code}.` : `You joined table ${table.code}.`);
   show(table);
 }));
+
+// Pressing Enter in the code box joins, so it does not need the mouse.
+codeInput.addEventListener('keydown', (event) => { if (event.key === 'Enter') joinButton.click(); });
 
 // On load: restore the name, and if this browser was at a table, put it back (a refresh keeps your seat).
 nameInput.value = localStorage.getItem(NAME_KEY) ?? '';

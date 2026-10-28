@@ -1,17 +1,14 @@
-// The live-play spike: two real browsers, one real Firebase project.
+// The live-play spike: real browsers, one real Firebase project.
 // Run from the repo root:  node --env-file=.env scripts/spike-two-browsers.mjs
 //
-// It starts the page (Vite, in this process), opens two headless Chrome windows with separate profile folders
-// (Alice makes a table, Bob joins it), and checks what the database rules promise. Everything it writes goes to a
-// throwaway table that it deletes at the end, and the anonymous accounts it creates are deleted too.
-// Tokens are used for requests but never printed.
+// It starts the page (Vite, in this process), opens headless Chrome windows with separate profile folders
+// (Alice makes a table, Bob joins it, Carol is a fresh visitor), and checks what the database rules and the page
+// promise. Everything it writes goes to a throwaway table that it deletes at the end, and the anonymous accounts it
+// creates are deleted too. Tokens are used for requests but never printed.
 //
 // Exit codes: 0 all checks passed, 1 a check failed, 2 the rules are not published yet (nothing else could run).
-import { spawn } from 'node:child_process';
-import { existsSync, mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { createServer } from 'vite';
+import { openBrowser, closeAllBrowsers, waitFor, authOf, sleep, median, text, tableShown, setValue, click, players } from './lib/browser.mjs';
 
 const PORT = 5199;
 const PAGE = `http://127.0.0.1:${PORT}/pages/lobby/index.html`;
@@ -24,73 +21,6 @@ if (!DB || !API_KEY) {
 
 const results = [];
 const record = (name, pass, detail = '') => { results.push({ name, pass, detail }); console.log(`${pass ? 'PASS' : 'FAIL'}  ${name}${detail ? '  (' + detail + ')' : ''}`); };
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-const median = (numbers) => [...numbers].sort((a, b) => a - b)[Math.floor(numbers.length / 2)];
-
-// ---------- Chrome over the DevTools protocol ----------
-const chromePath = ['C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe'].find(existsSync);
-if (!chromePath) { console.log('Chrome was not found.'); process.exit(1); }
-
-const browsers = [];
-let nextId = 1;
-
-async function openBrowser(label) {
-  const profile = mkdtempSync(join(tmpdir(), `cdp-spike-${label}-`)); // unique per browser; removed at the end
-  const port = 9600 + Math.floor(Math.random() * 300);
-  const process_ = spawn(chromePath, [
-    '--headless=new', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`,
-    '--no-first-run', '--no-default-browser-check', '--disable-extensions', 'about:blank',
-  ], { stdio: 'ignore', windowsHide: true });
-  const browser = { label, profile, process: process_, logs: [] };
-  browsers.push(browser);
-  for (let i = 0; i < 80; i++) { try { if ((await fetch(`http://127.0.0.1:${port}/json/version`)).ok) break; } catch {} await sleep(250); }
-  const target = await (await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, { method: 'PUT' })).json();
-  const ws = new WebSocket(target.webSocketDebuggerUrl);
-  const pending = new Map();
-  await new Promise((resolve, reject) => { ws.onopen = resolve; ws.onerror = reject; });
-  const send = (method, params = {}) => new Promise((ok, fail) => { const id = nextId++; pending.set(id, { ok, fail }); ws.send(JSON.stringify({ id, method, params })); });
-  ws.onmessage = (message) => {
-    const data = JSON.parse(message.data);
-    if (data.id && pending.has(data.id)) { const { ok, fail } = pending.get(data.id); pending.delete(data.id); data.error ? fail(new Error(JSON.stringify(data.error))) : ok(data.result); }
-    else if (data.method === 'Page.javascriptDialogOpening') send('Page.handleJavaScriptDialog', { accept: true }).catch(() => {}); // the "close your old table?" confirm
-    else if (data.method === 'Runtime.consoleAPICalled') browser.logs.push(`console.${data.params.type}: ` + data.params.args.map((a) => a.value ?? a.description ?? '').join(' '));
-    else if (data.method === 'Runtime.exceptionThrown') browser.logs.push('exception: ' + (data.params.exceptionDetails.exception?.description ?? data.params.exceptionDetails.text));
-    else if (data.method === 'Log.entryAdded') browser.logs.push(`${data.params.entry.level}: ${data.params.entry.text}`);
-  };
-  await send('Page.enable'); await send('Runtime.enable'); await send('Log.enable');
-  await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
-  browser.eval = async (expression) => {
-    const out = await send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true });
-    if (out.exceptionDetails) throw new Error('page error: ' + (out.exceptionDetails.exception?.description ?? out.exceptionDetails.text));
-    return out.result.value;
-  };
-  browser.goto = async (url) => { await send('Page.navigate', { url }); await sleep(1200); };
-  browser.reload = async () => { await send('Page.reload'); await sleep(1200); };
-  browser.close = () => { try { ws.close(); } catch {} try { process_.kill(); } catch {} };
-  return browser;
-}
-
-async function waitFor(predicate, timeoutMs, everyMs = 40) {
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) { const value = await predicate(); if (value) return value; await sleep(everyMs); }
-  return null;
-}
-
-// The signed-in anonymous account lives in the browser's own storage; read its id and token from there.
-const authOf = (browser) => browser.eval(`new Promise((resolve) => {
-  const open = indexedDB.open('firebaseLocalStorageDb');
-  open.onerror = () => resolve(null);
-  open.onsuccess = () => {
-    const db = open.result;
-    if (!db.objectStoreNames.contains('firebaseLocalStorage')) return resolve(null);
-    const req = db.transaction('firebaseLocalStorage').objectStore('firebaseLocalStorage').getAll();
-    req.onsuccess = () => {
-      const found = req.result.map((row) => row.value).find((value) => value && value.uid);
-      resolve(found ? { uid: found.uid, token: found.stsTokenManager && found.stsTokenManager.accessToken } : null);
-    };
-    req.onerror = () => resolve(null);
-  };
-})`);
 
 // ---------- the database, over HTTPS with someone's token ----------
 async function rest(method, path, token, body) {
@@ -115,36 +45,43 @@ async function dump(browser) {
   for (const line of browser.logs.slice(-8)) console.log(`   [${browser.label}] ${mask(line)}`);
 }
 
-// ---------- page helpers ----------
-const text = (browser, id) => browser.eval(`document.getElementById(${JSON.stringify(id)}).textContent`);
-const tableShown = (browser) => browser.eval(`!document.getElementById('table').hidden`);
-const setValue = (browser, id, value) => browser.eval(`(() => { const el = document.getElementById(${JSON.stringify(id)}); el.value = ${JSON.stringify(value)}; el.dispatchEvent(new Event('input')); })()`);
-const click = (browser, id) => browser.eval(`document.getElementById(${JSON.stringify(id)}).click()`);
-const players = (browser) => browser.eval(`Array.from(document.querySelectorAll('#players li')).map((li) => li.textContent)`);
-
 let server = null;
 let exitCode = 0;
-const cleanup = { aliceToken: null, aliceUid: null, bobToken: null, tables: [] };
+const cleanup = { aliceToken: null, aliceUid: null, bobToken: null, carolToken: null, tables: [] };
 const strangers = [];
 
 try {
   server = await createServer({ configFile: 'vite.config.js', logLevel: 'error', server: { port: PORT, strictPort: true, host: '127.0.0.1' } });
   await server.listen();
 
-  const alice = await openBrowser('alice');
-  const bob = await openBrowser('bob');
+  const alice = await openBrowser('spike-alice', { width: 1280, height: 800 });
+  const bob = await openBrowser('spike-bob', { width: 1280, height: 800 });
+  const carol = await openBrowser('spike-carol', { width: 1280, height: 800 });
+
+  // 0. A fresh visitor asks "who am I?" three times at once. It must end up as ONE anonymous account.
+  await carol.goto(PAGE);
+  const race = await carol.eval(`(async () => {
+    const db = await import('/src/db.js');
+    const start = performance.now();
+    const ids = await Promise.all([db.signIn(), db.signIn(), db.signIn()]);
+    return { ids, ms: Math.round(performance.now() - start) };
+  })()`);
+  const carolAuth = await authOf(carol);
+  if (carolAuth?.token) cleanup.carolToken = carolAuth.token;
+  record('three simultaneous sign-ins on a fresh browser share one anonymous account', race.ids.every((id) => id === race.ids[0]) && carolAuth?.uid === race.ids[0], `${race.ms} ms`);
+  const again = await carol.eval(`(async () => { const db = await import('/src/db.js'); return db.signIn(); })()`);
+  record('asking again later returns the same account', again === race.ids[0]);
 
   // 1. Alice makes a table
   await alice.goto(PAGE);
   await setValue(alice, 'name', 'Alice');
   await click(alice, 'create');
-  const created = await waitFor(async () => (await tableShown(alice)) || ((await text(alice, 'status')).includes('Could not')) || null, 20000);
+  await waitFor(async () => (await tableShown(alice)) || ((await text(alice, 'status')).includes('Could not')) || ((await text(alice, 'status')).includes('denied')) || null, 20000);
   const aliceAuth = await authOf(alice);
   if (aliceAuth?.token) { cleanup.aliceToken = aliceAuth.token; cleanup.aliceUid = aliceAuth.uid; }
   record('anonymous sign-in works in a real browser (an id and token are stored)', Boolean(aliceAuth?.uid && aliceAuth?.token));
   if (!(await tableShown(alice))) {
-    const message = await text(alice, 'status');
-    record('Alice makes a table', false, message || 'no result');
+    record('Alice makes a table', false, (await text(alice, 'status')) || 'no result');
     console.log('\nThe database refused the table. That is what the locked rules do, so the rules have probably not been published to the project yet.');
     exitCode = 2;
     throw new Error('stop');
@@ -153,6 +90,7 @@ try {
   cleanup.tables.push(code1);
   record('Alice makes a table and gets a valid 6-character code', /^[A-HJ-NP-Z2-9]{6}$/.test(code1), code1.replace(/./g, '*'));
   record('Alice sits in seat 1', (await text(alice, 'seat')).trim() === '1');
+  record('Alice is not warned about an old table when she has none', alice.dialogs.length === 0);
 
   // 2. Bob joins by code; Alice's page should show him without a refresh
   await bob.goto(PAGE);
@@ -219,18 +157,20 @@ try {
   console.log(`\nREST read round trip: median ${Math.round(median(samples))} ms, fastest ${Math.round(Math.min(...samples))} ms, slowest ${Math.round(Math.max(...samples))} ms`);
   console.log(`Join: confirmed on Bob's page in ${bobConfirmedMs} ms; visible on Alice's page ${aliceSawBobMs} ms after Bob's click\n`);
 
-  // 6. One table per host: a second table replaces the first
+  // 6. One table per host: she is warned, and a second table replaces the first
   await click(alice, 'create');
   const second = await waitFor(async () => { const code = (await text(alice, 'code')).trim(); return code && code !== code1 ? code : null; }, 20000);
   if (second) cleanup.tables.push(second);
   record('Alice makes a second table (the confirm was accepted)', Boolean(second));
   if (!second) await dump(alice);
+  record('Alice was warned before her old table was closed (one confirm, naming the table)', alice.dialogs.length === 1 && /already have a table/i.test(alice.dialogs[0]), `dialogs: ${alice.dialogs.length}`);
+  record('the warning says how many people are at the old table', /2 at it/.test(alice.dialogs[0] ?? ''), mask(alice.dialogs[0] ?? ''));
   const slot = await rest('GET', `hosts/${aliceAuth.uid}`, aliceAuth.token);
   record("Alice's host slot now names the new table", second && slot.json === second);
   const oldGone = await rest('GET', `tables/${code1}/meta`, aliceAuth.token);
   record('The first table is gone', oldGone.status === 401 || oldGone.json === null, `HTTP ${oldGone.status}`);
   const bobOld = await rest('GET', `tables/${code1}/members`, bobAuth.token);
-  record("Bob can no longer read the deleted table", bobOld.status === 401 || bobOld.json === null, `HTTP ${bobOld.status}`);
+  record('Bob can no longer read the deleted table', bobOld.status === 401 || bobOld.json === null, `HTTP ${bobOld.status}`);
 } catch (error) {
   if (error.message !== 'stop') { record('the test script itself ran without an error', false, error.message); exitCode = 1; }
 } finally {
@@ -247,11 +187,8 @@ try {
     }
   } catch {}
   for (const stranger of strangers) await deleteAccount(stranger.token);
-  if (cleanup.bobToken) await deleteAccount(cleanup.bobToken);
-  if (cleanup.aliceToken) await deleteAccount(cleanup.aliceToken);
-  for (const browser of browsers) browser.close();
-  await sleep(1500);
-  for (const browser of browsers) { try { rmSync(browser.profile, { recursive: true, force: true }); } catch {} }
+  for (const token of [cleanup.bobToken, cleanup.aliceToken, cleanup.carolToken]) if (token) await deleteAccount(token);
+  await closeAllBrowsers();
   if (server) await server.close();
 }
 
