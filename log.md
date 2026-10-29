@@ -1068,6 +1068,42 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - A host can still delete their own host slot and hold two tables, so the one-table slot limits honest use, not abuse. That was true before the takeover; I wrote it down.
 - Not in the flow model: presence and time, so the model does not cover the takeover; it is covered by the rule tests, the page-logic tests and the live check.
 
+## 51. The full rule mutation run after presence and the takeover (2026-10-29)
+
+**What I asked for**
+- In the order I gave Claude, after the takeover: a full re-run of all the broken copies of the database rules, since the last full run was before presence and the takeover.
+
+**What changed**
+- Nothing in the code. The run rewrites the rules file one broken copy at a time and always restores it.
+
+**What I checked**
+- 221 broken copies, one at a time, about 55 minutes: 187 caught by a named check, 34 documented as redundant with a reason, 0 survived, 0 suspicious. The last full run was 184 copies (161 caught, 23 redundant), so this adds the 23 presence and 14 takeover copies run alone earlier (26 caught, 11 redundant) and now run together with the rest.
+- After it ended the rules file was restored with no difference from the committed one, the backup file was gone and no emulator was left running.
+- While it ran I committed and pushed without touching the rules file in the working copy: I staged the run's own backup copy, which is the version I had published, and confirmed afterwards that the committed file equals the restored one.
+
+**Decisions**
+- Claude does not edit or paste the rules file while a full run is going; it only reads the committed copy.
+
+## 52. The card list build: a second look at the plan, and the first piece (2026-10-29)
+
+**What I asked for**
+- I asked which topics need a mutation run, then for the best order to work in. Claude suggested the card list build and deck import first, with the solo table next, and showed a plan before building it, as my notes require. I asked for another round of deep consideration and said it could go ahead after that.
+
+**What changed**
+- Before building I checked the things my notes list as unknown. **How often the list changes:** the Oracle file I had cached from 2026-10-26 against a fresh download from 2026-10-29: 198 cards added, none removed, 23 changed, and 162 changed their default printing id. So the weekly reuse rule really does matter. **Vercel:** an agent read Vercel's docs. Files under `.vercel/cache` persist between builds (per project and branch, for a month), Hobby builds get 45 minutes and 8 GB, JSON is compressed automatically, and Vercel offers Node 22.x and 24.x but not 20. **Online-only cards:** the Oracle file's own flag would wrongly drop 1,062 real paper cards, so the build does need the 76 MB Default Cards file as well. All of it is in `docs/scryfall.md`.
+- `scripts/lib/card-list.mjs`, `scripts/build-card-list.mjs`, `scripts/test-card-list.mjs` (new; `scripts/test-all.mjs` registers the test): the filters, the sorted list, the checks before writing, and a writer, working from the two cached files on disk. Nothing downloads yet and it is not part of `npm run build` yet.
+- I changed my plan in two places after looking at the facts. A card with no printings in the Default file is kept (the audit's rule dropped 198 new cards when the two files were from different days). And I dropped my own first idea of a one-day browser cache for the list: Vercel's default of revalidating with the ETag is simpler and costs one tiny request.
+
+**What I checked**
+- Using the Oct 26 files, the build gives exactly 33,974 cards, the audit's number. With the Oct 29 Oracle file and the older Default file it gives 34,172, which is those plus the 198 new cards. I compared seven awkward real cards against their raw Scryfall records field by field (a transform card, a split card, an adventure card, a prepare card, a land, a card whose default printing is online-only), all matched, and the 811 dropped cards are all Arena-only.
+- 87 checks pass. 40 of 40 deliberately broken copies of the library fail them. The first run caught 5 survivors: three tests that looped over the library's own sets (so breaking the set also broke the test), a missing check for a printing with no id, and a missing check for ids with extra characters around them. I fixed all of those.
+- A test found a real bug: the reader did not pass a missing-file error along, so a missing file would have crashed the build with an unhandled error instead of a message. Fixed.
+- Not done: the download, the weekly reuse, wiring it into the build, and the check on Vercel. Whether the cache really persists for our build is still unseen.
+
+**Decisions**
+- Build from both bulk files, once a week at most; reuse a stale list if Scryfall is down; tokens, rules text and printings are left for later steps.
+- The cost field is Scryfall's as given: a transform card has its front-face cost, a split, adventure or prepare card has both costs joined by " // ". Anything that reads costs later has to allow for both.
+
 ---
 
 ## Where AI misread me, or I had to correct course
@@ -1123,6 +1159,7 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - **Screenshots that showed nothing (Claude's slip, entry 49):** the first presence screenshots were cut off above the player list, so they proved only that the page had loaded. The check passed because the text was in the page, not because anyone could see it. Fixed by scrolling the list into view before the screenshot.
 - **A shell quote that ate code (Claude's slip, entry 49):** Claude put backticks inside a double-quoted shell command while writing a test, and the shell silently deleted the text. It repaired the file with the editing tool; the exact thing the shared notes warn about.
 - **Tests that could only pass for the wrong reason (Claude's slips, entry 50):** a takeover test named a player who was not a member, so the rule refused it for that reason and not the one being tested, and another test ordered its steps so an earlier step left a host slot behind. The mutation run exposed the first (4 survivors); I fixed the tests and documented the rest as redundant.
+- **Tests that tested themselves (Claude's slip, entry 52):** three of Claude's first card list tests looped over the library's own list of excluded layouts, so deleting a layout from the library also deleted it from the test. The broken-copy run showed it; the layouts are written out in the test now. Claude's PowerShell edit of `scripts/test-all.mjs` also left one Windows line ending in a file with plain ones; Claude noticed it in the diff and fixed it.
 - **Mutation checks that checked nothing (Claude's slip, entry 15):** three of my first ten broken copies didn't change the file because of shell quoting, so they proved nothing. I redid them in Node with exact text swaps. The first run also exposed two weak spots (only `\r\n` line ends and runs of spaces were not tested), which got new tests.
 
 ---
