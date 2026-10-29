@@ -47,11 +47,16 @@ export const LONE_SURROGATE = new RegExp(`${HIGH}(?!${LOW})|(?<!${HIGH})${LOW}`,
 // are not enough.
 const HAS_VISIBLE = /[\p{L}\p{N}\p{P}\p{S}]/u;
 
+// The cleaning on its own, for other short names typed by people (a deck name): invisible characters and lone surrogate
+// halves removed, runs of whitespace collapsed to one space, trimmed, accents in one standard form. Never throws.
+export const scrubText = (text) => String(text ?? '').replace(LONE_SURROGATE, '').replace(INVISIBLE, '').replace(/\s+/g, ' ').trim().normalize('NFC');
+export const hasVisibleCharacter = (text) => HAS_VISIBLE.test(text);
+
 // Returns the cleaned name (invisible characters removed, runs of whitespace collapsed to one space, trimmed, accents
 // in one standard form) or throws an Error with a message for people.
 export function cleanPlayerName(text) {
-  const name = String(text ?? '').replace(LONE_SURROGATE, '').replace(INVISIBLE, '').replace(/\s+/g, ' ').trim().normalize('NFC');
-  if (!HAS_VISIBLE.test(name)) throw new Error('Type a name first.');
+  const name = scrubText(text);
+  if (!hasVisibleCharacter(name)) throw new Error('Type a name first.');
   if (name.length > NAME_MAX) {
     // Short in characters but long in units: the emoji are the reason, so say so.
     if ([...name].length <= NAME_MAX) throw new Error(`That name is too long: an emoji counts as two of the ${NAME_MAX} characters.`);

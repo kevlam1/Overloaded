@@ -27,11 +27,13 @@ const suites = [
   { name: 'presence decisions', cmd: node, args: ['scripts/test-presence.mjs'] },
   { name: 'card list build', cmd: node, args: ['scripts/test-card-list.mjs'] },
   { name: 'card list download, reuse and fallbacks', cmd: node, args: ['scripts/test-card-list-build.mjs'] },
+  { name: 'deck preview and saved deck logic', cmd: node, args: ['scripts/test-deck-preview.mjs'] },
   { name: 'refused-request check', cmd: node, args: ['scripts/test-permission-error.mjs'] },
   { name: 'friendly error messages', cmd: node, args: ['scripts/test-friendly-error.mjs'] },
 ];
 if (!quick) {
   suites.push({ name: 'lobby page in headless Chrome', cmd: node, args: ['scripts/check-lobby-ui.mjs'] });
+  suites.push({ name: 'deck page in headless Chrome (needs the card list)', cmd: node, args: ['scripts/check-deck-ui.mjs'] });
   suites.push({ name: 'database rules (local emulator)', cmd: process.platform === 'win32' ? 'npm.cmd' : 'npm', args: ['test'], cwd: 'backend', shell: true });
 }
 if (live) {

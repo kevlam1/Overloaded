@@ -2,7 +2,8 @@
   "rewrites": [
     { "source": "/", "destination": "/pages/lobby/index.html" },
     { "source": "/lobby", "destination": "/pages/lobby/index.html" },
-    { "source": "/lobby/:code", "destination": "/pages/lobby/index.html" }
+    { "source": "/lobby/:code", "destination": "/pages/lobby/index.html" },
+    { "source": "/deck", "destination": "/pages/deck/index.html" }
   ],
   "headers": [
     {

@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Overloaded: import a deck</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="../../src/style.css">
+  </head>
+  <body>
+    <main class="wide">
+      <p class="back"><a href="/">Back to the lobby</a></p>
+      <h1>Import a deck</h1>
+      <p class="lede">Paste a decklist from Moxfield, Archidekt or ManaBox. It is checked here in your browser and saved only in your browser.</p>
+
+      <p id="status" class="status" role="status" aria-live="polite"></p>
+
+      <section id="saved" aria-labelledby="saved-heading" hidden>
+        <h2 id="saved-heading">Your saved deck</h2>
+        <p id="saved-summary"></p>
+        <div class="actions">
+          <button id="saved-load" type="button">Load it into the box below</button>
+          <button id="saved-delete" type="button" class="secondary">Delete it</button>
+        </div>
+      </section>
+
+      <section aria-labelledby="paste-heading">
+        <h2 id="paste-heading">Paste your list</h2>
+        <div class="field">
+          <label for="deck-text">Decklist</label>
+          <textarea id="deck-text" name="deck-text" rows="12" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
+        </div>
+        <div class="actions">
+          <button id="check" type="button" disabled>Check deck</button>
+          <button id="clear" type="button" class="secondary">Clear</button>
+        </div>
+        <p id="list-state" class="hint">Loading the card list...</p>
+        <button id="retry" type="button" class="secondary" hidden>Try again</button>
+        <p id="storage-hint" class="hint" hidden>Your browser is not letting this page save anything, so a deck cannot be kept after you leave.</p>
+      </section>
+
+      <section id="preview" aria-labelledby="preview-heading" hidden>
+        <h2 id="preview-heading" tabindex="-1">Your deck</h2>
+        <p id="summary"></p>
+        <ul id="notices" class="notices"></ul>
+
+        <div id="problems" hidden>
+          <h3>Needs attention</h3>
+          <ul id="problem-list" class="problems"></ul>
+        </div>
+
+        <div id="sections"></div>
+
+        <fieldset id="commander-box">
+          <legend>Commander</legend>
+          <div class="choice">
+            <input id="mode-commander" type="radio" name="mode" value="commander">
+            <label for="mode-commander">This deck has a commander</label>
+          </div>
+          <div class="choice">
+            <input id="mode-none" type="radio" name="mode" value="none">
+            <label for="mode-none">No commander (a 60-card deck, for example)</label>
+          </div>
+          <div class="field">
+            <label for="commander-1">Commander</label>
+            <select id="commander-1" name="commander-1"></select>
+          </div>
+          <div class="field">
+            <label for="commander-2">Partner or second commander (optional)</label>
+            <select id="commander-2" name="commander-2"></select>
+          </div>
+          <p id="commander-note" class="hint"></p>
+        </fieldset>
+
+        <div id="save-box">
+          <div class="field">
+            <label for="deck-name">Deck name</label>
+            <input id="deck-name" name="deck-name" type="text" maxlength="60" autocomplete="off" spellcheck="false">
+          </div>
+          <div class="choice" id="missing-box" hidden>
+            <input id="allow-missing" type="checkbox">
+            <label for="allow-missing" id="allow-missing-label">Save without the lines that were not matched</label>
+          </div>
+          <div class="actions">
+            <button id="save" type="button">Save deck</button>
+          </div>
+          <p id="save-note" class="hint" hidden>You already have a saved deck. Saving replaces it.</p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="wide">
+      <p>Overloaded is unofficial Fan Content permitted under the Fan Content Policy. Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. &copy;Wizards of the Coast LLC.</p>
+    </footer>
+
+    <script type="module" src="./deck.js"></script>
+  </body>
+</html>

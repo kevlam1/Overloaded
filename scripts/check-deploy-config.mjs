@@ -105,6 +105,9 @@ const root = await get('/');
 check('the served site serves the lobby page at /', root.status === 200 && root.type.startsWith('text/html') && /<h1>Overloaded/.test(root.body));
 check('the served site serves the same page at /lobby/ABC234', (await get('/lobby/ABC234')).body === root.body);
 check('the served site serves the same page at /lobby', (await get('/lobby')).body === root.body);
+const deckPage = await get('/deck');
+check('the served site serves the deck import page at /deck', deckPage.status === 200 && deckPage.type.startsWith('text/html') && /<h1>Import a deck/.test(deckPage.body) && deckPage.body !== root.body);
+check('and sends the policy with it', deckPage.csp === csp);
 check('the served site sends the policy with pages', root.csp === csp);
 check('the served site answers an unknown path with 404', (await get('/no/such/page')).status === 404);
 // Real Vercel answers a path-traversal attempt with 400, the stand-in with 404: either way nothing is served.
