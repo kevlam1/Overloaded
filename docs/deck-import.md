@@ -157,7 +157,7 @@ Rule 1 is right for 1 of 3. Rule 3 gets 3 of 3, but **that is weak evidence**: t
 5. **Format size check (open):** a Commander deck is the commander plus 99 = 100, so commanders count toward the 100; a companion and a sideboard do not. The parser's 200-card cap counts everything, as a guard only.
 6. **The guess only applies to Commander-style games.** A 60-card game has no commander, so no card is guessed. The format comes from the lobby.
 
-**Not built yet:** the matching step, the guess, and the preview page.
+**Built 2026-10-29 (version 1, `/deck`):** the matching step and the guess are in `shared/deck-preview.mjs` and the preview page is `frontend/pages/deck/`. Rule 3 is used as the order of trust (marked header, then the cards after a blank line, then the first legendary creature in the main deck, then the first main deck card), and the page labels it as a guess unless the list marked the commander. The page offers a commander and an optional partner and treats a deck of 98 to 102 cards (main deck plus commander, not the sideboard or companion) or a marked commander as a Commander deck by default. Ambiguous names and "did you mean" suggestions get a choice; names not in the list show as not found. Still to do: partner suggestions from the keywords above, a companion pick, moving cards to the sideboard, the Scryfall lookup for names newer than the list, and the format size check at the lobby.
 
 ## Importing from a deck link (Kevin's question, 2026-10-26)
 Kevin wants users to paste a Moxfield or Archidekt deck link, for **public and unlisted** decks only. Kevin does not want to bypass anything a site doesn't allow.

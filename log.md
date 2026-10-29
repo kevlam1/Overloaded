@@ -1158,6 +1158,27 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 **Decisions**
 - I left the Vercel dropdown at 24.x and changed only `package.json`. The deploy is the proof of whether the pin took effect.
 
+## 56. The deck import page, version 1 (2026-10-29)
+
+**What I asked for**
+- I said the plan for the next step sounded good (Claude had not written it yet, so it wrote it out: the page's flow, what is left out, the checks and the costs, with four defaults: one saved deck, the URL `/deck`, no Scryfall lookup yet, a plain dropdown for the commander). Then I told it to go on with the deck import plan, and to fix and push the Node setting.
+
+**What changed**
+- `shared/deck-preview.mjs` (new): what the page shows and saves: repeated lines merged, sections, problems first, the commander guess in the order the notes decided, a Commander deck detected by a marked commander or a size of 98 to 102, the deck saved in the browser with a version, and a strict reader for what comes back out of storage (it returns a clean copy and refuses anything wrong).
+- `frontend/pages/deck/` (new page, `/deck`), the shared stylesheet, `vite.config.js`, `vercel.json` and a link from the lobby. The page is 6 KB gzipped and has no Firebase. `shared/player-name.mjs` gained a small exported cleaning helper for the deck name (no behavior change; its 67 checks still pass).
+- `scripts/test-deck-preview.mjs` (172 checks), `scripts/check-deck-ui.mjs` (71 checks in real Chrome against the real card list), and 3 new checks in `scripts/check-deploy-config.mjs` (49) that `/deck` is served.
+- Node: `engines` is pinned to `24.x` (entry 55).
+
+**What I checked**
+- The Node pin worked: after the deploy the live site's build info said Node v24.22.2. That deploy rebuilt the card list ("no usable cached list") instead of reusing it, with the same list and the same Scryfall file; my reading is that Vercel's build cache is tied to the build settings, so changing the Node version started a new cache. It cost one extra download; I will see on the next deploy whether it goes back to reusing.
+- The three real exports all match completely and guess Eowyn as the commander ("legendary" for two, "after a blank line" for the plain Moxfield one). In real Chrome the page and the 34,172-card list were ready in about 1.2 seconds on this machine, a card list that cannot load shows a message and a Try again button, blocked storage does not break the page, pasted markup is shown as text and never runs, and nothing was requested from any other site. I looked at desktop screenshots in dark and light mode.
+- Broken copies: 85 of 92 fail the logic tests. The first run had 14 survivors; 7 were tests that passed for the wrong reason (for example my "bad field" tests edited the commander card, so the reader refused the deck for a different reason), now fixed, and 7 are redundant checks that sit next to a stricter one (kept as extra guards).
+- Not checked: phones (on hold), a real long Commander deck exported from a site (my real exports are the 18-card test deck), and how the page behaves with a very slow connection.
+
+**Decisions**
+- The four defaults above. One saved deck for now, and no card images or Scryfall lookup in version one (images cost player bandwidth and need a policy change; the lookup needs rate-limit code). Names newer than the card list show as not found, and the list refreshes weekly.
+- An ambiguous name or a "did you mean" is the player's choice, never decided by the page, and the commander is a labeled guess the player confirms.
+
 ---
 
 ## Where AI misread me, or I had to correct course
@@ -1213,6 +1234,7 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - **Screenshots that showed nothing (Claude's slip, entry 49):** the first presence screenshots were cut off above the player list, so they proved only that the page had loaded. The check passed because the text was in the page, not because anyone could see it. Fixed by scrolling the list into view before the screenshot.
 - **A shell quote that ate code (Claude's slip, entry 49):** Claude put backticks inside a double-quoted shell command while writing a test, and the shell silently deleted the text. It repaired the file with the editing tool; the exact thing the shared notes warn about.
 - **Tests that could only pass for the wrong reason (Claude's slips, entry 50):** a takeover test named a player who was not a member, so the rule refused it for that reason and not the one being tested, and another test ordered its steps so an earlier step left a host slot behind. The mutation run exposed the first (4 survivors); I fixed the tests and documented the rest as redundant.
+- **Bugs only the browser run found (Claude's slips, entry 56):** the commander list sorted "Eowyn" last because it compared raw character codes (it now sorts for people to read), and the "save without the lines" option said "1 line that were not matched" because it chose was or were by card quantity instead of line count. Claude also first wrote an arithmetic error into a test (it expected 9 cards where 5 + 2 + 1 is 8), and the broken-copy run showed 7 tests passing for the wrong reason before they were fixed. Claude also told me the plan sounded good before having written it, then wrote it out when I answered that way; it should have said at once that the plan had not been shown.
 - **Waited on a tool that was not there (Claude's slip, entry 54):** to watch the deploy Claude polled with the GitHub command line tool `gh` in a loop, but `gh` is not installed here, so it spent about five minutes waiting on repeated errors. It should have checked the tool exists first; GitHub's public web API gave the deploy status immediately. Claude also relied on Vercel's docs summary for the Node version (24.x default) and the real build used Node 26.13.0, so the docs were not what the build showed.
 - **A cache folder that depended on an unchecked variable (Claude's slip, entry 53):** the first version chose where to keep the list from Vercel's `VERCEL` variable. The docs say system variables are exposed only when a setting is on, so a missing one would have silently moved the cache and cost a 100 MB download on every deploy. Claude noticed this while reviewing its own design and changed it to one folder everywhere. The same entry also had Claude put backticks inside a double-quoted shell command again (the exact mistake the shared notes warn about); the command failed before writing anything, and the edits were redone with the editing tool.
 - **Tests that passed without testing (Claude's slip, entry 53):** the first 105 download tests passed on the first run, and the broken-copy run showed 11 of the 54 broken copies survived: some checks rejected a bad record for a second reason, and no test made the server stop answering mid-build. Fixed, 52 of 54 now fail them.
