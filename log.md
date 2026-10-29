@@ -1179,6 +1179,21 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - The four defaults above. One saved deck for now, and no card images or Scryfall lookup in version one (images cost player bandwidth and need a policy change; the lookup needs rate-limit code). Names newer than the card list show as not found, and the list refreshes weekly.
 - An ambiguous name or a "did you mean" is the player's choice, never decided by the page, and the commander is a labeled guess the player confirms.
 
+## 57. The deck import page goes live (2026-10-29)
+
+**What I asked for**
+- I said to commit and push, and asked whether the `/deck` page is temporary for testing. Claude said no: it is the real import page, a standalone page for now.
+
+**What changed**
+- Pushed `2aac634..ac9e93b` (the deck import page and its docs). Then a small docs change recording the live results.
+
+**What I checked**
+- Vercel reported success. On the live site `/deck` answers with the page ("Import a deck") and `/` is still the lobby. The card build info said `reuse` ("the cached list is recent") with Node v24.22.2 and the same build date as the deploy before, so the one-off rebuild after the Node pin was only the cache starting over, and the cache works on Node 24. The list's ETag was the same as before. The deploy check against the live site passed 44 checks (the stand-in checks do not run live).
+- Not checked: the page in my own browser on the real site (the browser checks ran against the dev server with the same built list), and phones.
+
+**Decisions**
+- `/deck` stays a standalone page until the lobby has deck fields; then the lobby picks a saved deck and this page becomes where decks are made and managed.
+
 ---
 
 ## Where AI misread me, or I had to correct course
