@@ -142,6 +142,8 @@ const EQUIVALENT = {
   'delete: signed-out users': 'for a signed-out user the host check reads auth.uid, which raises an error, and an error denies the whole rule (seen: it survived)',
   'host slot: may contain a slash': 'by reading, not by a test: the slot rule needs tables/<value>/meta/host to be the writer, and a value with a slash names a path no table can hold (table children have fixed names)',
   'members write: table-creation branch needs no host check': 'a member entry needs a seat taken in the same write, and a stranger cannot take a seat on a table that has no meta',
+  'seat 1: table-creation branch needs no host check': 'the member entry that must accompany a seat claim cannot be created on a table that has no meta unless the writer is its host, so the seat rule own host check is redundant (since the 2026-10-28 seat-claim change)',
+  'seat 2: table-creation branch needs no host check': 'the member entry that must accompany a seat claim cannot be created on a table that has no meta unless the writer is its host, so the seat rule own host check is redundant (since the 2026-10-28 seat-claim change)',
   'seat 3: table-creation branch needs no host check': 'the seat-count check reads the new meta, which does not exist, so a stranger cannot reach this branch',
   'seat 4: table-creation branch needs no host check': 'the seat-count check reads the new meta, which does not exist, so a stranger cannot reach this branch',
 };
@@ -155,6 +157,9 @@ for (const n of ['1', '2', '3', '4']) {
   M.push(
     [`${label}: a taken seat can be overwritten`, path, 'newData.exists() && !data.exists() && ', 'newData.exists() && '],
     [`${label}: another uid can be put in the seat`, path, 'newData.val() === auth.uid && ', ''],
+    // 2026-10-28: a seat can only be claimed together with the claimant's own member entry for it (no squatting).
+    [`${label}: a seat can be claimed without a member entry (squatting)`, path, `newData.parent().parent().child('members').child(auth.uid).child('seat').val() === '${n}' && `, ''],
+    [`${label}: the member entry may name any seat`, path, `child('seat').val() === '${n}' && `, `child('seat').val() !== '' && `],
     [`${label}: taking a seat allowed after the game starts`, path, `${T}.child('meta').child('status').val() === 'lobby' && `, ''],
     [`${label}: freeing a seat allowed after the game starts`, path, `${OWNER_OR_HOST_FREES}) && ${T}.child('meta').child('status').val() === 'lobby' && `, `${OWNER_OR_HOST_FREES}) && `],
     [`${label}: anyone can free anyone's seat`, path, OWNER_OR_HOST_FREES, '(true'],

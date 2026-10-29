@@ -80,6 +80,9 @@ try {
   // Joining: seats are create-only, limited to the seat count, one per person
   await expect('a member takes seat 2 and joins', update(member, { [`${T}/members/${member.uid}`]: { name: 'Member', seat: '2' }, [`${T}/seats/2`]: member.uid }), 'allowed');
   await expect('a stranger takes a seat that is already taken', update(stranger, { [`${T}/members/${stranger.uid}`]: { name: 'S', seat: '2' }, [`${T}/seats/2`]: stranger.uid }), 'refused');
+  // Seat squatting (closed 2026-10-28): claiming a free seat WITHOUT a member entry. The OLD rules allowed it.
+  await expect('a stranger claims free seat 3 without joining (squatting)', call(stranger, 'PUT', `${T}/seats/3`, stranger.uid), 'refused');
+  await expect('a stranger claims seat 3 with a member entry that names another seat', update(stranger, { [`${T}/members/${stranger.uid}`]: { name: 'S', seat: '2' }, [`${T}/seats/3`]: stranger.uid }), 'refused');
   await expect('a stranger takes seat 4 on a 3-seat table', update(stranger, { [`${T}/members/${stranger.uid}`]: { name: 'S', seat: '4' }, [`${T}/seats/4`]: stranger.uid }), 'refused');
   await expect('a stranger deletes a live table', call(stranger, 'DELETE', T), 'refused');
   await expect('a member takes a second seat', call(member, 'PUT', `${T}/seats/3`, member.uid), 'refused');

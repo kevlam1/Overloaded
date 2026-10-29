@@ -101,6 +101,20 @@ await denied('ready is a string', join(erin, 'ABC123', 'erin', '4', { name: 'Eri
 await denied('ready is a boolean (the old shape)', join(erin, 'ABC123', 'erin', '4', { name: 'Erin', seat: '4', ready: true }));
 await denied('unknown extra field', join(erin, 'ABC123', 'erin', '4', { name: 'Erin', seat: '4', junk: 1 }));
 await ok('name 30 characters', join(erin, 'ABC123', 'erin', '4', { name: 'x'.repeat(30), seat: '4' }));
+// The rule counts UTF-16 code units, so an emoji (two units) counts as two. Found on 2026-10-28: the page used to count
+// characters and allow 30 emoji, which the database refused. shared/player-name.mjs now counts the same way.
+const EMOJI = String.fromCodePoint(0x1F40D);
+// (Each check gets its own fresh table, so a refusal can only be about the name and not about a seat already taken.)
+for (const [code, label, name, allowed] of [
+  ['EMJ001', 'name of 16 emoji (32 units, 16 characters)', EMOJI.repeat(16), false],
+  ['EMJ002', 'name of 30 emoji (60 units, 30 characters)', EMOJI.repeat(30), false],
+  ['EMJ003', 'name of 14 emoji and 3 letters (31 units)', EMOJI.repeat(14) + 'abc', false],
+  ['EMJ004', 'name of 15 emoji (30 units)', EMOJI.repeat(15), true],
+  ['EMJ005', 'name of 14 emoji and 2 letters (30 units)', EMOJI.repeat(14) + 'ab', true],
+]) {
+  await seed(code);
+  await (allowed ? ok : denied)(label, join(erin, code, 'erin', '3', { name, seat: '3' }));
+}
 
 console.log('leaks through parent paths');
 await env.withSecurityRulesDisabled(async (ctx) => {
@@ -321,6 +335,10 @@ await denied('seat 4 on a 3-seat table', join(as('fay'), 'SEAT04', 'fay', '4'));
 await seed('SEAT05', { status: 'playing' });
 await denied('joining a table that has started, with a free seat', join(dave, 'SEAT05', 'dave', '3'));
 await denied('taking a free seat without joining on a table that has started', set(ref(dave, 'tables/SEAT05/seats/3'), 'dave'));
+await seed('SEAT07');
+await denied('SQUATTING: taking a free seat in a live lobby without joining (no member entry)', set(ref(dave, 'tables/SEAT07/seats/3'), 'dave'));
+await denied('SQUATTING by the host of another table', set(ref(as('zoe'), 'tables/SEAT07/seats/4'), 'zoe'));
+await ok('the same seat is still free for a real join afterwards', join(dave, 'SEAT07', 'dave', '3'));
 await denied('leaving a started table does not free the seat', update(ref(bob), { 'tables/SEAT05/members/bob': null, 'tables/SEAT05/seats/2': null }));
 await seed('SEAT06', { status: 'playing' });
 await ok('a member of a started table can still rename and ready up', set(ref(bob, 'tables/SEAT06/members/bob'), { name: 'Bobby', seat: '2', ready: 1 }));
@@ -330,13 +348,19 @@ const SEATS = ['1', '2', '3', '4'];
 const sam = as('sam'); // signed in, never part of any table
 for (const n of SEATS) {
   await seed(`SN${n}A`, { members: [['bob', n]] });
-  await denied(`seat ${n}: a taken seat cannot be taken again`, set(ref(sam, `tables/SN${n}A/seats/${n}`), 'sam'));
+  // Changed 2026-10-28 (edge-case pass): a seat can only be claimed in the same write that creates the claimant's member
+  // entry for it. Before, a stranger who knew a table code could claim every free seat WITHOUT joining and make the lobby
+  // look full (then do it again after the host cleaned up). So every "take a seat" attempt below is a full join (member
+  // entry plus seat), which means each guard is the ONLY reason for a refusal; the squatting itself is tested separately.
+  await denied(`seat ${n}: a taken seat cannot be taken again`, join(sam, `SN${n}A`, 'sam', n));
   await seed(`SN${n}B`, { members: [] });
-  await denied(`seat ${n}: writing another uid into a free seat`, set(ref(sam, `tables/SN${n}B/seats/${n}`), 'bob'));
-  await ok(`seat ${n}: a free seat in a live lobby can be taken`, set(ref(sam, `tables/SN${n}B/seats/${n}`), 'sam'));
+  await denied(`seat ${n}: writing another uid into a free seat`, update(ref(sam), { [`tables/SN${n}B/members/sam`]: { name: 'sam', seat: n }, [`tables/SN${n}B/seats/${n}`]: 'bob' }));
+  await denied(`seat ${n}: SQUATTING: claiming a free seat without a member entry`, set(ref(sam, `tables/SN${n}B/seats/${n}`), 'sam'));
+  await denied(`seat ${n}: squatting with a member entry that names a different seat`, update(ref(sam), { [`tables/SN${n}B/members/sam`]: { name: 'sam', seat: SEATS.find((x) => x !== n) }, [`tables/SN${n}B/seats/${n}`]: 'sam' }));
+  await ok(`seat ${n}: a free seat in a live lobby can be taken by joining`, join(sam, `SN${n}B`, 'sam', n));
   await seed(`SN${n}C`, { status: 'playing', members: [] });
-  await denied(`seat ${n}: a stranger takes a free seat after the game started`, set(ref(sam, `tables/SN${n}C/seats/${n}`), 'sam'));
-  await denied(`seat ${n}: the host takes a free seat after the game started`, set(ref(alice, `tables/SN${n}C/seats/${n}`), 'alice'));
+  await denied(`seat ${n}: a stranger takes a free seat after the game started`, join(sam, `SN${n}C`, 'sam', n));
+  await denied(`seat ${n}: the host takes a free seat after the game started`, join(alice, `SN${n}C`, 'alice', n));
   await seed(`SN${n}D`, { status: 'playing', members: [['bob', n]] });
   await denied(`seat ${n}: the owner frees the seat after the game started`, set(ref(bob, `tables/SN${n}D/seats/${n}`), null));
   await seed(`SN${n}E`, { members: [['bob', n]] });
@@ -359,13 +383,29 @@ for (const n of SEATS) {
   await dropMember(`SN${n}M`, 'bob');
   await denied(`seat ${n}: the host cannot free an empty seat in a lobby idle past its limit`, set(ref(alice, `tables/SN${n}M/seats/${n}`), null));
   await seed(`SN${n}F`, { active: 31 * MINUTE, members: [] });
-  await denied(`seat ${n}: taking a seat in a lobby idle past its limit`, set(ref(sam, `tables/SN${n}F/seats/${n}`), 'sam'));
+  await denied(`seat ${n}: taking a seat in a lobby idle past its limit`, join(sam, `SN${n}F`, 'sam', n));
   await seed(`SN${n}G`, { created: 8 * HOUR + MINUTE, members: [] });
-  await denied(`seat ${n}: taking a seat in a lobby past 8 hours`, set(ref(sam, `tables/SN${n}G/seats/${n}`), 'sam'));
-  await denied(`seat ${n}: a stranger takes a seat of a table that does not exist`, set(ref(sam, `tables/NONE${n}/seats/${n}`), 'sam'));
+  await denied(`seat ${n}: taking a seat in a lobby past 8 hours`, join(sam, `SN${n}G`, 'sam', n));
+  await denied(`seat ${n}: a stranger takes a seat of a table that does not exist`, join(sam, `NONE${n}`, 'sam', n));
+  // An existing member whose seat is empty (their entry names seat n, the seat itself has no holder) passes the "must have
+  // a member entry" clause, so these test the seat rule's own guards: only their own id, and only in a live table.
+  const emptied = (code, over = {}) => seed(code, { members: [['bob', n]], ...over })
+    .then(() => env.withSecurityRulesDisabled((ctx) => set(ref(ctx.database(), `tables/${code}/seats/${n}`), null)));
+  await emptied(`SN${n}N`);
+  await denied(`seat ${n}: a member puts someone else's id into their own empty seat`, set(ref(bob, `tables/SN${n}N/seats/${n}`), 'sam'));
+  await ok(`seat ${n}: a member re-claims their own empty seat`, set(ref(bob, `tables/SN${n}N/seats/${n}`), 'bob'));
+  await emptied(`SN${n}O`, { active: 31 * MINUTE });
+  await denied(`seat ${n}: a member re-claims their own empty seat in a lobby idle past its limit`, set(ref(bob, `tables/SN${n}O/seats/${n}`), 'bob'));
+  await emptied(`SN${n}P`, { created: 8 * HOUR + MINUTE });
+  await denied(`seat ${n}: a member re-claims their own empty seat past 8 hours`, set(ref(bob, `tables/SN${n}P/seats/${n}`), 'bob'));
+  await emptied(`SN${n}Q`, { status: 'playing' });
+  await denied(`seat ${n}: a member re-claims their own empty seat while the match is on (seats are only taken in the lobby)`, set(ref(bob, `tables/SN${n}Q/seats/${n}`), 'bob'));
+  // One seat per person: someone who left mid-match still holds their seat (reserved for them). They must not be able to
+  // take a second one while they hold it.
   for (const k of SEATS.filter((x) => x !== n)) {
     await seed(`SN${n}H${k}`, { members: [['bob', k]] });
-    await denied(`seat ${n}: a member already holding seat ${k} takes this one too`, set(ref(bob, `tables/SN${n}H${k}/seats/${n}`), 'bob'));
+    await dropMember(`SN${n}H${k}`, 'bob'); // bob still holds seat k but has no member entry
+    await denied(`seat ${n}: someone still holding seat ${k} cannot take this one too`, join(bob, `SN${n}H${k}`, 'bob', n));
   }
   const hostTable = newTable(`HS${n}`, {}, `host${n}`);
   delete hostTable[`tables/HS${n}/seats/1`];
