@@ -1104,6 +1104,26 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - Build from both bulk files, once a week at most; reuse a stale list if Scryfall is down; tokens, rules text and printings are left for later steps.
 - The cost field is Scryfall's as given: a transform card has its front-face cost, a split, adventure or prepare card has both costs joined by " // ". Anything that reads costs later has to allow for both.
 
+## 53. The card list build: download, reuse, fallbacks and the wiring (2026-10-29)
+
+**What I asked for**
+- I said to commit what was built so far, and to continue the card list build after rechecking the best and worst cases and always taking costs into account.
+
+**What changed**
+- `scripts/lib/card-list-build.mjs` (new): a cached list under 7 days old is reused with no requests; otherwise one request to Scryfall's file list and two downloads (about 100 MB) with the required headers, each checked against the size Scryfall announced; the new list is checked before it is written; a failed try is repeated once, then the last good list is used for up to 30 days with a warning; only a build with no usable list at all fails. A damaged cache, a list that fails its checks, or one more than 5% smaller than the last is never used.
+- `scripts/build-card-list.mjs` now does this by default (the earlier from-files mode is `--from-files`). `package.json`: `npm run build` runs it before Vite, and `npm run cards` runs it alone. `.gitignore`: the generated list. `scripts/lib/card-list.mjs`: reads the files one record at a time, so it needs no memory flag. `scripts/check-deploy-config.mjs`: its build never downloads, and 3 new checks that the built site serves the list as JSON.
+- Switches: `SKIP_CARD_LIST=1` ships the site without a list (an emergency way out if this step ever blocks a deploy), `CARD_LIST_NO_DOWNLOAD=1` never touches the network (the tests use it), and a Vercel preview build never downloads.
+
+**What I checked**
+- The review turned up a cost hazard before any code ran: the live deploy check runs `npm run build`, so it could have started a 100 MB download by itself. It now sets the no-download switch.
+- 113 checks against a stand-in Scryfall: first build 3 requests; later days 0; a rebuild after 7 days; Scryfall down (old list used, nothing lost); a cut-off, mis-sized or missing file; a server that never answers; a damaged or too-small list; preview and test modes; 30 daily deploys make 5 rebuilds and 15 requests, not 90. 52 of 54 broken copies of the module fail the tests; the other 2 are redundant checks. The first run of those broken copies had 11 survivors, which led to several stronger checks (a bad-date record that also had a right checksum, an injectable retry delay, a fallback that has to put the file back, a stalled file list and a stalled download for each file).
+- With the real Scryfall: the first run took 10 seconds including the download (34,172 cards) and the second 0.4 seconds with no requests. Built with only 256 MB of memory. `npm run build` puts `dist/data/cards.json`, byte for byte the cached list. A simulated preview build with an empty cache skips and exits 0, and so does the skip switch. All 20 local suites pass, and the deploy check passes 46 checks.
+- Not checked: any of this on Vercel. Whether the cache really persists across our builds, which Node version runs, and whether `VERCEL_ENV` is exposed are all unseen until the first deploy; the step prints them at the top of its log.
+
+**Decisions**
+- One cache folder everywhere, `.vercel/cache/overloaded`, not one chosen by a Vercel variable. I had first picked the folder from `VERCEL`, then saw that the docs say system variables are only exposed when a setting is on; a missing variable would have moved the cache somewhere Vercel does not keep and cost a 100 MB download on every deploy.
+- The build never blocks a deploy because Scryfall is down; it blocks only when there is no list at all.
+
 ---
 
 ## Where AI misread me, or I had to correct course
@@ -1159,6 +1179,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - **Screenshots that showed nothing (Claude's slip, entry 49):** the first presence screenshots were cut off above the player list, so they proved only that the page had loaded. The check passed because the text was in the page, not because anyone could see it. Fixed by scrolling the list into view before the screenshot.
 - **A shell quote that ate code (Claude's slip, entry 49):** Claude put backticks inside a double-quoted shell command while writing a test, and the shell silently deleted the text. It repaired the file with the editing tool; the exact thing the shared notes warn about.
 - **Tests that could only pass for the wrong reason (Claude's slips, entry 50):** a takeover test named a player who was not a member, so the rule refused it for that reason and not the one being tested, and another test ordered its steps so an earlier step left a host slot behind. The mutation run exposed the first (4 survivors); I fixed the tests and documented the rest as redundant.
+- **A cache folder that depended on an unchecked variable (Claude's slip, entry 53):** the first version chose where to keep the list from Vercel's `VERCEL` variable. The docs say system variables are exposed only when a setting is on, so a missing one would have silently moved the cache and cost a 100 MB download on every deploy. Claude noticed this while reviewing its own design and changed it to one folder everywhere. The same entry also had Claude put backticks inside a double-quoted shell command again (the exact mistake the shared notes warn about); the command failed before writing anything, and the edits were redone with the editing tool.
+- **Tests that passed without testing (Claude's slip, entry 53):** the first 105 download tests passed on the first run, and the broken-copy run showed 11 of the 54 broken copies survived: some checks rejected a bad record for a second reason, and no test made the server stop answering mid-build. Fixed, 52 of 54 now fail them.
 - **Tests that tested themselves (Claude's slip, entry 52):** three of Claude's first card list tests looped over the library's own list of excluded layouts, so deleting a layout from the library also deleted it from the test. The broken-copy run showed it; the layouts are written out in the test now. Claude's PowerShell edit of `scripts/test-all.mjs` also left one Windows line ending in a file with plain ones; Claude noticed it in the diff and fixed it.
 - **Mutation checks that checked nothing (Claude's slip, entry 15):** three of my first ten broken copies didn't change the file because of shell quoting, so they proved nothing. I redid them in Node with exact text swaps. The first run also exposed two weak spots (only `\r\n` line ends and runs of spaces were not tested), which got new tests.
 
