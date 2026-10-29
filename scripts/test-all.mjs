@@ -11,14 +11,19 @@ const live = process.argv.includes('--live');
 const node = process.execPath;
 
 const suites = [
+  { name: 'no hidden characters in code', cmd: node, args: ['scripts/check-source-hygiene.mjs'] },
   { name: 'pasted decklist parser', cmd: node, args: ['scripts/test-deck-text.mjs'] },
   { name: 'card name matcher', cmd: node, args: ['scripts/test-card-match.mjs'] },
+  { name: 'deck parser stress and fuzz', cmd: node, args: ['scripts/test-deck-text-fuzz.mjs'] },
+  { name: 'card matcher stress and fuzz', cmd: node, args: ['scripts/test-card-match-fuzz.mjs'] },
   { name: 'table codes', cmd: node, args: ['scripts/test-table-code.mjs'] },
   { name: 'player names', cmd: node, args: ['scripts/test-player-name.mjs'] },
   { name: 'shared table links', cmd: node, args: ['scripts/test-lobby-link.mjs'] },
   { name: 'heartbeat decisions', cmd: node, args: ['scripts/test-heartbeat.mjs'] },
   { name: 'table limits and warnings', cmd: node, args: ['scripts/test-table-limits.mjs'] },
   { name: 'warning banner', cmd: node, args: ['scripts/test-banner.mjs'] },
+  { name: 'heartbeat and warning wiring', cmd: node, args: ['scripts/test-keep-alive.mjs'] },
+  { name: 'browser storage that never throws', cmd: node, args: ['scripts/test-safe-store.mjs'] },
   { name: 'refused-request check', cmd: node, args: ['scripts/test-permission-error.mjs'] },
   { name: 'friendly error messages', cmd: node, args: ['scripts/test-friendly-error.mjs'] },
 ];
