@@ -3,7 +3,7 @@
 // this file (and the database calls passed to createTableOps), not the pages or the game.
 import { initializeApp } from 'firebase/app';
 import { initializeAuth, indexedDBLocalPersistence, browserLocalPersistence, inMemoryPersistence, signInAnonymously } from 'firebase/auth';
-import { getDatabase, ref, get, update, onValue, serverTimestamp } from 'firebase/database';
+import { getDatabase, ref, get, update, onValue, onDisconnect, serverTimestamp } from 'firebase/database';
 import { createTableOps, TableUnavailableError, FlowRefusedError } from '../../shared/table-ops.mjs';
 
 export { TableUnavailableError, FlowRefusedError };
@@ -27,24 +27,52 @@ function start() {
 // Every caller shares ONE attempt. Without that, two calls made at the same moment on a fresh browser both saw "no
 // account yet" and both created one; the second silently replaced the first, so the page could act as two people
 // (found by the spike on 2026-10-28: three simultaneous calls gave three different accounts).
+// Two TABS of one browser have the same problem (checked 2026-10-28 with two tabs opened at once on a fresh profile: two
+// accounts, the browser kept one, and the other tab went on acting as the account that was lost). So the tabs take
+// turns with a Web Lock; a tab that had to wait gives the first tab's saved account a moment to arrive instead of
+// creating its own. The answer is also read from the live sign-in each time, never remembered for good.
+const SIGN_IN_LOCK = 'overloaded-sign-in';
+const SAVED_ACCOUNT_WAIT_MS = 3000;
+function waitForSavedAccount(auth, ms) {
+  return new Promise((resolve) => {
+    const started = Date.now();
+    const timer = setInterval(() => {
+      if (auth.currentUser || Date.now() - started >= ms) { clearInterval(timer); resolve(); }
+    }, 100);
+  });
+}
+async function createOrFind(auth) {
+  await auth.authStateReady(); // waits for the saved sign-in (if any) to load, so a refresh keeps the same id
+  if (auth.currentUser) return auth.currentUser.uid;
+  const credential = await signInAnonymously(auth);
+  return credential.user.uid;
+}
 let signingIn = null;
 export function signIn() {
+  const { auth } = start();
+  if (auth.currentUser) return Promise.resolve(auth.currentUser.uid);
   if (!signingIn) {
     signingIn = (async () => {
-      const { auth } = start();
-      await auth.authStateReady(); // waits for the saved sign-in (if any) to load, so a refresh keeps the same id
+      await auth.authStateReady();
       if (auth.currentUser) return auth.currentUser.uid;
-      const credential = await signInAnonymously(auth);
-      return credential.user.uid;
+      if (!globalThis.navigator?.locks) return createOrFind(auth); // no Web Locks: the old behavior
+      const first = await navigator.locks.request(SIGN_IN_LOCK, { ifAvailable: true }, (lock) => (lock ? createOrFind(auth) : null));
+      if (first) return first;
+      // Another tab is signing in. Wait for it to finish, then look for the account it saved before making our own.
+      return navigator.locks.request(SIGN_IN_LOCK, async () => {
+        await waitForSavedAccount(auth, SAVED_ACCOUNT_WAIT_MS);
+        return createOrFind(auth);
+      });
     })();
-    signingIn.catch(() => { signingIn = null; }); // a failed attempt can be tried again; callers still see the failure
+    const attempt = signingIn;
+    attempt.then(() => { if (signingIn === attempt) signingIn = null; }, () => { if (signingIn === attempt) signingIn = null; }); // a failed attempt can be tried again; callers still see the failure
   }
   return signingIn;
 }
 
 let ops = null;
 function tableOps() {
-  if (!ops) ops = createTableOps({ sdk: { ref, get, update, onValue, serverTimestamp }, db: start().db, getUid: signIn });
+  if (!ops) ops = createTableOps({ sdk: { ref, get, update, onValue, onDisconnect, serverTimestamp }, db: start().db, getUid: signIn });
   return ops;
 }
 
@@ -61,8 +89,12 @@ export const endMatch = (...args) => tableOps().endMatch(...args);
 export const endTable = (...args) => tableOps().endTable(...args);
 export const leaveTable = (...args) => tableOps().leaveTable(...args);
 export const passHost = (...args) => tableOps().passHost(...args);
-export const claimHostSlot = (...args) => tableOps().claimHostSlot(...args);
+export const takeOverHost = (...args) => tableOps().takeOverHost(...args);
+export const claimHostSlot =(...args) => tableOps().claimHostSlot(...args);
 export const heartbeat = (...args) => tableOps().heartbeat(...args);
 export const watchActivity = (...args) => tableOps().watchActivity(...args);
+export const watchConnection = (...args) => tableOps().watchConnection(...args);
+export const startPresence =(...args) => tableOps().startPresence(...args);
+export const watchPresence = (...args) => tableOps().watchPresence(...args);
 export const watchMeta = (...args) => tableOps().watchMeta(...args);
 export const watchServerOffset = (...args) => tableOps().watchServerOffset(...args);

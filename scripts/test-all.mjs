@@ -24,6 +24,7 @@ const suites = [
   { name: 'warning banner', cmd: node, args: ['scripts/test-banner.mjs'] },
   { name: 'heartbeat and warning wiring', cmd: node, args: ['scripts/test-keep-alive.mjs'] },
   { name: 'browser storage that never throws', cmd: node, args: ['scripts/test-safe-store.mjs'] },
+  { name: 'presence decisions', cmd: node, args: ['scripts/test-presence.mjs'] },
   { name: 'refused-request check', cmd: node, args: ['scripts/test-permission-error.mjs'] },
   { name: 'friendly error messages', cmd: node, args: ['scripts/test-friendly-error.mjs'] },
 ];
@@ -36,6 +37,8 @@ if (live) {
   suites.push({ name: 'LIVE: two browsers against the real project', cmd: node, args: ['--env-file=.env', 'scripts/spike-two-browsers.mjs'] });
   suites.push({ name: 'LIVE: built site, vercel.json and share links', cmd: node, args: ['--env-file=.env', 'scripts/check-deploy-config.mjs'] });
   suites.push({ name: 'LIVE: the heartbeat keeps a table alive (70 s)', cmd: node, args: ['--env-file=.env', 'scripts/check-heartbeat-live.mjs'] });
+  suites.push({ name: 'LIVE: presence, reconnecting and disconnected (2.5 min)', cmd: node, args: ['--env-file=.env', 'scripts/check-presence-live.mjs'] });
+  suites.push({ name: 'LIVE: two tabs of one browser are one player', cmd: node, args: ['--env-file=.env', 'scripts/check-two-tabs-live.mjs'] });
 }
 
 let failed = 0;

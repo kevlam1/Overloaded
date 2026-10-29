@@ -640,5 +640,142 @@ await seed('HAND10');
 await denied('handing over cannot also change the seat count', update(ref(alice, 'tables/HAND10/meta'), { host: 'bob', seats: 2 }));
 await denied('handing over cannot also reset the creation time', update(ref(alice, 'tables/HAND10/meta'), { host: 'bob', createdAt: serverTimestamp() }));
 
+// Presence (added 2026-10-28): each open tab writes tabs/<tabId> = true under the player's own presence entry and asks the
+// database to remove it when the connection drops; the last-seen time is the server's clock. Members read everyone's.
+console.log('presence (presence/{uid}/tabs/{tabId} and lastSeen)');
+const TAB1 = 'abcdefghij';
+const TAB2 = 'klmnopqrst';
+const presencePath = (code, uid) => `tables/${code}/presence/${uid}`;
+await seed('PRS001');
+await ok('a member writes a note for one of their tabs', set(ref(bob, `${presencePath('PRS001', 'bob')}/tabs/${TAB1}`), true));
+await ok('a second tab of the same player writes its own note', set(ref(bob, `${presencePath('PRS001', 'bob')}/tabs/${TAB2}`), true));
+await ok('the host reads another player\'s presence', get(ref(alice, presencePath('PRS001', 'bob'))));
+await ok('a member reads the whole presence node', get(ref(bob, 'tables/PRS001/presence')));
+await denied('a stranger reads presence', get(ref(carol, 'tables/PRS001/presence')));
+await denied('a signed-out visitor reads presence', get(ref(anon, 'tables/PRS001/presence')));
+await ok('a tab removes its own note (what the disconnect handler does)', set(ref(bob, `${presencePath('PRS001', 'bob')}/tabs/${TAB1}`), null));
+await ok('a member writes their last-seen time from the server clock', set(ref(bob, `${presencePath('PRS001', 'bob')}/lastSeen`), serverTimestamp()));
+await denied('a last-seen time from the client clock', set(ref(bob, `${presencePath('PRS001', 'bob')}/lastSeen`), clientTime()));
+await denied('a last-seen time far in the future', set(ref(bob, `${presencePath('PRS001', 'bob')}/lastSeen`), Date.now() + 100 * HOUR));
+await denied('a last-seen time that is not a number', set(ref(bob, `${presencePath('PRS001', 'bob')}/lastSeen`), 'now'));
+await denied('a player writes a note for someone else', set(ref(bob, `${presencePath('PRS001', 'alice')}/tabs/${TAB1}`), true));
+await denied('a player removes someone else\'s note', set(ref(alice, `${presencePath('PRS001', 'bob')}/tabs/${TAB2}`), null));
+await denied('a player writes someone else\'s last-seen time', set(ref(alice, `${presencePath('PRS001', 'bob')}/lastSeen`), serverTimestamp()));
+await denied('a stranger writes a note under their own id', set(ref(carol, `${presencePath('PRS001', 'carol')}/tabs/${TAB1}`), true));
+await denied('a stranger writes a note under a member\'s id', set(ref(carol, `${presencePath('PRS001', 'bob')}/tabs/${TAB1}`), true));
+await denied('a stranger writes a last-seen time', set(ref(carol, `${presencePath('PRS001', 'carol')}/lastSeen`), serverTimestamp()));
+await denied('a signed-out visitor writes a note', set(ref(anon, `${presencePath('PRS001', 'bob')}/tabs/${TAB1}`), true));
+await denied('a note that says false', set(ref(bob, `${presencePath('PRS001', 'bob')}/tabs/${TAB1}`), false));
+await denied('a note that holds a number', set(ref(bob, `${presencePath('PRS001', 'bob')}/tabs/${TAB1}`), 1));
+await denied('a note that holds text', set(ref(bob, `${presencePath('PRS001', 'bob')}/tabs/${TAB1}`), 'here'));
+await denied('a tab name with capital letters', set(ref(bob, `${presencePath('PRS001', 'bob')}/tabs/ABCDEFGHIJ`), true));
+await denied('a tab name one character too short', set(ref(bob, `${presencePath('PRS001', 'bob')}/tabs/abcdefghi`), true));
+await denied('a tab name one character too long', set(ref(bob, `${presencePath('PRS001', 'bob')}/tabs/abcdefghijk`), true));
+await denied('a tab name with a character outside the alphabet (1)', set(ref(bob, `${presencePath('PRS001', 'bob')}/tabs/abcdefghi1`), true));
+await denied('a tab name with a character outside the alphabet (8)', set(ref(bob, `${presencePath('PRS001', 'bob')}/tabs/abcdefghi8`), true));
+await denied('a tab name with a dash', set(ref(bob, `${presencePath('PRS001', 'bob')}/tabs/abcdefghi-`), true));
+await denied('an unknown field in a player\'s presence', set(ref(bob, `${presencePath('PRS001', 'bob')}/junk`), 1));
+await denied('an unknown field directly under presence', set(ref(bob, 'tables/PRS001/presence/junk'), 1));
+await denied('writing a player\'s whole presence node at once', set(ref(bob, presencePath('PRS001', 'bob')), { tabs: { [TAB1]: true } }));
+await denied('deleting every note at once from the parent node', set(ref(bob, 'tables/PRS001/presence'), null));
+await ok('a player removes their own last-seen time', set(ref(bob, `${presencePath('PRS001', 'bob')}/lastSeen`), null));
+{
+  const before = (await get(ref(alice, 'tables/PRS001/activity/lastActive'))).val();
+  await set(ref(bob, `${presencePath('PRS001', 'bob')}/tabs/${TAB1}`), true);
+  await set(ref(bob, `${presencePath('PRS001', 'bob')}/lastSeen`), serverTimestamp());
+  const after = (await get(ref(alice, 'tables/PRS001/activity/lastActive'))).val();
+  checks++; if (before !== after) { console.log('FAILED CHECK: presence writes must not count as activity'); throw new Error('presence moved lastActive'); }
+  console.log('  ok   presence writes do not count as activity (the table still closes when nobody does anything)');
+}
+await seed('PRS002', { members: [['alice', '1'], ['bob', '2']] });
+await dropMember('PRS002', 'bob');
+await denied('someone who left the table (seat still held) writes a note', set(ref(bob, `${presencePath('PRS002', 'bob')}/tabs/${TAB1}`), true));
+await denied('someone who left the table writes a last-seen time', set(ref(bob, `${presencePath('PRS002', 'bob')}/lastSeen`), serverTimestamp()));
+await denied('someone who left the table removes a note', set(ref(bob, `${presencePath('PRS002', 'bob')}/tabs/${TAB1}`), null));
+await seed('PRS003', { created: 9 * HOUR });
+await env.withSecurityRulesDisabled((ctx) => set(ref(ctx.database(), `${presencePath('PRS003', 'bob')}/tabs/${TAB1}`), true));
+await denied('a note on a table past the 8-hour limit', set(ref(bob, `${presencePath('PRS003', 'bob')}/tabs/${TAB2}`), true));
+await ok('but a note on an expired table can still be removed (the disconnect handler)', set(ref(bob, `${presencePath('PRS003', 'bob')}/tabs/${TAB1}`), null));
+await seed('PRS004', { active: 31 * MINUTE });
+await denied('a note on a lobby idle past its limit', set(ref(bob, `${presencePath('PRS004', 'bob')}/tabs/${TAB1}`), true));
+await seed('PRS005', { status: 'playing', active: 59 * MINUTE });
+await ok('a note during a match, just inside the 1-hour limit', set(ref(bob, `${presencePath('PRS005', 'bob')}/tabs/${TAB1}`), true));
+await seed('PRS006', { status: 'playing', active: 61 * MINUTE });
+await denied('a note during a match past the 1-hour limit', set(ref(bob, `${presencePath('PRS006', 'bob')}/tabs/${TAB1}`), true));
+await denied('a note on a table that does not exist', set(ref(carol, `${presencePath('PRS999', 'carol')}/tabs/${TAB1}`), true));
+await seed('PRS007');
+await ok('the host writes their own note', set(ref(alice, `${presencePath('PRS007', 'alice')}/tabs/${TAB1}`), true));
+await ok('the table ends and takes the presence notes with it', set(ref(alice, 'tables/PRS007'), null));
+
+// Host takeover (added 2026-10-28): a member may become host only when the host has no open tab and their last-seen time
+// is at least 5 minutes old. Presence is seeded directly (the rules only let a player write their own, with the server clock).
+console.log('host takeover (host gone for 5 minutes)');
+const hostGoneFor = (code, ms, { tab = false, uid = 'alice' } = {}) => env.withSecurityRulesDisabled(async (ctx) => {
+  const db = ctx.database();
+  if (ms !== null) await set(ref(db, `tables/${code}/presence/${uid}/lastSeen`), Date.now() - ms);
+  if (tab) await set(ref(db, `tables/${code}/presence/${uid}/tabs/${TAB1}`), true);
+});
+const takeover = (db, code, extra = {}) => update(ref(db), { [`tables/${code}/meta/host`]: 'bob', ...extra });
+await seed('TKO001', { members: [['alice', '1'], ['bob', '2'], ['dave', '3']] });
+await hostGoneFor('TKO001', 6 * MINUTE);
+await ok('a member takes over from a host gone for 6 minutes', takeover(bob, 'TKO001'));
+await ok('and claims their host slot in the same write when they do it that way', set(ref(bob, 'hosts/bob'), 'TKO001'));
+await denied('the old host, back with a tab open, cannot take it back', update(ref(alice, 'tables/TKO001/meta'), { host: 'alice' }));
+await denied('another member cannot take over from the new host (they have no last-seen time)', update(ref(as('dave'), 'tables/TKO001/meta'), { host: 'dave' }));
+await ok('the old host clears the stale host slot that still names this table', set(ref(alice, 'hosts/alice'), null));
+await ok('the new host can also give up their own slot', set(ref(bob, 'hosts/bob'), null)); // so later cases start with bob hosting nothing
+await seed('TKO002', { members: [['alice', '1'], ['bob', '2']] });
+await hostGoneFor('TKO002', 4 * MINUTE + 50000);
+await denied('4 minutes 50 seconds is not long enough', takeover(bob, 'TKO002'));
+await seed('TKO003', { members: [['alice', '1'], ['bob', '2']] });
+await hostGoneFor('TKO003', 5 * MINUTE + 10000);
+await ok('5 minutes 10 seconds is long enough', takeover(bob, 'TKO003'));
+await seed('TKO004', { members: [['alice', '1'], ['bob', '2']] });
+await hostGoneFor('TKO004', 20 * MINUTE, { tab: true });
+await denied('a host with a tab open is not gone, however old the last-seen time', takeover(bob, 'TKO004'));
+await seed('TKO005', { members: [['alice', '1'], ['bob', '2']] });
+await denied('a host with no presence record at all is not treated as gone', takeover(bob, 'TKO005'));
+await seed('TKO006', { members: [['alice', '1'], ['bob', '2'], ['dave', '3']] });
+await hostGoneFor('TKO006', 20 * MINUTE);
+await denied('someone who is not at the table cannot take over', update(ref(carol), { 'tables/TKO006/meta/host': 'carol' }));
+await denied('a signed-out visitor cannot take over', update(ref(anon), { 'tables/TKO006/meta/host': 'carol' }));
+await denied('a member cannot make someone else the host this way', update(ref(bob), { 'tables/TKO006/meta/host': 'alice2' }));
+await denied('a member cannot hand the table to a different member (only to themselves)', update(ref(bob), { 'tables/TKO006/meta/host': 'dave' }));
+await denied('a takeover that also starts the match', update(ref(bob), { 'tables/TKO006/meta/host': 'bob', 'tables/TKO006/meta/status': 'playing', 'tables/TKO006/meta/idleLimit': PLAYING_IDLE }));
+await denied('a takeover that also changes the seat count', update(ref(bob), { 'tables/TKO006/meta/host': 'bob', 'tables/TKO006/meta/seats': 2 }));
+await denied('a takeover that also changes the match number', update(ref(bob), { 'tables/TKO006/meta/host': 'bob', 'tables/TKO006/meta/match': 2 }));
+await denied('a takeover that also changes the format', update(ref(bob), { 'tables/TKO006/meta/host': 'bob', 'tables/TKO006/meta/format': 'standard' }));
+await denied('a takeover that also resets the creation time', update(ref(bob), { 'tables/TKO006/meta/host': 'bob', 'tables/TKO006/meta/createdAt': serverTimestamp() }));
+await denied('a member who is not taking over cannot change other fields either', update(ref(bob), { 'tables/TKO006/meta/status': 'playing', 'tables/TKO006/meta/idleLimit': PLAYING_IDLE }));
+await denied('a member cannot delete the host field', update(ref(bob), { 'tables/TKO006/meta/host': null }));
+await seed('TKO007', { created: 9 * HOUR, members: [['alice', '1'], ['bob', '2']] });
+await hostGoneFor('TKO007', 20 * MINUTE);
+await denied('an expired table (8 hours) cannot be taken over', takeover(bob, 'TKO007'));
+await seed('TKO008', { active: 31 * MINUTE, members: [['alice', '1'], ['bob', '2']] });
+await hostGoneFor('TKO008', 20 * MINUTE);
+await denied('a lobby idle past its limit cannot be taken over', takeover(bob, 'TKO008'));
+await seed('TKO009', { status: 'playing', members: [['alice', '1'], ['bob', '2']] });
+await hostGoneFor('TKO009', 6 * MINUTE);
+await ok('a match in progress can be taken over too (the table carries on without its host)', takeover(bob, 'TKO009'));
+await seed('TKO010', { members: [['alice', '1'], ['bob', '2']] });
+await hostGoneFor('TKO010', 6 * MINUTE);
+await seed('TKO10X', { host: 'bob', members: [['bob', '1']] });
+await hostSlot('bob', 'TKO10X');
+await denied('a member who already hosts another live table cannot take over', takeover(bob, 'TKO010'));
+await env.withSecurityRulesDisabled((ctx) => set(ref(ctx.database(), 'tables/TKO10X'), null));
+await ok('once that other table is gone they can (their stale slot does not block it)', takeover(bob, 'TKO010'));
+await seed('TKO011', { members: [['alice', '1'], ['bob', '2']] });
+await hostGoneFor('TKO011', 6 * MINUTE);
+await ok('a takeover and the claim of the host slot in one write', update(ref(bob), { 'tables/TKO011/meta/host': 'bob', 'hosts/bob': 'TKO011' }));
+await ok('the new host then reads their own slot', get(ref(bob, 'hosts/bob')));
+await set(ref(bob, 'hosts/bob'), null); // bob now hosts TKO011; give up the slot so the next cases start clean
+await seed('TKO013', { members: [['alice', '1'], ['bob', '2']] });
+await hostGoneFor('TKO013', 6 * MINUTE);
+await env.withSecurityRulesDisabled((ctx) => set(ref(ctx.database(), 'tables/TKO013/members/alice'), null)); // the host also left the member list (seat held)
+await ok('the host being gone from the member list does not block a takeover', takeover(bob, 'TKO013'));
+await seed('TKO014', { members: [['alice', '1'], ['bob', '2']] });
+await hostGoneFor('TKO014', 6 * MINUTE);
+await ok('the host is only the host until a member takes over: the host can still hand over normally', update(ref(alice, 'tables/TKO014/meta'), { host: 'bob' }));
+
 await env.cleanup();
 console.log(`All ${checks} rule checks passed.`);

@@ -4,7 +4,7 @@
 // Run: npm test   (the runner starts the emulator, runs this and test-rules.mjs, stops the emulator)
 import { readFileSync } from 'node:fs';
 import { initializeTestEnvironment } from '@firebase/rules-unit-testing';
-import { ref, get, set, update, onValue, serverTimestamp } from 'firebase/database';
+import { ref, get, set, update, onValue, onDisconnect, goOffline, goOnline, serverTimestamp } from 'firebase/database';
 import { createTableOps, TableUnavailableError } from '../shared/table-ops.mjs';
 
 const env = await initializeTestEnvironment({
@@ -22,7 +22,7 @@ async function throwsWith(label, promise, errorName) {
   check(label, false, 'it did not throw');
 }
 
-const sdk = { ref, get, update, onValue, serverTimestamp };
+const sdk = { ref, get, update, onValue, onDisconnect, serverTimestamp };
 // One "person": their own signed-in database connection and the page logic running as them.
 function person(uid, makeCode) {
   const db = env.authenticatedContext(uid).database();
@@ -252,7 +252,9 @@ await cal.ops.heartbeat(BT);
 await waitFor(() => seenActive.length >= 2);
 await new Promise((r) => setTimeout(r, 300)); // the SDK reports its own estimate of the server time first and the confirmed value a moment later
 const final = seenActive[seenActive.length - 1];
-check('and is told when a heartbeat changes it (moving forward, never back)', final > seenActive[0] && seenActive.every((v, i) => i === 0 || v >= seenActive[i - 1]) && final === (await lastActive()), seenActive.join(' -> '));
+// The estimate can sit a millisecond or so above the confirmed time (found 2026-10-28: 389 then 388 failed this once), so
+// "never back" allows a second of drift; what matters is that the last value is the stored one and is later than the first.
+check('and is told when a heartbeat changes it (moving forward, never back by more than the estimate\'s drift)', final > seenActive[0] && seenActive.every((v, i) => i === 0 || v >= seenActive[i - 1] - 1000) && final === (await lastActive()), seenActive.join(' -> '));
 stopActivity();
 let strangerActivity = 'no callback';
 const stopStrangerActivity = eli2.ops.watchActivity(BT, (value, error) => { strangerActivity = error ? 'error' : 'value'; });
@@ -275,6 +277,103 @@ const stopOffset = beth.ops.watchServerOffset((value) => { offset = value; });
 await waitFor(() => offset !== null);
 check('the server clock offset arrives as a number close to zero on this machine', typeof offset === 'number' && Math.abs(offset) < 5000, String(offset));
 stopOffset();
+
+
+// ---- Presence: a note per open tab, removed by the DATABASE when the connection drops ----
+console.log('presence');
+// Polls an async question for up to 5 seconds; true as soon as it answers yes.
+const until = async (question) => { for (let i = 0; i < 100; i++) { if (await question()) return true; await new Promise((r) => setTimeout(r, 50)); } return false; };
+const pa = person('presence-a');
+const pb = person('presence-b');
+const pstranger = person('presence-s');
+const PT = (await pa.ops.createTable({ name: 'Pa', seats: 2 })).code;
+await pb.ops.joinTable({ code: PT, name: 'Pb' });
+const TAB_A = 'bbbbbbbbbb';
+const TAB_B = 'cccccccccc';
+const notePath = (tab) => `tables/${PT}/presence/presence-b/tabs/${tab}`;
+const seenPath = `tables/${PT}/presence/presence-b/lastSeen`;
+const problems = [];
+let watched = {};
+const stopWatch = pa.ops.watchPresence(PT, (map, error) => { if (!error) watched = map; });
+const stopTabA = pb.ops.startPresence(PT, { tabId: TAB_A, onProblem: (e) => problems.push(e) });
+check('a tab writes its note once the connection is up', await until(async () => (await readAdmin(notePath(TAB_A))) === true));
+check('a different player watching sees one tab open and no last-seen time yet', await until(async () => watched['presence-b']?.tabs === 1) && watched['presence-b'].lastSeen === null, JSON.stringify(watched));
+const stopTabB = pb.ops.startPresence(PT, { tabId: TAB_B, onProblem: (e) => problems.push(e) });
+check('a second tab of the same player is a second note', await until(async () => watched['presence-b']?.tabs === 2), JSON.stringify(watched));
+await stopTabB();
+check('stopping one tab removes only its note and records the last-seen time', await until(async () => watched['presence-b']?.tabs === 1 && Math.abs((watched['presence-b'].lastSeen ?? 0) - Date.now()) < 30000), JSON.stringify(watched));
+check('stopping the same tab twice is harmless', (await stopTabB()) === undefined);
+const beforeDrop = (await readAdmin(seenPath));
+goOffline(pb.db); // the connection drops: the DATABASE must remove the note and record the time, with no help from the page
+check('when the connection drops the database removes the note', await until(async () => (await readAdmin(notePath(TAB_A))) === null));
+check('and records the last-seen time (the server clock, newer than before)', await until(async () => { const t = await readAdmin(seenPath); return typeof t === 'number' && t >= beforeDrop; }), String(await readAdmin(seenPath)));
+check('the other player sees that player with no tabs and a last-seen time', await until(async () => watched['presence-b']?.tabs === 0 && typeof watched['presence-b'].lastSeen === 'number'), JSON.stringify(watched));
+goOnline(pb.db); // the connection comes back: the tab must register again and write its note again
+check('when the connection comes back the note is written again', await until(async () => (await readAdmin(notePath(TAB_A))) === true));
+check('and the other player sees one tab again', await until(async () => watched['presence-b']?.tabs === 1), JSON.stringify(watched));
+await stopTabA();
+check('stopping the last tab removes its note', await until(async () => (await readAdmin(notePath(TAB_A))) === null));
+check('no problems were reported during all of that', problems.length === 0, problems.map((e) => e.message).join('; '));
+stopWatch();
+
+let strangerSaw = 'no callback';
+const stopStrangerWatch = pstranger.ops.watchPresence(PT, (map, error) => { strangerSaw = error ? 'error' : 'value'; });
+check('someone not at the table cannot watch presence (they get an error, not the notes)', await until(async () => strangerSaw !== 'no callback') && strangerSaw === 'error', strangerSaw);
+stopStrangerWatch();
+const strangerProblems = [];
+const stopStrangerPresence = pstranger.ops.startPresence(PT, { tabId: 'dddddddddd', onProblem: (e) => strangerProblems.push(e) });
+await new Promise((r) => setTimeout(r, 1500));
+check('someone not at the table writes no note, and the refusal is not reported as a problem', (await readAdmin(`tables/${PT}/presence/presence-s`)) === null && strangerProblems.length === 0, JSON.stringify(strangerProblems.map((e) => e.message)));
+await stopStrangerPresence();
+
+// ---- Host takeover: the page's own code, with presence seeded (a gone host cannot be waited for 5 minutes in a test) ----
+console.log('host takeover');
+const gone = (code, uid, msAgo) => admin((db) => set(ref(db, `tables/${code}/presence/${uid}/lastSeen`), Date.now() - msAgo));
+const tkHost = person('tk-host');
+const tkBob = person('tk-bob');
+const tkOut = person('tk-out');
+const TK = (await tkHost.ops.createTable({ name: 'Hosta', seats: 3 })).code;
+await tkBob.ops.joinTable({ code: TK, name: 'Bobby' });
+await throwsWith('taking over from a host with no presence record is refused in words', tkBob.ops.takeOverHost(TK), 'FlowRefusedError');
+await gone(TK, 'tk-host', 2 * 60 * 1000);
+await throwsWith('taking over from a host gone only 2 minutes is refused in words', tkBob.ops.takeOverHost(TK), 'FlowRefusedError');
+await throwsWith('someone not at the table cannot take over', tkOut.ops.takeOverHost(TK), 'FlowRefusedError');
+await throwsWith('the host cannot "take over" their own table', tkHost.ops.takeOverHost(TK), 'FlowRefusedError');
+await admin((db) => set(ref(db, `tables/${TK}/presence/tk-host/tabs/aaaaaaaaaa`), true));
+await gone(TK, 'tk-host', 20 * 60 * 1000);
+await throwsWith('a host with a tab open is not gone however old the last-seen time', tkBob.ops.takeOverHost(TK), 'FlowRefusedError');
+await admin((db) => set(ref(db, `tables/${TK}/presence/tk-host/tabs/aaaaaaaaaa`), null));
+check('the page refused all of those before writing (the host is still the host)', (await readAdmin(`tables/${TK}/meta/host`)) === 'tk-host');
+await tkBob.ops.takeOverHost(TK);
+check('a member takes over from a host gone for 20 minutes', (await readAdmin(`tables/${TK}/meta/host`)) === 'tk-bob');
+check('and holds the host slot for this table from the same write', (await readAdmin('hosts/tk-bob')) === TK);
+check('the old host\'s slot still names the table (nobody else can clear it)', (await readAdmin('hosts/tk-host')) === TK);
+check('the old host finding their table sees it is no longer theirs (nothing to warn about)', (await tkHost.ops.findMyTable()) === null);
+check('and that cleared their stale slot', (await readAdmin('hosts/tk-host')) === null);
+await throwsWith('the old host cannot take it straight back (the new host has no presence record, so is not gone)', tkHost.ops.takeOverHost(TK), 'FlowRefusedError');
+const hostNow = await tkBob.ops.findMyTable();
+check('the new host finds their table, with 2 players', hostNow?.code === TK && hostNow.players === 2, JSON.stringify(hostNow));
+
+const tk2Host = person('tk2-host');
+const tk2Bob = person('tk2-bob');
+const TK2 = (await tk2Host.ops.createTable({ name: 'Hostb', seats: 2 })).code;
+await tk2Bob.ops.joinTable({ code: TK2, name: 'Bobbo' });
+await gone(TK2, 'tk2-host', 6 * 60 * 1000);
+await tk2Bob.ops.takeOverHost(TK2);
+check('second case: taken over, and the old host\'s slot is stale', (await readAdmin('hosts/tk2-host')) === TK2 && (await readAdmin(`tables/${TK2}/meta/host`)) === 'tk2-bob');
+const freshTk = await tk2Host.ops.createTable({ name: 'Hostb', seats: 2 }); // straight away, without asking findMyTable first
+check('the old host can make a new table straight away: the stale slot does not block it and nothing is reported as replaced', /^[A-Z2-9]{6}$/.test(freshTk.code) && freshTk.code !== TK2 && freshTk.replaced === null, JSON.stringify(freshTk));
+check('their slot now names the new table', (await readAdmin('hosts/tk2-host')) === freshTk.code);
+check('and the table they lost carries on, with its new host', (await readAdmin(`tables/${TK2}/meta/host`)) === 'tk2-bob' && (await readAdmin(`tables/${TK2}/members/tk2-bob`)) !== null);
+
+const connectionSeen = [];
+const stopConnection = pb.ops.watchConnection((connected) => connectionSeen.push(connected));
+check('watching the connection says it is up', await until(async () => connectionSeen.at(-1) === true), JSON.stringify(connectionSeen));
+goOffline(pb.db);
+check('and says it is down when the connection is cut (this drives "You\'re offline, reconnecting...")', await until(async () => connectionSeen.at(-1) === false), JSON.stringify(connectionSeen));
+goOnline(pb.db);
+check('and up again when it returns', await until(async () => connectionSeen.at(-1) === true), JSON.stringify(connectionSeen));
+stopConnection();
 
 await env.cleanup();
 console.log(`All ${checks} table logic checks passed.`);

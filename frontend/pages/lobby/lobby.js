@@ -1,5 +1,6 @@
 // The lobby page: make a table or join one by code. All database calls live in ../../src/db.js.
-import { createTable, joinTable, rejoinTable, findMyTable, watchMembers, heartbeat, watchActivity, watchMeta, watchServerOffset } from '../../src/db.js';
+import { createTable, joinTable, rejoinTable, findMyTable, watchMembers, heartbeat, watchActivity, watchMeta, watchServerOffset, startPresence, watchPresence, watchConnection, takeOverHost } from '../../src/db.js';
+import { presenceStatus, presenceText, ownConnectionText, hostIsGone } from '../../../shared/presence.mjs';
 import { startKeepAlive } from '../../src/keep-alive.js';
 import { makeSafeStore } from '../../src/safe-store.js';
 import { normalizeCode, isValidCode } from '../../../shared/table-code.mjs';
@@ -52,6 +53,76 @@ function busy(isBusy) {
   joinButton.disabled = isBusy;
 }
 
+// Who has the table open: see shared/presence.mjs. The list is drawn from three things that change on their own (the
+// members, their presence notes, and the clock, because "Reconnecting..." turns into "Disconnected" with time), so
+// each of them just updates its piece of state and asks for a redraw.
+let stopPresence = null;
+let stopPresenceWatch = null;
+let stopConnectionWatch = null;
+let stopOffsetWatch = null;
+let stopHostWatch = null;
+let redrawTimer = null;
+let currentCode = null;
+let myUid = null;
+let currentHost = null;
+let currentMembers = {};
+let currentPresence = {};
+let serverOffset = null; // until the database's clock is known, no one is judged disconnected
+const REDRAW_MS = 10000;
+
+function renderPlayers() {
+  const list = $('players');
+  list.replaceChildren();
+  const now = serverOffset === null ? null : Date.now() + serverOffset;
+  // Names come from other people, so they are put in as text, never as markup.
+  for (const [uid, member] of Object.entries(currentMembers).sort((a, b) => Number(a[1].seat) - Number(b[1].seat))) {
+    const item = document.createElement('li');
+    item.textContent = `Seat ${member.seat}: ${member.name}${uid === currentHost ? ' (host)' : ''}`;
+    item.dataset.uid = uid;
+    const status = presenceStatus(currentPresence[uid], now);
+    const words = presenceText(status);
+    if (words) {
+      const note = document.createElement('span');
+      note.className = 'presence';
+      note.dataset.state = status.state;
+      note.textContent = words;
+      item.append(' ', note); // a real space, so a screen reader does not read the name and the status as one word
+    }
+    list.append(item);
+  }
+  // Offer the takeover only to someone else at the table, and only when the host has really been gone for 5 minutes
+  // (the database makes the same judgement and refuses otherwise).
+  const canTakeOver = Boolean(currentHost) && currentHost !== myUid && myUid in currentMembers && hostIsGone(currentPresence[currentHost], now);
+  $('take-over').hidden = !canTakeOver;
+  $('take-over-note').hidden = !canTakeOver;
+}
+
+function stopPresenceParts() {
+  for (const stop of [stopPresence, stopPresenceWatch, stopConnectionWatch, stopOffsetWatch, stopHostWatch]) if (stop) stop();
+  stopPresence = stopPresenceWatch = stopConnectionWatch = stopOffsetWatch = stopHostWatch = null;
+  if (redrawTimer !== null) { clearInterval(redrawTimer); redrawTimer = null; }
+  currentMembers = {}; currentPresence = {}; serverOffset = null; currentHost = null;
+  $('connection').hidden = true;
+  $('take-over').hidden = true;
+  $('take-over-note').hidden = true;
+}
+
+function startPresenceParts(code, uid) {
+  stopPresenceParts();
+  currentCode = code;
+  myUid = uid;
+  stopHostWatch = watchMeta(code, (meta) => { currentHost = meta?.host ?? null; renderPlayers(); });
+  stopPresence = startPresence(code, { onProblem: () => {} });
+  stopPresenceWatch = watchPresence(code, (presence) => { if (presence) { currentPresence = presence; renderPlayers(); } });
+  stopOffsetWatch = watchServerOffset((offset) => { serverOffset = offset; renderPlayers(); });
+  stopConnectionWatch = watchConnection((connected) => {
+    const words = ownConnectionText(connected);
+    $('connection').textContent = words;
+    $('connection').hidden = words === '';
+  });
+  redrawTimer = setInterval(renderPlayers, REDRAW_MS);
+}
+
 function show(table) {
   $('table').hidden = false;
   $('code').textContent = table.code;
@@ -59,23 +130,25 @@ function show(table) {
   $('seat').textContent = table.seat;
   store.set(TABLE_KEY, table.code);
   keepAlive(table.code);
+  startPresenceParts(table.code, table.uid);
   if (stopWatching) stopWatching();
   stopWatching = watchMembers(table.code, (members, error) => {
-    const list = $('players');
-    list.replaceChildren();
     if (!members) {
+      currentMembers = {};
+      renderPlayers();
       say(error ? 'Lost sight of the table. It may have closed.' : '', Boolean(error));
       return;
     }
-    // Names come from other people, so they are put in as text, never as markup.
-    for (const [uid, member] of Object.entries(members).sort((a, b) => Number(a[1].seat) - Number(b[1].seat))) {
-      const item = document.createElement('li');
-      item.textContent = `Seat ${member.seat}: ${member.name}`;
-      item.dataset.uid = uid;
-      list.append(item);
-    }
+    currentMembers = members;
+    renderPlayers();
   });
 }
+
+$('take-over').addEventListener('click', () => run(async () => {
+  say('Taking over the table...');
+  await takeOverHost(currentCode);
+  say('You are now the host of this table.');
+}));
 
 async function run(task) {
   busy(true);

@@ -13,6 +13,7 @@ import { makeTableCode, isValidCode } from './table-code.mjs';
 import { cleanPlayerName } from './player-name.mjs';
 import { isPermissionDenied } from './permission-error.mjs';
 import { limitsAt } from './table-limits.mjs';
+import { makeTabId, summarize, hostIsGone } from './presence.mjs';
 
 export const LOBBY_IDLE_MS = 30 * 60 * 1000; // must equal the lobby idle limit in the rules
 export const PLAYING_IDLE_MS = 60 * 60 * 1000; // must equal the playing idle limit in the rules
@@ -35,7 +36,7 @@ export class FlowRefusedError extends Error {
   }
 }
 
-// sdk:    { ref, get, update, onValue, serverTimestamp } from the database library
+// sdk:    { ref, get, update, onValue, serverTimestamp } from the database library (plus onDisconnect, only for presence)
 // db:     the database to use
 // getUid: () => Promise<string>, the signed-in person's id
 // makeCode: replaceable in tests
@@ -68,10 +69,17 @@ export function createTableOps({ sdk, db, getUid, makeCode = makeTableCode }) {
       ]);
       // The host slot can outlive its table (the table closed or was deleted). Then there is nothing to warn about.
       if (!meta.exists()) return null;
+      const info = meta.val();
+      // The slot can also name a table someone else took over from us (the host left for good, or was gone for 5
+      // minutes). It is not our table, so there is nothing to warn about and nothing to close; clear the stale slot so
+      // it cannot block making a new table.
+      if (info.host !== uid) {
+        await update(ref(db), { [`hosts/${uid}`]: null }).catch(() => {});
+        return null;
+      }
       // A table past its idle or 8-hour limit is already closed to its players and is replaced without a warning
       // (decided 2026-10-27). If anything needed to judge that is missing, assume it is still open: asking once too
       // often is better than silently closing a live table.
-      const info = meta.val();
       const expired = typeof lastActive === 'number' && typeof info.createdAt === 'number' && typeof info.idleLimit === 'number'
         && limitsAt(now, { createdAt: info.createdAt, lastActive, idleLimit: info.idleLimit }).closed;
       return { code, players: Object.keys(members.val() ?? {}).length, expired };
@@ -87,7 +95,17 @@ export function createTableOps({ sdk, db, getUid, makeCode = makeTableCode }) {
     const playerName = cleanPlayerName(name);
     if (!SEAT_COUNTS.includes(seats)) throw new Error('A table has 2, 3 or 4 seats.');
     const uid = await getUid();
-    const oldCode = (await get(ref(db, `hosts/${uid}`))).val();
+    let oldCode = (await get(ref(db, `hosts/${uid}`))).val();
+    if (oldCode) {
+      // A slot naming a table that someone else now hosts is stale (the table was handed over or taken over). We cannot
+      // delete that table, and the rules refuse a new slot while the old one names a live table, so clear it first.
+      // If we cannot read the table at all we cannot tell, and the ways below handle that as before.
+      const host = await get(ref(db, `tables/${oldCode}/meta/host`)).then((snapshot) => snapshot.val(), () => undefined);
+      if (typeof host === 'string' && host !== uid) {
+        await update(ref(db), { [`hosts/${uid}`]: null });
+        oldCode = null;
+      }
+    }
 
     for (let attempt = 0; attempt < CREATE_ATTEMPTS; attempt++) {
       const code = makeCode();
@@ -307,6 +325,26 @@ export function createTableOps({ sdk, db, getUid, makeCode = makeTableCode }) {
     }
   }
 
+  // Takes the table over from a host who has been gone for 5 minutes (no open tab, last seen 5 or more minutes ago on the
+  // database's clock; see shared/presence.mjs and the takeover rule). You become the host and take the host slot in one
+  // write. Refuses, in words, if the host is still around or you are not at the table. The rules are the real lock.
+  async function takeOverHost(code) {
+    const { uid, meta, mine } = await look(code);
+    if (!meta || !mine) refuse('You are not at that table.');
+    if (meta.host === uid) refuse('You are already the host.');
+    const [hostPresence, now] = await Promise.all([
+      get(ref(db, `tables/${code}/presence/${meta.host}`)).then((snapshot) => summarize(snapshot.val())),
+      serverNow(),
+    ]);
+    if (!hostIsGone(hostPresence, now)) refuse('The host has not been gone for 5 minutes, so the table cannot be taken over yet.');
+    try {
+      await update(ref(db), { [`tables/${code}/meta/host`]: uid, [`hosts/${uid}`]: code });
+    } catch (error) {
+      if (isPermissionDenied(error)) refuse('You cannot take over this table right now. The host may have come back, or you may already host another table.');
+      throw error;
+    }
+  }
+
   // The new host (after a hand-over) takes the one-table-per-host slot. Safe to call again.
   async function claimHostSlot(code) {
     const { uid, meta } = await look(code);
@@ -337,9 +375,62 @@ export function createTableOps({ sdk, db, getUid, makeCode = makeTableCode }) {
   const watch = (path, onChange) => onValue(ref(db, path), (snapshot) => onChange(snapshot.val()), (error) => onChange(null, error));
   const watchActivity = (code, onChange) => watch(`tables/${code}/activity/lastActive`, onChange); // a time in ms
   const watchMeta = (code, onChange) => watch(`tables/${code}/meta`, onChange); // { createdAt, idleLimit, status, match, ... }
+  // true while this computer is connected to the database, false when the connection is lost (then it retries by itself).
+  const watchConnection = (onChange) => watch('.info/connected', (connected) => onChange(connected === true));
   // How far this computer's clock is from the database's (ms): the server's time is Date.now() + offset. The limits are
   // judged on the server's time, so the page must not trust its own clock.
   const watchServerOffset = (onChange) => watch('.info/serverTimeOffset', (offset) => onChange(typeof offset === 'number' ? offset : 0));
 
-  return { findMyTable, createTable, rejoinTable, joinTable, watchMembers, setReady, clearReady, startMatch, concede, endMatch, endTable, leaveTable, passHost, claimHostSlot, heartbeat, watchActivity, watchMeta, watchServerOffset };
+  // ---- Presence: who has the table open right now ----
+  // Every open tab keeps a small note at tables/<code>/presence/<you>/tabs/<tabId>. Each time the connection to the database
+  // comes up (the first time, and after every drop) the tab FIRST asks the database to remove its note and record the
+  // time as "last seen" if the connection is lost, and only then writes the note, so a drop right after the write still
+  // cleans up. A refresh opens a new tab id and the old note goes with the old connection. Returns a function that
+  // stops presence (removes the note and records the last-seen time now). Refusals (the table closed, you left it) are
+  // not errors; other failures go to onProblem. Needs sdk.onDisconnect.
+  function startPresence(code, { onProblem = () => {}, tabId = makeTabId() } = {}) {
+    const { onDisconnect } = sdk;
+    let stopped = false;
+    let notePath = null; let seenPath = null;
+    const stopWatching = onValue(ref(db, '.info/connected'), (snapshot) => {
+      if (snapshot.val() !== true || stopped) return;
+      (async () => {
+        const uid = await getUid();
+        if (stopped) return;
+        notePath = `tables/${code}/presence/${uid}/tabs/${tabId}`;
+        seenPath = `tables/${code}/presence/${uid}/lastSeen`;
+        await onDisconnect(ref(db, notePath)).remove();
+        await onDisconnect(ref(db, seenPath)).set(serverTimestamp());
+        if (stopped) return;
+        await update(ref(db), { [notePath]: true });
+      })().catch((error) => { if (!isPermissionDenied(error)) onProblem(error); });
+    });
+    return async function stopPresence() {
+      if (stopped) return;
+      stopped = true;
+      stopWatching();
+      if (!notePath) return;
+      try {
+        await onDisconnect(ref(db, notePath)).cancel();
+        await update(ref(db), { [notePath]: null, [seenPath]: serverTimestamp() });
+      } catch (error) { if (!isPermissionDenied(error)) onProblem(error); }
+    };
+  }
+
+  // Calls onChange({ uid: { tabs, lastSeen } }) now and on every change (see shared/presence.mjs for what the numbers
+  // mean), and onChange(null, error) if it can no longer be read. Returns a function that stops watching.
+  function watchPresence(code, onChange) {
+    return onValue(
+      ref(db, `tables/${code}/presence`),
+      (snapshot) => {
+        const raw = snapshot.val() ?? {};
+        const summary = {};
+        for (const uid of Object.keys(raw)) summary[uid] = summarize(raw[uid]);
+        onChange(summary);
+      },
+      (error) => onChange(null, error),
+    );
+  }
+
+  return { findMyTable, createTable, rejoinTable, joinTable, watchMembers, setReady, clearReady, startMatch, concede, endMatch, endTable, leaveTable, passHost, takeOverHost, claimHostSlot, heartbeat, watchActivity, watchMeta, watchServerOffset, watchConnection, startPresence, watchPresence };
 }

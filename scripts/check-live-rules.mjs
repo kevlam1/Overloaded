@@ -97,6 +97,16 @@ try {
   // Reading the heartbeat (added 2026-10-28): members only. The OLD rules refused a member too.
   await expect('a member reads lastActive', call(member, 'GET', `${T}/activity/lastActive`), 'allowed');
   await expect('a stranger cannot read lastActive', call(stranger, 'GET', `${T}/activity/lastActive`), 'refused');
+  // Presence (added 2026-10-28): a note per open tab and a last-seen time. The OLD rules refused all of these.
+  await expect('a member writes a presence note for a tab', call(member, 'PUT', `${T}/presence/${member.uid}/tabs/abcdefghij`, true), 'allowed');
+  await expect('a member writes their last-seen time from the server clock', call(member, 'PUT', `${T}/presence/${member.uid}/lastSeen`, SERVER_TIME), 'allowed');
+  await expect('a member reads everyone\'s presence', call(member, 'GET', `${T}/presence`), 'allowed');
+  await expect('a stranger cannot read presence', call(stranger, 'GET', `${T}/presence`), 'refused');
+  await expect('a stranger cannot write a presence note', call(stranger, 'PUT', `${T}/presence/${stranger.uid}/tabs/abcdefghij`, true), 'refused');
+  await expect('a member cannot write a note under someone else', call(member, 'PUT', `${T}/presence/${host.uid}/tabs/abcdefghij`, true), 'refused');
+  await expect('a last-seen time from the client clock is refused', call(member, 'PUT', `${T}/presence/${member.uid}/lastSeen`, Date.now() - 5000), 'refused');
+  await expect('a tab name that is not 10 letters and digits is refused', call(member, 'PUT', `${T}/presence/${member.uid}/tabs/ABC`, true), 'refused');
+  await expect('a member removes their own note', call(member, 'DELETE', `${T}/presence/${member.uid}/tabs/abcdefghij`), 'allowed');
   await expect('a member who is not the host starts the match', call(member, 'PATCH', `${T}/meta`, { status: 'playing', idleLimit: PLAYING_IDLE }), 'refused');
   await expect('the host starts the match', call(host, 'PATCH', `${T}/meta`, { status: 'playing', idleLimit: PLAYING_IDLE }), 'allowed');
   await expect('the host changes the seat count after creation', call(host, 'PUT', `${T}/meta/seats`, 2), 'refused');

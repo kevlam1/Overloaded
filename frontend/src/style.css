@@ -1,4 +1,4 @@
-/* Shared styles. Plain CSS, no animation (so nothing here needs a prefers-reduced-motion rule yet). */
+/* Shared styles. Plain CSS. The only animation is the "Reconnecting..." pulse, which stops under prefers-reduced-motion. */
 :root {
   color-scheme: light dark;
   --bg: #f6f5f1;
@@ -98,6 +98,10 @@ button:disabled { opacity: 0.55; cursor: progress; }
 /* The table's warning: quiet by default, firmer for the 8-hour limit within 10 minutes, red once it has closed. */
 .banner { margin: 0 0 1rem; padding: 0.6rem 0.8rem; border: 1px solid var(--line); border-radius: 0.5rem; background: var(--card); color: var(--muted); font-size: 0.9rem; }
 .banner[data-level="urgent"] { border-color: var(--accent); color: var(--text); font-weight: 600; }
+.presence { margin-left: 0.15rem; color: var(--muted); font-size: 0.9rem; }
+.presence[data-state="reconnecting"] { animation: presence-pulse 1.4s ease-in-out infinite; }
+@keyframes presence-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.65; } }
+@media (prefers-reduced-motion: reduce) { .presence[data-state="reconnecting"] { animation: none; } }
 .banner[data-level="closed"] { border-color: var(--danger); color: var(--danger); font-weight: 600; }
 
 .code { font: 700 1.6rem ui-monospace, Menlo, Consolas, monospace; letter-spacing: 0.2em; }

@@ -52,11 +52,14 @@
 
       <section id="table" aria-labelledby="table-heading" hidden>
         <h2 id="table-heading">Your table</h2>
+        <p id="connection" class="banner" data-level="urgent" role="status" hidden></p>
         <p>Share this code: <span id="code" class="code"></span></p>
         <p>Or this link: <span id="link" class="link"></span></p>
         <p>You have seat <span id="seat"></span>.</p>
         <h3>At the table</h3>
         <ul id="players"></ul>
+        <p id="take-over-note" class="hint" hidden>The host has been gone for over 5 minutes. The table carries on without them, but only a host can start or end a match. You can take it over.</p>
+        <button id="take-over" type="button" hidden>Take over as host</button>
       </section>
     </main>
 
