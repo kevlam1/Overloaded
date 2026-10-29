@@ -1003,6 +1003,71 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - Table codes stay at 6 characters (about a billion possibilities); I decided that guessing is not worth 2 more characters to type for now, and will revisit if the site gets real traffic.
 - Left for later, recorded in `docs/todo.md`: size limits on `public` and `private` (a griefer could write megabytes there) and one person sitting at several tables at once.
 
+## 48. Two tabs of one browser were two players (2026-10-28)
+
+**What I asked for**
+- Claude had said it was starting presence, and I asked: "have you considered what happens when a person opens the same url with the lobby code in multiple tabs in the same browser?" Claude said it had thought about it for presence only, never for join, ready, leave or the heartbeat, and that it could not run the emulator while the mutation run was going. I asked for another round of logic checks while that ran.
+
+**What changed**
+- Reading the rules first: two tabs joining at the same moment cannot give one player two seats. The second tab's seat claim is refused, a member's seat cannot change, and its last attempt just rejoins the first seat. That was a conclusion from reading, not a run.
+- Then a real test against the real project: one fresh Chrome profile, two tabs opened at once. They became two different anonymous accounts. The browser kept only one, and the other tab went on writing as an account the browser had lost. My earlier fix only covered one tab.
+- `frontend/src/db.js`: the tabs now take turns with a Web Lock. A tab that had to wait gives the first tab's saved account up to 3 seconds to arrive before it creates its own. `signIn()` also reads the live signed-in account each time instead of remembering its first answer. A tab with no other tab around signs in as fast as before.
+- `scripts/check-two-tabs-live.mjs` (new, part of `npm run test:live`, which is now 22 suites at that point): two tabs on a fresh profile must end up as one player and the browser must hold one account.
+
+**What I checked**
+- Before the fix: 1 run, two different players. After the fix: 6 runs in a row, one player each time, and it passed inside the full `npm run test:live`.
+- I did not rerun the lobby page test against the new `db.js` until the mutation run finished; then all 18 local suites passed.
+- Not checked: what the other tab shows after you leave or replace the table in one tab. Different names typed in two tabs: the first name wins on rejoin, silently.
+- The tab that lost the first run's account left an unused anonymous account in the Firebase list. It is harmless.
+
+**Decisions**
+- A join from two tabs at once is left to the rules (one seat). The reclaim write replaces the whole member entry, so a `ready` mark set in that gap would be erased; it is rare, so I left it.
+
+## 49. Presence: "Reconnecting..." and "Disconnected" (2026-10-28)
+
+**What I asked for**
+- "continue" after the mutation run was going; Claude explained presence in plain words first: each open tab writes a small note and asks the database to remove it if the connection drops, and the database records a last-seen time. I said I would paste the rules when they were ready.
+
+**What changed**
+- `shared/presence.mjs` (new): who is connected, reconnecting (under 2 minutes), or disconnected, the words for each, my own "You're offline, reconnecting..." line, and when a host counts as gone (5 minutes).
+- `backend/database.rules.json`: a `presence` branch. Members read it; only the owner writes a note under their own id (a 10-character tab name from a fixed alphabet, value `true`) or a last-seen time (must equal the server's clock). A new note needs a live table; removing one is always allowed, so the cleanup after a dropped connection is never blocked. **Had to be pasted into the console; I did.**
+- `shared/table-ops.mjs`, `frontend/src/db.js`: `startPresence` (on every connection it first asks the database to remove the note and set the last-seen time if the connection drops, then writes the note), `watchPresence`, `watchConnection`.
+- `frontend/pages/lobby/`: the player list shows the status next to each name and a line for my own offline state; the pulse stops under `prefers-reduced-motion`.
+- Tests: `scripts/test-presence.mjs` (59 checks), 44 more rule tests (465), 17 more table logic checks that cut and restore the connection in the emulator, 9 new live rule requests (73), 23 rule mutations, and `scripts/check-presence-live.mjs` (two real browsers, 2.5 minutes).
+
+**What I checked**
+- Broken copies: the presence logic 18 of 18 caught (one survived first: the "time is not a number" check, which only matters for an infinite time; I added a test). Rule mutations: 19 caught and 4 documented as redundant, 0 survivors.
+- After I pasted the rules, `npm run test:live` passed all 24 suites: 73 of 73 live rule requests, and the presence check 11 of 11 with two real browsers. Closing the second browser showed "Reconnecting..." on the first within 263 ms, the database had removed the note and recorded the time by itself, and about two minutes later the page showed "Disconnected, last seen 2 min ago".
+- I looked at screenshots at desktop width. My first two were cut off (the list was below the fold, so they showed nothing), so I made the check scroll the list into view and ran it again. The first "Reconnecting..." screenshot caught the pulse at its dimmest and was hard to read, so I raised its dimmest point from 0.35 to 0.65 opacity. I did not take that screenshot again.
+- Not checked live: my own "You're offline, reconnecting..." line. Only the logic that drives it is tested.
+
+**Decisions**
+- A note per tab (not per player), so a refresh or a second tab never makes the player look gone.
+- Left for later: nothing stops a member writing many tab notes with different names; the name shape is checked, the count is not.
+
+## 50. A member can take over from a host who has been gone for 5 minutes (2026-10-29)
+
+**What I asked for**
+- Earlier I decided the table must carry on without its host and that the host could hand it over; the rest was a takeover from a host who has vanished. I told Claude to continue in the order: host takeover, a full mutation re-run, then the log. After it built the takeover I published the rules and told Claude to fix any bugs it needed to.
+
+**What changed**
+- `backend/database.rules.json` (`meta` write): a member may become host only if the host has no open tab and a last-seen time at least 5 minutes old on the database's clock. A host with no presence record at all is not treated as gone. The taker cannot change the status, format, seats, creation time, idle limit or match number in the same write, the table must be alive, and the new host must not host another live table (the existing host rule).
+- `shared/table-ops.mjs`, `frontend/src/db.js`: `takeOverHost` (refuses in words unless the host is really gone; writes the host change and the taker's host slot in one write).
+- A bug I would have shipped: after a takeover the old host's slot still names the table and nobody else can clear it. If they came back and tried to make a new table, it would have failed. `findMyTable` and `createTable` now clear a slot that names a table someone else hosts.
+- The lobby page marks the host "(host)" and shows a "Take over as host" button only when the host has really been gone 5 minutes. A later fix put a real space between a name and its status, because they ran together for a screen reader.
+- `scripts/check-takeover-live.mjs` (two real browsers, about 6.5 minutes, on demand and not part of `npm run test:live`, because `test:live` cannot tell old rules from new here: the refusals look the same).
+
+**What I checked**
+- Local: 495 rule checks (30 new), 121 table logic checks (17 new). The page's own code ran against the emulator, including the old host making a new table straight away.
+- Rule mutations (14 new, run alone): 7 caught and 7 documented as redundant, 0 survivors. First 4 showed as survivors: one was a gap in my test (the table had no third member, so naming one was refused for the wrong reason), and three were redundant because other rules refuse the same writes.
+- After I pasted the rules: `scripts/check-takeover-live.mjs` 12 of 12 against the real project. Nothing was offered at 1 and 3 minutes after the host left, it was offered 308 seconds after, clicking it made the second player the host in the database with the host slot, and no page errors. `npm run test:live` passed all 24 suites after that. I looked at the screenshot at desktop width.
+- A flaky older check in `backend/test-table-ops.mjs` (the heartbeat watcher saw a time go back by 1 ms) failed once during a mutation run; it now allows a second of estimate drift.
+
+**Decisions**
+- A match in progress can be taken over too (the table carries on without its host).
+- A host can still delete their own host slot and hold two tables, so the one-table slot limits honest use, not abuse. That was true before the takeover; I wrote it down.
+- Not in the flow model: presence and time, so the model does not cover the takeover; it is covered by the rule tests, the page-logic tests and the live check.
+
 ---
 
 ## Where AI misread me, or I had to correct course
@@ -1054,6 +1119,10 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - **Over-weighted the pause risk (Claude's slip, entry 19, found in entry 20):** I called Supabase's 7-day pause a "demo-day risk" in the plan. A request every few days during the term prevents it, so it is a chore to remember, not a reason to rule Supabase out. The decision still holds on other grounds, but the argument was stronger than the facts.
 - **A claim about Vercel I never checked (Claude's slip, entries 3 and 5, found in entry 19):** I wrote in `CLAUDE.md` and in the design notes that Vercel's functions probably can't hold live connections, and told me to check it later. When I finally read Vercel's docs, they do (public beta). It cost nothing, because I had marked it "unverified", but it shaped how I framed the question for weeks.
 - **An untested line and a blind check (Claude's slip, entry 18):** the first matcher tests passed straight away, so Claude broke the matcher on purpose. One broken copy survived: the lowercase `æ` mapping had no test. Later the data check could not see broken accent handling, because it normalized both sides the same way, so any consistent mistake cancelled out. Both were fixed with new checks (a lowercase `æ` test, and typed spellings built without the module's own code).
+- **A bug that reading could not find (Claude's slip, entry 48):** I asked about two tabs, and Claude's first answer from reading the rules was that nothing could go wrong. Running two tabs on a fresh profile showed they became two different players. I should have tested it before saying so.
+- **Screenshots that showed nothing (Claude's slip, entry 49):** the first presence screenshots were cut off above the player list, so they proved only that the page had loaded. The check passed because the text was in the page, not because anyone could see it. Fixed by scrolling the list into view before the screenshot.
+- **A shell quote that ate code (Claude's slip, entry 49):** Claude put backticks inside a double-quoted shell command while writing a test, and the shell silently deleted the text. It repaired the file with the editing tool; the exact thing the shared notes warn about.
+- **Tests that could only pass for the wrong reason (Claude's slips, entry 50):** a takeover test named a player who was not a member, so the rule refused it for that reason and not the one being tested, and another test ordered its steps so an earlier step left a host slot behind. The mutation run exposed the first (4 survivors); I fixed the tests and documented the rest as redundant.
 - **Mutation checks that checked nothing (Claude's slip, entry 15):** three of my first ten broken copies didn't change the file because of shell quoting, so they proved nothing. I redid them in Node with exact text swaps. The first run also exposed two weak spots (only `\r\n` line ends and runs of spaces were not tested), which got new tests.
 
 ---
