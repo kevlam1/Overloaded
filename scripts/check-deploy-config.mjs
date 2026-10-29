@@ -31,7 +31,7 @@ function check(label, condition, detail = '') {
 }
 
 // ---- 1. Build the site, so dist/ matches the source as it is now ----
-const build = LIVE ? { status: 0, stdout: '', stderr: '' } : spawnSync(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', 'build'], { encoding: 'utf8', shell: true, windowsHide: true });
+const build = LIVE ? { status: 0, stdout: '', stderr: '' } : spawnSync(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', 'build'], { encoding: 'utf8', shell: true, windowsHide: true, env: { ...process.env, CARD_LIST_NO_DOWNLOAD: '1' } }); // a test must never start the 100 MB card download; it uses the cached list or none
 check('the site builds', build.status === 0, (build.stdout + build.stderr).split('\n').filter((l) => /rror/.test(l)).slice(0, 2).join(' | '));
 if (build.status !== 0) { console.log(`${failures.length} check(s) failed.`); process.exit(1); }
 
@@ -111,6 +111,20 @@ check('the served site answers an unknown path with 404', (await get('/no/such/p
 check('the served site refuses a path that climbs out of the site folder', [400, 404].includes((await get('/..%2Fpackage.json')).status));
 for (const path of ['/package.json', '/vite.config.js', '/.env', '/backend/database.rules.json', '/log.md', '/CLAUDE.md']) {
   check(`the served site does not serve the repository file ${path}`, (await get(path)).status === 404);
+}
+
+// ---- 3b. The card list: served as JSON from /data/cards.json, not swallowed by a rewrite into the lobby page ----
+// Checked when a list is cached on this machine (npm run cards) or against a deployed site; otherwise the build had none
+// to include, and saying nothing would hide that, so it says so.
+const cachedList = join('.vercel', 'cache', 'overloaded', 'cards.json');
+if (LIVE || existsSync(cachedList)) {
+  const served = await get('/data/cards.json');
+  let cards = null; try { cards = JSON.parse(served.body); } catch { /* reported below */ }
+  check('the card list is served as JSON, not as the lobby page', served.status === 200 && /json/.test(served.type) && Array.isArray(cards), `${served.status} ${served.type}`);
+  check('it holds tens of thousands of cards, each with name, type, cost, keywords and id', Array.isArray(cards) && cards.length >= 30000 && ['n', 't', 'm', 'k', 'i'].every((key) => key in cards[0]), Array.isArray(cards) ? String(cards.length) : '');
+  if (!LIVE) check('and it is exactly the cached list', readFileSync(join('dist', 'data', 'cards.json')).equals(readFileSync(cachedList)));
+} else {
+  console.log('(card list checks skipped: no list is cached here; run `npm run cards` to download one)');
 }
 
 // ---- 4. Chrome ----

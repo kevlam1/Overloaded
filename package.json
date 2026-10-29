@@ -5,7 +5,8 @@
   "description": "Overloaded: a browser tabletop for playing a card game with friends. The page; the database rules and their tests live in backend/.",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "cards": "node scripts/build-card-list.mjs",
+    "build": "node scripts/build-card-list.mjs && vite build",
     "preview": "vite preview",
     "test": "node scripts/test-all.mjs",
     "test:quick": "node scripts/test-all.mjs --quick",

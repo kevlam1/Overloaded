@@ -97,21 +97,22 @@ export async function* readJsonLines(path) {
 }
 
 // Builds the list from two bulk files on disk. Returns { list, counts } where counts describe each filter step.
+// Both files are read one record at a time and only the small entries are kept: the Oracle file is 200 MB unpacked and
+// the Default file 620 MB, and a build machine should not need gigabytes of memory for a 4 MB list.
 export async function buildFromFiles(oraclePath, defaultPath) {
   const printings = new PrintingSummary();
-  let printingCount = 0;
-  for await (const printing of readJsonLines(defaultPath)) { printings.add(printing); printingCount++; }
-  const records = [];
-  for await (const record of readJsonLines(oraclePath)) records.push(record);
-  const candidates = records.filter(isDeckCandidate);
-  const list = buildList(records, printings);
-  const counts = {
-    printings: printingCount,
-    oracleRecords: records.length,
-    notCandidates: records.length - candidates.length,
-    onlineOnly: candidates.filter((r) => printings.isOnlineOnly(oracleIdOf(r))).length,
-    noPrintingsKept: candidates.filter((r) => !printings.seen.has(oracleIdOf(r))).length,
-    kept: list.length,
-  };
+  const counts = { printings: 0, oracleRecords: 0, notCandidates: 0, onlineOnly: 0, noPrintingsKept: 0, kept: 0 };
+  for await (const printing of readJsonLines(defaultPath)) { printings.add(printing); counts.printings++; }
+  const list = [];
+  for await (const record of readJsonLines(oraclePath)) {
+    counts.oracleRecords++;
+    if (!isDeckCandidate(record)) { counts.notCandidates++; continue; }
+    const id = oracleIdOf(record);
+    if (printings.isOnlineOnly(id)) { counts.onlineOnly++; continue; }
+    if (!printings.seen.has(id)) counts.noPrintingsKept++;
+    list.push(toEntry(record));
+  }
+  list.sort(byNameThenId);
+  counts.kept = list.length;
   return { list, counts };
 }

@@ -25,3 +25,5 @@ desktop.ini
 *.sqlite
 *.db
 data/cache/
+# The card list the build copies into the site (generated; see scripts/build-card-list.mjs)
+frontend/public/data/
