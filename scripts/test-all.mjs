@@ -25,6 +25,7 @@ const suites = [
   { name: 'heartbeat and warning wiring', cmd: node, args: ['scripts/test-keep-alive.mjs'] },
   { name: 'browser storage that never throws', cmd: node, args: ['scripts/test-safe-store.mjs'] },
   { name: 'presence decisions', cmd: node, args: ['scripts/test-presence.mjs'] },
+  { name: 'card list build', cmd: node, args: ['scripts/test-card-list.mjs'] },
   { name: 'refused-request check', cmd: node, args: ['scripts/test-permission-error.mjs'] },
   { name: 'friendly error messages', cmd: node, args: ['scripts/test-friendly-error.mjs'] },
 ];
