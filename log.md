@@ -1144,6 +1144,20 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 **Decisions**
 - Open for Kevin: `engines` floats to the newest Node major (26 today), and the page build and card step have been run locally on 24 only. Pinning it to `24.x` would match local testing; leaving it means a new major could break a deploy by itself.
 
+## 55. Pinning Node to 24.x (2026-10-29)
+
+**What I asked for**
+- After the card list build showed Vercel running Node 26.13.0, I asked whether Node needed updating and then found the Node setting in Vercel. My screenshot showed the project setting already at 24.x and the Production Overrides box at 26.x, greyed out. I asked whether to change the setting to 26.x. Claude said no, and I told it to fix and push the change.
+
+**What changed**
+- `package.json`: `engines.node` is `24.x` instead of `^20.19.0 || >=22.12.0`. Vercel's docs say `engines` overrides the project setting, which is why a range that allowed any newer major gave 26 while the setting said 24. The Firebase packages I have installed (`@firebase/app`, `@firebase/auth`) declare Node 24.12 or newer, Vite needs 20.19 or 22.12 or newer, and my machine runs 24.14.1, so 24.x matches all three.
+
+**What I checked**
+- The build runs on my Node 24.14.1 with no engine warnings. The deploy result is below once I have read it from the live site.
+
+**Decisions**
+- I left the Vercel dropdown at 24.x and changed only `package.json`. The deploy is the proof of whether the pin took effect.
+
 ---
 
 ## Where AI misread me, or I had to correct course
