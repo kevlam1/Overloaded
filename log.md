@@ -1124,6 +1124,26 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - One cache folder everywhere, `.vercel/cache/overloaded`, not one chosen by a Vercel variable. I had first picked the folder from `VERCEL`, then saw that the docs say system variables are only exposed when a setting is on; a missing variable would have moved the cache somewhere Vercel does not keep and cost a 100 MB download on every deploy.
 - The build never blocks a deploy because Scryfall is down; it blocks only when there is no list at all.
 
+## 54. The card list on Vercel: first build, and the cache (2026-10-29)
+
+**What I asked for**
+- I said yes to committing and pushing the card list build so Claude could check the first Vercel builds. Claude first made the build write a small public file, `/data/cards.info.json`, saying what it did (rebuilt or reused, when, which Node, whether Vercel's variables arrived), because Vercel's build logs cannot be read without a login. Then it pushed twice: the code, and a docs-only change with the first results.
+
+**What changed**
+- `scripts/build-card-list.mjs` and `scripts/lib/card-list-build.mjs`: the info file, and the result of the card step now carries the reason and the cache record. Nothing in it is secret, and it changes on every build on purpose. The tests went from 113 to 115 checks.
+- Pushed `f643f3e..8015c98` (four commits: the earlier card list pieces and this one) and then `8015c98..67f1ff1` (the docs with the first findings).
+
+**What I checked**
+- First deploy: Vercel reported success. The info file said `rebuilt` (no cache yet, as expected), 34,172 cards, built in about 26 seconds including the 100 MB download, with the **same SHA-256 as my local build**, so the list is the same bytes on two machines. `vercelEnv` was `production` and `onVercel` true, so Vercel's variables do reach the build.
+- **Node on Vercel was v26.13.0**, not the 24.x its docs list as the default: my `engines` range `^20.19.0 || >=22.12.0` takes the newest major. It worked.
+- The list is served with Brotli, `max-age=0, must-revalidate` and a weak ETag; a request with the ETag gets 304 and no body.
+- Second deploy (a docs-only push): `reuse`, the same `builtAt`, nothing downloaded, so **`.vercel/cache` persists between our builds**, and the list's ETag was identical to the first deploy's. Both unknowns in my notes are answered, and the row is gone.
+- The deploy status for each commit came from GitHub's public commit status (`success`).
+- Not checked: a preview build (nothing has been pushed to another branch), a stale-list fallback on Vercel, or what happens when a new Node major arrives.
+
+**Decisions**
+- Open for Kevin: `engines` floats to the newest Node major (26 today), and the page build and card step have been run locally on 24 only. Pinning it to `24.x` would match local testing; leaving it means a new major could break a deploy by itself.
+
 ---
 
 ## Where AI misread me, or I had to correct course
@@ -1179,6 +1199,7 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - **Screenshots that showed nothing (Claude's slip, entry 49):** the first presence screenshots were cut off above the player list, so they proved only that the page had loaded. The check passed because the text was in the page, not because anyone could see it. Fixed by scrolling the list into view before the screenshot.
 - **A shell quote that ate code (Claude's slip, entry 49):** Claude put backticks inside a double-quoted shell command while writing a test, and the shell silently deleted the text. It repaired the file with the editing tool; the exact thing the shared notes warn about.
 - **Tests that could only pass for the wrong reason (Claude's slips, entry 50):** a takeover test named a player who was not a member, so the rule refused it for that reason and not the one being tested, and another test ordered its steps so an earlier step left a host slot behind. The mutation run exposed the first (4 survivors); I fixed the tests and documented the rest as redundant.
+- **Waited on a tool that was not there (Claude's slip, entry 54):** to watch the deploy Claude polled with the GitHub command line tool `gh` in a loop, but `gh` is not installed here, so it spent about five minutes waiting on repeated errors. It should have checked the tool exists first; GitHub's public web API gave the deploy status immediately. Claude also relied on Vercel's docs summary for the Node version (24.x default) and the real build used Node 26.13.0, so the docs were not what the build showed.
 - **A cache folder that depended on an unchecked variable (Claude's slip, entry 53):** the first version chose where to keep the list from Vercel's `VERCEL` variable. The docs say system variables are exposed only when a setting is on, so a missing one would have silently moved the cache and cost a 100 MB download on every deploy. Claude noticed this while reviewing its own design and changed it to one folder everywhere. The same entry also had Claude put backticks inside a double-quoted shell command again (the exact mistake the shared notes warn about); the command failed before writing anything, and the edits were redone with the editing tool.
 - **Tests that passed without testing (Claude's slip, entry 53):** the first 105 download tests passed on the first run, and the broken-copy run showed 11 of the 54 broken copies survived: some checks rejected a bad record for a second reason, and no test made the server stop answering mid-build. Fixed, 52 of 54 now fail them.
 - **Tests that tested themselves (Claude's slip, entry 52):** three of Claude's first card list tests looped over the library's own list of excluded layouts, so deleting a layout from the library also deleted it from the test. The broken-copy run showed it; the layouts are written out in the test now. Claude's PowerShell edit of `scripts/test-all.mjs` also left one Windows line ending in a file with plain ones; Claude noticed it in the diff and fixed it.
