@@ -23,8 +23,12 @@ export function normalizeName(name) {
     .replace(SINGLE_QUOTES, "'")
     .replace(DOUBLE_QUOTES, '"')
     .replaceAll(MODIFIER_COLON, ':')
-    .replace(/\s*\/\/?\s*/g, ' // ')
+    // Spaces are collapsed FIRST (one fast pass), so the slash step below only ever sees single spaces. The earlier
+    // order, `\s*\/\/?\s*` on text with long runs of spaces, retried from every position and took time growing with the
+    // square of the length (100,000 spaces took 10 seconds; found in the 2026-10-28 edge-case pass).
     .replace(/\s+/g, ' ')
+    .replace(/ ?\/\/? ?/g, ' // ')
+    .replace(/\s+/g, ' ') // the slash step adds a space on each side, so two slashes in a row leave a double space
     .trim()
     .toLowerCase()
 }
