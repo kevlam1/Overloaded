@@ -48,7 +48,7 @@ check('meta: host, seats 3, lobby, 30-minute limit, match 1', meta.host === 'ann
 check('meta.createdAt is the server clock, not a client time', Math.abs(meta.createdAt - Date.now()) < 60000);
 check('the name was cleaned (trimmed) and the host holds seat 1', (await readAdmin(`tables/${made.code}/members/ann`)).name === 'Ann' && (await readAdmin(`tables/${made.code}/seats/1`)) === 'ann');
 check('the host slot points at the new table', (await readAdmin('hosts/ann')) === made.code);
-check('findMyTable now finds it with 1 player', JSON.stringify(await ann.ops.findMyTable()) === JSON.stringify({ code: made.code, players: 1 }));
+check('findMyTable now finds it with 1 player, still open', JSON.stringify(await ann.ops.findMyTable()) === JSON.stringify({ code: made.code, players: 1, expired: false }));
 await throwsWith('create with 5 seats is refused before any write', ann.ops.createTable({ name: 'Ann', seats: 5 }));
 await throwsWith('create with an empty name is refused before any write', ann.ops.createTable({ name: '   ', seats: 2 }));
 check('those two refusals left the table alone', (await ann.ops.findMyTable()).code === made.code);
@@ -186,6 +186,36 @@ await jon.ops.claimHostSlot(HT);
 await kai.ops.leaveTable(HT);
 await jon.ops.leaveTable(HT);
 check('the table is gone and the last host\'s slot is cleared', (await readAdmin(`tables/${HT}`)) === null && (await readAdmin('hosts/jon')) === null);
+
+console.log('a host whose old table has expired is not warned (decided 2026-10-27)');
+{
+  const fay = person('fay');
+  const fayTable = await fay.ops.createTable({ name: 'Fay', seats: 2 });
+  const FT = fayTable.code;
+  const setActive = (agoMs) => admin((db) => set(ref(db, `tables/${FT}/activity/lastActive`), Date.now() - agoMs));
+  const setCreated = (agoMs) => admin((db) => set(ref(db, `tables/${FT}/meta/createdAt`), Date.now() - agoMs));
+  check('a live table is reported as not expired', (await fay.ops.findMyTable()).expired === false);
+  await setActive(29 * 60 * 1000);
+  check('29 minutes idle in the lobby: still open, so the host is warned', (await fay.ops.findMyTable()).expired === false);
+  await setActive(31 * 60 * 1000);
+  check('31 minutes idle in the lobby: expired, so no warning is needed', (await fay.ops.findMyTable()).expired === true);
+  await admin((db) => set(ref(db, `tables/${FT}/meta/status`), 'playing'));
+  await admin((db) => set(ref(db, `tables/${FT}/meta/idleLimit`), 3600000));
+  await setActive(31 * 60 * 1000);
+  check('31 minutes idle while playing (the limit is 1 hour): still open', (await fay.ops.findMyTable()).expired === false);
+  await setActive(61 * 60 * 1000);
+  check('61 minutes idle while playing: expired', (await fay.ops.findMyTable()).expired === true);
+  await setActive(1000);
+  check('active a second ago: open again', (await fay.ops.findMyTable()).expired === false);
+  await setCreated(8 * 3600 * 1000 + 60000);
+  check('past 8 hours even though active a second ago: expired', (await fay.ops.findMyTable()).expired === true);
+  const replaced = await fay.ops.createTable({ name: 'Fay', seats: 2 });
+  check('and a new table replaces it, naming the old one', replaced.replaced === FT && (await readAdmin(`tables/${FT}`)) === null);
+  // The host cannot read the heartbeat (they left their own table): the answer must stay on the safe side, "ask"
+  await admin((db) => set(ref(db, `tables/${replaced.code}/members/fay`), null));
+  const unreadable = await fay.ops.findMyTable();
+  check('if the heartbeat cannot be read the table is treated as open (the host is asked)', unreadable === null || unreadable.expired === false, JSON.stringify(unreadable));
+}
 
 console.log('the heartbeat and the watchers the page uses to warn before a table closes');
 const beth = person('beth');

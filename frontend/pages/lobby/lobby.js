@@ -1,7 +1,7 @@
 // The lobby page: make a table or join one by code. All database calls live in ../../src/db.js.
 import { createTable, joinTable, rejoinTable, findMyTable, watchMembers, heartbeat, watchActivity, watchMeta, watchServerOffset } from '../../src/db.js';
-import { createHeartbeat } from '../../../shared/heartbeat.mjs';
-import { renderBanner } from '../../src/banner.js';
+import { startKeepAlive } from '../../src/keep-alive.js';
+import { makeSafeStore } from '../../src/safe-store.js';
 import { normalizeCode, isValidCode } from '../../../shared/table-code.mjs';
 import { cleanPlayerName } from '../../../shared/player-name.mjs';
 import { friendlyMessage } from '../../../shared/friendly-error.mjs';
@@ -18,51 +18,28 @@ const statusLine = $('status');
 // Remembered in this browser only (never sent anywhere): your name and the last table, so a refresh puts you back.
 const NAME_KEY = 'overloaded.name';
 const TABLE_KEY = 'overloaded.lastTable';
+// Storage can be unavailable (some privacy settings make it throw); the page must work without it, see src/safe-store.js.
+const store = makeSafeStore();
 
 let stopWatching = null;
 let stopKeepAlive = null;
 const bannerElement = $('banner');
 const formatTime = (ms) => new Date(ms).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
-// Keeps the table alive while someone is using it, and warns before it closes (decided with Kevin, 2026-10-26):
-//  - a tap, key or input in a VISIBLE tab sends a heartbeat (at most one a minute); an idle or hidden tab sends none;
-//  - the banner is quiet in the last 5 minutes of the idle limit and in the last 30 minutes before the 8-hour limit,
-//    and says so once the table has closed. All of it is judged on the SERVER's time, not this computer's clock.
+// Keeps the table alive while someone is using it and warns before it closes: see frontend/src/keep-alive.js (it is
+// separate so it can be tested with a fake clock). Only one table is kept alive at a time.
 function keepAlive(code) {
   if (stopKeepAlive) stopKeepAlive();
-  let offset = 0;
-  let meta = null;
-  let lastActive = null;
-  let closed = false;
-  const beat = createHeartbeat({
-    // A refused heartbeat (another player's just landed, or the table closed) is not an error; only a failed send is retried.
-    send: () => { heartbeat(code).catch(() => beat.sendFailed()); },
-  });
-  const draw = () => {
-    const table = meta && lastActive !== null ? { createdAt: meta.createdAt, lastActive, idleLimit: meta.idleLimit } : null;
-    const state = renderBanner(bannerElement, { now: Date.now() + offset, table, formatTime });
-    if (state?.closed) closed = true; // a closed table cannot be revived, so stop sending heartbeats for it
-  };
-  const onActivity = () => { if (!closed) beat.activity(Date.now()); };
-  const onVisibility = () => { if (!closed) beat.setVisible(document.visibilityState === 'visible', Date.now()); draw(); };
-  const activityEvents = ['pointerdown', 'keydown', 'input', 'touchstart'];
-  for (const name of activityEvents) document.addEventListener(name, onActivity, { passive: true });
-  document.addEventListener('visibilitychange', onVisibility);
-  const stops = [
-    watchServerOffset((value) => { offset = value; draw(); }),
-    watchMeta(code, (value) => { if (value) meta = value; draw(); }),
-    watchActivity(code, (value) => { if (value !== null) lastActive = value; draw(); }),
-  ];
-  const timer = setInterval(() => { if (!closed) beat.tick(Date.now()); draw(); }, 15000);
-  beat.activity(Date.now()); // making or joining a table is activity
-  stopKeepAlive = () => {
-    for (const name of activityEvents) document.removeEventListener(name, onActivity);
-    document.removeEventListener('visibilitychange', onVisibility);
-    clearInterval(timer);
-    for (const stop of stops) stop();
-    bannerElement.hidden = true;
-    stopKeepAlive = null;
-  };
+  stopKeepAlive = startKeepAlive({ code, document, api: { heartbeat, watchServerOffset, watchMeta, watchActivity }, bannerElement, formatTime }).stop;
+}
+
+// Cleans the typed name (throws a readable message if it is not a name), shows the cleaned version in the box so the
+// person sees what the table will see (invisible characters removed), and remembers it in this browser only.
+function rememberName() {
+  const name = cleanPlayerName(nameInput.value);
+  nameInput.value = name;
+  store.set(NAME_KEY, name);
+  return name;
 }
 
 function say(message, isError = false) {
@@ -80,7 +57,7 @@ function show(table) {
   $('code').textContent = table.code;
   $('link').textContent = linkForCode(location.origin, table.code);
   $('seat').textContent = table.seat;
-  localStorage.setItem(TABLE_KEY, table.code);
+  store.set(TABLE_KEY, table.code);
   keepAlive(table.code);
   if (stopWatching) stopWatching();
   stopWatching = watchMembers(table.code, (members, error) => {
@@ -112,16 +89,16 @@ async function run(task) {
 }
 
 createButton.addEventListener('click', () => run(async () => {
-  cleanPlayerName(nameInput.value); // refuse a bad name before any network request
-  localStorage.setItem(NAME_KEY, nameInput.value);
+  const name = rememberName(); // refuse a bad name before any network request
   say('Making your table...');
-  // A host holds one table at a time. Warn before the old one is deleted (the popup is a placeholder for a designed one).
+  // A host holds one table at a time. Warn before a LIVE old table is deleted (the popup is a placeholder for a designed
+  // one); one that has already expired is replaced without a popup (decided 2026-10-27).
   const mine = await findMyTable();
-  if (mine && !confirm(`You already have a table (code ${mine.code}, ${mine.players} at it). Making a new one closes it. Continue?`)) {
+  if (mine && !mine.expired && !confirm(`You already have a table (code ${mine.code}, ${mine.players} at it). Making a new one closes it. Continue?`)) {
     say('Kept your existing table.');
     return;
   }
-  const table = await createTable({ name: nameInput.value, seats: Number(seatsSelect.value) });
+  const table = await createTable({ name, seats: Number(seatsSelect.value) });
   say(table.replaced ? `Table ${table.code} is ready. Your old table was closed.` : `Table ${table.code} is ready. Share the code.`);
   show(table);
 }));
@@ -129,10 +106,9 @@ createButton.addEventListener('click', () => run(async () => {
 joinButton.addEventListener('click', () => run(async () => {
   const code = normalizeCode(codeInput.value);
   if (!isValidCode(code)) throw new Error('That does not look like a table code. Codes are 6 letters and digits.');
-  cleanPlayerName(nameInput.value); // refuse a bad name before any network request
-  localStorage.setItem(NAME_KEY, nameInput.value);
+  const name = rememberName(); // refuse a bad name before any network request
   say('Joining...');
-  const table = await joinTable({ code, name: nameInput.value });
+  const table = await joinTable({ code, name });
   say(table.rejoined ? `Back at table ${table.code}.` : `You joined table ${table.code}.`);
   show(table);
 }));
@@ -141,7 +117,7 @@ joinButton.addEventListener('click', () => run(async () => {
 codeInput.addEventListener('keydown', (event) => { if (event.key === 'Enter') joinButton.click(); });
 
 // On load: restore the name, and if this browser was at a table, put it back (a refresh keeps your seat).
-nameInput.value = localStorage.getItem(NAME_KEY) ?? '';
+nameInput.value = store.get(NAME_KEY) ?? '';
 
 // Arriving by a shared link (/lobby/ABC234): put the code in the box and leave the rest to the person. It never joins
 // by itself, so a link cannot put someone at a table they have not looked at.
@@ -153,11 +129,11 @@ if (linkedCode) {
 }
 
 (async () => {
-  const last = localStorage.getItem(TABLE_KEY);
+  const last = store.get(TABLE_KEY);
   if (!last) return;
   try {
     const table = await rejoinTable(last);
-    if (table) { say(`Back at table ${table.code}.`); show(table); } else localStorage.removeItem(TABLE_KEY);
+    if (table) { say(`Back at table ${table.code}.`); show(table); } else store.remove(TABLE_KEY);
   } catch {
     say('Could not reach the server to check your last table. Check your connection.', true);
   }

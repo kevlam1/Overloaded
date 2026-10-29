@@ -12,6 +12,7 @@
 import { makeTableCode, isValidCode } from './table-code.mjs';
 import { cleanPlayerName } from './player-name.mjs';
 import { isPermissionDenied } from './permission-error.mjs';
+import { limitsAt } from './table-limits.mjs';
 
 export const LOBBY_IDLE_MS = 30 * 60 * 1000; // must equal the lobby idle limit in the rules
 export const PLAYING_IDLE_MS = 60 * 60 * 1000; // must equal the playing idle limit in the rules
@@ -41,7 +42,16 @@ export class FlowRefusedError extends Error {
 export function createTableOps({ sdk, db, getUid, makeCode = makeTableCode }) {
   const { ref, get, update, onValue, serverTimestamp } = sdk;
 
-  // The host's current table, if it still exists: { code, players }. A host holds one table at a time.
+  // The database's clock right now: this computer's clock plus the offset the database reports. The limits are judged
+  // on the database's time. Falls back to this computer's clock if the offset cannot be read.
+  const serverNow = () => new Promise((resolve) => {
+    let stop = null; let settled = false;
+    const finish = (offset) => { if (settled) return; settled = true; if (stop) stop(); resolve(Date.now() + (typeof offset === 'number' ? offset : 0)); };
+    stop = onValue(ref(db, '.info/serverTimeOffset'), (snapshot) => finish(snapshot.val()), () => finish(0));
+    if (settled) stop(); // finish ran before `stop` existed
+  });
+
+  // The host's current table, if it still exists: { code, players, expired }. A host holds one table at a time.
   async function findMyTable() {
     const uid = await getUid();
     const code = (await get(ref(db, `hosts/${uid}`))).val();
@@ -50,10 +60,21 @@ export function createTableOps({ sdk, db, getUid, makeCode = makeTableCode }) {
       // Read the parts a member may read. Reading the whole table at once is refused for everyone on purpose (it
       // would include other players' private cards), so asking for it here always failed and no one was ever
       // warned before their old table was closed (found by the spike on 2026-10-28).
-      const [meta, members] = await Promise.all([get(ref(db, `tables/${code}/meta`)), get(ref(db, `tables/${code}/members`))]);
+      const [meta, members, lastActive, now] = await Promise.all([
+        get(ref(db, `tables/${code}/meta`)),
+        get(ref(db, `tables/${code}/members`)),
+        get(ref(db, `tables/${code}/activity/lastActive`)).then((snapshot) => snapshot.val(), () => null), // unreadable: treat as unknown
+        serverNow(),
+      ]);
       // The host slot can outlive its table (the table closed or was deleted). Then there is nothing to warn about.
       if (!meta.exists()) return null;
-      return { code, players: Object.keys(members.val() ?? {}).length };
+      // A table past its idle or 8-hour limit is already closed to its players and is replaced without a warning
+      // (decided 2026-10-27). If anything needed to judge that is missing, assume it is still open: asking once too
+      // often is better than silently closing a live table.
+      const info = meta.val();
+      const expired = typeof lastActive === 'number' && typeof info.createdAt === 'number' && typeof info.idleLimit === 'number'
+        && limitsAt(now, { createdAt: info.createdAt, lastActive, idleLimit: info.idleLimit }).closed;
+      return { code, players: Object.keys(members.val() ?? {}).length, expired };
     } catch (error) {
       if (isPermissionDenied(error)) return null; // not readable: the table is gone or is not ours any more
       throw error;

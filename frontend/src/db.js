@@ -2,7 +2,7 @@
 // logic in shared/table-ops.mjs. The pages never import Firebase themselves, so changing the service means rewriting
 // this file (and the database calls passed to createTableOps), not the pages or the game.
 import { initializeApp } from 'firebase/app';
-import { initializeAuth, indexedDBLocalPersistence, browserLocalPersistence, signInAnonymously } from 'firebase/auth';
+import { initializeAuth, indexedDBLocalPersistence, browserLocalPersistence, inMemoryPersistence, signInAnonymously } from 'firebase/auth';
 import { getDatabase, ref, get, update, onValue, serverTimestamp } from 'firebase/database';
 import { createTableOps, TableUnavailableError, FlowRefusedError } from '../../shared/table-ops.mjs';
 
@@ -14,8 +14,10 @@ function start() {
     const app = initializeApp(__FIREBASE_CONFIG__); // filled in by vite.config.js from .env or Vercel's environment
     // initializeAuth with only the storage we need, instead of getAuth, which also pulls in the sign-in-with-popup
     // code we never use (a smaller download). A persistence MUST be given: with none the SDK keeps the account in
-    // memory only, and a refresh would create a new one. IndexedDB first, local storage if that is unavailable.
-    const auth = initializeAuth(app, { persistence: [indexedDBLocalPersistence, browserLocalPersistence] });
+    // memory only, and a refresh would create a new one. IndexedDB first, local storage if that is unavailable, and as a
+    // last resort memory only: with every kind of browser storage blocked (some privacy settings) the page still works
+    // for this visit, it just cannot put you back at your table after a refresh.
+    const auth = initializeAuth(app, { persistence: [indexedDBLocalPersistence, browserLocalPersistence, inMemoryPersistence] });
     services = { auth, db: getDatabase(app) };
   }
   return services;

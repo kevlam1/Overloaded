@@ -86,6 +86,10 @@ try {
     ['join, empty code', async () => { await setValue(browser, 'join-code', ''); await click(browser, 'join'); }, /6 letters and digits/],
     ['join, good code, empty name', async () => { await setValue(browser, 'name', ''); await setValue(browser, 'join-code', 'ABC234'); await click(browser, 'join'); }, /Type a name/],
     ['join, name of only spaces', async () => { await setValue(browser, 'name', '    '); await click(browser, 'join'); }, /Type a name/],
+    // Added in the 2026-10-28 edge-case pass (the characters are built from numbers so this file stays plain ASCII).
+    ['make table, name of only zero-width spaces', async () => { await setValue(browser, 'name', String.fromCodePoint(0x200B, 0x200B, 0x200B)); await click(browser, 'create'); }, /Type a name/],
+    ['join, name of only a right-to-left override', async () => { await setValue(browser, 'name', String.fromCodePoint(0x202E)); await setValue(browser, 'join-code', 'ABC234'); await click(browser, 'join'); }, /Type a name/],
+    ['make table, 16 emoji (32 units, over the database limit)', async () => { await setValue(browser, 'name', String.fromCodePoint(0x1F40D).repeat(16)); await click(browser, 'create'); }, /emoji counts as two/],
   ];
   for (const [label, act, expected] of cases) {
     await act(); await sleep(250);
@@ -116,6 +120,35 @@ try {
   check('offline: the buttons are enabled again', await browser.eval(`!document.getElementById('create').disabled && !document.getElementById('join').disabled`));
   await browser.send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
   void offlineErrors;
+
+  // ---- browser storage blocked (some privacy settings make it throw): the page must still load and work ----
+  // Added in the 2026-10-28 edge-case pass: before this, reading the stored name threw at load and stopped the script.
+  const blocked = await openBrowser('lobby-nostorage', { width: 1280, height: 800 });
+  await blocked.send('Page.addScriptToEvaluateOnNewDocument', { source: `
+    const boom = () => { throw new DOMException('The operation is insecure.', 'SecurityError'); };
+    Object.defineProperty(window, 'localStorage', { get: boom });
+    Object.defineProperty(window, 'sessionStorage', { get: boom });
+    Object.defineProperty(window, 'indexedDB', { get: boom });
+  ` });
+  await blocked.goto(PAGE);
+  const blockedErrors = blocked.logs.filter((l) => /^(exception|error)/.test(l));
+  check('storage blocked: the page loads with no script errors', blockedErrors.length === 0, blockedErrors.join(' | '));
+  await setValue(blocked, 'name', ''); await click(blocked, 'create'); await sleep(300);
+  check('storage blocked: the buttons still answer (an empty name gets its message)', /Type a name/.test(await text(blocked, 'status')), await text(blocked, 'status'));
+  await setValue(blocked, 'name', 'Kevin'); await setValue(blocked, 'join-code', 'abc'); await click(blocked, 'join'); await sleep(300);
+  check('storage blocked: a bad code gets its message, and saving the name did not get in the way', /6 letters and digits/.test(await text(blocked, 'status')), await text(blocked, 'status'));
+  // A valid name and a valid code get past saving the name and reach the network step (offline, so nothing is sent
+  // and no account is made): the message must be the plain "cannot reach the server" one, not a storage error.
+  await blocked.send('Network.emulateNetworkConditions', { offline: true, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+  await setValue(blocked, 'name', 'Kevin'); await setValue(blocked, 'join-code', 'ABC234');
+  await blocked.eval(`document.getElementById('status').textContent = ''`);
+  await click(blocked, 'join');
+  const blockedAnswer = await waitFor(async () => { const m = await text(blocked, 'status'); return m && !/Joining/.test(m) ? m : null; }, 25000, 100);
+  check('storage blocked: a valid name and code get past saving the name and reach the network step', /can.?t reach|connection|offline/i.test(blockedAnswer ?? ''), String(blockedAnswer));
+  await blocked.send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+  // (Chrome logs one resource error because this step cut the network on purpose; that message is expected here.)
+  const leftover = blocked.logs.filter((l) => /^(exception|error)/.test(l) && !/ERR_INTERNET_DISCONNECTED/.test(l));
+  check('storage blocked: no leftover error after using the page', leftover.length === 0, leftover.join(' | '));
 
   if (process.argv.includes('--screenshot')) await browser.screenshot('scratch-lobby-ui.png');
 } catch (error) {
