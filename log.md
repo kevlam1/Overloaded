@@ -1259,6 +1259,25 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - Matching works even when a title exists only on a non-English printing, because the real name is always English. What it cannot do yet is show that printing's art: the table draws the default printing. Keeping the art of the printing I actually own is a follow-up (the list would need to remember which printing carries each title).
 - A title is only used after a real name and a front face fail, so a title can never hide or steal a real card.
 
+## 61. The solo table and alternate titles go live (2026-10-29)
+
+**What I asked for**
+- I said to continue after hitting the usage limit, with "continue push": commit and push what was finished.
+
+**What changed**
+- Four commits went up in one plain push (`450b619..12dca1a`, no force): the zone logic, the alternate titles, the `/solo` page with its pictures and config, and the docs. `scripts/test-all.mjs` and `scripts/check-deck-ui.mjs` carry checks for both the solo table and the titles, so the third commit holds both sets of checks and could not be split further.
+- Only the docs changed after the push: `CLAUDE.md` said "NOT pushed yet" and now says it is live.
+
+**What I checked**
+- Vercel's status went from "deploying" to "success" in about a minute.
+- The live `/data/cards.info.json` says `action: rebuilt, reason: the cached list is in an older format`, so the format number did what it was added for. The served list has 34,172 cards, 521 of them with alternate titles (more than my 497 locally, because Vercel downloaded a newer printings file), and Arcane Signet carries "Heart of the Mountain".
+- `/`, `/deck` and `/solo` answer 200. The deploy check against the live address passed all 47 checks.
+- Headless Chrome on the live `/solo` with a deck imported by title ("Heart of the Mountain", "Shadowbringers"): 7 cards dealt, 7 real pictures loaded from `cards.scryfall.io`, 0 content-policy blocks, 0 page errors. I looked at the desktop screenshot, then deleted it and the script.
+- Not checked: that the NEXT deploy reuses the list instead of rebuilding it (it needs another push), phone width, light mode on the live site, and a second browser or a real phone.
+
+**Decisions**
+- None new. The Start-button question and keeping a title's own printing art are still open on `docs/todo.md`.
+
 ---
 
 ## Where AI misread me, or I had to correct course
