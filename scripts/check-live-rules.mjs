@@ -130,6 +130,38 @@ try {
   await expect('the member removes the old concession', call(member, 'DELETE', `${T}/members/${member.uid}/conceded`), 'allowed');
   await expect('the member is ready for the old match (1)', call(member, 'PUT', `${T}/members/${member.uid}/ready`, 1), 'refused');
   await expect('the member is ready for the new match (2)', call(member, 'PUT', `${T}/members/${member.uid}/ready`, 2), 'allowed');
+
+  // Deck fields (added 2026-10-30): commander, bracket and bracketGuess on your own member entry, and a change to any of them
+  // must take your ready mark back. The OLD rules refuse every "allowed" write below (the entry took no other fields), so these
+  // pass only once the new file is published. The member is ready for match 2 right now.
+  const mine = `${T}/members/${member.uid}`;
+  await expect('a commander written while ready (the change must clear ready too) is refused', call(member, 'PUT', `${mine}/commander`, 'Krenko, Mob Boss'), 'refused');
+  await expect('a bracket written while ready is refused', call(member, 'PUT', `${mine}/bracket`, 3), 'refused');
+  await expect('a commander written together with clearing ready is allowed', update(member, { [`${mine}/commander`]: 'Krenko, Mob Boss', [`${mine}/ready`]: null }), 'allowed');
+  await expect('the member is ready again for match 2, with a deck set', call(member, 'PUT', `${mine}/ready`, 2), 'allowed');
+  await expect('writing the same commander again while ready is allowed (nothing changed)', call(member, 'PUT', `${mine}/commander`, 'Krenko, Mob Boss'), 'allowed');
+  await expect('changing the commander while ready is refused', call(member, 'PUT', `${mine}/commander`, 'Someone else'), 'refused');
+  await expect('removing the commander while ready is refused', call(member, 'DELETE', `${mine}/commander`), 'refused');
+  await expect('changing the commander and clearing ready in one write is allowed', update(member, { [`${mine}/commander`]: 'Thrasios, Triton Hero & Tymna the Weaver', [`${mine}/ready`]: null }), 'allowed');
+  // Not ready any more: the shape of each field. 220 is the limit (UTF-16 units, as the page counts them).
+  await expect('a commander of exactly 220 characters is allowed', call(member, 'PUT', `${mine}/commander`, 'x'.repeat(220)), 'allowed');
+  await expect('a commander of 221 characters is refused', call(member, 'PUT', `${mine}/commander`, 'x'.repeat(221)), 'refused');
+  await expect('a commander of 110 emoji (220 UTF-16 units) is allowed', call(member, 'PUT', `${mine}/commander`, '\u{1F409}'.repeat(110)), 'allowed');
+  await expect('a commander of 111 emoji (222 UTF-16 units) is refused', call(member, 'PUT', `${mine}/commander`, '\u{1F409}'.repeat(111)), 'refused');
+  await expect('an empty commander is refused', call(member, 'PUT', `${mine}/commander`, ''), 'refused');
+  await expect('a commander that is a number is refused', call(member, 'PUT', `${mine}/commander`, 5), 'refused');
+  await expect('a bracket of 3 is allowed', call(member, 'PUT', `${mine}/bracket`, 3), 'allowed');
+  for (const [label, value] of [['0', 0], ['6', 6], ['2.5', 2.5], ['"3" as text', '3'], ['true', true]]) {
+    await expect(`a bracket of ${label} is refused`, call(member, 'PUT', `${mine}/bracket`, value), 'refused');
+  }
+  await expect('a bracket guess of true next to a bracket is allowed', call(member, 'PUT', `${mine}/bracketGuess`, true), 'allowed');
+  await expect('a bracket guess of false is refused', call(member, 'PUT', `${mine}/bracketGuess`, false), 'refused');
+  await expect('deleting the bracket while a guess stays is refused', call(member, 'DELETE', `${mine}/bracket`), 'refused');
+  await expect('deleting the bracket and the guess together is allowed', update(member, { [`${mine}/bracket`]: null, [`${mine}/bracketGuess`]: null }), 'allowed');
+  await expect('a bracket guess with no bracket is refused', call(member, 'PUT', `${mine}/bracketGuess`, true), 'refused');
+  await expect('another member cannot write my commander', call(host, 'PUT', `${mine}/commander`, 'Someone else'), 'refused');
+  await expect('a stranger cannot write my commander', call(stranger, 'PUT', `${mine}/commander`, 'Someone else'), 'refused');
+  await expect('a field the entry does not have is refused', call(member, 'PUT', `${mine}/deckName`, 'My deck'), 'refused');
   await expect('the host starts the next match (the number stays 2)', call(host, 'PATCH', `${T}/meta`, { status: 'playing', idleLimit: PLAYING_IDLE }), 'allowed');
   await expect('the member concedes for match 2', call(member, 'PUT', `${T}/members/${member.uid}/conceded`, 2), 'allowed');
 
