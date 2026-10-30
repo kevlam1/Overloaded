@@ -57,14 +57,15 @@ export async function openBrowser(label, { width = 1280, height = 800 } = {}) {
   browser.on = (method, fn) => { browser.listeners.push((event) => { if (event.method === method) fn(event.params); }); };
   // Answers every request to a matching address with a tiny PNG instead of going to the network, and records the
   // addresses asked for. Returns the list of them. Used to test pages that show pictures from another host.
-  // make(url) may return { type, text } to serve something else (for example an SVG that looks like a card).
+  // make(url) may return { type, text } to serve something else (for example an SVG that looks like a card), and { status }
+  // to answer with an error (for example 404, a picture that does not exist).
   browser.fakeImages = async (urlPattern, make) => {
     const asked = [];
     const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
     browser.on('Fetch.requestPaused', (params) => {
       asked.push(params.request.url);
       const made = make ? make(params.request.url) : null;
-      send('Fetch.fulfillRequest', { requestId: params.requestId, responseCode: 200, responseHeaders: [{ name: 'Content-Type', value: made ? made.type : 'image/png' }, { name: 'Access-Control-Allow-Origin', value: '*' }], body: made ? Buffer.from(made.text).toString('base64') : PNG }).catch(() => {});
+      send('Fetch.fulfillRequest', { requestId: params.requestId, responseCode: made?.status ?? 200, responseHeaders: [{ name: 'Content-Type', value: made?.type ?? 'image/png' }, { name: 'Access-Control-Allow-Origin', value: '*' }], body: made?.text !== undefined ? Buffer.from(made.text).toString('base64') : PNG }).catch(() => {});
     });
     await send('Fetch.enable', { patterns: [{ urlPattern }] });
     return asked;

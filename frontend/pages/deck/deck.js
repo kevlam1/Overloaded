@@ -6,6 +6,7 @@ import { parseDeckText } from '../../../shared/deck-text.mjs';
 import { makePreview, buildSavedDeck, serializeDeck, readSavedDeck } from '../../../shared/deck-preview.mjs';
 import { makeSafeStore } from '../../src/safe-store.js';
 import { loadCardList } from '../../src/card-list.js';
+import { setupCardPeek } from '../../src/card-peek.js';
 
 const $ = (id) => document.getElementById(id);
 const store = makeSafeStore();
@@ -132,6 +133,12 @@ function renderSections() {
       const item = make('li', line.status === 'matched' ? 'card-line' : 'card-line unmatched');
       const name = make('span', 'name', line.name);
       if (line.viaTitle) name.append(make('span', 'typed-as', ` (typed as "${line.viaTitle}")`)); // a card found by another title it was printed under
+      if (line.card) {
+        // Hovering the row (or focusing the name with the keyboard) shows the card's picture; see src/card-peek.js.
+        item.dataset.cardId = line.card.i;
+        item.dataset.cardName = line.name;
+        name.tabIndex = 0;
+      }
       item.append(make('span', 'qty', String(line.qty)), name);
       if (line.card) item.append(make('span', 'type', line.card.t), make('span', 'cost', line.card.m));
       else item.append(make('span', 'type', 'not matched'));
@@ -238,4 +245,5 @@ const canStore = store.set(PROBE_KEY, '1');
 store.remove(PROBE_KEY);
 $('storage-hint').hidden = canStore;
 renderSaved();
+setupCardPeek({ root: $('sections'), peek: $('card-peek'), image: $('card-peek-image'), note: $('card-peek-note') });
 loadCards();
