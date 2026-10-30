@@ -6,8 +6,8 @@ import { normalizeCode, isValidCode } from './table-code.mjs';
 
 // The table code in a page address ("/lobby/ABC234", "/lobby/abc-234/"), or null when there is none or it is not a
 // valid code. Exactly one segment after /lobby is accepted, so "/lobby/ABC234/x" and "/pages/lobby/" give null.
-export function codeFromPath(pathname) {
-  const match = /^\/lobby\/([^/]+)\/?$/.exec(String(pathname ?? ''));
+function codeAfter(prefix, pathname) {
+  const match = new RegExp(`^/${prefix}/([^/]+)/?$`).exec(String(pathname ?? ''));
   if (!match) return null;
   let raw;
   try { raw = decodeURIComponent(match[1]); } catch { return null; } // a broken %-escape is not a code
@@ -15,7 +15,15 @@ export function codeFromPath(pathname) {
   return isValidCode(code) ? code : null;
 }
 
+export const codeFromPath = (pathname) => codeAfter('lobby', pathname);
+
+// The table page's own address, "/table/ABC234": the page everyone at a started match is sent to. Same rules as above.
+export const tableCodeFromPath = (pathname) => codeAfter('table', pathname);
+
 // The link to share for a table. `origin` is the page's own origin, for example "https://overloaded.example".
 export function linkForCode(origin, code) {
   return `${origin}/lobby/${code}`;
 }
+
+// Where a started match is played (a path, no origin: players are sent there from the lobby).
+export const tablePathForCode = (code) => `/table/${code}`;

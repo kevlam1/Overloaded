@@ -1,5 +1,5 @@
 // Tests for shared/lobby-link.mjs: reading a table code from a shared link, and building the link.
-import { codeFromPath, linkForCode } from '../shared/lobby-link.mjs';
+import { codeFromPath, linkForCode, tableCodeFromPath, tablePathForCode } from '../shared/lobby-link.mjs';
 import { makeTableCode, isValidCode } from '../shared/table-code.mjs';
 
 let checks = 0;
@@ -58,5 +58,17 @@ same('the generated codes are valid (so the loop above tested real codes)', isVa
 // Building a link
 same('the link for a code', linkForCode('https://overloaded.example', 'ABC234'), 'https://overloaded.example/lobby/ABC234');
 same('a link keeps a port', linkForCode('http://localhost:5173', 'ABC234'), 'http://localhost:5173/lobby/ABC234');
+
+// The table page's address: the same rules, with /table in front
+same('a table path', tableCodeFromPath('/table/ABC234'), 'ABC234');
+same('a table path with a trailing slash, lower case and a dash', [tableCodeFromPath('/table/ABC234/'), tableCodeFromPath('/table/abc-234')].join(), 'ABC234,ABC234');
+same('the lobby path is not a table path', tableCodeFromPath('/lobby/ABC234'), null);
+same('and the table path is not a lobby path', codeFromPath(tablePathForCode('ABC234')), null);
+same('a table path with no code, an extra segment, a short code or markup gives nothing', [tableCodeFromPath('/table'), tableCodeFromPath('/table/'), tableCodeFromPath('/table/ABC234/x'), tableCodeFromPath('/table/ABC23'), tableCodeFromPath('/table/%3Cscript%3E'), tableCodeFromPath('/pages/table/index.html'), tableCodeFromPath('/Table/ABC234'), tableCodeFromPath(undefined)].join('|'), '|||||||');
+same('the path for a code', tablePathForCode('ABC234'), '/table/ABC234');
+for (let i = 0; i < 500; i++) {
+  const code = makeTableCode();
+  same(`a generated code ${code} round-trips through the table path`, tableCodeFromPath(tablePathForCode(code)), code);
+}
 
 console.log(`All ${checks} lobby link checks passed.`);

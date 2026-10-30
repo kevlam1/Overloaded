@@ -4,7 +4,8 @@
     { "source": "/lobby", "destination": "/pages/lobby/index.html" },
     { "source": "/lobby/:code", "destination": "/pages/lobby/index.html" },
     { "source": "/deck", "destination": "/pages/deck/index.html" },
-    { "source": "/solo", "destination": "/pages/solo/index.html" }
+    { "source": "/solo", "destination": "/pages/solo/index.html" },
+    { "source": "/table/:code", "destination": "/pages/table/index.html" }
   ],
   "headers": [
     {

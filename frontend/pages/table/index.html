@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Overloaded: table</title>
+    <link rel="icon" href="data:,">
+    <!-- Root-based paths, not ./ ones: this page is served at /table/CODE, where a relative path would point into /table/. -->
+    <link rel="stylesheet" href="/src/style.css">
+  </head>
+  <body>
+    <main>
+      <p class="back"><a id="back" href="/">Back to the lobby</a></p>
+      <h1>Table <span id="code" class="code"></span></h1>
+      <p id="status" class="status" role="status" aria-live="polite"></p>
+      <div id="banner" class="banner" role="status" aria-live="polite" hidden></div>
+      <p id="connection" class="banner" data-level="urgent" role="status" hidden></p>
+
+      <section aria-labelledby="players-heading">
+        <h2 id="players-heading">At the table</h2>
+        <p id="match-state"></p>
+        <ul id="players"></ul>
+      </section>
+    </main>
+
+    <footer>
+      <p>Overloaded is unofficial Fan Content permitted under the Fan Content Policy. Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. &copy;Wizards of the Coast LLC.</p>
+    </footer>
+
+    <script type="module" src="/pages/table/table.js"></script>
+  </body>
+</html>

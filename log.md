@@ -1588,6 +1588,29 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - Left out on purpose: a Start button and the "everyone choose a deck" popup at Start (they belong with the table page), the Game Changers guess, pasting a list inside the lobby (the popup and the picker link to the deck page instead; the seat is kept), and previewing your own deck there.
 - The "Ready" mark is bold after the commander and bracket with no separator; I left it since the bold tells it apart. Say if you want a dash or a different look.
 
+## 78. The Start button and the first table page (2026-10-30)
+
+**What I asked for**
+- After the lobby decks I said to continue. Claude said the table page changes the architecture and was bigger than one step, so it proposed a plan: a Start button and a bare table page first, then the live zones and the opponent view in small steps, with the database rules batched at the end. I chose that plan ("Start button first, then the table page").
+
+**What changed**
+- `frontend/pages/lobby/index.html` and `lobby.js`: a "Start the match" part that only the host sees. The button is off until there are two players and every one is ready, and the note says how many are ready. When the table's status becomes `playing`, everyone in the lobby is taken to `/table/CODE`, which also covers a refresh. `startMatch` already existed in `shared/table-ops.mjs` (it refuses in words unless the host presses it with everyone ready).
+- `frontend/pages/table/index.html` and `table.js` (new): puts a returning member back with `rejoinTable`, keeps the table alive with the same keep-alive and presence code as the lobby, and lists the seats with each player's commander(s) and bracket, "(host)" and the connection note, plus "The match is on". Not a member or a closed table says so. The game itself is not there yet.
+- `shared/lobby-link.mjs`: `tableCodeFromPath` and `tablePathForCode` (`codeFromPath` stays lobby-only on purpose; an old check says `/table/...` gives nothing there). `scripts/test-lobby-link.mjs` now has 2,541 checks.
+- `vercel.json` (rewrite `/table/:code`), `vite.config.js` (the page is a build input, and a small dev-server rule does the same rewrite).
+- Tests: `scripts/check-lobby-deck-live.mjs` is 36 checks (9 new: Start waits, only the host sees it, it turns on, both browsers move to the table page, both seats are listed, the database says `playing` with the one-hour idle limit, a refresh keeps Bob at the table); `scripts/check-deploy-config.mjs` is 56 checks (two new for `/table/CODE`); `scripts/check-lobby-ui.mjs` expects the extra heading.
+
+**What I checked**
+- `npm run test:live`: all suites passed except the lobby page check, which failed because it counts headings and my Start section added an h3. I fixed the expectation and reran it (58 of 58). I did not rerun the whole `test:live` after that one-line change; the other 38 suites had passed in that run.
+- I looked at desktop screenshots of the Start section and of Bob's table page, then deleted them. Phone width is not checked (on hold).
+- Broken copy: with the `/table/:code` rewrite removed from `vercel.json`, the deploy check fails on the new table check, and the file was restored identical.
+- Not checked: the deployed site (nothing is pushed), and what two players see if the host starts while someone has the lobby page in a background tab (it redirects when the tab next runs).
+
+**Decisions**
+- Claude's first version of the table page used `./table.js`, which the page's own address `/table/CODE` turns into `/table/table.js`; the dev rewrite then served HTML as a script and the first live run failed (Alice reached the page, Bob's lists were empty). Production builds use root-based paths so only the dev server showed it. The table page now uses root-based paths, and the live check caught the problem, which is what it is for.
+- "Back to the lobby" on the table page while the match is on leads straight back to the table, because the lobby sends everyone at a playing table there. There is no leave or concede button yet.
+- Next: the game on the table page (your own zones from `shared/zones.mjs`, hand and library in `private/`, the rest in `public/`, small writes per move), then the opponent view. The rules batch (zone size limits, the `lastSeen` deletion, `meta/format`) waits until the data shapes are settled.
+
 ---
 
 ## Where AI misread me, or I had to correct course

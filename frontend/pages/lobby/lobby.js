@@ -1,12 +1,12 @@
 // The lobby page: make a table or join one by code. All database calls live in ../../src/db.js.
-import { createTable, joinTable, rejoinTable, findMyTable, watchMembers, heartbeat, watchActivity, watchMeta, watchServerOffset, startPresence, watchPresence, watchConnection, takeOverHost, setDeck, setReady, clearReady } from '../../src/db.js';
+import { createTable, joinTable, rejoinTable, findMyTable, watchMembers, heartbeat, watchActivity, watchMeta, watchServerOffset, startPresence, watchPresence, watchConnection, takeOverHost, setDeck, setReady, clearReady, startMatch } from '../../src/db.js';
 import { presenceStatus, presenceText, ownConnectionText, hostIsGone } from '../../../shared/presence.mjs';
 import { startKeepAlive } from '../../src/keep-alive.js';
 import { makeSafeStore } from '../../src/safe-store.js';
 import { normalizeCode, isValidCode } from '../../../shared/table-code.mjs';
 import { cleanPlayerName } from '../../../shared/player-name.mjs';
 import { friendlyMessage } from '../../../shared/friendly-error.mjs';
-import { codeFromPath, linkForCode } from '../../../shared/lobby-link.mjs';
+import { codeFromPath, linkForCode, tablePathForCode } from '../../../shared/lobby-link.mjs';
 import { readFormat, formatTitle, FORMATS } from '../../../shared/formats.mjs';
 import { LIBRARY_KEY, LEGACY_KEY, readLibrary, decksOfFormat } from '../../../shared/deck-library.mjs';
 import { deckFieldsOf, defaultDeckFor, deckChoiceLabel, isReady, seatDeckText } from '../../../shared/lobby-deck.mjs';
@@ -111,6 +111,22 @@ function renderPlayers() {
   $('take-over').hidden = !canTakeOver;
   $('take-over-note').hidden = !canTakeOver;
   $('ready').textContent = isReady(currentMembers[myUid], currentMeta) ? 'Not ready' : 'Ready';
+  renderStart();
+}
+
+// Only the host starts the match, and only when there are at least two players and every one of them is ready (the flow's
+// own rule in shared/table-ops.mjs, which refuses in words otherwise; the button just says why it waits).
+function renderStart() {
+  const isHost = Boolean(myUid) && currentHost === myUid && myUid in currentMembers;
+  $('start-box').hidden = !isHost;
+  if (!isHost) return;
+  const everyone = Object.values(currentMembers);
+  const ready = everyone.filter((member) => isReady(member, currentMeta)).length;
+  const canStart = everyone.length >= 2 && ready === everyone.length;
+  $('start').disabled = !canStart;
+  $('start-note').textContent = everyone.length < 2
+    ? 'You need at least two players to start.'
+    : canStart ? 'Everyone is ready. Press Start.' : `${ready} of ${everyone.length} players are ready. The match can start when everyone is.`;
 }
 
 function stopPresenceParts() {
@@ -121,6 +137,7 @@ function stopPresenceParts() {
   $('connection').hidden = true;
   $('take-over').hidden = true;
   $('take-over-note').hidden = true;
+  $('start-box').hidden = true;
 }
 
 function startPresenceParts(code, uid) {
@@ -134,6 +151,8 @@ function startPresenceParts(code, uid) {
     $('table-format').textContent = formatTitle(meta?.format); // text, never markup: another client could have written any string
     renderPlayers();
     if (formatChanged || restoredFor !== currentCode) refreshDeckPicker();
+    // Once the match is on, everyone at the table is taken to the table page (the host's Start and a refresh both end up here).
+    if (meta?.status === 'playing' && currentCode) location.assign(tablePathForCode(currentCode));
   });
   stopPresence = startPresence(code, { onProblem: () => {} });
   stopPresenceWatch = watchPresence(code, (presence) => { if (presence) { currentPresence = presence; renderPlayers(); } });
@@ -252,6 +271,11 @@ $('ready').addEventListener('click', () => run(async () => {
   if (!chosenDeckId) { openDeckDialog(); return; }
   await setReady(currentCode);
   say('You are ready.');
+}));
+
+$('start').addEventListener('click', () => run(async () => {
+  say('Starting the match...');
+  await startMatch(currentCode); // the table's status changes, and watchMeta above takes everyone to the table page
 }));
 
 // A deck may be imported in another tab while this one is open: look again when this tab comes back.

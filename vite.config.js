@@ -36,8 +36,18 @@ export default defineConfig(({ command, mode }) => {
       outDir: '../dist',
       emptyOutDir: true,
       rollupOptions: {
-        input: { lobby: page('./frontend/pages/lobby/index.html'), deck: page('./frontend/pages/deck/index.html'), solo: page('./frontend/pages/solo/index.html') },
+        input: { lobby: page('./frontend/pages/lobby/index.html'), deck: page('./frontend/pages/deck/index.html'), solo: page('./frontend/pages/solo/index.html'), table: page('./frontend/pages/table/index.html') },
       },
     },
+    plugins: [{
+      // On Vercel /table/CODE is rewritten to the table page (vercel.json); the dev server needs the same rule.
+      name: 'overloaded-dev-rewrites',
+      configureServer(server) {
+        server.middlewares.use((request, _response, next) => {
+          if (/^\/table\/[^/?#]+\/?(\?|#|$)/.test(request.url ?? '')) request.url = '/pages/table/index.html';
+          next();
+        });
+      },
+    }],
   };
 });

@@ -164,6 +164,30 @@ try {
   const unready = await waitFor(async () => (!(await row(alice, 'Alice')).includes('Ready') ? true : null), 10000, 200);
   record('Not ready takes the mark back', Boolean(unready) && (await readyText(alice)) === 'Ready');
 
+  // Start: only the host sees it, it waits until everyone is ready, and then both browsers are taken to the table page.
+  const startState = (browser) => browser.eval(`({ boxHidden: document.getElementById('start-box').hidden, disabled: document.getElementById('start').disabled, note: document.getElementById('start-note').textContent })`);
+  const early = await startState(alice);
+  record('the host sees a Start button that waits, and says how many are ready', !early.boxHidden && early.disabled && /1 of 2 players are ready/.test(early.note), JSON.stringify(early));
+  record('the other player sees no Start button', (await startState(bob)).boxHidden);
+  await click(alice, 'ready');
+  const enabled = await waitFor(async () => { const s = await startState(alice); return !s.disabled ? s : null; }, 10000, 200);
+  record('once everyone is ready the Start button turns on and says so', Boolean(enabled) && /Everyone is ready/.test(enabled.note), JSON.stringify(enabled));
+  await click(alice, 'start');
+  const onTable = (browser) => waitFor(async () => (new RegExp(`^/table/${code}$`).test(await browser.eval('location.pathname')) ? true : null), 20000, 200);
+  record("Alice's browser is taken to the table page when the match starts", Boolean(await onTable(alice)));
+  record("Bob's browser is taken there too, without pressing anything", Boolean(await onTable(bob)));
+  const tableRows = (browser) => waitFor(async () => { const r = await players(browser); return r.length === 2 && r.some((t) => t.includes('Seat 1: Alice (host)')) ? r : null; }, 20000, 200);
+  const bobTable = await tableRows(bob);
+  record("Bob's table page lists both seats, with Alice's commanders and no ready marks", Boolean(bobTable) && bobTable.some((t) => t.includes('Tymna the Weaver & Thrasios, Triton Hero')) && bobTable.some((t) => t.includes('Seat 2: Bob, Ezuri, Renegade Leader, bracket 2')), JSON.stringify(bobTable));
+  record('and says the match is on', /The match is on/.test(await text(bob, 'match-state')), await text(bob, 'match-state'));
+  await tableRows(alice);
+  const meta = (await rest('GET', `tables/${code}/meta`, cleanup.alice.token)).json;
+  record('the database says the table is playing, with the one-hour idle limit', meta?.status === 'playing' && meta.idleLimit === 3600000, JSON.stringify(meta));
+  if (process.argv.includes('--screenshot')) { await sleep(300); await bob.screenshot('scratch-table-page.png'); }
+  await bob.goto(`http://127.0.0.1:${PORT}/table/${code}`); // a refresh puts a player back at the table
+  const afterRefresh2 = await tableRows(bob);
+  record('a refresh of the table page keeps Bob at the table', Boolean(afterRefresh2));
+
   record('no page errors on either page', !alice.logs.some((l) => /^exception:/.test(l)) && !bob.logs.some((l) => /^exception:/.test(l)), [...alice.logs, ...bob.logs].filter((l) => /^exception:/.test(l)).join(' | '));
 } catch (error) {
   record('the check script itself ran without an error', false, error.message); exitCode = 1;
