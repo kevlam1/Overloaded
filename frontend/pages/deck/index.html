@@ -52,16 +52,16 @@
 
         <div id="sections"></div>
 
+        <div class="field format-field">
+          <label for="deck-format">Format</label>
+          <select id="deck-format" name="deck-format">
+            <option value="commander">Commander</option>
+            <option value="standard">Standard</option>
+          </select>
+        </div>
+
         <fieldset id="commander-box">
           <legend>Commander</legend>
-          <div class="choice">
-            <input id="mode-commander" type="radio" name="mode" value="commander">
-            <label for="mode-commander">This deck has a commander</label>
-          </div>
-          <div class="choice">
-            <input id="mode-none" type="radio" name="mode" value="none">
-            <label for="mode-none">No commander (a 60-card deck, for example)</label>
-          </div>
           <div class="field">
             <label for="commander-1">Commander</label>
             <select id="commander-1" name="commander-1"></select>
@@ -77,13 +77,6 @@
           <div class="field">
             <label for="deck-name">Deck name</label>
             <input id="deck-name" name="deck-name" type="text" maxlength="60" autocomplete="off" spellcheck="false">
-          </div>
-          <div class="field">
-            <label for="deck-format">Format</label>
-            <select id="deck-format" name="deck-format">
-              <option value="commander">Commander</option>
-              <option value="standard">Standard</option>
-            </select>
           </div>
           <div class="choice" id="missing-box" hidden>
             <input id="allow-missing" type="checkbox">

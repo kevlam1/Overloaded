@@ -208,3 +208,6 @@ main.table { max-width: 80rem; }
 .saved-deck:last-child { border-bottom: 0; }
 .saved-text { flex: 1 1 22rem; }
 .saved-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+
+/* The Format choice on the deck page sits right under the list of cards, so it gets some room above it. */
+.format-field { margin-top: 1.25rem; }

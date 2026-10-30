@@ -99,8 +99,8 @@ try {
       problemsHidden: document.getElementById('problems').hidden,
       commander: document.getElementById('commander-1').selectedOptions[0]?.textContent ?? '',
       commanderOptions: document.getElementById('commander-1').options.length,
-      mode: document.getElementById('mode-commander').checked ? 'commander' : 'none',
-      selectsDisabled: document.getElementById('commander-1').disabled,
+      mode: document.getElementById('deck-format').value === 'commander' ? 'commander' : 'none',
+      boxHidden: document.getElementById('commander-box').hidden,
       note: document.getElementById('commander-note').textContent,
       focus: document.activeElement?.id, saveDisabled: document.getElementById('save').disabled,
     }))()`);
@@ -108,8 +108,8 @@ try {
     check(`${label}: sections ${expect.headings.join(' and ')}`, JSON.stringify(view.headings) === JSON.stringify(expect.headings), JSON.stringify(view.headings));
     check(`${label}: one line per card, 10 lines`, view.lines === 10, String(view.lines));
     check(`${label}: the guessed commander is Eowyn`, /^Éowyn, Lady of Rohan$/.test(view.commander), view.commander);
-    check(`${label}: ${expect.mode === 'commander' ? 'commander mode is on' : 'no-commander mode is on'} (and the pickers ${expect.mode === 'commander' ? 'are usable' : 'are greyed out'})`, view.mode === expect.mode && view.selectsDisabled === (expect.mode === 'none'), `${view.mode} ${view.selectsDisabled}`);
-    check(`${label}: ${expect.noteWords ? 'the note explains the guess' : 'no note while commander mode is off'}`, expect.noteWords ? expect.noteWords.test(view.note) : view.note === '', view.note);
+    check(`${label}: the format is ${expect.mode === 'commander' ? 'Commander and the commander pickers are shown' : 'Standard and the commander pickers are hidden'}`, view.mode === expect.mode && view.boxHidden === (expect.mode === 'none'), `${view.mode} ${view.boxHidden}`);
+    check(`${label}: ${expect.noteWords ? 'the note explains the guess' : 'no note while the format is Standard'}`, expect.noteWords ? expect.noteWords.test(view.note) : view.note === '', view.note);
     check(`${label}: focus moves to the deck heading`, view.focus === 'preview-heading', String(view.focus));
     check(`${label}: it can be saved`, !view.saveDisabled);
   };
@@ -117,14 +117,28 @@ try {
   await checkExport('Moxfield plain text', MOXFIELD_PLAIN, { headings: ['Main deck: 17', 'Sideboard: 1', 'Cards after a blank line (no label): 1'], mode: 'commander', noteWords: /after a blank line/ });
   await checkExport('Archidekt text', ARCHIDEKT, { headings: ['Main deck: 19'], mode: 'none' });
 
-  // ---- turning the commander on: the note explains the guess ----
+  // ---- the format decides whether there is a commander: Commander shows the pickers (with a guess), Standard hides them ----
+  const setFormatInPage = (value) => ev(`(() => { const f = document.getElementById('deck-format'); f.value = ${JSON.stringify(value)}; f.dispatchEvent(new Event('change')); })()`);
   await load(); await paste(MOXFIELD_FOR_MOXFIELD); await press('check');
-  await ev(`document.getElementById('mode-commander').click()`);
-  check('turning the commander on enables the pickers and explains the guess', !(await ev(`document.getElementById('commander-1').disabled`)) && /A guess: the first legendary creature/.test(await $text('commander-note')));
-  const optionNames = await ev(`Array.from(document.getElementById('commander-1').options).map((o) => o.textContent)`);
-  check('the commander list has each card once, 10 cards', optionNames.length === 10 && new Set(optionNames).size === 10, JSON.stringify(optionNames));
-  check('and is sorted for people to read, with the accented name under E', optionNames.every((n, i) => i === 0 || optionNames[i - 1].localeCompare(n, 'en') <= 0) && optionNames.indexOf('Éowyn, Lady of Rohan') < optionNames.indexOf('Fire // Ice'), JSON.stringify(optionNames));
-  check('the partner list starts with "No partner"', (await ev(`document.getElementById('commander-2').options[0].textContent`)) === 'No partner' && (await ev(`document.getElementById('commander-2').value`)) === '');
+  check('the old "has a commander" radio buttons are gone: the format choice does that job', await ev(`document.getElementById('mode-commander') === null && document.getElementById('mode-none') === null`));
+  check('the format choice comes before the commander pickers on the page', await ev(`Boolean(document.getElementById('deck-format').compareDocumentPosition(document.getElementById('commander-box')) & Node.DOCUMENT_POSITION_FOLLOWING)`));
+  check('a list that does not look like Commander starts as Standard, with the pickers hidden', (await ev(`document.getElementById('deck-format').value`)) === 'standard' && (await ev(`document.getElementById('commander-box').hidden`)));
+  await setFormatInPage('commander');
+  check('choosing Commander shows the pickers and says plainly that no commander is marked and what was picked', !(await ev(`document.getElementById('commander-box').hidden`)) && /^No commander is marked in your list, so we picked the first legendary creature\. Change it if it is wrong\.$/.test(await $text('commander-note')), await $text('commander-note'));
+  const commanderGroups = await ev(`Array.from(document.getElementById('commander-1').querySelectorAll('optgroup')).map((g) => ({ label: g.label, names: Array.from(g.children).map((o) => o.textContent) }))`);
+  const groupedNames = commanderGroups.flatMap((g) => g.names);
+  check('the commander list has two groups, the likely commanders first and then every other card', commanderGroups.length === 2 && commanderGroups[0].label === 'Likely commanders' && commanderGroups[1].label === 'Other cards', JSON.stringify(commanderGroups.map((g) => g.label)));
+  check('each card is in the list once, 10 cards', groupedNames.length === 10 && new Set(groupedNames).size === 10, JSON.stringify(groupedNames));
+  check('the likely commanders are the legendary creatures, and the guess is one of them', commanderGroups[0].names.includes('Éowyn, Lady of Rohan') && (await ev(`document.getElementById('commander-1').selectedOptions[0].textContent`)) === 'Éowyn, Lady of Rohan', JSON.stringify(commanderGroups[0].names));
+  check('each group is sorted for people to read, accented names under their letter', commanderGroups.every((g) => g.names.every((n, i) => i === 0 || g.names[i - 1].localeCompare(n, 'en') <= 0)), JSON.stringify(commanderGroups));
+  check('the partner list starts with "No partner" and then has the same two groups', (await ev(`document.getElementById('commander-2').options[0].textContent`)) === 'No partner' && (await ev(`document.getElementById('commander-2').value`)) === '' && (await ev(`document.getElementById('commander-2').querySelectorAll('optgroup').length`)) === 2);
+  await setFormatInPage('standard');
+  check('choosing Standard hides the pickers and clears the note', (await ev(`document.getElementById('commander-box').hidden`)) && (await $text('commander-note')) === '');
+  // A list with no legendary creature: the guess is the first card, there is only one group, and the note says so.
+  await load(); await paste('1 Sol Ring\n1 Island'); await press('check');
+  await setFormatInPage('commander');
+  check('with no commander marked and no legendary creature the note says the first card was picked', /^No commander is marked in your list, so we picked the first card\. Change it if it is wrong\.$/.test(await $text('commander-note')), await $text('commander-note'));
+  check('and with no likely commanders the list is one group of all the cards', JSON.stringify(await ev(`Array.from(document.getElementById('commander-1').querySelectorAll('optgroup')).map((g) => g.label)`)) === '["All cards"]');
 
   // ---- problems: not found, ambiguous, a "did you mean" ----
   await load();
@@ -278,7 +292,10 @@ try {
   check('and saves it as a Commander deck', lib.decks.length === 3 && lib.decks[2].format === 'commander' && lib.decks[2].deck.commander.length === 1, JSON.stringify(lib.decks.map((d) => d.format)));
   await setField('deck-format', 'standard'); await setField('deck-name', 'Deck D'); await press('save');
   lib = await library();
-  check('the player can choose the format, whatever the deck has', lib.decks.length === 4 && lib.decks[3].format === 'standard' && lib.decks[3].deck.commander.length === 1, JSON.stringify(lib.decks.map((d) => d.format)));
+  check('choosing Standard hides the commander and saves the deck for Standard with no commander', lib.decks.length === 4 && lib.decks[3].format === 'standard' && lib.decks[3].deck.commander.length === 0 && lib.decks[3].deck.cards.every((c) => c.section !== 'commander'), JSON.stringify(lib.decks.map((d) => [d.format, d.deck.commander.length])));
+  await setField('deck-format', 'commander'); // start from Commander, so loading the Standard deck has to switch the page back
+  await pressLoad(3);
+  check('loading that Standard deck (its list marks a commander) brings back Standard with the commander pickers hidden', (await ev(`document.getElementById('deck-format').value`)) === 'standard' && (await ev(`document.getElementById('commander-box').hidden`)));
   list = await rows();
   await clickSaved('delete', list.length - 1);
   lib = await library();
@@ -334,7 +351,7 @@ try {
   check('as one commander and 99 cards in the main deck', sampleHeadings.includes('Commander: 1') && sampleHeadings.includes('Main deck: 99'), JSON.stringify(sampleHeadings));
   const sampleRows = await rowsOf();
   check('all 85 lines show the exact printing the list names (the printing files cover them)', sampleRows.length === 85 && sampleRows.every((row) => row.source === 'set'), `${sampleRows.length} rows; not exact: ${sampleRows.filter((row) => row.source !== 'set').map((row) => row.name).join(', ')}`);
-  check('the commander is Krenko, Mob Boss, marked by the list, and the format is Commander', (await ev(`document.getElementById('mode-commander').checked`)) && (await ev(`document.getElementById('commander-1').selectedOptions[0].textContent`)) === 'Krenko, Mob Boss' && (await ev(`document.getElementById('deck-format').value`)) === 'commander' && /Your list marks this card as the commander/.test(await $text('commander-note')));
+  check('the commander is Krenko, Mob Boss, marked by the list, and the format is Commander', !(await ev(`document.getElementById('commander-box').hidden`)) && (await ev(`document.getElementById('commander-1').selectedOptions[0].textContent`)) === 'Krenko, Mob Boss' && (await ev(`document.getElementById('deck-format').value`)) === 'commander' && /Your list marks this card as the commander/.test(await $text('commander-note')));
   check('the deck name is filled in', (await ev(`document.getElementById('deck-name').value`)) === 'Krenko, Mob Boss (sample)');
   check('loading the sample saved nothing', (await savedCount()) === 0);
   await press('save');
@@ -369,6 +386,9 @@ try {
   await deleteAllSaved();
 
   // ---- hovering a card in the checked list shows its picture (the titled deck above is still on the page) ----
+  // The checks below scroll rows to the top and the bottom of the window, which needs a page taller than the window. The page under
+  // the list got shorter (no radio buttons), so a spacer keeps these checks about the picture box and not about the page height.
+  await ev(`(() => { const spacer = document.createElement('div'); spacer.id = 'test-spacer'; spacer.style.height = '1500px'; document.body.append(spacer); })()`);
   const peek = () => ev(`(() => { const p = document.getElementById('card-peek'); const i = document.getElementById('card-peek-image'); const r = p.getBoundingClientRect(); return { hidden: p.hidden, src: i.getAttribute('src'), imageHidden: i.hidden, note: document.getElementById('card-peek-note').textContent, left: r.left, right: r.right, top: r.top, bottom: r.bottom, w: innerWidth, h: innerHeight, pointerEvents: getComputedStyle(p).pointerEvents }; })()`);
   // Scrolls the row into the middle and waits two frames, so the scroll event (which hides the box) has come BEFORE the pointer moves.
   const rowFacts = (index, block = 'center') => ev(`new Promise((resolve) => { const row = document.querySelectorAll('#sections .card-line')[${index}]; row.scrollIntoView({ block: ${JSON.stringify(block)} }); requestAnimationFrame(() => requestAnimationFrame(() => resolve({ id: row.dataset.cardId ?? null, name: row.dataset.cardName ?? null }))); })`);
@@ -495,7 +515,7 @@ try {
   // ---- an export shaped like a real one: main deck (one card under another title), SIDEBOARD:, commander named last ----
   await load();
   await paste(`1 Sol Ring\n1 Weirding Wood\n1 Yavimaya Dryad\n1 ${katakana}\n10 Forest\n\nSIDEBOARD:\n1 Annul\n1 Swords to Plowshares\n\nCommander\n1 Kyodai, Soul of Kamigawa`); await press('check');
-  const sideShape = await ev(`({ headings: Array.from(document.querySelectorAll('#sections h3')).map((h) => h.textContent), problems: !document.getElementById('problems').hidden, commanderOn: document.getElementById('mode-commander').checked, note: document.getElementById('commander-note').textContent, side: Array.from(document.querySelectorAll('#sections ul')).map((ul) => Array.from(ul.querySelectorAll('.name')).map((n) => n.textContent)) })`);
+  const sideShape = await ev(`({ headings: Array.from(document.querySelectorAll('#sections h3')).map((h) => h.textContent), problems: !document.getElementById('problems').hidden, commanderOn: document.getElementById('deck-format').value === 'commander', note: document.getElementById('commander-note').textContent, side: Array.from(document.querySelectorAll('#sections ul')).map((ul) => Array.from(ul.querySelectorAll('.name')).map((n) => n.textContent)) })`);
   check('the sections are Commander 1, Main deck 14 and Sideboard 2, with nothing needing attention', JSON.stringify(sideShape.headings) === JSON.stringify(['Commander: 1', 'Main deck: 14', 'Sideboard: 2']) && !sideShape.problems, JSON.stringify(sideShape));
   check('the sideboard lists its two cards and the main deck has the title match', sideShape.side[2].join('|') === 'Annul|Swords to Plowshares' && sideShape.side[1].some((t) => t === `Arcane Denial (typed as "${katakana}")`), JSON.stringify(sideShape.side));
   check('the commander named last is marked as the commander (turned on, and says it was marked)', sideShape.commanderOn && /Kyodai/.test(await ev(`document.getElementById('commander-1').selectedOptions[0].textContent`)), sideShape.note);

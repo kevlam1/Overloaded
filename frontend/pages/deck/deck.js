@@ -3,7 +3,7 @@
 // only reads the form and draws the result. Everything typed or pasted is put into the page as text, never as markup.
 import { buildCardIndex, matchDeck } from '../../../shared/card-match.mjs';
 import { parseDeckText } from '../../../shared/deck-text.mjs';
-import { makePreview, buildSavedDeck, printingSetsNeeded, PRINTING_PROBLEM_WORDS } from '../../../shared/deck-preview.mjs';
+import { makePreview, buildSavedDeck, printingSetsNeeded, isLegendaryCreature, PRINTING_PROBLEM_WORDS } from '../../../shared/deck-preview.mjs';
 import { LIBRARY_KEY, LEGACY_KEY, FORMAT_TITLES, emptyLibrary, readLibrary, serializeLibrary, addDeck, removeDeck, selectDeck } from '../../../shared/deck-library.mjs';
 import { makeSafeStore } from '../../src/safe-store.js';
 import { loadCardList } from '../../src/card-list.js';
@@ -20,8 +20,6 @@ let index = null; // the card list, ready to match against
 let text = ''; // the text the preview on screen is for
 let choices = {}; // names the player settled (an ambiguous name, a "did you mean")
 let preview = null;
-let mode = 'none'; // 'commander' or 'none'
-let modeTouched = false;
 let picks = ['', '']; // the chosen commander and partner (card ids)
 let picksTouched = false;
 let library = emptyLibrary(); // the saved decks
@@ -81,8 +79,7 @@ async function useSample(id) {
   $('deck-name').value = sample.name;
   await runCheck();
   if (!preview || $('deck-text').value !== sample.text) return; // another check came in while the printings loaded
-  $('deck-format').value = sample.format;
-  formatTouched = true;
+  setFormat(sample.format);
 }
 
 // ---- checking a pasted list ----
@@ -91,7 +88,7 @@ async function useSample(id) {
 async function runCheck() {
   if (!index) return;
   const pasted = $('deck-text').value;
-  if (pasted !== text) { choices = {}; modeTouched = false; picksTouched = false; formatTouched = false; }
+  if (pasted !== text) { choices = {}; picksTouched = false; formatTouched = false; }
   text = pasted;
   const run = ++checkRun;
   if (!text.trim()) { say('Paste a decklist first.', true); $('preview').hidden = true; preview = null; return; }
@@ -216,30 +213,49 @@ function renderSections() {
 const CERTAINTY_NOTES = {
   marked: 'Your list marks this card as the commander.',
   unlabeled: 'This card came after a blank line, which is where Moxfield puts the commander. Please check it.',
-  legendary: 'A guess: the first legendary creature in your main deck. Please check it.',
-  first: 'A guess: the first card in your main deck. Please check it.',
+  legendary: 'No commander is marked in your list, so we picked the first legendary creature. Change it if it is wrong.',
+  first: 'No commander is marked in your list, so we picked the first card. Change it if it is wrong.',
 };
+
+// Commander or not is the format choice: Commander shows the commander pickers, Standard hides them and the deck has no commander.
+const isCommander = () => $('deck-format').value === 'commander';
+
+function setFormat(value) {
+  $('deck-format').value = value;
+  formatTouched = true; // the player (or a loaded deck) chose it, so it no longer follows the guess
+  renderCommander();
+}
 
 function renderCommander() {
   if (!preview) return; // nothing is checked yet (or the list was cleared), so there is nobody to choose from
   const seen = new Set();
-  const options = preview.lines
+  const lines = preview.lines
     .filter((line) => line.status === 'matched' && line.section !== 'maybeboard' && !seen.has(line.card.i) && seen.add(line.card.i))
     .sort((a, b) => a.name.localeCompare(b.name, 'en')); // for people to read: accented names sort with their letter
-  $('commander-box').hidden = options.length === 0;
+  // The likely commanders (legendary creatures) first, then every other card, each group sorted by name.
+  const likely = lines.filter((line) => isLegendaryCreature(line.card));
+  const ordered = [...likely, ...lines.filter((line) => !isLegendaryCreature(line.card))];
+  const groups = () => {
+    const group = (label, list) => {
+      const element = document.createElement('optgroup');
+      element.label = label;
+      element.append(...list.map((line) => new Option(line.name, line.card.i)));
+      return element;
+    };
+    const others = ordered.slice(likely.length);
+    return [likely.length ? group('Likely commanders', likely) : null, others.length ? group(likely.length ? 'Other cards' : 'All cards', others) : null].filter(Boolean);
+  };
+  if (!formatTouched) $('deck-format').value = preview.commander.looksLikeCommander ? 'commander' : 'standard';
+  const commander = isCommander();
+  $('commander-box').hidden = !commander || lines.length === 0;
   const first = $('commander-1');
   const second = $('commander-2');
-  first.replaceChildren(...options.map((line) => new Option(line.name, line.card.i)));
-  second.replaceChildren(new Option('No partner', ''), ...options.map((line) => new Option(line.name, line.card.i)));
-  if (!modeTouched) mode = preview.commander.looksLikeCommander ? 'commander' : 'none';
-  if (!formatTouched) $('deck-format').value = mode === 'commander' ? 'commander' : 'standard';
+  first.replaceChildren(...groups());
+  second.replaceChildren(new Option('No partner', ''), ...groups());
   if (!picksTouched) picks = [preview.commander.ids[0] ?? '', preview.commander.ids[1] ?? ''];
-  first.value = options.some((line) => line.card.i === picks[0]) ? picks[0] : (options[0]?.card.i ?? '');
-  second.value = options.some((line) => line.card.i === picks[1]) ? picks[1] : '';
-  $('mode-commander').checked = mode === 'commander';
-  $('mode-none').checked = mode === 'none';
-  first.disabled = second.disabled = mode === 'none';
-  $('commander-note').textContent = mode === 'commander' ? (CERTAINTY_NOTES[preview.commander.certainty] ?? '') : '';
+  first.value = ordered.some((line) => line.card.i === picks[0]) ? picks[0] : (ordered[0]?.card.i ?? '');
+  second.value = ordered.some((line) => line.card.i === picks[1]) ? picks[1] : '';
+  $('commander-note').textContent = commander ? (CERTAINTY_NOTES[preview.commander.certainty] ?? '') : '';
 }
 
 function renderSaveBox() {
@@ -319,20 +335,16 @@ async function loadSaved(id) {
   $('deck-text').value = deck.text;
   await runCheck();
   if (!preview || $('deck-text').value !== deck.text) return; // another check came in while the printings loaded
-  mode = deck.commander.length ? 'commander' : 'none';
-  modeTouched = true;
   picks = [deck.commander[0] ?? '', deck.commander[1] ?? ''];
   picksTouched = true;
-  renderCommander();
   $('deck-name').value = deck.name;
-  $('deck-format').value = entry.format;
-  formatTouched = true;
+  setFormat(entry.format);
   say(`Loaded "${deck.name}".`);
 }
 
 function save() {
   if (!preview) return;
-  const ids = mode === 'commander' ? [$('commander-1').value, $('commander-2').value].filter(Boolean) : [];
+  const ids = isCommander() ? [$('commander-1').value, $('commander-2').value].filter(Boolean) : [];
   const result = buildSavedDeck(preview, { name: $('deck-name').value, text, commanderIds: ids, allowMissing: $('allow-missing').checked });
   if (!result.ok) { say(result.error, true); return; }
   const added = addDeck(library, result.deck, { format: $('deck-format').value });
@@ -346,19 +358,17 @@ $('retry').addEventListener('click', loadCards);
 $('sample').addEventListener('click', () => useSample());
 $('clear').addEventListener('click', () => {
   $('deck-text').value = '';
-  text = ''; choices = {}; preview = null; modeTouched = false; picksTouched = false; formatTouched = false;
+  text = ''; choices = {}; preview = null; picksTouched = false; formatTouched = false;
   checkRun++; // a check still waiting for printing files must not bring the preview back
   $('preview').hidden = true;
   say('');
   $('deck-text').focus();
 });
 $('deck-text').addEventListener('keydown', (event) => { if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) runCheck(); });
-$('mode-commander').addEventListener('change', () => { mode = 'commander'; modeTouched = true; renderCommander(); });
-$('mode-none').addEventListener('change', () => { mode = 'none'; modeTouched = true; renderCommander(); });
 $('commander-1').addEventListener('change', () => { picks[0] = $('commander-1').value; picksTouched = true; });
 $('commander-2').addEventListener('change', () => { picks[1] = $('commander-2').value; picksTouched = true; });
 $('save').addEventListener('click', save);
-$('deck-format').addEventListener('change', () => { formatTouched = true; });
+$('deck-format').addEventListener('change', () => { formatTouched = true; renderCommander(); });
 // The buttons of each saved deck, found by delegation so the list can be drawn again without wiring anything.
 $('saved-list').addEventListener('click', (event) => {
   const button = event.target instanceof Element ? event.target.closest('button[data-action]') : null;
