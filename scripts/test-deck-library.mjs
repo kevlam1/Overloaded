@@ -154,4 +154,28 @@ check('each call gives a new empty library', emptyLibrary() !== emptyLibrary());
   })());
 }
 
+// ---- the bracket (optional, 1 to 5, kept next to the format) ----
+{
+  const withBracket = (value) => addDeck(emptyLibrary(), deckOf('Brackets', { commander: true }), { bracket: value, newId: counter() });
+  check('a deck saved with no bracket has no bracket field at all', !('bracket' in addDeck(emptyLibrary(), deckOf('Plain'), { newId: counter() }).library.decks[0]));
+  check('an explicit null bracket is the same as none', !('bracket' in withBracket(null).library.decks[0]));
+  check('brackets 1 to 5 are saved as given', [1, 2, 3, 4, 5].every((n) => withBracket(n).ok && withBracket(n).library.decks[0].bracket === n));
+  check('a bracket that is not 1 to 5 is refused in words', [0, 6, 2.5, -1, '3', true, NaN, Infinity, {}, []].every((n) => { const r = withBracket(n); return !r.ok && /bracket/i.test(r.error); }));
+  check('a refused bracket saves nothing', (() => { const lib = libraryOf(deckOf('Alpha')); const r = addDeck(lib, deckOf('Beta'), { bracket: 9 }); return !r.ok && lib.decks.length === 1; })());
+  const one = libraryOf(deckOf('Alpha', { commander: true }));
+  same('saving the same name again replaces the bracket', addDeck(addDeck(one, deckOf('Alpha', { commander: true }), { bracket: 4 }).library, deckOf('alpha', { commander: true }), { bracket: 2 }).library.decks.map((e) => e.bracket), [2]);
+  check('saving it again with no bracket takes the bracket away', !('bracket' in addDeck(addDeck(one, deckOf('Alpha', { commander: true }), { bracket: 4 }).library, deckOf('Alpha', { commander: true })).library.decks[0]));
+  const lib = addDeck(addDeck(emptyLibrary(), deckOf('A', { commander: true }), { bracket: 3, newId: counter() }).library, deckOf('B'), { newId: counter(5) }).library;
+  const read = readLibrary(serializeLibrary(lib));
+  same('a bracket reads back exactly as saved, and a deck without one stays without', [read.library, read.skipped], [lib, 0]);
+  check('a deck stored without a bracket reads back without the field, not with an empty one', !('bracket' in read.library.decks[1]) && 'bracket' in read.library.decks[0]);
+  const good = JSON.parse(serializeLibrary(lib));
+  for (const [label, value] of [['0', 0], ['6', 6], ['2.5', 2.5], ['text', '3'], ['true', true], ['null', null], ['a list', [3]], ['an object', {}]]) {
+    const hand = JSON.parse(serializeLibrary(lib)); hand.decks[0].bracket = value;
+    const result = readLibrary(JSON.stringify(hand));
+    check(`a stored bracket of ${label} drops that deck and keeps the other`, result.skipped === 1 && result.library.decks.length === 1 && result.library.decks[0].deck.name === 'B', `${result.skipped} ${result.library.decks.length}`);
+  }
+  check('the bracket does not change the deck inside it', JSON.stringify(read.library.decks[0].deck) === JSON.stringify(good.decks[0].deck));
+}
+
 console.log(`All ${checks} deck library checks passed.`);

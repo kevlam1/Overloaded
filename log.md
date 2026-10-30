@@ -1546,6 +1546,27 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 **Decisions**
 - The `lastSeen` fix and the question about `meta/format` wait for the next rules change, so one mutation run and one paste cover them together. I lean towards leaving `meta/format` open.
 
+## 76. A bracket on each saved deck (2026-10-30)
+
+**What I asked for**
+- I told Claude to continue with step 3 of the lobby deck fields, starting with part 1: choosing a bracket when saving a deck. The Game Changers guess and the lobby come later.
+
+**What changed**
+- `shared/deck-library.mjs`: a saved-deck entry may have a `bracket` (1 to 5, the same list as `BRACKETS` in `shared/deck-fields.mjs`) next to its `format`. A deck with no bracket has no `bracket` field at all. `addDeck` takes a `bracket` option and refuses anything that is not 1 to 5 in words. `readLibrary` drops (and counts) a deck whose stored bracket is not 1 to 5, like any other damaged entry. The saved deck inside is unchanged, so its version stays 1.
+- `frontend/pages/deck/index.html` and `deck.js`: a "Bracket (optional)" choice under Format ("Not set", 1 to 5). It shows only for Commander, because brackets are a Commander idea, and a Standard deck saves none. Saving writes it, loading a deck brings it back, pasting a different list or pressing Clear resets it, and a saved deck's row reads for example "Eowyn Tokens (Commander, bracket 3)".
+- `scripts/test-deck-library.mjs` (108 checks, 90 before) and `scripts/check-deck-ui.mjs` (184 checks, 172 before).
+
+**What I checked**
+- `node scripts/test-deck-library.mjs`, `node scripts/check-deck-ui.mjs` (real Chrome, real card list) and `npm run test:quick` (27 suites) all pass.
+- I looked at desktop screenshots of the saved row and of the Format and Bracket fields. Phone width is not checked (on hold).
+- Broken copies of `deck-library.mjs`: 8 run, 7 caught, and the survivor (a deck with no bracket read back with an empty `bracket` key) got its own test and is now caught. The file was restored and is identical.
+- Not checked: the live site (not pushed), and nothing sends the bracket to a table yet.
+
+**Decisions**
+- The bracket is stored on the library entry, not in the saved deck, so the saved deck format does not change.
+- My first browser check failed for a reason in the test, not the page: the pasted list had the same text as the loaded Standard deck, so the page correctly kept that deck's format. The test now picks Commander explicitly. Also, the local printings folder was stale again after the live test run (the deploy check leaves a smaller one) and I rebuilt it with `node scripts/build-card-list.mjs --from-files --site`.
+- Still to do in step 3: the lobby seats and deck picker, the "choose a deck" popup, and the Game Changers guess.
+
 ---
 
 ## Where AI misread me, or I had to correct course

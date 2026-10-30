@@ -88,7 +88,7 @@ async function useSample(id) {
 async function runCheck() {
   if (!index) return;
   const pasted = $('deck-text').value;
-  if (pasted !== text) { choices = {}; picksTouched = false; formatTouched = false; }
+  if (pasted !== text) { choices = {}; picksTouched = false; formatTouched = false; $('deck-bracket').value = ''; }
   text = pasted;
   const run = ++checkRun;
   if (!text.trim()) { say('Paste a decklist first.', true); $('preview').hidden = true; preview = null; return; }
@@ -247,6 +247,7 @@ function renderCommander() {
   };
   if (!formatTouched) $('deck-format').value = preview.commander.looksLikeCommander ? 'commander' : 'standard';
   const commander = isCommander();
+  $('bracket-field').hidden = !commander;
   $('commander-box').hidden = !commander || lines.length === 0;
   const first = $('commander-1');
   const second = $('commander-2');
@@ -298,7 +299,7 @@ function commit(next, message) {
 function deckSummary(entry) {
   const { deck } = entry;
   const commanders = deck.cards.filter((card) => card.section === 'commander').map((card) => card.n);
-  return `${deck.name} (${FORMAT_TITLES[entry.format]}): ${plural(totalCards(deck), 'card', 'cards')}${commanders.length ? `, commander ${commanders.join(' and ')}` : ''}. Saved ${new Date(deck.savedAt).toLocaleDateString()}.${deck.skipped ? ` ${plural(deck.skipped, 'line was', 'lines were')} left out because they were not matched.` : ''}`;
+  return `${deck.name} (${FORMAT_TITLES[entry.format]}${entry.bracket ? `, bracket ${entry.bracket}` : ''}): ${plural(totalCards(deck), 'card', 'cards')}${commanders.length ? `, commander ${commanders.join(' and ')}` : ''}. Saved ${new Date(deck.savedAt).toLocaleDateString()}.${deck.skipped ? ` ${plural(deck.skipped, 'line was', 'lines were')} left out because they were not matched.` : ''}`;
 }
 
 function renderSaved() {
@@ -339,6 +340,7 @@ async function loadSaved(id) {
   picksTouched = true;
   $('deck-name').value = deck.name;
   setFormat(entry.format);
+  $('deck-bracket').value = entry.bracket ? String(entry.bracket) : '';
   say(`Loaded "${deck.name}".`);
 }
 
@@ -347,7 +349,8 @@ function save() {
   const ids = isCommander() ? [$('commander-1').value, $('commander-2').value].filter(Boolean) : [];
   const result = buildSavedDeck(preview, { name: $('deck-name').value, text, commanderIds: ids, allowMissing: $('allow-missing').checked });
   if (!result.ok) { say(result.error, true); return; }
-  const added = addDeck(library, result.deck, { format: $('deck-format').value });
+  const bracket = isCommander() && $('deck-bracket').value ? Number($('deck-bracket').value) : null; // brackets are a Commander idea
+  const added = addDeck(library, result.deck, { format: $('deck-format').value, bracket });
   if (!added.ok) { say(added.error, true); return; }
   commit(added.library, `${added.replaced ? 'Replaced' : 'Saved'} "${result.deck.name}": ${plural(totalCards(result.deck), 'card', 'cards')}.`);
 }
@@ -358,7 +361,7 @@ $('retry').addEventListener('click', loadCards);
 $('sample').addEventListener('click', () => useSample());
 $('clear').addEventListener('click', () => {
   $('deck-text').value = '';
-  text = ''; choices = {}; preview = null; picksTouched = false; formatTouched = false;
+  text = ''; choices = {}; preview = null; picksTouched = false; formatTouched = false; $('deck-bracket').value = '';
   checkRun++; // a check still waiting for printing files must not bring the preview back
   $('preview').hidden = true;
   say('');

@@ -304,6 +304,41 @@ try {
   lib = await library();
   check('deleting another deck leaves the selection alone', lib.decks.length === 2 && lib.selected === lib.decks[0].id && lib.decks.every((d) => d.deck.name !== 'Deck B'));
 
+  // ---- the bracket: optional, 1 to 5, a Commander idea, saved next to the format ----
+  const bracketHidden = () => ev(`document.getElementById('bracket-field').hidden`);
+  await paste('Commander\n1 Sol Ring\n\n1 Island'); await press('check');
+  await setField('deck-format', 'commander'); // (the same text as the loaded Standard deck keeps that deck's format)
+  check('a Commander deck shows the bracket choice, starting at "Not set" with the options 1 to 5', !(await bracketHidden()) && (await ev(`document.getElementById('deck-bracket').value`)) === '' && (await ev(`Array.from(document.getElementById('deck-bracket').options).map((o) => o.value).join()`)) === ',1,2,3,4,5');
+  await setField('deck-format', 'standard');
+  check('choosing Standard hides the bracket choice', await bracketHidden());
+  await setField('deck-format', 'commander');
+  check('and choosing Commander again shows it', !(await bracketHidden()));
+  await setField('deck-bracket', '3'); await setField('deck-name', 'Deck E'); await press('save');
+  lib = await library();
+  const deckE = lib.decks.find((d) => d.deck.name === 'Deck E');
+  check('a Commander deck saved with a bracket keeps it next to the format', deckE?.format === 'commander' && deckE.bracket === 3, JSON.stringify(deckE && [deckE.format, deckE.bracket]));
+  list = await rows();
+  check('the saved deck row shows the bracket', /Deck E \(Commander, bracket 3\)/.test(list.find((r) => /Deck E/.test(r.text)).text), list.map((r) => r.text).join(' | '));
+  check('a deck saved with no bracket shows none in its row and stores none', !/bracket/.test(list.find((r) => /Deck C/.test(r.text)).text) && !('bracket' in lib.decks.find((d) => d.deck.name === 'Deck C')));
+  await setField('deck-bracket', '5'); await setField('deck-format', 'standard'); await setField('deck-name', 'Deck F'); await press('save');
+  lib = await library();
+  check('a bracket picked before switching to Standard is not saved with the Standard deck', lib.decks.find((d) => d.deck.name === 'Deck F')?.format === 'standard' && !('bracket' in lib.decks.find((d) => d.deck.name === 'Deck F')));
+  await setField('deck-format', 'commander'); await setField('deck-bracket', '2'); await setField('deck-name', 'Deck E'); await press('save');
+  lib = await library();
+  check('saving under the same name replaces the bracket', lib.decks.find((d) => d.deck.name === 'Deck E').bracket === 2 && lib.decks.filter((d) => d.deck.name === 'Deck E').length === 1);
+  await setField('deck-bracket', ''); await press('save');
+  lib = await library();
+  check('saving again with "Not set" takes the bracket away', !('bracket' in lib.decks.find((d) => d.deck.name === 'Deck E')));
+  await setField('deck-bracket', '4'); await press('save');
+  list = await rows();
+  const eRow = list.findIndex((r) => /Deck E/.test(r.text));
+  await paste('1 Island'); await press('check');
+  check('pasting a different list puts the bracket back to "Not set"', (await ev(`document.getElementById('deck-bracket').value`)) === '');
+  await pressLoad(eRow);
+  check('loading a deck puts its bracket back in the form', (await ev(`document.getElementById('deck-bracket').value`)) === '4' && !(await bracketHidden()));
+  await press('clear');
+  check('Clear puts the bracket back to "Not set"', (await ev(`document.getElementById('deck-bracket').value`)) === '');
+
   // The old single saved deck becomes the first deck, once, and cannot come back after it is deleted.
   const oldDeck = (await library()).decks[0].deck;
   await deleteAllSaved();
@@ -575,6 +610,7 @@ try {
     const scheme = (value) => browser.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value }] });
     await scheme('dark');
     await load(); await paste(MOXFIELD_PLAIN); await press('check');
+    await setField('deck-format', 'commander'); await setField('deck-bracket', '3');
     await ev(`document.getElementById('deck-name').value = 'Eowyn Tokens'`); await press('save');
     await ev(`window.scrollTo(0, 0)`); await sleep(300);
     await browser.screenshot('scratch-deck-ui-top.png');
@@ -583,7 +619,8 @@ try {
     await ev(`document.getElementById('problems').scrollIntoView()`); await sleep(300);
     await browser.screenshot('scratch-deck-ui-light.png');
     await scheme('dark');
-    await ev(`document.getElementById('commander-box').scrollIntoView()`); await sleep(300);
+    await setField('deck-format', 'commander'); await setField('deck-bracket', '4');
+    await ev(`document.getElementById('deck-format').scrollIntoView()`); await sleep(300);
     await browser.screenshot('scratch-deck-ui-bottom.png');
     await deleteAllSaved();
     console.log('saved scratch-deck-ui-top.png, -light.png and -bottom.png (delete them afterward)');
