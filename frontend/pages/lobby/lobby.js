@@ -1,5 +1,5 @@
 // The lobby page: make a table or join one by code. All database calls live in ../../src/db.js.
-import { createTable, joinTable, rejoinTable, findMyTable, watchMembers, heartbeat, watchActivity, watchMeta, watchServerOffset, startPresence, watchPresence, watchConnection, takeOverHost } from '../../src/db.js';
+import { createTable, joinTable, rejoinTable, findMyTable, watchMembers, heartbeat, watchActivity, watchMeta, watchServerOffset, startPresence, watchPresence, watchConnection, takeOverHost, setDeck, setReady, clearReady } from '../../src/db.js';
 import { presenceStatus, presenceText, ownConnectionText, hostIsGone } from '../../../shared/presence.mjs';
 import { startKeepAlive } from '../../src/keep-alive.js';
 import { makeSafeStore } from '../../src/safe-store.js';
@@ -7,7 +7,9 @@ import { normalizeCode, isValidCode } from '../../../shared/table-code.mjs';
 import { cleanPlayerName } from '../../../shared/player-name.mjs';
 import { friendlyMessage } from '../../../shared/friendly-error.mjs';
 import { codeFromPath, linkForCode } from '../../../shared/lobby-link.mjs';
-import { readFormat, formatTitle } from '../../../shared/formats.mjs';
+import { readFormat, formatTitle, FORMATS } from '../../../shared/formats.mjs';
+import { LIBRARY_KEY, LEGACY_KEY, readLibrary, decksOfFormat } from '../../../shared/deck-library.mjs';
+import { deckFieldsOf, defaultDeckFor, deckChoiceLabel, isReady, seatDeckText } from '../../../shared/lobby-deck.mjs';
 
 const $ = (id) => document.getElementById(id);
 const nameInput = $('name');
@@ -21,6 +23,7 @@ const statusLine = $('status');
 // Remembered in this browser only (never sent anywhere): your name and the last table, so a refresh puts you back.
 const NAME_KEY = 'overloaded.name';
 const TABLE_KEY = 'overloaded.lastTable';
+const TABLE_DECK_KEY = 'overloaded.tableDeck'; // { code, id }: the saved deck you brought to that table, so a refresh can send it again
 // Storage can be unavailable (some privacy settings make it throw); the page must work without it, see src/safe-store.js.
 const store = makeSafeStore();
 
@@ -68,6 +71,9 @@ let currentCode = null;
 let myUid = null;
 let currentHost = null;
 let currentMembers = {};
+let currentMeta = null;
+let chosenDeckId = null; // the saved deck (an id in this browser's library) you brought to this table, or null
+let restoredFor = null; // the table whose remembered deck has been looked at already
 let currentPresence = {};
 let serverOffset = null; // until the database's clock is known, no one is judged disconnected
 const REDRAW_MS = 10000;
@@ -79,8 +85,15 @@ function renderPlayers() {
   // Names come from other people, so they are put in as text, never as markup.
   for (const [uid, member] of Object.entries(currentMembers).sort((a, b) => Number(a[1].seat) - Number(b[1].seat))) {
     const item = document.createElement('li');
-    item.textContent = `Seat ${member.seat}: ${member.name}${uid === currentHost ? ' (host)' : ''}`;
+    const deckText = seatDeckText(member); // the commander(s) and bracket the player told the table; never the list itself
+    item.textContent = `Seat ${member.seat}: ${member.name}${uid === currentHost ? ' (host)' : ''}${deckText ? `, ${deckText}` : ''}`;
     item.dataset.uid = uid;
+    if (isReady(member, currentMeta)) {
+      const mark = document.createElement('span');
+      mark.className = 'ready-mark';
+      mark.textContent = 'Ready';
+      item.append(' ', mark);
+    }
     const status = presenceStatus(currentPresence[uid], now);
     const words = presenceText(status);
     if (words) {
@@ -97,13 +110,14 @@ function renderPlayers() {
   const canTakeOver = Boolean(currentHost) && currentHost !== myUid && myUid in currentMembers && hostIsGone(currentPresence[currentHost], now);
   $('take-over').hidden = !canTakeOver;
   $('take-over-note').hidden = !canTakeOver;
+  $('ready').textContent = isReady(currentMembers[myUid], currentMeta) ? 'Not ready' : 'Ready';
 }
 
 function stopPresenceParts() {
   for (const stop of [stopPresence, stopPresenceWatch, stopConnectionWatch, stopOffsetWatch, stopHostWatch]) if (stop) stop();
   stopPresence = stopPresenceWatch = stopConnectionWatch = stopOffsetWatch = stopHostWatch = null;
   if (redrawTimer !== null) { clearInterval(redrawTimer); redrawTimer = null; }
-  currentMembers = {}; currentPresence = {}; serverOffset = null; currentHost = null;
+  currentMembers = {}; currentPresence = {}; serverOffset = null; currentHost = null; currentMeta = null; chosenDeckId = null; restoredFor = null;
   $('connection').hidden = true;
   $('take-over').hidden = true;
   $('take-over-note').hidden = true;
@@ -114,9 +128,12 @@ function startPresenceParts(code, uid) {
   currentCode = code;
   myUid = uid;
   stopHostWatch = watchMeta(code, (meta) => {
+    const formatChanged = meta?.format !== currentMeta?.format;
+    currentMeta = meta ?? null;
     currentHost = meta?.host ?? null;
     $('table-format').textContent = formatTitle(meta?.format); // text, never markup: another client could have written any string
     renderPlayers();
+    if (formatChanged || restoredFor !== currentCode) refreshDeckPicker();
   });
   stopPresence = startPresence(code, { onProblem: () => {} });
   stopPresenceWatch = watchPresence(code, (presence) => { if (presence) { currentPresence = presence; renderPlayers(); } });
@@ -128,6 +145,117 @@ function startPresenceParts(code, uid) {
   });
   redrawTimer = setInterval(renderPlayers, REDRAW_MS);
 }
+
+// ---- your deck: one of your saved decks of the table's format (shared/lobby-deck.mjs) ----
+// The table learns only the commander(s) and the bracket, never the list. Choosing a deck calls setDeck, which also takes your
+// ready mark back in the same write; pressing Ready with no deck opens a popup to choose one.
+const readMyLibrary = () => readLibrary(store.get(LIBRARY_KEY), store.get(LEGACY_KEY)).library;
+
+function fillDeckSelect(select, decks, selectedId, withPlaceholder) {
+  select.replaceChildren(...(withPlaceholder ? [new Option('Choose a deck...', '')] : []), ...decks.map((entry) => new Option(deckChoiceLabel(entry), entry.id)));
+  select.value = selectedId ?? (withPlaceholder ? '' : decks[0]?.id ?? '');
+}
+
+// Sends the chosen deck's commander and bracket to the table and remembers the choice for this table (so a refresh can send
+// it again). Returns { entry, changed }.
+async function bringDeck(id) {
+  const entry = readMyLibrary().decks.find((candidate) => candidate.id === id && candidate.format === currentMeta?.format);
+  if (!entry) throw new Error('That deck is not saved in this browser any more. Pick another one.');
+  const { changed } = await setDeck(currentCode, deckFieldsOf(entry));
+  chosenDeckId = id;
+  store.set(TABLE_DECK_KEY, JSON.stringify({ code: currentCode, id }));
+  return { entry, changed };
+}
+
+function rememberedDeckId() {
+  try {
+    const saved = JSON.parse(store.get(TABLE_DECK_KEY) ?? 'null');
+    return saved && saved.code === currentCode && typeof saved.id === 'string' ? saved.id : null;
+  } catch {
+    return null;
+  }
+}
+
+// Draws the picker for the table's format. The first time for a table it also puts back the deck remembered for it (sending it
+// again is safe: the same deck writes nothing, so it does not take your ready mark back).
+async function refreshDeckPicker() {
+  const format = currentMeta?.format;
+  const known = FORMATS.includes(format);
+  $('deck-pick-field').hidden = !known;
+  if (!known) { $('deck-note').textContent = ''; $('deck-import').hidden = true; return; }
+  const decks = decksOfFormat(readMyLibrary(), format);
+  if (restoredFor !== currentCode) {
+    restoredFor = currentCode;
+    const remembered = rememberedDeckId();
+    if (remembered && decks.some((entry) => entry.id === remembered)) {
+      try { await bringDeck(remembered); } catch { /* the table may have started or closed: the picker just shows no choice */ }
+    }
+  }
+  if (!decks.some((entry) => entry.id === chosenDeckId)) chosenDeckId = null;
+  $('deck-pick-field').hidden = decks.length === 0;
+  fillDeckSelect($('deck-pick'), decks, chosenDeckId, true);
+  $('deck-import').hidden = decks.length > 0;
+  $('deck-note').textContent = decks.length === 0
+    ? `You have no saved ${formatTitle(format)} deck.`
+    : (chosenDeckId ? 'The table sees only your commander and bracket, not your list.' : 'Choose the deck you will play. The table sees only its commander and bracket, not your list.');
+}
+
+function openDeckDialog() {
+  const dialog = $('deck-dialog');
+  if (dialog.open) return;
+  const format = currentMeta?.format;
+  const library = readMyLibrary();
+  const decks = decksOfFormat(library, format);
+  const none = decks.length === 0;
+  $('deck-dialog-field').hidden = none;
+  $('deck-dialog-import').hidden = !none;
+  $('deck-dialog-ok').disabled = none;
+  $('deck-dialog-ok').hidden = none; // nothing to confirm without a deck
+  $('deck-dialog-cancel').textContent = none ? 'Close' : 'Cancel';
+  $('deck-dialog-text').textContent = none ? `You have no saved ${formatTitle(format)} deck for this table.` : 'Pick the deck you will play at this table, then get ready.';
+  if (!none) fillDeckSelect($('deck-dialog-pick'), decks, defaultDeckFor(library, format)?.id ?? null, false);
+  dialog.returnValue = ''; // Escape closes without setting one, so an earlier "ok" must not linger
+  dialog.showModal();
+}
+
+$('deck-dialog').addEventListener('close', () => {
+  if ($('deck-dialog').returnValue !== 'ok') return;
+  run(async () => {
+    const { entry } = await bringDeck($('deck-dialog-pick').value);
+    refreshDeckPicker();
+    await setReady(currentCode);
+    say(`You brought "${entry.deck.name}" and you are ready.`);
+  });
+});
+
+$('deck-pick').addEventListener('change', () => run(async () => {
+  const id = $('deck-pick').value;
+  if (!id) { $('deck-pick').value = chosenDeckId ?? ''; return; } // a deck already sent cannot be un-sent, only replaced
+  const wasReady = isReady(currentMembers[myUid], currentMeta);
+  try {
+    const { entry, changed } = await bringDeck(id);
+    say(`You brought "${entry.deck.name}".${changed && wasReady ? ' You are not ready any more: press Ready again.' : ''}`);
+  } catch (error) {
+    $('deck-pick').value = chosenDeckId ?? '';
+    throw error;
+  }
+  refreshDeckPicker();
+}));
+
+$('ready').addEventListener('click', () => run(async () => {
+  if (isReady(currentMembers[myUid], currentMeta)) {
+    await clearReady(currentCode);
+    say('You are not ready any more.');
+    return;
+  }
+  if (!decksOfFormat(readMyLibrary(), currentMeta?.format).some((entry) => entry.id === chosenDeckId)) chosenDeckId = null;
+  if (!chosenDeckId) { openDeckDialog(); return; }
+  await setReady(currentCode);
+  say('You are ready.');
+}));
+
+// A deck may be imported in another tab while this one is open: look again when this tab comes back.
+document.addEventListener('visibilitychange', () => { if (!document.hidden && currentCode && currentMeta) refreshDeckPicker(); });
 
 function show(table) {
   $('table').hidden = false;

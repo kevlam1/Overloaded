@@ -34,6 +34,7 @@ const suites = [
   { name: 'sample decks: shape and parsing', cmd: node, args: ['scripts/test-sample-decks.mjs'] },
   { name: 'table formats (Commander, Standard)', cmd: node, args: ['scripts/test-formats.mjs'] },
   { name: 'deck fields: commander, bracket, guess', cmd: node, args: ['scripts/test-deck-fields.mjs'] },
+  { name: 'lobby decks: what is sent, offered and shown', cmd: node, args: ['scripts/test-lobby-deck.mjs'] },
   { name: 'game zones: draw, move, tap, shuffle', cmd: node, args: ['scripts/test-zones.mjs'] },
   { name: 'saved card lookup (id, then name)', cmd: node, args: ['scripts/test-card-lookup.mjs'] },
   { name: 'refused-request check', cmd: node, args: ['scripts/test-permission-error.mjs'] },
@@ -52,6 +53,7 @@ if (live) {
   suites.push({ name: 'LIVE: the heartbeat keeps a table alive (70 s)', cmd: node, args: ['--env-file=.env', 'scripts/check-heartbeat-live.mjs'] });
   suites.push({ name: 'LIVE: presence, reconnecting and disconnected (2.5 min)', cmd: node, args: ['--env-file=.env', 'scripts/check-presence-live.mjs'] });
   suites.push({ name: 'LIVE: two tabs of one browser are one player', cmd: node, args: ['--env-file=.env', 'scripts/check-two-tabs-live.mjs'] });
+  suites.push({ name: 'LIVE: lobby decks, Ready and the popup (two browsers)', cmd: node, args: ['--env-file=.env', 'scripts/check-lobby-deck-live.mjs'] });
 }
 
 let failed = 0;

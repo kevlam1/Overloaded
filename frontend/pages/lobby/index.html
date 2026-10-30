@@ -66,10 +66,38 @@
         <p>You have seat <span id="seat"></span>. Format: <span id="table-format"></span>.</p>
         <h3>At the table</h3>
         <ul id="players"></ul>
+
+        <h3>Your deck</h3>
+        <div class="field" id="deck-pick-field">
+          <label for="deck-pick">Deck for this table</label>
+          <select id="deck-pick" name="deck-pick"></select>
+        </div>
+        <p id="deck-note" class="hint"></p>
+        <p id="deck-import" class="hint" hidden><a href="/deck">Import a deck</a>, then come back to this table. Your seat is kept.</p>
+        <div class="actions">
+          <button id="ready" type="button">Ready</button>
+        </div>
+
         <p id="take-over-note" class="hint" hidden>The host has been gone for over 5 minutes. The table carries on without them, but only a host can start or end a match. You can take it over.</p>
         <button id="take-over" type="button" hidden>Take over as host</button>
       </section>
     </main>
+
+    <dialog id="deck-dialog" aria-labelledby="deck-dialog-title">
+      <form method="dialog" id="deck-dialog-form">
+        <h2 id="deck-dialog-title">Choose a deck</h2>
+        <p id="deck-dialog-text">Pick the deck you will play at this table, then get ready.</p>
+        <div class="field" id="deck-dialog-field">
+          <label for="deck-dialog-pick">Deck</label>
+          <select id="deck-dialog-pick" name="deck-dialog-pick"></select>
+        </div>
+        <p id="deck-dialog-import" class="hint" hidden><a href="/deck">Import a deck</a> first. Your seat is kept.</p>
+        <div class="actions">
+          <button id="deck-dialog-ok" type="submit" value="ok">Use this deck and get ready</button>
+          <button id="deck-dialog-cancel" type="submit" value="cancel" class="secondary">Cancel</button>
+        </div>
+      </form>
+    </dialog>
 
     <footer>
       <p>Overloaded is unofficial Fan Content permitted under the Fan Content Policy. Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. &copy;Wizards of the Coast LLC.</p>

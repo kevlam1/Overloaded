@@ -69,7 +69,7 @@ try {
   check('the disclaimer does not use a Wizards or Magic logo or call the site by the trademarked name in its title', !/Magic: The Gathering/i.test(facts.title));
   check('buttons are at least 44 px tall', facts.buttonHeights.every((h) => h >= 44), facts.buttonHeights.join(','));
   check('nothing scrolls sideways at desktop width', !facts.scrollsSideways);
-  check('headings go h1, h2, h2, h2, then h3 inside the table', facts.headingOrder === 'H1,H2,H2,H2,H2,H3', facts.headingOrder);
+  check('headings go h1, four h2, two h3 inside the table (the players and your deck), then the closed popup\'s own h2', facts.headingOrder === 'H1,H2,H2,H2,H2,H3,H3,H2', facts.headingOrder);
 
   // ---- loading: nothing from anyone else, and nothing sent to the database yet ----
   const loadRequests = browser.events.filter((e) => e.method === 'Network.requestWillBeSent').map((e) => e.params.request.url);

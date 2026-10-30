@@ -1567,6 +1567,27 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - My first browser check failed for a reason in the test, not the page: the pasted list had the same text as the loaded Standard deck, so the page correctly kept that deck's format. The test now picks Commander explicitly. Also, the local printings folder was stale again after the live test run (the deploy check leaves a smaller one) and I rebuilt it with `node scripts/build-card-list.mjs --from-files --site`.
 - Still to do in step 3: the lobby seats and deck picker, the "choose a deck" popup, and the Game Changers guess.
 
+## 77. The lobby: decks on the seats, a deck picker, Ready and the "Choose a deck" popup (2026-10-30)
+
+**What I asked for**
+- I told Claude to commit the bracket work and continue with part 2 of step 3: the lobby shows each seat's commander(s), bracket and ready status, a player brings one of their saved decks of the table's format, and Ready needs a deck (a popup asks for one).
+
+**What changed**
+- `shared/lobby-deck.mjs` (new, no browser code): `deckFieldsOf` (what `setDeck` sends for a saved deck: the commander names, joined with " & ", and the bracket; a Standard deck sends neither), `defaultDeckFor`, `deckChoiceLabel`, `isReady` (ready for THIS match only) and `seatDeckText`, which trusts only values of the right kind because other players' browsers write them. `scripts/test-lobby-deck.mjs` (33 checks) is in `npm test`.
+- `frontend/pages/lobby/index.html`, `lobby.js` and `frontend/src/style.css`: each seat reads "Seat 1: Alice (host), Krenko, Mob Boss, bracket 3 **Ready**". A "Your deck" part lists my saved decks of the table's format; choosing one calls `setDeck` (which takes the ready mark back in the same write) and says so. A Ready / Not ready button; Ready with no deck chosen opens a native dialog with my decks (or, with none, says so, links to the deck page and only offers Close). The chosen deck is remembered for that table in this browser (`overloaded.tableDeck`) and sent again after a refresh; sending the same deck again writes nothing, so it does not un-ready me. All text from the database goes in as text.
+- `scripts/check-lobby-deck-live.mjs` (new, 27 checks, two real browsers against the real project, about 1 minute, `--screenshot` saves scratch screenshots) and `npm run test:live` now runs it (38 suites). `scripts/check-lobby-ui.mjs` expects the two new headings.
+
+**What I checked**
+- `npm test` passed all 32 suites. The live check passed 27 of 27 three times in a row, and the first run's two failures were my test looking at Bob's page and the status line before they had caught up (the database was already right), fixed by waiting.
+- It covers: the popup with and without decks to offer, Escape/close setting no deck, the seat lines on both pages, a different deck taking the ready mark away on both pages, the database entry holding only name, seat, ready, commander and bracket (no card list), and a refresh keeping the deck and the ready mark.
+- I looked at desktop screenshots of the table part and the popup, and deleted them. Phone width is not checked (on hold).
+- 18 broken copies of `shared/lobby-deck.mjs`: 17 caught on the first run. The survivor was a badly written broken copy (a `return` after a `return`, which changes nothing); written properly it is caught.
+- Not checked: the deployed site (nothing is pushed), and what a player sees with a deck whose saved commander name is no longer a real card (it is just text).
+
+**Decisions**
+- Left out on purpose: a Start button and the "everyone choose a deck" popup at Start (they belong with the table page), the Game Changers guess, pasting a list inside the lobby (the popup and the picker link to the deck page instead; the seat is kept), and previewing your own deck there.
+- The "Ready" mark is bold after the commander and bracket with no separator; I left it since the bold tells it apart. Say if you want a dash or a different look.
+
 ---
 
 ## Where AI misread me, or I had to correct course
