@@ -6,7 +6,9 @@
 //                                                 list in frontend/public/data/cards.json, which Vite copies into dist/.
 //   node scripts/build-card-list.mjs --from-files [--oracle FILE] [--default FILE] [--out FILE]
 //                                                 build from two bulk files already on disk (the ones
-//                                                 `node scripts/fetch-scryfall.mjs bulk ...` caches), no network
+//                                                 `node scripts/fetch-scryfall.mjs bulk ...` caches), no network. With --site
+//                                                 it also publishes the list and the per-set printing files into
+//                                                 frontend/public/data, for running and checking the pages here.
 //
 // Environment (all optional):
 //   SKIP_CARD_LIST=1          ship the site WITHOUT a list (the emergency switch if the card step ever blocks a deploy)
@@ -17,8 +19,8 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { brotliCompressSync, gzipSync } from 'node:zlib';
-import { buildFromFiles, serializeList, validateList } from './lib/card-list.mjs';
-import { ensureCardList } from './lib/card-list-build.mjs';
+import { buildFromFiles, countPrintings, serializeList, serializePrintings, validateList, validatePrintings } from './lib/card-list.mjs';
+import { ensureCardList, publish } from './lib/card-list-build.mjs';
 
 const root = join(import.meta.dirname, '..');
 const args = process.argv.slice(2);
@@ -36,13 +38,14 @@ async function fromFiles() {
   let previousCount = null;
   if (existsSync(outPath)) { try { previousCount = JSON.parse(readFileSync(outPath, 'utf8')).length; } catch { /* an unreadable old file is not a reason to refuse a new list */ } }
   const started = performance.now();
-  const { list, counts } = await buildFromFiles(oraclePath, defaultPath);
-  const problems = validateList(list, { previousCount });
+  const { list, counts, printingFiles } = await buildFromFiles(oraclePath, defaultPath);
+  const problems = [...validateList(list, { previousCount }), ...validatePrintings(printingFiles)];
   console.log(`Read ${counts.printings} printings and ${counts.oracleRecords} card records in ${((performance.now() - started) / 1000).toFixed(1)} s`);
   console.log(`  not for decks (art cards, vanguards, planes, schemes, tokens, emblems, collectibles): ${counts.notCandidates}`);
   console.log(`  online-only (every printing digital): ${counts.onlineOnly}`);
   console.log(`  kept although the printings file has none of their printings (it may be older): ${counts.noPrintingsKept}`);
   console.log(`  cards in the list: ${counts.kept}${previousCount ? ` (the last list had ${previousCount})` : ''}`);
+  console.log(`  cards with another printed title: ${counts.withAlternateNames}; printings kept: ${counts.printingsKept} in ${counts.printingSets} sets`);
   if (problems.length) {
     console.error('\nNot written. The list failed its checks:');
     for (const problem of problems) console.error(`  - ${problem}`);
@@ -54,6 +57,19 @@ async function fromFiles() {
   writeFileSync(temporary, bytes);
   renameSync(temporary, outPath);
   console.log(`Wrote ${outPath}: ${mb(bytes.length)} MB, ${mb(gzipSync(bytes).length)} MB gzipped, ${mb(brotliCompressSync(bytes).length)} MB brotli`);
+  // The printings, all in one file beside the list (the site build splits them into one small file per set).
+  const printingBytes = Buffer.from(serializePrintings(printingFiles));
+  const printingsPath = join(dirname(outPath), 'printings.json');
+  writeFileSync(`${printingsPath}.tmp`, printingBytes);
+  renameSync(`${printingsPath}.tmp`, printingsPath);
+  console.log(`Wrote ${printingsPath}: ${mb(printingBytes.length)} MB, ${mb(gzipSync(printingBytes).length)} MB gzipped (${countPrintings(printingFiles).sets} sets)`);
+  if (args.includes('--site')) {
+    // Also put them where the site picks them up (the same step the real build uses), so the pages can be run and checked
+    // here without downloading anything. The bytes are the ones that were just checked and written.
+    const publicFile = join(root, 'frontend', 'public', 'data', 'cards.json');
+    await publish(publicFile, bytes, printingBytes);
+    console.log(`Published the list and ${countPrintings(printingFiles).sets} printing files to ${dirname(publicFile)}`);
+  }
 }
 
 async function forTheSite() {
@@ -70,7 +86,7 @@ async function forTheSite() {
     // A small public record of what this build did, so the first Vercel builds can be read from the live site without
     // access to Vercel's build logs: whether the list was rebuilt or reused (does the cache persist?), which Node ran,
     // and whether Vercel's system variables reached the build. Nothing secret; it changes on every build on purpose.
-    const info = { action: result.action, reason: result.reason, count: result.count, builtAt: result.meta?.builtAt ?? null, sha256: result.meta?.sha256 ?? null, oracleUpdatedAt: result.meta?.oracleUpdatedAt ?? null, node: process.version, vercelEnv: process.env.VERCEL_ENV ?? null, onVercel: Boolean(process.env.VERCEL), ranAt: new Date().toISOString() };
+    const info = { action: result.action, reason: result.reason, count: result.count, builtAt: result.meta?.builtAt ?? null, sha256: result.meta?.sha256 ?? null, oracleUpdatedAt: result.meta?.oracleUpdatedAt ?? null, printingSets: result.meta?.printingSets ?? null, printingCount: result.meta?.printingCount ?? null, printingsSha256: result.meta?.printingsSha256 ?? null, node: process.version, vercelEnv: process.env.VERCEL_ENV ?? null, onVercel: Boolean(process.env.VERCEL), ranAt: new Date().toISOString() };
     mkdirSync(dirname(publicFile), { recursive: true });
     writeFileSync(join(dirname(publicFile), 'cards.info.json'), JSON.stringify(info, null, 2));
   } catch (error) {
