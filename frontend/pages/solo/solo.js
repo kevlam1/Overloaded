@@ -43,7 +43,7 @@ function nodeFor(card) {
     button.type = 'button';
     button.dataset.uid = card.uid;
     const face = make('span', 'face');
-    const url = imageUrl(card.i);
+    const url = imageUrl(card.p ?? card.i); // the printing the deck named, else the card's default printing
     if (url) {
       const picture = document.createElement('img');
       picture.alt = '';
@@ -52,7 +52,14 @@ function nodeFor(card) {
       picture.loading = 'lazy';
       picture.decoding = 'async';
       picture.referrerPolicy = 'no-referrer';
-      picture.addEventListener('error', () => button.classList.add('noimage')); // a picture that will not load: show the name
+      let triedDefault = false;
+      picture.addEventListener('error', () => {
+        // The printing has no picture (or a damaged id): try the card's default picture once, then show the name.
+        const fallback = card.p && !triedDefault ? imageUrl(card.i) : null;
+        triedDefault = true;
+        if (fallback) { picture.src = fallback; return; }
+        button.classList.add('noimage');
+      });
       picture.src = url;
       face.append(picture);
     } else {

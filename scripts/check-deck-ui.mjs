@@ -43,7 +43,10 @@ try {
   const $text = (id) => ev(`document.getElementById(${JSON.stringify(id)}).textContent`);
   const $hidden = (id) => ev(`document.getElementById(${JSON.stringify(id)}).hidden`);
   const paste = (value) => ev(`(() => { const t = document.getElementById('deck-text'); t.value = ${JSON.stringify(value)}; t.dispatchEvent(new Event('input')); })()`);
-  const press = (id) => ev(`document.getElementById(${JSON.stringify(id)}).click()`);
+  // A list that names sets and numbers fetches those sets' printing files before it is shown, so after Check (or loading the
+  // saved deck) the page is given time to finish: the status stops saying "Checking the printings...".
+  const settled = () => waitFor(async () => !/^Checking the printings/.test(await $text('status')) || null, 15000, 30);
+  const press = async (id) => { await ev(`document.getElementById(${JSON.stringify(id)}).click()`); if (id === 'check' || id === 'saved-load') await settled(); };
   const ready = () => waitFor(async () => (await ev(`!document.getElementById('check').disabled`)) || null, 15000, 50);
   const load = async () => { await browser.goto(PAGE); await ready(); };
 
@@ -177,6 +180,61 @@ try {
   check('the same card as commander and partner is refused, with what to do', /two different cards/.test(await $text('status')), await $text('status'));
   await press('saved-delete');
 
+  // ---- exact printings: the set and number typed on a line pick the printing whose picture is shown ----
+  // Real data (checked against Scryfall's own records on 2026-10-29): Sol Ring cmm 410 is 46ca0b66..., Arcane Signet sld 916 is
+  // dd1d87e4... (the printing titled "Heart of the Mountain"), Arcane Signet cmm 367 is 0539b83c..., and cmm 5 is Ulamog.
+  const SOL_RING_CMM_410 = '46ca0b66-a000-4483-b916-f5b89e710244';
+  const SIGNET_SLD_916 = 'dd1d87e4-f51a-448f-824f-99dffd73403c';
+  const SIGNET_CMM_367 = '0539b83c-4459-41b5-a001-d15a1c9ddf23';
+  const checked = () => waitFor(async () => /Checked:/.test(await $text('status')) || null, 15000, 50);
+  const rowsOf = () => ev(`Array.from(document.querySelectorAll('#sections .card-line')).map((li) => ({ name: li.querySelector('.name').textContent, qty: li.querySelector('.qty').textContent, printing: li.querySelector('.printing')?.textContent ?? null, tip: li.querySelector('.printing')?.title ?? '', type: li.querySelector('.type')?.textContent ?? null, cost: li.querySelector('.cost')?.textContent ?? null, columns: li.children.length, id: li.dataset.cardId ?? null, source: li.dataset.printing ?? null }))`);
+  await load();
+  const requestsBefore = pictureRequests.length;
+  await paste('1 Sol Ring (cmm) 410\n2 Lightning Bolt\n1 Arcane Signet (sld) 916\n1 Arcane Signet (cmm) 367\n1 Heart of the Mountain\n1 Sol Ring (cmm) 5\n1 Sol Ring (cmm) 99999\n1 Not A Real Card (abc) 7');
+  await press('check');
+  check('while the printings load the page says so, and then it says the deck is checked', Boolean(await checked()), await $text('status'));
+  const printed = await rowsOf();
+  const printedBy = (name, at = 0) => printed.filter((row) => row.name === name)[at];
+  const ringRows = printed.filter((row) => row.name === 'Sol Ring');
+  const signetRows = printed.filter((row) => row.name === 'Arcane Signet');
+  check('Sol Ring typed with cmm 410 is its own row and shows that printing', ringRows.some((row) => row.id === SOL_RING_CMM_410 && row.printing === 'CMM 410' && row.source === 'set' && row.qty === '1'), JSON.stringify(ringRows));
+  check('the two numbers that are not Sol Ring printings join the default row, say so, and show the default picture', ringRows.length === 2 && ringRows.some((row) => row.id !== SOL_RING_CMM_410 && row.qty === '2' && row.source === 'default' && /CMM 5 \(not found\)/.test(row.printing) && /CMM 99999 \(not found\)/.test(row.printing)), JSON.stringify(ringRows));
+  check('the tooltip says why (cmm 5 is another card, cmm 99999 is not in the set)', ringRows.some((row) => /CMM 5: This number in that set is a different card/.test(row.tip) && /CMM 99999: This number is not in that set/.test(row.tip)), JSON.stringify(ringRows.map((r) => r.tip)));
+  check('two printings of Arcane Signet are two rows with their own pictures', signetRows.length === 2 && signetRows.some((row) => row.id === SIGNET_SLD_916) && signetRows.some((row) => row.id === SIGNET_CMM_367 && row.printing === 'CMM 367'), JSON.stringify(signetRows));
+  check('the card typed by its title is the same printing as SLD 916, so it is the same row (2 copies)', signetRows.find((row) => row.id === SIGNET_SLD_916)?.qty === '2' && signetRows.find((row) => row.id === SIGNET_SLD_916)?.printing === 'SLD 916', JSON.stringify(signetRows));
+  check('a card with no set typed shows the default picture and an empty cell', printedBy('Lightning Bolt')?.source === 'default' && printedBy('Lightning Bolt')?.printing === '' && printedBy('Lightning Bolt')?.id !== null);
+  check('a card that was not found still shows what was typed, and the cells stay in their columns (5 cells, or 4 with no cost cell when not matched)', printedBy('Not A Real Card')?.printing === 'ABC 7' && printedBy('Not A Real Card')?.columns === 4 && printed.filter((row) => row.cost !== null).every((row) => row.columns === 5), JSON.stringify(printed));
+  check('count, name, type and cost are still shown', printedBy('Lightning Bolt')?.qty === '2' && /Instant/.test(printedBy('Lightning Bolt')?.type ?? '') && printedBy('Lightning Bolt')?.cost === '{R}' && ringRows.every((row) => /Artifact/.test(row.type) && row.cost === '{1}'), JSON.stringify(printed));
+  const notes = await ev(`Array.from(document.querySelectorAll('#notices li')).map((li) => li.textContent)`);
+  check('the page says that two sets and numbers were not found, and which', notes.some((n) => /2 sets and numbers were not found, so those cards show their default picture: CMM 5, CMM 99999/.test(n)), JSON.stringify(notes));
+  check('only the sets the deck names were fetched, once each (cmm and sld; abc is not a card so it costs nothing)', (await ev(`performance.getEntriesByType('resource').map((e) => e.name).filter((n) => n.includes('/data/printings/'))`)).map((n) => n.split('/').pop()).sort().join() === 'set-cmm.json,set-sld.json');
+  check('and no request went to Scryfall for printings (pictures are loaded only on hover)', pictureRequests.length === requestsBefore, String(pictureRequests.length - requestsBefore));
+
+  // The same list typed again (no fetch needed: the files are kept for this visit), and a change to the list.
+  const fetchedBefore = await ev(`performance.getEntriesByType('resource').filter((e) => e.name.includes('/data/printings/')).length`);
+  await press('check');
+  await checked();
+  check('checking the same list again fetches nothing more', (await ev(`performance.getEntriesByType('resource').filter((e) => e.name.includes('/data/printings/')).length`)) === fetchedBefore);
+
+  // A set that cannot be loaded: the card is still right, the page says so, and the next check tries again.
+  await browser.send('Network.enable');
+  await browser.send('Network.setBlockedURLs', { urls: ['*set-m21.json'] });
+  await paste('1 Sol Ring (m21) 1'); await press('check');
+  await checked();
+  const blocked = await rowsOf();
+  const blockedNotes = await ev(`Array.from(document.querySelectorAll('#notices li')).map((li) => li.textContent)`);
+  check('a set file that fails to load leaves the card matched with the default picture and says it was not loaded', blocked.length === 1 && blocked[0].name === 'Sol Ring' && blocked[0].source === 'default' && /M21 1 \(not loaded\)/.test(blocked[0].printing) && blockedNotes.some((n) => /could not be loaded for 1 set and number/.test(n)), JSON.stringify([blocked, blockedNotes]));
+  await browser.send('Network.setBlockedURLs', { urls: [] });
+  await press('check');
+  await checked();
+  const retried = await rowsOf();
+  check('with the network back, the next check tries again (a failure is not remembered)', retried.length === 1 && !/not loaded/.test(retried[0].printing), JSON.stringify(retried));
+  const firstResult = await rowsOf();
+  await paste('1 Sol Ring (zzz) 1'); await press('check');
+  await checked();
+  check('a set our data does not have is "not found" (the server answers 404), not "not loaded"', /ZZZ 1 \(not found\)/.test((await rowsOf())[0].printing), JSON.stringify(await rowsOf()));
+  check('and that check left the earlier result alone (nothing to compare was lost)', firstResult.length === 1);
+
   // ---- cards pasted under another title they were printed under (real cases from a real export, 2026-10-29) ----
   // These need the list built with the alternate titles (format 2); an older cached list would fail here, on purpose.
   const katakana = String.fromCharCode(0x30d5, 0x30a7, 0x30a4, 0x30bf, 0x30ea, 0x30ba, 0x30e0);
@@ -206,8 +264,8 @@ try {
   const row1 = await rowFacts(1);
   const at1 = await hover(1);
   const shown1 = await peek();
-  check('hovering the second card (Arcane Signet) shows its normal-size picture, by the card id in the list', !shown1.hidden && shown1.src === pictureUrl(row1.id) && !shown1.imageHidden && row1.name === 'Arcane Signet', JSON.stringify({ row1, shown1 }));
-  check('the box says whose picture it is and that it is the default printing', /Arcane Signet/.test(shown1.note) && /default printing/.test(shown1.note), shown1.note);
+  check('hovering the second card (Arcane Signet, typed as "Heart of the Mountain") shows its normal-size picture, of the printing that carries that title (SLD 916), not the default one', !shown1.hidden && shown1.src === pictureUrl(row1.id) && row1.id === SIGNET_SLD_916 && !shown1.imageHidden && row1.name === 'Arcane Signet', JSON.stringify({ row1, shown1 }));
+  check('the box says whose picture it is and which printing', /Arcane Signet/.test(shown1.note) && /the printing that carries the title you typed/.test(shown1.note) && !/default printing/.test(shown1.note), shown1.note);
   const textEnd = await ev(`(() => { const range = document.createRange(); range.selectNodeContents(document.querySelectorAll('#sections .card-line')[1].querySelector('.name')); return range.getBoundingClientRect().right; })()`);
   check('it is inside the window and never takes the pointer', shown1.left >= 0 && shown1.right <= shown1.w && shown1.top >= 0 && shown1.bottom <= shown1.h && shown1.pointerEvents === 'none', JSON.stringify({ at1, shown1 }));
   check('on a wide window it sits at the right, level with the pointer, and does not cover the name it points at', shown1.left > textEnd && (Math.abs((shown1.top + shown1.bottom) / 2 - at1.y) < 3 || shown1.top === 8 || Math.round(shown1.bottom) === shown1.h - 8), JSON.stringify({ at1, textEnd, shown1 }));

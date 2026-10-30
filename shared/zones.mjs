@@ -6,11 +6,14 @@
 // Every function takes a game and returns a NEW game (nothing is changed in place), so a move can be tried, compared and
 // undone, and a game is plain data that can be saved or sent as it is. A game is:
 //   { zones: { library, hand, battlefield, graveyard, exile, command, sideboard }, life, turn, mulligans, nextUid }
-// and each zone is an array of cards { uid, i, n, t, m, k, tapped, turnEntered }:
-//   uid: this copy of the card (two Forests have two uids), i: the Scryfall id of its printing (its picture), n: name,
+// and each zone is an array of cards { uid, i, n, t, m, k, tapped, turnEntered } and, when the player's deck named one, p:
+//   uid: this copy of the card (two Forests have two uids), i: the Scryfall id of the card in the card list (what the card IS,
+//   and its default picture), p: the Scryfall id of the printing whose picture to draw (only the art differs: n, t, m, k are
+//   the same in every printing; the picture is drawn from p when there is one, else from i), n: name,
 //   t: type line, m: mana cost, k: keywords, tapped, turnEntered: the turn it came to the battlefield (null elsewhere).
 // For the library, the graveyard and the other piles, index 0 is the TOP.
 
+const SCRYFALL_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 export const ZONES = ['library', 'hand', 'battlefield', 'graveyard', 'exile', 'command', 'sideboard'];
 export const HAND_SIZE = 7;
 export const DEFAULT_LIFE = 20;
@@ -77,7 +80,7 @@ export function makeGame(deck, lookup = () => null, { random = secureRandom, han
     if (!zone) throw new Error(`A card is in a section this game does not know: ${saved.section}`);
     const known = lookup(saved) ?? {};
     for (let copy = 0; copy < saved.qty; copy++) {
-      zones[zone].push({ uid: `c${uid++}`, i: saved.i, n: saved.n, t: known.t ?? '', m: known.m ?? '', k: known.k ?? [], tapped: false, turnEntered: null });
+      zones[zone].push({ uid: `c${uid++}`, i: saved.i, ...(saved.p ? { p: saved.p } : {}), n: saved.n, t: known.t ?? '', m: known.m ?? '', k: known.k ?? [], tapped: false, turnEntered: null });
     }
   }
   zones.library = shuffled(zones.library, random);
@@ -176,6 +179,7 @@ export function checkGame(game) {
       if (!card || typeof card.uid !== 'string' || typeof card.i !== 'string' || typeof card.n !== 'string') { problems.push(`a card in ${zone} is missing a field`); continue; }
       if (seen.has(card.uid)) problems.push(`card ${card.uid} is in two places`);
       seen.add(card.uid);
+      if ('p' in card && !(typeof card.p === 'string' && SCRYFALL_ID.test(card.p))) problems.push(`card ${card.uid} has a printing that is not an id`);
       if (zone !== 'battlefield' && (card.tapped || card.turnEntered !== null)) problems.push(`card ${card.uid} is tapped or has an entry turn outside the battlefield`);
       if (zone === 'battlefield' && !Number.isInteger(card.turnEntered)) problems.push(`battlefield card ${card.uid} has no entry turn`);
     }

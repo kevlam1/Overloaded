@@ -5,7 +5,8 @@
 import { readFileSync } from 'node:fs';
 import { buildCardIndex, matchDeck, normalizeName } from '../shared/card-match.mjs';
 import { parseDeckText, MAX_CHARS, MAX_CARDS } from '../shared/deck-text.mjs';
-import { SECTIONS, SECTION_TITLES, DECK_NAME_MAX, MAX_COMMANDERS, MAX_NOTICES, SAVED_VERSION, isLegendaryCreature, describeNotices, guessCommander, makePreview, cleanDeckName, buildSavedDeck, serializeDeck, readSavedDeck } from '../shared/deck-preview.mjs';
+import { SECTIONS, SECTION_TITLES, DECK_NAME_MAX, MAX_COMMANDERS, MAX_NOTICES, SAVED_VERSION, PRINTING_PROBLEM_WORDS, printingSetsNeeded, isLegendaryCreature, describeNotices, describePrintingProblems, guessCommander, makePreview, cleanDeckName, buildSavedDeck, serializeDeck, readSavedDeck } from '../shared/deck-preview.mjs';
+import { printingValue } from '../shared/printings.mjs';
 import { ARCHIDEKT, MOXFIELD_FOR_MOXFIELD, MOXFIELD_PLAIN } from './fixtures/exports.mjs';
 
 let checks = 0;
@@ -65,6 +66,142 @@ check('the limits are what the notes say', DECK_NAME_MAX === 60 && MAX_COMMANDER
   check('once chosen, the line is the chosen card and remembers the title', chosen.lines[0].name === 'Twin B' && chosen.lines[0].viaTitle === 'Shared Title' && chosen.problems.ambiguous.length === 0);
   const saved = buildSavedDeck(previewOf('2 Heart of the Mountain\n1 Sol Ring', cards), { name: 'Titles', text: '2 Heart of the Mountain\n1 Sol Ring', commanderIds: [] });
   check('a saved deck stores the real card (name and id), not the typed title, and has no viaTitle', saved.ok && saved.deck.cards.some((c) => c.n === 'Arcane Signet' && c.i === uuid(501) && c.qty === 2) && !JSON.stringify(saved.deck.cards).includes('Heart of the Mountain') && !JSON.stringify(saved.deck.cards).includes('viaTitle'), JSON.stringify(saved));
+}
+
+// ---- the set code and number as typed (shown so printings can be debugged) ----
+{
+  const cards = [card('Sol Ring', 601, 'Artifact'), card('Island', 602, 'Basic Land')];
+  const one = previewOf('1 Sol Ring (cmm) 410', cards);
+  same('a typed set and number are kept, set in capitals', one.lines[0].printings, ['CMM 410']);
+  same('a line with no set has none', previewOf('1 Sol Ring', cards).lines[0].printings, []);
+  same('a foil mark does not change it', previewOf('1 Sol Ring (cmm) 410 *F*', cards).lines[0].printings, ['CMM 410']);
+  same('a number with letters or a star stays as typed', previewOf('1 Island (sld) 916★', cards).lines[0].printings, ['SLD 916★']);
+  const merged = previewOf('1 Island (znr) 266\n2 Island (znr) 266\n1 Island (sld) 916\n1 Island', cards);
+  check('one card typed with several printings is one line that lists each printing once, in the order typed', merged.lines.length === 1 && merged.lines[0].qty === 5, JSON.stringify(merged.lines.map((l) => [l.qty, l.printings])));
+  same('the merged printings', merged.lines[0].printings, ['ZNR 266', 'SLD 916']);
+  same('a first line with no set still picks up a later one', previewOf('1 Island\n1 Island (znr) 266', cards).lines[0].printings, ['ZNR 266']);
+  same('a card that was not found keeps what was typed', previewOf('1 Not A Card (cmm) 12', cards).lines[0].printings, ['CMM 12']);
+  const saved = buildSavedDeck(previewOf('1 Sol Ring (cmm) 410', cards), { name: 'P', text: '1 Sol Ring (cmm) 410', commanderIds: [] });
+  check('with no printing data given, the saved deck stores no printing and the typed text is not saved either', saved.ok && !JSON.stringify(saved.deck.cards).includes('CMM') && !JSON.stringify(saved.deck.cards).includes('printings') && saved.deck.cards.every((c) => !('p' in c)), JSON.stringify(saved));
+}
+
+// ---- exact printings: the set and number typed, found in the set's file ----
+{
+  const signet = { ...card('Arcane Signet', 701, 'Artifact'), f: ['Heart of the Mountain', 'Earth’s Mightiest Emblem'], fp: [uuid(801), uuid(802)] };
+  const cards = [card('Sol Ring', 702, 'Artifact'), card('Island', 703, 'Basic Land'), signet, card('Lightning Bolt', 704, 'Instant')];
+  const value = (id, name) => printingValue(uuid(id), name);
+  const files = new Map([
+    ['cmm', { 410: value(901, 'Sol Ring'), 703: value(902, 'Sol Ring'), 5: value(903, 'Island') }],
+    ['sld', { 916: value(904, 'Arcane Signet') }],
+    ['xyz', null], // a set we know has no data
+  ]);
+  const prev = (text, f = files, choices) => { const index = buildCardIndex(cards); const parsed = parseDeckText(text); return makePreview(parsed, matchDeck(index, parsed.entries), choices, f); };
+  const row = (p, name, at = 0) => p.lines.filter((l) => l.name === name)[at];
+
+  const exact = prev('1 Sol Ring (cmm) 410');
+  check('a typed set and number gives that printing', exact.lines[0].printingId === uuid(901) && exact.lines[0].printingSource === 'set' && exact.lines[0].printingProblems.length === 0 && exact.notices.length === 0, JSON.stringify(exact.lines[0]));
+  check('and the default card is still the card in the list', exact.lines[0].card.i === uuid(702));
+  check('the set code is matched in lowercase and the number exactly', prev('1 Sol Ring (CMM) 410').lines[0].printingId === uuid(901) && prev('1 Sol Ring (cmm) 0410').lines[0].printingId === null);
+  const two = prev('1 Sol Ring (cmm) 410\n1 Sol Ring (cmm) 703');
+  check('two printings of one card are two rows, each one copy', two.lines.length === 2 && two.lines.every((l) => l.qty === 1) && [two.lines[0].printingId, two.lines[1].printingId].sort().join() === [uuid(901), uuid(902)].sort().join(), JSON.stringify(two.lines.map((l) => [l.qty, l.printingId])));
+  const sameTwice = prev('1 Sol Ring (cmm) 410\n2 Sol Ring (cmm) 410');
+  check('the same printing twice is one row', sameTwice.lines.length === 1 && sameTwice.lines[0].qty === 3 && sameTwice.lines[0].printings.join() === 'CMM 410');
+  const mixed = prev('1 Sol Ring (cmm) 410\n1 Sol Ring');
+  check('a printing and the default are separate rows', mixed.lines.length === 2 && mixed.lines.some((l) => l.printingId === null) && mixed.lines.some((l) => l.printingId === uuid(901)));
+  check('the same printing in two sections stays in two rows', prev('1 Sol Ring (cmm) 410\n\nSIDEBOARD:\n1 Sol Ring (cmm) 410').lines.length === 2);
+  same('the counts count the cards, not the rows', [two.counts.cards, two.counts.unique], [2, 2]);
+
+  // Why a typed set and number is not used, and what is shown instead.
+  const why = (text) => { const p = prev(text); return [p.lines[0].printingId, p.lines[0].printingSource, p.lines[0].printingProblems.map((x) => x.problem)]; };
+  same('a number that is not in the set', why('1 Sol Ring (cmm) 999'), [null, null, ['not_in_set']]);
+  same('a set we have no data for', why('1 Sol Ring (xyz) 1'), [null, null, ['set_missing']]);
+  same('a set that was not loaded at all', why('1 Sol Ring (abc) 1'), [null, null, ['not_loaded']]);
+  same('a number that is another card in that set', why('1 Island (cmm) 410'), [null, null, ['other_card']]);
+  same('a number that is another card\'s printing (here an Island) is refused for a Lightning Bolt line too', why('1 Lightning Bolt (cmm) 5'), [null, null, ['other_card']]);
+  const mergedProblem = prev('1 Sol Ring\n1 Sol Ring (cmm) 999');
+  check('a typed printing that is not found joins the default row and says why', mergedProblem.lines.length === 1 && mergedProblem.lines[0].qty === 2 && mergedProblem.lines[0].printingProblems.length === 1 && mergedProblem.lines[0].printings.join() === 'CMM 999');
+  check('a line that is not a card has no printing and no problem', (() => { const p = prev('1 Not A Card (cmm) 410'); return p.lines[0].printingId === null && p.lines[0].printingProblems.length === 0; })());
+  check('a file that is not an object is a problem, not a crash', ['text', 5, [], undefined].every((bad) => { const p = prev('1 Sol Ring (cmm) 410', new Map([['cmm', bad]])); return p.lines[0].printingId === null && p.lines[0].printingProblems.length === 1; }));
+  check('a number named like an object property is not found', ['toString', '__proto__', 'constructor', 'hasOwnProperty'].every((number) => prev(`1 Sol Ring (cmm) ${number}`).lines[0].printingId === null));
+  check('null printing data leaves printings alone and says nothing', (() => { const p = prev('1 Sol Ring (cmm) 410', null); return p.lines[0].printingId === null && p.lines[0].printingProblems.length === 0 && p.notices.length === 0; })());
+
+  // A card found by another title shows the printing that carries the title.
+  const titled = prev('1 Heart of the Mountain');
+  check('a title alone gives the printing that carries it', titled.lines[0].name === 'Arcane Signet' && titled.lines[0].printingId === uuid(801) && titled.lines[0].printingSource === 'title' && titled.lines[0].viaTitle === 'Heart of the Mountain', JSON.stringify(titled.lines[0]));
+  check('another title of the same card gives its own printing', prev('1 Earth’s Mightiest Emblem').lines[0].printingId === uuid(802) && prev("1 Earth's Mightiest Emblem").lines[0].printingId === uuid(802));
+  check('the real name has no title printing', prev('1 Arcane Signet').lines[0].printingId === null && prev('1 Arcane Signet').lines[0].printingSource === null);
+  check('a title and a typed set and number: the set and number win', (() => { const p = prev('1 Heart of the Mountain (sld) 916'); return p.lines[0].printingId === uuid(904) && p.lines[0].printingSource === 'set'; })());
+  check('a title and a set and number that is not found: the title printing, and the problem is said', (() => { const p = prev('1 Heart of the Mountain (sld) 999'); return p.lines[0].printingId === uuid(801) && p.lines[0].printingSource === 'title' && p.lines[0].printingProblems.length === 1; })());
+  check('two titles of one card are two rows', prev('1 Heart of the Mountain\n1 Earth’s Mightiest Emblem').lines.length === 2);
+  check('a title with no printing id (a list built before format 3) shows the default', (() => { const old = [{ ...signet, fp: undefined }]; const p = makePreview(parseDeckText('1 Heart of the Mountain'), matchDeck(buildCardIndex(old), parseDeckText('1 Heart of the Mountain').entries), {}, files); return p.lines[0].printingId === null && p.lines[0].viaTitle === 'Heart of the Mountain'; })());
+  check('a printing id that is not an id is never used', (() => { const bad = [{ ...signet, fp: ['not-an-id', uuid(802)] }]; const p = makePreview(parseDeckText('1 Heart of the Mountain'), matchDeck(buildCardIndex(bad), parseDeckText('1 Heart of the Mountain').entries), {}, files); return p.lines[0].printingId === null; })());
+  check('a title two cards share is a choice, and the chosen card then shows its own title printing', (() => {
+    const twins = [{ ...card('Twin A', 711), f: ['Shared'], fp: [uuid(811)] }, { ...card('Twin B', 712), f: ['Shared'], fp: [uuid(812)] }];
+    const parsed = parseDeckText('1 Shared');
+    const matched = matchDeck(buildCardIndex(twins), parsed.entries);
+    const before = makePreview(parsed, matched, {}, files);
+    const after = makePreview(parsed, matched, { [normalizeName('Shared')]: uuid(712) }, files);
+    return before.lines[0].printingId === null && after.lines[0].name === 'Twin B' && after.lines[0].printingId === uuid(812);
+  })());
+
+  // What the player is told.
+  same('a not-found number is said once, with the default picture named', describePrintingProblems([{ typed: 'CMM 999', problem: 'not_in_set' }]), ['1 set and number was not found, so that card shows its default picture: CMM 999.']);
+  same('several are counted and the first five are listed', describePrintingProblems(['A 1', 'B 2', 'C 3', 'D 4', 'E 5', 'F 6', 'G 7'].map((typed) => ({ typed, problem: 'set_missing' }))), ['7 sets and numbers were not found, so those cards show their default picture: A 1, B 2, C 3, D 4, E 5 and 2 more.']);
+  same('the same one twice is said once, and counted once', describePrintingProblems([{ typed: 'CMM 999', problem: 'not_in_set' }, { typed: 'CMM 999', problem: 'not_in_set' }]), ['1 set and number was not found, so that card shows its default picture: CMM 999.']);
+  same('the same typed text with two different reasons is still one notice',describePrintingProblems([{ typed: 'CMM 999', problem: 'not_in_set' }, { typed: 'CMM 999', problem: 'other_card' }]).length, 1);
+  check('...and is counted as two', /^2 sets and numbers were not found/.test(describePrintingProblems([{ typed: 'CMM 999', problem: 'not_in_set' }, { typed: 'CMM 999', problem: 'other_card' }])[0]));
+
+  // Which sets a deck needs: only those a card could use, once each, in the order typed.
+  const setsFor = (text) => { const parsed = parseDeckText(text); return printingSetsNeeded(matchDeck(buildCardIndex(cards), parsed.entries).results); };
+  same('the sets named on lines that are cards, once each, in the order typed', setsFor('1 Sol Ring (cmm) 410\n1 Island (znr) 266\n1 Arcane Signet (sld) 916\n1 Island (cmm) 5\n1 Lightning Bolt'), ['cmm', 'znr', 'sld']);
+  same('a line that is not a card costs no download', setsFor('1 Not A Card (abc) 7\n1 Sol Ring (cmm) 410'), ['cmm']);
+  same('a deck with no sets needs none', setsFor('1 Sol Ring\n2 Island'), []);
+  same('the same set on many lines is one', setsFor('1 Sol Ring (cmm) 410\n1 Island (cmm) 5\n1 Arcane Signet (cmm) 367'), ['cmm']);
+  same('a name that two cards share still needs its set (the player may choose)', printingSetsNeeded([{ entry: { set: 'cmm', number: '1' }, status: 'ambiguous' }, { entry: { set: 'sld', number: '2' }, status: 'suggestion' }]), ['cmm', 'sld']);
+  same('a set with no number needs nothing, and nor does no set', printingSetsNeeded([{ entry: { set: 'cmm', number: null }, status: 'matched' }, { entry: { set: null, number: '5' }, status: 'matched' }, { entry: { set: 'cmm', number: '' }, status: 'matched' }]), []);
+  same('no lines need none', printingSetsNeeded([]), []);
+  same('data that could not be loaded is its own notice', describePrintingProblems([{ typed: 'CMM 1', problem: 'not_loaded' }, { typed: 'ABC 2', problem: 'not_loaded' }]), ['The printing data could not be loaded for 2 sets and numbers, so those cards show their default picture.']);
+  same('nothing to say gives nothing', describePrintingProblems([]), []);
+  check('the notices of a preview include them', prev('1 Sol Ring (cmm) 999').notices.some((n) => /not found, so that card shows/.test(n)) && prev('1 Sol Ring (abc) 1').notices.some((n) => /could not be loaded/.test(n)));
+  check('every problem has words', ['not_loaded', 'set_missing', 'not_in_set', 'other_card'].every((k) => typeof PRINTING_PROBLEM_WORDS[k] === 'string' && PRINTING_PROBLEM_WORDS[k].length > 10) && Object.keys(PRINTING_PROBLEM_WORDS).length === 4);
+
+  // The saved deck keeps the printing, and reads it back strictly.
+  const body = '1 Sol Ring (cmm) 410\n1 Sol Ring (cmm) 703\n2 Sol Ring\n1 Heart of the Mountain\n1 Island (cmm) 5';
+  const preview = prev(body);
+  const made = buildSavedDeck(preview, { name: 'Printings', text: body, commanderIds: [] });
+  const ring = (deck) => deck.cards.filter((c) => c.n === 'Sol Ring').map((c) => [c.qty, c.p ?? null]);
+  check('the saved deck has one entry per printing, with its id', made.ok && JSON.stringify(ring(made.deck).sort()) === JSON.stringify([[1, uuid(901)], [1, uuid(902)], [2, null]].sort()), JSON.stringify(ring(made.deck)));
+  check('a title printing is saved, and so is an Island printing', made.deck.cards.some((c) => c.n === 'Arcane Signet' && c.p === uuid(801)) && made.deck.cards.some((c) => c.n === 'Island' && c.p === uuid(903)));
+  check('nothing else about the line is saved (not the typed text parts, the source or the problems)', !JSON.stringify(made.deck.cards).includes('printingSource') && !JSON.stringify(made.deck.cards).includes('printings') && !JSON.stringify(made.deck.cards).includes('CMM'));
+  const back = readSavedDeck(serializeDeck(made.deck));
+  same('it reads back exactly', back, made.deck);
+  check('the order is fixed (the same deck saves the same way)', JSON.stringify(buildSavedDeck(prev(body), { name: 'Printings', text: body, commanderIds: [], now: Date.parse(made.deck.savedAt) }).deck) === JSON.stringify(made.deck));
+  const withoutP = { ...made.deck, cards: made.deck.cards.filter((c) => !c.p) };
+  check('a saved deck from before printings (no p anywhere) still reads', readSavedDeck(serializeDeck(withoutP)) !== null && readSavedDeck(serializeDeck(withoutP)).cards.every((c) => !('p' in c)));
+  for (const [label, p] of [['a printing that is not an id', 'not-an-id'], ['an uppercase id', 'ABCDEF01-0000-4000-8000-000000000901'], ['a number', 5], ['null', null], ['an empty text', ''], ['an object', {}]]) {
+    const broken = { ...made.deck, cards: made.deck.cards.map((c, i) => (i === 0 ? { ...c, p } : c)) };
+    check(`${label} as a printing is refused`, readSavedDeck(serializeDeck(broken)) === null);
+  }
+  const duplicate = { ...made.deck, cards: [...made.deck.cards, { ...made.deck.cards.find((c) => c.p) }] };
+  check('the same card and printing twice in a section is refused', readSavedDeck(serializeDeck(duplicate)) === null);
+  const plainTwice = { ...made.deck, cards: [...withoutP.cards, { ...withoutP.cards[0] }] };
+  check('the same card with no printing twice is still refused', readSavedDeck(serializeDeck(plainTwice)) === null);
+  check('an extra field added by hand is dropped, p is kept', (() => { const extra = { ...made.deck, cards: made.deck.cards.map((c) => ({ ...c, evil: '<img src=x>' })) }; const r = readSavedDeck(serializeDeck(extra)); return r && r.cards.every((c) => !('evil' in c)) && r.cards.some((c) => c.p === uuid(901)); })());
+
+  // The commander keeps the printing its line named.
+  const cmdBody = 'Commander\n1 Sol Ring (cmm) 703\n\n1 Island (cmm) 5\n3 Island';
+  const cmd = prev(cmdBody);
+  const cmdDeck = buildSavedDeck(cmd, { name: 'C', text: cmdBody, commanderIds: [uuid(702)] });
+  check('a commander chosen from a printing row keeps that printing', cmdDeck.ok && cmdDeck.deck.cards.filter((c) => c.section === 'commander').length === 1 && cmdDeck.deck.cards.find((c) => c.section === 'commander').p === uuid(902), JSON.stringify(cmdDeck.deck?.cards));
+  check('a commander line with a printing does not leave a second copy behind', cmdDeck.deck.cards.filter((c) => c.n === 'Sol Ring').reduce((s, c) => s + c.qty, 0) === 1);
+  check('and the saved deck reads back with the commander found', readSavedDeck(serializeDeck(cmdDeck.deck))?.commander.join() === uuid(702));
+  const split = buildSavedDeck(prev('1 Sol Ring (cmm) 410\n1 Sol Ring (cmm) 703\n1 Sol Ring'), { name: 'S', text: '', commanderIds: [uuid(702)] });
+  check('a commander taken from a card with several printings uses the first row and leaves the others', split.ok && split.deck.cards.filter((c) => c.section === 'commander').length === 1 && split.deck.cards.filter((c) => c.n === 'Sol Ring').reduce((s, c) => s + c.qty, 0) === 3, JSON.stringify(split.deck?.cards));
+  const fromMain = buildSavedDeck(prev('1 Sol Ring (cmm) 410\n1 Island'), { name: 'M', text: '', commanderIds: [uuid(702)] });
+  check('a commander chosen from a main deck line keeps the printing that line named', fromMain.ok && fromMain.deck.cards.find((c) => c.section === 'commander').p === uuid(901) && !fromMain.deck.cards.some((c) => c.n === 'Sol Ring' && c.section === 'main'), JSON.stringify(fromMain.deck?.cards));
+  check('and with no printing named, the commander has none', (() => { const d = buildSavedDeck(prev('1 Sol Ring\n1 Island'), { name: 'M', text: '', commanderIds: [uuid(702)] }); return d.ok && !('p' in d.deck.cards.find((c) => c.section === 'commander')); })());
+  const unchosen = buildSavedDeck(prev('Commander\n1 Sol Ring (cmm) 410\n\n1 Island'), { name: 'U', text: '', commanderIds: [] });
+  check('a marked commander that the player did not choose goes back to the main deck with its printing', unchosen.ok && unchosen.deck.cards.find((c) => c.n === 'Sol Ring').section === 'main' && unchosen.deck.cards.find((c) => c.n === 'Sol Ring').p === uuid(901), JSON.stringify(unchosen.deck?.cards));
 }
 
 // ---- isLegendaryCreature ----

@@ -25,6 +25,8 @@ const suites = [
   { name: 'heartbeat and warning wiring', cmd: node, args: ['scripts/test-keep-alive.mjs'] },
   { name: 'browser storage that never throws', cmd: node, args: ['scripts/test-safe-store.mjs'] },
   { name: 'presence decisions', cmd: node, args: ['scripts/test-presence.mjs'] },
+  { name: 'exact printings: keys, files, lookup', cmd: node, args: ['scripts/test-printings.mjs'] },
+  { name: 'printing file loader (which sets are fetched)', cmd: node, args: ['scripts/test-printing-loader.mjs'] },
   { name: 'card list build', cmd: node, args: ['scripts/test-card-list.mjs'] },
   { name: 'card list download, reuse and fallbacks', cmd: node, args: ['scripts/test-card-list-build.mjs'] },
   { name: 'deck preview and saved deck logic', cmd: node, args: ['scripts/test-deck-preview.mjs'] },

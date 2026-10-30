@@ -337,4 +337,43 @@ check('a word that only contains Land does not count',!isLandCard({ t: 'Creature
   check('a different seed plays out differently', run(7).json !== run(8).json);
 }
 
+// ---- the printing of a card (p): only its picture differs ----
+{
+  const withPrinting = (name, n, qty, p, section = 'main') => ({ ...saved(name, n, qty, section), p });
+  const printed = () => deepFreeze({ cards: [saved('Éowyn', 1, 1, 'commander'), withPrinting('Sol Ring', 3, 3, uuid(903)), saved('Sol Ring', 3, 2), withPrinting('Forest', 2, 20, uuid(902)), withPrinting('Forest', 2, 1, uuid(904), 'sideboard')] });
+  const game = makeGame(printed(), lookup, { random: seededRandom(5) });
+  const cardsOf = (g) => ZONES.flatMap((zone) => g.zones[zone]);
+  check('every copy of a card carries the printing its saved card named', cardsOf(game).filter((c) => c.n === 'Sol Ring' && c.p === uuid(903)).length === 3 && cardsOf(game).filter((c) => c.n === 'Forest' && c.p === uuid(902)).length === 20, JSON.stringify(cardsOf(game).filter((c) => c.n === 'Sol Ring').map((c) => c.p ?? null)));
+  check('a card with no printing has no p field at all (the shape is what it was)', cardsOf(game).filter((c) => c.n === 'Sol Ring' && !('p' in c)).length === 2 && cardsOf(game).filter((c) => c.n === 'Éowyn').every((c) => !('p' in c)));
+  check('the card is still the card in the list: its id, name and type are the same whatever the printing', cardsOf(game).filter((c) => c.n === 'Sol Ring').every((c) => c.i === uuid(3) && c.t === 'Artifact' && c.m === '{1}'));
+  check('a sideboard copy keeps its own printing', game.zones.sideboard.length === 1 && game.zones.sideboard[0].p === uuid(904));
+  check('the game is consistent', checkGame(game).length === 0, JSON.stringify(checkGame(game)));
+  // Moves, draws, shuffles and turns neither lose a printing nor give it to another card.
+  const key = (g) => cardsOf(g).map((c) => `${c.uid}:${c.p ?? ''}`).sort().join();
+  let g = game;
+  const before = key(game);
+  for (let step = 0; step < 300; step++) {
+    const all = cardsOf(g);
+    const card = all[step * 7 % all.length];
+    const to = ZONES[(step * 3) % ZONES.length];
+    g = moveCard(g, card.uid, to, { position: step % 2 ? 'bottom' : 'top' });
+    if (step % 5 === 0) g = shuffleLibrary(g, seededRandom(step));
+    if (step % 11 === 0) g = nextTurn(g).game;
+    if (step % 13 === 0) g = untapAll(g);
+    if (step % 17 === 0) g = mulligan(g, { random: seededRandom(step) });
+  }
+  check('after 300 moves, shuffles, turns and mulligans every card still has exactly its own printing', key(g) === before && checkGame(g).length === 0, `${key(g) === before} ${JSON.stringify(checkGame(g))}`);
+  const first = game.zones.hand[0];
+  check('a moved card keeps its printing in the new zone', moveCard(game, first.uid, 'graveyard').zones.graveyard.find((c) => c.uid === first.uid).p === first.p);
+  for (const [label, bad] of [['text that is not an id', 'not-an-id'], ['an uppercase id', 'ABCDEF01-0000-4000-8000-000000000903'], ['a number', 7], ['null', null], ['an empty text', '']]) {
+    const broken = JSON.parse(JSON.stringify(game));
+    broken.zones.hand[0].p = bad;
+    check(`checkGame refuses ${label} as a printing`, checkGame(broken).some((p) => /printing that is not an id/.test(p)), JSON.stringify(checkGame(broken)));
+  }
+  const noPrinting = JSON.parse(JSON.stringify(game));
+  delete noPrinting.zones.hand[0].p;
+  check('and accepts a card that has none', checkGame(noPrinting).length === 0);
+  check('a saved card whose printing is empty text gets no p', !('p' in makeGame({ cards: [{ ...saved('Forest', 2, 5), p: '' }] }, lookup, { random: seededRandom(3) }).zones.hand[0]));
+}
+
 console.log(`All ${checks} zone checks passed.`);

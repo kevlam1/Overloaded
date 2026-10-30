@@ -3,9 +3,10 @@
 // only reads the form and draws the result. Everything typed or pasted is put into the page as text, never as markup.
 import { buildCardIndex, matchDeck } from '../../../shared/card-match.mjs';
 import { parseDeckText } from '../../../shared/deck-text.mjs';
-import { makePreview, buildSavedDeck, serializeDeck, readSavedDeck } from '../../../shared/deck-preview.mjs';
+import { makePreview, buildSavedDeck, serializeDeck, readSavedDeck, printingSetsNeeded, PRINTING_PROBLEM_WORDS } from '../../../shared/deck-preview.mjs';
 import { makeSafeStore } from '../../src/safe-store.js';
 import { loadCardList } from '../../src/card-list.js';
+import { makePrintingLoader } from '../../src/printings.js';
 import { setupCardPeek } from '../../src/card-peek.js';
 
 const $ = (id) => document.getElementById(id);
@@ -21,6 +22,9 @@ let mode = 'none'; // 'commander' or 'none'
 let modeTouched = false;
 let picks = ['', '']; // the chosen commander and partner (card ids)
 let picksTouched = false;
+const printingLoader = makePrintingLoader();
+let printingFiles = new Map(); // the set files the pasted list names (see src/printings.js)
+let checkRun = 0; // a newer check makes an older one that is still waiting for printing files stop
 
 function say(message, isError = false) {
   $('status').textContent = message;
@@ -55,12 +59,25 @@ async function loadCards() {
 }
 
 // ---- checking a pasted list ----
-function runCheck() {
+// Only a list that names sets and numbers waits for anything: it fetches the printing files of those sets (our own static
+// files, one per set, no request to Scryfall). A list without them is checked straight away, as before.
+async function runCheck() {
   if (!index) return;
   const pasted = $('deck-text').value;
   if (pasted !== text) { choices = {}; modeTouched = false; picksTouched = false; }
   text = pasted;
+  const run = ++checkRun;
   if (!text.trim()) { say('Paste a decklist first.', true); $('preview').hidden = true; preview = null; return; }
+  const parsed = parseDeckText(text);
+  const sets = printingSetsNeeded(matchDeck(index, parsed.entries).results);
+  if (sets.length) {
+    say(`Checking the printings in ${plural(sets.length, 'set', 'sets')}...`);
+    const loaded = await printingLoader.load(sets);
+    if (run !== checkRun) return; // checked again, cleared or loaded another deck while waiting
+    printingFiles = loaded;
+  } else {
+    printingFiles = new Map();
+  }
   refresh();
   const { counts } = preview;
   say(counts.problem === 0 ? `Checked: ${plural(counts.cards, 'card', 'cards')}, all matched.` : `Checked: ${plural(counts.cards, 'card', 'cards')}, ${counts.problem} need attention.`);
@@ -70,7 +87,7 @@ function runCheck() {
 // Works the preview out again from the text it is for (so choosing a card does not depend on what is now in the box).
 function refresh() {
   const parsed = parseDeckText(text);
-  preview = makePreview(parsed, matchDeck(index, parsed.entries), choices);
+  preview = makePreview(parsed, matchDeck(index, parsed.entries), choices, printingFiles);
   renderPreview();
 }
 
@@ -123,6 +140,21 @@ function renderProblems() {
   $('problems').hidden = list.children.length === 0;
 }
 
+// The column that says which printing a row shows: the set and number as typed (SLD 916), with "(not found)" or "(not loaded)"
+// after one that could not be used, and its words as the tooltip. A row found by a title says "title" when no set was typed.
+function printingCell(line) {
+  const problems = new Map(line.printingProblems.map((item) => [item.typed, item.problem]));
+  const parts = line.printings.map((typed) => (problems.has(typed) ? `${typed} (${problems.get(typed) === 'not_loaded' ? 'not loaded' : 'not found'})` : typed));
+  if (line.printingSource === 'title' && parts.length === 0) parts.push('title');
+  const cell = make('span', 'printing', parts.join(', '));
+  const notes = [];
+  if (line.printingSource === 'set') notes.push('Showing the printing you named in your list.');
+  if (line.printingSource === 'title') notes.push('Showing the printing that carries the title you typed.');
+  for (const [typed, problem] of problems) notes.push(`${typed}: ${PRINTING_PROBLEM_WORDS[problem]}, so the picture is ${line.printingSource === 'title' ? "that of the title's printing" : "the card's default one"}.`);
+  if (notes.length) cell.title = notes.join(' ');
+  return cell;
+}
+
 function renderSections() {
   const container = $('sections');
   container.replaceChildren();
@@ -134,12 +166,15 @@ function renderSections() {
       const name = make('span', 'name', line.name);
       if (line.viaTitle) name.append(make('span', 'typed-as', ` (typed as "${line.viaTitle}")`)); // a card found by another title it was printed under
       if (line.card) {
-        // Hovering the row (or focusing the name with the keyboard) shows the card's picture; see src/card-peek.js.
-        item.dataset.cardId = line.card.i;
+        // Hovering the row (or focusing the name with the keyboard) shows the card's picture; see src/card-peek.js. The picture
+        // is the printing the line named, or the printing of the title that was typed, or else the card's default one.
+        item.dataset.cardId = line.printingId ?? line.card.i;
+        item.dataset.printing = line.printingSource ?? 'default';
         item.dataset.cardName = line.name;
         name.tabIndex = 0;
       }
       item.append(make('span', 'qty', String(line.qty)), name);
+      item.append(printingCell(line));
       if (line.card) item.append(make('span', 'type', line.card.t), make('span', 'cost', line.card.m));
       else item.append(make('span', 'type', 'not matched'));
       list.append(item);
@@ -156,6 +191,7 @@ const CERTAINTY_NOTES = {
 };
 
 function renderCommander() {
+  if (!preview) return; // nothing is checked yet (or the list was cleared), so there is nobody to choose from
   const seen = new Set();
   const options = preview.lines
     .filter((line) => line.status === 'matched' && line.section !== 'maybeboard' && !seen.has(line.card.i) && seen.add(line.card.i))
@@ -196,11 +232,12 @@ function renderSaved() {
   $('saved-summary').textContent = `${deck.name}: ${plural(totalCards(deck), 'card', 'cards')}${commanders.length ? `, commander ${commanders.join(' and ')}` : ''}. Saved ${new Date(deck.savedAt).toLocaleDateString()}.${deck.skipped ? ` ${plural(deck.skipped, 'line was', 'lines were')} left out because they were not matched.` : ''}`;
 }
 
-function loadSaved() {
+async function loadSaved() {
   const deck = readSavedDeck(store.get(DECK_KEY));
   if (!deck || !index) return;
   $('deck-text').value = deck.text;
-  runCheck();
+  await runCheck();
+  if (!preview || $('deck-text').value !== deck.text) return; // another check came in while the printings loaded
   mode = deck.commander.length ? 'commander' : 'none';
   modeTouched = true;
   picks = [deck.commander[0] ?? '', deck.commander[1] ?? ''];
@@ -227,6 +264,7 @@ $('retry').addEventListener('click', loadCards);
 $('clear').addEventListener('click', () => {
   $('deck-text').value = '';
   text = ''; choices = {}; preview = null; modeTouched = false; picksTouched = false;
+  checkRun++; // a check still waiting for printing files must not bring the preview back
   $('preview').hidden = true;
   say('');
   $('deck-text').focus();

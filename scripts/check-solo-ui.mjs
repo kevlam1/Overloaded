@@ -35,9 +35,9 @@ const built = buildSavedDeck(preview, { name: 'Solo test deck', text: DECK_TEXT,
 if (!built.ok) { console.log(`The test deck could not be built: ${built.error}`); process.exit(1); }
 const DECK_JSON = serializeDeck(built.deck);
 // A deck made from other text the same way (for the sideboard scenario).
-const deckFrom = (text, name) => {
+const deckFrom = (text, name, printingFiles = null) => {
   const p = parseDeckText(text);
-  const pv = makePreview(p, matchDeck(buildCardIndex(cards), p.entries));
+  const pv = makePreview(p, matchDeck(buildCardIndex(cards), p.entries), {}, printingFiles);
   if (pv.counts.problem !== 0) throw new Error(`the ${name} deck did not match the card list: ${JSON.stringify(pv.problems)}`);
   const b = buildSavedDeck(pv, { name, text, commanderIds: pv.commander.ids });
   if (!b.ok) throw new Error(b.error);
@@ -46,8 +46,10 @@ const deckFrom = (text, name) => {
 // Shaped like a real Moxfield plain-text export: a card listed by the title it was printed under, a SIDEBOARD: section,
 // and the commander named last, after a blank line.
 const SIDE_JSON = deckFrom('1 Sol Ring\n1 Heart of the Mountain\n20 Forest\n20 Island\n10 Lightning Bolt\n\nSIDEBOARD:\n1 Annul\n1 Swords to Plowshares\n\nCommander\n1 Kyodai, Soul of Kamigawa', 'Side deck');
+const failIds = new Set(); // pictures with these ids are answered with 404, as Scryfall does for a picture that does not exist
 const cardArt = (url) => {
   const id = url.split('/').pop().replace('.jpg', '');
+  if (failIds.has(id)) return { status: 404, type: 'text/plain', text: '' };
   const hue = parseInt(id.slice(0, 4), 16) % 360;
   return { type: 'image/svg+xml', text: `<svg xmlns="http://www.w3.org/2000/svg" width="146" height="204" viewBox="0 0 146 204"><rect width="146" height="204" rx="9" fill="hsl(${hue},45%,38%)"/><rect x="8" y="8" width="130" height="188" rx="5" fill="none" stroke="#fff" stroke-opacity=".6"/><text x="73" y="108" font-size="13" text-anchor="middle" fill="#fff" font-family="sans-serif">${id.slice(0, 8)}</text></svg>` };
 };
@@ -217,6 +219,42 @@ try {
   await press('new-game');
   check('a new game keeps the sideboard whole', (await pileCount('sideboard')) === 'Sideboard: 2' && (await count('#hand .card')) === 7 && (await pileCount('library')) === 'Library: 45');
   check('every one of the 55 cards is somewhere', await (async () => { const n = async (s) => parseInt((await $text(s)).split(': ').at(-1), 10); return (await count('.card')) + (await n('pile-library')) + (await n('pile-graveyard')) + (await n('pile-exile')) + (await n('pile-sideboard')) === 55; })());
+
+  // ---- printings: a card is drawn with the printing its deck named, then the default picture, then its name ----
+  // Real data (checked against Scryfall's own records on 2026-10-29): Sol Ring cmm 410 is 46ca0b66..., Arcane Signet sld 916 is
+  // dd1d87e4... (the printing titled "Heart of the Mountain") and Arcane Signet cmm 367 is 0539b83c....
+  const SOL_RING_CMM_410 = '46ca0b66-a000-4483-b916-f5b89e710244';
+  const SIGNET_SLD_916 = 'dd1d87e4-f51a-448f-824f-99dffd73403c';
+  const SIGNET_CMM_367 = '0539b83c-4459-41b5-a001-d15a1c9ddf23';
+  const idOf = (name) => cards.find((c) => c.n === name).i;
+  const smallUrl = (id) => `https://cards.scryfall.io/small/front/${id[0]}/${id[1]}/${id}.jpg`;
+  const loadedSets = new Map(['cmm', 'sld'].map((set) => [set, JSON.parse(readFileSync(`frontend/public/data/printings/set-${set}.json`, 'utf8'))]));
+  const PRINTING_JSON = deckFrom('1 Forest\n1 Sol Ring (cmm) 410\n1 Heart of the Mountain\n1 Arcane Signet (cmm) 367\n1 Lightning Bolt', 'Printings', loadedSets);
+  const savedPrintings = JSON.parse(PRINTING_JSON).cards;
+  check('the saved deck holds the three printings and none for the other two cards', savedPrintings.length === 5 && savedPrintings.filter((c) => c.p).map((c) => c.p).sort().join() === [SOL_RING_CMM_410, SIGNET_SLD_916, SIGNET_CMM_367].sort().join(), JSON.stringify(savedPrintings));
+  await open(null); // no deck stored, so the pictures of the previous scenario's deck are not asked for again while this one is set up
+  asked.length = 0;
+  await open(PRINTING_JSON);
+  await sleep(600);
+  const hand = await ev(`Array.from(document.querySelectorAll('#hand .card')).map((b) => ({ name: b.getAttribute('aria-label') || b.textContent, src: b.querySelector('img')?.getAttribute('src') ?? null, noimage: b.classList.contains('noimage') }))`);
+  check('the guessed commander (the first card, a Forest) is in the command zone and the other four are in the hand under their real names (the Heart of the Mountain card is Arcane Signet)', (await count('#command .card')) === 1 && hand.length === 4 && hand.filter((c) => /Arcane Signet/.test(c.name)).length === 2 && !hand.some((c) => /Heart of the Mountain/.test(c.name)), JSON.stringify(hand.map((c) => c.name)));
+  check('each card draws the picture of its printing', [SOL_RING_CMM_410, SIGNET_SLD_916, SIGNET_CMM_367].every((id) => hand.some((c) => c.src === smallUrl(id))), JSON.stringify(hand.map((c) => c.src)));
+  check('cards with no printing draw their default picture', hand.some((c) => c.src === smallUrl(idOf('Lightning Bolt'))) && asked.includes(smallUrl(idOf('Forest'))));
+  check('and the default pictures of the cards that have a printing are not asked for at all', !asked.includes(smallUrl(idOf('Sol Ring'))) && !asked.includes(smallUrl(idOf('Arcane Signet'))) && asked.length === 5, `${asked.length}: ${asked.join(' ')}`);
+  failIds.add(SOL_RING_CMM_410);
+  await open(null);
+  asked.length = 0;
+  await open(PRINTING_JSON);
+  await sleep(700);
+  const ring = await ev(`(() => { const b = Array.from(document.querySelectorAll('#hand .card')).find((x) => /Sol Ring/.test(x.getAttribute('aria-label') || x.textContent)); return { src: b.querySelector('img')?.getAttribute('src') ?? null, noimage: b.classList.contains('noimage') }; })()`);
+  check('a printing whose picture does not exist falls back to the default picture of the card', asked.includes(smallUrl(SOL_RING_CMM_410)) && ring.src === smallUrl(idOf('Sol Ring')) && !ring.noimage, JSON.stringify({ ring, asked }));
+  check('and the default picture is tried once, not over and over', asked.filter((u) => u === smallUrl(idOf('Sol Ring'))).length === 1 && asked.filter((u) => u === smallUrl(SOL_RING_CMM_410)).length === 1);
+  failIds.add(idOf('Sol Ring'));
+  await open(PRINTING_JSON);
+  await sleep(700);
+  const noArt = await ev(`(() => { const b = Array.from(document.querySelectorAll('#hand .card')).find((x) => /Sol Ring/.test(x.getAttribute('aria-label') || x.textContent)); return { noimage: b.classList.contains('noimage'), shown: getComputedStyle(b.querySelector('.fallback')).display !== 'none' }; })()`);
+  check('when neither picture exists the card shows its name', noArt.noimage && noArt.shown, JSON.stringify(noArt));
+  failIds.clear();
 
   // ---- a deck with a hostile card name, and one the list does not know ----
   const hostile = JSON.parse(DECK_JSON);

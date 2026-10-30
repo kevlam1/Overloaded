@@ -1,12 +1,15 @@
 // A picture of a card that shows beside a deck list while the pointer is over a row of it (or while the card's name has
-// keyboard focus). Used by the deck import page to check the card art. It draws Scryfall's `normal` picture of the card's
-// default printing; it does not know which printing a player meant (the card list holds one id per card).
+// keyboard focus). Used by the deck import page to check the card art. It draws Scryfall's `normal` picture of the id the row
+// carries: the printing the player's list named, or the card's default printing.
 // Rows are found by event delegation, so the list can be redrawn without wiring anything again. Plain DOM, no dependencies.
 import { imageUrl } from '../../shared/card-image.mjs';
 
 const GAP = 24; // pixels between the pointer and the picture
 const EDGE = 8; // pixels kept free at the window's edge
 const DOCK_MIN_WIDTH = 900; // a window at least this wide has room for the picture beside the list
+// What the note says about the picture, from the row's data-printing: the printing the list named by set and number, the printing
+// that carries a title the player typed, or (nothing known) the card's default printing.
+const PRINTING_NOTES = { set: 'the printing you named', title: 'the printing that carries the title you typed', default: "the card's default printing" };
 
 // root: the element that holds the rows. Each row has data-card-id (a Scryfall id) and data-card-name. peek: the box to show,
 // image: its <img>, note: the text under the picture. Returns { hide }.
@@ -45,7 +48,7 @@ export function setupCardPeek({ root, peek, image, note, win = window }) {
         image.hidden = false;
         if (image.getAttribute('src') !== url) image.setAttribute('src', url);
         image.alt = name;
-        note.textContent = `${name}: the card's default printing`;
+        note.textContent = `${name}: ${PRINTING_NOTES[row.dataset.printing] ?? PRINTING_NOTES.default}`;
       }
     }
     peek.hidden = false;

@@ -123,13 +123,38 @@ for (const path of ['/package.json', '/vite.config.js', '/.env', '/backend/datab
 // ---- 3b. The card list: served as JSON from /data/cards.json, not swallowed by a rewrite into the lobby page ----
 // Checked when a list is cached on this machine (npm run cards) or against a deployed site; otherwise the build had none
 // to include, and saying nothing would hide that, so it says so.
-const cachedList = join('.vercel', 'cache', 'overloaded', 'cards.json');
+const cacheDir = process.env.CARD_LIST_CACHE_DIR ?? join('.vercel', 'cache', 'overloaded');
+const cachedList = join(cacheDir, 'cards.json');
 if (LIVE || existsSync(cachedList)) {
   const served = await get('/data/cards.json');
   let cards = null; try { cards = JSON.parse(served.body); } catch { /* reported below */ }
   check('the card list is served as JSON, not as the lobby page', served.status === 200 && /json/.test(served.type) && Array.isArray(cards), `${served.status} ${served.type}`);
   check('it holds tens of thousands of cards, each with name, type, cost, keywords and id', Array.isArray(cards) && cards.length >= 30000 && ['n', 't', 'm', 'k', 'i'].every((key) => key in cards[0]), Array.isArray(cards) ? String(cards.length) : '');
   if (!LIVE) check('and it is exactly the cached list', readFileSync(join('dist', 'data', 'cards.json')).equals(readFileSync(cachedList)));
+
+  // The printing files (one per set, /data/printings/set-CODE.json): served as JSON, never as the lobby page, and a set with no
+  // file is a real 404 (the page tells "no data for that set" from "could not load" by it). A list in an older format has none.
+  const cachedPrintings = join(cacheDir, 'printings.json');
+  const cmm = await get('/data/printings/set-cmm.json');
+  if (LIVE || existsSync(cachedPrintings)) {
+    let cmmFile = null; try { cmmFile = JSON.parse(cmm.body); } catch { /* reported below */ }
+    check('a set file is served as JSON, not as the lobby page', cmm.status === 200 && /json/.test(cmm.type) && cmmFile && typeof cmmFile === 'object' && !Array.isArray(cmmFile), `${cmm.status} ${cmm.type}`);
+    check('it maps collector numbers to a printing id and a card key (Sol Ring in Commander Masters, number 410)', typeof cmmFile?.['410'] === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}[0-9a-f]{4}$/.test(cmmFile['410']));
+    const con = await get('/data/printings/set-con.json');
+    check('the set named like a Windows device is served (con, Conflux)', con.status === 200 && /json/.test(con.type) && Object.keys(JSON.parse(con.body)).length > 0, `${con.status} ${con.type}`);
+    const missing = await get('/data/printings/set-zzz.json');
+    check('a set with no file is a 404, not a page', missing.status === 404 && !/<html/i.test(missing.body), `${missing.status} ${missing.type}`);
+    check('the bare name cmm.json is not a file (the files are named set-CODE.json)', (await get('/data/printings/cmm.json')).status === 404);
+    check('the set files carry the security headers too', (await fetch(ORIGIN + '/data/printings/set-cmm.json')).headers.get('x-content-type-options') === 'nosniff');
+    if (!LIVE) {
+      const all = JSON.parse(readFileSync(cachedPrintings, 'utf8'));
+      const sets = Object.keys(all);
+      check('every set in the cache is a file in the built site, and nothing else is', readdirSync(join('dist', 'data', 'printings')).sort().join() === sets.map((set) => `set-${set}.json`).sort().join(), `${readdirSync(join('dist', 'data', 'printings')).length} files, ${sets.length} sets`);
+      check('and each file is exactly its set from the cache', sets.every((set) => readFileSync(join('dist', 'data', 'printings', `set-${set}.json`), 'utf8') === JSON.stringify(all[set])));
+    }
+  } else {
+    console.log('(printing file checks skipped: the cached list has no printings, so it is in an older format; the next card list build makes them)');
+  }
 } else {
   console.log('(card list checks skipped: no list is cached here; run `npm run cards` to download one)');
 }

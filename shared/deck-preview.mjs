@@ -2,7 +2,8 @@
 // It sits between the parser (shared/deck-text.mjs, text to entries) and the matcher (shared/card-match.mjs, entries to
 // cards): it merges repeated lines, groups them by section, finds the problems, guesses the commander, and builds the
 // deck that is saved in the browser (and reads it back safely). The rules come from docs/deck-import.md.
-import { normalizeName } from './card-match.mjs';
+import { normalizeName, titlePrintingOf } from './card-match.mjs';
+import { findPrinting } from './printings.mjs';
 import { scrubText, hasVisibleCharacter } from './player-name.mjs';
 import { MAX_CARDS, MAX_CHARS } from './deck-text.mjs';
 
@@ -57,6 +58,41 @@ export function describeNotices(parsed) {
   return notices;
 }
 
+// The set files a deck needs: each set code typed with a number on a line that is (or may be) a card, once, in the order
+// first typed. A line that no card has that name is left out (its printing could never be used), so a typo costs no download.
+// results: matchDeck(...).results.
+export function printingSetsNeeded(results) {
+  const sets = [];
+  for (const { entry, status } of results) {
+    if (status === 'not_found' || !entry.set || !entry.number || sets.includes(entry.set)) continue;
+    sets.push(entry.set);
+  }
+  return sets;
+}
+
+export const PRINTING_PROBLEM_WORDS = {
+  not_loaded: 'The printing data for this set could not be loaded',
+  set_missing: 'There is no printing data for this set',
+  not_in_set: 'This number is not in that set',
+  other_card: 'This number in that set is a different card',
+};
+
+// What to tell the player about typed sets and numbers that could not be used. problems: every { typed, problem } of the
+// preview's lines. The card itself is still right; only its picture is the default one, so the words say exactly that.
+export function describePrintingProblems(problems) {
+  const seen = new Set();
+  const unique = problems.filter((item) => !seen.has(`${item.problem}|${item.typed}`) && seen.add(`${item.problem}|${item.typed}`));
+  const notices = [];
+  const unloaded = unique.filter((item) => item.problem === 'not_loaded');
+  const notFound = unique.filter((item) => item.problem !== 'not_loaded');
+  if (unloaded.length) notices.push(`The printing data could not be loaded for ${unloaded.length === 1 ? '1 set and number' : `${unloaded.length} sets and numbers`}, so those cards show their default picture.`);
+  if (notFound.length) {
+    const shown = notFound.slice(0, 5).map((item) => item.typed).join(', ');
+    notices.push(`${notFound.length === 1 ? '1 set and number was' : `${notFound.length} sets and numbers were`} not found, so ${notFound.length === 1 ? 'that card shows its' : 'those cards show their'} default picture: ${shown}${notFound.length > 5 ? ` and ${notFound.length - 5} more` : ''}.`);
+  }
+  return notices;
+}
+
 // The commander, guessed in the order of trust from docs/deck-import.md: a typed or exported Commander header (certain);
 // else the cards after the blank line in Moxfield plain text; else the first legendary creature in the main deck; else the
 // first main deck card. Only the first is certain; the page says so. Returns { certainty, ids }.
@@ -73,10 +109,39 @@ export function guessCommander(lines) {
   return { certainty: null, ids: [] };
 }
 
+// Which printing a line stands for, so its picture is the one the player meant. In order of trust:
+//   1. the set and number typed on the line, found in that set's printing file, and a printing of THIS card;
+//   2. the printing that carries the title the line was typed as (a card found by another title);
+//   3. none: the card's default printing.
+// Returns { id, source, problem }. problem is why a typed set and number was not used, so the page can say so (the card is
+// still right; only the picture is the default one): 'not_loaded' (the file was not fetched or failed), 'set_missing' (no
+// such set in our data), 'not_in_set' (no such number in it), 'other_card' (that number is another card's printing).
+// printingFiles: a Map of set code (lowercase) to its parsed file; null for a set known to have none; absent when not loaded.
+function resolvePrinting(entry, card, viaTitle, printingFiles) {
+  if (!card) return { id: null, source: null, problem: null };
+  let problem = null;
+  if (entry.set && entry.number && printingFiles) { // no printing data at all (null) means printings are not looked at, which is no problem
+    if (!printingFiles.has(entry.set)) problem = 'not_loaded';
+    else {
+      const file = printingFiles.get(entry.set);
+      if (file === null) problem = 'set_missing';
+      else {
+        const id = findPrinting(file, entry.number, card.n);
+        if (id) return { id, source: 'set', problem: null };
+        problem = file && Object.hasOwn(file, entry.number) ? 'other_card' : 'not_in_set';
+      }
+    }
+  }
+  const fromTitle = viaTitle ? titlePrintingOf(card, viaTitle) : null;
+  return fromTitle ? { id: fromTitle, source: 'title', problem } : { id: null, source: null, problem };
+}
+
 // parsed: the result of parseDeckText. matched: the result of matchDeck for the same entries.
 // choices: { [normalized typed name]: card id } for names the player settled (an ambiguous name, or a "did you mean").
+// printingFiles: a Map of the set files that were loaded (see resolvePrinting), or null (the default) to leave printings
+// alone: every line then shows its title's printing or the default one, and nothing is said about typed sets.
 // Returns the preview: { sections, problems, counts, commander, notices, canSave, lines }.
-export function makePreview(parsed, matched, choices = {}) {
+export function makePreview(parsed, matched, choices = {}, printingFiles = null) {
   if (!parsed || !matched || parsed.entries.length !== matched.results.length) throw new Error('The parsed deck and its matches do not line up.');
   const groups = new Map();
   matched.results.forEach((result, order) => {
@@ -86,11 +151,23 @@ export function makePreview(parsed, matched, choices = {}) {
     let card = result.card;
     const chosen = (status === 'ambiguous' || status === 'suggestion') ? result.candidates.find((candidate) => candidate.i === choices[typedKey]) : null;
     if (chosen) { status = 'matched'; card = chosen; }
-    const key = `${entry.section}|${card ? `c:${card.i}` : `n:${typedKey}`}`;
+    // printings: the set code and number as typed on the line ("SLD 916"), for each different one in a merged line; empty when none was typed
+    const printing = entry.set && entry.number ? `${entry.set.toUpperCase()} ${entry.number}` : null;
+    const viaTitle = card && result.method === 'alt' ? entry.name : null;
+    const resolved = resolvePrinting(entry, card, viaTitle, printingFiles);
+    const key = `${entry.section}|${card ? `c:${card.i}` : `n:${typedKey}`}|p:${resolved.id ?? ''}`;
     const existing = groups.get(key);
-    if (existing) { existing.qty += entry.qty; return; }
+    if (existing) {
+      existing.qty += entry.qty;
+      if (printing && !existing.printings.includes(printing)) existing.printings.push(printing);
+      if (resolved.problem) existing.printingProblems.push({ typed: printing, problem: resolved.problem });
+      return;
+    }
     // viaTitle: the name as typed, when the card was found by another title it was printed under (not by its own name)
-    groups.set(key, { key, section: entry.section, qty: entry.qty, status, card: card ?? null, candidates: card ? [] : result.candidates, typed: entry.name, typedKey, name: card ? card.n : entry.name, viaTitle: card && result.method === 'alt' ? entry.name : null, firstLine: entry.line, order });
+    // printingId: the printing whose picture to show (null: the card's default one); printingSource: 'set' (the typed set and
+    // number), 'title' (the printing that carries the title that was typed) or null; printingProblems: typed set and numbers
+    // that could not be found, each with why (see resolvePrinting)
+    groups.set(key, { key, section: entry.section, qty: entry.qty, status, card: card ?? null, candidates: card ? [] : result.candidates, typed: entry.name, typedKey, name: card ? card.n : entry.name, viaTitle, printings: printing ? [printing] : [], printingId: resolved.id, printingSource: resolved.source, printingProblems: resolved.problem ? [{ typed: printing, problem: resolved.problem }] : [], firstLine: entry.line, order });
   });
   const lines = [...groups.values()];
 
@@ -119,7 +196,7 @@ export function makePreview(parsed, matched, choices = {}) {
   };
   // Does this look like a Commander deck? Certain when a commander was marked; otherwise by size (100 with the commander).
   const looksLikeCommander = commander.certainty === 'marked' || commander.certainty === 'unlabeled' || (deckSize >= 98 && deckSize <= 102);
-  const notices = describeNotices(parsed);
+  const notices = [...describeNotices(parsed), ...describePrintingProblems(lines.flatMap((line) => line.printingProblems))];
   const canSave = !parsed.errors.length && lines.some((line) => line.status === 'matched');
   return { sections, problems, counts, commander: { ...commander, looksLikeCommander }, notices, canSave, lines };
 }
@@ -146,32 +223,36 @@ export function buildSavedDeck(preview, { name, text = '', commanderIds = [], al
   if (new Set(commanderIds).size !== commanderIds.length) return { ok: false, error: 'Choose two different cards for the commander and the partner, or leave the partner empty.' };
   if (commanderIds.length > MAX_COMMANDERS) return { ok: false, error: `A deck has at most ${MAX_COMMANDERS} commanders (a commander and a partner).` };
   const saved = preview.lines.filter((line) => line.status === 'matched' && SAVED_SECTIONS.concat('unlabeled').includes(line.section));
+  // A saved card is { i, n, qty, section } and, when the player's list named a printing, p: that printing's id. The same card
+  // with two different printings is two entries (each is a picture), the same printing is one.
   const cards = new Map();
+  const keyOf = (card, section) => `${section}|${card.i}|${card.p ?? ''}`;
   const put = (card, qty, section) => {
     if (qty <= 0) return;
-    const key = `${section}|${card.i}`;
+    const key = keyOf(card, section);
     const existing = cards.get(key);
     if (existing) existing.qty += qty;
-    else cards.set(key, { i: card.i, n: card.n, qty, section });
+    else cards.set(key, { i: card.i, n: card.n, qty, section, ...(card.p ? { p: card.p } : {}) });
   };
-  for (const line of saved) put(line.card, line.qty, line.section === 'unlabeled' ? 'main' : line.section);
+  for (const line of saved) put({ i: line.card.i, n: line.card.n, p: line.printingId }, line.qty, line.section === 'unlabeled' ? 'main' : line.section);
   // The player's choice decides who the commander is. A card the list marked as a commander but the player did not choose
   // goes back to the main deck, so the saved deck never disagrees with itself.
   for (const card of [...cards.values()]) {
-    if (card.section === 'commander' && !commanderIds.includes(card.i)) { cards.delete(`commander|${card.i}`); put(card, card.qty, 'main'); }
+    if (card.section === 'commander' && !commanderIds.includes(card.i)) { cards.delete(keyOf(card, 'commander')); put(card, card.qty, 'main'); }
   }
   for (const id of commanderIds) {
-    // One copy of the chosen card becomes the commander, taken from wherever it was listed (not the maybeboard).
+    // One copy of the chosen card becomes the commander, taken from wherever it was listed (not the maybeboard), with the
+    // printing that line named.
     const from = [...cards.values()].find((card) => card.i === id && card.section !== 'commander');
-    const already = cards.get(`commander|${id}`);
+    const already = [...cards.values()].some((card) => card.i === id && card.section === 'commander');
     if (already) continue;
     if (!from) return { ok: false, error: 'The commander you chose is not in the deck.' };
     from.qty -= 1;
-    if (from.qty === 0) cards.delete(`${from.section}|${id}`);
-    put({ i: from.i, n: from.n }, 1, 'commander');
+    if (from.qty === 0) cards.delete(keyOf(from, from.section));
+    put({ i: from.i, n: from.n, p: from.p }, 1, 'commander');
   }
   // A fixed order (commander, companion, main, sideboard, then by name), so the same deck is always saved the same way.
-  const list = [...cards.values()].sort((a, b) => SAVED_SECTIONS.indexOf(a.section) - SAVED_SECTIONS.indexOf(b.section) || (a.n < b.n ? -1 : a.n > b.n ? 1 : a.i < b.i ? -1 : 1));
+  const list = [...cards.values()].sort((a, b) => SAVED_SECTIONS.indexOf(a.section) - SAVED_SECTIONS.indexOf(b.section) || (a.n < b.n ? -1 : a.n > b.n ? 1 : a.i < b.i ? -1 : a.i > b.i ? 1 : (a.p ?? '') < (b.p ?? '') ? -1 : 1));
   const total = list.reduce((sum, card) => sum + card.qty, 0);
   if (total > MAX_CARDS) return { ok: false, error: `That is ${total} cards. The limit is ${MAX_CARDS}.` };
   return { ok: true, deck: { version: SAVED_VERSION, name: cleanName, savedAt: new Date(now).toISOString(), commander: commanderIds.slice(), cards: list, skipped: unmatched.length, text: String(text).slice(0, MAX_CHARS) } };
@@ -189,15 +270,18 @@ export function readSavedDeck(raw) {
   if (typeof deck.savedAt !== 'string' || Number.isNaN(Date.parse(deck.savedAt))) return null;
   if (!Array.isArray(deck.cards) || deck.cards.length === 0 || deck.cards.length > MAX_CARDS) return null;
   let total = 0;
-  const seen = new Set();
+  const seen = new Set(); // section and card, whatever the printing: where the commander is looked for
+  const unique = new Set(); // section, card and printing: a line may not repeat
   for (const card of deck.cards) {
     if (!card || typeof card !== 'object' || typeof card.i !== 'string' || !UUID.test(card.i)) return null;
     if (typeof card.n !== 'string' || card.n.length === 0 || card.n.length > 200) return null;
     if (!Number.isInteger(card.qty) || card.qty < 1 || card.qty > MAX_CARDS) return null;
     if (!SAVED_SECTIONS.includes(card.section)) return null;
-    const key = `${card.section}|${card.i}`;
-    if (seen.has(key)) return null;
-    seen.add(key);
+    if ('p' in card && (typeof card.p !== 'string' || !UUID.test(card.p))) return null; // the printing, optional
+    const key = `${card.section}|${card.i}|${card.p ?? ''}`;
+    if (unique.has(key)) return null;
+    unique.add(key);
+    seen.add(`${card.section}|${card.i}`);
     total += card.qty;
   }
   if (total > MAX_CARDS) return null;
@@ -211,7 +295,7 @@ export function readSavedDeck(raw) {
     name: deck.name,
     savedAt: deck.savedAt,
     commander: deck.commander.slice(),
-    cards: deck.cards.map((card) => ({ i: card.i, n: card.n, qty: card.qty, section: card.section })),
+    cards: deck.cards.map((card) => ({ i: card.i, n: card.n, qty: card.qty, section: card.section, ...('p' in card ? { p: card.p } : {}) })),
     skipped: deck.skipped,
     text: deck.text,
   };

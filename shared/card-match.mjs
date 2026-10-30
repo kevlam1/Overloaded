@@ -83,6 +83,19 @@ export function matchEntry(index, entry) {
   return { entry, status: 'not_found', method: null, card: null, candidates: [] }
 }
 
+// The printing that carries the title a name was typed as, when that name is one of the card's other titles (the card's
+// `f` list, with the printing's id at the same place in `fp`, written by the card list build). Returns the printing's id,
+// or null: no titles, no `fp` (a list built before format 3), or the name is not one of them. The picture of a card found
+// by a title can then be the picture that title is printed on.
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+export function titlePrintingOf(card, typedName) {
+  if (!card || !Array.isArray(card.f) || !Array.isArray(card.fp) || typeof typedName !== 'string') return null
+  const key = normalizeName(typedName)
+  const at = card.f.findIndex((title) => typeof title === 'string' && normalizeName(title) === key)
+  const id = at >= 0 ? card.fp[at] : null
+  return typeof id === 'string' && UUID.test(id) ? id : null
+}
+
 // Matches every entry. fallbackNames are the names to send in at most one batch request to Scryfall,
 // each spelling once, and never more than 75; fallbackOverflow says some were left out.
 export function matchDeck(index, entries) {
