@@ -1194,6 +1194,71 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 **Decisions**
 - `/deck` stays a standalone page until the lobby has deck fields; then the lobby picks a saved deck and this page becomes where decks are made and managed.
 
+## 58. The lobby idea, and the zone logic for the solo table (2026-10-29)
+
+**What I asked for**
+- I shared a screenshot of another site's lobby to show what I would like mine to be like: players import their deck and change it in the lobby, but much simpler. Then I said to continue.
+
+**What changed**
+- `docs/design-notes.md`: my lobby idea, written by features (not naming the site, and the screenshot is not in the repo), with Claude's note on what a simple first version needs: your deck in your seat with a Change deck button, a Ready button that needs a deck, other players' decks, a Preview deck button, and a Start button that stays off until 2 players are ready. That is the lobby deck fields step, a database rules change with a full mutation run, so it comes after the solo table.
+- `shared/zones.mjs` (new): one player's game as plain data and every move: make a game from a saved deck, draw, move a card to any zone, shuffle, mulligan, tap, untap all, life, next turn, the two battlefield rows, and a consistency check. Every function returns a new game and never changes the old one.
+- `scripts/test-zones.mjs` (new, registered in `npm test`, which is now 23 suites).
+- `docs/todo.md` and `CLAUDE.md`: what is built and the next pieces of the table.
+
+**What I checked**
+- 252 checks pass: every move between every pair of zones leaves the card in exactly one place, each move puts it where a paper table would, the games are frozen so any in-place change would throw, the shuffle is fair (all 24 orders of 4 cards came up about 2,000 times each in 48,000 shuffles, and each of 10 cards landed in each place about 3,000 times in 30,000), and five random games of 3,000 operations each never lost or copied a card.
+- 80 of 82 broken copies fail the tests. The first run had 4 survivors: two were real gaps (nothing tapped the second battlefield card alone, so a version that tapped it and everything before it looked the same; and nothing tested a word that merely contains "Land"), now fixed, and two are equivalent (the uid counter starting at 100, and a divisor that could differ once in about four billion numbers).
+- Not built or checked: the table page itself, card pictures, and anything in a browser.
+- A finding that shapes the page: a saved deck keeps each card's id, name and quantity but not its type line, so the table has to look cards up in the card list; and Scryfall changed the default printing id of 162 cards in 3 days, so the lookup goes by id and then by name. Pictures are keyed by the id and stay valid.
+
+**Decisions**
+- Casual means the logic never refuses a move by the rules of the game: life can go below zero, a library can run out (draw says it was short and carries on), and a mulligan shuffles the hand back and draws again, with the player putting cards on the bottom by hand.
+- Index 0 is the top of every pile, and a graveyard shows the newest card first.
+
+## 59. The solo table, at /solo (2026-10-29)
+
+**What I asked for**
+- I said I do not need the Start button rule ("off until at least 2 players are ready") in the lobby idea, to call the solo table `/solo`, and I asked what "turning a picture sideways" meant: tapping a card only turns it, it does not change the art. (Claude's answer: yes, tapping is a turn of the card with CSS, the picture file is never touched.)
+
+**What changed**
+- `frontend/pages/solo/index.html` and `solo.js` (new): the solo table. It loads the saved deck and the card list, deals 7, and shows the commander in the command zone, two battlefield rows (lands, other permanents), the hand, and the library, graveyard, exile and sideboard as piles you can open. You click a card to select it and an action bar lets you tap or untap it or send it to any zone, the top or bottom of the library. Draw, next turn, untap all, shuffle, mulligan, new game and life buttons. A deck that is missing, damaged, or a card list that fails to load shows a message, and Try again for the list.
+- `shared/card-image.mjs` and `shared/card-lookup.mjs` (new): the picture address (small size, front face, from Scryfall's picture server) and the lookup of a saved card in the card list by id and then by name. `frontend/src/card-list.js` (new) loads the card list for both the deck page and the solo page.
+- `vercel.json`: `/solo` rewrite, and `img-src` now allows `https://cards.scryfall.io`. `vite.config.js`: the solo page is built. Links to the solo table from `/deck` and the lobby. `frontend/src/style.css`: the table's styles.
+- `scripts/check-solo-ui.mjs` (new, 59 checks), `scripts/test-card-lookup.mjs` (new, 31 checks), both in `npm test` (25 suites now); `scripts/lib/browser.mjs` can now answer picture requests with stand-ins; 3 new checks in `scripts/check-deploy-config.mjs` (the exact `img-src`, `/solo` served with the policy).
+
+**What I checked**
+- `npm test`: all 25 suites pass. `scripts/check-solo-ui.mjs` drives real headless Chrome against the real 34,172-card list, with the picture server answered by card-shaped stand-ins: the deal, draw, turns, life, selecting and moving a card between every kind of zone, tapping (the card turns sideways and its box widens so it does not overlap its neighbour), the pile viewer, top and bottom of the library, shuffle, mulligan, a card name that is markup shown as text, a card the list does not know, no saved deck, a damaged deck, a card list that fails and then loads, blocked storage, no script errors, and no request to any site but this one and the picture server.
+- Screenshots at desktop width, dark and light, with the real pictures from Scryfall, looked at (tapped Forest turned sideways, Sol Ring selected with its actions, Eowyn in the command zone, the library list), then deleted.
+- Not checked: phone width (on hold), a broken-copy run of the lookup module and the page, the live site (nothing is pushed), and the Fan Content Policy wording for showing card pictures (still to re-read in a browser).
+
+**Decisions**
+- `/solo` is the address. Solo games are not saved: a refresh deals a new game.
+- The Start rule is not in the lobby idea. The built rule (a match starts only with at least 2 players, all ready) is still in the database rules and the flow model; I have not changed it. Open question for me: drop it only from the idea, or relax the built rule.
+
+## 60. Cards that were printed under another title (2026-10-29)
+
+**What I asked for**
+- I tried to import a real Commander deck and 5 of its 100 cards were "not found": Heart of the Mountain (really Arcane Signet), Shadowbringers (really Dovin's Veto), Ardyn Izunia, Kushala Daora's Fury and a Japanese title. I asked if there is a fix. After Claude explained, I said to go ahead, and asked what happens if the Japanese one has no English version.
+
+**What changed**
+- Claude first looked at the raw Scryfall data (not from memory): all five are the `flavor_name` field of one printing, while `name` is the real card's English name, even on the Japanese printing. Across all 119,203 printings there are 571 such titles on 497 cards, none equal to a real card name and none shared by two cards.
+- `scripts/lib/card-list.mjs`: a card that has such titles gets an optional `f` list in the card list (sorted; digital-only printings left out). The other five fields of all 34,172 entries are unchanged, and the list grows by about 9.7 KB gzipped (0.7%).
+- `shared/card-match.mjs`: after the full name and the front face, it tries `f` (method `alt`), then the back-face suggestion. A real name or a front face always wins over a title; two cards sharing a title is a choice, not a guess.
+- `shared/deck-preview.mjs`, `frontend/pages/deck/deck.js`, `frontend/src/style.css`: the deck page shows the real card with "(typed as ...)" beside it, and the saved deck stores the real card.
+- `scripts/lib/card-list-build.mjs`: the cache record now has a `format` number (`LIST_FORMAT`, 2). Without it the build reuses a recent list for 7 days, so Vercel would have kept serving the old list with no titles after this push. A list in another format is rebuilt once; if that fails, the old list is still used.
+- Tests: `scripts/test-card-list.mjs` (108), `scripts/test-card-match.mjs`, `scripts/test-card-list-build.mjs` (126), `scripts/test-deck-preview.mjs` (179) and `scripts/check-deck-ui.mjs` (75) grew. Docs: `CLAUDE.md` and `docs/todo.md`.
+
+**What I checked**
+- `npm test` passes all 25 suites, and `scripts/check-card-match.mjs` (every real card name) passes.
+- The five names from my deck match against a list built from the real cached Scryfall files, along with Sol Ring unchanged and a made-up name still not found. In real headless Chrome the deck page shows all six lines matched with the typed titles beside them (screenshot looked at, desktop, dark), and the saved deck holds the real names.
+- 29 broken copies of the new code (list build and matcher): the first run caught 28 and one survived (a title taking priority over another card's front face). I added a test for it, and all 29 are caught.
+- I also finished an item that entry 59 left open: 26 broken copies of `shared/card-lookup.mjs` and `shared/card-image.mjs`. The first run caught 24; the survivors were an id passed as an array or object whose text looks like an id (the address would have been built from its first characters), and an id with only one group in capitals. I added tests for both (`scripts/test-card-lookup.mjs` is 37 checks now) and all 26 are caught.
+- Not checked: the live site (nothing pushed; the first Vercel build after this push will rebuild the list once, about 26 s and 100 MB, and I should confirm from `/data/cards.info.json`), light mode and phone width for this change, and any deck with a fully translated card name.
+
+**Decisions**
+- Matching works even when a title exists only on a non-English printing, because the real name is always English. What it cannot do yet is show that printing's art: the table draws the default printing. Keeping the art of the printing I actually own is a follow-up (the list would need to remember which printing carries each title).
+- A title is only used after a real name and a front face fail, so a title can never hide or steal a real card.
+
 ---
 
 ## Where AI misread me, or I had to correct course
@@ -1249,6 +1314,9 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - **Screenshots that showed nothing (Claude's slip, entry 49):** the first presence screenshots were cut off above the player list, so they proved only that the page had loaded. The check passed because the text was in the page, not because anyone could see it. Fixed by scrolling the list into view before the screenshot.
 - **A shell quote that ate code (Claude's slip, entry 49):** Claude put backticks inside a double-quoted shell command while writing a test, and the shell silently deleted the text. It repaired the file with the editing tool; the exact thing the shared notes warn about.
 - **Tests that could only pass for the wrong reason (Claude's slips, entry 50):** a takeover test named a player who was not a member, so the rule refused it for that reason and not the one being tested, and another test ordered its steps so an earlier step left a host slot behind. The mutation run exposed the first (4 survivors); I fixed the tests and documented the rest as redundant.
+- **A change the cache would have hidden, and a gap in my first tests (Claude, entry 60):** I had built the fix and its tests before noticing that the build reuses a recent cached list for 7 days, so after the push Vercel would have gone on serving the old list without the titles and the fix would have looked broken. I added the format number to the cache record before anything was pushed. The first broken-copy run caught 28 of 29: nothing tested that a title loses to another card's front face. Also my first preview test read `counts.problems` when the field is `counts.problem`.
+- **Two wrong expectations in my own browser checks (Claude's slips, entry 59):** I read a picture's size with `img.width`, which is the size it is drawn at (102 by 144), not the picture's own size; and I wrote the pile title pattern with a capital G when the page says "Your graveyard". Both failures were in my checks, not in the page, and the first run printed the values so it was quick to tell. I changed the checks, not the page.
+- **Arithmetic in a test again (Claude's slip, entry 58):** the first run of the zone tests failed because Claude had written a "60-card" test deck that added up to 59 (24 + 4 + 31), the same kind of slip as the 9-versus-8 in entry 56. The broken-copy run also showed a tap test that could not tell "tap this card" from "tap this card and all before it".
 - **Bugs only the browser run found (Claude's slips, entry 56):** the commander list sorted "Eowyn" last because it compared raw character codes (it now sorts for people to read), and the "save without the lines" option said "1 line that were not matched" because it chose was or were by card quantity instead of line count. Claude also first wrote an arithmetic error into a test (it expected 9 cards where 5 + 2 + 1 is 8), and the broken-copy run showed 7 tests passing for the wrong reason before they were fixed. Claude also told me the plan sounded good before having written it, then wrote it out when I answered that way; it should have said at once that the plan had not been shown.
 - **Waited on a tool that was not there (Claude's slip, entry 54):** to watch the deploy Claude polled with the GitHub command line tool `gh` in a loop, but `gh` is not installed here, so it spent about five minutes waiting on repeated errors. It should have checked the tool exists first; GitHub's public web API gave the deploy status immediately. Claude also relied on Vercel's docs summary for the Node version (24.x default) and the real build used Node 26.13.0, so the docs were not what the build showed.
 - **A cache folder that depended on an unchecked variable (Claude's slip, entry 53):** the first version chose where to keep the list from Vercel's `VERCEL` variable. The docs say system variables are exposed only when a setting is on, so a missing one would have silently moved the cache and cost a 100 MB download on every deploy. Claude noticed this while reviewing its own design and changed it to one folder everywhere. The same entry also had Claude put backticks inside a double-quoted shell command again (the exact mistake the shared notes warn about); the command failed before writing anything, and the edits were redone with the editing tool.
