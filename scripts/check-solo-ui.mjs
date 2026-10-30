@@ -81,9 +81,10 @@ try {
   // ---- no deck, then a damaged deck ----
   await open(null);
   check('with no saved deck the table says so and offers the import page', !(await $hidden('blocked')) && (await $hidden('game')) && /no saved deck/.test(await $text('blocked-message')) && (await ev(`document.getElementById('blocked-link').getAttribute('href')`)) === '/deck');
+  check('and offers a sample deck too, as a link that opens the deck page with the sample loaded', !(await $hidden('blocked-sample')) && (await ev(`document.getElementById('blocked-sample').getAttribute('href')`)) === '/deck?sample' && /sample/i.test(await $text('blocked-sample')));
   check('and does not fetch the card list or any picture for nothing', asked.length === 0 && browser.events.every((e) => e.method !== 'Network.requestWillBeSent' || !/cards\.json/.test(e.params.request.url)));
   await open('{ not a deck');
-  check('a damaged saved deck is refused with a message and the import link', !(await $hidden('blocked')) && /could not be read/.test(await $text('blocked-message')));
+  check('a damaged saved deck is refused with a message and the import link and the sample link', !(await $hidden('blocked')) && /could not be read/.test(await $text('blocked-message')) && !(await $hidden('blocked-link')) && !(await $hidden('blocked-sample')));
 
   // ---- a good deal ----
   asked.length = 0;
@@ -296,7 +297,7 @@ try {
   // ---- the card list cannot be loaded ----
   await browser.send('Network.setBlockedURLs', { urls: ['*cards.json'] });
   await open();
-  check('with the card list unreachable the table says why and offers to try again', !(await $hidden('blocked')) && !(await $hidden('retry')) && /card list could not be loaded/.test(await $text('blocked-message')) && (await $hidden('blocked-link')) && (await $hidden('game')));
+  check('with the card list unreachable the table says why and offers to try again', !(await $hidden('blocked')) && !(await $hidden('retry')) && /card list could not be loaded/.test(await $text('blocked-message')) && (await $hidden('blocked-link')) && (await $hidden('blocked-sample')) && (await $hidden('game')));
   await browser.send('Network.setBlockedURLs', { urls: [] });
   await press('retry');
   await waitFor(async () => !(await $hidden('game')) || null, 10000, 50);

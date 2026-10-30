@@ -216,6 +216,7 @@ function showBlocked(message, { link = true, retry = false } = {}) {
   $('blocked').hidden = false;
   $('blocked-message').textContent = message;
   $('blocked-link').hidden = !link;
+  $('blocked-sample').hidden = !link; // the sample deck is another way to get a deck, so it shows with the import link
   $('retry').hidden = !retry;
 }
 

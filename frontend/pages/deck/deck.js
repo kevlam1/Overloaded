@@ -8,6 +8,7 @@ import { LIBRARY_KEY, LEGACY_KEY, FORMAT_TITLES, emptyLibrary, readLibrary, seri
 import { makeSafeStore } from '../../src/safe-store.js';
 import { loadCardList } from '../../src/card-list.js';
 import { makePrintingLoader } from '../../src/printings.js';
+import { sampleById } from '../../../shared/sample-decks.mjs';
 import { setupCardPeek } from '../../src/card-peek.js';
 
 const $ = (id) => document.getElementById(id);
@@ -46,8 +47,12 @@ const plural = (count, one, many) => `${count} ${count === 1 ? one : many}`;
 const totalCards = (deck) => deck.cards.reduce((sum, card) => sum + card.qty, 0);
 
 // ---- the card list ----
+// A link like /deck?sample (the solo table offers one) opens the page with the sample deck already in the box, once.
+let sampleFromLink = new URLSearchParams(location.search).has('sample');
+
 async function loadCards() {
   $('check').disabled = true;
+  $('sample').disabled = true;
   $('retry').hidden = true;
   $('list-state').textContent = 'Loading the card list...';
   try {
@@ -55,11 +60,29 @@ async function loadCards() {
     index = buildCardIndex(cards);
     $('list-state').textContent = `${cards.length.toLocaleString('en-US')} cards loaded. Cards newer than the list show as not found; the list is refreshed every week.`;
     $('check').disabled = false;
+    $('sample').disabled = false;
+    if (sampleFromLink) {
+      sampleFromLink = false;
+      await useSample(new URLSearchParams(location.search).get('sample'));
+    }
   } catch {
     index = null;
     $('list-state').textContent = 'The card list could not be loaded. Check your connection and try again.';
     $('retry').hidden = false;
   }
+}
+
+// Puts a sample deck (shared/sample-decks.mjs) in the paste box with its name, checks it like any pasted list, and offers its
+// format. Nothing is saved: the player looks at it and saves it if they like.
+async function useSample(id) {
+  if (!index) return;
+  const sample = sampleById(id);
+  $('deck-text').value = sample.text;
+  $('deck-name').value = sample.name;
+  await runCheck();
+  if (!preview || $('deck-text').value !== sample.text) return; // another check came in while the printings loaded
+  $('deck-format').value = sample.format;
+  formatTouched = true;
 }
 
 // ---- checking a pasted list ----
@@ -320,6 +343,7 @@ function save() {
 // ---- wiring ----
 $('check').addEventListener('click', runCheck);
 $('retry').addEventListener('click', loadCards);
+$('sample').addEventListener('click', () => useSample());
 $('clear').addEventListener('click', () => {
   $('deck-text').value = '';
   text = ''; choices = {}; preview = null; modeTouched = false; picksTouched = false; formatTouched = false;

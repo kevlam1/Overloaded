@@ -319,6 +319,40 @@ try {
   check('a deck with the name of a saved one still replaces it when the library is full', (await library()).decks.length === 20 && /Replaced "deck 7"/.test(await $text('status')), await $text('status'));
   await deleteAllSaved();
 
+  // ---- a sample deck: one click puts a real list in the box and checks it; nothing is saved until asked; a link opens it ready ----
+  const savedCount = async () => (await library())?.decks.length ?? 0;
+  await load();
+  await deleteAllSaved();
+  check('the sample button is there and works once the card list has loaded', (await ev(`document.getElementById('sample') !== null && !document.getElementById('sample').disabled`)));
+  check('the box is empty before it is used', (await ev(`document.getElementById('deck-text').value`)) === '');
+  await ev(`document.getElementById('sample').click()`);
+  await settled();
+  const sampleText = await ev(`document.getElementById('deck-text').value`);
+  check('the sample is put in the box with the Commander line on top', /^Commander\n1 Krenko, Mob Boss \(SLD\) 2407 \*F\*\n/.test(sampleText) && sampleText.split('\n').length === 86, sampleText.slice(0, 80));
+  check('it is checked like a pasted list: 100 cards, all matched', /Checked: 100 cards, all matched/.test(await $text('status')), await $text('status'));
+  const sampleHeadings = await ev(`Array.from(document.querySelectorAll('#sections h3')).map((h) => h.textContent)`);
+  check('as one commander and 99 cards in the main deck', sampleHeadings.includes('Commander: 1') && sampleHeadings.includes('Main deck: 99'), JSON.stringify(sampleHeadings));
+  const sampleRows = await rowsOf();
+  check('all 85 lines show the exact printing the list names (the printing files cover them)', sampleRows.length === 85 && sampleRows.every((row) => row.source === 'set'), `${sampleRows.length} rows; not exact: ${sampleRows.filter((row) => row.source !== 'set').map((row) => row.name).join(', ')}`);
+  check('the commander is Krenko, Mob Boss, marked by the list, and the format is Commander', (await ev(`document.getElementById('mode-commander').checked`)) && (await ev(`document.getElementById('commander-1').selectedOptions[0].textContent`)) === 'Krenko, Mob Boss' && (await ev(`document.getElementById('deck-format').value`)) === 'commander' && /Your list marks this card as the commander/.test(await $text('commander-note')));
+  check('the deck name is filled in', (await ev(`document.getElementById('deck-name').value`)) === 'Krenko, Mob Boss (sample)');
+  check('loading the sample saved nothing', (await savedCount()) === 0);
+  await press('save');
+  const savedSample = await selectedSaved();
+  check('saving it keeps the whole deck: 100 cards, the commander chosen, for Commander', Boolean(savedSample) && savedSample.name === 'Krenko, Mob Boss (sample)' && savedSample.cards.reduce((n, c) => n + c.qty, 0) === 100 && savedSample.commander.length === 1 && (await library()).decks[0].format === 'commander', JSON.stringify(savedSample?.name));
+  await deleteAllSaved();
+  await browser.goto(`${PAGE}?sample`);
+  await ready();
+  await settled();
+  check('a link with ?sample opens the page with the sample already in the box and checked', (await ev(`document.getElementById('deck-text').value`)) === sampleText && /Checked: 100 cards, all matched/.test(await $text('status')) && !(await $hidden('preview')), await $text('status'));
+  check('and it saved nothing', (await savedCount()) === 0);
+  await browser.goto(`${PAGE}?sample=nothing-like-an-id`);
+  await ready();
+  await settled();
+  check('an unknown sample id in the link gives the first sample', (await ev(`document.getElementById('deck-text').value`)) === sampleText);
+  await load();
+  check('a plain visit does not load a sample by itself', (await ev(`document.getElementById('deck-text').value`)) === '' && (await $hidden('preview')));
+
   // ---- cards pasted under another title they were printed under (real cases from a real export, 2026-10-29) ----
   // These need the list built with the alternate titles (format 2); an older cached list would fail here, on purpose.
   const katakana = String.fromCharCode(0x30d5, 0x30a7, 0x30a4, 0x30bf, 0x30ea, 0x30ba, 0x30e0);
@@ -495,10 +529,10 @@ try {
   await browser.send('Network.setBlockedURLs', { urls: ['*cards.json'] });
   await browser.goto(PAGE);
   await waitFor(async () => !(await $hidden('retry')) || null, 8000, 50);
-  check('a card list that cannot load says so, offers to retry, and Check stays off', /could not be loaded/.test(await $text('list-state')) && !(await $hidden('retry')) && (await ev(`document.getElementById('check').disabled`)));
+  check('a card list that cannot load says so, offers to retry, and Check and the sample button stay off', /could not be loaded/.test(await $text('list-state')) && !(await $hidden('retry')) && (await ev(`document.getElementById('check').disabled`)) && (await ev(`document.getElementById('sample').disabled`)));
   await browser.send('Network.setBlockedURLs', { urls: [] });
   await press('retry');
-  check('after the network is back, Try again works', Boolean(await ready()) && (await $hidden('retry')));
+  check('after the network is back, Try again works and the sample button comes back too', Boolean(await ready()) && (await $hidden('retry')) && !(await ev(`document.getElementById('sample').disabled`)));
 
   // ---- storage blocked ----
   await browser.send('Page.addScriptToEvaluateOnNewDocument', { source: `Object.defineProperty(window, 'localStorage', { get() { throw new DOMException('blocked', 'SecurityError'); } });` });

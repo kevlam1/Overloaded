@@ -31,6 +31,7 @@ const suites = [
   { name: 'card list download, reuse and fallbacks', cmd: node, args: ['scripts/test-card-list-build.mjs'] },
   { name: 'deck preview and saved deck logic', cmd: node, args: ['scripts/test-deck-preview.mjs'] },
   { name: 'several saved decks: library, formats, selection', cmd: node, args: ['scripts/test-deck-library.mjs'] },
+  { name: 'sample decks: shape and parsing', cmd: node, args: ['scripts/test-sample-decks.mjs'] },
   { name: 'table formats (Commander, Standard)', cmd: node, args: ['scripts/test-formats.mjs'] },
   { name: 'deck fields: commander, bracket, guess', cmd: node, args: ['scripts/test-deck-fields.mjs'] },
   { name: 'game zones: draw, move, tap, shuffle', cmd: node, args: ['scripts/test-zones.mjs'] },
