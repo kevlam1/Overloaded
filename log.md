@@ -1396,6 +1396,22 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - Costs: the solo version runs in the browser, so no network and no money; the live version adds a few small database writes inside Firebase's free plan.
 - Claude recommended recording the idea and not building it now: there is no shared table page yet, and the stack is the first zone that every player writes, so it needs a rules change.
 
+## 68. What the lobby shows about a deck, formats and brackets (2026-10-30)
+
+**What I asked for**
+- I chose the lobby deck fields as the next step. Claude read the member rules and the ready logic first and proposed a plan; I answered its questions.
+
+**What changed**
+- `docs/design-notes.md` (a new section), `docs/todo.md` (one item with the steps) and this entry. No code and no rules yet.
+
+**Decisions**
+- A seat in the lobby shows only the player's name, their commander(s) by card name (not the deck's title), their bracket and whether they are ready. Nobody sees inside another player's deck. I can preview my own list and swap cards with my sideboard.
+- The bracket is picked by the player; if not, Claude infers a guess from the number of Game Changers (rough, to be checked against Wizards' bracket rules first).
+- Ready needs a deck, enforced by the page, with a "choose a deck" popup when Ready is pressed without one. The wait-for-everyone popup at Start waits for the table page.
+- The table gets a format setting (`meta.format` already exists, with no way to choose it), only decks of that format are offered, and a player with none can paste a list in the lobby. That makes "several saved decks" the first step.
+- The first formats are Commander and Standard; more can be added later.
+- Claude's slip: it first meant "one text" for the commander field and I read it as the deck title; it explained again and I liked the commander names over a custom deck name.
+
 ---
 
 ## Where AI misread me, or I had to correct course

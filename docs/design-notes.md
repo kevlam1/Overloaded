@@ -97,3 +97,17 @@ Each section has **Kevin wants** (his notes) and **Claude's notes** (questions a
 - A spell is a card, but an ability is not one, so the page needs something that stands for it. Open questions for the research: a marker that names its source card and carries a short note the player types, or the text copied from the card; a copy of a spell; a trigger that goes on the stack when something happens (the app cannot know, so a player adds it). From memory, NOT checked: playing a land, mana abilities and static abilities do not use the stack. Check all of this in the Comprehensive Rules before designing, and look at how other tabletop tools show it.
 - Solo: a plain pile for testing. `shared/zones.mjs` keeps the same zones as the live data model, so a `stack` zone there would be your own in solo and shared in live play; decide that when building.
 - Cost: solo runs in the browser with no network and no money. The live version adds a few small database writes inside Firebase's free plan.
+
+## Decks in the lobby, formats and brackets (Kevin, 2026-10-30)
+**Kevin wants (decided)**
+- A player's seat in the lobby shows only: their name, their commander(s) by card name (not the deck's own title), their bracket level, and whether they are ready. Nobody can see inside another player's deck.
+- You can preview your own deck list in the lobby and swap cards with your sideboard (deck page work, no database change).
+- Bracket: the player picks one (1 to 5). If they do not, it is inferred from the number of Game Changers in the deck, shown as a guess.
+- Ready needs a deck (checked by the page). Pressing Ready with none opens a popup to choose one. The "everyone waits until all have a deck" idea (a player ready with no deck, the host starts, a popup for each deckless player) is for the table page, later.
+- The table has a format setting, and only decks of that format are offered. A player with none of that format can paste a decklist in the lobby. Formats to start with: Commander and Standard.
+
+**Claude's notes**
+- `meta.format` already exists (written at table creation, default `commander`, any text up to 20 characters); the lobby page has no way to choose it yet. A table's format needs no new rule, but a deck needs a format, so the saved deck must say which format it is for.
+- Stored in each member entry: `commander` (one text: the commander's name, or two names joined with " & ", empty for a deck with none) and `bracket` (a whole number 1 to 5, or none). The deck's title and card count are not stored (not shown, and "store nothing that is not needed"). Changing the commander or bracket un-readies you (a rules check); swapping ordinary cards does not, so a player can un-ready by hand.
+- "Only decks of that format" needs more than one saved deck, so "several saved decks" comes first. It also needs the list of formats, which is open: Claude suggests starting with Commander and a 60-card format, with sizes as hints, since play is casual.
+- A bracket inferred from Game Changers is rough (from memory, NOT checked: it can tell "none", "a few" and "many" apart but not the two lowest brackets, nor the two highest). Read Wizards' bracket rules before building it, and label an inferred bracket as a guess.
