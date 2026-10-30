@@ -210,6 +210,12 @@ try {
   check('only the sets the deck names were fetched, once each (cmm and sld; abc is not a card so it costs nothing)', (await ev(`performance.getEntriesByType('resource').map((e) => e.name).filter((n) => n.includes('/data/printings/'))`)).map((n) => n.split('/').pop()).sort().join() === 'set-cmm.json,set-sld.json');
   check('and no request went to Scryfall for printings (pictures are loaded only on hover)', pictureRequests.length === requestsBefore, String(pictureRequests.length - requestsBefore));
 
+  // While the printing files load the old preview is gone, so Save cannot pair its cards with the new text (read in the same
+  // moment as the click, before the page has had time to finish).
+  const during = await ev(`(() => { document.getElementById('check').click(); return { hidden: document.getElementById('preview').hidden, status: document.getElementById('status').textContent }; })()`);
+  check('while a list waits for its printing files the old preview is hidden and the page says it is checking', during.hidden === true && /^Checking the printings in 2 sets/.test(during.status), JSON.stringify(during));
+  await checked();
+
   // The same list typed again (no fetch needed: the files are kept for this visit), and a change to the list.
   const fetchedBefore = await ev(`performance.getEntriesByType('resource').filter((e) => e.name.includes('/data/printings/')).length`);
   await press('check');

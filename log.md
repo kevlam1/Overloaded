@@ -1364,6 +1364,24 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - I confirmed keeping the collectors' printings, and I said the one-time rebuild after the push is fine (a single real download of the bulk files). The art picker (another printing of the same card, in the deck page and the lobby) stays on `docs/todo.md` for a later step.
 - I asked Claude to clean the to-do list of items this work made useless. It removed four finished or superseded items (the "later" printings item, the "when the build is set up" caution, "show the printing the player meant", and "next import pieces"), fixed the header and the Hosting line that still said nothing was built, and separated the already-passed spike from the ManaBox item it was glued to. Open items were left alone.
 
+## 66. The first live build of the printings, and one bug found by reading (2026-10-29)
+
+**What I asked for**
+- I said the site now shows the alternate printings and names, and asked whether costs are still zero. With about 6% of my usage limit left, I asked which files to re-read cheaply, and then to continue.
+
+**What changed**
+- `frontend/pages/deck/deck.js`: while a list waits for its printing files, the old preview is now cleared and hidden. Before, it stayed on screen for the new text, and clicking Save in that short window would have saved the old cards with the new text. The solo table plays from the saved cards, so it would have played a different deck from the one on the page.
+- `scripts/check-deck-ui.mjs`: one new check, read in the same moment as the click (129 checks now).
+
+**What I checked**
+- The first Vercel build after the push did the one-time rebuild I approved: `action: rebuilt`, "the cached list is in an older format", 34,172 cards, 770 sets, 111,994 printings (Vercel's printings file is fresher than my local copy). Plain GETs on the live site: `set-cmm`, `set-con` and `set-sld` answer 200 as JSON, `set-zzz` and the bare `cmm.json` are real 404s, and `cmm` 410 and `sld` 916 are the Sol Ring and Heart of the Mountain printings I checked against Scryfall's raw records. Brotli sizes: `cmm` 26 KB, `sld` 70 KB, `plst` 148 KB.
+- Costs: no Scryfall API request is added, and no money. Bandwidth is not zero (a deck downloads the set files it names), but it is small against Vercel's 100 GB free allowance. I did not check Vercel's limit on the number of files in a deploy (770 more small files, and the deploy worked).
+- The new check fails without the fix (`hidden: false`), run in the foreground with the file restored and its hash checked. I also read `publish` in `scripts/lib/card-list-build.mjs` and found nothing to change: a build stopped between its two steps fails and never deploys.
+- Not checked: the next deploy saying `reuse`, and the full deploy check against the live address (it uses my real Firebase project).
+
+**Decisions**
+- Claude's slip: the Save window above was a bug in my own `runCheck`, found by reading the diff, not by any test; none of my earlier checks could see it because the page waits on the network only for lists that name sets.
+
 ---
 
 ## Where AI misread me, or I had to correct course

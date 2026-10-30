@@ -71,6 +71,9 @@ async function runCheck() {
   const parsed = parseDeckText(text);
   const sets = printingSetsNeeded(matchDeck(index, parsed.entries).results);
   if (sets.length) {
+    // The old preview is for the old text, so it goes while the files load: Save must not pair its cards with the new text.
+    preview = null;
+    $('preview').hidden = true;
     say(`Checking the printings in ${plural(sets.length, 'set', 'sets')}...`);
     const loaded = await printingLoader.load(sets);
     if (run !== checkRun) return; // checked again, cleared or loaded another deck while waiting
