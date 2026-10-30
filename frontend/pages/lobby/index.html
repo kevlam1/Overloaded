@@ -35,9 +35,16 @@
               <option value="4" selected>4 players</option>
             </select>
           </div>
+          <div class="field">
+            <label for="format">Format</label>
+            <select id="format" name="format">
+              <option value="commander" selected>Commander</option>
+              <option value="standard">Standard</option>
+            </select>
+          </div>
           <button id="create" type="button">Make table</button>
         </div>
-        <p class="hint">Four seats is a Commander table.</p>
+        <p class="hint">Four seats is a Commander table. Play is casual: the format decides which of your saved decks you can bring, and deck sizes are only hints.</p>
       </section>
 
       <section aria-labelledby="join-heading">
@@ -56,7 +63,7 @@
         <p id="connection" class="banner" data-level="urgent" role="status" hidden></p>
         <p>Share this code: <span id="code" class="code"></span></p>
         <p>Or this link: <span id="link" class="link"></span></p>
-        <p>You have seat <span id="seat"></span>.</p>
+        <p>You have seat <span id="seat"></span>. Format: <span id="table-format"></span>.</p>
         <h3>At the table</h3>
         <ul id="players"></ul>
         <p id="take-over-note" class="hint" hidden>The host has been gone for over 5 minutes. The table carries on without them, but only a host can start or end a match. You can take it over.</p>

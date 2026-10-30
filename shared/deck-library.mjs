@@ -5,13 +5,14 @@
 // as the first deck of a library that does not exist yet; once the library exists the old key is never read again, so a deck
 // that was deleted cannot come back.
 import { readSavedDeck } from './deck-preview.mjs';
+import { FORMATS, FORMAT_TITLES } from './formats.mjs';
 
+// The list of formats lives in formats.mjs (the lobby uses it too); re-exported so the deck code keeps one import.
+export { FORMATS, FORMAT_TITLES };
 export const LIBRARY_KEY = 'overloaded.decks';
 export const LEGACY_KEY = 'overloaded.deck';
 export const LIBRARY_VERSION = 1;
 export const MAX_DECKS = 20;
-export const FORMATS = ['commander', 'standard'];
-export const FORMAT_TITLES = { commander: 'Commander', standard: 'Standard' };
 const ID = /^d[a-z0-9]{10}$/;
 
 function secureBytes(count) {

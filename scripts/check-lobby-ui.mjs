@@ -33,7 +33,7 @@ try {
       lang: document.documentElement.lang,
       viewport: !!document.querySelector('meta[name=viewport]'),
       h1s: document.querySelectorAll('h1').length,
-      ids: ['name', 'seats', 'create', 'join-code', 'join', 'status', 'banner', 'table', 'code', 'link', 'seat', 'players'].every((id) => !!byId(id)),
+      ids: ['name', 'seats', 'format', 'table-format', 'create', 'join-code', 'join', 'status', 'banner', 'table', 'code', 'link', 'seat', 'players'].every((id) => !!byId(id)),
       bannerHiddenAtStart: byId('banner').hidden && byId('banner').textContent === '',
       bannerIsLive: byId('banner').getAttribute('aria-live') === 'polite' && byId('banner').getAttribute('role') === 'status',
       fieldsWithoutLabel: fields.filter((f) => !document.querySelector('label[for="' + f.id + '"]')).map((f) => f.id),
@@ -42,6 +42,7 @@ try {
       statusIsLive: byId('status').getAttribute('aria-live') === 'polite' && byId('status').getAttribute('role') === 'status',
       nameMax: byId('name').maxLength,
       seatOptions: Array.from(byId('seats').options).map((o) => o.value + ':' + o.selected),
+      formatOptions: Array.from(byId('format').options).map((o) => o.value + '=' + o.textContent.trim() + ':' + o.selected),
       disclaimer: footer ? footer.textContent.replace(/\\s+/g, ' ').trim() : '',
       disclaimerVisible: !!footer && rect(footer).h > 0,
       buttonHeights: [rect(byId('create')).h, rect(byId('join')).h],
@@ -62,6 +63,7 @@ try {
   check('the table warning banner is a polite live region (a screen reader hears it without being interrupted)', facts.bannerIsLive);
   check('the name field stops at the 30-character rule', facts.nameMax === 30, String(facts.nameMax));
   check('four seats is the default', facts.seatOptions.includes('4:true') && facts.seatOptions.length === 3, facts.seatOptions.join(' '));
+  check('the format choice offers exactly Commander (selected) and Standard', facts.formatOptions.join(' ') === 'commander=Commander:true standard=Standard:false', facts.formatOptions.join(' '));
   check('the Fan Content disclaimer is visible', facts.disclaimerVisible);
   for (const phrase of ['unofficial Fan Content', 'Fan Content Policy', 'Not approved/endorsed by Wizards', 'property of Wizards of the Coast']) check(`the disclaimer contains "${phrase}"`, facts.disclaimer.includes(phrase));
   check('the disclaimer does not use a Wizards or Magic logo or call the site by the trademarked name in its title', !/Magic: The Gathering/i.test(facts.title));
@@ -90,6 +92,12 @@ try {
     ['make table, name of only zero-width spaces', async () => { await setValue(browser, 'name', String.fromCodePoint(0x200B, 0x200B, 0x200B)); await click(browser, 'create'); }, /Type a name/],
     ['join, name of only a right-to-left override', async () => { await setValue(browser, 'name', String.fromCodePoint(0x202E)); await setValue(browser, 'join-code', 'ABC234'); await click(browser, 'join'); }, /Type a name/],
     ['make table, 16 emoji (32 units, over the database limit)', async () => { await setValue(browser, 'name', String.fromCodePoint(0x1F40D).repeat(16)); await click(browser, 'create'); }, /emoji counts as two/],
+    // Added 2026-10-30: a format the page does not offer (someone changed the page's own form) is refused before any request.
+    ['make table, a format that is not offered', async () => {
+      await setValue(browser, 'name', 'Kevin');
+      await browser.eval(`(() => { const select = document.getElementById('format'); select.add(new Option('Modern', 'modern')); select.value = 'modern'; })()`);
+      await click(browser, 'create');
+    }, /Commander, Standard/],
   ];
   for (const [label, act, expected] of cases) {
     await act(); await sleep(250);
@@ -97,6 +105,7 @@ try {
     check(`${label}: shows a readable message`, expected.test(message), message);
     check(`${label}: uses the error style`, error);
   }
+  await browser.eval(`document.getElementById('format').value = 'commander'`); // undo the made-up option for the steps below
   const requestsAfterBadInput = browser.events.filter((e) => e.method === 'Network.requestWillBeSent').map((e) => e.params.request.url).filter((u) => !u.startsWith('data:'));
   check('bad input sends no network request at all', requestsAfterBadInput.length === 0, requestsAfterBadInput.join(' '));
   check('the buttons are enabled again after each refusal', await browser.eval(`!document.getElementById('create').disabled && !document.getElementById('join').disabled`));
@@ -150,7 +159,15 @@ try {
   const leftover = blocked.logs.filter((l) => /^(exception|error)/.test(l) && !/ERR_INTERNET_DISCONNECTED/.test(l));
   check('storage blocked: no leftover error after using the page', leftover.length === 0, leftover.join(' | '));
 
-  if (process.argv.includes('--screenshot')) await browser.screenshot('scratch-lobby-ui.png');
+  if (process.argv.includes('--screenshot')) {
+    await browser.screenshot('scratch-lobby-ui.png');
+    // A real table needs the database, so this shows the table section with made-up text, only to look at the layout.
+    await browser.eval(`(() => { document.getElementById('format').value = 'standard'; document.getElementById('table').hidden = false;
+      document.getElementById('code').textContent = 'ABC234'; document.getElementById('seat').textContent = '1';
+      document.getElementById('table-format').textContent = 'Standard'; document.getElementById('table').scrollIntoView(); })()`);
+    await sleep(200);
+    await browser.screenshot('scratch-lobby-ui-table.png');
+  }
 } catch (error) {
   failures.push('the check script itself ran without an error: ' + error.message);
   console.log('FAIL  the check script itself ran without an error:', error.message);

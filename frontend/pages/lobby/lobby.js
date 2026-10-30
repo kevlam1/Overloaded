@@ -7,10 +7,12 @@ import { normalizeCode, isValidCode } from '../../../shared/table-code.mjs';
 import { cleanPlayerName } from '../../../shared/player-name.mjs';
 import { friendlyMessage } from '../../../shared/friendly-error.mjs';
 import { codeFromPath, linkForCode } from '../../../shared/lobby-link.mjs';
+import { readFormat, formatTitle } from '../../../shared/formats.mjs';
 
 const $ = (id) => document.getElementById(id);
 const nameInput = $('name');
 const seatsSelect = $('seats');
+const formatSelect = $('format');
 const codeInput = $('join-code');
 const createButton = $('create');
 const joinButton = $('join');
@@ -111,7 +113,11 @@ function startPresenceParts(code, uid) {
   stopPresenceParts();
   currentCode = code;
   myUid = uid;
-  stopHostWatch = watchMeta(code, (meta) => { currentHost = meta?.host ?? null; renderPlayers(); });
+  stopHostWatch = watchMeta(code, (meta) => {
+    currentHost = meta?.host ?? null;
+    $('table-format').textContent = formatTitle(meta?.format); // text, never markup: another client could have written any string
+    renderPlayers();
+  });
   stopPresence = startPresence(code, { onProblem: () => {} });
   stopPresenceWatch = watchPresence(code, (presence) => { if (presence) { currentPresence = presence; renderPlayers(); } });
   stopOffsetWatch = watchServerOffset((offset) => { serverOffset = offset; renderPlayers(); });
@@ -163,6 +169,7 @@ async function run(task) {
 
 createButton.addEventListener('click', () => run(async () => {
   const name = rememberName(); // refuse a bad name before any network request
+  const format = readFormat(formatSelect.value);
   say('Making your table...');
   // A host holds one table at a time. Warn before a LIVE old table is deleted (the popup is a placeholder for a designed
   // one); one that has already expired is replaced without a popup (decided 2026-10-27).
@@ -171,7 +178,7 @@ createButton.addEventListener('click', () => run(async () => {
     say('Kept your existing table.');
     return;
   }
-  const table = await createTable({ name, seats: Number(seatsSelect.value) });
+  const table = await createTable({ name, seats: Number(seatsSelect.value), format });
   say(table.replaced ? `Table ${table.code} is ready. Your old table was closed.` : `Table ${table.code} is ready. Share the code.`);
   show(table);
 }));
