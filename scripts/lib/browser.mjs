@@ -29,7 +29,7 @@ export async function openBrowser(label, { width = 1280, height = 800 } = {}) {
     '--headless=new', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`,
     '--no-first-run', '--no-default-browser-check', '--disable-extensions', 'about:blank',
   ], { stdio: 'ignore', windowsHide: true });
-  const browser = { label, profile, child, logs: [], dialogs: [], events: [] };
+  const browser = { label, profile, child, logs: [], dialogs: [], events: [], listeners: [] };
   browsers.push(browser);
   for (let i = 0; i < 80; i++) { try { if ((await fetch(`http://127.0.0.1:${port}/json/version`)).ok) break; } catch {} await sleep(250); }
   const target = await (await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, { method: 'PUT' })).json();
@@ -42,6 +42,7 @@ export async function openBrowser(label, { width = 1280, height = 800 } = {}) {
     if (data.id && pending.has(data.id)) { const { ok, fail } = pending.get(data.id); pending.delete(data.id); data.error ? fail(new Error(JSON.stringify(data.error))) : ok(data.result); return; }
     if (!data.method) return;
     browser.events.push(data);
+    for (const listener of browser.listeners) listener(data);
     if (data.method === 'Page.javascriptDialogOpening') {
       browser.dialogs.push(data.params.message);
       send('Page.handleJavaScriptDialog', { accept: true }).catch(() => {});
@@ -52,6 +53,22 @@ export async function openBrowser(label, { width = 1280, height = 800 } = {}) {
   await send('Page.enable'); await send('Runtime.enable'); await send('Log.enable'); await send('Network.enable');
   await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
   browser.send = send;
+  // Calls fn(params) for every DevTools event with this method name (for example 'Fetch.requestPaused').
+  browser.on = (method, fn) => { browser.listeners.push((event) => { if (event.method === method) fn(event.params); }); };
+  // Answers every request to a matching address with a tiny PNG instead of going to the network, and records the
+  // addresses asked for. Returns the list of them. Used to test pages that show pictures from another host.
+  // make(url) may return { type, text } to serve something else (for example an SVG that looks like a card).
+  browser.fakeImages = async (urlPattern, make) => {
+    const asked = [];
+    const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+    browser.on('Fetch.requestPaused', (params) => {
+      asked.push(params.request.url);
+      const made = make ? make(params.request.url) : null;
+      send('Fetch.fulfillRequest', { requestId: params.requestId, responseCode: 200, responseHeaders: [{ name: 'Content-Type', value: made ? made.type : 'image/png' }, { name: 'Access-Control-Allow-Origin', value: '*' }], body: made ? Buffer.from(made.text).toString('base64') : PNG }).catch(() => {});
+    });
+    await send('Fetch.enable', { patterns: [{ urlPattern }] });
+    return asked;
+  };
   browser.eval = async (expression) => {
     const out = await send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true });
     if (out.exceptionDetails) throw new Error('page error: ' + (out.exceptionDetails.exception?.description ?? out.exceptionDetails.text));

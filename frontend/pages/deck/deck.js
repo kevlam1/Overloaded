@@ -5,12 +5,12 @@ import { buildCardIndex, matchDeck } from '../../../shared/card-match.mjs';
 import { parseDeckText } from '../../../shared/deck-text.mjs';
 import { makePreview, buildSavedDeck, serializeDeck, readSavedDeck } from '../../../shared/deck-preview.mjs';
 import { makeSafeStore } from '../../src/safe-store.js';
+import { loadCardList } from '../../src/card-list.js';
 
 const $ = (id) => document.getElementById(id);
 const store = makeSafeStore();
 const DECK_KEY = 'overloaded.deck'; // one saved deck for now, in this browser only
 const PROBE_KEY = 'overloaded.storage-probe';
-const LIST_URL = '/data/cards.json';
 
 let index = null; // the card list, ready to match against
 let text = ''; // the text the preview on screen is for
@@ -42,10 +42,7 @@ async function loadCards() {
   $('retry').hidden = true;
   $('list-state').textContent = 'Loading the card list...';
   try {
-    const response = await fetch(LIST_URL, { headers: { Accept: 'application/json' } });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const cards = await response.json();
-    if (!Array.isArray(cards) || cards.length < 1000 || typeof cards[0]?.n !== 'string') throw new Error('not the card list');
+    const cards = await loadCardList();
     index = buildCardIndex(cards);
     $('list-state').textContent = `${cards.length.toLocaleString('en-US')} cards loaded. Cards newer than the list show as not found; the list is refreshed every week.`;
     $('check').disabled = false;
@@ -133,7 +130,9 @@ function renderSections() {
     const list = make('ul', 'deck-list');
     for (const line of section.lines) {
       const item = make('li', line.status === 'matched' ? 'card-line' : 'card-line unmatched');
-      item.append(make('span', 'qty', String(line.qty)), make('span', 'name', line.name));
+      const name = make('span', 'name', line.name);
+      if (line.viaTitle) name.append(make('span', 'typed-as', ` (typed as "${line.viaTitle}")`)); // a card found by another title it was printed under
+      item.append(make('span', 'qty', String(line.qty)), name);
       if (line.card) item.append(make('span', 'type', line.card.t), make('span', 'cost', line.card.m));
       else item.append(make('span', 'type', 'not matched'));
       list.append(item);

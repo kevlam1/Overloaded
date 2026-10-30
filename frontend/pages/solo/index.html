@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Overloaded: solo table</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="../../src/style.css">
+  </head>
+  <body>
+    <main class="table">
+      <p class="back"><a href="/deck">Back to your deck</a> &middot; <a href="/">Lobby</a></p>
+      <h1>Solo table</h1>
+      <p id="deck-line" class="lede">Loading your deck...</p>
+
+      <p id="status" class="status" role="status" aria-live="polite"></p>
+
+      <section id="blocked" aria-labelledby="blocked-heading" hidden>
+        <h2 id="blocked-heading">Nothing to play yet</h2>
+        <p id="blocked-message"></p>
+        <div class="actions">
+          <a id="blocked-link" class="button-link" href="/deck">Import a deck</a>
+          <button id="retry" type="button" class="secondary" hidden>Try again</button>
+        </div>
+      </section>
+
+      <div id="game" hidden>
+        <section class="bar" aria-label="The game">
+          <p class="stat">Turn <strong id="turn">1</strong></p>
+          <div class="life" role="group" aria-label="Life total">
+            <button id="life-minus5" type="button" class="secondary" aria-label="Lose 5 life">-5</button>
+            <button id="life-minus1" type="button" class="secondary" aria-label="Lose 1 life">-1</button>
+            <p class="stat">Life <strong id="life">20</strong></p>
+            <button id="life-plus1" type="button" class="secondary" aria-label="Gain 1 life">+1</button>
+            <button id="life-plus5" type="button" class="secondary" aria-label="Gain 5 life">+5</button>
+          </div>
+          <div class="actions" role="group" aria-label="Actions">
+            <button id="draw" type="button">Draw</button>
+            <button id="next-turn" type="button">Next turn</button>
+            <button id="untap-all" type="button" class="secondary">Untap all</button>
+            <button id="shuffle" type="button" class="secondary">Shuffle library</button>
+            <button id="mulligan" type="button" class="secondary">Mulligan</button>
+            <button id="new-game" type="button" class="secondary">New game</button>
+          </div>
+        </section>
+
+        <section id="selected" class="selected-panel" aria-labelledby="selected-heading">
+          <h2 id="selected-heading">Selected card</h2>
+          <p id="selected-line" class="hint">Click a card to move it, tap it or look at it.</p>
+          <div id="selected-actions" class="actions" role="group" aria-label="What to do with the selected card"></div>
+        </section>
+
+        <section aria-labelledby="battlefield-heading">
+          <h2 id="battlefield-heading">Battlefield</h2>
+          <h3>Lands</h3>
+          <div id="row-lands" class="row" data-empty="No lands yet."></div>
+          <h3>Other permanents</h3>
+          <div id="row-other" class="row" data-empty="Nothing else yet."></div>
+        </section>
+
+        <section aria-labelledby="hand-heading">
+          <h2 id="hand-heading">Hand: <span id="hand-count">0</span></h2>
+          <div id="hand" class="row" data-empty="Your hand is empty."></div>
+        </section>
+
+        <section aria-labelledby="piles-heading">
+          <h2 id="piles-heading">Piles</h2>
+          <div class="piles">
+            <div>
+              <h3>Command zone</h3>
+              <div id="command" class="row" data-empty="Empty."></div>
+            </div>
+            <div class="pile-buttons" role="group" aria-label="Look at a pile">
+              <button id="pile-library" type="button" class="secondary" data-zone="library" aria-pressed="false">Library: 0</button>
+              <button id="pile-graveyard" type="button" class="secondary" data-zone="graveyard" aria-pressed="false">Graveyard: 0</button>
+              <button id="pile-exile" type="button" class="secondary" data-zone="exile" aria-pressed="false">Exile: 0</button>
+              <button id="pile-sideboard" type="button" class="secondary" data-zone="sideboard" aria-pressed="false">Sideboard: 0</button>
+            </div>
+          </div>
+          <div id="viewer" class="viewer" hidden>
+            <h3 id="viewer-title"></h3>
+            <p id="viewer-note" class="hint"></p>
+            <ul id="viewer-list" class="pile-list"></ul>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <footer class="wide">
+      <p>Overloaded is unofficial Fan Content permitted under the Fan Content Policy. Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. &copy;Wizards of the Coast LLC.</p>
+    </footer>
+
+    <script type="module" src="./solo.js"></script>
+  </body>
+</html>

@@ -36,7 +36,7 @@ export default defineConfig(({ command, mode }) => {
       outDir: '../dist',
       emptyOutDir: true,
       rollupOptions: {
-        input: { lobby: page('./frontend/pages/lobby/index.html'), deck: page('./frontend/pages/deck/index.html') },
+        input: { lobby: page('./frontend/pages/lobby/index.html'), deck: page('./frontend/pages/deck/index.html'), solo: page('./frontend/pages/solo/index.html') },
       },
     },
   };

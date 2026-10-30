@@ -166,6 +166,21 @@ try {
   check('the same card as commander and partner is refused, with what to do', /two different cards/.test(await $text('status')), await $text('status'));
   await press('saved-delete');
 
+  // ---- cards pasted under another title they were printed under (real cases from a real export, 2026-10-29) ----
+  // These need the list built with the alternate titles (format 2); an older cached list would fail here, on purpose.
+  const katakana = String.fromCharCode(0x30d5, 0x30a7, 0x30a4, 0x30bf, 0x30ea, 0x30ba, 0x30e0);
+  await load();
+  await paste(`1 Ardyn Izunia\n1 Heart of the Mountain\n1 Kushala Daora's Fury\n1 Shadowbringers\n1 ${katakana}\n1 Sol Ring`); await press('check');
+  const titled = await ev(`({ problems: !document.getElementById('problems').hidden, lines: Array.from(document.querySelectorAll('#sections .card-line')).map((li) => li.querySelector('.name').textContent), noted: document.querySelectorAll('#sections .typed-as').length, unmatched: document.querySelectorAll('#sections .card-line.unmatched').length })`);
+  check('the five titles are found: no problems, nothing unmatched', !titled.problems && titled.unmatched === 0 && /Checked: 6 cards, all matched/.test(await $text('status')), JSON.stringify(titled) + ' ' + (await $text('status')));
+  check('each is shown by its real name, with what was typed beside it', ['Varragoth, Bloodsky Sire (typed as "Ardyn Izunia")', 'Arcane Signet (typed as "Heart of the Mountain")', 'Snap (typed as "Kushala Daora\'s Fury")', "Dovin's Veto (typed as \"Shadowbringers\")", `Arcane Denial (typed as "${katakana}")`].every((text) => titled.lines.includes(text)), JSON.stringify(titled.lines));
+  check('a card typed by its own name has no such note', titled.lines.includes('Sol Ring') && titled.noted === 5);
+  await ev(`document.getElementById('deck-name').value = 'Titles'; document.getElementById('deck-name').dispatchEvent(new Event('input'))`);
+  await press('save');
+  const savedTitles = JSON.parse(await ev(`localStorage.getItem('overloaded.deck')`));
+  check('the saved deck holds the real cards, with their real names', ['Varragoth, Bloodsky Sire', 'Arcane Signet', 'Snap', "Dovin's Veto", 'Arcane Denial', 'Sol Ring'].every((n) => savedTitles.cards.some((c) => c.n === n)) && !JSON.stringify(savedTitles.cards).includes('Shadowbringers'), JSON.stringify(savedTitles.cards.map((c) => c.n)));
+  await press('saved-delete');
+
   // ---- keyboard, clear ----
   await load(); await paste('1 Sol Ring');
   await ev(`document.getElementById('deck-text').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true, bubbles: true }))`);
