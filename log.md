@@ -1412,6 +1412,26 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - The first formats are Commander and Standard; more can be added later.
 - Claude's slip: it first meant "one text" for the commander field and I read it as the deck title; it explained again and I liked the commander names over a custom deck name.
 
+## 69. Several saved decks (2026-10-30)
+
+**What I asked for**
+- I said "let's do step 1" of the lobby deck fields: several saved decks, each tagged with its format.
+
+**What changed**
+- `shared/deck-library.mjs` (new): up to 20 saved decks under `overloaded.decks`, each with an id and a format (`commander` or `standard`), and one selected. The saved deck itself is unchanged, so its strict reader and its 263 tests are untouched; every deck inside is read with it. Saving under the same name replaces that deck; a 21st is refused in words. My old single deck is read once as the first deck, and cannot come back after I delete it.
+- `frontend/pages/deck/` (`index.html`, `deck.js`) and `frontend/src/style.css`: a list of my saved decks with Load, Use for the solo table and Delete, a Format choice next to the deck name (it follows the commander choice until I pick one), and a note that a same-name save replaces. `frontend/pages/solo/solo.js`: plays the selected deck.
+- Tests: `scripts/test-deck-library.mjs` (new, 90 checks), `scripts/check-deck-ui.mjs` (149, 20 new) and `scripts/check-solo-ui.mjs` (84, 7 new); `scripts/test-all.mjs` registers the new suite. `docs/todo.md` and `CLAUDE.md` are updated.
+
+**What I checked**
+- `npm test` passes all 28 suites. I looked at desktop screenshots of the list with three decks and of the save box, and fixed the first layout (bullets, buttons wrapping under the text) after seeing it.
+- 36 deliberately broken copies of the library module, run in the foreground with the file restored and its hash checked: 35 caught. The first run showed a real gap in my tests (capitals in the NEW name were never tested) and two mutations that did not match the code (never tried); the one survivor is a redundant check, since an array has no version and the version check already refuses it. I did not break copies of `deck.js` or `solo.js`; the browser checks cover them.
+- Not checked: phone width; the live site (nothing is pushed yet). The lobby does not read the library yet.
+
+**Decisions**
+- The saved deck keeps its format (`SAVED_VERSION` stays 1) and the library wraps it, so nothing that already reads a saved deck had to change.
+- The format of a deck is a choice on the deck page, defaulting to Commander when a commander is chosen and Standard otherwise.
+- Claude's slips: two shell commands with backticks inside double quotes failed before changing anything (I then wrote the scripts as files), I miscounted two things my scripts expected (4 where there were 5, 3 where there were 4), the first seven solo checks I added ran after a scenario that blocks browser storage, and my later solo scenarios were shadowed by a leftover library key until the seed helper cleared it. Each time the page was right and my check was wrong.
+
 ---
 
 ## Where AI misread me, or I had to correct course
