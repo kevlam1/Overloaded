@@ -1278,6 +1278,24 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 **Decisions**
 - None new. The Start-button question and keeping a title's own printing art are still open on `docs/todo.md`.
 
+## 62. Sideboards in the solo table, and the start rule (2026-10-29)
+
+**What I asked for**
+- On the start rule I said it needs two people at the table in total, whether the host picked a 2, 3 or 4 player table. I also said Claude should consider sideboards when players paste a decklist, with an example: a main deck (one card listed by its Japanese title), a `SIDEBOARD:` section, and `Commander` with Kyodai at the end. I said the alternate-title fix works well.
+
+**What changed**
+- Start rule: nothing. Claude read the code instead of answering from memory: `startMatch` in `shared/table-ops.mjs` refuses only when fewer than 2 people are at the table (`players.length < 2`) and then needs everyone who is there to be ready, whatever the seat count. A 4-seat table with 2 players can start. `docs/game-flow.md` and the flow model say the same. It is enforced by the page, not by the database rules (documented there).
+- Sideboards in imports already worked: a list shaped like my example gives Commander 1, Main deck, Sideboard 2 with nothing needing attention, the Japanese title matches Arcane Denial, the commander named last is marked, the saved deck keeps the three sections apart, and a dealt game has the sideboard cards in the Sideboard pile.
+- `frontend/pages/solo/solo.js`: the one gap found. The action bar could take a card out of the sideboard but had no "To sideboard", so nothing could go back (a card that wishes for a sideboard card, and returns it). Added that one action.
+- `scripts/check-solo-ui.mjs` (59 to 69 checks): a deck with a sideboard, a title-imported card and the commander listed last: the deal, the sideboard pile, taking a card to the hand and putting it back, a new game, and all 55 cards accounted for. `scripts/check-deck-ui.mjs` (75 to 79): the same export shape on the import page.
+
+**What I checked**
+- `npm test` passes all 25 suites. With the "To sideboard" action removed on purpose the solo check failed 3 of 69 (the action list, the offer after moving, and putting it back), and the file was restored with only the one-line change.
+- Not checked: the live site (not pushed), a Companion line (the code puts a companion in the sideboard pile but I did not test the pasted form), and sideboard handling in the other sites' exports beyond the real fixtures.
+
+**Decisions**
+- No change to the start rule. The sideboard stays a pile you can look at and move cards to and from, with nothing enforced (casual play).
+
 ---
 
 ## Where AI misread me, or I had to correct course
@@ -1333,6 +1351,7 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - **Screenshots that showed nothing (Claude's slip, entry 49):** the first presence screenshots were cut off above the player list, so they proved only that the page had loaded. The check passed because the text was in the page, not because anyone could see it. Fixed by scrolling the list into view before the screenshot.
 - **A shell quote that ate code (Claude's slip, entry 49):** Claude put backticks inside a double-quoted shell command while writing a test, and the shell silently deleted the text. It repaired the file with the editing tool; the exact thing the shared notes warn about.
 - **Tests that could only pass for the wrong reason (Claude's slips, entry 50):** a takeover test named a player who was not a member, so the rule refused it for that reason and not the one being tested, and another test ordered its steps so an earlier step left a host slot behind. The mutation run exposed the first (4 survivors); I fixed the tests and documented the rest as redundant.
+- **I renamed a past log entry by mistake (Claude's slip, entry 62):** I meant to add a new entry after entry 61 and my edit changed entry 61's heading instead. I noticed in the same step, restored the heading, and checked that `log.md` matched the committed version exactly before adding entry 62 the right way.
 - **A change the cache would have hidden, and a gap in my first tests (Claude, entry 60):** I had built the fix and its tests before noticing that the build reuses a recent cached list for 7 days, so after the push Vercel would have gone on serving the old list without the titles and the fix would have looked broken. I added the format number to the cache record before anything was pushed. The first broken-copy run caught 28 of 29: nothing tested that a title loses to another card's front face. Also my first preview test read `counts.problems` when the field is `counts.problem`.
 - **Two wrong expectations in my own browser checks (Claude's slips, entry 59):** I read a picture's size with `img.width`, which is the size it is drawn at (102 by 144), not the picture's own size; and I wrote the pile title pattern with a capital G when the page says "Your graveyard". Both failures were in my checks, not in the page, and the first run printed the values so it was quick to tell. I changed the checks, not the page.
 - **Arithmetic in a test again (Claude's slip, entry 58):** the first run of the zone tests failed because Claude had written a "60-card" test deck that added up to 59 (24 + 4 + 31), the same kind of slip as the 9-versus-8 in entry 56. The broken-copy run also showed a tap test that could not tell "tap this card" from "tap this card and all before it".

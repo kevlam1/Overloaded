@@ -181,6 +181,20 @@ try {
   check('the saved deck holds the real cards, with their real names', ['Varragoth, Bloodsky Sire', 'Arcane Signet', 'Snap', "Dovin's Veto", 'Arcane Denial', 'Sol Ring'].every((n) => savedTitles.cards.some((c) => c.n === n)) && !JSON.stringify(savedTitles.cards).includes('Shadowbringers'), JSON.stringify(savedTitles.cards.map((c) => c.n)));
   await press('saved-delete');
 
+  // ---- an export shaped like a real one: main deck (one card under another title), SIDEBOARD:, commander named last ----
+  await load();
+  await paste(`1 Sol Ring\n1 Weirding Wood\n1 Yavimaya Dryad\n1 ${katakana}\n10 Forest\n\nSIDEBOARD:\n1 Annul\n1 Swords to Plowshares\n\nCommander\n1 Kyodai, Soul of Kamigawa`); await press('check');
+  const sideShape = await ev(`({ headings: Array.from(document.querySelectorAll('#sections h3')).map((h) => h.textContent), problems: !document.getElementById('problems').hidden, commanderOn: document.getElementById('mode-commander').checked, note: document.getElementById('commander-note').textContent, side: Array.from(document.querySelectorAll('#sections ul')).map((ul) => Array.from(ul.querySelectorAll('.name')).map((n) => n.textContent)) })`);
+  check('the sections are Commander 1, Main deck 14 and Sideboard 2, with nothing needing attention', JSON.stringify(sideShape.headings) === JSON.stringify(['Commander: 1', 'Main deck: 14', 'Sideboard: 2']) && !sideShape.problems, JSON.stringify(sideShape));
+  check('the sideboard lists its two cards and the main deck has the title match', sideShape.side[2].join('|') === 'Annul|Swords to Plowshares' && sideShape.side[1].some((t) => t === `Arcane Denial (typed as "${katakana}")`), JSON.stringify(sideShape.side));
+  check('the commander named last is marked as the commander (turned on, and says it was marked)', sideShape.commanderOn && /Kyodai/.test(await ev(`document.getElementById('commander-1').selectedOptions[0].textContent`)), sideShape.note);
+  await ev(`document.getElementById('deck-name').value = 'Side'; document.getElementById('deck-name').dispatchEvent(new Event('input'))`);
+  await press('save');
+  const savedSide = JSON.parse(await ev(`localStorage.getItem('overloaded.deck')`));
+  const sectionCounts = savedSide.cards.reduce((sum, c) => ({ ...sum, [c.section]: (sum[c.section] ?? 0) + c.qty }), {});
+  check('the saved deck keeps the three sections apart', JSON.stringify(sectionCounts) === JSON.stringify({ main: 14, sideboard: 2, commander: 1 }) || (sectionCounts.main === 14 && sectionCounts.sideboard === 2 && sectionCounts.commander === 1), JSON.stringify(sectionCounts));
+  await press('saved-delete');
+
   // ---- keyboard, clear ----
   await load(); await paste('1 Sol Ring');
   await ev(`document.getElementById('deck-text').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true, bubbles: true }))`);

@@ -34,6 +34,18 @@ if (preview.counts.problem !== 0) { console.log(`The test deck did not match the
 const built = buildSavedDeck(preview, { name: 'Solo test deck', text: DECK_TEXT, commanderIds: preview.commander.ids });
 if (!built.ok) { console.log(`The test deck could not be built: ${built.error}`); process.exit(1); }
 const DECK_JSON = serializeDeck(built.deck);
+// A deck made from other text the same way (for the sideboard scenario).
+const deckFrom = (text, name) => {
+  const p = parseDeckText(text);
+  const pv = makePreview(p, matchDeck(buildCardIndex(cards), p.entries));
+  if (pv.counts.problem !== 0) throw new Error(`the ${name} deck did not match the card list: ${JSON.stringify(pv.problems)}`);
+  const b = buildSavedDeck(pv, { name, text, commanderIds: pv.commander.ids });
+  if (!b.ok) throw new Error(b.error);
+  return serializeDeck(b.deck);
+};
+// Shaped like a real Moxfield plain-text export: a card listed by the title it was printed under, a SIDEBOARD: section,
+// and the commander named last, after a blank line.
+const SIDE_JSON = deckFrom('1 Sol Ring\n1 Heart of the Mountain\n20 Forest\n20 Island\n10 Lightning Bolt\n\nSIDEBOARD:\n1 Annul\n1 Swords to Plowshares\n\nCommander\n1 Kyodai, Soul of Kamigawa', 'Side deck');
 const cardArt = (url) => {
   const id = url.split('/').pop().replace('.jpg', '');
   const hue = parseInt(id.slice(0, 4), 16) % 360;
@@ -113,7 +125,7 @@ try {
   check('selecting a card says what it is and where', new RegExp(`^${landName}: .*Land.*, in your hand\\.$`).test(await $text('selected-line')), await $text('selected-line'));
   check('the selected card is marked', (await count('#hand .card.selected')) === 1 && (await ev(`document.querySelector('#hand .card.selected').getAttribute('aria-pressed')`)) === 'true');
   const labels = await actionLabels();
-  check('a hand card offers every other zone, the library top and bottom, and Deselect, but not Tap', JSON.stringify(labels) === JSON.stringify(['To battlefield', 'To graveyard', 'To exile', 'To command zone', 'Top of library', 'Bottom of library', 'Deselect']), JSON.stringify(labels));
+  check('a hand card offers every other zone, the library top and bottom, and Deselect, but not Tap', JSON.stringify(labels) === JSON.stringify(['To battlefield', 'To graveyard', 'To exile', 'To command zone', 'To sideboard', 'Top of library', 'Bottom of library', 'Deselect']), JSON.stringify(labels));
   const handBefore = await count('#hand .card');
   await clickAction('To battlefield');
   check('moving a land to the battlefield puts it in the lands row', (await count('#row-lands .card')) === 1 && (await count('#row-other .card')) === 0 && (await count('#hand .card')) === handBefore - 1 && (await $text('status')) === `Moved ${landName} to the battlefield.`, await $text('status'));
@@ -181,6 +193,30 @@ try {
   await press('new-game');
   check('a new game starts again from turn 1 with life 40, a hand of 7 and an untouched library', (await $text('turn')) === '1' && (await $text('life')) === '40' && (await count('#hand .card')) === 7 && (await pileCount('library')) === 'Library: 53' && (await pileCount('graveyard')) === 'Graveyard: 0' && (await count('#row-lands .card')) === 0 && (await $text('mulligan')) === 'Mulligan');
   check('the whole thing happened with the page asking nowhere but the picture server', true);
+
+  // ---- a deck with a sideboard, a title-imported card and the commander listed last ----
+  await open(SIDE_JSON);
+  check('a sideboard deck is dealt: 7 in hand, the commander in the command zone, 2 in the sideboard, life 40', (await count('#hand .card')) === 7 && (await count('#command .card')) === 1 && (await pileCount('sideboard')) === 'Sideboard: 2' && (await pileCount('library')) === 'Library: 45' && (await $text('life')) === '40', `${await pileCount('sideboard')} ${await pileCount('library')}`);
+  check('the commander named last is the one in the command zone', /Kyodai/.test((await names('#command .card'))[0]));
+  await press('pile-sideboard');
+  const sideNames = await ev(`Array.from(document.querySelectorAll('#viewer-list li')).map((li) => li.textContent)`);
+  check('opening the sideboard lists both of its cards', !(await $hidden('viewer')) && sideNames.length === 2 && sideNames.some((t) => /Annul/.test(t)) && sideNames.some((t) => /Swords to Plowshares/.test(t)) && /sideboard: 2 cards/i.test(await $text('viewer-title')), JSON.stringify(sideNames));
+  await ev(`document.querySelector('#viewer-list .pile-card').click()`);
+  const fromSide = await actionLabels();
+  check('a sideboard card can go to the hand and to every other zone, but not "to the sideboard"', fromSide.includes('To hand') && fromSide.includes('To battlefield') && !fromSide.includes('To sideboard'), JSON.stringify(fromSide));
+  const wished = /^(.+?):/.exec(await $text('selected-line'))[1];
+  await clickAction('To hand');
+  check('taking it to the hand leaves 1 in the sideboard and puts it in the hand', (await pileCount('sideboard')) === 'Sideboard: 1' && (await count('#hand .card')) === 8 && (await handNames()).includes(wished) && (await $text('status')) === `Moved ${wished} to your hand.`, await $text('status'));
+  check('and it now offers "To sideboard"', (await actionLabels()).includes('To sideboard'));
+  await clickAction('To sideboard');
+  check('putting it back restores the sideboard and the hand', (await pileCount('sideboard')) === 'Sideboard: 2' && (await count('#hand .card')) === 7 && (await $text('status')) === `Moved ${wished} to your sideboard.`, await $text('status'));
+  await press('pile-library');
+  const libNames = await ev(`Array.from(document.querySelectorAll('#viewer-list li')).map((li) => li.textContent)`);
+  check('the card imported by its other title is in the game under its real name', (libNames.some((t) => /Arcane Signet/.test(t)) || (await handNames()).includes('Arcane Signet')) && !libNames.some((t) => /Heart of the Mountain/.test(t)));
+  await press('pile-library');
+  await press('new-game');
+  check('a new game keeps the sideboard whole', (await pileCount('sideboard')) === 'Sideboard: 2' && (await count('#hand .card')) === 7 && (await pileCount('library')) === 'Library: 45');
+  check('every one of the 55 cards is somewhere', await (async () => { const n = async (s) => parseInt((await $text(s)).split(': ').at(-1), 10); return (await count('.card')) + (await n('pile-library')) + (await n('pile-graveyard')) + (await n('pile-exile')) + (await n('pile-sideboard')) === 55; })());
 
   // ---- a deck with a hostile card name, and one the list does not know ----
   const hostile = JSON.parse(DECK_JSON);
