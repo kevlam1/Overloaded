@@ -1475,6 +1475,57 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - The only change to my list is the `Commander` line on top.
 - Claude's slip: the stale local printing folder was its own doing. After the Collectors' printings were added it ran the deploy check against a seeded cache that predated them, and that build published the older folder; the two missing cards showed it, and it regenerated the folder.
 
+## 72. The format choice replaces the commander radio buttons, and the commander lists are grouped (2026-10-30)
+
+**What I asked for**
+- I looked at the deck page and asked whether the "This deck has a commander" and "No commander" options are still needed now that there is a format dropdown. Claude said they overlap. I also asked that a player can pick any card in the list as the commander when none is marked, and I chose both extras it suggested: plainer wording when no commander is marked, and the likely commanders listed first. I asked for that wording to be less AI-sounding and more basic.
+
+**What changed**
+- `frontend/pages/deck/index.html`: the Format choice moved above the commander box and the two radio buttons are gone. `frontend/pages/deck/deck.js`: Commander shows the commander and partner pickers, Standard hides them and saves the deck with no commander. The format starts as Commander when the list marks a commander or has about 100 cards, otherwise Standard, until I pick one. Both pickers have two groups, "Likely commanders" (legendary creatures) and then "Other cards" ("All cards" when there is no legendary creature). The notes now read "No commander is marked in your list, so we picked the first legendary creature. Change it if it is wrong." and the same for the first card. `frontend/src/style.css`: a little space above the Format field.
+- `scripts/check-deck-ui.mjs` (172 checks now): updated for the radios and with new checks for the format order, the groups, the notes, Standard hiding the pickers and saving no commander, and loading a saved Standard deck.
+
+**What I checked**
+- `npm test` passes all 31 suites, 172 of them deck page checks. I looked at desktop screenshots with Commander (the pickers shown) and with Standard (hidden).
+- 9 deliberately broken copies of the new logic, run in the foreground with the file restored and its hash checked: the first run caught 8. The survivor showed a weak check of mine (it loaded a Standard deck while the page was already on Standard), so I made it start from Commander, and then it was caught.
+- Two existing hover checks failed after the change. The cause was the page getting shorter: they scroll a row to the top of the window, which needs a taller page. I added a spacer to the test; the page and the box logic were not wrong.
+- Not checked: the live site (not pushed yet) and phone width.
+
+**Decisions**
+- The format decides the commander: a Commander deck always has one, a Standard deck never does. A Commander-format deck with no commander is no longer possible.
+- "Likely commanders" means legendary creatures only. Backgrounds and legendary planeswalkers are under "Other cards" for now.
+- Claude's slips: its first edit missed one leftover use of the old radio in my check, which crashed the run; and my first "load a Standard deck" check passed for the wrong reason.
+
+## 73. The full mutation run for the deck fields rules (2026-10-30)
+
+**What I asked for**
+- I asked for the full `npm run mutate` before pasting the rules. It ran in the background while other work went on, and I asked Claude not to touch `backend/` meanwhile.
+
+**What changed**
+- Nothing in the code. `docs/todo.md` and `CLAUDE.md` record the result.
+
+**What I checked**
+- 245 deliberately broken copies of the rules: 209 killed, 36 documented as redundant (34 before plus the 2 new ones for the deck fields), 0 survived, 0 suspicious. No kill was printed without a named check. The runner restored the rules file: `git status` of `backend/` is clean and its hash is identical to the committed file.
+- Afterwards the whole `npm test` passed all 31 suites, including 566 rule checks, 168 table logic checks and 3,349 flow steps.
+- Not checked: nothing is pasted and `npm run test:live` was not run; the review follow-ups for `backend/` (a guard in `run-tests.mjs`, the stale README, the `lastSeen` test) are still to do.
+
+**Decisions**
+- The rules file is ready to paste: `backend/database.rules.json` as committed in 873686d. Then the new requests go into `scripts/check-live-rules.mjs` (the deck fields, the un-ready rule, and a 220 and a 221 character commander, since the length rule has only been checked in the emulator) and `npm run test:live` runs.
+
+## 74. The deck fields rules are live, and checked against the real project (2026-10-30)
+
+**What I asked for**
+- I pasted the rules from 873686d into the Firebase console and told Claude. It then added the new requests to the live check and ran everything.
+
+**What changed**
+- `scripts/check-live-rules.mjs`: 10 new requests in the lobby phase (91 to 101 in all). They cover a commander or bracket written while ready (refused), the same write together with clearing `ready` (allowed), the same commander again (allowed), a commander of 220 characters (allowed) and 221 (refused), the same limit counted in emoji, an empty or numeric commander (refused), brackets 0, 6, 2.5, `"3"` and `true` (refused) and 3 (allowed), `bracketGuess` true with a bracket (allowed) and false or without a bracket (refused), another member or a stranger writing my commander (refused), and a field the entry does not have (refused).
+
+**What I checked**
+- `node --env-file=.env scripts/check-live-rules.mjs`: all 101 requests matched the rules file. Then `npm run test:live`: all 37 suites passed (566 rule checks, 168 table logic checks, 3,349 flow steps, the two-browser spike, the deploy check, the heartbeat, presence and the two-tab check).
+- Not checked: the page does not call `setDeck` yet, so nothing in a real browser sends these fields. The requests were plain HTTPS writes with throwaway accounts.
+
+**Decisions**
+- Next is the page path: the bracket in the library and on the deck page, the lobby seats showing commander, bracket and ready, and a deck picker that calls `setDeck`.
+
 ---
 
 ## Where AI misread me, or I had to correct course
