@@ -1455,6 +1455,26 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - Tomorrow, in this order: look at `git diff` of the rules file, run the full `npm run mutate` before pasting, paste, add the new requests to `scripts/check-live-rules.mjs` and run `npm run test:live`, then the page path.
 - Claude's slips: my first lobby check left a made-up "Modern" option selected, which broke the later offline step (the page was right); my first mutation of the "applies on creation" rule had unbalanced parentheses and would have broken the rules file for the wrong reason (caught by looking before running); the first run of my "alice keeps her ready mark" test failed because the emulator helper throws away what its callback returns, which this repo's notes had already recorded; my first `setDeck` refusal tests passed for the wrong reason (the database refuses those values too), and a broken copy that skipped the page's checks only showed it, so they now require the page's own message; adding a random action shifted the flow test's random numbers and left a coverage gap, so I raised it to 240 sequences and made two cases required; and a large shell command with backticks and quotes inside failed before running anything, so I wrote the log edit as files.
 
+## 71. A sample deck on the deck page, and a link from the solo table (2026-10-30)
+
+**What I asked for**
+- While the full mutation run was going in the background, I asked whether a sample deck could exist on the site without bothering it. I chose both options Claude offered ("A and C"): a button on the deck page and a link from the solo table's empty state, and I gave a Commander list (Krenko, Mob Boss, 100 cards) to use as the sample.
+
+**What changed**
+- `shared/sample-decks.mjs` (new): my list as plain text, with a `Commander` line added on top so the page treats Krenko as the commander for certain and does not guess, and `sampleById`. `frontend/pages/deck/` (`index.html`, `deck.js`): a "Try a sample deck" button next to Clear (off until the card list has loaded) that puts the sample in the box with its name, checks it like any pasted list and offers Commander. `/deck?sample` opens the page with the sample already loaded, once. `frontend/pages/solo/` (`index.html`, `solo.js`): "Or try a sample deck" next to "Import a deck" when there is no deck, hidden when the card list cannot be loaded.
+- Tests: `scripts/test-sample-decks.mjs` (new, 24 checks), `scripts/check-deck-ui.mjs` (163, 14 new), `scripts/check-solo-ui.mjs` (85) and `scripts/test-all.mjs`. `CLAUDE.md` and `docs/todo.md` are updated.
+
+**What I checked**
+- Against the real card list, all 85 lines match by name (1 commander and 99 cards). With my first local printing files, 83 of 85 showed the exact printing; the two misses were Collectors' Edition cards (Fork and Red Elemental Blast) because my local folder held an older 734-set build. The live site serves `set-ced.json` (HTTP 200). I rebuilt the local data from the cached Scryfall files (769 sets, no download) and then all 85 resolve.
+- I looked at desktop screenshots of the loaded sample and of the solo table's empty state. 5 deliberately broken copies of the new page code, run in the foreground with the files restored and their hashes checked: 5 caught. `npm run test:quick` passes (27 suites).
+- Not checked: the whole `npm test` (it includes the database rules suite, which I did not run while the mutation run was going), the live site (nothing is pushed, so `/deck?sample` through Vercel's rewrite is unverified), and phone width.
+
+**Decisions**
+- A sample is only text in the paste box. No deck is saved for a visitor who did not ask, so it does not use one of the 20 slots.
+- Only one sample so far, the Commander list I gave. A 60-card Standard sample waits for a list from me.
+- The only change to my list is the `Commander` line on top.
+- Claude's slip: the stale local printing folder was its own doing. After the Collectors' printings were added it ran the deploy check against a seeded cache that predated them, and that build published the older folder; the two missing cards showed it, and it regenerated the folder.
+
 ---
 
 ## Where AI misread me, or I had to correct course
