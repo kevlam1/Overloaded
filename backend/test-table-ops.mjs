@@ -52,6 +52,14 @@ check('findMyTable now finds it with 1 player, still open', JSON.stringify(await
 await throwsWith('create with 5 seats is refused before any write', ann.ops.createTable({ name: 'Ann', seats: 5 }));
 await throwsWith('create with an empty name is refused before any write', ann.ops.createTable({ name: '   ', seats: 2 }));
 check('those two refusals left the table alone', (await ann.ops.findMyTable()).code === made.code);
+check('a table made with no format choice is a Commander table', meta.format === 'commander', String(meta.format));
+for (const bad of ['Commander', 'modern', '', ' standard', null, 5]) {
+  await throwsWith(`create with the format ${JSON.stringify(bad)} is refused before any write`, ann.ops.createTable({ name: 'Ann', seats: 2, format: bad }));
+}
+check('those refusals left the table alone too', (await ann.ops.findMyTable()).code === made.code);
+const fay = person('fay');
+const standardTable = await fay.ops.createTable({ name: 'Fay', seats: 2, format: 'standard' });
+check('a table made as Standard stores exactly "standard"', (await readAdmin(`tables/${standardTable.code}/meta/format`)) === 'standard');
 
 console.log('join');
 const bo = person('bo');
@@ -374,6 +382,77 @@ check('and says it is down when the connection is cut (this drives "You\'re offl
 goOnline(pb.db);
 check('and up again when it returns', await until(async () => connectionSeen.at(-1) === true), JSON.stringify(connectionSeen));
 stopConnection();
+
+console.log('setDeck: what the table learns about your deck (2026-10-30)');
+{
+  const host = person('deckhost');
+  const guest = person('deckguest');
+  const outsider = person('deckoutsider');
+  const table = await host.ops.createTable({ name: 'Host', seats: 3 });
+  await guest.ops.joinTable({ code: table.code, name: 'Guest' });
+  const guestEntry = () => readAdmin(`tables/${table.code}/members/deckguest`);
+
+  check('a new member has no deck fields', (await guestEntry()).commander === undefined && (await guestEntry()).bracket === undefined && (await guestEntry()).bracketGuess === undefined);
+  check('setDeck writes the commander, the bracket and the guess flag', JSON.stringify(await guest.ops.setDeck(table.code, { commander: "Atraxa, Praetors' Voice", bracket: 3, bracketGuess: true })) === '{"changed":true}');
+  let entry = await guestEntry();
+  check('...exactly those three fields (and nothing about the deck list) are stored', entry.commander === "Atraxa, Praetors' Voice" && entry.bracket === 3 && entry.bracketGuess === true && JSON.stringify(Object.keys(entry).sort()) === JSON.stringify(['bracket', 'bracketGuess', 'commander', 'name', 'seat']), JSON.stringify(entry));
+
+  await guest.ops.setReady(table.code);
+  check('the guest readies up', (await guestEntry()).ready === 1);
+  check('the same deck sent again changes nothing and returns changed: false', JSON.stringify(await guest.ops.setDeck(table.code, { commander: "Atraxa, Praetors' Voice", bracket: 3, bracketGuess: true })) === '{"changed":false}');
+  check('...and the ready mark stays', (await guestEntry()).ready === 1);
+  check('the same deck with the commander written with extra spaces is still the same deck', JSON.stringify(await guest.ops.setDeck(table.code, { commander: "  Atraxa,   Praetors' Voice ", bracket: 3, bracketGuess: true })) === '{"changed":false}' && (await guestEntry()).ready === 1);
+
+  check('changing the commander returns changed: true', JSON.stringify(await guest.ops.setDeck(table.code, { commander: 'Tymna the Weaver & Thrasios, Triton Hero', bracket: 3, bracketGuess: true })) === '{"changed":true}');
+  entry = await guestEntry();
+  check('...takes the ready mark back in the same write and stores the new commander', entry.ready === undefined && entry.commander === 'Tymna the Weaver & Thrasios, Triton Hero', JSON.stringify(entry));
+  await guest.ops.setReady(table.code);
+  await guest.ops.setDeck(table.code, { commander: 'Tymna the Weaver & Thrasios, Triton Hero', bracket: 4, bracketGuess: false });
+  entry = await guestEntry();
+  check('picking the bracket yourself (no longer a guess) takes the ready mark back and removes the guess flag', entry.ready === undefined && entry.bracket === 4 && entry.bracketGuess === undefined, JSON.stringify(entry));
+  await guest.ops.setReady(table.code);
+  await guest.ops.setDeck(table.code, { commander: '', bracket: null, bracketGuess: false });
+  entry = await guestEntry();
+  check('a deck with no commander and no bracket removes all three fields (nothing empty is stored) and un-readies', entry.ready === undefined && entry.commander === undefined && entry.bracket === undefined && entry.bracketGuess === undefined, JSON.stringify(entry));
+  check('and sending that same empty deck again changes nothing', JSON.stringify(await guest.ops.setDeck(table.code, {})) === '{"changed":false}');
+
+  // refused in words, before any request, and the entry stays as it was
+  await guest.ops.setDeck(table.code, { commander: 'Sol Ring', bracket: 2, bracketGuess: false });
+  await guest.ops.setReady(table.code);
+  const refusals = [
+    ['a bracket of 6', { commander: 'Sol Ring', bracket: 6 }],
+    ['a bracket of 0', { commander: 'Sol Ring', bracket: 0 }],
+    ['a bracket of 2.5', { commander: 'Sol Ring', bracket: 2.5 }],
+    ['a bracket that is text', { commander: 'Sol Ring', bracket: '3' }],
+    ['a guess with no bracket', { commander: 'Sol Ring', bracket: null, bracketGuess: true }],
+    ['a guess flag that is not true or false', { commander: 'Sol Ring', bracket: 3, bracketGuess: 'yes' }],
+    ['a commander text of 221 characters', { commander: 'x'.repeat(221) }],
+    ['a commander that is a number', { commander: 5 }],
+  ];
+  for (const [label, fields] of refusals) {
+    // The page's own words, not the database's: the database would refuse these too, but only after a request.
+    const error = await throwsWith(`setDeck refuses ${label}`, guest.ops.setDeck(table.code, fields));
+    check(`...with the page's own message, not a database error (${label})`, error && /must be|too long|needs a bracket|whole number/.test(error.message) && !/permission/i.test(error.message), String(error?.message));
+  }
+  entry = await guestEntry();
+  check('those refusals changed nothing: same deck, still ready', entry.commander === 'Sol Ring' && entry.bracket === 2 && entry.ready === 1, JSON.stringify(entry));
+
+  await throwsWith('someone who is not at the table cannot set a deck', outsider.ops.setDeck(table.code, { commander: 'Sol Ring' }), 'FlowRefusedError');
+  check('...and wrote nothing', (await readAdmin(`tables/${table.code}/members/deckoutsider`)) === null);
+  await throwsWith('a table that does not exist', guest.ops.setDeck('ZZZZZZ', { commander: 'Sol Ring' }), 'FlowRefusedError');
+  check("one player changing their deck does not touch another player's entry", (await readAdmin(`tables/${table.code}/members/deckhost`)).commander === undefined);
+
+  // a match: the deck cannot change while playing; the deck fields stay when the match ends
+  await host.ops.setReady(table.code);
+  await host.ops.startMatch(table.code);
+  await throwsWith('during a match the deck cannot be changed', guest.ops.setDeck(table.code, { commander: 'Ghave, Guru of Spores' }), 'FlowRefusedError');
+  check('...and the commander is still the one from before the match', (await guestEntry()).commander === 'Sol Ring');
+  await host.ops.endMatch(table.code);
+  entry = await guestEntry();
+  check('after the match ends the deck fields are still there (only the ready mark stops counting)', entry.commander === 'Sol Ring' && entry.bracket === 2, JSON.stringify(entry));
+  check('...and the deck can be changed again in the lobby', JSON.stringify(await guest.ops.setDeck(table.code, { commander: 'Ghave, Guru of Spores', bracket: 2 })) === '{"changed":true}');
+  check('joining the same table again (a rejoin) writes nothing, so the deck fields survive it', (await guest.ops.joinTable({ code: table.code, name: 'Guest' })).rejoined === true && (await guestEntry()).commander === 'Ghave, Guru of Spores');
+}
 
 await env.cleanup();
 console.log(`All ${checks} table logic checks passed.`);

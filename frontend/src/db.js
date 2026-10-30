@@ -83,6 +83,7 @@ export const joinTable = (...args) => tableOps().joinTable(...args);
 export const watchMembers = (...args) => tableOps().watchMembers(...args);
 export const setReady = (...args) => tableOps().setReady(...args);
 export const clearReady = (...args) => tableOps().clearReady(...args);
+export const setDeck = (...args) => tableOps().setDeck(...args);
 export const startMatch = (...args) => tableOps().startMatch(...args);
 export const concede = (...args) => tableOps().concede(...args);
 export const endMatch = (...args) => tableOps().endMatch(...args);

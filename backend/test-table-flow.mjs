@@ -11,7 +11,7 @@ import { ref, get, set, update, onValue, serverTimestamp } from 'firebase/databa
 import { createTableOps } from '../shared/table-ops.mjs';
 import { newModelTable, step, expireTable, ACTIONS } from '../shared/table-flow.mjs';
 
-const SEQUENCES = Number(process.env.FLOW_SEQUENCES ?? 120);
+const SEQUENCES = Number(process.env.FLOW_SEQUENCES ?? 240);
 const STEPS = Number(process.env.FLOW_STEPS ?? 14);
 const SEED = Number(process.env.FLOW_SEED ?? 20261028);
 
@@ -39,7 +39,7 @@ function random(seed) {
   };
 }
 const pick = (rand, list) => list[Math.floor(rand() * list.length)];
-const WEIGHTED = [['join', 4], ['ready', 4], ['unready', 1], ['start', 3], ['concede', 2], ['endMatch', 3], ['leave', 2], ['endTable', 0.3], ['passHost', 2], ['expire', 0.3]];
+const WEIGHTED = [['join', 4], ['ready', 4], ['unready', 1], ['setDeck', 0.6], ['start', 3], ['concede', 2], ['endMatch', 3], ['leave', 2], ['endTable', 0.3], ['passHost', 2], ['expire', 0.3]];
 function pickAction(rand) {
   const total = WEIGHTED.reduce((sum, [, w]) => sum + w, 0);
   let r = rand() * total;
@@ -47,6 +47,21 @@ function pickAction(rand) {
   return 'join';
 }
 
+// What a player might tell the table about a deck. The last four are not allowed (a bracket of 7, a commander text of 221
+// units, a guess with no bracket, a bracket that is not a whole number): every one must be refused by the page and the model alike.
+const DECKS = [
+  { commander: '', bracket: null, bracketGuess: false },
+  { commander: "Atraxa, Praetors' Voice", bracket: 3, bracketGuess: false },
+  { commander: 'Tymna the Weaver & Thrasios, Triton Hero', bracket: 4, bracketGuess: true },
+  { commander: 'Sol Ring', bracket: null, bracketGuess: false },
+  { commander: 'x'.repeat(220), bracket: 1, bracketGuess: false },
+  { commander: '', bracket: 2, bracketGuess: true },
+  { commander: 'Atraxa, Praetors' + "'" + ' Voice', bracket: 5, bracketGuess: false },
+  { commander: 'Sol Ring', bracket: 7, bracketGuess: false },
+  { commander: 'x'.repeat(221), bracket: null, bracketGuess: false },
+  { commander: 'Sol Ring', bracket: null, bracketGuess: true },
+  { commander: 'Sol Ring', bracket: 2.5, bracketGuess: false },
+];
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const codeFor = (n) => 'ZZ' + [3, 2, 1, 0].map((p) => ALPHABET[Math.floor(n / 32 ** p) % 32]).join('');
 
@@ -61,7 +76,7 @@ async function realState(code) {
   if (!table?.meta) return null;
   const members = {};
   for (const [uid, m] of Object.entries(table.members ?? {})) {
-    members[uid] = { seat: m.seat, ready: m.ready === table.meta.match, conceded: m.conceded === table.meta.match };
+    members[uid] = { seat: m.seat, ready: m.ready === table.meta.match, conceded: m.conceded === table.meta.match, commander: m.commander ?? null, bracket: m.bracket ?? null, bracketGuess: m.bracketGuess ?? null };
   }
   // Firebase hands back numeric keys as an array with holes, so build a plain { seat: uid } map.
   const seats = {};
@@ -104,7 +119,7 @@ let stoppedSequences = 0;
 const coverage = new Map();
 const cover = (key) => coverage.set(key, (coverage.get(key) ?? 0) + 1);
 // Situations that only arise after a particular history, counted separately because they hide the awkward cases.
-const situations = { cameBackToAReservedSeat: 0, matchEndedWithReservedSeats: 0, hostLeftAndHandedOver: 0, newHostActed: 0 };
+const situations = { deckChangeTookReadyBack: 0, sameDeckKeptReady: 0, cameBackToAReservedSeat: 0, matchEndedWithReservedSeats: 0, hostLeftAndHandedOver: 0, newHostActed: 0 };
 
 async function run() {
 for (let s = 0; s < SEQUENCES; s++) {
@@ -131,10 +146,11 @@ for (let s = 0; s < SEQUENCES; s++) {
     const hostNow = model.host; // the host can change, so "the host" means whoever it is now
     let uid = action === 'expire' ? hostNow : (seated.length && rand() < 0.8 ? pick(rand, seated) : pick(rand, names));
     let target = pick(rand, names); // only used by passHost: who should become host (a member or not)
+    let deck = pick(rand, DECKS); // only used by setDeck
     // Near misses: the host tries to start whenever (often too early: alone, or before everyone is ready), and a
     // seated player tries an action meant for the other state (ready during a match, conceding in the lobby).
     if (action !== 'expire' && rand() < 0.15) { action = 'start'; uid = hostNow; }
-    else if (action !== 'expire' && seated.length && rand() < 0.2) { action = pick(rand, ['ready', 'unready', 'concede', 'endTable', 'leave', 'passHost']); uid = pick(rand, seated); }
+    else if (action !== 'expire' && seated.length && rand() < 0.2) { action = pick(rand, ['ready', 'unready', 'setDeck', 'setDeck', 'concede', 'endTable', 'leave', 'passHost']); uid = pick(rand, seated); }
     // Someone whose seat is reserved tries to come back (their browser crashed, say), and a mid-match leave is common.
     const away = Object.keys(model.reserved);
     if (away.length && rand() < 0.2) { action = 'join'; uid = pick(rand, away); }
@@ -148,14 +164,14 @@ for (let s = 0; s < SEQUENCES; s++) {
         if (name === 'expire') continue;
         for (const who of names) {
           if (name === 'join' && model.members[who]) continue; // a rejoin by a member is not interesting here
-          for (const aim of name === 'passHost' ? names : [undefined]) {
+          for (const aim of name === 'passHost' ? names : name === 'setDeck' ? DECKS : [undefined]) {
             if (step(model, who, name, aim).ok) possible.push([name, who, weight, aim]);
           }
         }
       }
       const total = possible.reduce((sum, p) => sum + p[2], 0);
       let r = rand() * total;
-      for (const [name, who, weight, aim] of possible) { if ((r -= weight) < 0) { action = name; uid = who; target = aim ?? target; break; } }
+      for (const [name, who, weight, aim] of possible) { if ((r -= weight) < 0) { action = name; uid = who; if (name === 'passHost') target = aim; if (name === 'setDeck') deck = aim; break; } }
     }
     const before = model;
     let modelOk;
@@ -168,11 +184,11 @@ for (let s = 0; s < SEQUENCES; s++) {
       model = expireTable(model);
       realOk = modelOk = true;
     } else {
-      const result = step(model, uid, action, target);
+      const result = step(model, uid, action, action === 'setDeck' ? deck : target);
       modelOk = result.ok;
       model = result.table;
       detail = result.why ?? '';
-      const op = { join: () => people[uid].joinTable({ code, name: `P${uid}` }), ready: () => people[uid].setReady(code), unready: () => people[uid].clearReady(code), start: () => people[uid].startMatch(code), concede: () => people[uid].concede(code), endMatch: () => people[uid].endMatch(code), leave: () => people[uid].leaveTable(code), endTable: () => people[uid].endTable(code), passHost: () => people[uid].passHost(code, target) }[action];
+      const op = { join: () => people[uid].joinTable({ code, name: `P${uid}` }), ready: () => people[uid].setReady(code), unready: () => people[uid].clearReady(code), setDeck: () => people[uid].setDeck(code, deck), start: () => people[uid].startMatch(code), concede: () => people[uid].concede(code), endMatch: () => people[uid].endMatch(code), leave: () => people[uid].leaveTable(code), endTable: () => people[uid].endTable(code), passHost: () => people[uid].passHost(code, target) }[action];
       try { await op(); realOk = true; } catch (error) { realOk = false; detail = `${detail}${detail ? '; ' : ''}real: ${error.name}`; }
       // The new host's page claims the host slot as soon as it sees it is the host (only they can write their slot).
       if (realOk && modelOk && model.exists && model.host !== before.host) {
@@ -185,6 +201,9 @@ for (let s = 0; s < SEQUENCES; s++) {
 
     const tag = (before.status === 'playing' ? 'playing' : 'lobby') + (before.expired ? '+expired' : '') + (before.exists ? '' : '+gone');
     cover(`${action}|${tag}|${modelOk ? 'allowed' : 'refused'}`);
+    if (action === 'setDeck' && modelOk && before.members[uid]?.ready && before.status === 'lobby') {
+      if (!model.members[uid].ready) situations.deckChangeTookReadyBack++; else situations.sameDeckKeptReady++;
+    }
     if (action === 'join' && modelOk && before.reserved[uid]) situations.cameBackToAReservedSeat++;
     if (action === 'endMatch' && modelOk && Object.keys(before.reserved).length) situations.matchEndedWithReservedSeats++;
     if (action === 'leave' && modelOk && uid === before.host && Object.keys(before.members).length > 1) situations.hostLeftAndHandedOver++;
@@ -219,6 +238,8 @@ await env.withSecurityRulesDisabled(async (ctx) => { adminDb = ctx.database(); a
 console.log(`Flow comparison: ${SEQUENCES} random sequences (seed ${SEED}), ${stepsRun} steps; the model and the page + rules agreed on ${agreed}; ${stoppedSequences} sequences stopped at a disagreement.`);
 console.log('Coverage (action | table state | what the model said): count');
 for (const [key, count] of [...coverage].sort()) console.log(`  ${key}: ${count}`);
+console.log(`Situation: a ready player changed their deck and was un-readied: ${situations.deckChangeTookReadyBack} time(s)`);
+console.log(`Situation: a ready player sent the same deck again and stayed ready: ${situations.sameDeckKeptReady} time(s)`);
 console.log(`Situation: a player came back to their reserved seat mid-match: ${situations.cameBackToAReservedSeat} time(s)`);
 console.log(`Situation: a match ended while seats were reserved for players who had left: ${situations.matchEndedWithReservedSeats} time(s)`);
 console.log(`Situation: a host left with others at the table and the table was handed on: ${situations.hostLeftAndHandedOver} time(s)`);
@@ -240,8 +261,12 @@ if (unknown) {
 // A clean run only means something if the awkward situations and every action really happened (a passing run that never
 // started a match, or never handed a table over, proves nothing).
 const gaps = Object.entries(situations).filter(([, count]) => !count).map(([name]) => name);
+// Also required: a deck change tried during a match (it must be refused, by the model and by the page alike).
+const missingCases = ['setDeck|playing|refused'].filter((key) => !coverage.has(key));
 const neverWorked = ACTIONS.filter((a) => ![...coverage.keys()].some((k) => k.startsWith(`${a}|`) && k.endsWith('|allowed')));
-if (gaps.length || neverWorked.length) {
+if (gaps.length || neverWorked.length || missingCases.length) {
+  if (missingCases.length) console.log(`
+COVERAGE GAP: these cases never happened in this run: ${missingCases.join(', ')}`);
   if (gaps.length) console.log(`\nCOVERAGE GAP: the run never reached these situations: ${gaps.join(', ')}`);
   if (neverWorked.length) console.log(`\nCOVERAGE GAP: these actions never succeeded in this run, so they were not compared: ${neverWorked.join(', ')}`);
   process.exit(1);

@@ -73,7 +73,7 @@
           ".read": "auth != null && root.child('tables').child($code).child('members').child(auth.uid).exists()",
           "$uid": {
             ".write": "auth != null && auth.uid === $uid && (data.exists() ? (root.child('tables').child($code).child('meta').child('createdAt').val() + 28800000 > now && root.child('tables').child($code).child('activity').child('lastActive').val() + root.child('tables').child($code).child('meta').child('idleLimit').val() > now) : ((!root.child('tables').child($code).child('meta').exists() && newData.parent().parent().child('meta').child('host').val() === auth.uid) || (root.child('tables').child($code).child('meta').child('createdAt').val() + 28800000 > now && root.child('tables').child($code).child('activity').child('lastActive').val() + root.child('tables').child($code).child('meta').child('idleLimit').val() > now)))",
-            ".validate": "newData.hasChildren(['name', 'seat']) && (data.exists() ? newData.child('seat').val() === data.child('seat').val() : newData.parent().parent().child('seats').child(newData.child('seat').val()).val() === $uid) && (data.child('conceded').val() === root.child('tables').child($code).child('meta').child('match').val() && root.child('tables').child($code).child('meta').child('status').val() === 'playing' ? newData.child('conceded').val() === data.child('conceded').val() : true)",
+            ".validate": "newData.hasChildren(['name', 'seat']) && (data.exists() ? newData.child('seat').val() === data.child('seat').val() : newData.parent().parent().child('seats').child(newData.child('seat').val()).val() === $uid) && (data.child('conceded').val() === root.child('tables').child($code).child('meta').child('match').val() && root.child('tables').child($code).child('meta').child('status').val() === 'playing' ? newData.child('conceded').val() === data.child('conceded').val() : true) && ((data.exists() && (newData.child('commander').val() !== data.child('commander').val() || newData.child('bracket').val() !== data.child('bracket').val() || newData.child('bracketGuess').val() !== data.child('bracketGuess').val())) ? newData.child('ready').val() !== root.child('tables').child($code).child('meta').child('match').val() : true) && (newData.child('bracketGuess').exists() ? newData.child('bracket').exists() : true)",
             "name": {
               ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 30"
             },
@@ -85,6 +85,15 @@
             },
             "conceded": {
               ".validate": "newData.isNumber() && newData.val() === root.child('tables').child($code).child('meta').child('match').val() && root.child('tables').child($code).child('meta').child('status').val() === 'playing'"
+            },
+            "commander": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 220"
+            },
+            "bracket": {
+              ".validate": "newData.isNumber() && (newData.val() === 1 || newData.val() === 2 || newData.val() === 3 || newData.val() === 4 || newData.val() === 5)"
+            },
+            "bracketGuess": {
+              ".validate": "newData.val() === true"
             },
             "$other": {
               ".validate": false

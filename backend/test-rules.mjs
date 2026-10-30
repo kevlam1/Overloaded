@@ -777,5 +777,120 @@ await seed('TKO014', { members: [['alice', '1'], ['bob', '2']] });
 await hostGoneFor('TKO014', 6 * MINUTE);
 await ok('the host is only the host until a member takes over: the host can still hand over normally', update(ref(alice, 'tables/TKO014/meta'), { host: 'bob' }));
 
+console.log('deck fields on the member entry: commander, bracket, bracketGuess (2026-10-30)');
+// The table learns three things about a deck, nothing else: the commander(s) by card name (one text), the bracket (1 to 5)
+// and whether the bracket is only a guess. A change to any of them cannot leave the player ready for the current match.
+// Each case gets its own table so a refusal can only be about the thing being tested. Bob's entry is set up directly.
+let deckTables = 0;
+async function deckTable(entry = {}, { status = 'lobby', match = 1 } = {}) {
+  const code = `DKF${String(++deckTables).padStart(3, '0')}`;
+  await seed(code, { status });
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    const db = ctx.database();
+    await set(ref(db, `tables/${code}/members/bob`), { name: 'bob', seat: '2', ...entry });
+    await set(ref(db, `tables/${code}/meta/match`), match);
+  });
+  return code;
+}
+const bobAt = (code, field) => `tables/${code}/members/bob${field ? `/${field}` : ''}`;
+const SNAKE = String.fromCodePoint(0x1F40D);
+
+// the commander text
+let dk = await deckTable();
+await ok('a member sets their commander', set(ref(bob, bobAt(dk, 'commander')), "Atraxa, Praetors' Voice"));
+await ok('two commanders are one text joined with " & "', set(ref(bob, bobAt(dk, 'commander')), 'Tymna the Weaver & Thrasios, Triton Hero'));
+await ok('a commander text of exactly 220 units', set(ref(bob, bobAt(dk, 'commander')), 'x'.repeat(220)));
+await denied('a commander text of 221 units', set(ref(bob, bobAt(dk, 'commander')), 'x'.repeat(221)));
+await ok('110 emoji are 220 UTF-16 units: allowed', set(ref(bob, bobAt(dk, 'commander')), SNAKE.repeat(110)));
+await denied('111 emoji are 222 units: refused (the limit counts units, like the page)', set(ref(bob, bobAt(dk, 'commander')), SNAKE.repeat(111)));
+await denied('an empty commander text (no commander means no field)', set(ref(bob, bobAt(dk, 'commander')), ''));
+await denied('a commander that is a number', set(ref(bob, bobAt(dk, 'commander')), 5));
+await denied('a commander that is true', set(ref(bob, bobAt(dk, 'commander')), true));
+await denied('a commander that is an object', set(ref(bob, bobAt(dk, 'commander')), { name: 'Sol Ring' }));
+await ok('a member removes their commander', set(ref(bob, bobAt(dk, 'commander')), null));
+await denied('another member cannot write bob\'s commander', set(ref(alice, bobAt(dk, 'commander')), 'Sol Ring'));
+await denied('a stranger cannot write bob\'s commander', set(ref(carol, bobAt(dk, 'commander')), 'Sol Ring'));
+await denied('another member cannot delete bob\'s commander', set(ref(alice, bobAt(await deckTable({ commander: 'Sol Ring' }), 'commander')), null));
+await denied('the deck fields cannot be nested (a commander object with extra fields)', set(ref(bob, bobAt(dk, 'commander')), { text: 'x' }));
+await denied('an unknown extra field is still refused next to the deck fields', update(ref(bob), { [bobAt(dk, 'commander')]: 'Sol Ring', [bobAt(dk, 'deck')]: 'a list' }));
+
+// the bracket
+dk = await deckTable();
+for (const level of [1, 2, 3, 4, 5]) await ok(`bracket ${level}`, set(ref(bob, bobAt(dk, 'bracket')), level));
+for (const [label, value] of [['0', 0], ['6', 6], ['-1', -1], ['2.5', 2.5], ['3.0000001', 3.0000001], ['the text "3"', '3'], ['true', true], ['an object', { level: 3 }], ['a very large number', 1e9]]) {
+  await denied(`bracket ${label}`, set(ref(bob, bobAt(dk, 'bracket')), value));
+}
+await ok('a member removes their bracket', set(ref(bob, bobAt(dk, 'bracket')), null));
+await denied('another member cannot write bob\'s bracket', set(ref(alice, bobAt(dk, 'bracket')), 3));
+
+// bracketGuess: true only, and only next to a bracket
+dk = await deckTable({ bracket: 3 });
+await ok('a guess flag next to a bracket', set(ref(bob, bobAt(dk, 'bracketGuess')), true));
+for (const [label, value] of [['false', false], ['the text "true"', 'true'], ['1', 1], ['an object', { guess: true }]]) {
+  await denied(`bracketGuess ${label}`, set(ref(bob, bobAt(dk, 'bracketGuess')), value));
+}
+await ok('the guess flag can be removed on its own', set(ref(bob, bobAt(dk, 'bracketGuess')), null));
+dk = await deckTable();
+await denied('a guess flag with no bracket', set(ref(bob, bobAt(dk, 'bracketGuess')), true));
+await ok('a bracket and its guess flag in one write', update(ref(bob), { [bobAt(dk, 'bracket')]: 2, [bobAt(dk, 'bracketGuess')]: true }));
+await denied('removing the bracket while the guess flag stays (the entry rule, not the field rule, sees this)', set(ref(bob, bobAt(dk, 'bracket')), null));
+await ok('removing the bracket and the guess flag together', update(ref(bob), { [bobAt(dk, 'bracket')]: null, [bobAt(dk, 'bracketGuess')]: null }));
+await ok('all three fields in one write', update(ref(bob), { [bobAt(dk, 'commander')]: 'Sol Ring', [bobAt(dk, 'bracket')]: 4, [bobAt(dk, 'bracketGuess')]: true }));
+await denied('one bad field spoils the whole write (a bracket of 6 with a good commander)', update(ref(bob), { [bobAt(dk, 'commander')]: 'Ghave', [bobAt(dk, 'bracket')]: 6 }));
+
+// joining with deck fields in the first write (a player who comes back and brings their deck)
+{
+  const erin = as('erin');
+  await seed('DKJ001');
+  await ok('joining with a commander, a bracket and a guess flag', join(erin, 'DKJ001', 'erin', '3', { name: 'Erin', seat: '3', commander: 'Sol Ring', bracket: 3, bracketGuess: true }));
+  await seed('DKJ002');
+  await denied('joining with a guess flag and no bracket', join(erin, 'DKJ002', 'erin', '3', { name: 'Erin', seat: '3', bracketGuess: true }));
+  await seed('DKJ003');
+  await denied('joining with a bracket of 0', join(erin, 'DKJ003', 'erin', '3', { name: 'Erin', seat: '3', bracket: 0 }));
+  await seed('DKJ004');
+  await denied('joining with a commander of 221 units', join(erin, 'DKJ004', 'erin', '3', { name: 'Erin', seat: '3', commander: 'x'.repeat(221) }));
+  await seed('DKJ005');
+  await ok('a new entry may carry a deck and a ready mark (nothing was changed from an earlier deck; the page never sends this)', join(erin, 'DKJ005', 'erin', '3', { name: 'Erin', seat: '3', ready: 1, commander: 'Sol Ring' }));
+}
+
+// a change to the deck takes the ready mark back: a write that changes a deck field cannot leave you ready for this match
+dk = await deckTable({ ready: 1, commander: 'Sol Ring' });
+await denied('ready: changing the commander alone is refused', set(ref(bob, bobAt(dk, 'commander')), 'Ghave'));
+await denied('ready: removing the commander alone is refused', set(ref(bob, bobAt(dk, 'commander')), null));
+await denied('ready: adding a bracket alone is refused', set(ref(bob, bobAt(dk, 'bracket')), 3));
+await ok('not ready, then ready with the deck as it is', set(ref(bob, bobAt(dk, 'ready')), null));
+await ok('ready again with an unchanged deck (readying after choosing the deck is the normal order)', set(ref(bob, bobAt(dk, 'ready')), 1));
+await ok('writing the SAME commander again changes nothing, so the ready mark may stay', set(ref(bob, bobAt(dk, 'commander')), 'Sol Ring'));
+await ok('a rename is not a deck change: ready stays', set(ref(bob, bobAt(dk, 'name')), 'Bobby'));
+await ok('changing the commander and taking the ready mark back in one write', update(ref(bob), { [bobAt(dk, 'commander')]: 'Ghave', [bobAt(dk, 'ready')]: null }));
+dk = await deckTable({ ready: 1, commander: 'Sol Ring', bracket: 3 });
+await denied('ready: changing the bracket alone is refused', set(ref(bob, bobAt(dk, 'bracket')), 4));
+await denied('ready: removing the bracket alone is refused', set(ref(bob, bobAt(dk, 'bracket')), null));
+await denied('ready: adding the guess flag alone is refused (a guess is a change)', set(ref(bob, bobAt(dk, 'bracketGuess')), true));
+await denied('ready: changing the commander while explicitly writing ready for this match again', update(ref(bob), { [bobAt(dk, 'commander')]: 'Ghave', [bobAt(dk, 'ready')]: 1 }));
+await ok('ready: changing the bracket and taking the ready mark back in one write', update(ref(bob), { [bobAt(dk, 'bracket')]: 4, [bobAt(dk, 'ready')]: null }));
+dk = await deckTable({ ready: 1, commander: 'Sol Ring', bracket: 3, bracketGuess: true });
+await denied('ready: removing the guess flag alone is refused (a guess is a change)', set(ref(bob, bobAt(dk, 'bracketGuess')), null));
+await ok('ready: removing the guess flag and the ready mark together', update(ref(bob), { [bobAt(dk, 'bracketGuess')]: null, [bobAt(dk, 'ready')]: null }));
+dk = await deckTable({ ready: 1, commander: 'Sol Ring' });
+await denied('ready: replacing the whole entry with another commander and the same ready mark', set(ref(bob, bobAt(dk)), { name: 'bob', seat: '2', ready: 1, commander: 'Ghave' }));
+await ok('ready: replacing the whole entry with another commander and no ready mark', set(ref(bob, bobAt(dk)), { name: 'bob', seat: '2', commander: 'Ghave' }));
+dk = await deckTable({ ready: 1, commander: 'Sol Ring' });
+await ok('a rejoin write (name and seat only: no deck, no ready mark) is accepted', set(ref(bob, bobAt(dk)), { name: 'bob', seat: '2' }));
+dk = await deckTable({ ready: 2, commander: 'Sol Ring' }, { match: 3 });
+await ok('a ready mark from an earlier match is not a ready mark: the deck can change', set(ref(bob, bobAt(dk, 'commander')), 'Ghave'));
+dk = await deckTable({ ready: 1, commander: 'Sol Ring' });
+await env.withSecurityRulesDisabled((ctx) => set(ref(ctx.database(), 'tables/' + dk + '/members/alice/ready'), 1));
+await ok('another player staying ready is not touched by bob changing his deck (bob un-readies himself)', update(ref(bob), { [bobAt(dk, 'commander')]: 'Ghave', [bobAt(dk, 'ready')]: null }));
+{
+  let alicesMark; // withSecurityRulesDisabled throws away what its callback returns, so keep the value here
+  await env.withSecurityRulesDisabled(async (ctx) => { alicesMark = (await get(ref(ctx.database(), 'tables/' + dk + '/members/alice/ready'))).val(); });
+  checks++;
+  if (alicesMark !== 1) { console.log('FAILED CHECK: bob changing his deck must not touch alice\'s ready mark'); throw new Error('alice lost her ready mark'); }
+  console.log('  ok   bob changing his deck left alice\'s ready mark alone');
+}
+dk = await deckTable({ ready: 1, commander: 'Sol Ring' }, { status: 'playing' });
+await denied('during a match, a ready player still cannot change the commander and keep the mark', set(ref(bob, bobAt(dk, 'commander')), 'Ghave'));
+
 await env.cleanup();
 console.log(`All ${checks} rule checks passed.`);

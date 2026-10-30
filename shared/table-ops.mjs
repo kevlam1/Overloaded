@@ -14,6 +14,8 @@ import { cleanPlayerName } from './player-name.mjs';
 import { isPermissionDenied } from './permission-error.mjs';
 import { limitsAt } from './table-limits.mjs';
 import { makeTabId, summarize, hostIsGone } from './presence.mjs';
+import { readFormat, DEFAULT_FORMAT } from './formats.mjs';
+import { cleanDeckFields, deckFieldsChanged } from './deck-fields.mjs';
 
 export const LOBBY_IDLE_MS = 30 * 60 * 1000; // must equal the lobby idle limit in the rules
 export const PLAYING_IDLE_MS = 60 * 60 * 1000; // must equal the playing idle limit in the rules
@@ -91,9 +93,10 @@ export function createTableOps({ sdk, db, getUid, makeCode = makeTableCode }) {
 
   // Creates a table and takes seat 1. If the host already holds a table, it is deleted in the same write.
   // The page should warn first (findMyTable); this function does what it is told.
-  async function createTable({ name, seats = 4, format = 'commander' }) {
+  async function createTable({ name, seats = 4, format = DEFAULT_FORMAT }) {
     const playerName = cleanPlayerName(name);
     if (!SEAT_COUNTS.includes(seats)) throw new Error('A table has 2, 3 or 4 seats.');
+    readFormat(format); // Commander or Standard; refused before any request
     const uid = await getUid();
     let oldCode = (await get(ref(db, `hosts/${uid}`))).val();
     if (oldCode) {
@@ -224,6 +227,27 @@ export function createTableOps({ sdk, db, getUid, makeCode = makeTableCode }) {
     if (!meta || !mine) refuse('You are not at that table.');
     if (meta.status !== 'lobby') refuse('The match has started.');
     await update(ref(db), { [`tables/${code}/members/${uid}/ready`]: null });
+  }
+
+  // Tells the table what it may know about your deck: the commander(s) by card name, the bracket and whether the bracket is
+  // a guess (see shared/deck-fields.mjs; the list itself is never sent). Only in the lobby. If anything changed, your ready
+  // mark is taken back in the SAME write (the rules refuse a change that leaves you ready), so a table never shows a
+  // player ready for a deck that is not the one they readied with. Nothing is written when nothing changed: that
+  // does not un-ready you. Returns { changed }.
+  async function setDeck(code, fields) {
+    const next = cleanDeckFields(fields); // refused in words before any request
+    const { uid, meta, mine } = await look(code);
+    if (!meta || !mine) refuse('You are not at that table.');
+    if (meta.status !== 'lobby') refuse('The match has started, so your deck can no longer change.');
+    if (!deckFieldsChanged(mine, next)) return { changed: false };
+    const member = `tables/${code}/members/${uid}`;
+    await update(ref(db), {
+      [`${member}/commander`]: next.commander,
+      [`${member}/bracket`]: next.bracket,
+      [`${member}/bracketGuess`]: next.bracketGuess,
+      [`${member}/ready`]: null,
+    });
+    return { changed: true };
   }
 
   // The host starts the match: at least two players, and everyone ready for this match.
@@ -432,5 +456,5 @@ export function createTableOps({ sdk, db, getUid, makeCode = makeTableCode }) {
     );
   }
 
-  return { findMyTable, createTable, rejoinTable, joinTable, watchMembers, setReady, clearReady, startMatch, concede, endMatch, endTable, leaveTable, passHost, takeOverHost, claimHostSlot, heartbeat, watchActivity, watchMeta, watchServerOffset, watchConnection, startPresence, watchPresence };
+  return { findMyTable, createTable, rejoinTable, joinTable, watchMembers, setReady, clearReady, setDeck, startMatch, concede, endMatch, endTable, leaveTable, passHost, takeOverHost, claimHostSlot, heartbeat, watchActivity, watchMeta, watchServerOffset, watchConnection, startPresence, watchPresence };
 }

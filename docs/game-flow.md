@@ -8,9 +8,10 @@ A table is in one of two states: **lobby** (people join, leave, ready up) and **
 
 | Action | Who | When | What happens |
 |---|---|---|---|
-| Create | anyone | anytime | A table with the creator as host in seat 1, in the lobby, match 1. A host holds one table; a new one closes the old one. |
+| Create | anyone | anytime | A table with the creator as host in seat 1, in the lobby, match 1, and a **format** (Commander or Standard, chosen on the create form; casual, so deck sizes are hints). A host holds one table; a new one closes the old one. |
 | Join | anyone with the code | lobby, free seat | First free seat. Joining again when already at the table changes nothing. |
 | Ready / unready | a player | lobby | A mark for the current match. |
+| Set your deck | a player | lobby | Tells the table three things about your deck, and nothing else: your commander(s) by card name (one text, two names joined with " & "), your bracket (1 to 5, optional) and whether the bracket is only a guess. A change to any of them **takes your ready mark back** in the same write; sending the same deck again changes nothing and keeps it. Swapping ordinary cards is not a change to any of the three. The deck list is never sent. Your deck fields stay when a match ends (only the ready mark stops counting). A player who left mid-match and comes back has no deck fields (the page sends them again). |
 | Start | the host | lobby, at least 2 players, everyone ready | The table moves to playing. |
 | Concede | a player | playing | Your own mark for this match. It cannot be taken back during the match. |
 | End match | the host | playing | Back to the lobby, match number plus one, so every ready and concede mark from before means nothing. |
@@ -27,6 +28,10 @@ A table is in one of two states: **lobby** (people join, leave, ready up) and **
 | Start only by the host, only from the lobby | yes | yes |
 | Start needs 2 players and everyone ready | **no** | yes |
 | Ready only in the lobby | **no** (allowed while playing) | yes |
+| A player needs a deck to ready up (2026-10-30) | **no** (495 older rule tests ready players with no deck) | page path, not built yet |
+| Set your deck only in the lobby | **no** (the rules only require that a change leaves you not ready) | yes (`setDeck`) |
+| A change to the commander, bracket or guess flag cannot leave you ready for this match | yes (a rule on the whole member entry, which also covers deleting a field) | yes (`setDeck` clears `ready` in the same write) |
+| Commander text 1 to 220 units; bracket 1 to 5; guess flag only `true` and only with a bracket | yes | yes (`shared/deck-fields.mjs`) |
 | Concede only while playing; locked for the match | yes | yes |
 | End match: host only, playing only, match number plus one | yes | yes |
 | Join only in the lobby, free seat, one seat per person | yes | yes |
@@ -36,6 +41,14 @@ A table is in one of two states: **lobby** (people join, leave, ready up) and **
 | Expired table accepts no changes | yes | refused by the database |
 
 "Page only" means a modified client could break the rule. For a game among friends that is acceptable (nobody gains anything by starting early, and the host is trusted), but it is a choice, see question 2.
+
+## Deck fields, built 2026-10-30 (rules path; the lobby page for them is not built yet)
+
+Decided by Kevin 2026-10-30: a seat shows only the player's name, their commander(s) by card name (not the deck's title), their bracket and whether they are ready; nobody sees inside another player's deck, and the list is never stored. Stored per member entry: `commander`, `bracket`, `bracketGuess` (true only when the bracket was inferred, not picked). Checked against the real card list (34,743 names and alternate titles): the longest legendary name is 61 units and two legendary names joined with " & " reach 123; the longest name of any card is a 141-unit joke card and two such names reach 208, so the limit is **220**.
+
+- **The un-ready rule is on the whole member entry**, and Firebase runs it for a write to a child and for a delete of a child as well (checked in the emulator before writing the tests: deleting `commander` while ready was refused). So a modified client cannot change the deck and stay ready by any route. The same check showed that a rule on one child runs only when that child is written, so "a guess needs a bracket" also lives on the whole entry (otherwise deleting the bracket while the flag stayed was allowed).
+- **Design questions I answered with a default because Kevin was away (please confirm or change):** (1) a deck can only be set in the lobby (the page refuses during a match; the rules do not), like readying; (2) an empty commander is stored as nothing, not as an empty text; (3) a player who comes back to a reserved seat has no deck fields until the page sends them.
+- The model (`shared/table-flow.mjs`) has the new action and fields, and the comparison now runs 240 sequences (it was 120; the new action shifted the random numbers and left a coverage gap) and requires "a ready player changed their deck and was un-readied" and "a deck change during a match was refused".
 
 ## Findings of the first comparison (2026-10-28)
 

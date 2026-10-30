@@ -163,6 +163,8 @@ M.push(
 // same writes. Each reason was checked by reading the rules (and, for the first, by a test run).
 // A mutation listed here that survives is reported as "equivalent"; any other survivor fails the run.
 const EQUIVALENT = {
+  'deck: bracket need not be a number': 'the rule also compares the value with 1, 2, 3, 4 and 5 using strict equality, which a text, a boolean or an object never satisfies (the tests for "3", true and an object stay denied without this check)',
+  'deck: commander need not be a string': 'the next checks read .length, which a number, a boolean or an object does not have in the rules language, so the write is refused anyway (the tests for a number, true and an object stay denied without this check)',
   'members: name string check removed': 'a number has no .length in the rules language, so a number name is still denied',
   'meta write: anyone may create (no host check)': 'the host child validate still requires host === auth.uid when the table is created',
   'meta: idle limit any value': 'the status/idle-limit coupling at meta level already allows only the two exact values',
@@ -257,6 +259,39 @@ for (const n of ['1', '2', '3', '4']) {
     ['conceded: can be changed or deleted mid-match (lock removed)', lock, ` && (data.child('conceded').val() === ${MATCH} && ${S} === 'playing' ? newData.child('conceded').val() === data.child('conceded').val() : true)`, ''],
     ['conceded lock: an old concession also locks', lock, `data.child('conceded').val() === ${MATCH} && ${S}`, `${S}`],
     ['conceded lock: applies outside a match', lock, `${S} === 'playing' ? newData.child('conceded')`, 'true ? newData.child(\'conceded\')'],
+  );
+}
+// Deck fields on the member entry (2026-10-30): commander (text, 1 to 220), bracket (1 to 5), bracketGuess (true, only with
+// a bracket), and a change to any of them cannot leave the player ready for the current match. Run alone with: node mutate-rules.mjs deck
+{
+  const lock = at('members', '$uid', '.validate');
+  const commander = at('members', '$uid', 'commander', '.validate');
+  const bracket = at('members', '$uid', 'bracket', '.validate');
+  const guess = at('members', '$uid', 'bracketGuess', '.validate');
+  const MATCH = `${T}.child('meta').child('match').val()`;
+  const LEVELS = '(newData.val() === 1 || newData.val() === 2 || newData.val() === 3 || newData.val() === 4 || newData.val() === 5)';
+  M.push(
+    ['deck: no un-ready rule at all', lock, ` && ((data.exists() && (newData.child('commander').val() !== data.child('commander').val() || newData.child('bracket').val() !== data.child('bracket').val() || newData.child('bracketGuess').val() !== data.child('bracketGuess').val())) ? newData.child('ready').val() !== ${MATCH} : true)`, ''],
+    ['deck: a commander change does not un-ready', lock, "newData.child('commander').val() !== data.child('commander').val() || ", ''],
+    ['deck: a bracket change does not un-ready', lock, "newData.child('bracket').val() !== data.child('bracket').val() || ", ''],
+    ['deck: a guess change does not un-ready', lock, " || newData.child('bracketGuess').val() !== data.child('bracketGuess').val()", ''],
+    ['deck: any ready mark blocks a change (not only the current match)', lock, `newData.child('ready').val() !== ${MATCH} : true)`, "!newData.child('ready').exists() : true)"],
+    ['deck: the un-ready rule also applies when the entry is created', lock, '((data.exists() && (', '((('],
+    ['deck: a guess does not need a bracket (entry rule)', lock, " && (newData.child('bracketGuess').exists() ? newData.child('bracket').exists() : true)", ''],
+    ['deck: commander need not be a string', commander, 'newData.isString() && ', ''],
+    ['deck: an empty commander is allowed', commander, ' && newData.val().length > 0', ''],
+    ['deck: commander limit is 2200', commander, '<= 220', '<= 2200'],
+    ['deck: commander limit is 221', commander, '<= 220', '<= 221'],
+    ['deck: commander limit is 219', commander, '<= 220', '<= 219'],
+    ['deck: commander length unchecked', commander, ' && newData.val().length <= 220', ''],
+    ['deck: bracket need not be a number', bracket, 'newData.isNumber() && ', ''],
+    ['deck: any number is a bracket', bracket, LEVELS, 'true'],
+    ['deck: bracket 0 allowed', bracket, '(newData.val() === 1 || ', '(newData.val() === 0 || newData.val() === 1 || '],
+    ['deck: bracket 6 allowed', bracket, ' || newData.val() === 5', ' || newData.val() === 5 || newData.val() === 6'],
+    ['deck: bracket 1 refused', bracket, '(newData.val() === 1 || ', '('],
+    ...[2, 3, 4, 5].map((k) => [`deck: bracket ${k} refused`, bracket, ` || newData.val() === ${k}`, '']),
+    ['deck: guess may be false', guess, 'newData.val() === true', 'newData.val() === true || newData.val() === false'],
+    ['deck: guess may be any value', guess, 'newData.val() === true', 'true'],
   );
 }
 // The last player standing may delete the table. The check is repeated for each of the four seats.
