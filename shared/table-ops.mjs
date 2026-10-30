@@ -401,6 +401,39 @@ export function createTableOps({ sdk, db, getUid, makeCode = makeTableCode }) {
   const watchMeta = (code, onChange) => watch(`tables/${code}/meta`, onChange); // { createdAt, idleLimit, status, match, ... }
   // true while this computer is connected to the database, false when the connection is lost (then it retries by itself).
   const watchConnection = (onChange) => watch('.info/connected', (connected) => onChange(connected === true));
+
+  // ---- the game: your own public and private branches, and everyone's public one (shared/game-sync.mjs) ----
+  // Writes the pieces of your game that a move changed (gameWrites): a map from a path such as "public/UID/life" to its new
+  // value (null deletes). Only your own two branches may be named, and the database rules refuse anything else. One update,
+  // so a move is all there or not at all. Returns { written }.
+  async function saveGame(code, writes) {
+    if (!isValidCode(code)) throw new FlowRefusedError('That does not look like a table code.');
+    const uid = await getUid();
+    const paths = Object.keys(writes ?? {});
+    for (const path of paths) {
+      if (!path.startsWith(`public/${uid}/`) && !path.startsWith(`private/${uid}/`)) throw new FlowRefusedError('A move may only change your own cards.');
+    }
+    if (paths.length === 0) return { written: 0 };
+    await update(ref(db), Object.fromEntries(paths.map((path) => [`tables/${code}/${path}`, writes[path]])));
+    return { written: paths.length };
+  }
+
+  // Your own game as stored: { public, private } (each null when nothing was saved), for coming back after a refresh.
+  async function loadGame(code) {
+    if (!isValidCode(code)) return { public: null, private: null };
+    const uid = await getUid();
+    const read = async (path) => {
+      try { return (await get(ref(db, `tables/${code}/${path}/${uid}`))).val(); } catch (error) {
+        if (isPermissionDenied(error)) return null;
+        throw error;
+      }
+    };
+    const [pub, priv] = await Promise.all([read('public'), read('private')]);
+    return { public: pub, private: priv };
+  }
+
+  // Everyone's public branch, { uid: stored }, now and on every change (read it with readPublic, never as it is).
+  const watchPublic = (code, onChange) => watch(`tables/${code}/public`, onChange);
   // How far this computer's clock is from the database's (ms): the server's time is Date.now() + offset. The limits are
   // judged on the server's time, so the page must not trust its own clock.
   const watchServerOffset = (onChange) => watch('.info/serverTimeOffset', (offset) => onChange(typeof offset === 'number' ? offset : 0));
@@ -456,5 +489,5 @@ export function createTableOps({ sdk, db, getUid, makeCode = makeTableCode }) {
     );
   }
 
-  return { findMyTable, createTable, rejoinTable, joinTable, watchMembers, setReady, clearReady, setDeck, startMatch, concede, endMatch, endTable, leaveTable, passHost, takeOverHost, claimHostSlot, heartbeat, watchActivity, watchMeta, watchServerOffset, watchConnection, startPresence, watchPresence };
+  return { findMyTable, createTable, rejoinTable, joinTable, watchMembers, setReady, clearReady, setDeck, startMatch, concede, endMatch, endTable, leaveTable, passHost, takeOverHost, claimHostSlot, heartbeat, watchActivity, watchMeta, watchServerOffset, watchConnection, startPresence, watchPresence, saveGame, loadGame, watchPublic };
 }

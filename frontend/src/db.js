@@ -99,3 +99,6 @@ export const startPresence =(...args) => tableOps().startPresence(...args);
 export const watchPresence = (...args) => tableOps().watchPresence(...args);
 export const watchMeta = (...args) => tableOps().watchMeta(...args);
 export const watchServerOffset = (...args) => tableOps().watchServerOffset(...args);
+export const saveGame = (...args) => tableOps().saveGame(...args);
+export const loadGame = (...args) => tableOps().loadGame(...args);
+export const watchPublic = (...args) => tableOps().watchPublic(...args);

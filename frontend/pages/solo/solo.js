@@ -6,7 +6,7 @@ import { makeSafeStore } from '../../src/safe-store.js';
 import { loadCardList } from '../../src/card-list.js';
 import { LIBRARY_KEY, LEGACY_KEY, readLibrary, selectedEntry } from '../../../shared/deck-library.mjs';
 import { makeLookup } from '../../../shared/card-lookup.mjs';
-import { imageUrl } from '../../../shared/card-image.mjs';
+import { makeCardNodes } from '../../src/card-nodes.js';
 import { makeGame, draw, moveCard, shuffleLibrary, mulligan, setTapped, untapAll, adjustLife, nextTurn, battlefieldRows, zoneCounts } from '../../../shared/zones.mjs';
 
 const $ = (id) => document.getElementById(id);
@@ -17,7 +17,6 @@ let lookup = null;
 let game = null;
 let selected = null; // the uid of the selected card
 let viewing = null; // the pile being looked at: 'library', 'graveyard', 'exile' or 'sideboard'
-const nodes = new Map(); // uid -> its button, kept so a card that moves does not have to load its picture again
 
 const ZONE_WORDS = { library: 'your library', hand: 'your hand', battlefield: 'the battlefield', graveyard: 'your graveyard', exile: 'exile', command: 'the command zone', sideboard: 'your sideboard' };
 const plural = (count, one, many) => `${count} ${count === 1 ? one : many}`;
@@ -35,50 +34,9 @@ function make(tag, className, content) {
 }
 
 // ---- cards on the page ----
-function nodeFor(card) {
-  let button = nodes.get(card.uid);
-  if (!button) {
-    button = make('button', 'card');
-    button.type = 'button';
-    button.dataset.uid = card.uid;
-    const face = make('span', 'face');
-    const url = imageUrl(card.p ?? card.i); // the printing the deck named, else the card's default printing
-    if (url) {
-      const picture = document.createElement('img');
-      picture.alt = '';
-      picture.width = 146;
-      picture.height = 204;
-      picture.loading = 'lazy';
-      picture.decoding = 'async';
-      picture.referrerPolicy = 'no-referrer';
-      let triedDefault = false;
-      picture.addEventListener('error', () => {
-        // The printing has no picture (or a damaged id): try the card's default picture once, then show the name.
-        const fallback = card.p && !triedDefault ? imageUrl(card.i) : null;
-        triedDefault = true;
-        if (fallback) { picture.src = fallback; return; }
-        button.classList.add('noimage');
-      });
-      picture.src = url;
-      face.append(picture);
-    } else {
-      button.classList.add('noimage');
-    }
-    face.append(make('span', 'fallback', card.n));
-    button.append(face);
-    button.addEventListener('click', () => select(card.uid));
-    nodes.set(card.uid, button);
-  }
-  button.classList.toggle('tapped', card.tapped);
-  button.classList.toggle('selected', card.uid === selected);
-  button.setAttribute('aria-pressed', String(card.uid === selected));
-  button.setAttribute('aria-label', `${card.n}${card.tapped ? ', tapped' : ''}`);
-  return button;
-}
-
-function place(container, cards) {
-  container.replaceChildren(...cards.map(nodeFor));
-}
+// The buttons and pictures are in src/card-nodes.js (the live table draws cards the same way).
+const cardNodes = makeCardNodes({ onSelect: (uid) => select(uid), isSelected: (uid) => uid === selected });
+const place = cardNodes.place;
 
 function findCard(uid) {
   for (const zone of Object.keys(game.zones)) {
@@ -178,7 +136,7 @@ function deal() {
   game = makeGame(deck, lookup);
   selected = null;
   viewing = null;
-  nodes.clear();
+  cardNodes.clear();
   $('game').hidden = false;
   $('blocked').hidden = true;
   render();

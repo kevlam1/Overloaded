@@ -59,6 +59,8 @@ try {
   await server.listen();
   const alice = await openBrowser('lobbydeck-alice');
   const bob = await openBrowser('lobbydeck-bob');
+  await alice.fakeImages('https://cards.scryfall.io/*'); // the saved decks use made-up card ids: no picture is fetched from Scryfall
+  await bob.fakeImages('https://cards.scryfall.io/*');
 
   await seed(alice, aliceLibrary);
   await alice.goto(PAGE);
@@ -183,6 +185,42 @@ try {
   await tableRows(alice);
   const meta = (await rest('GET', `tables/${code}/meta`, cleanup.alice.token)).json;
   record('the database says the table is playing, with the one-hour idle limit', meta?.status === 'playing' && meta.idleLimit === 3600000, JSON.stringify(meta));
+
+  // The game on the table page: Alice's own cards, saved as she moves (hand and library private, the rest public).
+  const count = (browser, selector) => browser.eval(`document.querySelectorAll(${JSON.stringify(selector)}).length`);
+  // "public" or "private/hand": the branch, then Alice's id, then the rest (the layout is tables/CODE/BRANCH/UID/REST)
+  const pathOf = (where) => { const [branch, ...rest] = where.split('/'); return `tables/${code}/${branch}/${cleanup.alice.uid}${rest.length ? `/${rest.join('/')}` : ''}`; };
+  const aliceBoard = await waitFor(async () => (await count(alice, '#hand .card')) === 7 ? true : null, 30000, 200);
+  record('Alice is dealt a hand of 7 and her commanders are in the command zone', Boolean(aliceBoard) && (await count(alice, '#command .card')) === 2 && (await text(alice, 'life')) === '40', `${await count(alice, '#hand .card')} cards, life ${await text(alice, 'life')}`);
+  const savedFirst = await waitFor(async () => { const r = await rest('GET', pathOf('private'), cleanup.alice.token); return r.json?.hand && Object.keys(r.json.hand).length === 7 ? r.json : null; }, 15000, 250);
+  record("the database holds Alice's hand and library in her private branch", Boolean(savedFirst) && Object.keys(savedFirst.library).length === 23, savedFirst ? `library ${Object.keys(savedFirst.library).length}` : 'nothing saved');
+  const publicFirst = (await rest('GET', pathOf('public'), cleanup.bob.token)).json;
+  record("Bob can read Alice's public branch: her life, her hand count and her command zone, but no hand or library", publicFirst?.life === 40 && publicFirst.counts?.hand === 7 && publicFirst.counts?.library === 23 && Object.keys(publicFirst.command ?? {}).length === 2 && !('hand' in publicFirst) && !('library' in publicFirst), JSON.stringify(publicFirst && Object.keys(publicFirst)));
+  record("Bob is refused when he reads Alice's private branch", (await rest('GET', pathOf('private'), cleanup.bob.token)).status === 401);
+  record("...and none of her hand's card numbers is in what he can read", !JSON.stringify(publicFirst).includes(Object.values(savedFirst?.hand ?? {})[0]?.u ?? 'no-hand'));
+  const handBefore = Object.values(savedFirst.hand).map((card) => card.u);
+
+  await click(alice, 'draw');
+  const drew = await waitFor(async () => { const r = await rest('GET', pathOf('private/hand'), cleanup.alice.token); return r.json && Object.keys(r.json).length === 8 ? true : null; }, 15000, 250);
+  record('Draw shows 8 cards and saves them (the hand 8, the library 22, both counts)', Boolean(drew) && (await count(alice, '#hand .card')) === 8 && (await rest('GET', pathOf('public/counts'), cleanup.bob.token)).json?.hand === 8 && Object.keys((await rest('GET', pathOf('private/library'), cleanup.alice.token)).json).length === 22);
+
+  await alice.eval(`document.querySelector('#hand .card').click()`);
+  await alice.eval(`Array.from(document.querySelectorAll('#selected-actions button')).find((b) => b.textContent === 'To battlefield').click()`);
+  const played = await waitFor(async () => { const r = await rest('GET', pathOf('public/battlefield'), cleanup.bob.token); return r.json && Object.keys(r.json).length === 1 ? r.json : null; }, 15000, 250);
+  record('playing a card puts it on her battlefield on the page and in the public branch that Bob can read', Boolean(played) && (await count(alice, '#row-lands .card, #row-other .card')) === 1 && (await count(alice, '#hand .card')) === 7, JSON.stringify(played));
+  record('the played card is no longer in her private hand', Object.keys((await rest('GET', pathOf('private/hand'), cleanup.alice.token)).json).length === 7);
+  await click(alice, 'life-minus5');
+  const lifeSaved = await waitFor(async () => (await rest('GET', pathOf('public/life'), cleanup.bob.token)).json === 35 ? true : null, 15000, 250);
+  record('losing 5 life saves 35, and only the life changed', Boolean(lifeSaved) && (await text(alice, 'life')) === '35');
+  record('the page says the moves are saved', Boolean(await waitFor(async () => (await text(alice, 'save-state')) === 'Saved.' ? true : null, 10000, 200)), await text(alice, 'save-state'));
+
+  const handBeforeRefresh = Object.values((await rest('GET', pathOf('private/hand'), cleanup.alice.token)).json).map((card) => card.u).sort().join();
+  await alice.goto(`http://127.0.0.1:${PORT}/table/${code}`);
+  const restored = await waitFor(async () => (await count(alice, '#hand .card')) === 7 && (await count(alice, '#row-lands .card, #row-other .card')) === 1 ? true : null, 30000, 200);
+  record('after a refresh Alice has the same game: 7 in hand, 1 on the battlefield, life 35', Boolean(restored) && (await text(alice, 'life')) === '35' && /back/i.test(await text(alice, 'deck-line')), `${await text(alice, 'life')} ${await text(alice, 'deck-line')}`);
+  const handAfter = Object.values((await rest('GET', pathOf('private/hand'), cleanup.alice.token)).json).map((card) => card.u).sort().join();
+  record('...and it was put back, not dealt again: the hand in the database is exactly the one she left', handAfter === handBeforeRefresh && handAfter.split(',').length === 7, handAfter);
+  record('...and 6 of those 7 cards were in her first hand (one was played, one was drawn)', handAfter.split(',').filter((u) => handBefore.includes(u)).length === 6);
   if (process.argv.includes('--screenshot')) { await sleep(300); await bob.screenshot('scratch-table-page.png'); }
   await bob.goto(`http://127.0.0.1:${PORT}/table/${code}`); // a refresh puts a player back at the table
   const afterRefresh2 = await tableRows(bob);

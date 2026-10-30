@@ -6,6 +6,8 @@ import { readFileSync } from 'node:fs';
 import { initializeTestEnvironment } from '@firebase/rules-unit-testing';
 import { ref, get, set, update, onValue, onDisconnect, goOffline, goOnline, serverTimestamp } from 'firebase/database';
 import { createTableOps, TableUnavailableError } from '../shared/table-ops.mjs';
+import { makeGame, draw, seededRandom } from '../shared/zones.mjs';
+import { gameWrites, joinGame } from '../shared/game-sync.mjs';
 
 const env = await initializeTestEnvironment({
   projectId: 'demo-overloaded',
@@ -452,6 +454,66 @@ console.log('setDeck: what the table learns about your deck (2026-10-30)');
   check('after the match ends the deck fields are still there (only the ready mark stops counting)', entry.commander === 'Sol Ring' && entry.bracket === 2, JSON.stringify(entry));
   check('...and the deck can be changed again in the lobby', JSON.stringify(await guest.ops.setDeck(table.code, { commander: 'Ghave, Guru of Spores', bracket: 2 })) === '{"changed":true}');
   check('joining the same table again (a rejoin) writes nothing, so the deck fields survive it', (await guest.ops.joinTable({ code: table.code, name: 'Guest' })).rejoined === true && (await guestEntry()).commander === 'Ghave, Guru of Spores');
+}
+
+console.log('the game: saving, loading and watching (2026-10-30)');
+{
+  const host = person('gamehost');
+  const guest = person('gameguest');
+  const outsider = person('gameoutsider');
+  const table = await host.ops.createTable({ name: 'Host', seats: 2 });
+  await guest.ops.joinTable({ code: table.code, name: 'Guest' });
+  const code = table.code;
+  const id = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
+  const lookup = () => ({ t: 'Creature', m: '{1}', k: [] });
+  const deck = { cards: [{ i: id(1), n: 'Forest', qty: 30, section: 'main' }, { i: id(2), n: 'Krenko, Mob Boss', qty: 1, section: 'commander' }, { i: id(3), n: 'Sol Ring', qty: 2, section: 'sideboard' }], commander: [id(2)] };
+  const game = makeGame(deck, lookup, { random: seededRandom(3) });
+  const adminPath = (path) => readAdmin(`tables/${code}/${path}`);
+
+  const empty = await host.ops.loadGame(code);
+  check('before anything is saved there is no game to load', empty.public === null && empty.private === null, JSON.stringify(empty));
+  check('a table code that is not one loads nothing', JSON.stringify(await host.ops.loadGame('nope')) === '{"public":null,"private":null}');
+
+  const first = gameWrites('gamehost', null, game);
+  const saved = await host.ops.saveGame(code, first);
+  check('the first save writes every piece it has', saved.written === Object.keys(first).length && saved.written > 5, JSON.stringify(saved));
+  check('the public branch holds the life, the counts and the commander', (await adminPath('public/gamehost/life')) === 40 && (await adminPath('public/gamehost/counts/hand')) === 7 && (await adminPath('public/gamehost/command')).length === 1);
+  check('the hand and the library are in the private branch', (await adminPath('private/gamehost/hand')).length === 7 && (await adminPath('private/gamehost/library')).length === game.zones.library.length);
+  check('and no hidden card is in the public branch', JSON.stringify(await adminPath('public/gamehost')).includes(game.zones.hand[0].uid) === false);
+  const back = await host.ops.loadGame(code);
+  check('loading gives back the same game', JSON.stringify(joinGame(back.public, back.private, lookup)) === JSON.stringify(game));
+
+  check("a table member can read another player's public branch", (await readAs(guest, `tables/${code}/public/gamehost/life`)) === 40);
+  check("...but not their hand or library", (await readAs(guest, `tables/${code}/private/gamehost/hand`)) === 'denied' && (await readAs(guest, `tables/${code}/private/gamehost/library`)) === 'denied');
+  check('someone who is not at the table can read neither', (await readAs(outsider, `tables/${code}/public/gamehost/life`)) === 'denied' && (await readAs(outsider, `tables/${code}/private/gamehost/hand`)) === 'denied');
+  check("the guest's own load does not see the host's game", JSON.stringify(await guest.ops.loadGame(code)) === '{"public":null,"private":null}');
+
+  // a move writes only what changed
+  const { game: drawn } = draw(game, 1);
+  const move = gameWrites('gamehost', game, drawn);
+  check('a draw is four small writes', Object.keys(move).length === 4, Object.keys(move).join());
+  const seen = [];
+  const stop = guest.ops.watchPublic(code, (value) => seen.push(value));
+  await host.ops.saveGame(code, move);
+  check('after the draw the hand and the library have one card more and one less', (await adminPath('private/gamehost/hand')).length === 8 && (await adminPath('private/gamehost/library')).length === game.zones.library.length - 1);
+  check("the other player's watch sees the new hand count, live", await until(async () => seen.at(-1)?.gamehost?.counts?.hand === 8), JSON.stringify(seen.at(-1)?.gamehost?.counts));
+  check("...and it never contains the host's hidden cards", !JSON.stringify(seen).includes(drawn.zones.hand[0].uid));
+  stop();
+  check('saving nothing writes nothing', (await host.ops.saveGame(code, {})).written === 0);
+
+  // only your own branches
+  const own = await throwsWith("a move naming someone else's public branch is refused before any request", host.ops.saveGame(code, { 'public/gameguest/life': 1 }), 'FlowRefusedError');
+  await throwsWith("...and so is their private branch", host.ops.saveGame(code, { 'private/gameguest/hand': [] }), 'FlowRefusedError');
+  await throwsWith('...and a path outside both branches', host.ops.saveGame(code, { 'meta/status': 'lobby' }), 'FlowRefusedError');
+  await throwsWith('...and a mix of a good and a bad path writes none of it', host.ops.saveGame(code, { 'public/gamehost/life': 1, 'public/gameguest/life': 1 }), 'FlowRefusedError');
+  check('none of that changed anything', (await adminPath('public/gamehost/life')) === 40 && (await adminPath('public/gameguest')) === null, String(own?.message));
+  await throwsWith('a code that is not a table code is refused', host.ops.saveGame('nope', { 'public/gamehost/life': 1 }), 'FlowRefusedError');
+  // the database is the real lock: even a client that skips the check cannot write into someone else's branch
+  let refused = false;
+  try { await update(ref(guest.db), { [`tables/${code}/public/gamehost/life`]: 1 }); } catch { refused = true; }
+  check("a guest writing the host's life directly is refused by the database", refused && (await adminPath('public/gamehost/life')) === 40);
+  await throwsWith('someone who is not at the table cannot save a game', outsider.ops.saveGame(code, { 'public/gameoutsider/life': 20 }));
+  check('...and wrote nothing', (await adminPath('public/gameoutsider')) === null);
 }
 
 await env.cleanup();

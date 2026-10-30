@@ -1611,6 +1611,32 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - "Back to the lobby" on the table page while the match is on leads straight back to the table, because the lobby sends everyone at a playing table there. There is no leave or concede button yet.
 - Next: the game on the table page (your own zones from `shared/zones.mjs`, hand and library in `private/`, the rest in `public/`, small writes per move), then the opponent view. The rules batch (zone size limits, the `lastSeen` deletion, `meta/format`) waits until the data shapes are settled.
 
+## 79. Your own game on the table page, saved live (2026-10-30)
+
+**What I asked for**
+- I said to commit and continue, which is step 2 of the table plan: play your own deck on the table page, with your hand and library private and the rest public, each move saving only what it changed.
+
+**What changed**
+- `shared/game-sync.mjs` (new, no browser code): `splitGame` turns a game into `public/{uid}` (life, turn, mulligans, the next card number, the counts of the hidden zones, and battlefield, graveyard, exile and command zone) and `private/{uid}` (library, hand, sideboard). A card is stored as `{u, i, p?, n, x?, e?}`; the type, cost and keywords are not stored, each page looks them up in its card list. `gameWrites` returns only the pieces a move changed (a draw is 4 small writes). `joinGame` rebuilds a game from what is stored, and `readCards` and `readPublic` read other players' data defensively: a card that is not exactly this shape is dropped, ids must be Scryfall ids, numbers are range-checked, a zone is cut at 250 cards.
+- `shared/table-ops.mjs` and `frontend/src/db.js`: `saveGame` (one atomic update, refuses any path that is not my own two branches before sending), `loadGame` and `watchPublic`.
+- `frontend/src/card-nodes.js` (new): the card buttons, moved out of the solo page so both tables draw cards the same way, with a read-only option for other players' cards later. `solo.js` now uses it.
+- `frontend/pages/table/index.html` and `table.js`: when the match is on, the page loads the card list, puts back the game saved for this match (the stored `match` number equals the table's) or deals a new one from the deck the lobby remembered for this table, and shows the board like the solo table: turn, life, draw, next turn, untap all, shuffle, mulligan, selected-card actions, two battlefield rows, hand, command zone and piles. Every move renders at once and then saves; saves go one after another, a failed one is retried with the next move, and the page says "Saved." or that a move could not be saved.
+- Tests: `scripts/test-game-sync.mjs` (78 checks, in `npm test`); `backend/test-table-ops.mjs` has 25 new checks against the real rules in the emulator (193 now); `scripts/check-lobby-deck-live.mjs` is 49 checks (13 new).
+
+**What I checked**
+- Five random games of 1,500 moves each: after every move, applying only that move's writes to a fake database and rebuilding gives exactly the same game, and the game passes `checkGame`; no move touched more than 9 paths.
+- The emulator checks: the host's hand and library are readable only by the host, a table member reads the public branch, someone outside reads neither, a guest writing into the host's branch is refused by the database itself, and a move that names someone else's path is refused before any request.
+- The live check (two real browsers, the real project): Alice is dealt 7 and her two commanders are in the command zone; the database holds her hand and library in her private branch; Bob can read her public branch (life, counts, command zone) but not her private one (HTTP 401), and none of her hand's card numbers is in what he can read; Draw, playing a card and losing 5 life are each saved; a refresh brings back the same game (the same hand, not a new deal).
+- `npm run test:live`: all 40 suites passed. The solo page check (85) passed after the refactor.
+- Broken copies of `game-sync.mjs`: 29 run, 28 caught on the first run; the survivor was a badly written copy (it reassigned a function parameter, which changes nothing), and the real version (putting the library in the public branch) is caught.
+- I looked at a desktop screenshot of the table page, then deleted it. Phone width is not checked (on hold). Not checked: another player's board (not built), the deployed site (nothing is pushed), and a four-player game.
+
+**Decisions**
+- A zone is written whole when it changes, not card by card. That costs nothing for private zones (nobody listens to them) but a big public graveyard is delivered whole to every other player on each change. It is the simple first version; it is on `docs/todo.md` to measure and change if needed.
+- My live check's first run had 8 failures that were my own test's mistakes (I expected a library of 30 after dealing 7, and my path helper put the id in the wrong place); the table page was right each time. I also had written `test:live` as 38 suites in `CLAUDE.md` when it was 39; it is 40 now and the file says so.
+- The local card data went stale again after the live run (the deploy check leaves a smaller list) and the solo check failed on "Heart of the Mountain" until I rebuilt it from the cached files.
+- Next: the opponent view (other players' public zones, live, read-only), then leave, concede and end-match buttons, then the one batched rules change.
+
 ---
 
 ## Where AI misread me, or I had to correct course
