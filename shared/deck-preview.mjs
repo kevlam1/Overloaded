@@ -47,6 +47,13 @@ export function describeNotices(parsed) {
     else notices.push(`Line ${warning.line} was skipped.`);
   }
   if (warnings.length > MAX_NOTICES) notices.push(`...and ${warnings.length - MAX_NOTICES} more skipped lines.`);
+  // Lines with no number were counted as 1 card each. Said once, with the line numbers, so it is never silent.
+  const assumed = (parsed.entries ?? []).filter((entry) => entry.qtyAssumed).map((entry) => entry.line);
+  if (assumed.length === 1) notices.push(`Line ${assumed[0]} has no number, so it was counted as 1 card.`);
+  else if (assumed.length > 1) {
+    const where = assumed.length > 5 ? `lines ${assumed.slice(0, 5).join(', ')} and ${assumed.length - 5} more` : `lines ${assumed.slice(0, -1).join(', ')} and ${assumed.at(-1)}`;
+    notices.push(`${assumed.length} lines have no number, so each was counted as 1 card (${where}).`);
+  }
   return notices;
 }
 

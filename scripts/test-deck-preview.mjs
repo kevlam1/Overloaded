@@ -31,6 +31,23 @@ same('the sections, in display order', SECTIONS, ['commander', 'companion', 'mai
 check('every section has a title', SECTIONS.every((s) => typeof SECTION_TITLES[s] === 'string' && SECTION_TITLES[s].length > 0));
 check('the limits are what the notes say', DECK_NAME_MAX === 60 && MAX_COMMANDERS === 2 && SAVED_VERSION === 1 && MAX_NOTICES === 10);
 
+// ---- lines with no number (counted as 1, said once) ----
+{
+  const withLines = (...lines) => ({ errors: [], warnings: [], entries: [{ line: 1, qty: 1 }, ...lines.map((line) => ({ line, qty: 1, qtyAssumed: true }))] });
+  same('one line with no number', describeNotices(withLines(3)), ['Line 3 has no number, so it was counted as 1 card.']);
+  same('two lines', describeNotices(withLines(3, 7)), ['2 lines have no number, so each was counted as 1 card (lines 3 and 7).']);
+  same('three lines', describeNotices(withLines(2, 4, 6)), ['3 lines have no number, so each was counted as 1 card (lines 2, 4 and 6).']);
+  same('exactly five lines are all named', describeNotices(withLines(1, 2, 3, 4, 5)), ['5 lines have no number, so each was counted as 1 card (lines 1, 2, 3, 4 and 5).']);
+  same('six lines name five and count the rest', describeNotices(withLines(1, 2, 3, 4, 5, 6)), ['6 lines have no number, so each was counted as 1 card (lines 1, 2, 3, 4, 5 and 1 more).']);
+  same('twenty lines name five and count the rest', describeNotices(withLines(...Array.from({ length: 20 }, (_, n) => n + 1))), ['20 lines have no number, so each was counted as 1 card (lines 1, 2, 3, 4, 5 and 15 more).']);
+  same('lines with a number say nothing', describeNotices({ errors: [], warnings: [], entries: [{ line: 1, qty: 2 }, { line: 2, qty: 1 }] }), []);
+  same('it comes after the skipped-line notices', describeNotices({ errors: [], warnings: [{ line: 2, text: 'x', reason: 'not_a_card_line' }], entries: [{ line: 5, qty: 1, qtyAssumed: true }] }), ['Line 2 was skipped: "x" is not a card line.', 'Line 5 has no number, so it was counted as 1 card.']);
+  const p = previewOf('Sol Ring\n1 Lightning Bolt\nCreatures (2)');
+  check('a deck with a bare name previews as matched, with the count, the notice and the skipped heading', p.lines.length === 2 && p.lines.every((l) => l.status === 'matched' && l.qty === 1) && p.counts.cards === 2 && p.notices.length === 2 && /^Line 3 was skipped/.test(p.notices[0]) && p.notices[1] === 'Line 1 has no number, so it was counted as 1 card.', JSON.stringify(p.notices));
+  const merged = previewOf('Sol Ring\n1 Sol Ring');
+  check('a bare line and a numbered line for one card merge into 2', merged.lines.length === 1 && merged.lines[0].qty === 2);
+}
+
 // ---- a card found by another title it was printed under ----
 {
   const signet = { ...card('Arcane Signet', 501, 'Artifact'), f: ['Heart of the Mountain'] };
