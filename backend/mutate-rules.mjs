@@ -337,7 +337,7 @@ try {
     const text = mutate(m); // throws if the mutation does not apply, so nothing here can pass by accident
     if (text === original) throw new Error(`${m[0]}: mutation changed nothing`);
     writeFileSync(rulesUrl, text);
-    const r = spawnSync(process.execPath, ['run-tests.mjs'], { cwd: new URL('.', import.meta.url), encoding: 'utf8', windowsHide: true });
+    const r = spawnSync(process.execPath, ['run-tests.mjs'], { cwd: new URL('.', import.meta.url), encoding: 'utf8', windowsHide: true, env: { ...process.env, MUTATION_RUN: '1' } }); // MUTATION_RUN: run-tests.mjs must not refuse because of our own backup file
     const out = `${r.stdout}\n${r.stderr}`;
     if (r.status === 0 && EQUIVALENT[m[0]]) { console.log('equivalent', m[0], '(' + EQUIVALENT[m[0]] + ')'); equivalent++; }
     else if (r.status === 0) { console.log('SURVIVED  ', m[0]); survived++; }

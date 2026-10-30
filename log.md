@@ -1526,9 +1526,30 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 **Decisions**
 - Next is the page path: the bracket in the library and on the deck page, the lobby seats showing commander, bracket and ready, and a deck picker that calls `setDeck`.
 
+## 75. The small backend follow-ups (2026-10-30)
+
+**What I asked for**
+- I asked Claude to do the simple items from its backend review and leave the rest. Mutation runs take about an hour, so I only want one when a rules change needs it, or when several rules changes are bunched together.
+
+**What changed**
+- `backend/run-tests.mjs`: it now refuses to run when `backend/scratch-rules-original.json` exists, because that file means a mutation run was cut short and the rules file may be a broken copy. The stale "both files" comment now says "the test files".
+- `backend/mutate-rules.mjs`: one line, the runner passes `MUTATION_RUN=1` to `run-tests.mjs` so its own runs, which keep that backup on purpose, are not refused.
+- `backend/README.md`: brought up to date (the rules are published, 245 mutations and about an hour, the backup file and the guard, and the two test files that were missing).
+- `docs/todo.md`: marked these done, and the paste, the live check and the mutation run as done.
+
+**What I checked**
+- With a dummy backup file in place, `node run-tests.mjs` printed the message, started nothing and exited 1. I deleted the dummy afterwards.
+- One mutation (`deck: bracket 6 allowed`) still ran and was killed by a named check, so the guard does not break the mutation runner. The rules file was untouched afterwards (`git status` shows no change to it).
+- `npm test` in `backend/` passed after the edits (all 3,349 flow steps agree, and the emulator was stopped). I did not run the root `npm test`, since nothing outside `backend/` changed.
+- The suspicion that a member can delete their own `presence/lastSeen` needed no new test: `backend/test-rules.mjs` already has a passing check that the deletion is allowed. So it is true, and the fix is a rules change.
+
+**Decisions**
+- The `lastSeen` fix and the question about `meta/format` wait for the next rules change, so one mutation run and one paste cover them together. I lean towards leaving `meta/format` open.
+
 ---
 
 ## Where AI misread me, or I had to correct course
+- (2026-10-30, entry 75) Claude wrote the "refuse to run when the backup exists" guard first and only then noticed that `mutate-rules.mjs` calls the same script while its own backup exists, so every mutation would have failed at once and looked like a kill. It caught this by reading the runner before running anything, and fixed it with the `MUTATION_RUN` flag. It also had listed the `lastSeen` deletion as an untested suspicion when a test for it already existed.
 
 - In my first message I said to put the folder in my Portfolio project, which was wrong: the other artifacts live next to the Portfolio. I corrected it in my next message.
 - **Guessed field names (Claude's slip, entry 5):** its first bulk-data check read `size` and `content_type`, which don't exist, and printed `NaN MB`. Printing the raw object showed the real field, `compressed_size`. Claude also broke a line break in `CLAUDE.md` in entry 4, which merged two open questions. It was fixed in entry 5.

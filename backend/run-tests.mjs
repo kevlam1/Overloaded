@@ -46,6 +46,17 @@ function stopLeftoverEmulators() {
   }
 }
 
+// `npm run mutate` keeps a backup of the rules file while it runs. If it is still here, a run was cut short (a shutdown,
+// a closed window) and the rules file may be a deliberately broken copy, so testing now would test the wrong rules.
+// `npm run mutate` repairs it on its next start; or restore the file with `git checkout backend/database.rules.json`
+// and delete the backup yourself.
+// (`mutate-rules.mjs` sets MUTATION_RUN because it keeps that backup on purpose while it runs these tests.)
+if (!process.env.MUTATION_RUN && existsSync(new URL('./scratch-rules-original.json', here))) {
+  console.error('backend/scratch-rules-original.json exists: a mutation run was cut short and database.rules.json may be a broken copy.');
+  console.error('Nothing was started. Run `git diff backend/database.rules.json`, restore it if it differs, and delete the backup file.');
+  process.exit(1);
+}
+
 async function runWithJar(jar) {
   if (await portOpen()) {
     console.error(`Port ${PORT} is already in use. Stop whatever is using it and run again (nothing was started or stopped).`);
@@ -65,7 +76,7 @@ async function runWithJar(jar) {
       if (Date.now() > deadline) { console.error('The emulator was not ready after 60 seconds.'); return 1; }
       await new Promise((resolve) => setTimeout(resolve, 200));
     }
-    // Both files share the one emulator; each seeds its own tables, so they cannot disturb each other.
+    // The test files share the one emulator; each seeds its own tables, so they cannot disturb each other.
     for (const file of TEST_FILES) {
       const result = spawnSync(process.execPath, [file], { cwd: here, stdio: 'inherit', windowsHide: true });
       if ((result.status ?? 1) !== 0) return result.status ?? 1;
