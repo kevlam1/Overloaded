@@ -20,6 +20,9 @@ import { buildFromFiles, serializeList, validateList } from './card-list.mjs';
 export const DAY_MS = 24 * 60 * 60 * 1000;
 export const MAX_AGE_MS = 7 * DAY_MS; // a list younger than this is reused without asking Scryfall anything
 export const MAX_STALE_MS = 30 * DAY_MS; // a failed rebuild falls back to a list this old; Vercel keeps its cache a month
+// The shape of the list this code builds. Raise it whenever the list gets new content (2 added each card's alternate titles,
+// `f`), so a cached list in an older shape is rebuilt once instead of being reused for up to a week.
+export const LIST_FORMAT = 2;
 export const BULK_DATA_URL = 'https://api.scryfall.com/bulk-data';
 // Scryfall's rules (docs/scryfall.md): every request names the app and says what it accepts.
 export const HEADERS = { 'User-Agent': 'Overloaded/0.1 (+https://github.com/kevlam1/Overloaded)', Accept: 'application/json' };
@@ -35,10 +38,11 @@ const sleepFor = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 export function decide({ cached, now, env }) {
   if (env.SKIP_CARD_LIST) return { action: 'skip', reason: 'SKIP_CARD_LIST is set' };
   const age = cached ? now - Date.parse(cached.meta.builtAt) : Infinity;
-  if (cached && age >= 0 && age < MAX_AGE_MS) return { action: 'reuse', reason: 'the cached list is recent', age };
+  const oldFormat = Boolean(cached) && cached.meta.format !== LIST_FORMAT;
+  if (cached && !oldFormat && age >= 0 && age < MAX_AGE_MS) return { action: 'reuse', reason: 'the cached list is recent', age };
   const noDownload = Boolean(env.CARD_LIST_NO_DOWNLOAD) || env.VERCEL_ENV === 'preview';
   if (noDownload) return cached ? { action: 'reuse', reason: 'downloading is not allowed here', age } : { action: 'skip', reason: 'downloading is not allowed here and nothing is cached' };
-  return { action: 'rebuild', reason: cached ? 'the cached list is old' : 'no usable cached list', age };
+  return { action: 'rebuild', reason: !cached ? 'no usable cached list' : oldFormat ? 'the cached list is in an older format' : 'the cached list is old', age };
 }
 
 const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
@@ -124,7 +128,7 @@ async function rebuildOnce({ cacheDir, now, fetchImpl, apiUrl, validateOptions, 
     const bytes = Buffer.from(serializeList(list));
     await mkdir(cacheDir, { recursive: true });
     await writeWhole(join(cacheDir, 'cards.json'), bytes); // the list first, then the record that vouches for it
-    const meta = { builtAt: new Date(now).toISOString(), count: list.length, bytes: bytes.length, sha256: sha256(bytes), oracleUpdatedAt: info.oracle.updatedAt, defaultUpdatedAt: info.default.updatedAt, counts };
+    const meta = { builtAt: new Date(now).toISOString(), format: LIST_FORMAT, count: list.length, bytes: bytes.length, sha256: sha256(bytes), oracleUpdatedAt: info.oracle.updatedAt, defaultUpdatedAt: info.default.updatedAt, counts };
     await writeWhole(join(cacheDir, 'cards.meta.json'), Buffer.from(JSON.stringify(meta, null, 2)));
     return { meta, bytes, bytesDownloaded };
   } finally {

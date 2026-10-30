@@ -31,6 +31,25 @@ same('the sections, in display order', SECTIONS, ['commander', 'companion', 'mai
 check('every section has a title', SECTIONS.every((s) => typeof SECTION_TITLES[s] === 'string' && SECTION_TITLES[s].length > 0));
 check('the limits are what the notes say', DECK_NAME_MAX === 60 && MAX_COMMANDERS === 2 && SAVED_VERSION === 1 && MAX_NOTICES === 10);
 
+// ---- a card found by another title it was printed under ----
+{
+  const signet = { ...card('Arcane Signet', 501, 'Artifact'), f: ['Heart of the Mountain'] };
+  const cards = [signet, card('Sol Ring', 502, 'Artifact'), { ...card('Twin A', 503), f: ['Shared Title'] }, { ...card('Twin B', 504), f: ['Shared Title'] }];
+  const p = previewOf('2 Heart of the Mountain\n1 Sol Ring\n1 Arcane Signet', cards);
+  const byName = Object.fromEntries(p.lines.map((l) => [l.name, l]));
+  check('a card found by a title is shown by its real name and says what was typed', p.lines.length === 2 && byName['Arcane Signet'].viaTitle === 'Heart of the Mountain' && byName['Arcane Signet'].qty === 3 && byName['Arcane Signet'].status === 'matched', JSON.stringify(p.lines.map((l) => [l.name, l.qty, l.viaTitle])));
+  check('a card found by its own name has no viaTitle', byName['Sol Ring'].viaTitle === null);
+  check('the title match counts as matched (nothing needs attention)', p.counts.problem === 0 && p.problems.not_found.length === 0 && p.canSave);
+  const own = previewOf('1 Arcane Signet\n1 Heart of the Mountain', cards);
+  check('the same card typed both ways is one line, and the first spelling decides viaTitle', own.lines.length === 1 && own.lines[0].viaTitle === null && own.lines[0].qty === 2, JSON.stringify(own.lines.map((l) => [l.name, l.qty, l.viaTitle])));
+  const ambiguous = previewOf('1 Shared Title', cards);
+  check('a title two cards share is a choice to make, not a guess', ambiguous.problems.ambiguous.length === 1 && ambiguous.lines[0].card === null && ambiguous.lines[0].viaTitle === null);
+  const chosen = previewOf('1 Shared Title', cards, { [normalizeName('Shared Title')]: uuid(504) });
+  check('once chosen, the line is the chosen card and remembers the title', chosen.lines[0].name === 'Twin B' && chosen.lines[0].viaTitle === 'Shared Title' && chosen.problems.ambiguous.length === 0);
+  const saved = buildSavedDeck(previewOf('2 Heart of the Mountain\n1 Sol Ring', cards), { name: 'Titles', text: '2 Heart of the Mountain\n1 Sol Ring', commanderIds: [] });
+  check('a saved deck stores the real card (name and id), not the typed title, and has no viaTitle', saved.ok && saved.deck.cards.some((c) => c.n === 'Arcane Signet' && c.i === uuid(501) && c.qty === 2) && !JSON.stringify(saved.deck.cards).includes('Heart of the Mountain') && !JSON.stringify(saved.deck.cards).includes('viaTitle'), JSON.stringify(saved));
+}
+
 // ---- isLegendaryCreature ----
 const dash = String.fromCharCode(0x2014);
 check('a legendary creature', isLegendaryCreature({ t: `Legendary Creature ${dash} Human Noble` }));

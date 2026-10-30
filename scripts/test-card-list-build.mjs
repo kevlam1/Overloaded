@@ -7,7 +7,7 @@ import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, existsSync, 
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
-import { decide, ensureCardList, getBulkInfo, downloadFile, loadCached, DAY_MS, MAX_AGE_MS, MAX_STALE_MS, HEADERS } from './lib/card-list-build.mjs';
+import { decide, ensureCardList, getBulkInfo, downloadFile, loadCached, DAY_MS, MAX_AGE_MS, MAX_STALE_MS, HEADERS, LIST_FORMAT } from './lib/card-list-build.mjs';
 
 let checks = 0;
 function check(label, condition, detail = '') {
@@ -73,10 +73,16 @@ const cacheBytes = (paths) => readFileSync(join(paths.cacheDir, 'cards.json'));
 
 try {
   // ---- decide: the rule, with its boundaries ----
-  const cachedAt = (daysAgo) => ({ meta: { builtAt: new Date(T0 - daysAgo * DAY_MS).toISOString() } });
+  const cachedAt = (daysAgo, format = LIST_FORMAT) => ({ meta: { builtAt: new Date(T0 - daysAgo * DAY_MS).toISOString(), format } });
   check('7 days is the reuse limit', MAX_AGE_MS === 7 * DAY_MS && MAX_STALE_MS === 30 * DAY_MS);
+  check('the list format is 2 (the one with alternate titles)', LIST_FORMAT === 2);
   check('a 1 day old list is reused', decide({ cached: cachedAt(1), now: T0, env: {} }).action === 'reuse');
-  check('a list one millisecond under 7 days is reused', decide({ cached: { meta: { builtAt: new Date(T0 - MAX_AGE_MS + 1).toISOString() } }, now: T0, env: {} }).action === 'reuse');
+  check('a list one millisecond under 7 days is reused', decide({ cached: { meta: { builtAt: new Date(T0 - MAX_AGE_MS + 1).toISOString(), format: LIST_FORMAT } }, now: T0, env: {} }).action === 'reuse');
+  check('a recent list in an older format is rebuilt, not reused', decide({ cached: cachedAt(1, 1), now: T0, env: {} }).action === 'rebuild' && /older format/.test(decide({ cached: cachedAt(1, 1), now: T0, env: {} }).reason));
+  check('a recent list with no format at all (made before formats existed) is rebuilt', decide({ cached: { meta: { builtAt: new Date(T0 - DAY_MS).toISOString() } }, now: T0, env: {} }).action === 'rebuild');
+  check('a list in a newer format than this code knows is rebuilt too (it may not be what this code expects)', decide({ cached: cachedAt(1, LIST_FORMAT + 1), now: T0, env: {} }).action === 'rebuild');
+  check('an older-format list is still used where downloading is not allowed', decide({ cached: cachedAt(1, 1), now: T0, env: { CARD_LIST_NO_DOWNLOAD: '1' } }).action === 'reuse' && decide({ cached: cachedAt(1, 1), now: T0, env: { VERCEL_ENV: 'preview' } }).action === 'reuse');
+  check('SKIP_CARD_LIST still skips with an older-format list', decide({ cached: cachedAt(1, 1), now: T0, env: { SKIP_CARD_LIST: '1' } }).action === 'skip');
   check('a list exactly 7 days old is rebuilt', decide({ cached: cachedAt(7), now: T0, env: {} }).action === 'rebuild');
   check('with nothing cached it rebuilds', decide({ cached: null, now: T0, env: {} }).action === 'rebuild');
   check('a list from the future (a wrong clock) is not trusted as recent', decide({ cached: cachedAt(-3), now: T0, env: {} }).action === 'rebuild');
@@ -98,6 +104,7 @@ try {
   check('the site gets exactly the bytes that were cached', Buffer.compare(cacheBytes(p), readFileSync(p.publicFile)) === 0);
   check('the cache holds only the list and its record (the bulk files are not kept)', readdirSync(p.cacheDir).sort().join() === 'cards.json,cards.meta.json', readdirSync(p.cacheDir).join());
   const meta = JSON.parse(readFileSync(join(p.cacheDir, 'cards.meta.json'), 'utf8'));
+  check('the record says which list format it holds', meta.format === LIST_FORMAT);
   check('the record says when, how many and what Scryfall files it came from', meta.builtAt === new Date(T0).toISOString() && meta.count === 6 && meta.oracleUpdatedAt === '2026-10-29T21:01:58Z' && /^[0-9a-f]{64}$/.test(meta.sha256));
   check('the log says how much was downloaded (so the cost shows in the Vercel build log)', logs.some((l) => /downloaded [0-9.]+ MB/.test(l)));
   check('the result carries the record and the reason, for the public build info file', result.meta?.count === 6 && result.meta.sha256 === meta.sha256 && /no usable cached list/.test(result.reason), JSON.stringify(result.reason));
@@ -112,6 +119,33 @@ try {
   check('the site still gets its copy (the build output is emptied every time)', existsSync(p.publicFile) && Buffer.compare(cacheBytes(p), readFileSync(p.publicFile)) === 0);
   result = await run(p, { now: T0 + MAX_AGE_MS - 1 });
   check('one millisecond before 7 days: still no requests', result.action === 'reuse' && state.requests.length === 0);
+
+  // ---- 2b. A list from before the format existed (what is on Vercel now): rebuilt once, then reused ----
+  {
+    const old = fresh();
+    reset();
+    await run(old);
+    const oldMeta = JSON.parse(readFileSync(join(old.cacheDir, 'cards.meta.json'), 'utf8'));
+    delete oldMeta.format;
+    writeFileSync(join(old.cacheDir, 'cards.meta.json'), JSON.stringify(oldMeta, null, 2));
+    state.requests = [];
+    const again = await run(old, { now: T0 + DAY_MS });
+    check('a 1 day old list with no format is rebuilt, at the cost of 3 requests', again.action === 'rebuilt' && state.requests.length === 3 && /older format/.test(again.reason), JSON.stringify(again.reason));
+    check('and the new record has the format', JSON.parse(readFileSync(join(old.cacheDir, 'cards.meta.json'), 'utf8')).format === LIST_FORMAT);
+    state.requests = [];
+    const third = await run(old, { now: T0 + 2 * DAY_MS });
+    check('the next day it is reused again with no requests', third.action === 'reuse' && state.requests.length === 0);
+    // And when that one-time rebuild fails, the old list still serves.
+    const old2 = fresh();
+    await run(old2);
+    const meta2 = JSON.parse(readFileSync(join(old2.cacheDir, 'cards.meta.json'), 'utf8'));
+    delete meta2.format;
+    writeFileSync(join(old2.cacheDir, 'cards.meta.json'), JSON.stringify(meta2, null, 2));
+    state.apiStatus = 500;
+    const fallback = await run(old2, { now: T0 + DAY_MS, sleep: async () => {} });
+    check('if the rebuild fails the older-format list is still served, with a warning', fallback.action === 'stale-fallback' && fallback.count === 6 && names(old2).length === 6);
+    state.apiStatus = 200;
+  }
 
   // ---- 3. After a week: rebuilt, with the new card ----
   reset(NAMES_B);

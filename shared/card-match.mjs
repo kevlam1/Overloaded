@@ -40,10 +40,18 @@ function add(map, key, card) {
 }
 
 // full: the whole name ("Fire // Ice"). front: the first face of a two-faced card. back: the other faces.
+// alt: other titles the card was printed under (a card's optional `f` list, for example a Secret Lair title).
 export function buildCardIndex(cards) {
-  const index = { full: new Map(), front: new Map(), back: new Map(), size: cards.length }
+  const index = { full: new Map(), front: new Map(), back: new Map(), alt: new Map(), size: cards.length }
   for (const card of cards) {
     add(index.full, normalizeName(card.n), card)
+    if (Array.isArray(card.f)) {
+      for (const title of card.f) {
+        if (typeof title !== 'string') continue
+        const key = normalizeName(title)
+        if (!index.alt.get(key)?.includes(card)) add(index.alt, key, card) // two titles that normalize alike are one match
+      }
+    }
     if (card.n.includes(' // ')) {
       const [front, ...rest] = card.n.split(' // ')
       add(index.front, normalizeName(front), card)
@@ -54,15 +62,17 @@ export function buildCardIndex(cards) {
 }
 
 // Returns { entry, status, method, card, candidates }.
-//   matched:    one card. method is 'full' (the whole name) or 'front' (the first face only).
+//   matched:    one card. method is 'full' (the whole name), 'front' (the first face only) or 'alt' (a title the card
+//               was printed under, which is not its name: "Heart of the Mountain" is Arcane Signet).
 //   ambiguous:  two or more cards have that name; candidates lists them. The page asks, or a printing decides.
 //   suggestion: no card has that name, but it is a back face of a card ("did you mean ..."). Back faces
 //               never match by themselves: 29 clash with real cards.
 //   not_found:  nothing. These are the names that may be newer than the list.
-// The whole name wins over a front face, so "Bind" is the card Bind, not Bind // Liberate.
+// The whole name wins over a front face, so "Bind" is the card Bind, not Bind // Liberate, and a front face wins over
+// an alternate title, so a real name is never taken for a title.
 export function matchEntry(index, entry) {
   const key = normalizeName(entry.name)
-  for (const [map, method] of [[index.full, 'full'], [index.front, 'front']]) {
+  for (const [map, method] of [[index.full, 'full'], [index.front, 'front'], [index.alt, 'alt']]) {
     const found = map.get(key)
     if (!found) continue
     if (found.length === 1) return { entry, status: 'matched', method, card: found[0], candidates: found }

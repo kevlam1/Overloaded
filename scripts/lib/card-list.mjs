@@ -2,6 +2,7 @@
 // The rules come from the audits in docs/scryfall.md (tokens in their own list later, no collectibles, no online-only
 // cards, sorted by name so unchanged data gives identical bytes). A card in the list is { n, t, m, k, i }:
 // name, type line, mana cost, keywords, and the Scryfall id of the default printing, the shape shared/card-match.mjs expects.
+// A card that was printed under another title (Scryfall's flavor_name) also has `f`: the list of those titles.
 import { createReadStream } from 'node:fs';
 import { createGunzip } from 'node:zlib';
 import { createInterface } from 'node:readline';
@@ -25,8 +26,12 @@ export function isDeckCandidate(record) {
 }
 
 // The cost of a double-faced card is on its faces, not on the record; a land has none.
-export function toEntry(record) {
-  return { n: record.name, t: record.type_line, m: record.mana_cost ?? record.card_faces?.[0]?.mana_cost ?? '', k: record.keywords ?? [], i: record.id };
+// alternateNames: other titles printed on some printing of this card (Scryfall's `flavor_name`, for example a Secret Lair
+// title). Only cards that have some get an `f` field, so the other entries are exactly what they were before.
+export function toEntry(record, alternateNames = []) {
+  const entry = { n: record.name, t: record.type_line, m: record.mana_cost ?? record.card_faces?.[0]?.mana_cost ?? '', k: record.keywords ?? [], i: record.id };
+  if (alternateNames.length) entry.f = alternateNames;
+  return entry;
 }
 
 // What the Default Cards file (every printing) says about each card: has it any printing, and is any of them not digital?
@@ -34,14 +39,24 @@ export function toEntry(record) {
 // sets have none), and a card with no printings at all is NOT online-only: the printings file may simply be older than the
 // card file, and dropping a paper card is worse than keeping an online one.
 export class PrintingSummary {
-  constructor() { this.seen = new Set(); this.nonDigital = new Set(); }
+  constructor() { this.seen = new Set(); this.nonDigital = new Set(); this.alternate = new Map(); }
   add(printing) {
     const id = oracleIdOf(printing);
     if (!id) return;
     this.seen.add(id);
-    if (!printing.digital) this.nonDigital.add(id);
+    if (printing.digital) return;
+    this.nonDigital.add(id);
+    // `name` is always the card's real name, in English, even on a printing in another language; the title printed on the
+    // card, when it differs, is `flavor_name` (on the record, or on each face of a double-faced card).
+    for (const title of [printing.flavor_name, ...(printing.card_faces ?? []).map((face) => face.flavor_name)]) {
+      if (typeof title !== 'string' || !title.trim()) continue;
+      if (!this.alternate.has(id)) this.alternate.set(id, new Set());
+      this.alternate.get(id).add(title);
+    }
   }
   isOnlineOnly(oracleId) { return this.seen.has(oracleId) && !this.nonDigital.has(oracleId); }
+  // The alternate titles of a card, sorted by code unit so the same data always gives the same bytes.
+  alternateNames(oracleId) { return [...(this.alternate.get(oracleId) ?? [])].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)); }
 }
 
 const byNameThenId = (a, b) => (a.n < b.n ? -1 : a.n > b.n ? 1 : a.i < b.i ? -1 : a.i > b.i ? 1 : 0); // code units, not locale
@@ -51,7 +66,7 @@ export function buildList(oracleRecords, printings) {
   const list = [];
   for (const record of oracleRecords) {
     if (!isDeckCandidate(record) || printings.isOnlineOnly(oracleIdOf(record))) continue;
-    list.push(toEntry(record));
+    list.push(toEntry(record, printings.alternateNames(oracleIdOf(record))));
   }
   return list.sort(byNameThenId);
 }
@@ -71,6 +86,7 @@ export function validateList(list, { minCards = MIN_CARDS, previousCount = null,
     const e = list[index];
     const fine = e && typeof e.n === 'string' && e.n.length > 0 && typeof e.t === 'string' && typeof e.m === 'string' && Array.isArray(e.k) && e.k.every((word) => typeof word === 'string');
     if (!fine) { badEntries++; continue; }
+    if ('f' in e && !(Array.isArray(e.f) && e.f.length > 0 && e.f.every((title) => typeof title === 'string' && title.length > 0))) { badEntries++; continue; }
     if (typeof e.i !== 'string' || !UUID.test(e.i)) badIds++;
     else if (ids.has(e.i)) problems.push(`duplicate id ${e.i} (${e.n})`);
     else ids.add(e.i);
@@ -110,9 +126,10 @@ export async function buildFromFiles(oraclePath, defaultPath) {
     const id = oracleIdOf(record);
     if (printings.isOnlineOnly(id)) { counts.onlineOnly++; continue; }
     if (!printings.seen.has(id)) counts.noPrintingsKept++;
-    list.push(toEntry(record));
+    list.push(toEntry(record, printings.alternateNames(id)));
   }
   list.sort(byNameThenId);
   counts.kept = list.length;
+  counts.withAlternateNames = list.filter((entry) => entry.f).length;
   return { list, counts };
 }

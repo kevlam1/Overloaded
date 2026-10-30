@@ -61,6 +61,29 @@ check('the entry holds exactly the five fields', Object.keys(toEntry(record('Y')
   check('the order of printings does not matter', (() => { const q = new PrintingSummary(); q.add({ oracle_id: 'm', digital: false }); q.add({ oracle_id: 'm', digital: true }); return !q.isOnlineOnly('m'); })());
 }
 
+// ---- alternate titles (Scryfall's flavor_name) ----
+same('an entry with alternate titles has them in f, after the five fields', toEntry({ id: 'i', name: 'Arcane Signet', type_line: 'Artifact' }, ['Heart of the Mountain']), { n: 'Arcane Signet', t: 'Artifact', m: '', k: [], i: 'i', f: ['Heart of the Mountain'] });
+check('an entry without them has no f field at all (so the list stays small)', !('f' in toEntry({ id: 'i', name: 'X', type_line: 'T' }, [])) && !('f' in toEntry({ id: 'i', name: 'X', type_line: 'T' })));
+{
+  const p = new PrintingSummary();
+  p.add({ oracle_id: 'signet', digital: false, name: 'Arcane Signet', flavor_name: 'Heart of the Mountain', lang: 'en' });
+  p.add({ oracle_id: 'signet', digital: false, name: 'Arcane Signet', flavor_name: 'Heart of the Mountain', lang: 'en' }); // the same title on another printing
+  p.add({ oracle_id: 'signet', digital: false, name: 'Arcane Signet' }); // a printing with no other title
+  p.add({ oracle_id: 'denial', digital: false, name: 'Arcane Denial', lang: 'ja', printed_name: 'printed in Japanese', flavor_name: 'Fatalism-in-Japanese' });
+  p.add({ card_faces: [{ oracle_id: 'dfc', flavor_name: 'Back Title' }, { flavor_name: 'Front Title' }], digital: false });
+  p.add({ oracle_id: 'alchemy', digital: true, flavor_name: 'Only Online' });
+  p.add({ oracle_id: 'blank', digital: false, flavor_name: '   ' }); p.add({ oracle_id: 'blank', digital: false, flavor_name: 5 });
+  p.add({ oracle_id: 'order', digital: false, flavor_name: 'b title' }); p.add({ oracle_id: 'order', digital: false, flavor_name: 'B title' }); p.add({ oracle_id: 'order', digital: false, flavor_name: 'a title' });
+  same('a title is found, once, however many printings have it', p.alternateNames('signet'), ['Heart of the Mountain']);
+  same('a printing in another language gives its title to the card it is a printing of (the real name is the oracle id\'s)', p.alternateNames('denial'), ['Fatalism-in-Japanese']);
+  same('titles on the faces of a double-faced card are found, under the id on the faces', p.alternateNames('dfc'), ['Back Title', 'Front Title']);
+  same('a title only on a digital printing is ignored', p.alternateNames('alchemy'), []);
+  same('a blank or non-text title is ignored', p.alternateNames('blank'), []);
+  same('titles are sorted by code unit, not by locale', p.alternateNames('order'), ['B title', 'a title', 'b title']);
+  same('a card with no titles, or never seen, gives an empty list', [p.alternateNames('nothing'), p.alternateNames(undefined)], [[], []]);
+  check('asking for titles does not change them', p.alternateNames('order').length === 3 && p.alternateNames('order').length === 3);
+}
+
 // ---- buildList ----
 const printings = new PrintingSummary();
 for (const name of ['Sol Ring', 'Alpha', 'Beta', 'Island']) printings.add({ oracle_id: `o-${name}`, digital: false });
@@ -95,6 +118,16 @@ check('the input array is not changed', records[0].name === 'Sol Ring' && record
 }
 check('names sort by code unit, not by locale (an uppercase letter before a lowercase one)', (() => { const b = buildList([record('apple', { id: uuid(31) }), record('Zebra', { id: uuid(32) })], new PrintingSummary()); return b[0].n === 'Zebra' && b[1].n === 'apple'; })());
 check('an empty input gives an empty list', buildList([], new PrintingSummary()).length === 0);
+{
+  const withTitles = new PrintingSummary();
+  withTitles.add({ oracle_id: 'o-Sol Ring', digital: false });
+  withTitles.add({ oracle_id: 'o-Alpha', digital: false, flavor_name: 'Alpha Two' }); withTitles.add({ oracle_id: 'o-Alpha', digital: false, flavor_name: 'Alpha One' });
+  const list = buildList([record('Sol Ring', { id: uuid(1) }), record('Alpha', { id: uuid(4) })], withTitles);
+  same('buildList gives a card its titles and leaves the others without f', list.map((e) => [e.n, e.f]), [['Alpha', ['Alpha One', 'Alpha Two']], ['Sol Ring', undefined]]);
+  const reversed = new PrintingSummary();
+  reversed.add({ oracle_id: 'o-Alpha', digital: false, flavor_name: 'Alpha One' }); reversed.add({ oracle_id: 'o-Alpha', digital: false, flavor_name: 'Alpha Two' }); reversed.add({ oracle_id: 'o-Sol Ring', digital: false });
+  check('the bytes are the same whichever order the printings came in', serializeList(buildList([record('Sol Ring', { id: uuid(1) }), record('Alpha', { id: uuid(4) })], reversed)) === serializeList(list));
+}
 
 // ---- serializeList ----
 check('the output has no spaces or line breaks outside the card text', !/\n/.test(serializeList(built)) && serializeList(built).startsWith('[{"n":"Alpha"'));
@@ -126,11 +159,17 @@ for (const [label, mutate, pattern] of [
   ['a keyword that is not text', (l) => { l[2] = { ...l[2], k: [5] }; }, /missing a name/],
   ['an entry that is null', (l) => { l[2] = null; }, /missing a name/],
   ['an out-of-order pair', (l) => { [l[5], l[6]] = [l[6], l[5]]; }, /out of order/],
+  ['alternate titles that are not a list', (l) => { l[2] = { ...l[2], f: 'Heart of the Mountain' }; }, /missing a name/],
+  ['an empty list of alternate titles', (l) => { l[2] = { ...l[2], f: [] }; }, /missing a name/],
+  ['an alternate title that is not text', (l) => { l[2] = { ...l[2], f: ['Fine', 7] }; }, /missing a name/],
+  ['an empty alternate title', (l) => { l[2] = { ...l[2], f: [''] }; }, /missing a name/],
+  ['alternate titles set to undefined', (l) => { l[2] = { ...l[2], f: undefined }; }, /missing a name/],
 ]) {
   const broken = good.map((e) => ({ ...e }));
   mutate(broken);
   check(`${label} fails`, validateList(broken, { ...opts, mustHave: [] }).some((p) => pattern.test(p)), JSON.stringify(validateList(broken, { ...opts, mustHave: [] })));
 }
+same('a list with good alternate titles passes', validateList(good.map((e, index) => (index === 2 ? { ...e, f: ['Heart of the Mountain', 'Other'] } : e)), opts), []);
 check('the list of problems is capped, so a broken list does not print thousands of lines', (() => {
   const sameIdEverywhere = Array.from({ length: 200 }, (_, index) => ({ n: `Card ${String(index).padStart(3, '0')}`, t: 'T', m: '', k: [], i: uuid(1) }));
   const problems = validateList(sameIdEverywhere, { minCards: 1, mustHave: [] }); // 199 duplicate-id problems, one line each
@@ -161,7 +200,19 @@ try {
   ]);
   const { list, counts } = await buildFromFiles(oracleFile, defaultFile);
   same('files in, the same list as from memory', list, built);
-  same('the counts describe every step', counts, { printings: 6, oracleRecords: 9, notCandidates: 3, onlineOnly: 1, noPrintingsKept: 1, kept: 5 });
+  same('the counts describe every step', counts, { printings: 6, oracleRecords: 9, notCandidates: 3, onlineOnly: 1, noPrintingsKept: 1, kept: 5, withAlternateNames: 0 });
+
+  // The same files with two printings that carry another title, one of them in Japanese: read from files, they reach the list.
+  const titledFile = gz('titled.jsonl.gz', [
+    ...['Sol Ring', 'Alpha', 'Beta', 'Island'].map((n) => JSON.stringify({ oracle_id: `o-${n}`, digital: false })),
+    JSON.stringify({ oracle_id: 'o-Alchemy Only', digital: true }),
+    JSON.stringify({ oracle_id: 'o-Sol Ring', digital: false, name: 'Sol Ring', lang: 'en', flavor_name: 'Heart of the Mountain' }),
+    JSON.stringify({ oracle_id: 'o-Beta', digital: false, name: 'Beta', lang: 'ja', printed_name: 'x', flavor_name: 'フェイタリズム' }),
+  ]);
+  const titled = await buildFromFiles(oracleFile, titledFile);
+  same('from files, the cards with another title carry it', titled.list.filter((e) => e.f).map((e) => [e.n, e.f]), [['Beta', ['フェイタリズム']], ['Sol Ring', ['Heart of the Mountain']]]);
+  check('and the count says how many', titled.counts.withAlternateNames === 2);
+  same('with no titles the list is exactly what it was', titled.list.map((e) => e.n), built.map((e) => e.n));
 } finally {
   rmSync(dir, { recursive: true, force: true });
 }

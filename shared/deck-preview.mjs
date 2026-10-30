@@ -82,7 +82,8 @@ export function makePreview(parsed, matched, choices = {}) {
     const key = `${entry.section}|${card ? `c:${card.i}` : `n:${typedKey}`}`;
     const existing = groups.get(key);
     if (existing) { existing.qty += entry.qty; return; }
-    groups.set(key, { key, section: entry.section, qty: entry.qty, status, card: card ?? null, candidates: card ? [] : result.candidates, typed: entry.name, typedKey, name: card ? card.n : entry.name, firstLine: entry.line, order });
+    // viaTitle: the name as typed, when the card was found by another title it was printed under (not by its own name)
+    groups.set(key, { key, section: entry.section, qty: entry.qty, status, card: card ?? null, candidates: card ? [] : result.candidates, typed: entry.name, typedKey, name: card ? card.n : entry.name, viaTitle: card && result.method === 'alt' ? entry.name : null, firstLine: entry.line, order });
   });
   const lines = [...groups.values()];
 

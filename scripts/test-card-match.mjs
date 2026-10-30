@@ -130,4 +130,67 @@ assert.equal(exactly.fallbackNames.length, MAX_FALLBACK)
 assert.equal(exactly.fallbackOverflow, false)
 assert.deepEqual(matchDeck(index, []), { results: [], counts: { matched: 0, ambiguous: 0, suggestion: 0, not_found: 0 }, fallbackNames: [], fallbackOverflow: false })
 
+// 11. A card printed under another title (the card's optional `f` list). The five titles Kevin hit are real Scryfall data
+// (checked 2026-10-29 in the cached bulk file); the cards here are small stand-ins with those names.
+const KATAKANA = String.fromCharCode(0x30d5, 0x30a7, 0x30a4, 0x30bf, 0x30ea, 0x30ba, 0x30e0) // written from numbers, no invisible or hard-to-read characters
+const entryOf = (n, f, i) => ({ n, t: 'Artifact', m: '', k: [], i, ...(f ? { f } : {}) })
+const titled = [
+  entryOf('Arcane Signet', ['Heart of the Mountain'], 'a1'),
+  entryOf("Dovin's Veto", ['Shadowbringers'], 'a2'),
+  entryOf('Varragoth, Bloodsky Sire', ['Ardyn Izunia'], 'a3'),
+  entryOf('Snap', ["Kushala Daora's Fury"], 'a4'),
+  entryOf('Arcane Denial', [KATAKANA], 'a5'),
+  entryOf('Sol Ring', undefined, 'a6'),
+  entryOf('Twice', ['The Same Title', 'the  same title'], 'a7'), // two titles that normalize alike
+  entryOf('Fire // Ice', ['Elemental Pair'], 'a8'),
+  entryOf('Shared One', ['Both Cards Say This'], 'a9'),
+  entryOf('Shared Two', ['Both Cards Say This'], 'a10'),
+  entryOf('Heart of the Mountain Twin', undefined, 'a11'),
+  entryOf('Bind', undefined, 'a12'),
+  entryOf('Bind // Liberate', ['Bind'], 'a13'), // a title equal to a real name
+  entryOf('Monster // Virtuous', undefined, 'a14'),
+  entryOf('Some Card', ['Monster'], 'a15'), // a title equal to the front face of another card
+]
+const titledIndex = buildCardIndex(titled)
+const alt = (name) => matchEntry(titledIndex, { name })
+for (const [typed, real] of [['Heart of the Mountain', 'Arcane Signet'], ['Shadowbringers', "Dovin's Veto"], ['Ardyn Izunia', 'Varragoth, Bloodsky Sire'], ["Kushala Daora's Fury", 'Snap'], [KATAKANA, 'Arcane Denial']]) {
+  const result = alt(typed)
+  assert.equal(result.status, 'matched', typed)
+  assert.equal(result.card.n, real, typed)
+  assert.equal(result.method, 'alt', typed)
+}
+assert.equal(alt('heart of the mountain').card.n, 'Arcane Signet') // case
+assert.equal(alt(`Kushala Daora${String.fromCharCode(0x2019)}s Fury`).card.n, 'Snap') // a curly apostrophe, as some sites export it
+assert.equal(alt('  Heart   of the Mountain ').card.n, 'Arcane Signet')
+assert.equal(alt('Sol Ring').method, 'full') // a real name still matches as itself
+assert.equal(alt('Twice').method, 'full')
+assert.equal(alt('The Same Title').status, 'matched') // one card, listed twice under alike titles, is not ambiguous
+assert.equal(alt('The Same Title').card.n, 'Twice')
+assert.equal(titledIndex.alt.get('the same title').length, 1)
+assert.equal(alt('Elemental Pair').card.n, 'Fire // Ice')
+assert.equal(alt('Both Cards Say This').status, 'ambiguous') // two cards, never guessed
+assert.deepEqual(names(alt('Both Cards Say This')).sort(), ['Shared One', 'Shared Two'])
+assert.equal(alt('Both Cards Say This').method, 'alt')
+assert.equal(alt('Heart of the Mountain Twin').method, 'full') // a longer real name is not confused with the title inside it
+assert.equal(alt('Bind').card.n, 'Bind') // a real name wins over a title
+assert.equal(alt('Bind').method, 'full')
+assert.equal(alt('Monster').card.n, 'Monster // Virtuous') // a front face wins over a title
+assert.equal(alt('Monster').method, 'front')
+assert.equal(alt('Not A Title').status, 'not_found')
+assert.equal(alt('Insectile Aberration').status, 'not_found')
+assert.equal(matchEntry(buildCardIndex([{ n: 'Delver of Secrets // Insectile Aberration', t: '', m: '', k: [], i: 'd', f: ['Insectile Aberration'] }]), { name: 'Insectile Aberration' }).method, 'alt') // a title wins over the back-face suggestion
+// Cards with no `f`, or a damaged one, still index (the page must not break on an old or odd list).
+const odd = buildCardIndex([{ n: 'Plain', t: '', m: '', k: [], i: 'p1' }, { n: 'Odd One', t: '', m: '', k: [], i: 'p2', f: 'not a list' }, { n: 'Odd Two', t: '', m: '', k: [], i: 'p3', f: [3, null, 'Fine Title'] }])
+assert.equal(odd.size, 3)
+assert.equal(matchEntry(odd, { name: 'Plain' }).status, 'matched')
+assert.equal(matchEntry(odd, { name: 'not a list' }).status, 'not_found')
+assert.equal(matchEntry(odd, { name: 'n' }).status, 'not_found') // a text `f` is not walked one letter at a time
+assert.equal(matchEntry(odd, { name: 'Fine Title' }).card.n, 'Odd Two')
+// A deck with titles in it: all matched, nothing sent to Scryfall.
+const titledDeck = matchDeck(titledIndex, [{ name: 'Heart of the Mountain' }, { name: 'Shadowbringers' }, { name: 'Sol Ring' }])
+assert.deepEqual(titledDeck.counts, { matched: 3, ambiguous: 0, suggestion: 0, not_found: 0 })
+assert.deepEqual(titledDeck.fallbackNames, [])
+// The old fixture index has no titles and behaves as before.
+assert.equal(index.alt.size, 0)
+
 console.log('All card match checks passed.')
