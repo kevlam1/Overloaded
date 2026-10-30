@@ -67,7 +67,7 @@ try {
   const count = (selector) => ev(`document.querySelectorAll(${JSON.stringify(selector)}).length`);
   const names = (selector) => ev(`Array.from(document.querySelectorAll(${JSON.stringify(selector)})).map((b) => b.getAttribute('aria-label') || b.textContent)`);
   const asked = await browser.fakeImages('https://cards.scryfall.io/*', cardArt);
-  const seed = async (json) => { await browser.goto(ORIGIN + '/pages/solo/index.html'); await ev(json === null ? `localStorage.removeItem('overloaded.deck')` : `localStorage.setItem('overloaded.deck', ${JSON.stringify(json)})`); };
+  const seed = async (json) => { await browser.goto(ORIGIN + '/pages/solo/index.html'); await ev(`localStorage.removeItem('overloaded.decks'); ` + (json === null ? `localStorage.removeItem('overloaded.deck')` : `localStorage.setItem('overloaded.deck', ${JSON.stringify(json)})`)); }; // the old single-deck key; a library, if there were one, would win over it
   const open = async (json = DECK_JSON) => { await seed(json); await browser.goto(PAGE); await waitFor(async () => (!(await $hidden('game')) || !(await $hidden('blocked'))) || null, 15000, 50); };
   const pileCount = (zone) => ev(`document.getElementById('pile-${zone}').textContent`);
   const handNames = () => names('#hand .card');
@@ -255,6 +255,32 @@ try {
   const noArt = await ev(`(() => { const b = Array.from(document.querySelectorAll('#hand .card')).find((x) => /Sol Ring/.test(x.getAttribute('aria-label') || x.textContent)); return { noimage: b.classList.contains('noimage'), shown: getComputedStyle(b.querySelector('.fallback')).display !== 'none' }; })()`);
   check('when neither picture exists the card shows its name', noArt.noimage && noArt.shown, JSON.stringify(noArt));
   failIds.clear();
+
+  // ---- several saved decks: the solo table plays the selected one ----
+  const soloDeck = JSON.parse(DECK_JSON);
+  const sideDeck = JSON.parse(SIDE_JSON);
+  const libraryOf = (selected, ...decks) => ({ version: 1, selected, decks: decks.map((deck, n) => ({ id: `d${String(n + 1).padStart(10, '0')}`, format: 'commander', deck })) });
+  const openLibrary = async (library, legacy = null) => {
+    await browser.goto(ORIGIN + '/pages/solo/index.html');
+    const text = typeof library === 'string' ? library : JSON.stringify(library);
+    await ev(`localStorage.setItem('overloaded.decks', ${JSON.stringify(text)}); ` + (legacy ? `localStorage.setItem('overloaded.deck', ${JSON.stringify(legacy)})` : `localStorage.removeItem('overloaded.deck')`));
+    await browser.goto(PAGE);
+    await waitFor(async () => (!(await $hidden('game')) || !(await $hidden('blocked'))) || null, 15000, 50);
+  };
+  await openLibrary(libraryOf('d0000000002', soloDeck, sideDeck));
+  check('the deck that is selected in the library is the one dealt', /^Side deck: /.test(await $text('deck-line')) && (await $hidden('blocked')), await $text('deck-line'));
+  await openLibrary(libraryOf('d0000000001', soloDeck, sideDeck));
+  check('selecting the other deck deals that one', /^Solo test deck: /.test(await $text('deck-line')), await $text('deck-line'));
+  await openLibrary(libraryOf('dnothingatall', soloDeck, sideDeck));
+  check('a selection that is not in the library falls back to the first deck', /^Solo test deck: /.test(await $text('deck-line')), await $text('deck-line'));
+  await openLibrary(libraryOf('d0000000001', soloDeck), DECK_JSON.replace('Solo test deck', 'Leftover old deck'));
+  check('with a library the old single deck is not read', /^Solo test deck: /.test(await $text('deck-line')) && !/Leftover/.test(await $text('deck-line')), await $text('deck-line'));
+  await openLibrary(libraryOf(null), DECK_JSON);
+  check('an empty library wins over an old deck: there is no deck to play', !(await $hidden('blocked')) && /no saved deck/.test(await $text('blocked-message')), await $text('blocked-message'));
+  await openLibrary('{ not a library', DECK_JSON);
+  check('a damaged library says it could not be read (and does not fall back to an old deck)', !(await $hidden('blocked')) && /could not be read/.test(await $text('blocked-message')), await $text('blocked-message'));
+  await open(DECK_JSON);
+  check('an old single saved deck, with no library, still plays (it counts as the first deck)', /^Solo test deck: /.test(await $text('deck-line')) && (await $hidden('blocked')));
 
   // ---- a deck with a hostile card name, and one the list does not know ----
   const hostile = JSON.parse(DECK_JSON);

@@ -4,14 +4,13 @@
 // markup. Nothing here is saved: a refresh deals a new game.
 import { makeSafeStore } from '../../src/safe-store.js';
 import { loadCardList } from '../../src/card-list.js';
-import { readSavedDeck } from '../../../shared/deck-preview.mjs';
+import { LIBRARY_KEY, LEGACY_KEY, readLibrary, selectedEntry } from '../../../shared/deck-library.mjs';
 import { makeLookup } from '../../../shared/card-lookup.mjs';
 import { imageUrl } from '../../../shared/card-image.mjs';
 import { makeGame, draw, moveCard, shuffleLibrary, mulligan, setTapped, untapAll, adjustLife, nextTurn, battlefieldRows, zoneCounts } from '../../../shared/zones.mjs';
 
 const $ = (id) => document.getElementById(id);
 const store = makeSafeStore();
-const DECK_KEY = 'overloaded.deck';
 
 let deck = null;
 let lookup = null;
@@ -221,11 +220,12 @@ function showBlocked(message, { link = true, retry = false } = {}) {
 }
 
 async function start() {
-  const raw = store.get(DECK_KEY);
-  deck = readSavedDeck(raw);
+  // The deck that is selected on the deck page (an older single saved deck counts as the first deck, see shared/deck-library.mjs).
+  const saved = readLibrary(store.get(LIBRARY_KEY), store.get(LEGACY_KEY));
+  deck = selectedEntry(saved.library)?.deck ?? null;
   if (!deck) {
     $('deck-line').textContent = 'No deck.';
-    showBlocked(raw === null ? 'You have no saved deck yet. Import one first, then come back to play it.' : 'Your saved deck could not be read, so it was ignored. Import it again.');
+    showBlocked(saved.source === 'damaged' || saved.skipped > 0 ? 'Your saved deck could not be read, so it was ignored. Import it again.' : 'You have no saved deck yet. Import one first, then come back to play it.');
     return;
   }
   const total = deck.cards.reduce((sum, card) => sum + card.qty, 0);

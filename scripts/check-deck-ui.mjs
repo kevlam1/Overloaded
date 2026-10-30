@@ -46,7 +46,13 @@ try {
   // A list that names sets and numbers fetches those sets' printing files before it is shown, so after Check (or loading the
   // saved deck) the page is given time to finish: the status stops saying "Checking the printings...".
   const settled = () => waitFor(async () => !/^Checking the printings/.test(await $text('status')) || null, 15000, 30);
-  const press = async (id) => { await ev(`document.getElementById(${JSON.stringify(id)}).click()`); if (id === 'check' || id === 'saved-load') await settled(); };
+  const press = async (id) => { await ev(`document.getElementById(${JSON.stringify(id)}).click()`); if (id === 'check') await settled(); };
+  // The saved decks are a library under 'overloaded.decks' (up to 20, one selected). These read it and drive its buttons.
+  const library = async () => JSON.parse((await ev(`localStorage.getItem('overloaded.decks')`)) ?? 'null');
+  const selectedSaved = async () => { const lib = await library(); return lib?.decks.find((entry) => entry.id === lib.selected)?.deck ?? null; };
+  const clickSaved = (action, index = 0) => ev(`document.querySelectorAll('#saved-list [data-action="${action}"]')[${index}].click()`);
+  const pressLoad = async (index = 0) => { await clickSaved('load', index); await settled(); };
+  const deleteAllSaved = async () => { for (let n = 0; n < 25 && (await ev(`document.querySelectorAll('#saved-list [data-action="delete"]').length`)); n++) await clickSaved('delete'); };
   const ready = () => waitFor(async () => (await ev(`!document.getElementById('check').disabled`)) || null, 15000, 50);
   const load = async () => { await browser.goto(PAGE); await ready(); };
 
@@ -138,7 +144,7 @@ try {
   await ev(`document.getElementById('deck-name').value = 'Problems deck'`);
   await press('save');
   check('saving is refused while lines are unmatched, in words', /3 lines are not matched/.test(await $text('status')), await $text('status'));
-  check('nothing was saved', (await ev(`localStorage.getItem('overloaded.deck')`)) === null);
+  check('nothing was saved', (await library()) === null && (await ev(`localStorage.getItem('overloaded.deck')`)) === null);
   // settle the ambiguous name and the suggestion with their selects
   for (let n = 0; n < 2; n++) {
     await ev(`(() => { const s = document.querySelector('#problem-list select'); s.value = s.options[1].value; s.dispatchEvent(new Event('change')); })()`);
@@ -153,22 +159,22 @@ try {
   check('with permission it saves', /^Saved "Problems deck": 3 cards\.$/.test(await $text('status')), await $text('status'));
 
   // ---- the saved deck: it is there, it survives a reload, it loads back, it can be deleted ----
-  const stored = JSON.parse(await ev(`localStorage.getItem('overloaded.deck')`));
+  const stored = await selectedSaved();
   check('the browser holds the saved deck, with its text and the cards that were matched', stored.name === 'Problems deck' && stored.cards.length === 3 && stored.skipped === 1 && stored.text.includes('Totally Fake Card'));
-  check('the saved deck panel appears', !(await $hidden('saved')) && /Problems deck: 3 cards/.test(await $text('saved-summary')) && /1 line was left out/.test(await $text('saved-summary')), await $text('saved-summary'));
+  check('the saved deck panel appears', !(await $hidden('saved')) && /Problems deck \((Standard|Commander)\): 3 cards/.test(await $text('saved-list')) && /1 line was left out/.test(await $text('saved-list')), await $text('saved-list'));
   await load();
-  check('after a reload the saved deck is still shown', !(await $hidden('saved')) && /Problems deck/.test(await $text('saved-summary')));
-  await press('saved-load');
+  check('after a reload the saved deck is still shown', !(await $hidden('saved')) && /Problems deck/.test(await $text('saved-list')));
+  await pressLoad();
   const loaded = await ev(`({ text: document.getElementById('deck-text').value, name: document.getElementById('deck-name').value, preview: !document.getElementById('preview').hidden })`);
   check('loading puts the list and the name back and checks it', loaded.text.includes('Insectile Aberration') && loaded.name === 'Problems deck' && loaded.preview);
-  await press('saved-delete');
-  check('deleting removes it from the browser and the page', (await ev(`localStorage.getItem('overloaded.deck')`)) === null && (await $hidden('saved')));
+  await deleteAllSaved();
+  check('deleting removes it from the browser and the page, and leaves an empty library so an old deck cannot come back', (await library())?.decks.length === 0 && (await ev(`localStorage.getItem('overloaded.deck')`)) === null && (await $hidden('saved')));
 
   // ---- a commander is saved when chosen ----
   await load(); await paste(MOXFIELD_PLAIN); await press('check');
   await ev(`document.getElementById('deck-name').value = '  Eowyn   Tokens '`);
   await press('save');
-  const commanderDeck = JSON.parse(await ev(`localStorage.getItem('overloaded.deck')`));
+  const commanderDeck = await selectedSaved();
   check('a saved commander deck keeps its commander and a cleaned name', commanderDeck.name === 'Eowyn Tokens' && commanderDeck.commander.length === 1 && commanderDeck.cards.find((c) => c.section === 'commander')?.n.endsWith('Lady of Rohan'));
   check('the replace note shows once a deck is saved', !(await $hidden('save-note')));
   await ev(`document.getElementById('deck-name').value = ''`);
@@ -178,7 +184,7 @@ try {
   await ev(`document.getElementById('deck-name').value = 'Same twice'`);
   await press('save');
   check('the same card as commander and partner is refused, with what to do', /two different cards/.test(await $text('status')), await $text('status'));
-  await press('saved-delete');
+  await deleteAllSaved();
 
   // ---- exact printings: the set and number typed on a line pick the printing whose picture is shown ----
   // Real data (checked against Scryfall's own records on 2026-10-29): Sol Ring cmm 410 is 46ca0b66..., Arcane Signet sld 916 is
@@ -241,6 +247,78 @@ try {
   check('a set our data does not have is "not found" (the server answers 404), not "not loaded"', /ZZZ 1 \(not found\)/.test((await rowsOf())[0].printing), JSON.stringify(await rowsOf()));
   check('and that check left the earlier result alone (nothing to compare was lost)', firstResult.length === 1);
 
+  // ---- several saved decks: a list, one selected, a format on each, the same name replaces, a limit of 20, the old single deck ----
+  const setField = (id, value) => ev(`(() => { const f = document.getElementById(${JSON.stringify(id)}); f.value = ${JSON.stringify(value)}; f.dispatchEvent(new Event('input')); f.dispatchEvent(new Event('change')); })()`);
+  const saveAs = async (listText, name, format) => { await paste(listText); await press('check'); await setField('deck-name', name); if (format) await setField('deck-format', format); await press('save'); };
+  const rows = () => ev(`Array.from(document.querySelectorAll('#saved-list li')).map((li) => ({ id: li.dataset.deckId, text: li.querySelector('.saved-text').textContent, actions: Array.from(li.querySelectorAll('button')).map((b) => b.dataset.action) }))`);
+  await load();
+  await deleteAllSaved();
+  await saveAs('1 Sol Ring\n1 Lightning Bolt', 'Deck A');
+  let lib = await library();
+  check('the first deck is saved in a library, selected, and for Standard (it has no commander)', lib.version === 1 && lib.decks.length === 1 && lib.selected === lib.decks[0].id && lib.decks[0].format === 'standard' && lib.decks[0].deck.name === 'Deck A', JSON.stringify(lib));
+  await saveAs('2 Island\n1 Sol Ring', 'Deck B');
+  lib = await library();
+  let list = await rows();
+  check('a second deck is added, not replacing the first, and becomes the selected one', lib.decks.length === 2 && lib.decks[1].deck.name === 'Deck B' && lib.selected === lib.decks[1].id && list.length === 2 && /Deck B/.test(list[1].text) && /Selected for the solo table/.test(list[1].text) && !/Selected/.test(list[0].text), JSON.stringify(list));
+  check('the selected deck has no "Use" button, the other has one, and both can be loaded and deleted', JSON.stringify(list[1].actions) === '["load","delete"]' && JSON.stringify(list[0].actions) === '["load","select","delete"]', JSON.stringify(list.map((r) => r.actions)));
+  const firstId = lib.decks[0].id;
+  await saveAs('3 Island', 'deck a');
+  lib = await library();
+  check('saving under the same name (capitals do not matter) replaces that deck where it is and keeps its id', lib.decks.length === 2 && lib.decks[0].id === firstId && lib.decks[0].deck.name === 'deck a' && lib.decks[0].deck.cards[0].qty === 3 && /Replaced "deck a"/.test(await $text('status')), await $text('status'));
+  check('and the replaced deck becomes the selected one', lib.selected === firstId);
+  await clickSaved('select', 0); // the only "Use" button now is Deck B's
+  lib = await library();
+  check('using a deck for the solo table selects it and says so', lib.selected === lib.decks[1].id && /"Deck B" is now the deck for the solo table/.test(await $text('status')), await $text('status'));
+  await pressLoad(0);
+  check('loading a deck puts its text, name and format back in the form', (await ev(`document.getElementById('deck-text').value`)) === '3 Island' && (await ev(`document.getElementById('deck-name').value`)) === 'deck a' && (await ev(`document.getElementById('deck-format').value`)) === 'standard');
+  await paste('Commander\n1 Sol Ring\n\n1 Island'); await press('check');
+  check('a list with a marked commander offers Commander as its format', (await ev(`document.getElementById('deck-format').value`)) === 'commander');
+  await setField('deck-name', 'Deck C'); await press('save');
+  lib = await library();
+  check('and saves it as a Commander deck', lib.decks.length === 3 && lib.decks[2].format === 'commander' && lib.decks[2].deck.commander.length === 1, JSON.stringify(lib.decks.map((d) => d.format)));
+  await setField('deck-format', 'standard'); await setField('deck-name', 'Deck D'); await press('save');
+  lib = await library();
+  check('the player can choose the format, whatever the deck has', lib.decks.length === 4 && lib.decks[3].format === 'standard' && lib.decks[3].deck.commander.length === 1, JSON.stringify(lib.decks.map((d) => d.format)));
+  list = await rows();
+  await clickSaved('delete', list.length - 1);
+  lib = await library();
+  check('deleting the selected deck selects the first one left', lib.decks.length === 3 && lib.selected === lib.decks[0].id && /Deleted "Deck D"/.test(await $text('status')), await $text('status'));
+  await clickSaved('delete', 1);
+  lib = await library();
+  check('deleting another deck leaves the selection alone', lib.decks.length === 2 && lib.selected === lib.decks[0].id && lib.decks.every((d) => d.deck.name !== 'Deck B'));
+
+  // The old single saved deck becomes the first deck, once, and cannot come back after it is deleted.
+  const oldDeck = (await library()).decks[0].deck;
+  await deleteAllSaved();
+  await ev(`localStorage.removeItem('overloaded.decks'); localStorage.setItem('overloaded.deck', ${JSON.stringify(JSON.stringify(oldDeck))})`);
+  await load();
+  list = await rows();
+  check('an old single saved deck shows as the first deck of the list, selected', list.length === 1 && /deck a/.test(list[0].text) && /Selected/.test(list[0].text) && (await library()) === null, JSON.stringify(list));
+  await clickSaved('delete', 0);
+  check('deleting it leaves an empty library and removes the old key', (await library())?.decks.length === 0 && (await ev(`localStorage.getItem('overloaded.deck')`)) === null);
+  await load();
+  check('and after a reload it is still gone', (await rows()).length === 0 && (await $hidden('saved')));
+
+  // A damaged library is said so, and a new save starts a new one.
+  await ev(`localStorage.setItem('overloaded.decks', '{ not a library')`);
+  await load();
+  check('a damaged library says so and shows no decks', !(await $hidden('saved')) && /could not be read/.test(await $text('saved-summary')) && (await rows()).length === 0);
+  await saveAs('1 Sol Ring', 'Fresh start');
+  lib = await library();
+  check('saving after that starts a new library', lib.decks.length === 1 && lib.decks[0].deck.name === 'Fresh start' && (await $hidden('saved-summary')));
+
+  // The limit of 20.
+  const base = (await library()).decks[0].deck;
+  const twenty = Array.from({ length: 20 }, (_, n) => ({ id: `d${String(n + 1).padStart(10, '0')}`, format: 'standard', deck: { ...base, name: `Deck ${n + 1}` } }));
+  await ev(`localStorage.setItem('overloaded.decks', ${JSON.stringify(JSON.stringify({ version: 1, selected: 'd0000000001', decks: twenty }))})`);
+  await load();
+  check('twenty decks are all listed', (await rows()).length === 20);
+  await saveAs('1 Island', 'Number 21');
+  check('a twenty-first deck is refused with what to do, and nothing is lost', /up to 20 decks\. Delete one first/.test(await $text('status')) && (await library()).decks.length === 20, await $text('status'));
+  await saveAs('1 Island', 'deck 7');
+  check('a deck with the name of a saved one still replaces it when the library is full', (await library()).decks.length === 20 && /Replaced "deck 7"/.test(await $text('status')), await $text('status'));
+  await deleteAllSaved();
+
   // ---- cards pasted under another title they were printed under (real cases from a real export, 2026-10-29) ----
   // These need the list built with the alternate titles (format 2); an older cached list would fail here, on purpose.
   const katakana = String.fromCharCode(0x30d5, 0x30a7, 0x30a4, 0x30bf, 0x30ea, 0x30ba, 0x30e0);
@@ -252,9 +330,9 @@ try {
   check('a card typed by its own name has no such note', titled.lines.includes('Sol Ring') && titled.noted === 5);
   await ev(`document.getElementById('deck-name').value = 'Titles'; document.getElementById('deck-name').dispatchEvent(new Event('input'))`);
   await press('save');
-  const savedTitles = JSON.parse(await ev(`localStorage.getItem('overloaded.deck')`));
+  const savedTitles = await selectedSaved();
   check('the saved deck holds the real cards, with their real names', ['Varragoth, Bloodsky Sire', 'Arcane Signet', 'Snap', "Dovin's Veto", 'Arcane Denial', 'Sol Ring'].every((n) => savedTitles.cards.some((c) => c.n === n)) && !JSON.stringify(savedTitles.cards).includes('Shadowbringers'), JSON.stringify(savedTitles.cards.map((c) => c.n)));
-  await press('saved-delete');
+  await deleteAllSaved();
 
   // ---- hovering a card in the checked list shows its picture (the titled deck above is still on the page) ----
   const peek = () => ev(`(() => { const p = document.getElementById('card-peek'); const i = document.getElementById('card-peek-image'); const r = p.getBoundingClientRect(); return { hidden: p.hidden, src: i.getAttribute('src'), imageHidden: i.hidden, note: document.getElementById('card-peek-note').textContent, left: r.left, right: r.right, top: r.top, bottom: r.bottom, w: innerWidth, h: innerHeight, pointerEvents: getComputedStyle(p).pointerEvents }; })()`);
@@ -389,10 +467,10 @@ try {
   check('the commander named last is marked as the commander (turned on, and says it was marked)', sideShape.commanderOn && /Kyodai/.test(await ev(`document.getElementById('commander-1').selectedOptions[0].textContent`)), sideShape.note);
   await ev(`document.getElementById('deck-name').value = 'Side'; document.getElementById('deck-name').dispatchEvent(new Event('input'))`);
   await press('save');
-  const savedSide = JSON.parse(await ev(`localStorage.getItem('overloaded.deck')`));
+  const savedSide = await selectedSaved();
   const sectionCounts = savedSide.cards.reduce((sum, c) => ({ ...sum, [c.section]: (sum[c.section] ?? 0) + c.qty }), {});
   check('the saved deck keeps the three sections apart', JSON.stringify(sectionCounts) === JSON.stringify({ main: 14, sideboard: 2, commander: 1 }) || (sectionCounts.main === 14 && sectionCounts.sideboard === 2 && sectionCounts.commander === 1), JSON.stringify(sectionCounts));
-  await press('saved-delete');
+  await deleteAllSaved();
 
   // ---- keyboard, clear ----
   await load(); await paste('1 Sol Ring');
@@ -429,7 +507,7 @@ try {
   await paste('1 Sol Ring'); await press('check');
   await ev(`document.getElementById('deck-name').value = 'Nowhere'`);
   await press('save');
-  check('and saving says why it did not work, without crashing', /would not save the deck/.test(await $text('status')), await $text('status'));
+  check('and saving says why it did not work, without crashing', /would not save that change/.test(await $text('status')), await $text('status'));
 
   // ---- the whole session ----
   const errors = browser.logs.filter((l) => /^exception:|^console\.error|^error:/.test(l) && !/Failed to load resource|ERR_BLOCKED|net::/.test(l));
@@ -453,7 +531,7 @@ try {
     await scheme('dark');
     await ev(`document.getElementById('commander-box').scrollIntoView()`); await sleep(300);
     await browser.screenshot('scratch-deck-ui-bottom.png');
-    await press('saved-delete');
+    await deleteAllSaved();
     console.log('saved scratch-deck-ui-top.png, -light.png and -bottom.png (delete them afterward)');
   }
 } finally {

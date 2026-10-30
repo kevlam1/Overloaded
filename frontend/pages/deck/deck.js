@@ -3,7 +3,8 @@
 // only reads the form and draws the result. Everything typed or pasted is put into the page as text, never as markup.
 import { buildCardIndex, matchDeck } from '../../../shared/card-match.mjs';
 import { parseDeckText } from '../../../shared/deck-text.mjs';
-import { makePreview, buildSavedDeck, serializeDeck, readSavedDeck, printingSetsNeeded, PRINTING_PROBLEM_WORDS } from '../../../shared/deck-preview.mjs';
+import { makePreview, buildSavedDeck, printingSetsNeeded, PRINTING_PROBLEM_WORDS } from '../../../shared/deck-preview.mjs';
+import { LIBRARY_KEY, LEGACY_KEY, FORMAT_TITLES, emptyLibrary, readLibrary, serializeLibrary, addDeck, removeDeck, selectDeck } from '../../../shared/deck-library.mjs';
 import { makeSafeStore } from '../../src/safe-store.js';
 import { loadCardList } from '../../src/card-list.js';
 import { makePrintingLoader } from '../../src/printings.js';
@@ -11,7 +12,7 @@ import { setupCardPeek } from '../../src/card-peek.js';
 
 const $ = (id) => document.getElementById(id);
 const store = makeSafeStore();
-const DECK_KEY = 'overloaded.deck'; // one saved deck for now, in this browser only
+// The saved decks live in this browser only (shared/deck-library.mjs: up to 20, one of them selected).
 const PROBE_KEY = 'overloaded.storage-probe';
 
 let index = null; // the card list, ready to match against
@@ -22,6 +23,9 @@ let mode = 'none'; // 'commander' or 'none'
 let modeTouched = false;
 let picks = ['', '']; // the chosen commander and partner (card ids)
 let picksTouched = false;
+let library = emptyLibrary(); // the saved decks
+let libraryRead = { source: 'empty', skipped: 0 }; // what reading them found (so the page can say if some could not be read)
+let formatTouched = false; // the player chose the format, so it no longer follows the commander choice
 const printingLoader = makePrintingLoader();
 let printingFiles = new Map(); // the set files the pasted list names (see src/printings.js)
 let checkRun = 0; // a newer check makes an older one that is still waiting for printing files stop
@@ -64,7 +68,7 @@ async function loadCards() {
 async function runCheck() {
   if (!index) return;
   const pasted = $('deck-text').value;
-  if (pasted !== text) { choices = {}; modeTouched = false; picksTouched = false; }
+  if (pasted !== text) { choices = {}; modeTouched = false; picksTouched = false; formatTouched = false; }
   text = pasted;
   const run = ++checkRun;
   if (!text.trim()) { say('Paste a decklist first.', true); $('preview').hidden = true; preview = null; return; }
@@ -205,6 +209,7 @@ function renderCommander() {
   first.replaceChildren(...options.map((line) => new Option(line.name, line.card.i)));
   second.replaceChildren(new Option('No partner', ''), ...options.map((line) => new Option(line.name, line.card.i)));
   if (!modeTouched) mode = preview.commander.looksLikeCommander ? 'commander' : 'none';
+  if (!formatTouched) $('deck-format').value = mode === 'commander' ? 'commander' : 'standard';
   if (!picksTouched) picks = [preview.commander.ids[0] ?? '', preview.commander.ids[1] ?? ''];
   first.value = options.some((line) => line.card.i === picks[0]) ? picks[0] : (options[0]?.card.i ?? '');
   second.value = options.some((line) => line.card.i === picks[1]) ? picks[1] : '';
@@ -220,24 +225,74 @@ function renderSaveBox() {
   if (unmatchedLines === 0) $('allow-missing').checked = false;
   $('allow-missing-label').textContent = `Save without the ${plural(unmatchedLines, 'line', 'lines')} that ${unmatchedLines === 1 ? 'was' : 'were'} not matched`;
   $('save').disabled = !preview.canSave;
-  $('save-note').hidden = store.get(DECK_KEY) === null;
+  $('save-note').hidden = library.decks.length === 0;
 }
 
-// ---- the saved deck ----
-function renderSaved() {
-  const raw = store.get(DECK_KEY);
-  $('saved').hidden = raw === null;
-  if (raw === null) return;
-  const deck = readSavedDeck(raw);
-  $('saved-load').hidden = deck === null;
-  if (!deck) { $('saved-summary').textContent = 'A saved deck was found but it could not be read, so it was ignored. You can delete it.'; return; }
+// ---- the saved decks ----
+function readSavedLibrary() {
+  libraryRead = readLibrary(store.get(LIBRARY_KEY), store.get(LEGACY_KEY));
+  library = libraryRead.library;
+}
+
+// Writes the library. The old single-deck key goes once the library is written, so a deleted deck cannot come back from it.
+function writeLibrary() {
+  if (!store.set(LIBRARY_KEY, serializeLibrary(library))) return false;
+  store.remove(LEGACY_KEY);
+  libraryRead = { source: 'library', skipped: 0 };
+  return true;
+}
+
+// Makes a change to the library and keeps it; if the browser will not save it, the change is undone and the page says so.
+function commit(next, message) {
+  const before = library;
+  library = next;
+  if (!writeLibrary()) {
+    library = before;
+    say('Your browser would not save that change. Its storage may be full or switched off.', true);
+    return false;
+  }
+  renderSaved();
+  say(message);
+  return true;
+}
+
+function deckSummary(entry) {
+  const { deck } = entry;
   const commanders = deck.cards.filter((card) => card.section === 'commander').map((card) => card.n);
-  $('saved-summary').textContent = `${deck.name}: ${plural(totalCards(deck), 'card', 'cards')}${commanders.length ? `, commander ${commanders.join(' and ')}` : ''}. Saved ${new Date(deck.savedAt).toLocaleDateString()}.${deck.skipped ? ` ${plural(deck.skipped, 'line was', 'lines were')} left out because they were not matched.` : ''}`;
+  return `${deck.name} (${FORMAT_TITLES[entry.format]}): ${plural(totalCards(deck), 'card', 'cards')}${commanders.length ? `, commander ${commanders.join(' and ')}` : ''}. Saved ${new Date(deck.savedAt).toLocaleDateString()}.${deck.skipped ? ` ${plural(deck.skipped, 'line was', 'lines were')} left out because they were not matched.` : ''}`;
 }
 
-async function loadSaved() {
-  const deck = readSavedDeck(store.get(DECK_KEY));
-  if (!deck || !index) return;
+function renderSaved() {
+  const problem = libraryRead.source === 'damaged'
+    ? 'Your saved decks could not be read, so they were ignored. Saving a deck starts a new list.'
+    : libraryRead.skipped ? `${plural(libraryRead.skipped, 'saved deck', 'saved decks')} could not be read and ${libraryRead.skipped === 1 ? 'was' : 'were'} left out.` : '';
+  $('saved').hidden = library.decks.length === 0 && !problem;
+  $('saved-summary').textContent = problem;
+  $('saved-summary').hidden = !problem;
+  $('saved-list').replaceChildren(...library.decks.map((entry) => {
+    const item = make('li', 'saved-deck');
+    item.dataset.deckId = entry.id;
+    const selected = entry.id === library.selected;
+    item.append(make('span', 'saved-text', `${deckSummary(entry)}${selected ? ' Selected for the solo table.' : ''}`));
+    const actions = make('span', 'saved-actions');
+    const button = (action, label, className) => {
+      const element = make('button', className, label);
+      element.type = 'button';
+      element.dataset.action = action;
+      element.setAttribute('aria-label', `${label}: ${entry.deck.name}`);
+      return element;
+    };
+    actions.append(button('load', 'Load it into the box below'), ...(selected ? [] : [button('select', 'Use for the solo table', 'secondary')]), button('delete', 'Delete it', 'secondary'));
+    item.append(actions);
+    return item;
+  }));
+  $('save-note').hidden = library.decks.length === 0;
+}
+
+async function loadSaved(id) {
+  const entry = library.decks.find((candidate) => candidate.id === id);
+  if (!entry || !index) return;
+  const { deck } = entry;
   $('deck-text').value = deck.text;
   await runCheck();
   if (!preview || $('deck-text').value !== deck.text) return; // another check came in while the printings loaded
@@ -247,6 +302,8 @@ async function loadSaved() {
   picksTouched = true;
   renderCommander();
   $('deck-name').value = deck.name;
+  $('deck-format').value = entry.format;
+  formatTouched = true;
   say(`Loaded "${deck.name}".`);
 }
 
@@ -255,10 +312,9 @@ function save() {
   const ids = mode === 'commander' ? [$('commander-1').value, $('commander-2').value].filter(Boolean) : [];
   const result = buildSavedDeck(preview, { name: $('deck-name').value, text, commanderIds: ids, allowMissing: $('allow-missing').checked });
   if (!result.ok) { say(result.error, true); return; }
-  if (!store.set(DECK_KEY, serializeDeck(result.deck))) { say('Your browser would not save the deck. Its storage may be full or switched off.', true); return; }
-  say(`Saved "${result.deck.name}": ${plural(totalCards(result.deck), 'card', 'cards')}.`);
-  renderSaved();
-  $('save-note').hidden = false;
+  const added = addDeck(library, result.deck, { format: $('deck-format').value });
+  if (!added.ok) { say(added.error, true); return; }
+  commit(added.library, `${added.replaced ? 'Replaced' : 'Saved'} "${result.deck.name}": ${plural(totalCards(result.deck), 'card', 'cards')}.`);
 }
 
 // ---- wiring ----
@@ -266,7 +322,7 @@ $('check').addEventListener('click', runCheck);
 $('retry').addEventListener('click', loadCards);
 $('clear').addEventListener('click', () => {
   $('deck-text').value = '';
-  text = ''; choices = {}; preview = null; modeTouched = false; picksTouched = false;
+  text = ''; choices = {}; preview = null; modeTouched = false; picksTouched = false; formatTouched = false;
   checkRun++; // a check still waiting for printing files must not bring the preview back
   $('preview').hidden = true;
   say('');
@@ -278,13 +334,23 @@ $('mode-none').addEventListener('change', () => { mode = 'none'; modeTouched = t
 $('commander-1').addEventListener('change', () => { picks[0] = $('commander-1').value; picksTouched = true; });
 $('commander-2').addEventListener('change', () => { picks[1] = $('commander-2').value; picksTouched = true; });
 $('save').addEventListener('click', save);
-$('saved-load').addEventListener('click', loadSaved);
-$('saved-delete').addEventListener('click', () => { store.remove(DECK_KEY); renderSaved(); say('Deleted your saved deck.'); });
+$('deck-format').addEventListener('change', () => { formatTouched = true; });
+// The buttons of each saved deck, found by delegation so the list can be drawn again without wiring anything.
+$('saved-list').addEventListener('click', (event) => {
+  const button = event.target instanceof Element ? event.target.closest('button[data-action]') : null;
+  const id = button?.closest('[data-deck-id]')?.dataset.deckId;
+  const entry = library.decks.find((candidate) => candidate.id === id);
+  if (!button || !entry) return;
+  if (button.dataset.action === 'load') loadSaved(id);
+  else if (button.dataset.action === 'select') commit(selectDeck(library, id), `"${entry.deck.name}" is now the deck for the solo table.`);
+  else if (button.dataset.action === 'delete') commit(removeDeck(library, id), `Deleted "${entry.deck.name}".`);
+});
 
 // Can this browser keep anything? If not, the page still works; it just cannot remember a deck.
 const canStore = store.set(PROBE_KEY, '1');
 store.remove(PROBE_KEY);
 $('storage-hint').hidden = canStore;
+readSavedLibrary();
 renderSaved();
 setupCardPeek({ root: $('sections'), peek: $('card-peek'), image: $('card-peek-image'), note: $('card-peek-note') });
 loadCards();

@@ -30,6 +30,7 @@ const suites = [
   { name: 'card list build', cmd: node, args: ['scripts/test-card-list.mjs'] },
   { name: 'card list download, reuse and fallbacks', cmd: node, args: ['scripts/test-card-list-build.mjs'] },
   { name: 'deck preview and saved deck logic', cmd: node, args: ['scripts/test-deck-preview.mjs'] },
+  { name: 'several saved decks: library, formats, selection', cmd: node, args: ['scripts/test-deck-library.mjs'] },
   { name: 'game zones: draw, move, tap, shuffle', cmd: node, args: ['scripts/test-zones.mjs'] },
   { name: 'saved card lookup (id, then name)', cmd: node, args: ['scripts/test-card-lookup.mjs'] },
   { name: 'refused-request check', cmd: node, args: ['scripts/test-permission-error.mjs'] },

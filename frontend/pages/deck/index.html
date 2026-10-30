@@ -16,12 +16,11 @@
       <p id="status" class="status" role="status" aria-live="polite"></p>
 
       <section id="saved" aria-labelledby="saved-heading" hidden>
-        <h2 id="saved-heading">Your saved deck</h2>
+        <h2 id="saved-heading">Your saved decks</h2>
         <p id="saved-summary"></p>
+        <ul id="saved-list" class="saved-list"></ul>
         <div class="actions">
-          <button id="saved-load" type="button">Load it into the box below</button>
-          <button id="saved-delete" type="button" class="secondary">Delete it</button>
-          <a class="button-link" href="/solo">Play it at the solo table</a>
+          <a class="button-link" href="/solo">Play the selected deck at the solo table</a>
         </div>
       </section>
 
@@ -78,6 +77,13 @@
             <label for="deck-name">Deck name</label>
             <input id="deck-name" name="deck-name" type="text" maxlength="60" autocomplete="off" spellcheck="false">
           </div>
+          <div class="field">
+            <label for="deck-format">Format</label>
+            <select id="deck-format" name="deck-format">
+              <option value="commander">Commander</option>
+              <option value="standard">Standard</option>
+            </select>
+          </div>
           <div class="choice" id="missing-box" hidden>
             <input id="allow-missing" type="checkbox">
             <label for="allow-missing" id="allow-missing-label">Save without the lines that were not matched</label>
@@ -85,7 +91,7 @@
           <div class="actions">
             <button id="save" type="button">Save deck</button>
           </div>
-          <p id="save-note" class="hint" hidden>You already have a saved deck. Saving replaces it.</p>
+          <p id="save-note" class="hint" hidden>Saving a deck with the same name replaces that deck. You can keep up to 20 decks.</p>
         </div>
       </section>
     </main>

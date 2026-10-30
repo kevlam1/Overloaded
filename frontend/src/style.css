@@ -201,3 +201,10 @@ main.table { max-width: 80rem; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 [hidden] { display: none !important; }
+
+/* The saved decks on the deck page: one row each, the text first and its buttons after (on their own line when space is tight). */
+.saved-list { list-style: none; margin: 0 0 1rem; padding: 0; }
+.saved-deck { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; padding: 0.6rem 0; border-bottom: 1px solid var(--line); }
+.saved-deck:last-child { border-bottom: 0; }
+.saved-text { flex: 1 1 22rem; }
+.saved-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
