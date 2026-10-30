@@ -1382,6 +1382,20 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 **Decisions**
 - Claude's slip: the Save window above was a bug in my own `runCheck`, found by reading the diff, not by any test; none of my earlier checks could see it because the page waits on the network only for lists that name sets.
 
+## 67. Two ideas on the to-do list: several saved decks and The Stack (2026-10-30)
+
+**What I asked for**
+- I asked how many decks a player can save (one), and Claude added "several saved decks" to the to-do list at my request. I also asked whether the solo table's arrangement is only a placeholder: the rules and the two-row battlefield are real, the look is a plain first version.
+- I proposed a shared area called "The Stack" where players from each seat can play their spells.
+
+**What changed**
+- `docs/todo.md`: two new items, "Several saved decks" and "The Stack, a shared zone". `docs/design-notes.md`: a new section "The Stack" with what I want and Claude's draft notes. Nothing is built.
+
+**Decisions**
+- Anyone at the table can remove a card from the stack. Abilities go on the stack too, so Claude must research the kinds of things that can go on it and the best ways to represent them before any design. The solo table gets a stack as well.
+- Costs: the solo version runs in the browser, so no network and no money; the live version adds a few small database writes inside Firebase's free plan.
+- Claude recommended recording the idea and not building it now: there is no shared table page yet, and the stack is the first zone that every player writes, so it needs a rules change.
+
 ---
 
 ## Where AI misread me, or I had to correct course

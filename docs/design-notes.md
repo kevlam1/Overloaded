@@ -81,3 +81,19 @@ Each section has **Kevin wants** (his notes) and **Claude's notes** (questions a
 
 **Claude's notes**
 - A simple "can I afford this" check from mana costs and the colors of untapped lands is possible without a rules engine. It gets things wrong for unusual lands and cost reducers, so it is a hint, not a rule. Stretch.
+
+## The Stack (a shared area; Kevin, 2026-10-30)
+**Kevin wants**
+- A shared area called "The Stack", where players from every seat can play their spells.
+- Anyone at the table can remove a card from the stack (decided).
+- Abilities on the stack too, not only spells (decided). Kevin wants deep research first on the different kinds of things that can go on the stack and the best ways to represent them.
+- The solo table gets a stack too (decided).
+
+**Claude's notes (a draft; nothing here is researched yet)**
+- The stack is last in, first out: the newest item is on top and resolves first. Shown by the card's real name and art, newest on top.
+- It is the first zone that every player writes. The live design so far is "each player writes only their own zones" (`public/{uid}` for public zones, a private branch for the hand and library), so the stack would live on the table itself, with each entry saying who played it and when. That is a database rules change: a mutation run, and Kevin pastes the rules again.
+- Casting would be one atomic write that removes the card from the player's private hand and adds it to the stack, so nobody ever sees it in both places or in neither.
+- Casual mode has no rules engine: the stack is a shared ordered pile. The card's owner (or anyone, by Kevin's decision) moves a card off it to the battlefield, graveyard or wherever it goes. No priority, no passing. Because anyone can remove, the rule is "any member may delete any entry"; it still needs a size limit on the stack, like the zone size limits already on the list.
+- A spell is a card, but an ability is not one, so the page needs something that stands for it. Open questions for the research: a marker that names its source card and carries a short note the player types, or the text copied from the card; a copy of a spell; a trigger that goes on the stack when something happens (the app cannot know, so a player adds it). From memory, NOT checked: playing a land, mana abilities and static abilities do not use the stack. Check all of this in the Comprehensive Rules before designing, and look at how other tabletop tools show it.
+- Solo: a plain pile for testing. `shared/zones.mjs` keeps the same zones as the live data model, so a `stack` zone there would be your own in solo and shared in live play; decide that when building.
+- Cost: solo runs in the browser with no network and no money. The live version adds a few small database writes inside Firebase's free plan.
