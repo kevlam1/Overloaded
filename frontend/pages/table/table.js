@@ -1,8 +1,9 @@
 // The table page, where a started match is played at /table/CODE. It shows who is at the table and plays YOUR game: the same
 // moves as the solo table (shared/zones.mjs), but every move is also saved to the live database, only the pieces it changed
 // (shared/game-sync.mjs): your hand and library in your private branch (nobody else can read it), the rest in your public one.
-// A refresh puts you back at the game you left. Other players' boards come next. All database calls live in ../../src/db.js.
-import { rejoinTable, watchMembers, watchMeta, watchPresence, watchServerOffset, watchConnection, startPresence, heartbeat, watchActivity, saveGame, loadGame } from '../../src/db.js';
+// A refresh puts you back at the game you left. Other players' boards are shown beside it, live and read-only (their public
+// zones only: shared/game-sync.mjs readPublic). All database calls live in ../../src/db.js.
+import { rejoinTable, watchMembers, watchMeta, watchPresence, watchServerOffset, watchConnection, startPresence, heartbeat, watchActivity, saveGame, loadGame, watchPublic } from '../../src/db.js';
 import { startKeepAlive } from '../../src/keep-alive.js';
 import { makeSafeStore } from '../../src/safe-store.js';
 import { loadCardList } from '../../src/card-list.js';
@@ -14,7 +15,7 @@ import { LIBRARY_KEY, LEGACY_KEY, readLibrary } from '../../../shared/deck-libra
 import { makeLookup } from '../../../shared/card-lookup.mjs';
 import { friendlyMessage } from '../../../shared/friendly-error.mjs';
 import { makeGame, draw, moveCard, shuffleLibrary, mulligan, setTapped, untapAll, adjustLife, nextTurn, battlefieldRows, zoneCounts } from '../../../shared/zones.mjs';
-import { gameWrites, joinGame } from '../../../shared/game-sync.mjs';
+import { gameWrites, joinGame, readPublic } from '../../../shared/game-sync.mjs';
 
 const $ = (id) => document.getElementById(id);
 const store = makeSafeStore();
@@ -69,6 +70,12 @@ function renderPlayers() {
 }
 
 // ---- your game ----
+// The card list (what the table knows of a card's type) is loaded once and shared by your game and the other players' boards.
+let lookupLoad = null;
+function lookupReady() {
+  lookupLoad ??= loadCardList().then((cards) => makeLookup(cards)).catch((error) => { lookupLoad = null; throw error; });
+  return lookupLoad;
+}
 let lookup = null;
 let game = null; // your game as you see it now
 let lastSaved = null; // the game as the database has it (null: nothing saved for this match yet)
@@ -239,7 +246,7 @@ async function beginGame() {
   begun = true;
   $('blocked').hidden = true;
   try {
-    lookup = makeLookup(await loadCardList());
+    lookup = await lookupReady();
   } catch {
     begun = false;
     showBlocked('The card list could not be loaded, so the table cannot tell lands from other cards. Check your connection and try again.', { link: false, retry: true });
@@ -289,6 +296,73 @@ function checkStart() {
   $('blocked').hidden = true;
 }
 
+// ---- other players' boards ----
+// Each other player's PUBLIC branch, drawn read-only: life, how many cards they hold, battlefield, command zone, graveyard and exile.
+// Their hand and library are not here to draw: only their counts are stored in the public branch, and the private branch is not readable.
+// Everything comes through readPublic, which drops anything that is not exactly a card (another player's browser wrote it).
+let publicAll = {}; // uid -> what that player's public branch holds now
+const opponents = new Map(); // uid -> the panel for that player, kept so card pictures are not loaded again
+
+function pileDetails(label) {
+  const details = make('details');
+  const summary = make('summary');
+  const list = make('ul', 'pile-list');
+  details.append(summary, list);
+  return { label, details, summary, list };
+}
+
+function opponentPanel(uid) {
+  let panel = opponents.get(uid);
+  if (panel) return panel;
+  const section = make('section', 'opponent');
+  section.dataset.uid = uid;
+  const lands = make('div', 'row'); lands.dataset.empty = 'No lands.';
+  const other = make('div', 'row'); other.dataset.empty = 'Nothing else.';
+  const command = make('div', 'row'); command.dataset.empty = 'Empty.';
+  const graveyard = pileDetails('Graveyard');
+  const exile = pileDetails('Exile');
+  panel = { section, title: make('h3'), stats: make('p', 'hint'), waiting: make('p', 'hint', 'Has not been dealt a game yet.'), body: make('div'), lands, other, command, graveyard, exile, nodes: makeCardNodes({ readOnly: true }) };
+  panel.body.append(make('h4', '', 'Lands'), lands, make('h4', '', 'Other permanents'), other, make('h4', '', 'Command zone'), command, graveyard.details, exile.details);
+  section.append(panel.title, panel.stats, panel.waiting, panel.body);
+  opponents.set(uid, panel);
+  return panel;
+}
+
+async function renderOpponents() {
+  const on = meta?.status === 'playing' && myUid !== null;
+  $('opponents').hidden = !on;
+  if (!on) return;
+  let known;
+  try { known = await lookupReady(); } catch { known = () => null; } // without the list every permanent shows in the "other" row
+  const others = Object.entries(members).filter(([uid]) => uid !== myUid).sort((a, b) => Number(a[1].seat) - Number(b[1].seat));
+  const panels = [];
+  for (const [uid, member] of others) {
+    const panel = opponentPanel(uid);
+    panel.title.textContent = `Seat ${member.seat}: ${member.name}`; // names are other people's text: put in as text, never as markup
+    // A public branch left over from an earlier match does not count: this match's game is the one with this match's number.
+    const view = publicAll[uid]?.match === meta.match ? readPublic(publicAll[uid], known) : null;
+    panel.waiting.hidden = view !== null;
+    panel.body.hidden = view === null;
+    panel.stats.hidden = view === null;
+    if (view) {
+      panel.stats.textContent = `Life ${view.life}. Hand: ${plural(view.counts.hand, 'card', 'cards')}. Library: ${plural(view.counts.library, 'card', 'cards')}.`;
+      panel.section.dataset.life = String(view.life);
+      const rows = battlefieldRows({ zones: { battlefield: view.zones.battlefield } });
+      panel.nodes.place(panel.lands, rows.lands);
+      panel.nodes.place(panel.other, rows.other);
+      panel.nodes.place(panel.command, view.zones.command);
+      for (const pile of [panel.graveyard, panel.exile]) {
+        const cards = view.zones[pile.label.toLowerCase()];
+        pile.summary.textContent = `${pile.label}: ${cards.length}`;
+        pile.list.replaceChildren(...cards.map((card) => make('li', undefined, card.n)));
+      }
+    }
+    panels.push(panel.section);
+  }
+  for (const [uid, panel] of opponents) if (!others.some(([other]) => other === uid)) { opponents.delete(uid); panel.section.remove(); }
+  $('opponent-list').replaceChildren(...panels);
+}
+
 // ---- starting the page ----
 async function start() {
   tableCode = tableCodeFromPath(location.pathname);
@@ -314,12 +388,15 @@ async function start() {
     renderMatchState();
     renderPlayers();
     checkStart();
+    renderOpponents();
   });
   watchMembers(tableCode, (value, error) => {
     if (!value) { members = {}; renderPlayers(); if (error) say('Lost sight of the table. It may have closed.', true); return; }
     members = value;
     renderPlayers();
+    renderOpponents();
   });
+  watchPublic(tableCode, (value) => { publicAll = value && typeof value === 'object' ? value : {}; renderOpponents(); });
   watchPresence(tableCode, (value) => { if (value) { presence = value; renderPlayers(); } });
   watchServerOffset((offset) => { serverOffset = offset; renderPlayers(); });
   watchConnection((connected) => {

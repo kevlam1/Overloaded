@@ -209,6 +209,17 @@ main.table { max-width: 80rem; }
 .saved-text { flex: 1 1 22rem; }
 .saved-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 
+/* Other players' boards on the table page: smaller cards you can look at but not move. */
+.opponent { border: 1px solid var(--line); border-radius: 0.5rem; padding: 0.75rem 1rem; margin-bottom: 1rem; }
+.opponent h3 { margin-top: 0; }
+.opponent h4 { margin: 0.75rem 0 0.25rem; font-size: 0.95rem; color: var(--muted); }
+.opponent .card { width: 4.4rem; height: 6.15rem; }
+.opponent .card.tapped { width: 6.15rem; }
+.opponent .card.tapped .face { width: 4.4rem; height: 6.15rem; }
+.opponent .card:disabled { cursor: default; opacity: 1; color: var(--text); }
+.opponent details { margin-top: 0.5rem; }
+.opponent .pile-list { max-height: 12rem; }
+
 /* The lobby: a ready mark and a deck line on each seat, and the "Choose a deck" popup (a native dialog, so Escape closes it). */
 .seat-deck { color: var(--muted); font-size: 0.9rem; }
 .ready-mark { font-weight: 600; }

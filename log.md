@@ -1639,6 +1639,29 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 80. Other players' boards on the table page (2026-10-30)
+
+**What I asked for**
+- I said to continue, which is step 3 of the table plan: see the other players' public cards live, with their hands hidden, and not be able to move their cards. Before that I asked whether the board layout is free to change; it is, and `docs/todo.md` now says the two automatic rows are only the first layout, with the options listed.
+
+**What changed**
+- `frontend/pages/table/index.html`, `table.js` and `frontend/src/style.css`: an "Other players" section. For each other player at the table it shows seat and name, life, how many cards they hold in hand and library (counts only), their battlefield in the same two rows, their command zone, and their graveyard and exile as lists you can open. The cards are read-only buttons (`makeCardNodes({ readOnly: true })`), so clicking does nothing. It updates live from `watchPublic`.
+- Everything comes through `readPublic` from `shared/game-sync.mjs`, which drops anything that is not exactly a card. A player's branch marked with another match's number (a game left over from an earlier match) is not shown; the panel says "Has not been dealt a game yet". The card list is now loaded once and shared by your game and the other players' boards.
+- `scripts/check-lobby-deck-live.mjs` is 60 checks (11 new).
+
+**What I checked**
+- Two real browsers on the real project: Bob's page shows Alice's board (life 35, one card on her battlefield, two in her command zone, hand 7, library 22, only those 3 cards on the page, all read-only) and Alice's page shows Bob's; when Alice gains a life Bob's page shows 36 without a refresh; nobody sees themselves in the list.
+- Bob's own account wrote a stale match number into his public branch: Alice's page showed "Has not been dealt a game yet". Then it wrote a battlefield holding a card whose name is an `<img onerror>` tag, a card with a markup id, a text value and a 5,000-character name: Alice's page showed only the one well-shaped card, put no markup in the page, ran no script, opened no dialog, and had the hostile name only as the card's label text.
+- I broke the match-number check in `table.js` on purpose and the live check failed on it; the file was restored identical.
+- `npm test`: all 33 suites passed. I looked at a desktop screenshot of the panel and deleted it. Phone width is not checked (on hold).
+- Not checked: more than two players on one table (the page lists every other seat, but only two browsers were used), the deployed site (nothing is pushed), and what a very large graveyard does to other players' downloads (on the todo).
+
+**Decisions**
+- Graveyard and exile are plain "open to see the names" lists, not card pictures, to keep the first version small; pictures can come with the card-by-card writes later.
+- Still open from the table plan: leave, concede and end-match buttons, and then the one batched rules change (zone size limits, the `lastSeen` deletion, `meta/format`) with one mutation run and one paste.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-10-30, entry 75) Claude wrote the "refuse to run when the backup exists" guard first and only then noticed that `mutate-rules.mjs` calls the same script while its own backup exists, so every mutation would have failed at once and looked like a kill. It caught this by reading the runner before running anything, and fixed it with the `MUTATION_RUN` flag. It also had listed the `lastSeen` deletion as an untested suspicion when a test for it already existed.
 

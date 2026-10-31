@@ -15,8 +15,8 @@ const API_KEY = process.env.FIREBASE_API_KEY ?? '';
 if (!DB || !API_KEY) { console.log('The Firebase settings are not in the environment. Run: node --env-file=.env scripts/check-lobby-deck-live.mjs'); process.exit(1); }
 const PORT = 5198;
 const PAGE = `http://127.0.0.1:${PORT}/pages/lobby/index.html`;
-const rest = async (method, path, token) => {
-  const response = await fetch(`${DB}/${path}.json?auth=${encodeURIComponent(token)}`, { method });
+const rest = async (method, path, token, body) => {
+  const response = await fetch(`${DB}/${path}.json?auth=${encodeURIComponent(token)}`, { method, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
   let json = null; try { json = await response.json(); } catch {}
   return { status: response.status, json };
 };
@@ -213,6 +213,46 @@ try {
   const lifeSaved = await waitFor(async () => (await rest('GET', pathOf('public/life'), cleanup.bob.token)).json === 35 ? true : null, 15000, 250);
   record('losing 5 life saves 35, and only the life changed', Boolean(lifeSaved) && (await text(alice, 'life')) === '35');
   record('the page says the moves are saved', Boolean(await waitFor(async () => (await text(alice, 'save-state')) === 'Saved.' ? true : null, 10000, 200)), await text(alice, 'save-state'));
+
+  // Other players' boards: each page shows the other player's PUBLIC cards, live and read-only (their hand and library only as counts).
+  const panelOf = (browser, name) => browser.eval(`(() => {
+    const panel = Array.from(document.querySelectorAll('#opponent-list .opponent')).find((p) => p.querySelector('h3').textContent.includes(${JSON.stringify(name)}));
+    if (!panel) return null;
+    const rows = panel.querySelectorAll('.row');
+    const cards = Array.from(panel.querySelectorAll('.card'));
+    return { life: panel.dataset.life, stats: panel.querySelector('p.hint').textContent, onBattlefield: rows[0].querySelectorAll('.card').length + rows[1].querySelectorAll('.card').length, inCommandZone: rows[2].querySelectorAll('.card').length, allCards: cards.length, allReadOnly: cards.every((c) => c.disabled), heading: panel.querySelector('h3').textContent };
+  })()`);
+  const bobSeesAliceBoard = await waitFor(async () => { const p = await panelOf(bob, 'Alice'); return p && p.life === '35' && p.onBattlefield === 1 ? p : null; }, 30000, 250);
+  record("Bob's page shows Alice's board live: life 35, one card on her battlefield, two in her command zone", Boolean(bobSeesAliceBoard) && bobSeesAliceBoard.inCommandZone === 2, JSON.stringify(bobSeesAliceBoard ?? await panelOf(bob, 'Alice')));
+  record("...and how many cards she holds, but not which: hand 7 and library 22", /Hand: 7 cards. Library: 22 cards./.test(bobSeesAliceBoard?.stats ?? ''), bobSeesAliceBoard?.stats);
+  record("...and only her public cards are on his page (the battlefield and the command zone: 3 cards), all of them read-only", bobSeesAliceBoard?.allCards === 3 && bobSeesAliceBoard.allReadOnly === true, JSON.stringify(bobSeesAliceBoard));
+  record("...with her name and seat as a heading", /^Seat 1: Alice/.test(bobSeesAliceBoard?.heading ?? ''));
+  const aliceSeesBobBoard = await waitFor(async () => { const p = await panelOf(alice, 'Bob'); return p && p.life === '40' && p.inCommandZone === 1 ? p : null; }, 30000, 250);
+  record("Alice's page shows Bob's board too: life 40, his commander in the command zone, hand 7", Boolean(aliceSeesBobBoard) && /Hand: 7 cards/.test(aliceSeesBobBoard.stats), JSON.stringify(aliceSeesBobBoard ?? await panelOf(alice, 'Bob')));
+  record("...and nobody sees themselves in the list of other players", (await panelOf(alice, 'Alice')) === null && (await panelOf(bob, 'Bob')) === null);
+  await click(alice, 'life-plus1');
+  const liveUpdate = await waitFor(async () => { const p = await panelOf(bob, 'Alice'); return p && p.life === '36' ? p : null; }, 20000, 250);
+  record("when Alice gains a life, Bob's page shows 36 without a refresh", Boolean(liveUpdate));
+  await click(alice, 'life-minus1'); // back to 35 for the refresh checks below
+  await waitFor(async () => (await panelOf(bob, 'Alice'))?.life === '35' ? true : null, 20000, 250);
+  if (process.argv.includes('--screenshot')) { await bob.eval(`document.getElementById('opponents').scrollIntoView()`); await sleep(400); await bob.screenshot('scratch-table-opponent.png'); }
+
+  // A stale or hostile public branch cannot make another player's page show anything it should not. Bob's own account writes the
+  // data (the rules let a player write their own public branch), and Alice's page must cope with it.
+  const bobPublic = `tables/${code}/public/${cleanup.bob.uid}`;
+  await rest('PUT', `${bobPublic}/match`, cleanup.bob.token, 99);
+  const staleHidden = await waitFor(async () => {
+    const state = await alice.eval(`(() => { const p = Array.from(document.querySelectorAll('#opponent-list .opponent')).find((x) => x.querySelector('h3').textContent.includes('Bob')); if (!p) return null; const waiting = Array.from(p.querySelectorAll('p.hint')).find((x) => x.textContent.startsWith('Has not been dealt')); return { bodyHidden: p.querySelector('div').hidden, waitingShown: !waiting.hidden }; })()`);
+    return state && state.bodyHidden && state.waitingShown ? state : null;
+  }, 15000, 250);
+  record("a branch marked with another match's number is not shown as this match's board ('Has not been dealt a game yet')", Boolean(staleHidden));
+  await rest('PUT', `${bobPublic}/match`, cleanup.bob.token, 1);
+  await rest('PUT', `${bobPublic}/battlefield`, cleanup.bob.token, [{ u: 'c900', i: uuid(1), n: '<img src=x onerror=alert(1)>' }, { u: 'c901', i: '"><img src=x onerror=alert(2)>', n: 'Bad id' }, 'junk', { u: 'c902', i: uuid(1), n: 'x'.repeat(5000) }]);
+  const hostileShown = await waitFor(async () => { const p = await panelOf(alice, 'Bob'); return p && p.onBattlefield === 1 ? p : null; }, 15000, 250);
+  record('a hostile public branch: only the one well-shaped card is shown; the bad id, the junk and the 5,000-character name are dropped', Boolean(hostileShown), JSON.stringify(await panelOf(alice, 'Bob')));
+  record("...and no markup from a name or an id became part of Alice's page, no script ran and no dialog opened", (await alice.eval(`document.querySelectorAll('#opponent-list img[src="x"], #opponent-list script').length`)) === 0 && alice.dialogs.length === 0 && !alice.logs.some((l) => /^exception:/.test(l)));
+  record("the hostile name is on the page as plain text only (in the card's label)", (await alice.eval(`Array.from(document.querySelectorAll('#opponent-list .card')).some((c) => c.getAttribute('aria-label') === '<img src=x onerror=alert(1)>')`)) === true);
+  await rest('DELETE', `${bobPublic}/battlefield`, cleanup.bob.token);
 
   const handBeforeRefresh = Object.values((await rest('GET', pathOf('private/hand'), cleanup.alice.token)).json).map((card) => card.u).sort().join();
   await alice.goto(`http://127.0.0.1:${PORT}/table/${code}`);
