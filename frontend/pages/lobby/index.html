@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Overloaded: lobby</title>
     <link rel="icon" href="data:,">
-    <link rel="stylesheet" href="../../src/style.css">
+    <!-- Root-based paths, not ./ ones: this page is also served at /lobby/CODE, where a relative path would point into /lobby/. -->
+    <link rel="stylesheet" href="/src/style.css">
   </head>
   <body>
     <main>
@@ -111,6 +112,6 @@
       <p>Overloaded is unofficial Fan Content permitted under the Fan Content Policy. Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. &copy;Wizards of the Coast LLC.</p>
     </footer>
 
-    <script type="module" src="./lobby.js"></script>
+    <script type="module" src="/pages/lobby/lobby.js"></script>
   </body>
 </html>

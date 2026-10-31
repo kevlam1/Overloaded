@@ -40,11 +40,12 @@ export default defineConfig(({ command, mode }) => {
       },
     },
     plugins: [{
-      // On Vercel /table/CODE is rewritten to the table page (vercel.json); the dev server needs the same rule.
+      // On Vercel /table/CODE and /lobby/CODE are rewritten to their pages (vercel.json); the dev server needs the same rules.
       name: 'overloaded-dev-rewrites',
       configureServer(server) {
         server.middlewares.use((request, _response, next) => {
-          if (/^\/table\/[^/?#]+\/?(\?|#|$)/.test(request.url ?? '')) request.url = '/pages/table/index.html';
+          const match = /^\/(table|lobby)\/[^/?#]+\/?(\?|#|$)/.exec(request.url ?? '');
+          if (match) request.url = `/pages/${match[1]}/index.html`;
           next();
         });
       },

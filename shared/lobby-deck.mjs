@@ -36,6 +36,9 @@ const bracketOf = (member) => (BRACKETS.includes(member?.bracket) ? member.brack
 // Ready means ready for THIS match: a mark from an earlier match (a number) does not count.
 export const isReady = (member, meta) => Number.isInteger(meta?.match) && member?.ready === meta.match;
 
+// Conceded THIS match: the member's mark is the match number, so a mark from an earlier match does not count (like isReady).
+export const hasConceded = (member, meta) => Number.isInteger(meta?.match) && member?.conceded === meta.match;
+
 // What a seat shows beside the name: the commander(s) and the bracket (with "guess" when the table guessed it), or '' when
 // the player has told the table nothing about a deck.
 export function seatDeckText(member) {

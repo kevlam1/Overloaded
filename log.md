@@ -1662,6 +1662,30 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 81. Concede, end the match and leave, on the table page (2026-10-30)
+
+**What I asked for**
+- I said to commit and continue, which is step 4 of the table plan: buttons for conceding, ending the match and leaving, and what happens when the match ends. The flow functions already existed in `shared/table-ops.mjs` but no page used them.
+
+**What changed**
+- `frontend/pages/table/index.html` and `table.js`: Concede (anyone), End the match (the host only) and Leave the table, shown while the match is on, each behind a `confirm` popup (a placeholder, like the new-table warning). A player who conceded shows as "(conceded)" in the seat list and their Concede button is off; it is a mark for the table and changes nothing in the game. When the host ends the match, every table page takes its player back to `/lobby/CODE`. Leave sends you to the start page; mid-match your seat is kept for you.
+- `shared/lobby-deck.mjs`: `hasConceded(member, meta)` (a concession counts only for this match), 5 new checks (38 in `scripts/test-lobby-deck.mjs`).
+- `frontend/pages/lobby/index.html` uses root-based file paths now, and `vite.config.js`'s dev rewrite covers `/lobby/CODE` as well as `/table/CODE`. The same trap as the table page: from `/lobby/CODE` a relative `./lobby.js` points into `/lobby/`. Production builds were fine; the dev server and my live check were not.
+- `scripts/check-lobby-deck-live.mjs` is 75 checks (15 new).
+
+**What I checked**
+- Two real browsers on the real project: the host alone sees End the match, everyone sees Concede and Leave; Bob concedes and Alice's page shows "(conceded)" with his match number in the database; the host ends the match and both browsers go back to the lobby on their own, the database says lobby and match 2, nobody is ready (the marks were for match 1); both ready again with the decks they brought (remembered, no popup), Start, and the second match deals Alice a NEW game (life 40 again, not the 35 she left, "hand is dealt", marked match 2, and Bob's page shows her old battlefield card gone); Bob leaves (his entry goes, his seat is kept); Alice, the last one, leaves and the table is gone.
+- Two broken copies of `table.js` against the live check, both caught and the file restored identical: no redirect when the match ends, and restoring the old game in a new match.
+- `npm run test:live`: all 40 suites passed. I looked at a desktop screenshot of the buttons and deleted it. Phone width is not checked (on hold).
+- Not checked: a player who leaves mid-match and comes back by code in a real browser, the host leaving while others stay (tested in the emulator earlier, not in a browser), more than two players, and the deployed site (nothing is pushed).
+
+**Decisions**
+- The popups are `confirm()` placeholders for now. A designed popup (and a "the host ended the match" line before the lobby loads) is on the todo.
+- While checking I found that `claimHostSlot` is not called by any page: after a host leaves mid-match and the table is handed on, the new host never takes their one-table slot. It only affects the one-table-per-host limit, not play. On the todo, not fixed here.
+- Next: the one batched rules change (size and shape limits on `public` and `private`, the `lastSeen` deletion fix, the `meta/format` question), then one full mutation run, your paste, and `npm run test:live`. After that the board layout options, the Stack research, and a real four-player try.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-10-30, entry 75) Claude wrote the "refuse to run when the backup exists" guard first and only then noticed that `mutate-rules.mjs` calls the same script while its own backup exists, so every mutation would have failed at once and looked like a kill. It caught this by reading the runner before running anything, and fixed it with the `MUTATION_RUN` flag. It also had listed the `lastSeen` deletion as an untested suspicion when a test for it already existed.
 

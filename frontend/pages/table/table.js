@@ -3,14 +3,14 @@
 // (shared/game-sync.mjs): your hand and library in your private branch (nobody else can read it), the rest in your public one.
 // A refresh puts you back at the game you left. Other players' boards are shown beside it, live and read-only (their public
 // zones only: shared/game-sync.mjs readPublic). All database calls live in ../../src/db.js.
-import { rejoinTable, watchMembers, watchMeta, watchPresence, watchServerOffset, watchConnection, startPresence, heartbeat, watchActivity, saveGame, loadGame, watchPublic } from '../../src/db.js';
+import { rejoinTable, watchMembers, watchMeta, watchPresence, watchServerOffset, watchConnection, startPresence, heartbeat, watchActivity, saveGame, loadGame, watchPublic, concede, endMatch, leaveTable } from '../../src/db.js';
 import { startKeepAlive } from '../../src/keep-alive.js';
 import { makeSafeStore } from '../../src/safe-store.js';
 import { loadCardList } from '../../src/card-list.js';
 import { makeCardNodes } from '../../src/card-nodes.js';
 import { presenceStatus, presenceText, ownConnectionText } from '../../../shared/presence.mjs';
 import { tableCodeFromPath } from '../../../shared/lobby-link.mjs';
-import { seatDeckText, defaultDeckFor } from '../../../shared/lobby-deck.mjs';
+import { seatDeckText, defaultDeckFor, hasConceded } from '../../../shared/lobby-deck.mjs';
 import { LIBRARY_KEY, LEGACY_KEY, readLibrary } from '../../../shared/deck-library.mjs';
 import { makeLookup } from '../../../shared/card-lookup.mjs';
 import { friendlyMessage } from '../../../shared/friendly-error.mjs';
@@ -56,7 +56,7 @@ function renderPlayers() {
   for (const [uid, member] of Object.entries(members).sort((a, b) => Number(a[1].seat) - Number(b[1].seat))) {
     const item = document.createElement('li');
     const deckText = seatDeckText(member);
-    item.textContent = `Seat ${member.seat}: ${member.name}${uid === host ? ' (host)' : ''}${deckText ? `, ${deckText}` : ''}`;
+    item.textContent = `Seat ${member.seat}: ${member.name}${uid === host ? ' (host)' : ''}${deckText ? `, ${deckText}` : ''}${hasConceded(member, meta) ? ' (conceded)' : ''}`;
     item.dataset.uid = uid;
     const words = presenceText(presenceStatus(presence[uid], now));
     if (words) {
@@ -67,6 +67,10 @@ function renderPlayers() {
     }
     list.append(item);
   }
+  // The match buttons: only while the match is on; only the host can end it; a concession cannot be taken back.
+  $('match-actions').hidden = meta?.status !== 'playing' || myUid === null;
+  $('end-match').hidden = host !== myUid;
+  $('concede').disabled = hasConceded(members[myUid], meta);
 }
 
 // ---- your game ----
@@ -294,6 +298,8 @@ function checkStart() {
   game = null;
   $('game').hidden = true;
   $('blocked').hidden = true;
+  // The match is over (the host ended it): everyone goes back to the lobby to get ready for the next one.
+  if (meta.status === 'lobby') location.assign(`/lobby/${tableCode}`);
 }
 
 // ---- other players' boards ----
@@ -406,6 +412,25 @@ async function start() {
   });
   setInterval(renderPlayers, 10000); // "Reconnecting..." turns into "Disconnected" with time
 }
+
+// ---- the match: concede, end it (host), leave ----
+async function act(task) {
+  try { await task(); } catch (error) { say(friendlyMessage(error), true); }
+}
+$('concede').addEventListener('click', () => act(async () => {
+  if (!confirm('Concede this match? It cannot be taken back. The table will see that you conceded, and you can still look at the table.')) return;
+  await concede(tableCode);
+  say('You conceded this match.');
+}));
+$('end-match').addEventListener('click', () => act(async () => {
+  if (!confirm('End the match for everyone? Everyone goes back to the lobby, and the games on the table are not kept.')) return;
+  await endMatch(tableCode); // the table's status changes and every table page takes its player back to the lobby
+}));
+$('leave').addEventListener('click', () => act(async () => {
+  if (!confirm('Leave the table? During a match your seat is kept for you until it ends, so you can come back with the table code.')) return;
+  await leaveTable(tableCode);
+  location.assign('/');
+}));
 
 // ---- wiring ----
 $('draw').addEventListener('click', () => { if (game) drawOne(); });

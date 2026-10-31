@@ -1,6 +1,6 @@
 // Tests for shared/lobby-deck.mjs: what the lobby sends for a saved deck, which deck it offers, and what a seat shows.
 import { emptyLibrary, addDeck } from '../shared/deck-library.mjs';
-import { deckFieldsOf, defaultDeckFor, deckChoiceLabel, isReady, seatDeckText } from '../shared/lobby-deck.mjs';
+import { deckFieldsOf, defaultDeckFor, deckChoiceLabel, isReady, hasConceded, seatDeckText } from '../shared/lobby-deck.mjs';
 
 let checks = 0;
 const fail = (label, detail) => { console.log(`FAILED CHECK: ${label}: ${detail}`); process.exit(1); };
@@ -61,6 +61,13 @@ same('a mark of true is not ready', isReady({ ready: true }, { match: 1 }), fals
 same('a text mark is not ready', isReady({ ready: '1' }, { match: 1 }), false);
 same('without the table\'s match number nobody is ready', [isReady({ ready: 1 }, {}), isReady({ ready: 1 }, null), isReady({ ready: undefined }, { match: undefined })], [false, false, false]);
 same('no member is not ready', [isReady(null, { match: 1 }), isReady(undefined, { match: 1 })], [false, false]);
+
+// ---- hasConceded ----
+same('conceded this match', hasConceded({ conceded: 2 }, { match: 2 }), true);
+same('a concession from an earlier match does not count', hasConceded({ conceded: 1 }, { match: 2 }), false);
+same('no mark is not conceded', hasConceded({}, { match: 1 }), false);
+same('a mark of true or text is not conceded', [hasConceded({ conceded: true }, { match: 1 }), hasConceded({ conceded: '1' }, { match: 1 })], [false, false]);
+same('without the match number nobody has conceded (two undefined values must not match)', [hasConceded({ conceded: 1 }, {}), hasConceded({}, {}), hasConceded({ conceded: 1 }, null), hasConceded(null, { match: 1 })], [false, false, false, false]);
 
 // ---- seatDeckText ----
 same('a commander and a bracket', seatDeckText({ commander: 'Krenko, Mob Boss', bracket: 3 }), 'Krenko, Mob Boss, bracket 3');

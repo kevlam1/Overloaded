@@ -20,6 +20,12 @@
         <h2 id="players-heading">At the table</h2>
         <p id="match-state"></p>
         <ul id="players"></ul>
+        <div id="match-actions" class="actions" role="group" aria-label="The match" hidden>
+          <button id="concede" type="button" class="secondary">Concede</button>
+          <button id="end-match" type="button" class="secondary" hidden>End the match</button>
+          <button id="leave" type="button" class="secondary">Leave the table</button>
+        </div>
+        <p class="hint">Play is casual: conceding is a sign to the table, it does not stop you from looking. Only the host can end the match for everyone. If you leave during a match your seat is kept for you until it ends.</p>
       </section>
 
       <section id="opponents" aria-labelledby="opponents-heading" hidden>

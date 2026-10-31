@@ -266,6 +266,48 @@ try {
   const afterRefresh2 = await tableRows(bob);
   record('a refresh of the table page keeps Bob at the table', Boolean(afterRefresh2));
 
+  // The match buttons: concede, end the match (host only), leave. Then a second match deals a NEW game (the old one is not restored).
+  const shown = (browser, id) => browser.eval(`(() => { const e = document.getElementById(${JSON.stringify(id)}); return Boolean(e) && !e.hidden && !e.closest('[hidden]'); })()`);
+  const pathIs = (browser, path) => waitFor(async () => (await browser.eval('location.pathname')) === path ? true : null, 25000, 200);
+  const buttonsReady = await waitFor(async () => (await shown(alice, 'end-match')) && (await shown(bob, 'concede')) ? true : null, 30000, 200);
+  record('during the match every player sees Concede and Leave, and only the host sees End the match', Boolean(buttonsReady) && (await shown(alice, 'concede')) && (await shown(alice, 'leave')) && (await shown(bob, 'leave')) && !(await shown(bob, 'end-match')));
+  if (process.argv.includes('--screenshot')) { await alice.eval(`window.scrollTo(0, 0)`); await sleep(300); await alice.screenshot('scratch-match-buttons.png'); }
+  await click(bob, 'concede'); // the page asks first; the test browser says yes
+  const conceded = await waitFor(async () => (await players(alice)).some((t) => t.includes('Bob') && t.includes('(conceded)')) ? true : null, 20000, 250);
+  record("Bob concedes: Alice's page shows him as conceded, the database has his match number, and his own button is off", Boolean(conceded) && (await rest('GET', `tables/${code}/members/${cleanup.bob.uid}/conceded`, cleanup.alice.token)).json === 1 && (await bob.eval(`document.getElementById('concede').disabled`)) === true);
+  record("...and Alice, who did not concede, is not marked", !(await players(alice)).some((t) => t.includes('Alice') && t.includes('(conceded)')));
+
+  await click(alice, 'end-match');
+  record("the host ends the match: Alice's page goes back to the lobby", Boolean(await pathIs(alice, `/lobby/${code}`)));
+  record("...and so does Bob's, without pressing anything", Boolean(await pathIs(bob, `/lobby/${code}`)));
+  const lobbyAgain = await waitFor(async () => { const m = (await rest('GET', `tables/${code}/meta`, cleanup.alice.token)).json; return m?.status === 'lobby' && m.match === 2 ? m : null; }, 15000, 250);
+  record('the database says lobby, match 2', Boolean(lobbyAgain), JSON.stringify(lobbyAgain));
+  const lobbyRows = await waitFor(async () => { const r = await players(alice); return r.length === 2 && r.every((t) => !t.includes('Ready')) ? r : null; }, 20000, 250);
+  record('back in the lobby both players are still seated and nobody is ready (the marks were for match 1)', Boolean(lobbyRows), JSON.stringify(await players(alice)));
+
+  await click(alice, 'ready');
+  await rowHas(alice, 'Alice', 'Ready');
+  await click(bob, 'ready');
+  await rowHas(bob, 'Bob', 'Ready');
+  const canStartAgain = await waitFor(async () => (await startState(alice)).disabled === false ? true : null, 20000, 250);
+  record('both ready again with the decks they brought (remembered, no popup) and the host can start', Boolean(canStartAgain) && !(await dialogOpen(alice)) && !(await dialogOpen(bob)));
+  await click(alice, 'start');
+  await pathIs(alice, `/table/${code}`);
+  await pathIs(bob, `/table/${code}`);
+  const freshDeal = await waitFor(async () => (await count(alice, '#hand .card')) === 7 && (await text(alice, 'life')) === '40' ? true : null, 40000, 250);
+  record('the second match deals Alice a NEW game: 7 cards and life 40 again (not the life 35 she left), and says the hand is dealt', Boolean(freshDeal) && /dealt/i.test(await text(alice, 'deck-line')) && !/back/i.test(await text(alice, 'deck-line')), `${await text(alice, 'life')} / ${await text(alice, 'deck-line')}`);
+  const secondMatch = await waitFor(async () => (await rest('GET', `${pathOf('public')}/match`, cleanup.bob.token)).json === 2 ? true : null, 20000, 250);
+  record("...and her saved game is marked as match 2 in the database", Boolean(secondMatch));
+  record("...and Bob's page does not show Alice's match-1 board as hers (her old battlefield card is gone)", Boolean(await waitFor(async () => { const p = await panelOf(bob, 'Alice'); return p && p.life === '40' && p.onBattlefield === 0 ? p : null; }, 20000, 250)));
+
+  await click(bob, 'leave');
+  record('Bob leaves: his browser goes to the start page', Boolean(await pathIs(bob, '/')));
+  const bobGone = await waitFor(async () => (await rest('GET', `tables/${code}/members/${cleanup.bob.uid}`, cleanup.alice.token)).json === null ? true : null, 15000, 250);
+  record("his entry is gone from the table but his seat is kept for him while the match is on", Boolean(bobGone) && (await rest('GET', `tables/${code}/seats/2`, cleanup.alice.token)).json === cleanup.bob.uid);
+  record("Alice's page lists only Alice now", Boolean(await waitFor(async () => { const r = await players(alice); return r.length === 1 && r[0].includes('Alice') ? true : null; }, 15000, 250)));
+  await click(alice, 'leave');
+  record('Alice, the last one, leaves: her browser goes to the start page and the table is gone', Boolean(await pathIs(alice, '/')) && Boolean(await waitFor(async () => { const r = await rest('GET', `tables/${code}/meta`, cleanup.alice.token); return r.json === null || r.status === 401 ? true : null; }, 15000, 250)));
+
   record('no page errors on either page', !alice.logs.some((l) => /^exception:/.test(l)) && !bob.logs.some((l) => /^exception:/.test(l)), [...alice.logs, ...bob.logs].filter((l) => /^exception:/.test(l)).join(' | '));
 } catch (error) {
   record('the check script itself ran without an error', false, error.message); exitCode = 1;
