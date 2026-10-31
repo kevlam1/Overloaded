@@ -11,13 +11,16 @@
   <body>
     <main>
       <h1>Overloaded (BETA)</h1>
-      <p class="lede">Make a table, or join your friends' table with its code.</p>
-      <p class="hint"><a href="/deck">Import a deck</a> from Moxfield, Archidekt or ManaBox, then <a href="/solo">play it alone</a> at the solo table.</p>
+      <div id="intro">
+        <p class="lede">Make a table, or join your friends' table with its code.</p>
+        <p class="hint"><a href="/deck">Import a deck</a> from Moxfield, Archidekt or ManaBox, then <a href="/solo">play it alone</a> at the solo table.</p>
+        <p id="resume" class="hint" hidden>You are at table <strong id="resume-code"></strong>. <a id="resume-link" href="/">Go to your table</a></p>
+      </div>
 
       <p id="status" class="status" role="status" aria-live="polite"></p>
       <div id="banner" class="banner" role="status" aria-live="polite" hidden></div>
 
-      <section aria-labelledby="who-heading">
+      <section id="who" aria-labelledby="who-heading">
         <h2 id="who-heading">Who are you?</h2>
         <div class="field">
           <label for="name">Your name at the table</label>
@@ -25,7 +28,7 @@
         </div>
       </section>
 
-      <section aria-labelledby="create-heading">
+      <section id="make-section" aria-labelledby="create-heading">
         <h2 id="create-heading">Make a table</h2>
         <div class="row">
           <div class="field">
@@ -48,7 +51,7 @@
         <p class="hint">Four seats is a Commander table. Play is casual: the format decides which of your saved decks you can bring, and deck sizes are only hints.</p>
       </section>
 
-      <section aria-labelledby="join-heading">
+      <section id="join-section" aria-labelledby="join-heading">
         <h2 id="join-heading">Join a table</h2>
         <div class="row">
           <div class="field">
@@ -56,6 +59,15 @@
             <input id="join-code" name="code" type="text" maxlength="9" autocomplete="off" autocapitalize="characters" spellcheck="false" inputmode="text">
           </div>
           <button id="join" type="button">Join</button>
+        </div>
+      </section>
+
+      <section id="room-join" aria-labelledby="room-join-heading" hidden>
+        <h2 id="room-join-heading">Join table <span id="room-join-code" class="code"></span></h2>
+        <p>Type your name above, then join. If this browser has a name saved, you are joined straight away.</p>
+        <div class="actions">
+          <button id="room-join-button" type="button">Join this table</button>
+          <a class="button-link" href="/">Back to the start page</a>
         </div>
       </section>
 
@@ -74,7 +86,104 @@
           <select id="deck-pick" name="deck-pick"></select>
         </div>
         <p id="deck-note" class="hint"></p>
-        <p id="deck-import" class="hint" hidden><a href="/deck">Import a deck</a>, then come back to this table. Your seat is kept.</p>
+        <p id="deck-import" class="hint" hidden>You have no saved deck for this format. <button id="deck-import-open" type="button" class="secondary">Import a deck here</button></p>
+        <div class="actions">
+          <button id="open-importer" type="button" class="secondary" aria-expanded="false" aria-controls="deck-importer">Import or change a deck</button>
+        </div>
+        <section id="deck-importer" aria-labelledby="importer-heading" hidden>
+          <h3 id="importer-heading">Import or change a deck</h3>
+          <p id="importer-status" class="status" role="status" aria-live="polite"></p>
+          <section id="saved" aria-labelledby="saved-heading" hidden>
+            <h3 id="saved-heading">Your saved decks</h3>
+            <p id="saved-summary"></p>
+            <ul id="saved-list" class="saved-list"></ul>
+            <div class="actions">
+              <a class="button-link" href="/solo">Play the selected deck at the solo table</a>
+            </div>
+          </section>
+
+          <section aria-labelledby="paste-heading">
+            <h3 id="paste-heading">Paste your list</h3>
+            <div class="field">
+              <label for="deck-text">Decklist</label>
+              <textarea id="deck-text" name="deck-text" rows="12" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
+            </div>
+            <div class="actions">
+              <button id="check" type="button" disabled>Check deck</button>
+              <button id="clear" type="button" class="secondary">Clear</button>
+              <button id="sample" type="button" class="secondary" disabled>Try a sample deck</button>
+            </div>
+            <p id="list-state" class="hint">Loading the card list...</p>
+            <button id="retry" type="button" class="secondary" hidden>Try again</button>
+            <p id="storage-hint" class="hint" hidden>Your browser is not letting this page save anything, so a deck cannot be kept after you leave.</p>
+          </section>
+
+          <section id="preview" aria-labelledby="preview-heading" hidden>
+            <h3 id="preview-heading" tabindex="-1">Your deck</h3>
+            <p id="summary"></p>
+            <ul id="notices" class="notices"></ul>
+
+            <div id="problems" hidden>
+              <h4>Needs attention</h4>
+              <ul id="problem-list" class="problems"></ul>
+            </div>
+
+            <div id="sections"></div>
+
+            <div class="field format-field">
+              <label for="deck-format">Format</label>
+              <select id="deck-format" name="deck-format">
+                <option value="commander">Commander</option>
+                <option value="standard">Standard</option>
+              </select>
+            </div>
+
+            <div class="field" id="bracket-field">
+              <label for="deck-bracket">Bracket (optional)</label>
+              <select id="deck-bracket" name="deck-bracket">
+                <option value="">Not set</option>
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+              </select>
+              <p class="hint">How strong the deck is, for the table to see next to your commander.</p>
+            </div>
+
+            <fieldset id="commander-box">
+              <legend>Commander</legend>
+              <div class="field">
+                <label for="commander-1">Commander</label>
+                <select id="commander-1" name="commander-1"></select>
+              </div>
+              <div class="field">
+                <label for="commander-2">Partner or second commander (optional)</label>
+                <select id="commander-2" name="commander-2"></select>
+              </div>
+              <p id="commander-note" class="hint"></p>
+            </fieldset>
+
+            <div id="save-box">
+              <div class="field">
+                <label for="deck-name">Deck name</label>
+                <input id="deck-name" name="deck-name" type="text" maxlength="60" autocomplete="off" spellcheck="false">
+              </div>
+              <div class="choice" id="missing-box" hidden>
+                <input id="allow-missing" type="checkbox">
+                <label for="allow-missing" id="allow-missing-label">Save without the lines that were not matched</label>
+              </div>
+              <div class="actions">
+                <button id="save" type="button">Save deck</button>
+              </div>
+              <p id="save-note" class="hint" hidden>Saving a deck with the same name replaces that deck. You can keep up to 20 decks.</p>
+            </div>
+          </section>
+        <div id="card-peek" class="card-peek" hidden aria-hidden="true">
+          <img id="card-peek-image" alt="" width="488" height="680" decoding="async" referrerpolicy="no-referrer">
+          <p id="card-peek-note" class="card-peek-note"></p>
+        </div>
+        </section>
         <div class="actions">
           <button id="ready" type="button">Ready</button>
         </div>
@@ -85,6 +194,10 @@
           <div class="actions">
             <button id="start" type="button">Start the match</button>
           </div>
+        </div>
+
+        <div class="actions">
+          <button id="leave-table" type="button" class="secondary">Leave the table</button>
         </div>
 
         <p id="take-over-note" class="hint" hidden>The host has been gone for over 5 minutes. The table carries on without them, but only a host can start or end a match. You can take it over.</p>
@@ -100,7 +213,7 @@
           <label for="deck-dialog-pick">Deck</label>
           <select id="deck-dialog-pick" name="deck-dialog-pick"></select>
         </div>
-        <p id="deck-dialog-import" class="hint" hidden><a href="/deck">Import a deck</a> first. Your seat is kept.</p>
+        <p id="deck-dialog-import" class="hint" hidden><button id="deck-dialog-import-open" type="button" class="secondary">Import a deck here</button></p>
         <div class="actions">
           <button id="deck-dialog-ok" type="submit" value="ok">Use this deck and get ready</button>
           <button id="deck-dialog-cancel" type="submit" value="cancel" class="secondary">Cancel</button>

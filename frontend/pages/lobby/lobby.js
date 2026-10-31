@@ -1,5 +1,7 @@
-// The lobby page: make a table or join one by code. All database calls live in ../../src/db.js.
-import { createTable, joinTable, rejoinTable, findMyTable, watchMembers, heartbeat, watchActivity, watchMeta, watchServerOffset, startPresence, watchPresence, watchConnection, takeOverHost, setDeck, setReady, clearReady, startMatch } from '../../src/db.js';
+// The lobby page. It has two screens, chosen by the address: the start page (/) where you make a table or type a code to join one,
+// and a table's own screen (/lobby/CODE) with only that table: joining it (one button, or no click at all when this browser has a
+// saved name), the seats, your deck, Ready and Start. All database calls live in ../../src/db.js.
+import { createTable, joinTable, rejoinTable, findMyTable, watchMembers, heartbeat, watchActivity, watchMeta, watchServerOffset, startPresence, watchPresence, watchConnection, takeOverHost, setDeck, setReady, clearReady, startMatch, leaveTable } from '../../src/db.js';
 import { presenceStatus, presenceText, ownConnectionText, hostIsGone } from '../../../shared/presence.mjs';
 import { startKeepAlive } from '../../src/keep-alive.js';
 import { makeSafeStore } from '../../src/safe-store.js';
@@ -56,6 +58,20 @@ function say(message, isError = false) {
 function busy(isBusy) {
   createButton.disabled = isBusy;
   joinButton.disabled = isBusy;
+  $('room-join-button').disabled = isBusy;
+}
+
+// Which screen shows: 'start' (make a table, join by code), 'room-join' (a table's address, you are not at it yet) or 'room' (you are
+// at the table). The name box is shared: it is on the start screen and on the join screen, not once you are at the table.
+function setScreen(screen) {
+  $('intro').hidden = screen !== 'start';
+  $('who').hidden = screen === 'room';
+  $('make-section').hidden = screen !== 'start';
+  $('join-section').hidden = screen !== 'start';
+  $('room-join').hidden = screen !== 'room-join';
+  $('table').hidden = screen !== 'room';
+  // The table's screen is wider (the seats, and the deck importer's columns need the room).
+  for (const element of [document.querySelector('main'), document.querySelector('footer')]) element.classList.toggle('wide', screen === 'room');
 }
 
 // Who has the table open: see shared/presence.mjs. The list is drawn from three things that change on their own (the
@@ -278,11 +294,37 @@ $('start').addEventListener('click', () => run(async () => {
   await startMatch(currentCode); // the table's status changes, and watchMeta above takes everyone to the table page
 }));
 
+// ---- importing or changing a deck without leaving the table ----
+// The importer is the same module the /deck page uses (frontend/src/deck-importer.js). It is loaded only when it is first opened, because
+// it brings the card list with it. After a deck is saved or deleted it tells us, and the deck picker is drawn again.
+let importerMounted = false;
+async function openImporter() {
+  const panel = $('deck-importer');
+  panel.hidden = false;
+  $('open-importer').setAttribute('aria-expanded', 'true');
+  if (!importerMounted) {
+    importerMounted = true;
+    const { mountDeckImporter } = await import('../../src/deck-importer.js');
+    mountDeckImporter({ statusId: 'importer-status', backLink: false, onLibraryChange: () => refreshDeckPicker() });
+  }
+  panel.scrollIntoView({ block: 'nearest' });
+}
+$('open-importer').addEventListener('click', () => {
+  if ($('deck-importer').hidden) { openImporter(); return; }
+  $('deck-importer').hidden = true; // closing it keeps what was typed: the importer is only hidden
+  $('open-importer').setAttribute('aria-expanded', 'false');
+});
+$('deck-import-open').addEventListener('click', () => openImporter());
+$('deck-dialog-import-open').addEventListener('click', () => { $('deck-dialog').close(); openImporter(); });
+
 // A deck may be imported in another tab while this one is open: look again when this tab comes back.
 document.addEventListener('visibilitychange', () => { if (!document.hidden && currentCode && currentMeta) refreshDeckPicker(); });
 
 function show(table) {
-  $('table').hidden = false;
+  setScreen('room');
+  // The address bar shows the table you are at, so it can be copied and shared. Making or joining a table from the start page moves
+  // the address to /lobby/CODE without reloading (the Back button then reloads the start page, see the popstate handler below).
+  if (codeFromPath(location.pathname) !== table.code) history.pushState(null, '', `/lobby/${table.code}`);
   $('code').textContent = table.code;
   $('link').textContent = linkForCode(location.origin, table.code);
   $('seat').textContent = table.seat;
@@ -348,25 +390,72 @@ joinButton.addEventListener('click', () => run(async () => {
 // Pressing Enter in the code box joins, so it does not need the mouse.
 codeInput.addEventListener('keydown', (event) => { if (event.key === 'Enter') joinButton.click(); });
 
-// On load: restore the name, and if this browser was at a table, put it back (a refresh keeps your seat).
+// ---- joining from a table's address, leaving ----
+const roomCode = codeFromPath(location.pathname); // set on /lobby/CODE, null on the start page
+
+// Joins the table of this address with the name in the box (also remembered for next time). Refused names stop before any request.
+async function joinHere(code) {
+  const name = rememberName();
+  say('Joining...');
+  const table = await joinTable({ code, name });
+  say(table.rejoined ? `Back at table ${table.code}.` : `You joined table ${table.code}.`);
+  show(table);
+}
+$('room-join-button').addEventListener('click', () => run(() => joinHere(roomCode)));
+nameInput.addEventListener('keydown', (event) => { if (event.key === 'Enter' && roomCode && !$('room-join').hidden) $('room-join-button').click(); });
+
+$('leave-table').addEventListener('click', () => run(async () => {
+  if (!confirm('Leave this table? Your seat is given up. If you are the host, the table goes to the next player.')) return;
+  await leaveTable(currentCode);
+  store.remove(TABLE_KEY);
+  location.assign('/');
+}));
+
+// Back and Forward between the start page and a table only change the address (see show), so reload to show the right screen.
+window.addEventListener('popstate', () => location.reload());
+
+// ---- starting ----
 nameInput.value = store.get(NAME_KEY) ?? '';
 
-// Arriving by a shared link (/lobby/ABC234): put the code in the box and leave the rest to the person. It never joins
-// by itself, so a link cannot put someone at a table they have not looked at.
-const linkedCode = codeFromPath(location.pathname);
-if (linkedCode) {
-  codeInput.value = linkedCode;
-  say(`Table ${linkedCode}: ${nameInput.value ? 'press Join.' : 'type your name, then press Join.'}`);
-  (nameInput.value ? joinButton : nameInput).focus();
-}
-
-(async () => {
+// The start page: if this browser is at a table, say so and link to it (no redirect: you may want to make or join another).
+async function startStart() {
+  setScreen('start');
   const last = store.get(TABLE_KEY);
   if (!last) return;
   try {
     const table = await rejoinTable(last);
-    if (table) { say(`Back at table ${table.code}.`); show(table); } else store.remove(TABLE_KEY);
+    if (table) {
+      $('resume-code').textContent = table.code;
+      $('resume-link').href = `/lobby/${table.code}`;
+      $('resume').hidden = false;
+    } else {
+      store.remove(TABLE_KEY);
+    }
   } catch {
     say('Could not reach the server to check your last table. Check your connection.', true);
   }
-})();
+}
+
+// A table's own screen. Already at this table (a refresh, or the deck page's back link): straight to it. Not yet: join it, with no
+// code to type. If this browser has a usable saved name the join happens by itself (Kevin's choice, 2026-10-30, over a one-button
+// join); otherwise the person types a name and presses the one button.
+async function startRoom(code) {
+  $('room-join-code').textContent = code;
+  setScreen('room-join');
+  say(`Opening table ${code}...`);
+  let table;
+  try {
+    table = await rejoinTable(code);
+  } catch {
+    say('Could not reach the server. Check your connection and reload.', true);
+    return;
+  }
+  if (table) { say(`Back at table ${table.code}.`); show(table); return; }
+  let saved = null;
+  try { saved = store.get(NAME_KEY) ? cleanPlayerName(store.get(NAME_KEY)) : null; } catch { saved = null; }
+  if (saved) { await run(() => joinHere(code)); return; }
+  say(`Type your name to join table ${code}.`);
+  nameInput.focus();
+}
+
+if (roomCode) startRoom(roomCode); else startStart();

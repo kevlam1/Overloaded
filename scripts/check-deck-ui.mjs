@@ -261,6 +261,18 @@ try {
   check('a set our data does not have is "not found" (the server answers 404), not "not loaded"', /ZZZ 1 \(not found\)/.test((await rowsOf())[0].printing), JSON.stringify(await rowsOf()));
   check('and that check left the earlier result alone (nothing to compare was lost)', firstResult.length === 1);
 
+  // ---- "Back to the lobby" goes to the table you are at, not the start page ----
+  const backHref = () => ev(`document.getElementById('back').getAttribute('href')`);
+  await ev(`localStorage.removeItem('overloaded.lastTable')`); await load();
+  check('"Back to the lobby" goes to the start page when you are not at a table', (await backHref()) === '/', await backHref());
+  await ev(`localStorage.setItem('overloaded.lastTable', 'ABC234')`); await load();
+  check('...and to that table\'s own address (/lobby/CODE) when you are at one', (await backHref()) === '/lobby/ABC234', await backHref());
+  for (const bad of ['<script>', 'abc234', 'ABC23', 'ABC230', '/lobby/x', '']) {
+    await ev(`localStorage.setItem('overloaded.lastTable', ${JSON.stringify(bad)})`); await load();
+    check(`...but a remembered value that is not a table code (${JSON.stringify(bad)}) is ignored`, (await backHref()) === '/', await backHref());
+  }
+  await ev(`localStorage.removeItem('overloaded.lastTable')`);
+
   // ---- several saved decks: a list, one selected, a format on each, the same name replaces, a limit of 20, the old single deck ----
   const setField = (id, value) => ev(`(() => { const f = document.getElementById(${JSON.stringify(id)}); f.value = ${JSON.stringify(value)}; f.dispatchEvent(new Event('input')); f.dispatchEvent(new Event('change')); })()`);
   const saveAs = async (listText, name, format) => { await paste(listText); await press('check'); await setField('deck-name', name); if (format) await setField('deck-format', format); await press('save'); };

@@ -69,7 +69,7 @@ try {
   check('the disclaimer does not use a Wizards or Magic logo or call the site by the trademarked name in its title', !/Magic: The Gathering/i.test(facts.title));
   check('buttons are at least 44 px tall', facts.buttonHeights.every((h) => h >= 44), facts.buttonHeights.join(','));
   check('nothing scrolls sideways at desktop width', !facts.scrollsSideways);
-  check('headings go h1, four h2, three h3 inside the table (the players, your deck and the host\'s Start), then the closed popup\'s own h2', facts.headingOrder === 'H1,H2,H2,H2,H2,H3,H3,H3,H2', facts.headingOrder);
+  check('headings go h1, five h2 (name, make, join by code, join this table, your table), seven h3 inside the table (the players, your deck, the importer and its three parts: saved decks, paste, your deck; then the host\'s Start), then the closed popup\'s own h2', facts.headingOrder === 'H1,H2,H2,H2,H2,H2,H3,H3,H3,H3,H3,H3,H3,H2', facts.headingOrder);
 
   // ---- loading: nothing from anyone else, and nothing sent to the database yet ----
   const loadRequests = browser.events.filter((e) => e.method === 'Network.requestWillBeSent').map((e) => e.params.request.url);
@@ -129,6 +129,27 @@ try {
   check('offline: the buttons are enabled again', await browser.eval(`!document.getElementById('create').disabled && !document.getElementById('join').disabled`));
   await browser.send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
   void offlineErrors;
+
+  // ---- a table's own screen (/lobby/CODE): only that table, no code box, one join button ----
+  // The database hosts are blocked, so the page cannot reach any table; it still has to show the right screen and say why.
+  const room = await openBrowser('lobby-room', { width: 1280, height: 800 });
+  await room.send('Network.setBlockedURLs', { urls: ['*googleapis.com*', '*firebaseio.com*', '*firebasedatabase.app*'] });
+  await room.goto(`${ORIGIN}/lobby/ABC234`);
+  await waitFor(async () => (/reach/.test(await text(room, 'status')) ? true : null), 15000, 100);
+  const screen = await room.eval(`(() => {
+    const shown = (id) => { const e = document.getElementById(id); return Boolean(e) && !e.hidden && !e.closest('[hidden]'); };
+    return { path: location.pathname, joinHeading: document.getElementById('room-join-heading').textContent, who: shown('who'), make: shown('make-section'), joinByCode: shown('join-section'), intro: shown('intro'), roomJoin: shown('room-join'), table: shown('table'), button: document.getElementById('room-join-button').textContent, back: document.querySelector('#room-join a').getAttribute('href') };
+  })()`);
+  check('a table address shows that table\'s own screen: a heading with its code, the name box and one join button', screen.roomJoin && /ABC234/.test(screen.joinHeading) && screen.who && screen.button === 'Join this table', JSON.stringify(screen));
+  check('...and none of the start page: no "make a table", no code box to type into, no introduction', !screen.make && !screen.joinByCode && !screen.intro && !screen.table, JSON.stringify(screen));
+  check('...with a way back to the start page', screen.back === '/');
+  check('...and a database that cannot be reached is said in plain words (the page does not guess)', /can.?t reach|could not reach|connection/i.test(await text(room, 'status')) && !/Firebase|auth\//.test(await text(room, 'status')), await text(room, 'status'));
+  await room.goto(`${ORIGIN}/lobby/ZZZ`);
+  const notATable = await room.eval(`({ make: !document.getElementById('make-section').hidden, roomJoin: !document.getElementById('room-join').hidden })`);
+  check('an address that is not a table code (/lobby/ZZZ) is just the start page', notATable.make && !notATable.roomJoin, JSON.stringify(notATable));
+  const startScreen = await browser.eval(`(() => ({ make: !document.getElementById('make-section').hidden, join: !document.getElementById('join-section').hidden, intro: !document.getElementById('intro').hidden, roomJoin: !document.getElementById('room-join').hidden, table: !document.getElementById('table').hidden, resume: !document.getElementById('resume').hidden }))()`);
+  check('the start page shows make a table, join by code and the introduction, and nothing of a table', startScreen.make && startScreen.join && startScreen.intro && !startScreen.roomJoin && !startScreen.table, JSON.stringify(startScreen));
+  check('...and no "you are at a table" line when this browser is at none', !startScreen.resume);
 
   // ---- browser storage blocked (some privacy settings make it throw): the page must still load and work ----
   // Added in the 2026-10-28 edge-case pass: before this, reading the stored name threw at load and stopped the script.

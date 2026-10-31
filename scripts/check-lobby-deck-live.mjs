@@ -71,6 +71,7 @@ try {
   const code = (await text(alice, 'code')).trim();
   cleanup.code = code;
   record('Alice makes a Commander table', /^[A-HJ-NP-Z2-9]{6}$/.test(code));
+  record('...and her address bar now shows the table, /lobby/CODE (it was the start page), so it can be copied and shared', (await alice.eval('location.pathname')) === `/lobby/${code}`, await alice.eval('location.pathname'));
 
   // Bob has no saved deck yet.
   await bob.goto(PAGE);
@@ -122,7 +123,7 @@ try {
 
   // Bob saves a deck (as if imported in another tab) and comes back: the refresh puts him back at his seat.
   await bob.eval(`localStorage.setItem(${JSON.stringify(LIBRARY_KEY)}, ${JSON.stringify(serializeLibrary(bobLibrary))})`);
-  await bob.goto(PAGE);
+  await bob.goto(`http://127.0.0.1:${PORT}/lobby/${code}`); // a refresh of the table's own address puts him back at his seat
   await waitFor(async () => (await tableShown(bob)) || null, 20000);
   const bobOptions = await waitFor(async () => { const o = await bob.eval(`Array.from(document.getElementById('deck-pick').options).map((x) => x.textContent)`); return o.length > 1 ? o : null; }, 15000, 200);
   record("after a refresh Bob's picker lists his new deck", JSON.stringify(bobOptions) === JSON.stringify(['Choose a deck...', 'Elves (Ezuri, Renegade Leader, bracket 2)']), JSON.stringify(bobOptions));
@@ -152,7 +153,7 @@ try {
   // Ready again, then a refresh: the remembered deck is sent again and does NOT take the ready mark back.
   await click(alice, 'ready');
   await rowHas(alice, 'Alice', 'Ready');
-  await alice.goto(PAGE);
+  await alice.goto(`http://127.0.0.1:${PORT}/lobby/${code}`);
   await waitFor(async () => (await tableShown(alice)) || null, 20000);
   await sleep(2500); // time for the remembered deck to be sent again, if it were going to un-ready her
   const afterRefresh = await row(alice, 'Alice');

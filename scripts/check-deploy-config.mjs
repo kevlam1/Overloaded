@@ -177,10 +177,11 @@ try {
   check('no code is filled in at the root', (await host.eval(`document.getElementById('join-code').value`)) === '');
 
   await host.goto(`${ORIGIN}/lobby/abc-234`);
-  check('a shared link fills the code in (and upper-cases it)', (await host.eval(`document.getElementById('join-code').value`)) === 'ABC234');
-  check('and says what to do next, without joining', /ABC234/.test(await text(host, 'status')) && !(await tableShown(host)));
+  await waitFor(async () => (/Type your name/.test(await text(host, 'status')) ? true : null), 20000, 200);
+  check('a shared link opens that table\'s own join screen (the code is read, upper-cased, from the link)', (await text(host, 'room-join-code')) === 'ABC234' && (await host.eval(`!document.getElementById('room-join').hidden`)));
+  check('and says what to do next (type a name), without joining anyone and without a code box', /ABC234/.test(await text(host, 'status')) && !(await tableShown(host)) && (await host.eval(`document.getElementById('join-section').hidden`)));
   await host.goto(`${ORIGIN}/lobby/ABCO34`);
-  check('a link with an invalid code fills nothing in', (await host.eval(`document.getElementById('join-code').value`)) === '');
+  check('a link with an invalid code is just the start page: no join screen, no code filled in', (await host.eval(`document.getElementById('join-code').value === '' && document.getElementById('room-join').hidden && !document.getElementById('make-section').hidden`)));
   // A link with extra path parts is not a table link at all: no rewrite matches it, so it is a plain 404 and no page loads.
   check('a link with extra path parts is a 404, not the lobby page', (await get('/lobby/ABC234/extra')).status === 404);
 
@@ -201,9 +202,10 @@ try {
   if (code) {
     guest = await openBrowser('deploy-guest');
     await guest.goto(`${ORIGIN}/lobby/${code}`);
-    check('the guest opens the shared link and the code is filled in', (await guest.eval(`document.getElementById('join-code').value`)) === code);
+    await waitFor(async () => (/Type your name/.test(await text(guest, 'status')) ? true : null), 20000, 200);
+    check('the guest opens the shared link and sees the join screen for that table, with no code to type', (await text(guest, 'room-join-code')) === code && (await guest.eval(`document.getElementById('join-section').hidden`)));
     await setValue(guest, 'name', 'Deploy check guest');
-    await click(guest, 'join');
+    await click(guest, 'room-join-button');
     const joined = await waitFor(() => tableShown(guest), 20000);
     check('the guest joins from the link', Boolean(joined), guest.logs.slice(-2).join(' | '));
     const both = await waitFor(async () => (await players(host)).length === 2, 8000);

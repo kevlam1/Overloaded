@@ -1686,6 +1686,69 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 82. The table work is pushed and checked on the live site (2026-10-30)
+
+**What I asked for**
+- I asked whether there is a basic frontend that shows the new pieces, then to push.
+
+**What changed**
+- Nothing in the code. I pushed 7 commits (`f32f4c4..ae62699`, a plain push): the guard and README refresh, the bracket on saved decks, the lobby decks and Ready, the Start button and first table page, your own game saved live, other players' boards, and concede, end match and leave. Claude first told me there were 8; there were 7, and I corrected that after the push.
+- `docs/todo.md`: the "not pushed" notes for entries 69 to 81 now say pushed.
+
+**What I checked**
+- `DEPLOY_URL=https://overloaded-spell.vercel.app node --env-file=.env scripts/check-deploy-config.mjs`: all 55 checks passed against the real Vercel site (the real headers and rewrites, `/table/CODE` served by the new table page, and a table made and joined through a link from the real address). The local run has 56; the one missing is the check that a built file exists, which only makes sense locally.
+- `/data/cards.info.json` on the live site says `reuse` with the same printings checksum (784b4e1d...), so the new deploy did not rebuild the card list.
+- Not checked on the live site: two real players in two browsers on the live address (the two-browser live check ran from my machine against the real database), the table page with real card pictures there, and a phone.
+
+**Decisions**
+- The pages are the first plain version: they work, they are not designed yet. Looking at it myself with two browser profiles on the live address is the next real test.
+
+---
+
+## 83. The address bar follows the table, and the deck page returns to it (2026-10-30)
+
+**What I asked for**
+- After trying the live site I told Claude three things: `/lobby/ABCDEF` should be its own screen, not the start page; a person who follows that link should not have to type the code and press Join again; and a player should be able to import or change a deck inside the lobby without going to `/deck`. The thing I had hit: importing a deck on `/deck` and pressing "Back to the lobby" put me at `https://overloaded-spell.vercel.app` while I was still in table ABCDEF.
+
+**What changed**
+- `frontend/pages/lobby/lobby.js`: when a table is shown, the address becomes `/lobby/CODE` (`history.replaceState`, nothing reloads). That fixes the weird part: the address now always matches the table you are in, wherever you came from, and it can be copied and shared.
+- `frontend/pages/deck/index.html` and `deck.js`: "Back to the lobby" goes to `/lobby/CODE` when this browser remembers a table (`overloaded.lastTable`, only if it is a valid table code), otherwise to the start page.
+- `scripts/check-deck-ui.mjs` is 192 checks (8 new: no table, a table, and six values that are not table codes), and `scripts/check-lobby-deck-live.mjs` is 76 (one new: the address bar shows `/lobby/CODE` after making a table).
+
+**What I checked**
+- The deck page check (192 of 192), the live two-browser check on the real project (76 of 76) and the lobby page check. I did not run the whole `npm run test:live` for this small change, and it is not pushed yet.
+
+**Decisions**
+- The other two points are a bigger change to how the pages are organised, so Claude wrote them into `docs/todo.md` as a plan and asked me before building: a separate `/lobby/CODE` screen with one "Join table CODE" button (the code is already known), and the deck importer moved into a module that both `/deck` and the lobby use, opened inside the lobby only when needed.
+
+---
+
+## 84. A table's own screen, joining from its link, and the deck importer inside the lobby (2026-10-30)
+
+**What I asked for**
+- After trying the live site I said three things (entry 83): `/lobby/ABCDEF` should be its own screen, a person who follows the link should not have to type the code and press Join, and a player should be able to import or change a deck without going to `/deck`. Claude asked two questions and I chose: join automatically when a name is saved, and reuse the full importer inside the lobby.
+
+**What changed**
+- `frontend/pages/lobby/index.html` and `lobby.js`: two screens chosen by the address. The start page (`/`) keeps "make a table" and "join with a code", and if this browser is at a table it says so with a link (it does not push you in, in case you want to make or join another). `/lobby/CODE` shows only that table. Not at it yet: with a saved name you are joined with no click; without one you see "Join table CODE", a name box and one button. A link to a table that does not exist says so in plain words. Making or joining from the start page moves the address to `/lobby/CODE` without reloading (Back reloads the right screen). A new Leave button leaves the table (seat freed in the lobby, the next player becomes host if you were).
+- `frontend/src/deck-importer.js` (new): the old `/deck` page code moved here as a module with one exported `mountDeckImporter` (options: which element shows messages, a `?sample` id, a callback when the saved decks change, whether to fix the back link). `frontend/pages/deck/deck.js` is now a 7-line caller.
+- The lobby's table screen has "Import or change a deck": it opens the importer inside the lobby and loads it only then (it brings the 1.3 MB card list). Saving or deleting a deck redraws the lobby's deck picker straight away. The "no deck" offers in the lobby and in the "Choose a deck" popup are now buttons that open it, not links to `/deck`.
+- `scripts/test-importer-markup.mjs` (new, 81 checks, in `npm test`): both pages hold the importer's markup, so it fails if an id the importer uses is missing from either page, or if an id is used twice.
+- `scripts/check-room-live.mjs` (new, 26 checks, four real browsers on the real project, in `npm run test:live`). Updated: `check-lobby-ui.mjs` (65 checks), `check-deploy-config.mjs` (56), `check-lobby-deck-live.mjs` (76: a refresh now reloads the table's own address).
+
+**What I checked**
+- `npm run test:live`: all 42 suites passed. The deck page check (192) still passes after the importer moved, which is what shows the move changed nothing it does.
+- The new live check: Alice makes a table and is on `/lobby/CODE` showing only the table; Bob, with no saved name, opens the link and sees a join screen with no code box, is not at the table until he presses the one button, and then is in seat 2 on the same address; Carol, with a saved name, opens the link and is in seat 3 with no click; a link to a table that does not exist says so; Bob's start page links back to his table; the deck page's "Back to the lobby" goes to `/lobby/CODE`; Bob imports a deck inside the lobby (the card list is not fetched until he opens the importer), saves it, the lobby's picker lists it at once, and choosing it shows his commander on Alice's page; Bob leaves and his seat is freed.
+- Broken copies, all caught and the files restored identical: no auto-join; joining with no name; the deck page back link ignoring the table; Leave not leaving; the importer not telling the lobby a deck was saved.
+- I looked at desktop screenshots of the join screen and of the importer open inside the lobby, then deleted them. Phone width is not checked (on hold).
+- Not checked: the deployed site (nothing from entries 83 and 84 is pushed), the layout on a phone, and what a long lobby page feels like with the importer open (it is nested boxes and a bit heavy to look at).
+
+**Decisions**
+- Join automatically when a name is saved, as I chose. It overrides the earlier rule that a link never joins by itself; the cost is that a link can seat a person without a click. A first-time visitor still has to type a name and press a button.
+- The importer markup exists in two pages. A shared module for the code and a test for the markup was the smaller change; building the markup from the module would remove the duplication later.
+- My own slips this time: three of my edit scripts lost an escape (a newline, an apostrophe and a parenthesis in a regular expression) and broke a test file before it ran; I fixed each by hand. A live check also looked too early at a page that had not loaded the table's format yet; it now waits.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-10-30, entry 75) Claude wrote the "refuse to run when the backup exists" guard first and only then noticed that `mutate-rules.mjs` calls the same script while its own backup exists, so every mutation would have failed at once and looked like a kill. It caught this by reading the runner before running anything, and fixed it with the `MUTATION_RUN` flag. It also had listed the `lastSeen` deletion as an untested suspicion when a test for it already existed.
 
