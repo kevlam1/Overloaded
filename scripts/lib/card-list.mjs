@@ -33,8 +33,18 @@ export function isDeckCandidate(record) {
 // title). Only cards that have some get an `f` field, so the other entries are exactly what they were before.
 // alternateIds: the id of the printing that carries each of those titles (same order), `fp` in the entry, so a card found by
 // a title can show that printing's picture. Both are always written together by the build.
+// pt (list format 4): the printed power and toughness as Scryfall writes them, 'power/toughness' ("2/2", "*/1+*"), from the record or, for a
+// double-faced card, from its front face (the same face the type line and cost describe). Only cards that have both get the field.
+export function printedStats(record) {
+  const power = record.power ?? record.card_faces?.[0]?.power;
+  const toughness = record.toughness ?? record.card_faces?.[0]?.toughness;
+  return typeof power === 'string' && power !== '' && typeof toughness === 'string' && toughness !== '' ? power + '/' + toughness : null;
+}
+
 export function toEntry(record, alternateNames = [], alternateIds = []) {
   const entry = { n: record.name, t: record.type_line, m: record.mana_cost ?? record.card_faces?.[0]?.mana_cost ?? '', k: record.keywords ?? [], i: record.id };
+  const stats = printedStats(record);
+  if (stats) entry.pt = stats;
   if (alternateNames.length) {
     entry.f = alternateNames;
     if (alternateIds.length === alternateNames.length && alternateIds.every((id) => typeof id === 'string')) entry.fp = alternateIds;
@@ -147,6 +157,8 @@ export function validatePrintings(files, { minPrintings = MIN_PRINTINGS, minSets
 export const countPrintings = (files) => ({ sets: Object.keys(files).length, printings: Object.values(files).reduce((sum, file) => sum + Object.keys(file).length, 0) });
 
 // Everything that must be true before a list is published. Returns a list of problems; empty means fine.
+const PRINTED_STATS = /^[^/]{1,8}[/][^/]{1,8}$/;
+
 export function validateList(list, { minCards = MIN_CARDS, previousCount = null, mustHave = MUST_HAVE } = {}) {
   const problems = [];
   if (!Array.isArray(list)) return ['the list is not an array'];
@@ -158,6 +170,8 @@ export function validateList(list, { minCards = MIN_CARDS, previousCount = null,
     const e = list[index];
     const fine = e && typeof e.n === 'string' && e.n.length > 0 && typeof e.t === 'string' && typeof e.m === 'string' && Array.isArray(e.k) && e.k.every((word) => typeof word === 'string');
     if (!fine) { badEntries++; continue; }
+    // `pt` (format 4): printed power and toughness, two short pieces around one slash. A list in format 3 has none, and is still fine.
+    if ('pt' in e && !(typeof e.pt === 'string' && PRINTED_STATS.test(e.pt))) { badEntries++; continue; }
     if ('f' in e && !(Array.isArray(e.f) && e.f.length > 0 && e.f.every((title) => typeof title === 'string' && title.length > 0))) { badEntries++; continue; }
     // `fp` (format 3): the printing that carries each title, one per title. A list in format 2 has none, and is still fine.
     if ('fp' in e && !('f' in e && Array.isArray(e.fp) && e.fp.length === e.f.length && e.fp.every((id) => typeof id === 'string' && UUID.test(id)))) { badEntries++; continue; }

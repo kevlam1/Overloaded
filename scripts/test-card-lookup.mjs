@@ -50,4 +50,12 @@ check('a size that does not exist gives no address', imageUrl(id, 'huge') === nu
 check('a face that does not exist gives no address', imageUrl(id, 'small', 'side') === null && imageUrl(id, 'small', '../x') === null);
 check('an address never contains anything but the host, the size, the face and the id', /^https:\/\/cards\.scryfall\.io\/(small|normal|large)\/(front|back)\/[0-9a-f]\/[0-9a-f]\/[0-9a-f-]{36}\.jpg$/.test(imageUrl(id)));
 
+// ---- printed power and toughness (list format 4) ----
+const same = (label, actual, expected) => check(label, JSON.stringify(actual) === JSON.stringify(expected), JSON.stringify(actual));
+const withStats = makeLookup([{ n: 'Goblin Guide', t: 'Creature - Goblin', m: '{R}', k: ['Haste'], i: '00000000-0000-4000-8000-000000000011', pt: '2/2' }, { n: 'Sol Ring', t: 'Artifact', m: '{1}', k: [], i: '00000000-0000-4000-8000-000000000012' }, { n: 'Odd', t: 'T', m: '', k: [], i: '00000000-0000-4000-8000-000000000013', pt: 7 }]);
+same('the lookup hands on the printed power and toughness', withStats({ i: '00000000-0000-4000-8000-000000000011', n: 'x' }), { t: 'Creature - Goblin', m: '{R}', k: ['Haste'], pt: '2/2' });
+same('a card without them has no pt key at all', Object.keys(withStats({ i: '00000000-0000-4000-8000-000000000012', n: 'x' })).join(), 't,m,k');
+same('a pt that is not text is not handed on', Object.keys(withStats({ i: '00000000-0000-4000-8000-000000000013', n: 'x' })).join(), 't,m,k');
+same('found by name it carries pt too', withStats({ i: 'stale', n: 'Goblin Guide' }).pt, '2/2');
+
 console.log(`All ${checks} card lookup and picture address checks passed.`);

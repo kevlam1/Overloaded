@@ -146,6 +146,22 @@ check('a list 10% smaller than the last good one fails', validateList(good.slice
 check('a list 4% smaller than the last good one passes', validateList(good.slice(0, 48), { ...opts, mustHave: [], previousCount: 50 }).length === 0);
 check('a bigger list than the last one passes', validateList(good, { ...opts, previousCount: 40 }).length === 0);
 check('a missing must-have card fails and names it', validateList(good, { ...opts, mustHave: ['Sol Ring'] }).some((p) => /Sol Ring/.test(p)));
+
+// ---- printed power and toughness (list format 4) ----
+same('a creature gets its printed power and toughness, after the id', toEntry({ id: 'i', name: 'Goblin Guide', type_line: 'Creature', mana_cost: '{R}', keywords: ['Haste'], power: '2', toughness: '2' }), { n: 'Goblin Guide', t: 'Creature', m: '{R}', k: ['Haste'], i: 'i', pt: '2/2' });
+check('a double-faced card takes its power and toughness from the front face', toEntry({ id: 'i', name: 'Delver', type_line: 'T', card_faces: [{ power: '1', toughness: '1' }, { power: '3', toughness: '2' }] }).pt === '1/1');
+check('a record value wins over the faces (an adventure card keeps its own)', toEntry({ id: 'i', name: 'B // S', type_line: 'T', power: '4', toughness: '3', card_faces: [{ power: '4', toughness: '3' }, {}] }).pt === '4/3');
+check('a card whose front face has none gets none, even if the back has (Fable of the Mirror-Breaker)', !('pt' in toEntry({ id: 'i', name: 'F', type_line: 'T', card_faces: [{}, { power: '2', toughness: '2' }] })));
+check('a card with no power and toughness gets no pt field (Sol Ring)', !('pt' in toEntry({ id: 'i', name: 'Sol Ring', type_line: 'Artifact', mana_cost: '{1}' })));
+check('only one of the two is not enough', !('pt' in toEntry({ id: 'i', name: 'X', type_line: 'T', power: '2' })) && !('pt' in toEntry({ id: 'i', name: 'X', type_line: 'T', toughness: '2' })));
+for (const [power, toughness] of [['', ''], ['', '2'], ['2', ''], [2, 2], [2, '2'], ['2', 2], [null, '2'], ['2', null]]) check(`power ${JSON.stringify(power)} with toughness ${JSON.stringify(toughness)} gets no pt`, !('pt' in toEntry({ id: 'i', name: 'X', type_line: 'T', power, toughness })));
+same('values with a star are kept as Scryfall writes them', [toEntry({ id: 'i', name: 'T', type_line: 'T', power: '*', toughness: '1+*' }).pt, toEntry({ id: 'i', name: 'T', type_line: 'T', power: '0', toughness: '0' }).pt], ['*/1+*', '0/0']);
+check('the printed power and toughness come before the alternate titles', Object.keys(toEntry({ id: 'i', name: 'X', type_line: 'T', power: '1', toughness: '1' }, ['Y'], ['00000000-0000-4000-8000-000000000001'])).join() === 'n,t,m,k,i,pt,f,fp');
+check('a list with printed power and toughness passes', validateList(good.map((e, index) => (index % 2 ? { ...e, pt: '2/2' } : e)), opts).length === 0);
+for (const bad of ['', '22', '222', '2-2', '2/', '/2', '2/2/2', 22, null, ['2/2'], '123456789/1', '1/123456789']) {
+  check(`a list entry with pt ${JSON.stringify(bad)} fails`, validateList(good.map((e, index) => (index === 3 ? { ...e, pt: bad } : e)), opts).some((p) => /missing a name, type, cost or keywords/.test(p)));
+}
+check('the longest real values (such as 1+*/1+*) pass', validateList(good.map((e, index) => (index === 3 ? { ...e, pt: '2+*/2+*' } : e)), opts).length === 0);
 for (const [label, mutate, pattern] of [
   ['a bad id', (l) => { l[3] = { ...l[3], i: 'not-an-id' }; }, /not a Scryfall id/],
   ['a missing id', (l) => { l[3] = { ...l[3], i: undefined }; }, /not a Scryfall id/],
