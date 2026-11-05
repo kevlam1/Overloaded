@@ -317,7 +317,9 @@ try {
   await clickCard('#hand .card', spell);
   check('a card in the hand has no counter controls', await $hidden('marks'));
   await clickAction('To battlefield');
-  check('a selected card on the battlefield shows the counter controls', !(await $hidden('marks')));
+  check('a selected card on the battlefield does not show the counter controls until Modify', await $hidden('marks'));
+  await clickAction('Modify');
+  check('Modify shows the counter controls', !(await $hidden('marks')));
   check('the controls are an amount box, a kind of counter and nine buttons', (await count('#marks input')) === 1 && (await count('#marks select option')) === 6 && (await count('#marks button')) === 9);
   check('a new card shows no counters and no change', (await count('#row-other .card .marks')) === 0);
   await setAmount('1'); await clickMark('Add counters');
@@ -403,7 +405,8 @@ try {
   check('the marks explain themselves in a tooltip', /right-click to take 1 off, hold Shift for 10/.test(await ev(`document.querySelector('#row-other .card .marks').title`)));
   check('every mark has its meaning in a data attribute and nothing else on the card does', (await ev(`Array.from(document.querySelectorAll('#row-other .card [data-mark]')).map((n) => n.dataset.mark).join()`)) === 'chip,power,both,toughness');
   const prevented = await ev(`(() => { const card = document.querySelector('#row-other .card'); const on = (el) => { const e = new MouseEvent('contextmenu', { bubbles: true, cancelable: true }); el.dispatchEvent(e); return e.defaultPrevented; }; return { chip: on(card.querySelector('.marks .chip')), body: on(card.querySelector('.face')) }; })()`);
-  check('right click on a number is taken by the table, but on the rest of the card the browser menu is left alone', prevented.chip === true && prevented.body === false, JSON.stringify(prevented));
+  check('right click on a number is taken by the table (a counter comes off), and on the rest of the card by the card menu', prevented.chip === true && prevented.body === true && (await count('.card-menu')) === 1, JSON.stringify(prevented));
+  await ev(`document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))`); // a click elsewhere closes the menu
   const beforeClick = await changeText();
   await ev(`document.querySelector('#row-other .card .marks .change .power').click()`);
   check('a click on a number reaches the table even without a mouse (an assistive tool pressing it)', (await changeText()) !== beforeClick, `${beforeClick} -> ${await changeText()}`);
@@ -483,6 +486,144 @@ try {
   await mouseMoveTo(noStatsAt.x, noStatsAt.y); await sleep(80);
   check('a card with no printed power and toughness shows no box and no marks, even with the pointer on it', (await count('#row-other .card:last-child .marks')) === 0);
 
+  // ---- the right-click menu of a card (real mouse and keyboard input) ----
+  await open();
+  const key = async (name, code, vk, text) => {
+    await browser.send('Input.dispatchKeyEvent', { type: 'keyDown', key: name, code, windowsVirtualKeyCode: vk, ...(text ? { text } : {}) });
+    await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: name, code, windowsVirtualKeyCode: vk });
+    await sleep(60);
+  };
+  const menuState = () => ev(`(() => {
+    const m = document.querySelector('.card-menu'); if (!m) return null;
+    const r = m.getBoundingClientRect(); const active = document.activeElement; const arrow = String.fromCharCode(0x25b8);
+    const label = (b) => b.textContent.replace(arrow, '').trim();
+    return { title: m.querySelector('.card-menu-title').textContent, role: m.getAttribute('role'), items: [...m.querySelectorAll('[role="menuitem"]')].filter((b) => !b.closest('[hidden]')).map(label), focused: active && m.contains(active) ? label(active) : null, inside: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight, count: document.querySelectorAll('.card-menu').length, box: [Math.round(r.left), Math.round(r.top), Math.round(r.right), Math.round(r.bottom)], win: [innerWidth, innerHeight] };
+  })()`);
+  const clickMenuItem = async (text, opts = {}) => {
+    const p = await ev(`(() => { const arrow = String.fromCharCode(0x25b8); const b = [...document.querySelectorAll('.card-menu [role="menuitem"]')].find((x) => x.textContent.replace(arrow, '').trim() === ${JSON.stringify(text)}); if (!b) return null; const r = b.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`);
+    if (!p) throw new Error(`no menu item "${text}"`);
+    await mouseMoveTo(p.x, p.y);
+    await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: p.x, y: p.y, button: 'left', buttons: 1, clickCount: 1 });
+    await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: p.x, y: p.y, button: 'left', buttons: 0, clickCount: 1 });
+    await sleep(80);
+  };
+  const activeIsCard = () => ev(`document.activeElement && document.activeElement.classList.contains('card')`);
+  await drawUntil((n) => n === 'Llanowar Elves');
+  await clickCard('#hand .card', (await handNames()).findIndex((x) => x === 'Llanowar Elves'));
+  await clickAction('To battlefield');
+  await clickAction('Deselect');
+  await away(); await sleep(60);
+  check('there is no menu before a right click', (await menuState()) === null);
+  await mouse('#row-other .card', { button: 'right', dy: 30 });
+  let menu = await menuState();
+  check('a right click on a creature opens its menu: its name, then Modify, Tap, the counter with 2 3 5, and Move to', menu && menu.title === 'Llanowar Elves' && menu.role === 'menu' && JSON.stringify(menu.items) === JSON.stringify(['Modify...', 'Tap', '+1/+1 counter', '2', '3', '5', 'Move to']), JSON.stringify(menu));
+  check('the menu is inside the window and the first item has the focus', menu.inside && menu.focused === 'Modify...', JSON.stringify(menu));
+  check('the right click also selected the card', (await $text('selected-line')).startsWith('Llanowar Elves'), await $text('selected-line'));
+  await clickMenuItem('Tap');
+  check('Tap taps the card, closes the menu, says so and gives the focus back to the card', (await menuState()) === null && (await ev(`document.querySelector('#row-other .card').classList.contains('tapped')`)) && (await $text('status')) === 'Tapped Llanowar Elves.' && (await activeIsCard()), `${await $text('status')} ${await activeIsCard()}`);
+  await mouse('#row-other .card', { button: 'right', dy: 30 });
+  menu = await menuState();
+  check('a tapped card offers Untap', menu.items[1] === 'Untap', JSON.stringify(menu.items));
+  await clickMenuItem('3');
+  const threeCounters = await box();
+  check('the 3 next to the counter adds three +1/+1 counters: a chip, 4 and 4 in the box, a green floating +3/+3 and the status', (await chipText()) === '+1/+1 3' && threeCounters.power === '4' && threeCounters.toughness === '4' && (await toastOf())?.text === '+3/+3' && /toast-up/.test((await toastOf()).tone) && (await $text('status')) === 'Added 3 +1/+1 counters to Llanowar Elves.', `${await chipText()} ${JSON.stringify(threeCounters)} ${JSON.stringify(await toastOf())} ${await $text('status')}`);
+  await mouse('#row-other .card', { button: 'right', dy: 30 });
+  await clickMenuItem('+1/+1 counter');
+  check('the name itself adds one', (await chipText()) === '+1/+1 4', await chipText());
+  await mouse('#row-other .card', { button: 'right', dy: 30 });
+  await clickMenuItem('Modify...');
+  check('Modify opens the counters panel and puts the cursor in its amount box', !(await $hidden('marks')) && (await ev(`document.activeElement && document.activeElement.id`)) === 'marks-amount');
+  await mouse('#row-other .card', { button: 'right', dy: 30 });
+  await clickMenuItem('Move to');
+  menu = await menuState();
+  check('Move to opens inline under its heading, with every other zone and both ends of the library', menu.items.slice(-8).join() === 'Move to,Hand,Graveyard,Exile,Command zone,Sideboard,Top of library,Bottom of library' && (await ev(`document.querySelector('.card-menu .has-sub').getAttribute('aria-expanded')`)) === 'true' && menu.inside, JSON.stringify(menu));
+  await clickMenuItem('Graveyard');
+  check('Graveyard moves the card there (the pile says so, the battlefield is empty again) and the menu is gone', (await pileCount('graveyard')) === 'Graveyard: 1' && (await count('#row-other .card')) === 0 && (await menuState()) === null && (await $text('status')) === 'Moved Llanowar Elves to your graveyard.', `${await pileCount('graveyard')} ${await $text('status')}`);
+  // a card in the hand has only Move to
+  await mouse('#hand .card', { button: 'right', dy: 30 });
+  menu = await menuState();
+  check('a card in the hand offers only Move to', menu && JSON.stringify(menu.items) === JSON.stringify(['Move to']), JSON.stringify(menu));
+  await clickMenuItem('Move to');
+  await clickMenuItem('Battlefield');
+  check('and Battlefield from there puts it on the battlefield', (await count('#row-lands .card, #row-other .card')) === 1 && (await menuState()) === null);
+  // keyboard
+  const cardSelector = (await count('#row-lands .card')) === 1 ? '#row-lands .card' : '#row-other .card';
+  await ev(`(() => { const c = document.querySelector(${JSON.stringify(cardSelector)}); c.focus(); c.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 0, clientY: 0 })); })()`);
+  menu = await menuState();
+  check('the keyboard way to a context menu (no pointer position) opens the menu next to the card', menu && menu.focused !== null && menu.inside, JSON.stringify(menu));
+  check('and it opens at the middle of the card, not in a corner of the window', await ev(`(() => { const c = document.querySelector(${JSON.stringify(cardSelector)}).getBoundingClientRect(); const m = document.querySelector('.card-menu').getBoundingClientRect(); return Math.abs(m.left - (c.left + c.width / 2)) < 60 && Math.abs(m.top - (c.top + c.height / 2)) < 60; })()`));
+  await key('ArrowDown', 'ArrowDown', 40);
+  check('Down moves to the next item', (await menuState()).focused === menu.items[1], JSON.stringify(await menuState()));
+  await key('End', 'End', 35);
+  check('End goes to the last item and Down wraps to the first', (await menuState()).focused === 'Move to' && ((await key('ArrowDown', 'ArrowDown', 40)), (await menuState()).focused === menu.items[0]));
+  await key('ArrowUp', 'ArrowUp', 38);
+  check('Up from the first wraps to the last', (await menuState()).focused === 'Move to' || (await menuState()).focused === menu.items.at(-1), JSON.stringify(await menuState()));
+  await key('Escape', 'Escape', 27);
+  check('Escape closes the menu, gives the focus back to the card and does not deselect it (the page\'s own Escape did not run)', (await menuState()) === null && (await activeIsCard()) && !/^Click a card/.test(await $text('selected-line')), await $text('selected-line'));
+  await mouse(cardSelector, { button: 'right', dy: 30 });
+  check('the card on the battlefield again offers Tap', (await menuState()).items.includes('Tap'));
+  {
+    await key('ArrowDown', 'ArrowDown', 40); await key('ArrowDown', 'ArrowDown', 40); // Tap, then the counter
+    await key('ArrowRight', 'ArrowRight', 39);
+    check('Right moves along the counter row to its first amount', (await menuState()).focused === '2', JSON.stringify(await menuState()));
+    await key('ArrowRight', 'ArrowRight', 39);
+    await key('Enter', 'Enter', 13, '\r');
+    check('Enter on an amount chooses it: the 3 adds three counters and the menu closes', (await menuState()) === null && /Added 3 /.test(await $text('status')), await $text('status'));
+    await mouse(cardSelector, { button: 'right', dy: 30 });
+    await key('End', 'End', 35);
+    await key('Enter', 'Enter', 13, '\r');
+    check('Enter on Move to opens it, with the focus on its first choice', (await menuState()).items.includes('Hand') && ['Hand'].includes((await menuState()).focused), JSON.stringify(await menuState()));
+    await key('ArrowLeft', 'ArrowLeft', 37);
+    check('Left closes it again and goes back to the Move to heading', !(await menuState()).items.includes('Hand') && (await menuState()).focused === 'Move to', JSON.stringify(await menuState()));
+    await key('Escape', 'Escape', 27);
+  }
+  // closing in the other ways
+  await mouse(cardSelector, { button: 'right', dy: 30 });
+  await mouseMoveTo(1100, 60);
+  await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: 1100, y: 60, button: 'left', buttons: 1, clickCount: 1 });
+  await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: 1100, y: 60, button: 'left', buttons: 0, clickCount: 1 });
+  await sleep(60);
+  check('a click anywhere else closes the menu', (await menuState()) === null);
+  await mouse(cardSelector, { button: 'right', dy: 30 });
+  await ev(`window.scrollBy(0, 40)`); await sleep(120);
+  check('scrolling closes the menu', (await menuState()) === null);
+  await ev(`window.scrollTo(0, 0)`); await sleep(60);
+  await mouse(cardSelector, { button: 'right', dy: 30 });
+  await ev(`window.dispatchEvent(new Event('resize'))`); await sleep(60);
+  check('resizing the window closes the menu', (await menuState()) === null);
+  // only one menu at a time, and always inside the window
+  const landFromHand = (await handNames()).findIndex((x) => LANDS.includes(x));
+  await clickCard('#hand .card', landFromHand);
+  await clickAction('To battlefield');
+  await mouse('#row-lands .card:last-child', { button: 'right', dy: 30 });
+  await mouse('#row-other .card, #row-lands .card:first-child', { button: 'right', dy: 30 });
+  check('a second right click on another card leaves exactly one menu, for that card', (await menuState())?.count === 1, JSON.stringify(await menuState()));
+  await key('Escape', 'Escape', 27);
+  await ev(`(() => { const c = document.querySelector('#row-lands .card'); c.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: innerWidth - 2, clientY: innerHeight - 2 })); })()`);
+  menu = await menuState();
+  check('a right click in the bottom right corner of the window still gives a menu that fits inside it', menu && menu.inside, JSON.stringify(menu));
+  await key('Escape', 'Escape', 27);
+  // the numbers on a card keep their own right click: a counter comes off and no menu opens
+  await clickAction('Deselect');
+  await clickCard('#row-lands .card', 0);
+  await setKind('l'); await setAmount('2'); await clickMark('Add counters');
+  const loyaltyChip = await ev(`Array.from(document.querySelectorAll('#row-lands .card .marks .chip')).findIndex((c) => c.textContent === 'Loyalty 2') + 1`);
+  check('the land has a Loyalty chip to click', loyaltyChip > 0, String(loyaltyChip));
+  await mouse(`#row-lands .card .marks .chip:nth-child(${loyaltyChip})`, { button: 'right' });
+  check('a right click on a counter takes one off and opens no menu', (await menuState()) === null && (await ev(`Array.from(document.querySelectorAll('#row-lands .card .marks .chip')).map((c) => c.textContent).includes('Loyalty 1')`)), await ev(`Array.from(document.querySelectorAll('#row-lands .card .marks .chip')).map((c) => c.textContent).join()`));
+  // the Modify button and the hidden panel
+  await clickAction('Deselect');
+  await clickCard('#row-lands .card', 0);
+  check('selecting a card on the battlefield does not open the counters panel by itself', await $hidden('marks'));
+  await clickAction('Modify');
+  check('the Modify button opens it (and says so with aria-expanded) and puts the cursor in the amount box', !(await $hidden('marks')) && (await ev(`Array.from(document.querySelectorAll('#selected-actions button')).find((b) => b.textContent === 'Modify').getAttribute('aria-expanded')`)) === 'true' && (await ev(`document.activeElement.id`)) === 'marks-amount');
+  await clickAction('Modify');
+  check('pressing it again hides the panel and keeps the focus on the button', (await $hidden('marks')) && (await ev(`document.activeElement.textContent`)) === 'Modify');
+  await clickAction('Deselect');
+  await clickCard('#row-lands .card', 0);
+  await clickAction('To hand');
+  check('a card in the hand has no Modify button', !(await actionLabels()).includes('Modify'));
+
   // ---- storage blocked ----
   await browser.send('Page.addScriptToEvaluateOnNewDocument', { source: `Object.defineProperty(window, 'localStorage', { get() { throw new DOMException('blocked', 'SecurityError'); } });` });
   await browser.goto(PAGE);
@@ -515,7 +656,18 @@ try {
     await browser.screenshot('scratch-solo-light.png');
     await press('pile-library'); await ev(`document.getElementById('viewer').scrollIntoView()`); await sleep(400);
     await browser.screenshot('scratch-solo-piles.png');
-    console.log('saved scratch-solo-dark.png, -light.png and -piles.png (delete them afterward)');
+    // the right-click menu, light and dark, closed up and with Move to open
+    await ev(`window.scrollTo(0, 0)`); await sleep(200);
+    await mouse('#row-other .card', { button: 'right', dy: 30 }); await sleep(300);
+    await browser.screenshot('scratch-solo-menu-light.png');
+    await clickMenuItem('Move to'); await sleep(200);
+    await browser.screenshot('scratch-solo-menu-open-light.png');
+    await key('Escape', 'Escape', 27);
+    await scheme('dark'); await sleep(300);
+    await mouse('#row-other .card', { button: 'right', dy: 30 }); await sleep(300);
+    await browser.screenshot('scratch-solo-menu-dark.png');
+    await key('Escape', 'Escape', 27);
+    console.log('saved scratch-solo-dark.png, -light.png, -piles.png and the four -menu- ones (delete them afterward)');
   }
 } finally {
   await closeAllBrowsers();

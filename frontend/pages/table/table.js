@@ -9,6 +9,8 @@ import { makeSafeStore } from '../../src/safe-store.js';
 import { loadCardList } from '../../src/card-list.js';
 import { makeCardNodes } from '../../src/card-nodes.js';
 import { mountMarksPanel } from '../../src/marks-panel.js';
+import { openCardMenu } from '../../src/card-menu.js';
+import { menuItems, menuAction } from '../../../shared/card-menu.mjs';
 import { marksSentence, markClick, printedOf } from '../../../shared/marks.mjs';
 import { presenceStatus, presenceText, ownConnectionText } from '../../../shared/presence.mjs';
 import { tableCodeFromPath } from '../../../shared/lobby-link.mjs';
@@ -88,8 +90,9 @@ let lastSaved = null; // the game as the database has it (null: nothing saved fo
 let begun = false; // the game is being set up or is on
 let saving = Promise.resolve();
 let selected = null; // the uid of the selected card
+let modifyOpen = false; // the counters and power/toughness panel is shown (from Modify, in the card menu or the selected-card buttons)
 let viewing = null; // the pile being looked at: 'library', 'graveyard', 'exile' or 'sideboard'
-const cardNodes = makeCardNodes({ onSelect: (uid) => select(uid), isSelected: (uid) => uid === selected, onMark: (uid, hit) => markOnCard(uid, hit), printedStats: (card) => printedOf(card, lookup) });
+const cardNodes = makeCardNodes({ onSelect: (uid) => select(uid), isSelected: (uid) => uid === selected, onMark: (uid, hit) => markOnCard(uid, hit), onMenu: (uid, where) => openMenuFor(uid, where), printedStats: (card) => printedOf(card, lookup) });
 const place = cardNodes.place;
 
 function showBlocked(message, { link = true, retry = false } = {}) {
@@ -152,15 +155,17 @@ function renderSelected() {
     $('selected-line').textContent = 'Click a card to move it, tap it or look at it.';
     $('selected-actions').replaceChildren();
     $('marks').hidden = true;
+    modifyOpen = false;
     return;
   }
   const { card, zone } = found;
   const marks = marksSentence(card, printedOf(card, lookup));
   $('selected-line').textContent = `${card.n}${card.t ? `: ${card.t}` : ''}, in ${ZONE_WORDS[zone]}${card.tapped ? ' (tapped)' : ''}.${marks ? ` ${marks}` : ''}`;
-  $('marks').hidden = zone !== 'battlefield'; // counters and the power/toughness change belong to a card on the battlefield
+  $('marks').hidden = zone !== 'battlefield' || !modifyOpen; // counters and the power/toughness change belong to a card on the battlefield, and show after Modify
   const actions = [];
   const act = (label, run, message, secondary = true) => actions.push({ label, run, message, secondary, deselect: false });
   if (zone === 'battlefield') act(card.tapped ? 'Untap' : 'Tap', () => setTapped(game, card.uid, !card.tapped), `${card.tapped ? 'Untapped' : 'Tapped'} ${card.n}.`, false);
+  if (zone === 'battlefield') actions.push({ label: 'Modify', secondary: true, modify: true });
   for (const [to, label] of [['hand', 'To hand'], ['battlefield', 'To battlefield'], ['graveyard', 'To graveyard'], ['exile', 'To exile'], ['command', 'To command zone'], ['sideboard', 'To sideboard']]) {
     if (to !== zone) act(label, () => moveCard(game, card.uid, to), `Moved ${card.n} to ${ZONE_WORDS[to]}.`);
   }
@@ -170,7 +175,15 @@ function renderSelected() {
   $('selected-actions').replaceChildren(...actions.map((action) => {
     const button = make('button', action.secondary ? 'secondary' : '', action.label);
     button.type = 'button';
+    if (action.modify) button.setAttribute('aria-expanded', String(modifyOpen));
     button.addEventListener('click', () => {
+      if (action.modify) {
+        modifyOpen = !modifyOpen;
+        render();
+        if (modifyOpen) $('marks-amount').focus();
+        else [...$('selected-actions').querySelectorAll('button')].find((b) => b.textContent === 'Modify')?.focus();
+        return;
+      }
       if (action.deselect) { selected = null; render(); return; }
       apply(action.run, action.message);
     });
@@ -220,6 +233,30 @@ function apply(run, message = '') {
 }
 
 function select(uid) { selected = uid; render(); }
+
+// The right-click menu of one of your cards (src/card-menu.js, shared/card-menu.mjs). It selects the card too, so the buttons above show it.
+function openMenuFor(uid, where) {
+  if (!game) return;
+  const found = findCard(uid);
+  if (!found) return;
+  select(uid);
+  openCardMenu({ title: found.card.n, items: menuItems(found.card, found.zone), x: where.x, y: where.y, returnFocus: where.element, onPick: (id, amount) => pickFromMenu(uid, id, amount) });
+}
+
+function pickFromMenu(uid, id, amount) {
+  if (!game) return;
+  const found = findCard(uid);
+  if (!found) return;
+  if (id === 'modify') { modifyOpen = true; render(); $('marks-amount').focus(); return; }
+  try {
+    const action = menuAction(id, found.card, amount);
+    if (!action) return;
+    const made = apply(() => action.run(game), action.message);
+    if (made && action.toast) cardNodes.flash(uid, action.toast);
+  } catch (error) {
+    say(error.message, true);
+  }
+}
 
 // A click on a chip or on the change label of one of your cards on the battlefield (see src/card-nodes.js and shared/marks.mjs).
 // Returns false when nothing changed (the card or the click was refused), so the card shows its floating text only for real changes.

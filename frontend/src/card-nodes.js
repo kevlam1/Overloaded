@@ -2,7 +2,8 @@
 // picture from Scryfall's picture server (shared/card-image.mjs) and its name as the fallback; the same card keeps the same
 // button when it moves, so its picture is not loaded again. Names go in as text, never as markup.
 // onSelect(uid) is called when a card is clicked; isSelected(uid) says whether it is the selected one; `readOnly` makes the
-// buttons do nothing (another player's cards: you look, you do not touch). onMark(uid, hit) is called for a click on a counter or on
+// buttons do nothing (another player's cards: you look, you do not touch). onMenu(uid, { x, y, element }) is called for a right-click
+// that is not on a counter or a number (your own cards: the menu is src/card-menu.js). onMark(uid, hit) is called for a click on a counter or on
 // the power/toughness numbers and returns false when the change was refused; printedStats(card) gives a card's printed power and
 // toughness as text ("2/2") or null.
 import { imageUrl } from '../../shared/card-image.mjs';
@@ -79,7 +80,7 @@ function showToast(button, toast) {
   setTimeout(() => element.remove(), 1000);
 }
 
-export function makeCardNodes({ onSelect = () => {}, isSelected = () => false, readOnly = false, onMark = null, printedStats = () => null } = {}) {
+export function makeCardNodes({ onSelect = () => {}, isSelected = () => false, readOnly = false, onMark = null, onMenu = null, printedStats = () => null } = {}) {
   const nodes = new Map(); // uid -> its button
 
   function nodeFor(card, onBattlefield = false) {
@@ -127,7 +128,12 @@ export function makeCardNodes({ onSelect = () => {}, isSelected = () => false, r
         });
         button.addEventListener('contextmenu', (event) => {
           const hit = markHit(event);
-          if (hit) { event.preventDefault(); const removal = { ...hit, remove: true }; if (onMark(card.uid, removal) !== false) showToast(button, markToast(removal)); }
+          if (hit) { event.preventDefault(); const removal = { ...hit, remove: true }; if (onMark(card.uid, removal) !== false) showToast(button, markToast(removal)); return; }
+          if (!onMenu) return; // no menu: the browser's own menu stays
+          event.preventDefault();
+          const box = button.getBoundingClientRect();
+          const fromKeyboard = event.clientX === 0 && event.clientY === 0; // the Menu key or Shift+F10 gives no pointer position
+          onMenu(card.uid, { x: fromKeyboard ? box.left + box.width / 2 : event.clientX, y: fromKeyboard ? box.top + box.height / 2 : event.clientY, element: button });
         });
       }
       nodes.set(card.uid, button);
@@ -145,6 +151,8 @@ export function makeCardNodes({ onSelect = () => {}, isSelected = () => false, r
 
   return {
     nodeFor,
+    // Shows the floating text (see markToast in shared/marks.mjs) on a card, for a change made some other way than clicking its numbers.
+    flash: (uid, toast) => { const button = nodes.get(uid); if (button) showToast(button, toast); },
     // battlefield: true for the rows of permanents; only there does your own creature offer its power and toughness box.
     place: (container, cards, { battlefield = false } = {}) => container.replaceChildren(...cards.map((card) => nodeFor(card, battlefield))),
     clear: () => nodes.clear(),

@@ -1920,6 +1920,27 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - I did not put the printed numbers on the game card or in the database: they are looked up from the card list like the type line, so the database card shape and the rules are unchanged. A copy of a creature made with `copyAsToken` therefore loses its printed numbers; on `docs/todo.md`.
 - Next, if you want it: the right-click menu from the video to replace most of the panel.
 
+## 94. A right-click menu on cards, and a quieter selected-card area (2026-11-05)
+
+**What I asked for**
+- I said "continue" after the power and toughness box. Claude read that as the right-click menu from my screen recording and said so before building, with a small first version: the card's name, Tap or Untap and a "+1/+1 counter" with quick amounts 2, 3 and 5 (battlefield only), Move to, and Modify. No Ping card and no Create copy yet.
+
+**What changed**
+- `shared/card-menu.mjs`: what the menu offers for a card in each zone and what each choice does (tap, counters from the menu, moving to any zone or to the top or bottom of the library, with the message to show). A token moved off the battlefield says it is gone.
+- `frontend/src/card-menu.js`: the menu. It opens at the pointer and stays inside the window, one at a time. It closes on a choice, Escape, Tab, a click elsewhere, a scroll or a resize. By keyboard: Up, Down, Home and End, Right and Left (into "Move to" and along the amounts), Enter and Space. "Move to" opens inline under its heading instead of flying out, so it works the same with a mouse, a keyboard and a finger.
+- `frontend/src/card-nodes.js`: a right-click on your own card that is not on a counter or a number opens the menu (a right-click on a number still takes a counter off); the Menu key or Shift+F10 opens it in the middle of the card; the card can show its floating text for a change made from the menu. Other players' cards do not get a menu and keep the browser's own.
+- `solo.js` and `table.js`: the menu, which also selects the card. The counters and power/toughness panel is now hidden until you choose Modify (in the menu, or the new Modify button next to Tap), so the area under "Selected card" is much shorter. Modify puts the cursor in the amount box.
+- Tests: `scripts/test-card-menu.mjs` (64 checks, new, 38 suites in `npm test`), the solo browser check is 190 checks (was 155), the two-browser live check is 92 (was 86).
+
+**What I checked**
+- `npm test`: 38 suites pass. Live against the real project: 92 of 92, including that Tap from the menu is saved and Bob sees the card tapped, and that a right-click on Alice's card in Bob's browser opens nothing. Production build check: 56 of 56. Real Chrome with real right-clicks and key presses. Screenshots, light and dark, with the menu closed up and with "Move to" open: I looked at them and the menu fits and reads well.
+- Broken copies: 26 (11 of the menu logic, 15 of the menu, card and page code), all caught. Thinking up the cases showed a gap, so I added a check that the keyboard menu opens at the middle of the card and not in the window's corner.
+
+**Decisions**
+- Mistakes of mine: the menu first grew taller after being placed near the right edge (it was placed using the window width including the scrollbar, and narrowed there so a line wrapped); the bottom-right-corner check caught it and it is fixed (a fixed natural width, and the width without the scrollbar). Two older checks were out of date and I updated them. A first version of one of my new tests had an `if` that would have skipped the keyboard checks silently; it is a real assertion now. The local card list was again overwritten by the production build check and had to be rebuilt.
+- Not done: Ping card (it would need to be sent to the other players), Create copy (a copy of a creature loses its printed numbers until `copyAsToken` gets them passed in), a long-press for phones (a phone has no right-click; the buttons are the way in there), and a menu for cards inside the pile viewer (those are rows, not card buttons). Phone width is not checked.
+- The panel's move buttons are still there next to the menu. If you want the selected-card area shorter still, they can go and the menu does the moving.
+
 ---
 
 ## Where AI misread me, or I had to correct course

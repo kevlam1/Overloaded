@@ -40,6 +40,7 @@ const suites = [
   { name: 'counters, modifier, tokens, player counters', cmd: node, args: ['scripts/test-counters.mjs'] },
   { name: 'counters and tokens: how they are stored and read back', cmd: node, args: ['scripts/test-sync-counters.mjs'] },
   { name: 'counter chips, the change label and typed amounts', cmd: node, args: ['scripts/test-marks.mjs'] },
+  { name: 'the right-click menu of a card: what it offers and does', cmd: node, args: ['scripts/test-card-menu.mjs'] },
   { name: 'game sync: public and private branches, writes', cmd: node, args: ['scripts/test-game-sync.mjs'] },
   { name: 'saved card lookup (id, then name)', cmd: node, args: ['scripts/test-card-lookup.mjs'] },
   { name: 'refused-request check', cmd: node, args: ['scripts/test-permission-error.mjs'] },

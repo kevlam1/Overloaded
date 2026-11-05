@@ -258,7 +258,9 @@ try {
   // Counters and the power/toughness change: Alice sets them with the panel, the database holds them, Bob's page shows them read-only,
   // and they are still there after a refresh.
   await alice.eval(`document.querySelector('#row-lands .card, #row-other .card').click()`);
-  record('the counter controls show for her card on the battlefield on the table page', (await alice.eval(`document.getElementById('marks').hidden`)) === false);
+  record('the counter controls stay hidden until Modify is pressed', (await alice.eval(`document.getElementById('marks').hidden`)) === true);
+  await alice.eval(`Array.from(document.querySelectorAll('#selected-actions button')).find((b) => b.textContent === 'Modify').click()`);
+  record('and Modify shows the counter controls for her card on the battlefield on the table page', (await alice.eval(`document.getElementById('marks').hidden`)) === false);
   await alice.eval(`document.getElementById('marks-amount').value = '3'`);
   await alice.eval(`Array.from(document.querySelectorAll('#marks button')).find((b) => b.textContent === 'Add counters').click()`);
   await alice.eval(`document.getElementById('marks-amount').value = '2'`);
@@ -303,6 +305,36 @@ try {
   await bob.eval(`(() => { const chip = Array.from(document.querySelectorAll('#opponent-list .marks .chip'))[0]; if (chip) { chip.click(); chip.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true })); } })()`);
   await sleep(1500);
   record("pressing the numbers on Alice's card in Bob's browser changes nothing in the database", (await counterInDb()) === 3);
+
+  // The right-click menu on the live table (real mouse input): a choice is saved like any move, and other players cannot open it.
+  const menuOf = (page) => page.eval(`(() => { const m = document.querySelector('.card-menu'); return m ? { title: m.querySelector('.card-menu-title').textContent, items: [...m.querySelectorAll('[role="menuitem"]')].filter((b) => !b.closest('[hidden]')).map((b) => b.textContent.replace(String.fromCharCode(0x25b8), '').trim()) } : null; })()`);
+  const clickMenuText = async (page, text) => {
+    const p = await page.eval(`(() => { const b = [...document.querySelectorAll('.card-menu [role="menuitem"]')].find((x) => x.textContent.replace(String.fromCharCode(0x25b8), '').trim() === ${JSON.stringify(text)}); if (!b) return null; const r = b.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`);
+    if (!p) throw new Error(`no menu item "${text}"`);
+    await page.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p.x, y: p.y });
+    await page.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: p.x, y: p.y, button: 'left', buttons: 1, clickCount: 1 });
+    await page.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: p.x, y: p.y, button: 'left', buttons: 0, clickCount: 1 });
+  };
+  const aliceCard = '#row-lands .card, #row-other .card';
+  const tappedInDb = async () => { const r = await rest('GET', pathOf('public/battlefield'), cleanup.bob.token); const card = r.json ? Object.values(r.json)[0] : null; return card ? card.x === 1 : null; };
+  await alice.eval(`document.querySelector(${JSON.stringify(aliceCard)}).scrollIntoView({ block: 'center' })`);
+  const cardAt = await alice.eval(`(() => { const r = document.querySelector(${JSON.stringify(aliceCard)}).getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + 30 }; })()`);
+  await alice.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: cardAt.x, y: cardAt.y });
+  await alice.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: cardAt.x, y: cardAt.y, button: 'right', buttons: 2, clickCount: 1 });
+  await alice.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: cardAt.x, y: cardAt.y, button: 'right', buttons: 0, clickCount: 1 });
+  await sleep(150);
+  const aliceMenu = await menuOf(alice);
+  record("a right click on Alice's card opens its menu on the table page (Modify, Tap, the counter with its amounts, Move to)", Boolean(aliceMenu) && JSON.stringify(aliceMenu.items) === JSON.stringify(['Modify...', 'Tap', '+1/+1 counter', '2', '3', '5', 'Move to']), JSON.stringify(aliceMenu));
+  await clickMenuText(alice, 'Tap');
+  record('Tap from the menu is saved: the card is tapped in the database that Bob can read', Boolean(await waitFor(async () => (await tappedInDb()) === true ? true : null, 15000, 250)));
+  record("...and Bob's page shows Alice's card tapped, without a refresh", Boolean(await waitFor(async () => (await bob.eval(`Array.from(document.querySelectorAll('#opponent-list .opponent')).some((p) => p.querySelector('h3').textContent.includes('Alice') && p.querySelector('.card.tapped'))`)) ? true : null, 20000, 250)));
+  const bobMenuTry = await bob.eval(`(() => { const card = document.querySelector('#opponent-list .opponent .card'); if (!card) return null; const e = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 50, clientY: 50 }); card.dispatchEvent(e); return { prevented: e.defaultPrevented, menus: document.querySelectorAll('.card-menu').length }; })()`);
+  record("a right click on Alice's card in Bob's browser opens no menu and is left to the browser", bobMenuTry && bobMenuTry.menus === 0 && bobMenuTry.prevented === false, JSON.stringify(bobMenuTry));
+  await alice.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: cardAt.x + 1, y: cardAt.y });
+  await alice.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: cardAt.x + 1, y: cardAt.y, button: 'right', buttons: 2, clickCount: 1 });
+  await alice.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: cardAt.x + 1, y: cardAt.y, button: 'right', buttons: 0, clickCount: 1 });
+  await sleep(150);
+  record('the menu then offers Untap, and choosing it untaps the card in the database', (await menuOf(alice))?.items[1] === 'Untap' && (await clickMenuText(alice, 'Untap'), Boolean(await waitFor(async () => (await tappedInDb()) === false ? true : null, 15000, 250))));
 
   const handBeforeRefresh = Object.values((await rest('GET', pathOf('private/hand'), cleanup.alice.token)).json).map((card) => card.u).sort().join();
   await alice.goto(`http://127.0.0.1:${PORT}/table/${code}`);
