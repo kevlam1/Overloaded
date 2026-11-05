@@ -1879,6 +1879,23 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - Clicking a mark does not select the card, so you can adjust counters on several cards quickly.
 - Next: notes and face-down, then player counters and commander damage buttons, then the one rules run.
 
+## 92. The dev server did not serve my own pages (2026-11-05)
+
+**What I asked for**
+- I asked how to test the site. I ran `npm run dev` and `http://localhost:5173/` gave a 404. After Claude fixed that, `/solo` and `/deck` loaded forever. I then said to push to the live site.
+
+**What changed**
+- `vite.config.js`: the dev server now rewrites `/`, `/deck` and `/solo` (and keeps `/lobby/CODE` and `/table/CODE`) to their pages, the same as `vercel.json` does on the live site. Before this only the two pages with a code worked, which is why `/` was a 404 and why the links between pages broke locally.
+- `frontend/pages/deck/index.html` and `solo/index.html`: the script and the stylesheet now use root-based paths like the lobby and table pages. This was the real cause of the endless loading: from the address `/solo` the relative `./solo.js` asks for `/solo.js`, which does not exist, so the page never started. The live site was never affected because its build rewrites those paths.
+- `CLAUDE.md`: a note on this under "Run and check".
+
+**What I checked**
+- A real headless Chrome against a temporary dev server loaded all eight addresses (`/`, `/deck`, `/deck?sample`, `/solo`, `/lobby/CODE`, `/table/CODE` and the two file paths): every script and stylesheet answered 200, `/solo` showed its "no saved deck" panel (so its code ran), and there were no page errors. `npm test`: 37 suites pass. The production build check (`check-deploy-config.mjs`): 56 of 56.
+- Not checked: that the pages work when you click through them in your own browser after restarting `npm run dev`.
+
+**Decisions**
+- My own mistake: the first fix only checked that each address answered 200 with the right page title. It did not check that the page's script loaded, so it passed while `/deck` and `/solo` were broken, and you found it. The check now fetches every script and stylesheet the page asks for, and looks at whether the page's own code ran.
+
 ---
 
 ## Where AI misread me, or I had to correct course
