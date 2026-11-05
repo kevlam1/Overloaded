@@ -1,6 +1,6 @@
 // Checks shared/marks.mjs: how a typed amount is read and what a card shows about counters and its power/toughness change.
 // Run from the repo root:  node scripts/test-marks.mjs
-import { parseAmount, shortNumber, changeLabel, changeParts, counterChips, marksSentence, markClick } from '../shared/marks.mjs';
+import { parseAmount, shortNumber, changeLabel, changeParts, counterChips, marksSentence, markClick, parsePrinted, statsOf, printedOf, markToast } from '../shared/marks.mjs';
 import { NUMBER_LIMIT, COUNTER_KINDS, makeGame, moveCard, seededRandom } from '../shared/zones.mjs';
 
 let checks = 0;
@@ -90,5 +90,32 @@ checks++;
 try { markClick({ mark: 'power' }).run(clickGame, 'c99999'); fail('a click on a card that is not in the game is refused', 'it was accepted'); } catch (error) { if (!/not in the game/.test(error.message)) fail('a click on a card that is not in the game is refused', error.message); }
 checks++;
 try { markClick({ mark: 'power' }).run(moveCard(clickGame, clickUid, 'hand'), clickUid); fail('a click on a card in the hand is refused', 'it was accepted'); } catch (error) { if (!/battlefield/.test(error.message)) fail('a click on a card in the hand is refused', error.message); }
+
+// ---- the printed power and toughness, and what a card is now ----
+same('two whole numbers are read', [parsePrinted('2/2'), parsePrinted('10/10'), parsePrinted('0/4'), parsePrinted('-1/3')], [{ power: 2, toughness: 2 }, { power: 10, toughness: 10 }, { power: 0, toughness: 4 }, { power: -1, toughness: 3 }]);
+for (const odd of ['*/*', '*/1+*', '1+*/1+*', '?/?', '+1/+1', '3.5/3.5', '2/', '/2', '2', '', '2/2/2', ' 2/2', '2/2 ', '∞/∞', null, undefined, 22, ['2/2']]) same(`${JSON.stringify(odd)} is not two whole numbers`, parsePrinted(odd), null);
+same('a plain add: 4/4 with three +1/+1 counters and +2 power is 9/7', (({ power, toughness }) => [power, toughness])(statsOf({ ct: { p: 3 }, mp: 2 }, '4/4')), [9, 7]);
+same('the shift says higher, as printed or lower for each number', [statsOf({ mp: 2 }, '4/4').shift, statsOf({ mt: -1 }, '4/4').shift, statsOf({}, '4/4').shift], [{ power: 1, toughness: 0 }, { power: 0, toughness: -1 }, { power: 0, toughness: 0 }]);
+same('-1/-1 counters make a card weaker, and power can go below 0', (({ power, toughness }) => [power, toughness])(statsOf({ ct: { m: 3 } }, '2/2')), [-1, -1]);
+same('the printed numbers are kept for colouring', statsOf({ mp: 1 }, '2/3').base, { power: 2, toughness: 3 });
+same('loyalty and other counters change nothing', (({ power, toughness }) => [power, toughness])(statsOf({ ct: { l: 4, o: 9 } }, '2/2')), [2, 2]);
+same('a star in the printed numbers gives no numbers', [statsOf({ mp: 1 }, '*/*'), statsOf({ mp: 1 }, null), statsOf({ mp: 1 }, undefined)], [null, null, null]);
+same('billions add exactly', (({ power, toughness }) => [power, toughness])(statsOf({ ct: { p: 4000000000 }, mp: 4000000000 }, '3/3')), [8000000003, 4000000003]);
+const plainLookup = (card) => ({ 'a': { t: 'T', m: '', k: [], pt: '2/2' }, 'b': { t: 'T', m: '', k: [] } })[card.n] ?? null;
+same('a real card is looked up', [printedOf({ n: 'a' }, plainLookup), printedOf({ n: 'b' }, plainLookup), printedOf({ n: 'zzz' }, plainLookup)], ['2/2', null, null]);
+same('a token carries its own and is never looked up (a token can share a real card name)', [printedOf({ n: 'a', tok: true, pt: '1/1' }, plainLookup), printedOf({ n: 'a', tok: true }, plainLookup)], ['1/1', null]);
+same('no lookup, no card, or a damaged pt gives null', [printedOf({ n: 'a' }, null), printedOf(null, plainLookup), printedOf({ n: 'a', tok: true, pt: 11 }, plainLookup), printedOf({ n: 'q' }, () => ({ pt: 5 }))], [null, null, null, null]);
+same('the sentence ends with what the card is now when the printed numbers are known', marksSentence({ ct: { p: 3 }, mp: 2 }, '4/4'), 'Counters: +1/+1 3. Change: +5/+3. Now 9/7.');
+same('and has no "Now" without a change, without printed numbers or with a star', [marksSentence({ ct: { l: 2 } }, '4/4'), marksSentence({ mp: 1 }), marksSentence({ mp: 1 }, '*/*')], ['Counters: Loyalty 2.', 'Change: +1/+0.', 'Change: +1/+0.']);
+same('big numbers keep their digits in "Now"', marksSentence({ mp: 1500000 }, '1/1'), 'Change: +1,500,000/+0. Now 1,500,001/1.');
+
+// ---- the floating text after a click ----
+same('a +1/+1 counter added is +1/+1 and stronger', markToast({ mark: 'chip', kind: 'p' }), { text: '+1/+1', tone: 'up' });
+same('Shift makes it ten', markToast({ mark: 'chip', kind: 'p', big: true }), { text: '+10/+10', tone: 'up' });
+same('a +1/+1 counter removed is -1/-1 and weaker', markToast({ mark: 'chip', kind: 'p', remove: true }), { text: '-1/-1', tone: 'down' });
+same('a -1/-1 counter added is weaker, removed is stronger', [markToast({ mark: 'chip', kind: 'm' }), markToast({ mark: 'chip', kind: 'm', remove: true, big: true })], [{ text: '-1/-1', tone: 'down' }, { text: '+10/+10', tone: 'up' }]);
+same('other counters name themselves and are plain', [markToast({ mark: 'chip', kind: 'l' }), markToast({ mark: 'chip', kind: 'o', remove: true, big: true })], [{ text: '+1 Loyalty', tone: 'plain' }, { text: '-10 Other', tone: 'plain' }]);
+same('power, toughness and both', [markToast({ mark: 'power' }), markToast({ mark: 'toughness', remove: true }), markToast({ mark: 'both', big: true }), markToast({ mark: 'both', remove: true })], [{ text: '+1 power', tone: 'up' }, { text: '-1 toughness', tone: 'down' }, { text: '+10/+10', tone: 'up' }, { text: '-1/-1', tone: 'down' }]);
+same('a mark that does not exist has no text', [markToast({ mark: 'nothing' }), markToast({ mark: 'chip', kind: 'z' }), markToast({ mark: 'chip', kind: 'constructor' }), markToast({ mark: 'constructor' })], [null, null, null, null]);
 
 console.log(`All ${checks} marks checks passed.`);

@@ -1896,6 +1896,30 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 **Decisions**
 - My own mistake: the first fix only checked that each address answered 200 with the right page title. It did not check that the page's script loaded, so it passed while `/deck` and `/solo` were broken, and you found it. The check now fetches every script and stylesheet the page asks for, and looks at whether the page's own code ran.
 
+## 93. A power and toughness box with the real numbers (2026-11-05)
+
+**What I asked for**
+- I said the counter buttons were not bad but the UI was confusing and covered the base power and toughness, and gave Claude a screen recording to take ideas from. Claude could not play a video, so it opened the file in headless Chrome and saved still frames. I then said yes to putting the printed power and toughness into the card list, after Claude measured the cost, and to carry on. I also asked whether we were still preparing a mutation run: yes, for the one batched rules change; this work does not touch the rules.
+
+**What I saw in the video** (12 seconds, 532 by 350, so some details were fuzzy)
+- One box with two numbers at the bottom-right of the card, showing the final power and toughness; a number goes green when raised. A short floating `+1/+1` after a click. A right-click menu with the card name, Modify, Tap, Ping card, a +1/+1 counter with quick amounts 2, 3 and 5, Move to and Create copy. A yellow SICK badge, a round icon at the top-right and a gold `+3` chip. I could not tell what the round icon or the `+3` chip meant.
+
+**What changed**
+- The card list has `pt` (list format 4): the printed power and toughness as Scryfall writes them (`2/2`, `*/1+*`), from the card or its front face, only for cards that have both. Checked against the raw Scryfall data first: Goblin Guide 2/2, Tarmogoyf `*/1+*`, Delver 1/1 and Nissa 2/2 (on the front face), Fable of the Mirror-Breaker none (a non-creature front), Sol Ring none. 19,215 of 34,192 cards get one; the cost is about 36 KB gzipped (+2.4%), so the next Vercel build rebuilds the list once. `scripts/lib/card-list.mjs`, `card-list-build.mjs`, `shared/card-lookup.mjs`.
+- `shared/marks.mjs`: `parsePrinted`, `statsOf` (printed plus counters plus the hand-set change; null for a star), `printedOf` (a token carries its own, anything else is looked up), `markToast`, and the sentence now ends with "Now 6/4".
+- `frontend/src/card-nodes.js` and `style.css`: counters are a small column of chips at the bottom-left; the power and toughness are one box at the bottom-right with the final numbers, green above the printed number and red below it; a floating text after a click that rises and fades (and stays still under `prefers-reduced-motion`). Your own creature on the battlefield also has the box with the printed numbers, but only while the pointer is on the card or it is selected, so it does not cover the printed numbers the rest of the time. A card with no whole printed numbers keeps the pill with the change.
+- The solo and table pages pass their card list in as `printedStats`; `apply` now says whether the move was made, so the floating text appears only for a real change.
+
+**What I checked**
+- `npm test`: 37 suites pass. Live: 86 of 86 against the real project. Production build check: 56 of 56. Real Chrome with real mouse clicks: the box is hidden until the pointer is on the card, left, right, Shift and the line between the numbers, negative power in red, the screen-reader text, a creature in the hand never gets a box, and reduced motion. A screenshot with real pictures shows Llanowar Elves (printed 1/1) with three +1/+1 counters and +2 power as `6 | 4` in green, the chips on the left and "Now 6/4" in the selected line.
+- Broken copies: 15 of the list, lookup and format code (3 survived the first run, see below, and are caught now), 10 of the new logic and 7 of the drawing and style code; all caught.
+- Not checked: the live table's box on another player's creature in a real two-browser game (the test cards there are lands, so only the old pill is exercised live), phone width and touch.
+
+**Decisions**
+- Mistakes of mine: my first size measurement keyed cards by name across every record, so tokens and art cards with a real card's name (87 of them) could have overwritten real values; I redid it with the build's own filters. A first test made power and toughness both bad at once, which hid three survivors; each half is tested alone now. The first version would have shown the faint box on creatures in your hand and piles; the box is now battlefield-only (a test caught the leak). The first version of the dev fix did not check that scripts loaded (entry 92).
+- I did not put the printed numbers on the game card or in the database: they are looked up from the card list like the type line, so the database card shape and the rules are unchanged. A copy of a creature made with `copyAsToken` therefore loses its printed numbers; on `docs/todo.md`.
+- Next, if you want it: the right-click menu from the video to replace most of the panel.
+
 ---
 
 ## Where AI misread me, or I had to correct course

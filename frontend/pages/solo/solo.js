@@ -8,7 +8,7 @@ import { LIBRARY_KEY, LEGACY_KEY, readLibrary, selectedEntry } from '../../../sh
 import { makeLookup } from '../../../shared/card-lookup.mjs';
 import { makeCardNodes } from '../../src/card-nodes.js';
 import { mountMarksPanel } from '../../src/marks-panel.js';
-import { marksSentence, markClick } from '../../../shared/marks.mjs';
+import { marksSentence, markClick, printedOf } from '../../../shared/marks.mjs';
 import { makeGame, draw, moveCard, shuffleLibrary, mulligan, setTapped, untapAll, adjustLife, nextTurn, battlefieldRows, zoneCounts } from '../../../shared/zones.mjs';
 
 const $ = (id) => document.getElementById(id);
@@ -37,7 +37,7 @@ function make(tag, className, content) {
 
 // ---- cards on the page ----
 // The buttons and pictures are in src/card-nodes.js (the live table draws cards the same way).
-const cardNodes = makeCardNodes({ onSelect: (uid) => select(uid), isSelected: (uid) => uid === selected, onMark: (uid, hit) => markOnCard(uid, hit) });
+const cardNodes = makeCardNodes({ onSelect: (uid) => select(uid), isSelected: (uid) => uid === selected, onMark: (uid, hit) => markOnCard(uid, hit), printedStats: (card) => printedOf(card, lookup) });
 const place = cardNodes.place;
 
 function findCard(uid) {
@@ -53,8 +53,8 @@ function render() {
   $('turn').textContent = String(game.turn);
   $('life').textContent = String(game.life);
   const rows = battlefieldRows(game);
-  place($('row-lands'), rows.lands);
-  place($('row-other'), rows.other);
+  place($('row-lands'), rows.lands, { battlefield: true });
+  place($('row-other'), rows.other, { battlefield: true });
   place($('hand'), game.zones.hand);
   place($('command'), game.zones.command);
   $('hand-count').textContent = String(game.zones.hand.length);
@@ -97,7 +97,7 @@ function renderSelected() {
     return;
   }
   const { card, zone } = found;
-  const marks = marksSentence(card);
+  const marks = marksSentence(card, printedOf(card, lookup));
   $('selected-line').textContent = `${card.n}${card.t ? `: ${card.t}` : ''}, in ${ZONE_WORDS[zone]}${card.tapped ? ' (tapped)' : ''}.${marks ? ` ${marks}` : ''}`;
   $('marks').hidden = zone !== 'battlefield'; // counters and the power/toughness change belong to a card on the battlefield
   const actions = [];
@@ -122,14 +122,18 @@ function renderSelected() {
 
 // ---- doing things ----
 // Runs a move on the game; the old game is never changed, so a refused move leaves everything as it was.
+// Returns whether the move was made (a refused move leaves the game as it was).
 function apply(run, message = '') {
+  let made = true;
   try {
     game = run();
     if (message) say(message);
   } catch (error) {
+    made = false;
     say(error.message, true);
   }
   render();
+  return made;
 }
 
 function select(uid) {
@@ -138,14 +142,16 @@ function select(uid) {
 }
 
 // A click on a chip or on the change label of one of your cards on the battlefield (see src/card-nodes.js and shared/marks.mjs).
+// Returns false when nothing changed (the card or the click was refused), so the card shows its floating text only for real changes.
 function markOnCard(uid, hit) {
   const found = findCard(uid);
-  if (!found || found.zone !== 'battlefield') return;
+  if (!found || found.zone !== 'battlefield') return false;
   try {
     const click = markClick(hit);
-    apply(() => click.run(game, uid), click.message(found.card.n));
+    return apply(() => click.run(game, uid), click.message(found.card.n));
   } catch (error) {
     say(error.message, true);
+    return false;
   }
 }
 

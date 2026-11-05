@@ -49,13 +49,42 @@ export function counterChips(card) {
   }));
 }
 
-// One sentence for the selected-card line and for screen readers: "Counters: +1/+1 3. Change: +5/+3." ('' when there is nothing).
-export function marksSentence(card) {
+// The whole numbers in a printed "2/2" (the card list's pt); null for a star or anything else ("*/1+*", "?/?").
+export function parsePrinted(printed) {
+  if (typeof printed !== 'string') return null;
+  const match = /^(-?[0-9]+)[/](-?[0-9]+)$/.exec(printed);
+  return match ? { power: Number(match[1]), toughness: Number(match[2]) } : null;
+}
+
+// The power and toughness a card has now: the printed numbers plus the counters and the hand-set change. null when the printed
+// ones are not two whole numbers. shift is -1, 0 or 1 per number: lower than printed, as printed, higher.
+export function statsOf(card, printed) {
+  const base = parsePrinted(printed);
+  if (!base) return null;
+  const net = netChange(card);
+  return { power: base.power + net.power, toughness: base.toughness + net.toughness, base, shift: { power: Math.sign(net.power), toughness: Math.sign(net.toughness) } };
+}
+
+// The printed power and toughness of a card on the table, as text, or null. A token carries its own (its name can equal a real
+// card's, so it is never looked up); any other card is looked up in the card list by id, then name (shared/card-lookup.mjs).
+export function printedOf(card, lookup) {
+  if (!card) return null;
+  if (card.tok) return typeof card.pt === 'string' ? card.pt : null;
+  const known = typeof lookup === 'function' ? lookup(card) : null;
+  return typeof known?.pt === 'string' ? known.pt : null;
+}
+
+// One sentence for the selected-card line and for screen readers: "Counters: +1/+1 3. Change: +5/+3. Now 5/4." ('' when there is
+// nothing). printed (optional) is the card's printed power and toughness; with two whole numbers and a change, the sentence ends
+// with what the card is now.
+export function marksSentence(card, printed = null) {
   const parts = [];
   const chips = counterChips(card);
   if (chips.length) parts.push(`Counters: ${chips.map((chip) => `${chip.word} ${chip.count.toLocaleString('en-US')}`).join(', ')}.`);
   const change = changeLabel(card, false);
   if (change) parts.push(`Change: ${change}.`);
+  const stats = change ? statsOf(card, printed) : null;
+  if (stats) parts.push(`Now ${stats.power.toLocaleString('en-US')}/${stats.toughness.toLocaleString('en-US')}.`);
   return parts.join(' ');
 }
 
@@ -80,4 +109,24 @@ export function markClick(hit) {
     run: (game, uid) => parts.reduce((next, part) => changeModifier(next, uid, part, delta), game),
     message: (name) => `${name}: ${parts.length === 2 ? 'power and toughness' : parts[0]} ${hit.remove ? 'down' : 'up'} by ${step}.`,
   };
+}
+
+// The short floating text after a click on a mark: what the click did to the card, and its tone ('up' for stronger, 'down' for
+// weaker, 'plain' for counters that change no number). null for a mark that does not exist.
+export function markToast(hit) {
+  const step = hit.big ? 10 : 1;
+  const sign = hit.remove ? '-' : '+';
+  if (hit.mark === 'chip') {
+    if (hit.kind === 'p' || hit.kind === 'm') {
+      const stronger = (hit.kind === 'p') === !hit.remove;
+      const mark = stronger ? '+' : '-';
+      return { text: `${mark}${step}/${mark}${step}`, tone: stronger ? 'up' : 'down' };
+    }
+    return Object.hasOwn(COUNTER_WORDS, hit.kind) ? { text: `${sign}${step} ${COUNTER_WORDS[hit.kind]}`, tone: 'plain' } : null;
+  }
+  const tone = hit.remove ? 'down' : 'up';
+  if (hit.mark === 'power') return { text: `${sign}${step} power`, tone };
+  if (hit.mark === 'toughness') return { text: `${sign}${step} toughness`, tone };
+  if (hit.mark === 'both') return { text: `${sign}${step}/${sign}${step}`, tone };
+  return null;
 }

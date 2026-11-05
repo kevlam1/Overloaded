@@ -9,7 +9,7 @@ import { makeSafeStore } from '../../src/safe-store.js';
 import { loadCardList } from '../../src/card-list.js';
 import { makeCardNodes } from '../../src/card-nodes.js';
 import { mountMarksPanel } from '../../src/marks-panel.js';
-import { marksSentence, markClick } from '../../../shared/marks.mjs';
+import { marksSentence, markClick, printedOf } from '../../../shared/marks.mjs';
 import { presenceStatus, presenceText, ownConnectionText } from '../../../shared/presence.mjs';
 import { tableCodeFromPath } from '../../../shared/lobby-link.mjs';
 import { seatDeckText, defaultDeckFor, hasConceded } from '../../../shared/lobby-deck.mjs';
@@ -89,7 +89,7 @@ let begun = false; // the game is being set up or is on
 let saving = Promise.resolve();
 let selected = null; // the uid of the selected card
 let viewing = null; // the pile being looked at: 'library', 'graveyard', 'exile' or 'sideboard'
-const cardNodes = makeCardNodes({ onSelect: (uid) => select(uid), isSelected: (uid) => uid === selected, onMark: (uid, hit) => markOnCard(uid, hit) });
+const cardNodes = makeCardNodes({ onSelect: (uid) => select(uid), isSelected: (uid) => uid === selected, onMark: (uid, hit) => markOnCard(uid, hit), printedStats: (card) => printedOf(card, lookup) });
 const place = cardNodes.place;
 
 function showBlocked(message, { link = true, retry = false } = {}) {
@@ -112,8 +112,8 @@ function render() {
   $('turn').textContent = String(game.turn);
   $('life').textContent = String(game.life);
   const rows = battlefieldRows(game);
-  place($('row-lands'), rows.lands);
-  place($('row-other'), rows.other);
+  place($('row-lands'), rows.lands, { battlefield: true });
+  place($('row-other'), rows.other, { battlefield: true });
   place($('hand'), game.zones.hand);
   place($('command'), game.zones.command);
   $('hand-count').textContent = String(game.zones.hand.length);
@@ -155,7 +155,7 @@ function renderSelected() {
     return;
   }
   const { card, zone } = found;
-  const marks = marksSentence(card);
+  const marks = marksSentence(card, printedOf(card, lookup));
   $('selected-line').textContent = `${card.n}${card.t ? `: ${card.t}` : ''}, in ${ZONE_WORDS[zone]}${card.tapped ? ' (tapped)' : ''}.${marks ? ` ${marks}` : ''}`;
   $('marks').hidden = zone !== 'battlefield'; // counters and the power/toughness change belong to a card on the battlefield
   const actions = [];
@@ -204,29 +204,35 @@ function sync() {
 }
 
 // Runs a move on the game; the old game is never changed, so a refused move leaves everything as it was.
+// Returns whether the move was made (a refused move leaves the game as it was).
 function apply(run, message = '') {
+  let made = true;
   try {
     game = run();
     if (message) say(message);
   } catch (error) {
+    made = false;
     say(error.message, true);
   }
   render();
   sync();
+  return made;
 }
 
 function select(uid) { selected = uid; render(); }
 
 // A click on a chip or on the change label of one of your cards on the battlefield (see src/card-nodes.js and shared/marks.mjs).
+// Returns false when nothing changed (the card or the click was refused), so the card shows its floating text only for real changes.
 function markOnCard(uid, hit) {
-  if (!game) return;
+  if (!game) return false;
   const found = findCard(uid);
-  if (!found || found.zone !== 'battlefield') return;
+  if (!found || found.zone !== 'battlefield') return false;
   try {
     const click = markClick(hit);
-    apply(() => click.run(game, uid), click.message(found.card.n));
+    return apply(() => click.run(game, uid), click.message(found.card.n));
   } catch (error) {
     say(error.message, true);
+    return false;
   }
 }
 
@@ -345,7 +351,7 @@ function opponentPanel(uid) {
   const command = make('div', 'row'); command.dataset.empty = 'Empty.';
   const graveyard = pileDetails('Graveyard');
   const exile = pileDetails('Exile');
-  panel = { section, title: make('h3'), stats: make('p', 'hint'), waiting: make('p', 'hint', 'Has not been dealt a game yet.'), body: make('div'), lands, other, command, graveyard, exile, nodes: makeCardNodes({ readOnly: true }) };
+  panel = { section, title: make('h3'), stats: make('p', 'hint'), waiting: make('p', 'hint', 'Has not been dealt a game yet.'), body: make('div'), lands, other, command, graveyard, exile, nodes: makeCardNodes({ readOnly: true, printedStats: (card) => printedOf(card, lookup) }) };
   panel.body.append(make('h4', '', 'Lands'), lands, make('h4', '', 'Other permanents'), other, make('h4', '', 'Command zone'), command, graveyard.details, exile.details);
   section.append(panel.title, panel.stats, panel.waiting, panel.body);
   opponents.set(uid, panel);
@@ -358,6 +364,7 @@ async function renderOpponents() {
   if (!on) return;
   let known;
   try { known = await lookupReady(); } catch { known = () => null; } // without the list every permanent shows in the "other" row
+  lookup ??= known; // the same list answers for your own cards and the printed numbers on theirs
   const others = Object.entries(members).filter(([uid]) => uid !== myUid).sort((a, b) => Number(a[1].seat) - Number(b[1].seat));
   const panels = [];
   for (const [uid, member] of others) {
