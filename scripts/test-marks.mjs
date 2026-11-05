@@ -1,7 +1,7 @@
 // Checks shared/marks.mjs: how a typed amount is read and what a card shows about counters and its power/toughness change.
 // Run from the repo root:  node scripts/test-marks.mjs
-import { parseAmount, shortNumber, changeLabel, counterChips, marksSentence } from '../shared/marks.mjs';
-import { NUMBER_LIMIT, COUNTER_KINDS } from '../shared/zones.mjs';
+import { parseAmount, shortNumber, changeLabel, changeParts, counterChips, marksSentence, markClick } from '../shared/marks.mjs';
+import { NUMBER_LIMIT, COUNTER_KINDS, makeGame, moveCard, seededRandom } from '../shared/zones.mjs';
 
 let checks = 0;
 const fail = (label, detail) => { console.log(`FAILED CHECK: ${label}: ${detail}`); process.exit(1); };
@@ -53,5 +53,42 @@ same('counters only', marksSentence({ ct: { l: 4 } }), 'Counters: Loyalty 4.');
 same('counters and a change', marksSentence({ ct: { p: 3, o: 1 }, mp: 2 }), 'Counters: +1/+1 3, Other 1. Change: +5/+3.');
 same('a change only', marksSentence({ mt: -1 }), 'Change: +0/-1.');
 same('big numbers keep every digit in the sentence', marksSentence({ ct: { p: 1500000 } }), 'Counters: +1/+1 1,500,000. Change: +1,500,000/+1,500,000.');
+
+// ---- the change in two pieces ----
+same('no change, no pieces', [changeParts({}), changeParts({ ct: { l: 3 } }), changeParts(null)], [null, null, null]);
+same('the pieces of +5/+3', changeParts({ ct: { p: 3 }, mp: 2 }), { power: '+5', toughness: '+3' });
+same('a part that is 0 keeps its sign', changeParts({ mt: -4 }), { power: '+0', toughness: '-4' });
+same('short and full pieces differ for big numbers', [changeParts({ mp: 5000000000 }, true).power, changeParts({ mp: 5000000000 }, false).power], ['+5B', '+5,000,000,000']);
+same('the pieces joined with a slash are the label', changeLabel({ ct: { p: 3 }, mp: 2 }), `${changeParts({ ct: { p: 3 }, mp: 2 }).power}/${changeParts({ ct: { p: 3 }, mp: 2 }).toughness}`);
+
+// ---- a click on a chip or the change label of a card ----
+const id = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
+const clickDeck = { cards: [{ i: id(1), n: 'Forest', qty: 30, section: 'main' }], commander: [] };
+let clickGame = makeGame(clickDeck, () => ({ t: 'Basic Land - Forest', m: '', k: [] }), { random: seededRandom(3) });
+const clickUid = clickGame.zones.hand[0].uid;
+clickGame = moveCard(clickGame, clickUid, 'battlefield');
+const cardNow = (game) => game.zones.battlefield.find((card) => card.uid === clickUid);
+const after = (game, hit) => markClick(hit).run(game, clickUid);
+same('a plain click on a chip adds one counter of that kind', cardNow(after(clickGame, { mark: 'chip', kind: 'l' })).ct, { l: 1 });
+same('Shift adds ten', cardNow(after(clickGame, { mark: 'chip', kind: 'c', big: true })).ct, { c: 10 });
+same('a right-click takes one off', cardNow(after(after(clickGame, { mark: 'chip', kind: 'l', big: true }), { mark: 'chip', kind: 'l', remove: true })).ct, { l: 9 });
+same('Shift and right-click takes ten off, and a count stops at 0', cardNow(after(after(clickGame, { mark: 'chip', kind: 'l' }), { mark: 'chip', kind: 'l', remove: true, big: true })).ct, undefined);
+same('a click on the power half raises power only', [cardNow(after(clickGame, { mark: 'power' })).mp, cardNow(after(clickGame, { mark: 'power' })).mt], [1, undefined]);
+same('a click on the toughness half raises toughness only', [cardNow(after(clickGame, { mark: 'toughness' })).mp, cardNow(after(clickGame, { mark: 'toughness' })).mt], [undefined, 1]);
+same('a click on the slash raises both', [cardNow(after(clickGame, { mark: 'both' })).mp, cardNow(after(clickGame, { mark: 'both' })).mt], [1, 1]);
+same('a right-click on the slash lowers both, Shift makes it ten', [cardNow(after(clickGame, { mark: 'both', remove: true, big: true })).mp, cardNow(after(clickGame, { mark: 'both', remove: true, big: true })).mt], [-10, -10]);
+same('a click on a +1/+1 chip of a card with -1/-1 counters cancels them, as the rules do', cardNow(after(after(clickGame, { mark: 'chip', kind: 'm', big: true }), { mark: 'chip', kind: 'p' })).ct, { m: 9 });
+same('the messages say what happened', [markClick({ mark: 'chip', kind: 'p' }).message('Elf'), markClick({ mark: 'chip', kind: 'l', remove: true, big: true }).message('Elf'), markClick({ mark: 'power' }).message('Elf'), markClick({ mark: 'both', remove: true }).message('Elf'), markClick({ mark: 'toughness', big: true }).message('Elf')],
+  ['Added 1 +1/+1 counter to Elf.', 'Removed 10 Loyalty counters from Elf.', 'Elf: power up by 1.', 'Elf: power and toughness down by 1.', 'Elf: toughness up by 10.']);
+for (const bad of [{ mark: 'chip', kind: 'z' }, { mark: 'chip' }, { mark: 'chip', kind: '__proto__' }, { mark: 'nothing' }, { mark: 'constructor' }, {}]) {
+  checks++;
+  let threw = false;
+  try { markClick(bad); } catch { threw = true; }
+  if (!threw) fail(`a click on ${JSON.stringify(bad)} is refused`, 'it was accepted');
+}
+checks++;
+try { markClick({ mark: 'power' }).run(clickGame, 'c99999'); fail('a click on a card that is not in the game is refused', 'it was accepted'); } catch (error) { if (!/not in the game/.test(error.message)) fail('a click on a card that is not in the game is refused', error.message); }
+checks++;
+try { markClick({ mark: 'power' }).run(moveCard(clickGame, clickUid, 'hand'), clickUid); fail('a click on a card in the hand is refused', 'it was accepted'); } catch (error) { if (!/battlefield/.test(error.message)) fail('a click on a card in the hand is refused', error.message); }
 
 console.log(`All ${checks} marks checks passed.`);

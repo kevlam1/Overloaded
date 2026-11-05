@@ -196,9 +196,13 @@ main.table { max-width: 80rem; }
 .card.tapped .face { position: absolute; top: 50%; left: 50%; width: 6.6rem; height: 9.25rem; transform: translate(-50%, -50%) rotate(90deg); }
 .card.selected { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent); }
 .card .marks { position: absolute; left: 0; right: 0; bottom: 0.2rem; display: flex; flex-wrap: wrap; justify-content: center; gap: 0.15rem; padding: 0 0.15rem; pointer-events: none; }
-.card .marks span { padding: 0 0.3rem; border: 1px solid var(--line); border-radius: 0.6rem; background: var(--card); color: var(--text); font-size: 0.7rem; line-height: 1.15rem; font-weight: 600; white-space: nowrap; }
+.card .marks .chip, .card .marks .change { padding: 0 0.3rem; border: 1px solid var(--line); border-radius: 0.6rem; background: var(--card); color: var(--text); font-size: 0.7rem; line-height: 1.15rem; font-weight: 600; white-space: nowrap; }
 .card .marks .change { border-color: var(--accent); }
-.opponent .card .marks span { font-size: 0.6rem; line-height: 1rem; }
+.card .marks.live { pointer-events: auto; }
+.card .marks.live [data-mark] { cursor: pointer; }
+.card .marks.live [data-mark]:hover { background: var(--accent); color: var(--accent-text); border-radius: 0.3rem; }
+.card .marks .change .both { padding: 0; }
+.opponent .card .marks .chip, .opponent .card .marks .change { font-size: 0.6rem; line-height: 1rem; }
 .piles { display: flex; flex-wrap: wrap; gap: 1rem 2rem; align-items: flex-start; }
 .piles h3 { margin-top: 0; }
 .pile-buttons { display: flex; flex-wrap: wrap; gap: 0.5rem; }

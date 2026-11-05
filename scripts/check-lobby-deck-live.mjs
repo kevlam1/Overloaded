@@ -285,6 +285,25 @@ try {
   }, 15000, 250);
   record('five billion counters are stored exactly (the database keeps whole numbers that large)', Boolean(bigSaved), JSON.stringify(bigSaved));
 
+  // Clicking the numbers on the card itself (real mouse input): saved to the database, and other players' browsers cannot do it.
+  const clickMarkOnCard = async (page, selector, button = 'left') => {
+    await page.eval(`document.querySelector(${JSON.stringify(selector)}).scrollIntoView({ block: 'center' })`);
+    const p = await page.eval(`(() => { const r = document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`);
+    await page.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p.x, y: p.y });
+    await page.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: p.x, y: p.y, button, buttons: button === 'left' ? 1 : 2, clickCount: 1 });
+    await page.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: p.x, y: p.y, button, buttons: 0, clickCount: 1 });
+  };
+  const aliceChip = '#row-lands .card .marks .chip, #row-other .card .marks .chip';
+  const counterInDb = async () => { const r = await rest('GET', pathOf('public/battlefield'), cleanup.bob.token); const card = r.json ? Object.values(r.json)[0] : null; return card?.ct?.p ?? null; };
+  await clickMarkOnCard(alice, aliceChip);
+  record('a click on the +1/+1 chip of her card adds a counter and saves it (3 to 4 in the database)', Boolean(await waitFor(async () => (await counterInDb()) === 4 ? true : null, 15000, 250)), String(await counterInDb()));
+  await clickMarkOnCard(alice, aliceChip, 'right');
+  record('a right click takes it off again (back to 3 in the database)', Boolean(await waitFor(async () => (await counterInDb()) === 3 ? true : null, 15000, 250)), String(await counterInDb()));
+  record("Bob's copy of Alice's card has nothing to click: no number on it is a control", (await bob.eval(`document.querySelectorAll('#opponent-list [data-mark]').length`)) === 0);
+  await bob.eval(`(() => { const chip = Array.from(document.querySelectorAll('#opponent-list .marks .chip'))[0]; if (chip) { chip.click(); chip.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true })); } })()`);
+  await sleep(1500);
+  record("pressing the numbers on Alice's card in Bob's browser changes nothing in the database", (await counterInDb()) === 3);
+
   const handBeforeRefresh = Object.values((await rest('GET', pathOf('private/hand'), cleanup.alice.token)).json).map((card) => card.u).sort().join();
   await alice.goto(`http://127.0.0.1:${PORT}/table/${code}`);
   const restored = await waitFor(async () => (await count(alice, '#hand .card')) === 7 && (await count(alice, '#row-lands .card, #row-other .card')) === 1 ? true : null, 30000, 200);

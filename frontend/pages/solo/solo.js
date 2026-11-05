@@ -8,7 +8,7 @@ import { LIBRARY_KEY, LEGACY_KEY, readLibrary, selectedEntry } from '../../../sh
 import { makeLookup } from '../../../shared/card-lookup.mjs';
 import { makeCardNodes } from '../../src/card-nodes.js';
 import { mountMarksPanel } from '../../src/marks-panel.js';
-import { marksSentence } from '../../../shared/marks.mjs';
+import { marksSentence, markClick } from '../../../shared/marks.mjs';
 import { makeGame, draw, moveCard, shuffleLibrary, mulligan, setTapped, untapAll, adjustLife, nextTurn, battlefieldRows, zoneCounts } from '../../../shared/zones.mjs';
 
 const $ = (id) => document.getElementById(id);
@@ -37,7 +37,7 @@ function make(tag, className, content) {
 
 // ---- cards on the page ----
 // The buttons and pictures are in src/card-nodes.js (the live table draws cards the same way).
-const cardNodes = makeCardNodes({ onSelect: (uid) => select(uid), isSelected: (uid) => uid === selected });
+const cardNodes = makeCardNodes({ onSelect: (uid) => select(uid), isSelected: (uid) => uid === selected, onMark: (uid, hit) => markOnCard(uid, hit) });
 const place = cardNodes.place;
 
 function findCard(uid) {
@@ -135,6 +135,18 @@ function apply(run, message = '') {
 function select(uid) {
   selected = uid;
   render();
+}
+
+// A click on a chip or on the change label of one of your cards on the battlefield (see src/card-nodes.js and shared/marks.mjs).
+function markOnCard(uid, hit) {
+  const found = findCard(uid);
+  if (!found || found.zone !== 'battlefield') return;
+  try {
+    const click = markClick(hit);
+    apply(() => click.run(game, uid), click.message(found.card.n));
+  } catch (error) {
+    say(error.message, true);
+  }
 }
 
 function deal() {

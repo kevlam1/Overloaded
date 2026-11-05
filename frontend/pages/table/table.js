@@ -9,7 +9,7 @@ import { makeSafeStore } from '../../src/safe-store.js';
 import { loadCardList } from '../../src/card-list.js';
 import { makeCardNodes } from '../../src/card-nodes.js';
 import { mountMarksPanel } from '../../src/marks-panel.js';
-import { marksSentence } from '../../../shared/marks.mjs';
+import { marksSentence, markClick } from '../../../shared/marks.mjs';
 import { presenceStatus, presenceText, ownConnectionText } from '../../../shared/presence.mjs';
 import { tableCodeFromPath } from '../../../shared/lobby-link.mjs';
 import { seatDeckText, defaultDeckFor, hasConceded } from '../../../shared/lobby-deck.mjs';
@@ -89,7 +89,7 @@ let begun = false; // the game is being set up or is on
 let saving = Promise.resolve();
 let selected = null; // the uid of the selected card
 let viewing = null; // the pile being looked at: 'library', 'graveyard', 'exile' or 'sideboard'
-const cardNodes = makeCardNodes({ onSelect: (uid) => select(uid), isSelected: (uid) => uid === selected });
+const cardNodes = makeCardNodes({ onSelect: (uid) => select(uid), isSelected: (uid) => uid === selected, onMark: (uid, hit) => markOnCard(uid, hit) });
 const place = cardNodes.place;
 
 function showBlocked(message, { link = true, retry = false } = {}) {
@@ -216,6 +216,19 @@ function apply(run, message = '') {
 }
 
 function select(uid) { selected = uid; render(); }
+
+// A click on a chip or on the change label of one of your cards on the battlefield (see src/card-nodes.js and shared/marks.mjs).
+function markOnCard(uid, hit) {
+  if (!game) return;
+  const found = findCard(uid);
+  if (!found || found.zone !== 'battlefield') return;
+  try {
+    const click = markClick(hit);
+    apply(() => click.run(game, uid), click.message(found.card.n));
+  } catch (error) {
+    say(error.message, true);
+  }
+}
 
 function drawOne() {
   const result = draw(game, 1);

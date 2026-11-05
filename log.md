@@ -1859,6 +1859,26 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 **Decisions**
 - Next: clicking the chips and the label on the card, then notes and face-down, then player counters and commander damage.
 
+## 91. Clicking the counters and the change on the card itself (2026-11-05)
+
+**What I asked for**
+- "commit then continue": Claude committed the live table controls (`6f796e7`) and went on to what I had agreed earlier: click a chip to add one, right-click to take one off, Shift for ten, and the "/" in the middle of the change changing both numbers.
+
+**What changed**
+- `shared/marks.mjs`: `changeParts` (the change as power and toughness pieces) and `markClick` (turns a click on a chip, the power number, the "/" or the toughness number into a game change and a message).
+- `frontend/src/card-nodes.js` and `style.css`: the change label is three pieces and each mark carries what it is; on your own cards a click on a mark changes the counters instead of selecting the card, and a right-click on a mark is taken by the table (anywhere else on the card the browser's own menu stays). Other players' cards have no controls.
+- `solo.js` and `table.js`: `markOnCard` applies the change (on the live table it saves like any move).
+- Tests: `test-marks.mjs` now 72 checks; the solo browser check 131 (real mouse input: left, right and Shift clicks on chips and each piece of the change); the live two-browser check 86 (a click saves to the database, and pressing the numbers in the other player's browser changes nothing).
+
+**What I checked**
+- `npm test`: 37 suites pass. Live: 86 of 86 against the real project. I looked at a screenshot of the solo table after the change: the marks wrapped onto two lines because the "/" piece had padding, so I removed it and looked again; they sit on one line.
+- Broken copies: 9 of the helper code and 6 of the card and style code, all 15 caught. The helper run also showed a bug in my first version that I found while writing the test: looking up the click kind in a plain object would have accepted names like "constructor" as valid; it now checks own properties only.
+- Not checked: touch (a phone has no right-click or Shift, so on a phone the panel buttons are the way in; a long-press design is not done), keyboard use of the marks themselves (they are not focusable; the panel is the keyboard route) and phone width.
+
+**Decisions**
+- Clicking a mark does not select the card, so you can adjust counters on several cards quickly.
+- Next: notes and face-down, then player counters and commander damage buttons, then the one rules run.
+
 ---
 
 ## Where AI misread me, or I had to correct course

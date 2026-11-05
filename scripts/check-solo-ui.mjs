@@ -354,6 +354,61 @@ try {
   await clickMark('Add counters');
   check('the controls refuse when no card on the battlefield is selected', /Select a card on the battlefield/.test(await $text('status')));
 
+  // ---- clicking the chips and the change label on the card itself (real mouse input) ----
+  await open();
+  const mouse = async (selector, { button = 'left', shift = false, dy = null } = {}) => {
+    await ev(`document.querySelector(${JSON.stringify(selector)}).scrollIntoView({ block: 'center' })`);
+    const p = await ev(`(() => { const r = document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + ${dy === null ? 'r.height / 2' : String(dy)} }; })()`);
+    const base = { x: p.x, y: p.y, button, modifiers: shift ? 8 : 0, clickCount: 1 };
+    await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p.x, y: p.y });
+    await browser.send('Input.dispatchMouseEvent', { ...base, type: 'mousePressed', buttons: button === 'left' ? 1 : 2 });
+    await browser.send('Input.dispatchMouseEvent', { ...base, type: 'mouseReleased', buttons: 0 });
+    await sleep(60);
+  };
+  const chip0 = '#row-other .card .marks .chip';
+  const part = (name) => `#row-other .card .marks .change .${name}`;
+  const chipText = async () => (await ev(`Array.from(document.querySelectorAll('#row-other .card .marks .chip')).map((n) => n.textContent)`)).join('|');
+  const changeText = async () => (await ev(`document.querySelector('#row-other .card .marks .change')?.textContent ?? ''`));
+  await drawUntil((n) => !LANDS.includes(n));
+  await clickCard('#hand .card', (await handNames()).findIndex((x) => !LANDS.includes(x)));
+  await clickAction('To battlefield');
+  await setKind('p'); await setAmount('1'); await clickMark('Add counters');
+  await clickAction('Deselect');
+  check('the card starts with one +1/+1 counter and the +1/+1 change and is not selected', (await chipText()) === '+1/+1 1' && (await changeText()) === '+1/+1' && /^Click a card/.test(await $text('selected-line')), `${await chipText()} ${await changeText()}`);
+  await mouse(chip0);
+  check('a left click on the chip adds a counter and does not select the card', (await chipText()) === '+1/+1 2' && /^Click a card/.test(await $text('selected-line')) && (await $text('status')).startsWith('Added 1 +1/+1 counter to '), `${await chipText()} / ${await $text('status')}`);
+  await mouse(chip0, { shift: true });
+  check('Shift and click adds ten', (await chipText()) === '+1/+1 12' && /Added 10 \+1\/\+1 counters to /.test(await $text('status')), `${await chipText()} / ${await $text('status')}`);
+  await mouse(chip0, { button: 'right' });
+  check('a right click takes one off', (await chipText()) === '+1/+1 11' && (await $text('status')).startsWith('Removed 1 +1/+1 counter from '), `${await chipText()} / ${await $text('status')}`);
+  await mouse(chip0, { button: 'right', shift: true });
+  check('Shift and right click takes ten off', (await chipText()) === '+1/+1 1' && /Removed 10 \+1\/\+1 counters from /.test(await $text('status')), await chipText());
+  check('the change follows the counters (+1/+1 again)', (await changeText()) === '+1/+1', await changeText());
+  await mouse(part('power'));
+  check('a click on the power number raises power only (+2/+1)', (await changeText()) === '+2/+1', await changeText());
+  await mouse(part('toughness'));
+  check('a click on the toughness number raises toughness only (+2/+2)', (await changeText()) === '+2/+2', await changeText());
+  await mouse(part('both'));
+  check('a click on the slash raises both (+3/+3)', (await changeText()) === '+3/+3', await changeText());
+  await mouse(part('both'), { button: 'right' });
+  check('a right click on the slash lowers both (+2/+2)', (await changeText()) === '+2/+2', await changeText());
+  await mouse(part('both'), { shift: true });
+  check('Shift and click on the slash raises both by ten (+12/+12)', (await changeText()) === '+12/+12', await changeText());
+  await mouse(part('power'), { button: 'right', shift: true });
+  check('Shift and right click on power lowers power by ten (+2/+12)', (await changeText()) === '+2/+12', await changeText());
+  check('none of those clicks selected the card', /^Click a card/.test(await $text('selected-line')));
+  await mouse('#row-other .card', { dy: 14 });
+  check('a click on the card itself (not on a number) still selects it', !/^Click a card/.test(await $text('selected-line')) && (await $text('selected-line')).includes('Counters: +1/+1 1.'), await $text('selected-line'));
+  check('the marks explain themselves in a tooltip', /right-click to take 1 off, hold Shift for 10/.test(await ev(`document.querySelector('#row-other .card .marks').title`)));
+  check('every mark has its meaning in a data attribute and nothing else on the card does', (await ev(`Array.from(document.querySelectorAll('#row-other .card [data-mark]')).map((n) => n.dataset.mark).join()`)) === 'chip,power,both,toughness');
+  const prevented = await ev(`(() => { const card = document.querySelector('#row-other .card'); const on = (el) => { const e = new MouseEvent('contextmenu', { bubbles: true, cancelable: true }); el.dispatchEvent(e); return e.defaultPrevented; }; return { chip: on(card.querySelector('.marks .chip')), body: on(card.querySelector('.face')) }; })()`);
+  check('right click on a number is taken by the table, but on the rest of the card the browser menu is left alone', prevented.chip === true && prevented.body === false, JSON.stringify(prevented));
+  const beforeClick = await changeText();
+  await ev(`document.querySelector('#row-other .card .marks .change .power').click()`);
+  check('a click on a number reaches the table even without a mouse (an assistive tool pressing it)', (await changeText()) !== beforeClick, `${beforeClick} -> ${await changeText()}`);
+  await clickAction('To hand');
+  check('a card that goes back to the hand has no marks to click', (await count('#hand .card .marks')) === 0);
+
   // ---- storage blocked ----
   await browser.send('Page.addScriptToEvaluateOnNewDocument', { source: `Object.defineProperty(window, 'localStorage', { get() { throw new DOMException('blocked', 'SecurityError'); } });` });
   await browser.goto(PAGE);
