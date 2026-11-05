@@ -10,13 +10,14 @@ run covers it together with the size and shape limits, the `lastSeen` deletion f
 - **Reserved optional fields now** (allowed by the rules, built later or only as needed): face-down, position, a short note.
 - **Tokens:** pick from Scryfall's token list; a card that makes tokens shows them ("what it creates") for one-click creation; the art
   can be changed to another printing of the same token; and custom art.
-- **Custom art is shared with the table through an image link** (Kevin's choice over Claude's recommendation of keeping it in the
-  uploader's browser only). Claude's objection, recorded: every other player's browser fetches that link, so whoever runs the image host
-  learns each opponent's IP address and when they looked (a player could log everyone at the table with their own server), and the
-  table shows whatever image a player links. To limit that, ONLY named hosts are allowed: to start, Imgur direct links
-  (`https://i.imgur.com/<id>.<png|jpg|jpeg|webp|gif>`) and Scryfall's own pictures (already allowed). The page and the database rules
-  both check the link against that list. **Adding a host later means a change to `vercel.json` (`img-src`), the rules and the checks, and
-  another mutation run, so say now if more hosts are wanted.** Not decided: whether to allow more hosts (Discord's links expire, so they are a poor fit).
+- **Custom art is an UPLOADED picture, not an image link (Kevin, 2026-11-04, replacing his earlier choice of an image link).** The player picks a
+  file, the page shrinks it in their browser to a small picture (about 30 KB) and it is stored in the table's data, so every player's browser
+  gets it from Firebase and no outside host is contacted. Why the link idea was dropped: a browser that shows a linked picture fetches it
+  straight from the link's host, which then sees that viewer's IP address and the time; Kevin does not want Imgur, and any free-form address
+  would let a player log everyone at the table from their own server. The number of custom pictures per player is limited. Space is not a
+  worry because the pictures are deleted with the table. Not saved between games unless a later step keeps them in the player's browser.
+- **Sleeves (card backs) and playmats use the same mechanism** (Kevin, 2026-11-04), chosen in the lobby, and swapped during a match if that is
+  light enough to do without a reset (see "Custom pictures: sleeves, playmats and token art" below).
 
 ## What was checked in Scryfall's data (2026-11-04, the cached files from 2026-10-26 and 2026-10-29)
 - `all_parts` on a card lists related cards, each `{ object: "related_card", id, component, name, type_line, uri }`; `component` is
@@ -46,7 +47,7 @@ Today: `{ u, i, p?, n, x?, e? }` (see `shared/game-sync.mjs`). Planned additions
 | `f` | face down | exactly `1` |
 | `px`, `py` | position on the table (reserved for the free-placement idea; the two automatic rows stay) | whole numbers 0 to 4000 |
 | `nt` | a short note on the card | text, 1 to 40 characters |
-| `au` | custom art link | the allowed hosts only, at most 120 characters (see above) |
+| `au` | custom art: the NAME of one of the owner's uploaded pictures (see "Custom pictures"), not the picture itself | text from a small fixed set of slot names |
 
 A token's `i` is the id of the token printing, which is a Scryfall id, so the existing picture code works and "change its art" just
 swaps which printing the card points at (`p` is used the same way as for real cards). Without `tok`, `i` still has to be a real card.
@@ -76,13 +77,22 @@ is not a counter, so the card holds both and both add to the same total:
 - Counters are changed only on your own cards; putting a counter on another player's permanent would need the `inbox` and is not planned.
 - Creating a token: from a card's related tokens, from the token search, or a copy of one of your permanents (as a token).
 
+## Custom pictures: sleeves, playmats and token art (draft, 2026-11-04)
+Proposed, not decided; the rules run needs the shape settled first.
+- **Where the picture data lives:** NOT inside a card. The game writes whole zones when one card changes (see `docs/todo.md`), so a 30 KB picture inside a battlefield card would be rewritten to every player on every move. Instead each player has their own branch, for example `art/{uid}/{slot}`, written once when the picture is chosen. Slots: `sleeve`, `mat`, and `t1` to `t6` for token art. A card holds only the slot name in `au`, and a viewer looks the picture up there. Fixed slot names mean the rules can cap the count (rules cannot count children) and each value's length.
+- **Size limits (to be measured):** token art and sleeve about 30 KB (a card is 5:7, so a small portrait picture); a playmat is wide and needs more, perhaps 100 to 150 KB. The limit is a text length on the stored picture, checked by the page and by the rules. Total worst case per player is under 400 KB, small next to Firebase's 10 GB a month, and it is deleted with the table.
+- **Who may write:** only the owner, like their other branches. Everyone at the table may read it (that is the point). Nothing in it is private.
+- **Swapping during a match:** a sleeve or a mat is one small write to the player's own art branch and the page redraws, so nothing about the game state changes and no reset is needed. The cost is one more download for each viewer (a few tens of KB), which is why the sizes are small. If it proves heavy, the fallback is lobby only.
+- **Whose sleeve shows:** each player's cards (in their hand, the library pile and the opponents' view of your hidden cards) show that player's sleeve. A playmat is shown under that player's own board. Whether one player can see another's mat or only their own, or whether the table shares one, is an open question.
+- **Picture formats (checked 2026-11-04 in headless Chrome 156 on Windows only, not in Firefox, Safari or on a phone):** a player may pick PNG, JPEG, WebP or GIF (a GIF becomes a still picture); SVG is refused because it is code, not pixels. Chrome decoded all four and encoded PNG, JPEG and WebP; it does NOT encode AVIF and silently returns a PNG when asked, so the page must check the type it got back. The page draws the file on a canvas (which keeps only pixels and drops file details such as location data) and stores WebP, or JPEG when the browser did not return WebP, never PNG (too large for real art). Believed but NOT checked: Safari cannot encode WebP from a canvas, so iPhone players would get the JPEG fallback; a friend with an iPhone should try it. AVIF files as input are untested. The 30 KB and 100 to 150 KB sizes were not measured on real art.
+- **What the content policy needs:** `img-src` gains `data:` (the pictures are text that starts with `data:image/webp;base64,`). That is a looser policy for images only; scripts stay as strict as before. The image checker module is now about the stored picture's shape and size, not a host list, so `shared/token-art.mjs` in the build order becomes `shared/custom-art.mjs`.
+
 ## Open questions
 - **Face-down hides nothing yet.** A face-down card's name is in the public data, so a technical opponent could read it. Real hiding means
   publishing a masked card and keeping the real identity in the private branch. Decide when face-down is built; until then it would be
   a visual flag only and the page should not claim more.
-- Which image hosts besides Imgur (above).
-- Whether a table sees a token's custom art only when the viewer opts in (a setting like "show other players' custom art") as a
-  safety valve. Not planned; worth it if the privacy concern above bothers us in practice.
+- Whether a player can hide other players' custom pictures (a setting). Less pressing now that nothing is fetched from an outside host.
+- Whether one player's playmat shows to others, or only their own screen.
 
 ## Build order (each step small, tested, committed when Kevin asks)
 1. **DONE 2026-11-04** `shared/zones.mjs` and `shared/game-sync.mjs`: counters (with +1/+1 and -1/-1 cancelling), the modifier, notes, face-down,
@@ -90,10 +100,10 @@ is not a counter, so the card holds both and both add to the same total:
    player counters and commander damage, all stored and read back, with `scripts/test-counters.mjs` (232 checks, 59 of 59 broken copies caught)
    and `scripts/test-sync-counters.mjs` (82 checks, 44 broken copies run: 42 caught at first, one survivor then got a test and is caught, one is
    redundant because an array already fails the counter key check). NOT done in this step: the position fields
-   `px`, `py` (reserved in the plan, no code yet), custom art `au` (step 2), and `faceDown` hides nothing from other players.
+   `px`, `py` (reserved in the plan, no code yet), custom pictures `au` and the art branch (step 2), and `faceDown` hides nothing from other players.
    Decided while building: a copy of a real card keeps its cost and keywords through the database because a token's cost and keywords are
    looked up by id only (never by name, since 87 token names equal real card names).
-2. `shared/token-art.mjs`: the one function that says whether an art link is allowed (used by the page and mirrored in the rules), with tests.
+2. `shared/custom-art.mjs`: the checks for a stored custom picture (shape, size, slot names; used by the page and mirrored in the rules), the page code that shrinks an uploaded file, with tests.
 3. The buttons for counters, notes, face-down and player counters on the solo and live tables.
 4. The ONE rules change: this shape, plus the size and shape limits, the `lastSeen` deletion fix and the table code format check. Then the full mutation run, Kevin pastes, `npm run test:live`.
 5. Token data build (`tokens.json`), then the token panel: related tokens, search, art picker and the custom art link, on top of the fixed shape.

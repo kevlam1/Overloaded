@@ -1806,6 +1806,20 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 **Decisions**
 - Why one trillion and not none: whole numbers are only exact in JavaScript up to about 9 quadrillion, so a ceiling keeps sums exact, and nobody reaches it in play.
 
+## 88. Custom art becomes an uploaded picture, and sleeves and playmats join it (2026-11-04)
+
+**What I asked for**
+- I asked what an image host is, and then how a link could expose anyone's IP address. Claude explained that each viewer's own browser fetches the picture straight from the link's host, which sees their IP address. I did not want Imgur, so I asked if an uploaded picture from the player's computer would be better. Then I said yes to changing the design, to limiting how many custom pictures a player has, and that sleeves (card backs) and playmats should work the same way, chosen in the lobby and maybe swapped during a match if it is light enough.
+
+**What changed**
+- `docs/tokens-counters.md` only (no code): custom art is an uploaded picture shrunk by the page to about 30 KB; sleeves and playmats use the same mechanism. A new draft section keeps the pictures in a separate branch per player (not inside a card, because a move rewrites whole zones and would resend a 30 KB picture every time), with fixed slot names so the rules can cap the number and the size. `au` on a card now holds only a slot name. The planned checker is `shared/custom-art.mjs` instead of `shared/token-art.mjs`, and the content policy would need `data:` for images.
+
+**What I checked**
+- Nothing run; this is a design change. The sizes (30 KB, 100 to 150 KB for a mat) are guesses until I measure, and I later checked image formats in headless Chrome only (PNG, JPEG, WebP and GIF read; PNG, JPEG and WebP written; AVIF not written; Safari and Firefox not checked), see `docs/tokens-counters.md`.
+
+**Decisions**
+- Dropped the image link idea. Open: whether other players see one's playmat, and whether swapping a sleeve mid-match stays light enough.
+
 ---
 
 ## Where AI misread me, or I had to correct course
