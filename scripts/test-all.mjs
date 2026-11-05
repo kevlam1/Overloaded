@@ -37,6 +37,8 @@ const suites = [
   { name: 'lobby decks: what is sent, offered and shown', cmd: node, args: ['scripts/test-lobby-deck.mjs'] },
   { name: 'deck importer markup is the same on the deck page and in the lobby', cmd: node, args: ['scripts/test-importer-markup.mjs'] },
   { name: 'game zones: draw, move, tap, shuffle', cmd: node, args: ['scripts/test-zones.mjs'] },
+  { name: 'counters, modifier, tokens, player counters', cmd: node, args: ['scripts/test-counters.mjs'] },
+  { name: 'counters and tokens: how they are stored and read back', cmd: node, args: ['scripts/test-sync-counters.mjs'] },
   { name: 'game sync: public and private branches, writes', cmd: node, args: ['scripts/test-game-sync.mjs'] },
   { name: 'saved card lookup (id, then name)', cmd: node, args: ['scripts/test-card-lookup.mjs'] },
   { name: 'refused-request check', cmd: node, args: ['scripts/test-permission-error.mjs'] },

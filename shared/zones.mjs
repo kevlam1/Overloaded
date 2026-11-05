@@ -12,6 +12,11 @@
 //   the same in every printing; the picture is drawn from p when there is one, else from i), n: name,
 //   t: type line, m: mana cost, k: keywords, tapped, turnEntered: the turn it came to the battlefield (null elsewhere).
 // For the library, the graveyard and the other piles, index 0 is the TOP.
+// A card on the battlefield may also hold, each only when set: ct (counters, an object from kind to count, see COUNTER_KINDS), mp and
+// mt (the power and toughness modifier set by hand), nt (a short note), faceDown, and for a token tok: true with pt and cl. A game may hold
+// pc (poison, energy, experience) and cd (commander damage by seat). docs/tokens-counters.md explains them.
+
+import { scrubText } from './player-name.mjs';
 
 const SCRYFALL_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 export const ZONES = ['library', 'hand', 'battlefield', 'graveyard', 'exile', 'command', 'sideboard'];
@@ -19,8 +24,27 @@ export const HAND_SIZE = 7;
 export const DEFAULT_LIFE = 20;
 export const COMMANDER_LIFE = 40;
 export const MAX_DRAW = 100;
-export const MAX_LIFE_STEP = 1000;
+// One trillion: no limit that matters in play (doublers reach billions), but whole numbers are only exact up to about 9 quadrillion, so a
+// ceiling keeps every count, life total and sum of a few of them exact. One number for life, every counter and the modifier (Kevin, 2026-11-04).
+export const NUMBER_LIMIT = 1_000_000_000_000;
+export const MAX_LIFE = NUMBER_LIMIT;
+export const MAX_LIFE_STEP = NUMBER_LIMIT;
 const EM_DASH = ' ' + String.fromCharCode(0x2014) + ' ';
+
+// Counters, the power and toughness modifier, a note, face-down and tokens (docs/tokens-counters.md). They belong to a card ON THE
+// BATTLEFIELD and are cleared when it leaves it; a token that leaves the battlefield stops existing.
+export const COUNTER_KINDS = ['p', 'm', 'l', 'c', 't', 'o']; // +1/+1, -1/-1, loyalty, charge, time, other
+export const COUNTER_WORDS = { p: '+1/+1', m: '-1/-1', l: 'Loyalty', c: 'Charge', t: 'Time', o: 'Other' };
+export const MAX_COUNT = NUMBER_LIMIT;
+export const MAX_MODIFIER = NUMBER_LIMIT;
+export const MAX_NOTE = 40;
+export const MAX_TOKEN_TEXT = 60;
+export const MAX_ZONE_CARDS = 250;
+export const PLAYER_COUNTERS = ['poison', 'energy', 'experience'];
+export const COMMANDER_SEATS = ['1', '2', '3', '4'];
+const BATTLEFIELD_STATE = ['ct', 'mp', 'mt', 'faceDown', 'nt'];
+export const TOKEN_POWER_TOUGHNESS = /^[0-9*+-]{1,3}\/[0-9*+-]{1,3}$/;
+export const TOKEN_COLORS = /^[WUBRG]{1,5}$/;
 
 // Where a card goes in a pile when no position is given: on top of the library and of the graveyard (the newest card is
 // first), at the end of the others.
@@ -107,7 +131,10 @@ export function moveCard(game, uid, to, { position } = {}) {
   const zones = { ...game.zones };
   const card = game.zones[from][at];
   zones[from] = game.zones[from].filter((_, index) => index !== at);
+  const leaving = from === 'battlefield' && to !== 'battlefield';
+  if (leaving && card.tok) return { ...game, zones }; // a token that leaves the battlefield stops existing
   const moved = { ...card, tapped: to === 'battlefield' ? card.tapped : false, turnEntered: to === 'battlefield' ? (from === 'battlefield' ? card.turnEntered : game.turn) : null };
+  if (leaving) for (const key of BATTLEFIELD_STATE) delete moved[key]; // counters, the modifier, the note and face-down stay behind
   zones[to] = where === 'top' ? [moved, ...zones[to]] : [...zones[to], moved];
   return { ...game, zones };
 }
@@ -146,13 +173,135 @@ export function untapAll(game) {
 
 export function adjustLife(game, delta) {
   if (!Number.isInteger(delta) || Math.abs(delta) > MAX_LIFE_STEP) throw new Error(`Change life by a whole number up to ${MAX_LIFE_STEP}.`);
-  return { ...game, life: game.life + delta };
+  return { ...game, life: Math.min(MAX_LIFE, Math.max(-MAX_LIFE, game.life + delta)) };
 }
 
 // The next turn: the turn number goes up, everything untaps, and one card is drawn. Returns { game, drawn, short }.
 export function nextTurn(game) {
   const next = untapAll({ ...game, turn: game.turn + 1 });
   return draw(next, 1);
+}
+
+// ---- counters, the modifier, notes, face-down and tokens ----
+// The card on the battlefield with this uid, and where it is in that zone. Anything else is refused in words.
+function onBattlefield(game, uid, what) {
+  const { zone, at } = locate(game, uid);
+  if (zone !== 'battlefield') throw new Error(`Only a card on the battlefield can have ${what}.`);
+  return { card: game.zones.battlefield[at], at };
+}
+const putBattlefield = (game, at, card) => ({ ...game, zones: { ...game.zones, battlefield: game.zones.battlefield.map((existing, index) => (index === at ? card : existing)) } });
+// A card with this field set, or without it when the value is empty (0, '', false, no counters): nothing is stored for "none".
+function with_(card, key, value, empty) {
+  const { [key]: _gone, ...rest } = card;
+  return empty ? rest : { ...rest, [key]: value };
+}
+const wholeStep = (delta, what) => {
+  if (!Number.isInteger(delta) || delta === 0 || Math.abs(delta) > NUMBER_LIMIT) throw new Error(`Change ${what} by a whole number from 1 to ${NUMBER_LIMIT.toLocaleString('en-US')}, up or down.`);
+};
+
+// Adds (delta above 0) or removes (below 0) counters of one kind. Adding a +1/+1 counter to a card with -1/-1 counters removes
+// -1/-1 counters first, and the other way round, as the real rules cancel them in pairs. A count stops at 0 and at MAX_COUNT.
+export function changeCounter(game, uid, kind, delta) {
+  if (!COUNTER_KINDS.includes(kind)) throw new Error('That is not a kind of counter.');
+  wholeStep(delta, 'a counter');
+  const { card, at } = onBattlefield(game, uid, 'counters');
+  const counts = { ...(card.ct ?? {}) };
+  const rival = kind === 'p' ? 'm' : kind === 'm' ? 'p' : null;
+  let amount = delta;
+  if (rival && amount > 0 && counts[rival] > 0) {
+    const cancelled = Math.min(amount, counts[rival]);
+    counts[rival] -= cancelled;
+    amount -= cancelled;
+    if (!counts[rival]) delete counts[rival];
+  }
+  counts[kind] = Math.min(MAX_COUNT, Math.max(0, (counts[kind] ?? 0) + amount));
+  if (!counts[kind]) delete counts[kind];
+  return putBattlefield(game, at, with_(card, 'ct', counts, Object.keys(counts).length === 0));
+}
+
+// The power and toughness modifier you set by hand (a pump spell, an equipment): part is 'power' or 'toughness'. It is not a counter.
+export function changeModifier(game, uid, part, delta) {
+  if (part !== 'power' && part !== 'toughness') throw new Error('The modifier is for power or toughness.');
+  wholeStep(delta, 'the modifier');
+  const { card, at } = onBattlefield(game, uid, 'a modifier');
+  const key = part === 'power' ? 'mp' : 'mt';
+  const next = Math.min(MAX_MODIFIER, Math.max(-MAX_MODIFIER, (card[key] ?? 0) + delta));
+  return putBattlefield(game, at, with_(card, key, next, next === 0));
+}
+
+export function resetModifier(game, uid) {
+  const { card, at } = onBattlefield(game, uid, 'a modifier');
+  return putBattlefield(game, at, with_(with_(card, 'mp', 0, true), 'mt', 0, true));
+}
+
+// What the counters and the modifier add up to: { power, toughness } as changes to the printed values (+2 and +1 shows as +2/+1).
+export function netChange(card) {
+  const counters = card?.ct ?? {};
+  const plusMinus = (counters.p ?? 0) - (counters.m ?? 0);
+  return { power: (card?.mp ?? 0) + plusMinus, toughness: (card?.mt ?? 0) + plusMinus };
+}
+
+// A short note on a card ('' takes it off). Invisible characters are removed, like in names.
+export function setNote(game, uid, text) {
+  const note = scrubText(String(text ?? ''));
+  if (note.length > MAX_NOTE) throw new Error(`A note is at most ${MAX_NOTE} characters.`);
+  const { card, at } = onBattlefield(game, uid, 'a note');
+  return putBattlefield(game, at, with_(card, 'nt', note, note === ''));
+}
+
+export function setFaceDown(game, uid, down) {
+  const { card, at } = onBattlefield(game, uid, 'a face-down state');
+  return putBattlefield(game, at, with_(card, 'faceDown', true, !down));
+}
+
+// Makes a token on the battlefield. spec: { n: name, i: the Scryfall id of the token (its picture), tt: its type line, pt: 'P/T'
+// (optional), cl: colors such as 'RG' (optional) }. Returns { game, uid }. A token is a card with tok: true; its type line is its t.
+export function createToken(game, spec) {
+  const text = (value, what) => {
+    const clean = scrubText(String(value ?? ''));
+    if (clean.length === 0 || clean.length > MAX_TOKEN_TEXT) throw new Error(`A token's ${what} is 1 to ${MAX_TOKEN_TEXT} characters.`);
+    return clean;
+  };
+  const n = text(spec?.n, 'name');
+  const t = text(spec?.tt, 'type line');
+  if (typeof spec?.i !== 'string' || !SCRYFALL_ID.test(spec.i)) throw new Error('A token needs the Scryfall id of its picture.');
+  if (spec.pt !== undefined && !(typeof spec.pt === 'string' && TOKEN_POWER_TOUGHNESS.test(spec.pt))) throw new Error('A token\'s power and toughness look like 2/2.');
+  if (spec.cl !== undefined && !(typeof spec.cl === 'string' && TOKEN_COLORS.test(spec.cl))) throw new Error('A token\'s colors are letters from WUBRG.');
+  if (game.zones.battlefield.length >= MAX_ZONE_CARDS) throw new Error(`The battlefield holds at most ${MAX_ZONE_CARDS} cards.`);
+  const uid = `c${game.nextUid}`;
+  const token = { uid, i: spec.i, n, t, m: '', k: [], tok: true, ...(spec.pt ? { pt: spec.pt } : {}), ...(spec.cl ? { cl: spec.cl } : {}), tapped: false, turnEntered: game.turn };
+  return { game: { ...game, zones: { ...game.zones, battlefield: [...game.zones.battlefield, token] }, nextUid: game.nextUid + 1 }, uid };
+}
+
+// A copy of a permanent on the battlefield, as a token (what it looks like and is called; no counters, no modifier). Returns { game, uid }.
+export function copyAsToken(game, uid) {
+  const { card } = onBattlefield(game, uid, 'a copy');
+  if (game.zones.battlefield.length >= MAX_ZONE_CARDS) throw new Error(`The battlefield holds at most ${MAX_ZONE_CARDS} cards.`);
+  const copyUid = `c${game.nextUid}`;
+  const copy = { uid: copyUid, i: card.i, ...(card.p ? { p: card.p } : {}), n: card.n, t: card.t, m: card.m, k: card.k, tok: true, ...(card.pt ? { pt: card.pt } : {}), ...(card.cl ? { cl: card.cl } : {}), tapped: false, turnEntered: game.turn };
+  return { game: { ...game, zones: { ...game.zones, battlefield: [...game.zones.battlefield, copy] }, nextUid: game.nextUid + 1 }, uid: copyUid };
+}
+
+// Counters on the player: poison, energy and experience (0 to MAX_COUNT), and commander damage taken from the commander of seat 1 to 4.
+// Only counts above 0 are stored (game.pc and game.cd).
+const bumped = (table, key, delta, what) => {
+  wholeStep(delta, what);
+  const next = { ...(table ?? {}) };
+  next[key] = Math.min(MAX_COUNT, Math.max(0, (next[key] ?? 0) + delta));
+  if (!next[key]) delete next[key];
+  return next;
+};
+export function changePlayerCounter(game, kind, delta) {
+  if (!PLAYER_COUNTERS.includes(kind)) throw new Error('That is not a counter a player can have.');
+  const pc = bumped(game.pc, kind, delta, 'a counter');
+  const { pc: _old, ...rest } = game;
+  return Object.keys(pc).length ? { ...rest, pc } : rest;
+}
+export function changeCommanderDamage(game, seat, delta) {
+  if (!COMMANDER_SEATS.includes(seat)) throw new Error('Commander damage comes from a seat from 1 to 4.');
+  const cd = bumped(game.cd, seat, delta, 'commander damage');
+  const { cd: _old, ...rest } = game;
+  return Object.keys(cd).length ? { ...rest, cd } : rest;
 }
 
 // ---- looking ----
@@ -182,10 +331,39 @@ export function checkGame(game) {
       if ('p' in card && !(typeof card.p === 'string' && SCRYFALL_ID.test(card.p))) problems.push(`card ${card.uid} has a printing that is not an id`);
       if (zone !== 'battlefield' && (card.tapped || card.turnEntered !== null)) problems.push(`card ${card.uid} is tapped or has an entry turn outside the battlefield`);
       if (zone === 'battlefield' && !Number.isInteger(card.turnEntered)) problems.push(`battlefield card ${card.uid} has no entry turn`);
+      if (zone !== 'battlefield') {
+        for (const key of [...BATTLEFIELD_STATE, 'tok', 'pt', 'cl']) if (key in card) problems.push(`card ${card.uid} has ${key} outside the battlefield`);
+      }
+      if ('ct' in card) {
+        const counts = card.ct;
+        const keys = counts && typeof counts === 'object' && !Array.isArray(counts) ? Object.keys(counts) : null;
+        if (!keys || keys.length === 0) problems.push(`card ${card.uid} has an empty or damaged counters field`);
+        else {
+          for (const key of keys) if (!COUNTER_KINDS.includes(key) || !Number.isInteger(counts[key]) || counts[key] < 1 || counts[key] > MAX_COUNT) problems.push(`card ${card.uid} has a damaged ${key} counter`);
+          if (counts.p && counts.m) problems.push(`card ${card.uid} has both +1/+1 and -1/-1 counters`);
+        }
+      }
+      for (const key of ['mp', 'mt']) {
+        if (key in card && !(Number.isInteger(card[key]) && card[key] !== 0 && Math.abs(card[key]) <= MAX_MODIFIER)) problems.push(`card ${card.uid} has a damaged ${key}`);
+      }
+      if ('nt' in card && !(typeof card.nt === 'string' && card.nt.length > 0 && card.nt.length <= MAX_NOTE)) problems.push(`card ${card.uid} has a damaged note`);
+      if ('faceDown' in card && card.faceDown !== true) problems.push(`card ${card.uid} has a damaged face-down mark`);
+      if ('tok' in card && card.tok !== true) problems.push(`card ${card.uid} has a damaged token mark`);
+      if (('pt' in card || 'cl' in card) && card.tok !== true) problems.push(`card ${card.uid} has token fields but is not a token`);
+      if ('pt' in card && !(typeof card.pt === 'string' && TOKEN_POWER_TOUGHNESS.test(card.pt))) problems.push(`token ${card.uid} has a damaged power and toughness`);
+      if ('cl' in card && !(typeof card.cl === 'string' && TOKEN_COLORS.test(card.cl))) problems.push(`token ${card.uid} has damaged colors`);
     }
   }
+  if ('pc' in game) {
+    const ok = game.pc && typeof game.pc === 'object' && !Array.isArray(game.pc) && Object.keys(game.pc).length > 0 && Object.entries(game.pc).every(([key, value]) => PLAYER_COUNTERS.includes(key) && Number.isInteger(value) && value >= 1 && value <= MAX_COUNT);
+    if (!ok) problems.push('the player counters are damaged');
+  }
+  if ('cd' in game) {
+    const ok = game.cd && typeof game.cd === 'object' && !Array.isArray(game.cd) && Object.keys(game.cd).length > 0 && Object.entries(game.cd).every(([key, value]) => COMMANDER_SEATS.includes(key) && Number.isInteger(value) && value >= 1 && value <= MAX_COUNT);
+    if (!ok) problems.push('the commander damage is damaged');
+  }
   for (const key of Object.keys(game.zones)) if (!ZONES.includes(key)) problems.push(`unknown zone ${key}`);
-  if (!Number.isInteger(game.life)) problems.push('life is not a whole number');
+  if (!Number.isInteger(game.life) || Math.abs(game.life) > MAX_LIFE) problems.push('life is not a whole number within the limit');
   if (!Number.isInteger(game.turn) || game.turn < 1) problems.push('the turn is not a whole number from 1');
   if (!Number.isInteger(game.mulligans) || game.mulligans < 0) problems.push('mulligans is not a whole number from 0');
   return problems.slice(0, 20);

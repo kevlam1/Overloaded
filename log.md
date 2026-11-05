@@ -1749,6 +1749,65 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 85. Designing counters and tokens before the one rules run (2026-11-04)
+
+**What I asked for**
+- I asked what the rules change would also include, and Claude listed the candidates. I chose to design counters and tokens first, so one 55-minute mutation run covers all of it instead of two.
+
+**What changed**
+- No code. `docs/tokens-counters.md` (new) holds the design and my decisions; `docs/todo.md` has the item with the build order.
+
+**What I checked**
+- Scryfall's raw data, before designing on it. `all_parts` lists related cards with a `component`; `token` names the token a card makes. Krenko, Mob Boss lists a Goblin, Treasure Vault lists a Treasure, Sol Ring has none. 4,785 of 39,196 cards relate to a token. The all-printings file has 3,049 token printings, all with pictures, in 850 kinds (100 Treasure printings, 59 red 1/1 Goblin printings). All token printings are about 99 KB gzipped, so a token file loaded only when the token panel opens is small. I did not measure the card-to-token links in the compact form I plan to use (the measured form was 148 KB gzipped).
+- Not checked: anything about how the token panel will feel, and the compact link format.
+
+**Decisions**
+- Fixed short list of card counters; player counters (poison, energy, experience, commander damage by seat); reserved face-down, position and note fields.
+- Tokens: pick from Scryfall's list, see the tokens a card makes, change a token's art to another printing of the same token, and custom art.
+- Custom art is shared through an image link. This was my choice and Claude recommended keeping it in the uploader's browser only. Claude's objection was that every other player's browser fetches the link, so whoever runs the image host learns each opponent's IP address, and the table shows whatever is linked. I kept my choice; the limit is that only named hosts are allowed (Imgur direct links and Scryfall's own pictures to start), checked by both the page and the database rules. Adding a host later costs another rules run.
+- Claude also noticed my 2026-10-29 note that I do not need the Start button to stay off until two players are in, while the page still requires two players, all ready. Not changed; it is on the todo.
+
+---
+
+## 86. Counters, the modifier and tokens: the logic and how they are stored (2026-11-04)
+
+**What I asked for**
+- I said yes to the three open points (cancel +1/+1 against -1/-1, Next turn does not reset the modifier, show only the change for now), so Claude started build step 1 from `docs/tokens-counters.md`: the logic and the storage, with tests, before any buttons.
+
+**What changed**
+- `shared/zones.mjs`: `changeCounter` (six fixed kinds; +1/+1 and -1/-1 cancel in pairs; counts stop at 0 and 999), `changeModifier` / `resetModifier` / `netChange` (power and toughness changed separately, -99 to 99; the total is the modifier plus the counters), `setNote`, `setFaceDown`, `createToken` and `copyAsToken`, and `changePlayerCounter` / `changeCommanderDamage` (poison, energy, experience, and damage by seat 1 to 4). Counters, the modifier, the note and face-down belong to a card on the battlefield and are cleared when it leaves; a token that leaves the battlefield stops existing. `checkGame` notices a damaged version of any of it.
+- `shared/game-sync.mjs`: a card is now also stored with `tok`/`tt`/`pt`/`cl` (a token), `ct`, `mp`/`mt`, `f` and `nt`, and the public branch with `pc` and `cd`; every stored field is checked when read (anything damaged makes the card not a card), and a changed counter or modifier writes only the battlefield.
+- `scripts/test-counters.mjs` (new, 232 checks) and `scripts/test-sync-counters.mjs` (new, 82 checks), both in `npm test`; `scripts/test-game-sync.mjs` has one expectation updated (an opponent's view now also has `pc` and `cd`).
+- `docs/tokens-counters.md`, `docs/todo.md` and `CLAUDE.md` say what is built.
+
+**What I checked**
+- `npm test`: all 36 suites pass. Random games of 2,000 moves (five of them) with every new operation stay consistent and no real card is lost or copied; stored data from 1,500 moves each (five games) rebuilds exactly the same game from only the changed writes.
+- Broken copies: 59 of the new game logic, all caught; 44 of the new storage code, 42 caught on the first run, then one of the two survivors got a new test and is caught, and the other is redundant (an array check that the key check already makes unnecessary). I first wrote 61 and 45 in my notes from memory; counting the lists I ran gave 59 and 44, and I corrected them.
+- Not checked: any screen (there are no buttons yet), the database rules (they still accept the old shape, so none of this is saved live yet; the new fields would be accepted today because the rules do not limit what a card holds, which is the gap the rules run closes), and the position fields and custom art link (not built).
+
+**Decisions**
+- My first round-trip test failed because a copy of a real card lost its cost and keywords after being stored (a token's cost and keywords were not stored or looked up). Fixed by looking them up by id only, so a copy keeps them and a token with the same name as a real card never picks up that card's data. I did not catch it by reading; the test did.
+- My first edit of `shared/zones.mjs` also wrote stray backslashes into the file and broke it before it ran; fixed with a one-off script.
+- Next: the art link checker (step 2), then the buttons (step 3), then the one rules run (step 4).
+
+## 87. No practical limit on counters, the modifier and life (2026-11-04)
+
+**What I asked for**
+- I asked whether numbers can go past 99 and be typed, and said there should not be a limit because doublers can go into the billions. I also agreed that Shift-click changes by 10 and that clicking the "/" in the middle changes power and toughness together.
+
+**What changed**
+- `shared/zones.mjs`: one limit, `NUMBER_LIMIT` (one trillion), for life, every counter, the modifier, player counters and commander damage. A change can be any whole number up to it and a result stops at it. Life now stops at plus or minus the limit.
+- `shared/game-sync.mjs`: life was read back with its own cap of 1,000,000 and anything bigger became 20; it now uses the same limit as the game.
+- Tests updated for the new limit (`test-zones`, `test-counters`, `test-sync-counters`) with new checks for billions of life, counters and modifier, and for a total one past the limit; `docs/tokens-counters.md` has a "Number limits" section.
+
+**What I checked**
+- `npm test`: all 36 suites pass (zones 268, counters 233, counter storage 83). I did not rerun the broken-copy checks for this change. Not built yet: Shift-click, the "/" button and typing a number (they are step 3, the buttons).
+
+**Decisions**
+- Why one trillion and not none: whole numbers are only exact in JavaScript up to about 9 quadrillion, so a ceiling keeps sums exact, and nobody reaches it in play.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-10-30, entry 75) Claude wrote the "refuse to run when the backup exists" guard first and only then noticed that `mutate-rules.mjs` calls the same script while its own backup exists, so every mutation would have failed at once and looked like a kill. It caught this by reading the runner before running anything, and fixed it with the `MUTATION_RUN` flag. It also had listed the `lastSeen` deletion as an untested suspicion when a test for it already existed.
 

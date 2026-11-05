@@ -1,7 +1,7 @@
 // Tests for shared/zones.mjs: the zones of one player's game and every move between them. The important properties:
 // no card is ever lost or copied, nothing is changed in place (the games are deep-frozen), the shuffle is fair, and each
 // move leaves the cards where the rules of a paper table say. No browser, no network. Run: node scripts/test-zones.mjs
-import { ZONES, HAND_SIZE, DEFAULT_LIFE, COMMANDER_LIFE, MAX_DRAW, MAX_LIFE_STEP, secureRandom, seededRandom, shuffled, isLandCard, makeGame, moveCard, draw, shuffleLibrary, mulligan, setTapped, untapAll, adjustLife, nextTurn, battlefieldRows, zoneCounts, checkGame } from '../shared/zones.mjs';
+import { ZONES, HAND_SIZE, DEFAULT_LIFE, COMMANDER_LIFE, MAX_DRAW, MAX_LIFE_STEP, MAX_LIFE, secureRandom, seededRandom, shuffled, isLandCard, makeGame, moveCard, draw, shuffleLibrary, mulligan, setTapped, untapAll, adjustLife, nextTurn, battlefieldRows, zoneCounts, checkGame } from '../shared/zones.mjs';
 
 let checks = 0;
 function check(label, condition, detail = '') {
@@ -27,7 +27,7 @@ const uidsOf = (game) => ZONES.flatMap((zone) => game.zones[zone].map((card) => 
 
 // ---- constants ----
 check('the zones, in the order the live data model lists them', ZONES.join() === 'library,hand,battlefield,graveyard,exile,command,sideboard');
-check('the sizes are what the notes say', HAND_SIZE === 7 && DEFAULT_LIFE === 20 && COMMANDER_LIFE === 40 && MAX_DRAW === 100 && MAX_LIFE_STEP === 1000);
+check('the sizes are what the notes say', HAND_SIZE === 7 && DEFAULT_LIFE === 20 && COMMANDER_LIFE === 40 && MAX_DRAW === 100 && MAX_LIFE_STEP === 1_000_000_000_000 && MAX_LIFE === 1_000_000_000_000);
 
 // ---- isLandCard ----
 check('a basic land is a land', isLandCard({ t: 'Basic Land' + EM + 'Forest' }));
@@ -239,6 +239,8 @@ check('a word that only contains Land does not count',!isLandCard({ t: 'Creature
   check('and nothing else changes', JSON.stringify(adjustLife(game, 1).zones) === JSON.stringify(game.zones));
   for (const bad of [1.5, NaN, Infinity, '3', null, MAX_LIFE_STEP + 1, -MAX_LIFE_STEP - 1]) throws(`life change ${String(bad)} is refused`, () => adjustLife(game, bad), /whole number/);
   check('a change of exactly 1000 is allowed', adjustLife(game, 1000).life === 1040 && adjustLife(game, -1000).life === -960);
+  check('life stops at the limit in both directions', adjustLife(adjustLife(game, MAX_LIFE_STEP), MAX_LIFE_STEP).life === MAX_LIFE && adjustLife(adjustLife(game, -MAX_LIFE_STEP), -MAX_LIFE_STEP).life === -MAX_LIFE);
+  check('a doubler reaches the billions exactly', adjustLife(adjustLife(game, 4_000_000_000), 4_000_000_000).life === 8_000_000_040);
 }
 
 // ---- the next turn ----

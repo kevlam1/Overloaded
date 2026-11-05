@@ -98,7 +98,7 @@ check('writes only ever name this player\'s own paths', Object.keys(gameWrites('
 // ---- what another player sees ----
 {
   const view = readPublic(JSON.parse(JSON.stringify(parts.public)), lookup);
-  same('an opponent view has life, turn, counts and the four public zones', [Object.keys(view).sort(), Object.keys(view.zones).sort()], [['counts', 'life', 'turn', 'zones'], [...PUBLIC_ZONES].sort()]);
+  same('an opponent view has life, turn, counts, the player counters (empty here) and the four public zones', [Object.keys(view).sort(), Object.keys(view.zones).sort(), view.pc, view.cd], [['cd', 'counts', 'life', 'pc', 'turn', 'zones'], [...PUBLIC_ZONES].sort(), {}, {}]);
   same('and the hidden zones only as counts', view.counts, { library: game.zones.library.length, hand: game.zones.hand.length, sideboard: game.zones.sideboard.length });
   same('the commander shows in the command zone', view.zones.command.map((c) => c.n), ['Krenko, Mob Boss']);
   same('nothing stored gives no view', [readPublic(null, lookup), readPublic(undefined, lookup), readPublic(5, lookup)], [null, null, null]);

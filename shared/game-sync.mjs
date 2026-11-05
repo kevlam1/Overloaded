@@ -12,7 +12,7 @@
 // A move writes only the pieces that changed (gameWrites), never the whole game.
 // Everything read from the database is untrusted (another player's browser wrote their public branch), so readCards drops
 // any card that is not exactly this shape, and the picture ids must be Scryfall ids.
-import { ZONES } from './zones.mjs';
+import { ZONES, MAX_LIFE, COUNTER_KINDS, MAX_COUNT, MAX_MODIFIER, MAX_NOTE, MAX_TOKEN_TEXT, PLAYER_COUNTERS, COMMANDER_SEATS, TOKEN_POWER_TOUGHNESS, TOKEN_COLORS } from './zones.mjs';
 
 export const PUBLIC_ZONES = ['battlefield', 'graveyard', 'exile', 'command'];
 export const PRIVATE_ZONES = ['library', 'hand', 'sideboard'];
@@ -22,7 +22,6 @@ const UID = /^c[1-9][0-9]{0,5}$/;
 const SCRYFALL_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const MAX_NAME = 200;
 const MAX_TURN = 100000;
-const MAX_LIFE = 1000000;
 
 export function packCard(card) {
   return {
@@ -32,8 +31,26 @@ export function packCard(card) {
     n: card.n,
     ...(card.tapped ? { x: 1 } : {}),
     ...(Number.isInteger(card.turnEntered) ? { e: card.turnEntered } : {}),
+    // docs/tokens-counters.md: a token carries its own type line (it is not in the card list), counters, the modifier, a note and face-down.
+    ...(card.tok ? { tok: 1, tt: card.t, ...(card.pt ? { pt: card.pt } : {}), ...(card.cl ? { cl: card.cl } : {}) } : {}),
+    ...(card.ct ? { ct: { ...card.ct } } : {}),
+    ...(card.mp ? { mp: card.mp } : {}),
+    ...(card.mt ? { mt: card.mt } : {}),
+    ...(card.faceDown ? { f: 1 } : {}),
+    ...(card.nt ? { nt: card.nt } : {}),
   };
 }
+
+// The counters object of a stored card: only the fixed kinds, whole numbers 1 to MAX_COUNT, at least one, never +1/+1 and -1/-1 together.
+const validCounters = (value) => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const keys = Object.keys(value);
+  if (keys.length === 0 || !keys.every((key) => COUNTER_KINDS.includes(key) && Number.isInteger(value[key]) && value[key] >= 1 && value[key] <= MAX_COUNT)) return false;
+  return !(value.p && value.m);
+};
+// A table of counts with only the allowed keys and valid whole numbers 1 to MAX_COUNT (anything else is dropped).
+const cleanCounts = (value, allowed) => Object.fromEntries(Object.entries(value && typeof value === 'object' && !Array.isArray(value) ? value : {})
+  .filter(([key, count]) => allowed.includes(key) && Number.isInteger(count) && count >= 1 && count <= MAX_COUNT));
 
 // One stored card back to a game card, or null if it is not a card. lookup({ i, n }) gives { t, m, k } (what the card list
 // knows) or null; a card the list does not know still plays, it just has no type.
@@ -45,15 +62,35 @@ export function unpackCard(raw, lookup = () => null) {
   if (typeof raw.n !== 'string' || raw.n.length === 0 || raw.n.length > MAX_NAME) return null;
   if ('x' in raw && raw.x !== 1) return null;
   if ('e' in raw && !(Number.isInteger(raw.e) && raw.e >= 0 && raw.e <= MAX_TURN)) return null;
-  const known = lookup({ i: raw.i, n: raw.n }) ?? {};
+  if ('tok' in raw && raw.tok !== 1) return null;
+  const token = raw.tok === 1;
+  if (token) {
+    if (typeof raw.tt !== 'string' || raw.tt.length === 0 || raw.tt.length > MAX_TOKEN_TEXT) return null;
+    if ('pt' in raw && !(typeof raw.pt === 'string' && TOKEN_POWER_TOUGHNESS.test(raw.pt))) return null;
+    if ('cl' in raw && !(typeof raw.cl === 'string' && TOKEN_COLORS.test(raw.cl))) return null;
+  } else if ('tt' in raw || 'pt' in raw || 'cl' in raw) return null; // token fields on a card that is not a token
+  if ('ct' in raw && !validCounters(raw.ct)) return null;
+  for (const key of ['mp', 'mt']) if (key in raw && !(Number.isInteger(raw[key]) && raw[key] !== 0 && Math.abs(raw[key]) <= MAX_MODIFIER)) return null;
+  if ('f' in raw && raw.f !== 1) return null;
+  if ('nt' in raw && !(typeof raw.nt === 'string' && raw.nt.length > 0 && raw.nt.length <= MAX_NOTE)) return null;
+  // A real card's type, cost and keywords come from the card list. A token's type line is stored with it (a token is not in the list),
+  // but its cost and keywords are still looked up BY ID ONLY: a copy of a real card has that card's id and so keeps them, a token picture
+  // is not in the list and gets none, and a token that merely shares a name with a real card (87 names do) is never matched by name.
+  const known = lookup(token ? { i: raw.i, n: '' } : { i: raw.i, n: raw.n }) ?? {};
   return {
     uid: raw.u,
     i: raw.i,
     ...(raw.p ? { p: raw.p } : {}),
     n: raw.n,
-    t: typeof known.t === 'string' ? known.t : '',
+    t: token ? raw.tt : (typeof known.t === 'string' ? known.t : ''),
     m: typeof known.m === 'string' ? known.m : '',
     k: Array.isArray(known.k) ? known.k : [],
+    ...(token ? { tok: true, ...(raw.pt ? { pt: raw.pt } : {}), ...(raw.cl ? { cl: raw.cl } : {}) } : {}),
+    ...('ct' in raw ? { ct: { ...raw.ct } } : {}),
+    ...('mp' in raw ? { mp: raw.mp } : {}),
+    ...('mt' in raw ? { mt: raw.mt } : {}),
+    ...(raw.f === 1 ? { faceDown: true } : {}),
+    ...(raw.nt ? { nt: raw.nt } : {}),
     tapped: raw.x === 1,
     turnEntered: 'e' in raw ? raw.e : null,
   };
@@ -80,6 +117,8 @@ export function splitGame(game) {
   return {
     public: {
       life: game.life, turn: game.turn, mulligans: game.mulligans, next: game.nextUid, counts,
+      ...(game.pc ? { pc: { ...game.pc } } : {}), // poison, energy, experience: only counts above 0 are stored
+      ...(game.cd ? { cd: { ...game.cd } } : {}), // commander damage by seat
       ...Object.fromEntries(PUBLIC_ZONES.map((zone) => [zone, game.zones[zone].map(packCard)])),
     },
     private: Object.fromEntries(PRIVATE_ZONES.map((zone) => [zone, game.zones[zone].map(packCard)])),
@@ -101,6 +140,8 @@ export function joinGame(storedPublic, storedPrivate, lookup) {
     turn: whole(storedPublic.turn, 1, MAX_TURN) ? storedPublic.turn : 1,
     mulligans: whole(storedPublic.mulligans, 0, 1000) ? storedPublic.mulligans : 0,
     nextUid,
+    ...(Object.keys(cleanCounts(storedPublic.pc, PLAYER_COUNTERS)).length ? { pc: cleanCounts(storedPublic.pc, PLAYER_COUNTERS) } : {}),
+    ...(Object.keys(cleanCounts(storedPublic.cd, COMMANDER_SEATS)).length ? { cd: cleanCounts(storedPublic.cd, COMMANDER_SEATS) } : {}),
   };
 }
 
@@ -113,6 +154,8 @@ export function readPublic(stored, lookup) {
     life: whole(stored.life, -MAX_LIFE, MAX_LIFE) ? stored.life : 0,
     turn: whole(stored.turn, 1, MAX_TURN) ? stored.turn : 1,
     counts: Object.fromEntries(PRIVATE_ZONES.map((zone) => [zone, count(stored.counts?.[zone])])),
+    pc: cleanCounts(stored.pc, PLAYER_COUNTERS), // always an object; only valid kinds with whole counts 1 to 999 survive
+    cd: cleanCounts(stored.cd, COMMANDER_SEATS),
     zones: Object.fromEntries(PUBLIC_ZONES.map((zone) => [zone, readCards(stored[zone], lookup)])),
   };
 }
@@ -129,6 +172,7 @@ export function gameWrites(uid, before, after) {
   };
   for (const key of ['life', 'turn', 'mulligans', 'next']) put(`public/${uid}/${key}`, now.public[key], then?.public[key]);
   for (const zone of PRIVATE_ZONES) put(`public/${uid}/counts/${zone}`, now.public.counts[zone], then?.public.counts[zone]);
+  for (const key of ['pc', 'cd']) put(`public/${uid}/${key}`, now.public[key] ?? null, then ? (then.public[key] ?? null) : undefined);
   for (const zone of PUBLIC_ZONES) put(`public/${uid}/${zone}`, now.public[zone].length ? now.public[zone] : null, then ? (then.public[zone].length ? then.public[zone] : null) : undefined);
   for (const zone of PRIVATE_ZONES) put(`private/${uid}/${zone}`, now.private[zone].length ? now.private[zone] : null, then ? (then.private[zone].length ? then.private[zone] : null) : undefined);
   return writes;
