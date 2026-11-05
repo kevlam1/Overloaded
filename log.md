@@ -1842,6 +1842,23 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - My first scenario failed because an earlier scenario leaves browser storage blocked for the rest of the run; I moved mine before it.
 - The editing tool again turned an escaped character in a test file (an Arabic-Indic digit written as a backslash-u code) into the real character. The hygiene check does not flag it because it is not invisible; I noticed because a search for the escape found nothing, and I wrote it with a code point call instead.
 
+## 90. The counter controls on the live table page (2026-11-05)
+
+**What I asked for**
+- "commit then continue": Claude committed the solo table buttons (`033f6b9`), then put the same controls on the live table page.
+
+**What changed**
+- `frontend/pages/table/index.html` and `table.js`: the same counters panel (`frontend/src/marks-panel.js`) under the selected card, shown only for a card on the battlefield, and the selected line says the card's counters and change. Changes go through the page's own `apply`, which saves them like any move. Other players' cards show the chips and the change but have no controls.
+- `scripts/check-lobby-deck-live.mjs`: new live checks (82 in all, was 75).
+
+**What I checked**
+- Two real browsers against the real Firebase project (82 of 82): Alice's panel shows for her battlefield card; the database holds three +1/+1 counters and a +2 power change on that card and no toughness change; Bob's page shows the chips and `+5/+3` on Alice's card, read-only, without a refresh, and has no controls for it; five billion counters are stored exactly; after a refresh Alice's card still has them. `npm test`: 37 suites pass.
+- The rules still accept any card shape, so this works today without a rules paste; the strict card shape comes in the one batched rules change.
+- Not checked: a screenshot of the table page itself (the layout is the solo page's, which I looked at), phone width, and broken copies of the new table page lines (they are three small wiring lines, covered only by the live check).
+
+**Decisions**
+- Next: clicking the chips and the label on the card, then notes and face-down, then player counters and commander damage.
+
 ---
 
 ## Where AI misread me, or I had to correct course

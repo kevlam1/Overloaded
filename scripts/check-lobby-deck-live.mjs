@@ -255,10 +255,45 @@ try {
   record("the hostile name is on the page as plain text only (in the card's label)", (await alice.eval(`Array.from(document.querySelectorAll('#opponent-list .card')).some((c) => c.getAttribute('aria-label') === '<img src=x onerror=alert(1)>')`)) === true);
   await rest('DELETE', `${bobPublic}/battlefield`, cleanup.bob.token);
 
+  // Counters and the power/toughness change: Alice sets them with the panel, the database holds them, Bob's page shows them read-only,
+  // and they are still there after a refresh.
+  await alice.eval(`document.querySelector('#row-lands .card, #row-other .card').click()`);
+  record('the counter controls show for her card on the battlefield on the table page', (await alice.eval(`document.getElementById('marks').hidden`)) === false);
+  await alice.eval(`document.getElementById('marks-amount').value = '3'`);
+  await alice.eval(`Array.from(document.querySelectorAll('#marks button')).find((b) => b.textContent === 'Add counters').click()`);
+  await alice.eval(`document.getElementById('marks-amount').value = '2'`);
+  await alice.eval(`Array.from(document.querySelectorAll('#marks button')).find((b) => b.textContent === 'Power +').click()`);
+  const marksSaved = await waitFor(async () => {
+    const r = await rest('GET', pathOf('public/battlefield'), cleanup.bob.token);
+    const card = r.json ? Object.values(r.json)[0] : null;
+    return card && card.ct && card.ct.p === 3 && card.mp === 2 ? card : null;
+  }, 15000, 250);
+  record('the database holds three +1/+1 counters and a +2 power change on that card (and no toughness change)', Boolean(marksSaved) && marksSaved.mt === undefined, JSON.stringify(marksSaved));
+  const bobSeesMarks = await waitFor(async () => {
+    const seen = await bob.eval(`(() => { const p = Array.from(document.querySelectorAll('#opponent-list .opponent')).find((x) => x.querySelector('h3').textContent.includes('Alice')); const c = p && Array.from(p.querySelectorAll('.row')).slice(0, 2).flatMap((r) => Array.from(r.querySelectorAll('.card'))).find((x) => x.querySelector('.marks')); return c ? { chips: Array.from(c.querySelectorAll('.marks .chip')).map((x) => x.textContent), change: c.querySelector('.marks .change')?.textContent ?? '', readOnly: c.disabled } : null; })()`);
+    return seen && seen.change === '+5/+3' ? seen : null;
+  }, 20000, 250);
+  record("Bob's page shows the counters and the +5/+3 change on Alice's card, read-only, without a refresh", Boolean(bobSeesMarks) && JSON.stringify(bobSeesMarks.chips) === '["+1/+1 3"]' && bobSeesMarks.readOnly === true, JSON.stringify(bobSeesMarks));
+  record("Bob's page has no counter controls for another player's cards", (await bob.eval(`document.getElementById('marks').hidden`)) === true);
+  await alice.eval(`document.getElementById('marks-amount').value = '5,000,000,000'`);
+  await alice.eval(`document.querySelector('#marks select').value = 'o'`);
+  await alice.eval(`Array.from(document.querySelectorAll('#marks button')).find((b) => b.textContent === 'Add counters').click()`);
+  const bigSaved = await waitFor(async () => {
+    const r = await rest('GET', pathOf('public/battlefield'), cleanup.bob.token);
+    const card = r.json ? Object.values(r.json)[0] : null;
+    return card && card.ct && card.ct.o === 5000000000 ? card : null;
+  }, 15000, 250);
+  record('five billion counters are stored exactly (the database keeps whole numbers that large)', Boolean(bigSaved), JSON.stringify(bigSaved));
+
   const handBeforeRefresh = Object.values((await rest('GET', pathOf('private/hand'), cleanup.alice.token)).json).map((card) => card.u).sort().join();
   await alice.goto(`http://127.0.0.1:${PORT}/table/${code}`);
   const restored = await waitFor(async () => (await count(alice, '#hand .card')) === 7 && (await count(alice, '#row-lands .card, #row-other .card')) === 1 ? true : null, 30000, 200);
   record('after a refresh Alice has the same game: 7 in hand, 1 on the battlefield, life 35', Boolean(restored) && (await text(alice, 'life')) === '35' && /back/i.test(await text(alice, 'deck-line')), `${await text(alice, 'life')} ${await text(alice, 'deck-line')}`);
+  const marksAfterRefresh = await waitFor(async () => {
+    const seen = await alice.eval(`(() => { const c = Array.from(document.querySelectorAll('#row-lands .card, #row-other .card')).find((x) => x.querySelector('.marks')); return c ? { chips: Array.from(c.querySelectorAll('.marks .chip')).map((x) => x.textContent), change: c.querySelector('.marks .change')?.textContent ?? '' } : null; })()`);
+    return seen && seen.chips.length === 2 ? seen : null;
+  }, 15000, 250);
+  record('after a refresh her card still has its counters and its +5/+3 change (read back from the database)', Boolean(marksAfterRefresh) && JSON.stringify(marksAfterRefresh.chips) === '["+1/+1 3","Other 5B"]' && marksAfterRefresh.change === '+5/+3', JSON.stringify(marksAfterRefresh));
   const handAfter = Object.values((await rest('GET', pathOf('private/hand'), cleanup.alice.token)).json).map((card) => card.u).sort().join();
   record('...and it was put back, not dealt again: the hand in the database is exactly the one she left', handAfter === handBeforeRefresh && handAfter.split(',').length === 7, handAfter);
   record('...and 6 of those 7 cards were in her first hand (one was played, one was drawn)', handAfter.split(',').filter((u) => handBefore.includes(u)).length === 6);
