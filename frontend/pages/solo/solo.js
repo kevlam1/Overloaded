@@ -7,6 +7,8 @@ import { loadCardList } from '../../src/card-list.js';
 import { LIBRARY_KEY, LEGACY_KEY, readLibrary, selectedEntry } from '../../../shared/deck-library.mjs';
 import { makeLookup } from '../../../shared/card-lookup.mjs';
 import { makeCardNodes } from '../../src/card-nodes.js';
+import { mountMarksPanel } from '../../src/marks-panel.js';
+import { marksSentence } from '../../../shared/marks.mjs';
 import { makeGame, draw, moveCard, shuffleLibrary, mulligan, setTapped, untapAll, adjustLife, nextTurn, battlefieldRows, zoneCounts } from '../../../shared/zones.mjs';
 
 const $ = (id) => document.getElementById(id);
@@ -91,10 +93,13 @@ function renderSelected() {
     selected = null;
     $('selected-line').textContent = 'Click a card to move it, tap it or look at it.';
     $('selected-actions').replaceChildren();
+    $('marks').hidden = true;
     return;
   }
   const { card, zone } = found;
-  $('selected-line').textContent = `${card.n}${card.t ? `: ${card.t}` : ''}, in ${ZONE_WORDS[zone]}${card.tapped ? ' (tapped)' : ''}.`;
+  const marks = marksSentence(card);
+  $('selected-line').textContent = `${card.n}${card.t ? `: ${card.t}` : ''}, in ${ZONE_WORDS[zone]}${card.tapped ? ' (tapped)' : ''}.${marks ? ` ${marks}` : ''}`;
+  $('marks').hidden = zone !== 'battlefield'; // counters and the power/toughness change belong to a card on the battlefield
   const actions = [];
   const act = (label, run, message, secondary = true) => actions.push({ label, run, message, secondary, deselect: false });
   if (zone === 'battlefield') act(card.tapped ? 'Untap' : 'Tap', () => setTapped(game, card.uid, !card.tapped), `${card.tapped ? 'Untapped' : 'Tapped'} ${card.n}.`, false);
@@ -199,6 +204,11 @@ async function start() {
 }
 
 // ---- wiring ----
+mountMarksPanel($('marks'), {
+  target: () => { const found = selected ? findCard(selected) : null; return found && found.zone === 'battlefield' ? { uid: found.card.uid, name: found.card.n } : null; },
+  onChange: (change, message) => apply(() => change(game), message),
+  say,
+});
 $('draw').addEventListener('click', drawOne);
 $('next-turn').addEventListener('click', goNextTurn);
 $('untap-all').addEventListener('click', () => apply(() => untapAll(game), 'Untapped everything.'));

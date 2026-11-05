@@ -4,12 +4,28 @@
 // onSelect(uid) is called when a card is clicked; isSelected(uid) says whether it is the selected one; `readOnly` makes the
 // buttons do nothing (another player's cards: you look, you do not touch).
 import { imageUrl } from '../../shared/card-image.mjs';
+import { changeLabel, counterChips, marksSentence } from '../../shared/marks.mjs';
 
 function make(tag, className, content) {
   const element = document.createElement(tag);
   if (className) element.className = className;
   if (content !== undefined) element.textContent = content;
   return element;
+}
+
+// Counter chips and the power/toughness change, drawn over the bottom of the card (nothing when the card has neither).
+function updateMarks(button, card) {
+  const chips = counterChips(card);
+  const change = changeLabel(card);
+  let box = button.querySelector(':scope > .marks');
+  if (!chips.length && !change) { if (box) box.remove(); return; }
+  if (!box) {
+    box = make('span', 'marks');
+    box.setAttribute('aria-hidden', 'true'); // the card's aria-label says the same in words
+    button.append(box);
+  }
+  box.replaceChildren(...chips.map((chip) => make('span', `chip chip-${chip.kind}`, chip.text)), ...(change ? [make('span', 'change', change)] : []));
+  box.title = marksSentence(card);
 }
 
 export function makeCardNodes({ onSelect = () => {}, isSelected = () => false, readOnly = false } = {}) {
@@ -53,7 +69,9 @@ export function makeCardNodes({ onSelect = () => {}, isSelected = () => false, r
     button.classList.toggle('tapped', card.tapped);
     button.classList.toggle('selected', selected);
     if (!readOnly) button.setAttribute('aria-pressed', String(selected));
-    button.setAttribute('aria-label', `${card.n}${card.tapped ? ', tapped' : ''}`);
+    const marks = marksSentence(card);
+    button.setAttribute('aria-label', `${card.n}${card.tapped ? ', tapped' : ''}${marks ? `. ${marks}` : ''}`);
+    updateMarks(button, card);
     return button;
   }
 

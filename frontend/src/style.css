@@ -177,6 +177,13 @@ main.table { max-width: 80rem; }
 .selected-panel h2 { margin-bottom: 0.25rem; }
 .selected-panel .hint { margin: 0 0 0.5rem; color: var(--text); font-size: 0.95rem; }
 .selected-panel .actions { margin-top: 0; }
+.marks-panel { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem; margin-top: 0.75rem; padding-top: 0.5rem; border-top: 1px solid var(--line); }
+.marks-panel[hidden] { display: none; }
+.marks-panel .marks-amount { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.9rem; }
+.marks-panel .marks-amount input { width: 9rem; }
+.marks-panel select { width: auto; }
+.marks-panel .actions { margin-top: 0; }
+.marks-panel .actions:last-child { flex-basis: 100%; }
 .row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: flex-start; min-height: 3rem; }
 .row:empty::before { content: attr(data-empty); color: var(--muted); font-size: 0.9rem; line-height: 3rem; }
 .card { position: relative; width: 6.6rem; height: 9.25rem; min-height: 0; padding: 0; border: 2px solid transparent; border-radius: 0.55rem; background: var(--line); color: var(--text); font-weight: 400; overflow: visible; }
@@ -188,6 +195,10 @@ main.table { max-width: 80rem; }
 .card.tapped { width: 9.25rem; }
 .card.tapped .face { position: absolute; top: 50%; left: 50%; width: 6.6rem; height: 9.25rem; transform: translate(-50%, -50%) rotate(90deg); }
 .card.selected { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent); }
+.card .marks { position: absolute; left: 0; right: 0; bottom: 0.2rem; display: flex; flex-wrap: wrap; justify-content: center; gap: 0.15rem; padding: 0 0.15rem; pointer-events: none; }
+.card .marks span { padding: 0 0.3rem; border: 1px solid var(--line); border-radius: 0.6rem; background: var(--card); color: var(--text); font-size: 0.7rem; line-height: 1.15rem; font-weight: 600; white-space: nowrap; }
+.card .marks .change { border-color: var(--accent); }
+.opponent .card .marks span { font-size: 0.6rem; line-height: 1rem; }
 .piles { display: flex; flex-wrap: wrap; gap: 1rem 2rem; align-items: flex-start; }
 .piles h3 { margin-top: 0; }
 .pile-buttons { display: flex; flex-wrap: wrap; gap: 0.5rem; }

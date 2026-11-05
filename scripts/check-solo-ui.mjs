@@ -303,6 +303,57 @@ try {
   await waitFor(async () => !(await $hidden('game')) || null, 10000, 50);
   check('and Try again deals the game once it can', !(await $hidden('game')) && (await count('#hand .card')) === 7 && (await $hidden('blocked')));
 
+  // ---- counters and the power/toughness change ----
+  await open();
+  const markText = (selector) => ev(`Array.from(document.querySelectorAll(${JSON.stringify(selector)})).map((n) => n.textContent)`);
+  const setAmount = (value) => ev(`document.getElementById('marks-amount').value = ${JSON.stringify(value)}`);
+  const setKind = (kind) => ev(`document.querySelector('#marks select').value = ${JSON.stringify(kind)}`);
+  const clickMark = (label) => ev(`(() => { const b = Array.from(document.querySelectorAll('#marks button')).find((x) => x.textContent === ${JSON.stringify(label)}); if (!b) return false; b.click(); return true; })()`);
+  const changeOnCard = async () => (await markText('#row-other .card .marks .change'))[0] ?? '';
+  const chipsOnCard = () => markText('#row-other .card .marks .chip');
+  await drawUntil((n) => !LANDS.includes(n));
+  const spell = (await handNames()).findIndex((x) => !LANDS.includes(x));
+  await clickCard('#hand .card', spell);
+  check('a card in the hand has no counter controls', await $hidden('marks'));
+  await clickAction('To battlefield');
+  check('a selected card on the battlefield shows the counter controls', !(await $hidden('marks')));
+  check('the controls are an amount box, a kind of counter and nine buttons', (await count('#marks input')) === 1 && (await count('#marks select option')) === 6 && (await count('#marks button')) === 9);
+  check('a new card shows no counters and no change', (await count('#row-other .card .marks')) === 0);
+  await setAmount('1'); await clickMark('Add counters');
+  check('adding one +1/+1 counter shows a chip and a +1/+1 change on the card', JSON.stringify(await chipsOnCard()) === '["+1/+1 1"]' && (await changeOnCard()) === '+1/+1', JSON.stringify(await chipsOnCard()));
+  check('the status says what was added', (await $text('status')).startsWith('Added 1 +1/+1 counter to '), await $text('status'));
+  check('the card tells a screen reader about it', (await names('#row-other .card'))[0].endsWith('. Counters: +1/+1 1. Change: +1/+1.'), (await names('#row-other .card'))[0]);
+  check('the selected line says it too', (await $text('selected-line')).endsWith(' Counters: +1/+1 1. Change: +1/+1.'), await $text('selected-line'));
+  check('the typed amount and the panel are still there after the click (nothing was rebuilt)', (await ev(`document.getElementById('marks-amount').value`)) === '1');
+  await setAmount('2'); await clickMark('Power +');
+  check('power +2 makes the change +3/+1', (await changeOnCard()) === '+3/+1', await changeOnCard());
+  await setAmount('1'); await clickMark('Toughness -');
+  check('toughness -1 makes it +3/+0', (await changeOnCard()) === '+3/+0', await changeOnCard());
+  await clickMark('Both +');
+  check('both +1 makes it +4/+1', (await changeOnCard()) === '+4/+1', await changeOnCard());
+  await clickMark('Reset change');
+  check('reset takes off the hand-set change and leaves the counter', (await changeOnCard()) === '+1/+1' && JSON.stringify(await chipsOnCard()) === '["+1/+1 1"]', await changeOnCard());
+  await setKind('m'); await clickMark('Add counters');
+  check('a -1/-1 counter cancels the +1/+1 counter, as the rules do', (await count('#row-other .card .marks')) === 0, JSON.stringify(await chipsOnCard()));
+  await setKind('l'); await setAmount('4'); await clickMark('Add counters');
+  check('loyalty counters show a chip but change nothing', JSON.stringify(await chipsOnCard()) === '["Loyalty 4"]' && (await changeOnCard()) === '');
+  await clickMark('Remove counters'); 
+  check('removing the same number takes them off', (await count('#row-other .card .marks')) === 0);
+  const before = await ev(`document.querySelector('#row-other .card').getAttribute('aria-label')`);
+  for (const bad of ['abc', '0', '-3', '1.5', '', '1000000000001']) {
+    await setAmount(bad); await clickMark('Add counters');
+    check(`the amount "${bad}" is refused with a message and changes nothing`, /whole number from 1 to 1,000,000,000,000/.test(await $text('status')) && (await ev(`document.querySelector('#row-other .card').getAttribute('aria-label')`)) === before, await $text('status'));
+  }
+  await setKind('o'); await setAmount('5,000,000,000'); await clickMark('Add counters');
+  check('an amount in the billions works and the chip is shortened', JSON.stringify(await chipsOnCard()) === '["Other 5B"]' && /Added 5,000,000,000 Other counters to /.test(await $text('status')), JSON.stringify(await chipsOnCard()));
+  check('the card keeps every digit for a screen reader', /Other 5,000,000,000/.test((await names('#row-other .card'))[0]));
+  await setAmount('2'); await clickMark('Both +');
+  check('a change next to billions of counters shows too', (await changeOnCard()) === '+2/+2');
+  await clickAction('To hand');
+  check('a card that leaves the battlefield loses its counters and change', (await ev(`document.querySelectorAll('#hand .card .marks').length`)) === 0 && (await $hidden('marks')));
+  await clickMark('Add counters');
+  check('the controls refuse when no card on the battlefield is selected', /Select a card on the battlefield/.test(await $text('status')));
+
   // ---- storage blocked ----
   await browser.send('Page.addScriptToEvaluateOnNewDocument', { source: `Object.defineProperty(window, 'localStorage', { get() { throw new DOMException('blocked', 'SecurityError'); } });` });
   await browser.goto(PAGE);
@@ -327,7 +378,8 @@ try {
     const e = (await handNames()).findIndex((x) => !LANDS.includes(x));
     if (e >= 0) { await clickCard('#hand .card', e); await clickAction('To battlefield'); }
     await clickCard('#row-lands .card', 0); await clickAction('Tap');
-    await clickCard('#row-other .card', 0);
+    await clickCard('#row-lands .card', 0); await setKind('o'); await setAmount('12,000'); await clickMark('Add counters');
+    await clickCard('#row-other .card', 0); await setKind('p'); await setAmount('3'); await clickMark('Add counters'); await setAmount('2'); await clickMark('Power +');
     await sleep(2500);
     await browser.screenshot('scratch-solo-dark.png');
     await scheme('light'); await sleep(400);

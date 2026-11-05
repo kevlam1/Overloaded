@@ -1820,6 +1820,28 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 **Decisions**
 - Dropped the image link idea. Open: whether other players see one's playmat, and whether swapping a sleeve mid-match stays light enough.
 
+## 89. Counter buttons on the solo table, first part (2026-11-04)
+
+**What I asked for**
+- "commit then continue": Claude committed the design notes (`b7e8ff2`) and went on to step 3, the buttons, starting with the solo table because it needs no database.
+
+**What changed**
+- `shared/marks.mjs` (new): reads a typed amount (digits, with commas, spaces or underscores allowed, 1 to one trillion; no signs, decimals or "1e9"), shortens big numbers for a card label (12.3K, 4.5M, 6.7B, 1T), and builds the counter chips and the change label (`+5/+3`) and a full-length sentence for screen readers.
+- `frontend/src/card-nodes.js` and `frontend/src/style.css`: every card shows its counters and the power/toughness change at the bottom (the live table's cards too, including other players', read-only); the card's `aria-label` says the same in words.
+- `frontend/src/marks-panel.js` (new) and the solo page: the selected-card panel shows, for a card on the battlefield, an amount box, a kind of counter with Add and Remove, Power/Toughness/Both plus and minus, and Reset change. It is built once, so a typed amount and keyboard focus stay after a click.
+- `scripts/test-marks.mjs` (new, 49 checks, registered in `npm test`, so 37 suites) and a counters scenario in `scripts/check-solo-ui.mjs` (112 checks now).
+
+**What I checked**
+- `npm test`: all 37 suites pass. The browser check uses real headless Chrome and the real card list: add and remove, all change buttons, -1/-1 cancelling +1/+1, loyalty showing a chip but no change, six bad amounts refused with no change, five billion shown as "Other 5B" while the screen reader text keeps every digit, and a card that leaves the battlefield losing its marks.
+- Screenshots of the dark and light solo table with real pictures: the chips and `+5/+3` sit at the bottom of the card, and "Other 12K" shows on a tapped land. I looked at them and they led to a layout change (the kind dropdown was full width and the panel too tall, so the amount, kind and Add/Remove are now one row). Desktop width only; phone width not checked.
+- Broken copies: 16 of the new helper code and 8 of the page code. 22 were caught at first; the survivor was a 16-digit cap that did nothing, because any number that long is over the limit anyway, so I removed the cap and tested very long numbers directly instead. 23 of 23 caught after that, files restored with matching hashes.
+- Not checked: the live table page with these cards (`npm run test:live` was not run), and anything on a phone.
+
+**Decisions**
+- The card's chips are not clickable yet. A card is a button and a button cannot hold other buttons, so clicking chips needs its own design (a click handler on the card that looks at where you clicked); the panel is the accessible way in, and the chips come next.
+- My first scenario failed because an earlier scenario leaves browser storage blocked for the rest of the run; I moved mine before it.
+- The editing tool again turned an escaped character in a test file (an Arabic-Indic digit written as a backslash-u code) into the real character. The hygiene check does not flag it because it is not invisible; I noticed because a search for the escape found nothing, and I wrote it with a code point call instead.
+
 ---
 
 ## Where AI misread me, or I had to correct course
