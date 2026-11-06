@@ -165,6 +165,30 @@ try {
   await expect('the host starts the next match (the number stays 2)', call(host, 'PATCH', `${T}/meta`, { status: 'playing', idleLimit: PLAYING_IDLE }), 'allowed');
   await expect('the member concedes for match 2', call(member, 'PUT', `${T}/members/${member.uid}/conceded`, 2), 'allowed');
 
+  // Shape and size limits on a player's game (added 2026-11-06, docs/rules-batch-plan.md). The OLD rules accepted every one of the
+  // refused writes below, so these pass only once the new file has been published. The table is playing at match 2 here.
+  const pub = `${T}/public/${member.uid}`;
+  const prv = `${T}/private/${member.uid}`;
+  const card = { u: 'c1', i: '00000000-0000-4000-8000-000000000001', n: 'Island' };
+  await expect('a good card list is saved to the public branch', call(member, 'PUT', `${pub}/battlefield`, [card]), 'allowed');
+  await expect('a good card list is saved to the private branch', call(member, 'PUT', `${prv}/hand`, [card]), 'allowed');
+  await expect('a card with an empty name is refused', call(member, 'PUT', `${pub}/battlefield`, [{ ...card, n: '' }]), 'refused');
+  await expect('a card with an id that is not a Scryfall id is refused', call(member, 'PUT', `${prv}/hand`, [{ ...card, i: 'x' }]), 'refused');
+  await expect('a card with an unknown field is refused', call(member, 'PUT', `${pub}/battlefield/0`, { ...card, zz: 1 }), 'refused');
+  await expect('a 251st card position is refused', call(member, 'PUT', `${pub}/battlefield/250`, card), 'refused');
+  await expect('the 250th card position is allowed', call(member, 'PUT', `${pub}/battlefield/249`, card), 'allowed');
+  await expect('a list written as plain text is refused', call(member, 'PUT', `${pub}/exile`, 'a very long text'), 'refused');
+  await expect('a hand under the public branch is refused', call(member, 'PUT', `${pub}/hand`, [card]), 'refused');
+  await expect('a battlefield under the private branch is refused', call(member, 'PUT', `${prv}/battlefield`, [card]), 'refused');
+  await expect('a life total with a fraction is refused', call(member, 'PUT', `${pub}/life`, 1.5), 'refused');
+  await expect('a life total of 40 is allowed', call(member, 'PUT', `${pub}/life`, 40), 'allowed');
+  await expect('a match number that is not the table\'s (1, the table is at 2) is refused', call(member, 'PUT', `${pub}/match`, 1), 'refused');
+  await expect('the table\'s match number (2) is allowed', call(member, 'PUT', `${pub}/match`, 2), 'allowed');
+  await expect('a pass record for turn 2 is allowed', call(member, 'PUT', `${pub}/pass`, { n: 2, to: '1' }), 'allowed');
+  await expect('a pass record for turn 1 is refused', call(member, 'PUT', `${pub}/pass`, { n: 1, to: '1' }), 'refused');
+  await expect('an unknown key in the public branch is refused', call(member, 'PUT', `${pub}/foo`, 1), 'refused');
+  await expect('the member cannot delete their own last-seen time', call(member, 'DELETE', `${T}/presence/${member.uid}/lastSeen`), 'refused');
+
   // Coming back to your own seat mid-match, and the host freeing a seat nobody sits in (added 2026-10-28). The OLD
   // rules refused both of these, so these checks pass only once the new file has been published.
   await expect('a member drops out of the match (their entry goes, their seat stays held)', call(member, 'DELETE', `${T}/members/${member.uid}`), 'allowed');

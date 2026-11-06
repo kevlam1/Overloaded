@@ -245,16 +245,19 @@ try {
   // A stale or hostile public branch cannot make another player's page show anything it should not. Bob's own account writes the
   // data (the rules let a player write their own public branch), and Alice's page must cope with it.
   const bobPublic = `tables/${code}/public/${cleanup.bob.uid}`;
-  await rest('PUT', `${bobPublic}/match`, cleanup.bob.token, 99);
-  const staleHidden = await waitFor(async () => {
-    const state = await alice.eval(`(() => { const p = Array.from(document.querySelectorAll('#opponent-list .opponent')).find((x) => x.querySelector('h3').textContent.includes('Bob')); if (!p) return null; const waiting = Array.from(p.querySelectorAll('p.hint')).find((x) => x.textContent.startsWith('Has not been dealt')); return { bodyHidden: p.querySelector('div').hidden, waitingShown: !waiting.hidden }; })()`);
-    return state && state.bodyHidden && state.waitingShown ? state : null;
-  }, 15000, 250);
-  record("a branch marked with another match's number is not shown as this match's board ('Has not been dealt a game yet')", Boolean(staleHidden));
-  await rest('PUT', `${bobPublic}/match`, cleanup.bob.token, 1);
-  await rest('PUT', `${bobPublic}/battlefield`, cleanup.bob.token, [{ u: 'c900', i: uuid(1), n: '<img src=x onerror=alert(1)>' }, { u: 'c901', i: '"><img src=x onerror=alert(2)>', n: 'Bad id' }, 'junk', { u: 'c902', i: uuid(1), n: 'x'.repeat(5000) }]);
+  // Changed 2026-11-06 with the new database rules: the database now REFUSES a wrong match number, a bad id, junk in a list and a 5,000-
+  // character name, so this check asserts those refusals. The page still drops such data if it ever reads it (scripts/test-game-sync.mjs),
+  // but it can no longer be shown live, because no hostile writer can get it into the database; the stale-match display ("Has not been
+  // dealt a game yet") is no longer exercised in a real browser for the same reason. What stays live is a well-shaped card whose NAME is
+  // hostile markup, which no rule can refuse, and which must appear as plain text.
+  const refusedWrite = async (label, path, body) => { const r = await rest('PUT', path, cleanup.bob.token, body); record(label, r.status === 401, `HTTP ${r.status}`); };
+  await refusedWrite("a match number that is not the table's is refused by the database", `${bobPublic}/match`, 99);
+  await refusedWrite('a card with an id that is not a Scryfall id is refused by the database', `${bobPublic}/battlefield`, [{ u: 'c901', i: '"><img src=x onerror=alert(2)>', n: 'Bad id' }]);
+  await refusedWrite('junk in a card list is refused by the database', `${bobPublic}/battlefield`, ['junk']);
+  await refusedWrite('a 5,000-character card name is refused by the database', `${bobPublic}/battlefield`, [{ u: 'c902', i: uuid(1), n: 'x'.repeat(5000) }]);
+  await rest('PUT', `${bobPublic}/battlefield`, cleanup.bob.token, [{ u: 'c900', i: uuid(1), n: '<img src=x onerror=alert(1)>' }]);
   const hostileShown = await waitFor(async () => { const p = await panelOf(alice, 'Bob'); return p && p.onBattlefield === 1 ? p : null; }, 15000, 250);
-  record('a hostile public branch: only the one well-shaped card is shown; the bad id, the junk and the 5,000-character name are dropped', Boolean(hostileShown), JSON.stringify(await panelOf(alice, 'Bob')));
+  record('a card whose name is hostile markup (well shaped, so the rules accept it) is shown', Boolean(hostileShown), JSON.stringify(await panelOf(alice, 'Bob')));
   record("...and no markup from a name or an id became part of Alice's page, no script ran and no dialog opened", (await alice.eval(`document.querySelectorAll('#opponent-list img[src="x"], #opponent-list script').length`)) === 0 && alice.dialogs.length === 0 && !alice.logs.some((l) => /^exception:/.test(l)));
   record("the hostile name is on the page as plain text only (in the card's label)", (await alice.eval(`Array.from(document.querySelectorAll('#opponent-list .card')).some((c) => c.getAttribute('aria-label') === '<img src=x onerror=alert(1)>')`)) === true);
   await rest('DELETE', `${bobPublic}/battlefield`, cleanup.bob.token);

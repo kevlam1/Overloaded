@@ -115,16 +115,18 @@ try {
   record('Alice and Bob are different anonymous accounts', Boolean(bobAuth?.uid) && bobAuth.uid !== aliceAuth.uid);
 
   // 3. Hidden cards: what the rules promise, checked with each person's real token
-  const put = await rest('PUT', `tables/${code1}/private/${aliceAuth.uid}`, aliceAuth.token, { hand: ['Island'] });
+  // Cards are stored in the shape the pages write (since the 2026-11-06 rules the database refuses anything else).
+  const aCard = (u, n) => ({ u, i: '00000000-0000-4000-8000-000000000001', n });
+  const put = await rest('PUT', `tables/${code1}/private/${aliceAuth.uid}`, aliceAuth.token, { hand: [aCard('c1', 'Island')] });
   record('Alice can write her own private cards', put.status === 200);
   const aliceReadsOwn = await rest('GET', `tables/${code1}/private/${aliceAuth.uid}`, aliceAuth.token);
-  record('Alice can read her own private cards', aliceReadsOwn.status === 200 && aliceReadsOwn.json?.hand?.[0] === 'Island');
+  record('Alice can read her own private cards', aliceReadsOwn.status === 200 && aliceReadsOwn.json?.hand?.[0]?.n === 'Island');
   const bobReadsAlice = await rest('GET', `tables/${code1}/private/${aliceAuth.uid}`, bobAuth.token);
   record("Bob's read of Alice's private cards is refused", bobReadsAlice.status === 401, `HTTP ${bobReadsAlice.status}`);
-  const bobWritesAlice = await rest('PUT', `tables/${code1}/private/${aliceAuth.uid}/hand`, bobAuth.token, ['Forest']);
+  const bobWritesAlice = await rest('PUT', `tables/${code1}/private/${aliceAuth.uid}/hand`, bobAuth.token, [aCard('c2', 'Forest')]);
   record("Bob's write into Alice's private cards is refused", bobWritesAlice.status === 401, `HTTP ${bobWritesAlice.status}`);
   const stillIsland = await rest('GET', `tables/${code1}/private/${aliceAuth.uid}`, aliceAuth.token);
-  record("Alice's cards are unchanged after Bob's attempt", stillIsland.json?.hand?.[0] === 'Island');
+  record("Alice's cards are unchanged after Bob's attempt", stillIsland.json?.hand?.[0]?.n === 'Island');
   const bobReadsOwn = await rest('GET', `tables/${code1}/private/${bobAuth.uid}`, bobAuth.token);
   record('Bob can read his own private path', bobReadsOwn.status === 200);
   const bobReadsMembers = await rest('GET', `tables/${code1}/members`, bobAuth.token);
