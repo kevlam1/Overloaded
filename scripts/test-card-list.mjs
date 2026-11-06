@@ -5,7 +5,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
-import { NOT_IN_DECKS, TOKENISH, MIN_CARDS, MIN_PRINTINGS, MIN_PRINTING_SETS, oracleIdOf, isDeckCandidate, toEntry, PrintingSummary, buildList, serializeList, serializePrintings, validateList, validatePrintings, countPrintings, readJsonLines, buildFromFiles } from './lib/card-list.mjs';
+import { NOT_IN_DECKS, TOKENISH, MIN_CARDS, MIN_PRINTINGS, MIN_PRINTING_SETS, oracleIdOf, isDeckCandidate, hasBackFace, toEntry, PrintingSummary, buildList, serializeList, serializePrintings, validateList, validatePrintings, countPrintings, readJsonLines, buildFromFiles } from './lib/card-list.mjs';
 import { printingValue } from '../shared/printings.mjs';
 
 let checks = 0;
@@ -162,6 +162,36 @@ for (const bad of ['', '22', '222', '2-2', '2/', '/2', '2/2/2', 22, null, ['2/2'
   check(`a list entry with pt ${JSON.stringify(bad)} fails`, validateList(good.map((e, index) => (index === 3 ? { ...e, pt: bad } : e)), opts).some((p) => /missing a name, type, cost or keywords/.test(p)));
 }
 check('the longest real values (such as 1+*/1+*) pass', validateList(good.map((e, index) => (index === 3 ? { ...e, pt: '2+*/2+*' } : e)), opts).length === 0);
+
+// A back face to turn over (list format 5). Shapes copied from the raw Oracle file printed on 2026-11-06.
+const pic = { small: 'x' };
+const transform = { id: 'i', name: 'Delver of Secrets // Insectile Aberration', layout: 'transform', type_line: 'Creature — Human Wizard // Creature — Human Insect', keywords: [], card_faces: [{ mana_cost: '{U}', power: '1', toughness: '1', image_uris: pic }, { mana_cost: '', power: '3', toughness: '2', image_uris: pic }] };
+const modal = { id: 'i', name: 'Valakut Awakening // Valakut Stoneforge', layout: 'modal_dfc', type_line: 'Instant // Land', card_faces: [{ mana_cost: '{2}{R}', image_uris: pic }, { mana_cost: '', image_uris: pic }] };
+const split = { id: 'i', name: 'Fire // Ice', layout: 'split', type_line: 'Instant // Instant', image_uris: pic, card_faces: [{ mana_cost: '{1}{R}' }, { mana_cost: '{1}{U}' }] };
+const adventure = { id: 'i', name: 'Bonecrusher Giant // Stomp', layout: 'adventure', type_line: 'Creature — Giant // Instant — Adventure', power: '4', toughness: '3', image_uris: pic, card_faces: [{ power: '4', toughness: '3' }, {}] };
+check('a transform card has a back face', hasBackFace(transform) && toEntry(transform).b === 1);
+same('a transform card keeps the back power and toughness, after pt and before the alternate titles', Object.keys(toEntry(transform, ['Y'], ['00000000-0000-4000-8000-000000000001'])).join(), 'n,t,m,k,i,pt,b,bpt,f,fp');
+same('the back power and toughness are the back face\'s own (Delver turns into 3/2)', [toEntry(transform).pt, toEntry(transform).bpt], ['1/1', '3/2']);
+check('a modal card has a back face and no back power and toughness (a land)', toEntry(modal).b === 1 && !('bpt' in toEntry(modal)) && !('pt' in toEntry(modal)));
+check('a split card has no back face (one picture for the whole card)', !hasBackFace(split) && !('b' in toEntry(split)));
+check('an adventure card has no back face', !hasBackFace(adventure) && !('b' in toEntry(adventure)) && toEntry(adventure).pt === '4/3');
+check('a card with one face and its own picture has none', !hasBackFace({ id: 'i', name: 'Sol Ring', type_line: 'Artifact', image_uris: pic }) && !hasBackFace({ id: 'i', name: 'X', type_line: 'T' }));
+check('faces that have no pictures of their own do not count', !hasBackFace({ ...transform, card_faces: [{ power: '1', toughness: '1' }, { power: '3', toughness: '2' }] }));
+check('only one face with a picture does not count', !hasBackFace({ ...transform, card_faces: [{ image_uris: pic }, {}] }));
+check('three faces do not count', !hasBackFace({ ...transform, card_faces: [{ image_uris: pic }, { image_uris: pic }, { image_uris: pic }] }));
+check('a record that has a picture of its own does not count, even with faces that have pictures', !hasBackFace({ ...transform, image_uris: pic }));
+check('a reversible printing layout is not a second face', !hasBackFace({ ...transform, layout: 'reversible_card' }));
+check('a null face does not crash it', !hasBackFace({ ...transform, card_faces: [null, { image_uris: pic }] }) && !hasBackFace({ ...transform, card_faces: 'no' }));
+check('a back face with only a power gets no bpt', !('bpt' in toEntry({ ...transform, card_faces: [{ image_uris: pic }, { power: '3', image_uris: pic }] })));
+check('a card whose front has no stats but whose back has (Fable of the Mirror-Breaker) gets bpt and no pt', (() => { const e = toEntry({ ...transform, card_faces: [{ image_uris: pic }, { power: '2', toughness: '2', image_uris: pic }] }); return e.bpt === '2/2' && !('pt' in e); })());
+check('a list with back faces passes', validateList(good.map((e, index) => (index % 2 ? { ...e, b: 1, bpt: '3/2' } : index % 3 === 0 ? { ...e, b: 1 } : e)), opts).length === 0);
+for (const bad of [0, true, '1', 2, null, [1]]) {
+  check(`a list entry with b ${JSON.stringify(bad)} fails`, validateList(good.map((e, index) => (index === 3 ? { ...e, b: bad } : e)), opts).some((p) => /missing a name, type, cost or keywords/.test(p)));
+}
+for (const bad of ['', '33', '3-2', '3/', '/2', '3/2/1', 32, null, ['3/2'], '123456789/1']) {
+  check(`a list entry with bpt ${JSON.stringify(bad)} fails`, validateList(good.map((e, index) => (index === 3 ? { ...e, b: 1, bpt: bad } : e)), opts).some((p) => /missing a name, type, cost or keywords/.test(p)));
+}
+check('bpt without b fails', validateList(good.map((e, index) => (index === 3 ? { ...e, bpt: '3/2' } : e)), opts).some((p) => /missing a name, type, cost or keywords/.test(p)));
 for (const [label, mutate, pattern] of [
   ['a bad id', (l) => { l[3] = { ...l[3], i: 'not-an-id' }; }, /not a Scryfall id/],
   ['a missing id', (l) => { l[3] = { ...l[3], i: undefined }; }, /not a Scryfall id/],

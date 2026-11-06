@@ -35,16 +35,30 @@ export function isDeckCandidate(record) {
 // a title can show that printing's picture. Both are always written together by the build.
 // pt (list format 4): the printed power and toughness as Scryfall writes them, 'power/toughness' ("2/2", "*/1+*"), from the record or, for a
 // double-faced card, from its front face (the same face the type line and cost describe). Only cards that have both get the field.
+const statsText = (power, toughness) => (typeof power === 'string' && power !== '' && typeof toughness === 'string' && toughness !== '' ? power + '/' + toughness : null);
 export function printedStats(record) {
-  const power = record.power ?? record.card_faces?.[0]?.power;
-  const toughness = record.toughness ?? record.card_faces?.[0]?.toughness;
-  return typeof power === 'string' && power !== '' && typeof toughness === 'string' && toughness !== '' ? power + '/' + toughness : null;
+  return statsText(record.power ?? record.card_faces?.[0]?.power, record.toughness ?? record.card_faces?.[0]?.toughness);
+}
+
+// b and bpt (list format 5): a card has a back face to turn over when its two faces carry their own pictures and the card
+// itself has none (checked 2026-11-06 on the Oracle file: transform 394 and modal_dfc 99; split, adventure, prepare and
+// flip cards have one picture for the whole card, so they have no back). `reversible_card` is a printing layout (the same
+// card with art on both sides), not a second face. `b` is 1; the back's type line is already in `t` after " // ".
+// `bpt` is the back face's power and toughness, only when it has both.
+export function hasBackFace(record) {
+  const faces = record.card_faces;
+  return record.layout !== 'reversible_card' && Array.isArray(faces) && faces.length === 2 && !('image_uris' in record) && faces.every((face) => face && typeof face.image_uris === 'object' && face.image_uris !== null);
 }
 
 export function toEntry(record, alternateNames = [], alternateIds = []) {
   const entry = { n: record.name, t: record.type_line, m: record.mana_cost ?? record.card_faces?.[0]?.mana_cost ?? '', k: record.keywords ?? [], i: record.id };
   const stats = printedStats(record);
   if (stats) entry.pt = stats;
+  if (hasBackFace(record)) {
+    entry.b = 1;
+    const back = statsText(record.card_faces[1].power, record.card_faces[1].toughness);
+    if (back) entry.bpt = back;
+  }
   if (alternateNames.length) {
     entry.f = alternateNames;
     if (alternateIds.length === alternateNames.length && alternateIds.every((id) => typeof id === 'string')) entry.fp = alternateIds;
@@ -172,6 +186,9 @@ export function validateList(list, { minCards = MIN_CARDS, previousCount = null,
     if (!fine) { badEntries++; continue; }
     // `pt` (format 4): printed power and toughness, two short pieces around one slash. A list in format 3 has none, and is still fine.
     if ('pt' in e && !(typeof e.pt === 'string' && PRINTED_STATS.test(e.pt))) { badEntries++; continue; }
+    // `b` and `bpt` (format 5): a back face to turn over, and its power and toughness (only with `b`). A list in format 4 has neither.
+    if ('b' in e && e.b !== 1) { badEntries++; continue; }
+    if ('bpt' in e && !(e.b === 1 && typeof e.bpt === 'string' && PRINTED_STATS.test(e.bpt))) { badEntries++; continue; }
     if ('f' in e && !(Array.isArray(e.f) && e.f.length > 0 && e.f.every((title) => typeof title === 'string' && title.length > 0))) { badEntries++; continue; }
     // `fp` (format 3): the printing that carries each title, one per title. A list in format 2 has none, and is still fine.
     if ('fp' in e && !('f' in e && Array.isArray(e.fp) && e.fp.length === e.f.length && e.fp.every((id) => typeof id === 'string' && UUID.test(id)))) { badEntries++; continue; }
