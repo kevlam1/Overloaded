@@ -15,6 +15,7 @@
       <p id="status" class="status" role="status" aria-live="polite"></p>
       <div id="banner" class="banner" role="status" aria-live="polite" hidden></div>
       <p id="connection" class="banner" data-level="urgent" role="status" hidden></p>
+      <p id="turn-banner" class="turn-banner" role="status" aria-live="polite" hidden></p>
 
       <section aria-labelledby="players-heading">
         <h2 id="players-heading">At the table</h2>
@@ -47,6 +48,7 @@
         <p id="deck-line" class="lede"></p>
         <section class="bar" aria-label="Your game">
           <p class="stat">Turn <strong id="turn">1</strong></p>
+          <p id="turn-whose" class="stat"></p>
           <div class="life" role="group" aria-label="Life total">
             <button id="life-minus5" type="button" class="secondary" aria-label="Lose 5 life">-5</button>
             <button id="life-minus1" type="button" class="secondary" aria-label="Lose 1 life">-1</button>
@@ -56,7 +58,8 @@
           </div>
           <div class="actions" role="group" aria-label="Actions">
             <button id="draw" type="button">Draw</button>
-            <button id="next-turn" type="button">Next turn</button>
+            <button id="pass-turn" type="button">Pass turn</button>
+            <button id="take-back" type="button" class="secondary" hidden>Take back the pass</button>
             <button id="untap-all" type="button" class="secondary">Untap all</button>
             <button id="shuffle" type="button" class="secondary">Shuffle library</button>
             <button id="mulligan" type="button" class="secondary">Mulligan</button>

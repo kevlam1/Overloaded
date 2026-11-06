@@ -13,7 +13,8 @@
 //   t: type line, m: mana cost, k: keywords, tapped, turnEntered: the turn it came to the battlefield (null elsewhere).
 // For the library, the graveyard and the other piles, index 0 is the TOP.
 // A card on the battlefield may also hold, each only when set: ct (counters, an object from kind to count, see COUNTER_KINDS), mp and
-// mt (the power and toughness modifier set by hand), nt (a short note), faceDown, turned (the other face of a two-sided card shows),
+// mt (the power and toughness modifier set by hand), nt (a short note), faceDown, sick (summoning sick, a reminder only: see entersSick),
+// noUntap (set by hand: skipped by the untap step), turned (the other face of a two-sided card shows),
 // and for a token tok: true with pt and cl. A card whose list entry has a back face to turn over (transform and modal cards) has b: 1,
 // in any zone, and md: 1 as well when it is a modal card (playable as either face); both are copied from the card list when the game is
 // made or read back, never chosen by a player. A token that copies a turned-over card has turned: true too, fixed: its picture is the
@@ -46,7 +47,8 @@ export const MAX_TOKEN_TEXT = 60;
 export const MAX_ZONE_CARDS = 250;
 export const PLAYER_COUNTERS = ['poison', 'energy', 'experience'];
 export const COMMANDER_SEATS = ['1', '2', '3', '4'];
-const BATTLEFIELD_STATE = ['ct', 'mp', 'mt', 'faceDown', 'turned', 'nt'];
+const BATTLEFIELD_STATE = ['ct', 'mp', 'mt', 'faceDown', 'turned', 'nt', 'sick', 'noUntap'];
+export const MAX_TURN = 100000; // the largest turn number a game or a saved game may have
 export const TOKEN_POWER_TOUGHNESS = /^[0-9*+-]{1,3}\/[0-9*+-]{1,3}$/;
 export const TOKEN_COLORS = /^[WUBRG]{1,5}$/;
 
@@ -155,7 +157,8 @@ export function moveCard(game, uid, to, { position } = {}) {
   const leaving = from === 'battlefield' && to !== 'battlefield';
   if (leaving && card.tok) return { ...game, zones }; // a token that leaves the battlefield stops existing
   const moved = { ...card, tapped: to === 'battlefield' ? card.tapped : false, turnEntered: to === 'battlefield' ? (from === 'battlefield' ? card.turnEntered : game.turn) : null };
-  if (leaving) for (const key of BATTLEFIELD_STATE) delete moved[key]; // counters, the modifier, the note and face-down stay behind
+  if (leaving) for (const key of BATTLEFIELD_STATE) delete moved[key]; // counters, the modifier, the note, face-down, sick and noUntap stay behind
+  if (to === 'battlefield' && from !== 'battlefield' && entersSick(moved)) moved.sick = true; // a creature that comes in is summoning sick, unless it has printed haste
   zones[to] = where === 'top' ? [moved, ...zones[to]] : [...zones[to], moved];
   return { ...game, zones };
 }
@@ -188,20 +191,29 @@ export function setTapped(game, uid, tapped) {
   return { ...game, zones: { ...game.zones, battlefield } };
 }
 
+// Untaps the battlefield, except the cards marked "doesn't untap" (setNoUntap): the card data cannot tell which cards say so, so the
+// player marks them. A marked card is still untapped by hand with setTapped.
 export function untapAll(game) {
-  return { ...game, zones: { ...game.zones, battlefield: game.zones.battlefield.map((card) => (card.tapped ? { ...card, tapped: false } : card)) } };
+  return { ...game, zones: { ...game.zones, battlefield: game.zones.battlefield.map((card) => (card.tapped && !card.noUntap ? { ...card, tapped: false } : card)) } };
 }
+// How many cards the untap step would leave tapped (tapped and marked "doesn't untap").
+export const heldTapped = (game) => game.zones.battlefield.filter((card) => card.tapped && card.noUntap).length;
 
 export function adjustLife(game, delta) {
   if (!Number.isInteger(delta) || Math.abs(delta) > MAX_LIFE_STEP) throw new Error(`Change life by a whole number up to ${MAX_LIFE_STEP}.`);
   return { ...game, life: Math.min(MAX_LIFE, Math.max(-MAX_LIFE, game.life + delta)) };
 }
 
-// The next turn: the turn number goes up, everything untaps, and one card is drawn. Returns { game, drawn, short }.
-export function nextTurn(game) {
-  const next = untapAll({ ...game, turn: game.turn + 1 });
-  return draw(next, 1);
+// Your turn starts: the turn number is set (the table's turn number, see shared/turn-order.mjs), the untap step runs (cards marked "doesn't
+// untap" stay tapped), summoning sickness ends for every permanent (a reminder that ends when your own turn comes again), and one card is
+// drawn. Returns { game, drawn, short }.
+export function startTurn(game, turn = game.turn + 1) {
+  if (!Number.isInteger(turn) || turn < 1 || turn > MAX_TURN) throw new Error('That is not a turn number.');
+  const battlefield = game.zones.battlefield.map((card) => { if (!('sick' in card)) return card; const { sick: _gone, ...rest } = card; return rest; });
+  return draw(untapAll({ ...game, turn, zones: { ...game.zones, battlefield } }), 1);
 }
+// The next turn of a game with no table to pass to (the solo table): one more than this one.
+export const nextTurn = (game) => startTurn(game, game.turn + 1);
 
 // ---- counters, the modifier, notes, face-down and tokens ----
 // The card on the battlefield with this uid, and where it is in that zone. Anything else is refused in words.
@@ -275,6 +287,29 @@ export function setFaceDown(game, uid, down) {
   return putBattlefield(game, at, with_(card, 'faceDown', true, !down));
 }
 
+// ---- summoning sickness (a reminder, never a rule) and "doesn't untap" ----
+// Hybrid: a creature that comes onto the battlefield is marked summoning sick unless the card itself has printed haste. The card data lists
+// only a card's own printed keywords (Fervor, Lightning Greaves and Urabrask have no Haste there), and a token has no keywords at all,
+// so haste from anywhere else is the player's to clear (one click). The mark ends by itself when the owner's next turn starts.
+export const isCreatureCard = (card) => /\bCreature\b/.test(faceType(card).split(EM_DASH)[0]);
+export const hasPrintedHaste = (card) => Array.isArray(card?.k) && card.k.includes('Haste');
+export const entersSick = (card) => isCreatureCard(card) && !hasPrintedHaste(card);
+
+export function setSick(game, uid, on) {
+  const { card, at } = onBattlefield(game, uid, 'a summoning sickness mark');
+  return putBattlefield(game, at, with_(card, 'sick', true, !on));
+}
+// Sets the mark by what the card is NOW, for a card that just arrived as its back face (a modal card played as its other side).
+export function markSickByFace(game, uid) {
+  const { card, at } = onBattlefield(game, uid, 'a summoning sickness mark');
+  return putBattlefield(game, at, with_(card, 'sick', true, !entersSick(card)));
+}
+// A card the untap step skips (the player says so: Mana Vault, a creature under Claustrophobia).
+export function setNoUntap(game, uid, on) {
+  const { card, at } = onBattlefield(game, uid, 'a "does not untap" mark');
+  return putBattlefield(game, at, with_(card, 'noUntap', true, !on));
+}
+
 // Turns a two-sided card over (the other face shows), or back (a second call). Only a card with a back face (b: 1) on the
 // battlefield; it goes back to its front when it leaves the battlefield, like a counter is lost.
 export function turnOver(game, uid) {
@@ -298,7 +333,7 @@ export function createToken(game, spec) {
   if (spec.cl !== undefined && !(typeof spec.cl === 'string' && TOKEN_COLORS.test(spec.cl))) throw new Error('A token\'s colors are letters from WUBRG.');
   if (game.zones.battlefield.length >= MAX_ZONE_CARDS) throw new Error(`The battlefield holds at most ${MAX_ZONE_CARDS} cards.`);
   const uid = `c${game.nextUid}`;
-  const token = { uid, i: spec.i, n, t, m: '', k: [], tok: true, ...(spec.pt ? { pt: spec.pt } : {}), ...(spec.cl ? { cl: spec.cl } : {}), tapped: false, turnEntered: game.turn };
+  const token = { uid, i: spec.i, n, t, m: '', k: [], tok: true, ...(spec.pt ? { pt: spec.pt } : {}), ...(spec.cl ? { cl: spec.cl } : {}), ...(entersSick({ t, k: [] }) ? { sick: true } : {}), tapped: false, turnEntered: game.turn };
   return { game: { ...game, zones: { ...game.zones, battlefield: [...game.zones.battlefield, token] }, nextUid: game.nextUid + 1 }, uid };
 }
 
@@ -314,6 +349,7 @@ export function copyAsToken(game, uid, { printed = null } = {}) {
   const stats = card.tok ? card.pt : (typeof printed === 'string' && TOKEN_POWER_TOUGHNESS.test(printed) ? printed : null);
   const back = card.turned === true && !card.tok; // a token copy of a turned card; a token that already is one keeps its own mark below
   const copy = { uid: copyUid, i: card.i, ...(card.p ? { p: card.p } : {}), n: faceName(card), t: faceType(card), m: back ? '' : card.m, k: card.k, tok: true, ...(stats ? { pt: stats } : {}), ...(card.cl ? { cl: card.cl } : {}), ...(card.turned === true ? { turned: true } : {}), tapped: false, turnEntered: game.turn };
+  if (entersSick(copy)) copy.sick = true; // a copy is a new permanent: a creature without printed haste comes in sick
   return { game: { ...game, zones: { ...game.zones, battlefield: [...game.zones.battlefield, copy] }, nextUid: game.nextUid + 1 }, uid: copyUid };
 }
 
@@ -384,6 +420,8 @@ export function checkGame(game) {
       if ('nt' in card && !(typeof card.nt === 'string' && card.nt.length > 0 && card.nt.length <= MAX_NOTE)) problems.push(`card ${card.uid} has a damaged note`);
       if ('faceDown' in card && card.faceDown !== true) problems.push(`card ${card.uid} has a damaged face-down mark`);
       if ('b' in card && card.b !== 1) problems.push(`card ${card.uid} has a damaged back-face mark`);
+      if ('sick' in card && card.sick !== true) problems.push(`card ${card.uid} has a damaged summoning sickness mark`);
+      if ('noUntap' in card && card.noUntap !== true) problems.push(`card ${card.uid} has a damaged "doesn't untap" mark`);
       if ('md' in card && !(card.md === 1 && card.b === 1)) problems.push(`card ${card.uid} has a damaged modal mark`);
       // turned: a card with a back face, or a token that copies a turned-over card (its picture is that back face, fixed)
       if ('turned' in card && !(card.turned === true && (card.b === 1 || card.tok === true))) problems.push(`card ${card.uid} is turned over but has no back face`);

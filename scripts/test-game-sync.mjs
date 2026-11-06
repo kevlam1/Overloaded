@@ -98,7 +98,7 @@ check('writes only ever name this player\'s own paths', Object.keys(gameWrites('
 // ---- what another player sees ----
 {
   const view = readPublic(JSON.parse(JSON.stringify(parts.public)), lookup);
-  same('an opponent view has life, turn, counts, the player counters (empty here) and the four public zones', [Object.keys(view).sort(), Object.keys(view.zones).sort(), view.pc, view.cd], [['cd', 'counts', 'life', 'pc', 'turn', 'zones'], [...PUBLIC_ZONES].sort(), {}, {}]);
+  same('an opponent view has life, turn, counts, the player counters (empty here), the last pass (none here) and the four public zones', [Object.keys(view).sort(), Object.keys(view.zones).sort(), view.pc, view.cd, view.pass], [['cd', 'counts', 'life', 'pass', 'pc', 'turn', 'zones'], [...PUBLIC_ZONES].sort(), {}, {}, null]);
   same('and the hidden zones only as counts', view.counts, { library: game.zones.library.length, hand: game.zones.hand.length, sideboard: game.zones.sideboard.length });
   same('the commander shows in the command zone', view.zones.command.map((c) => c.n), ['Krenko, Mob Boss']);
   same('nothing stored gives no view', [readPublic(null, lookup), readPublic(undefined, lookup), readPublic(5, lookup)], [null, null, null]);
@@ -139,7 +139,9 @@ for (const seed of [1, 2, 3, 4, 5]) {
     maxWrites = Math.max(maxWrites, Object.keys(writes).length);
     applyWrites(db, writes);
     const rebuilt = joinGame(db.public.me, db.private.me, lookup);
-    if (JSON.stringify(rebuilt) !== JSON.stringify(current)) fail(`random game ${seed}, step ${step} (${op})`, 'the stored data did not rebuild the same game');
+    // The same game whatever order the keys of an object were written in (a mark that is set later is appended to its card).
+    const canon = (value) => JSON.stringify(value, (_, v) => (v && typeof v === 'object' && !Array.isArray(v) ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, v[k]])) : v));
+    if (canon(rebuilt) !== canon(current)) fail(`random game ${seed}, step ${step} (${op})`, 'the stored data did not rebuild the same game');
     if (checkGame(rebuilt).length) fail(`random game ${seed}, step ${step}`, JSON.stringify(checkGame(rebuilt)));
   }
   check(`random game ${seed}: 1,500 moves, each one's writes touched at most 9 paths (the biggest was ${maxWrites})`, maxWrites <= 9, String(maxWrites));

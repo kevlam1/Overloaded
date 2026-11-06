@@ -40,6 +40,8 @@ const suites = [
   { name: 'counters, modifier, tokens, player counters', cmd: node, args: ['scripts/test-counters.mjs'] },
   { name: 'counters and tokens: how they are stored and read back', cmd: node, args: ['scripts/test-sync-counters.mjs'] },
   { name: 'counter chips, the change label and typed amounts', cmd: node, args: ['scripts/test-marks.mjs'] },
+  { name: 'summoning sickness, the no-untap mark and starting a turn', cmd: node, args: ['scripts/test-turn-marks.mjs'] },
+  { name: 'whose turn it is: passing, skipping and taking back a turn', cmd: node, args: ['scripts/test-turn-order.mjs'] },
   { name: 'player counters and commander damage: what they show and do', cmd: node, args: ['scripts/test-player-counters.mjs'] },
   { name: 'turning a two-sided card over: logic, storage and numbers', cmd: node, args: ['scripts/test-turn-over.mjs'] },
   { name: 'the right-click menu of a card: what it offers and does', cmd: node, args: ['scripts/test-card-menu.mjs'] },

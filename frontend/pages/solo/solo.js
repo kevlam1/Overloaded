@@ -10,10 +10,10 @@ import { makeCardNodes } from '../../src/card-nodes.js';
 import { mountMarksPanel } from '../../src/marks-panel.js';
 import { openCardMenu } from '../../src/card-menu.js';
 import { mountPlayerCounters } from '../../src/player-counters.js';
-import { menuItems, menuAction, turnLabel, turnMessage, playBackLabel, PLAY_BACK_ZONES } from '../../../shared/card-menu.mjs';
+import { menuItems, menuAction, turnLabel, turnMessage, playBackLabel, PLAY_BACK_ZONES, noUntapLabel, sickLabel, untapMessage } from '../../../shared/card-menu.mjs';
 import { marksSentence, markClick, printedOf } from '../../../shared/marks.mjs';
 import { playerCounterEntries, counterAction } from '../../../shared/player-counters.mjs';
-import { makeGame, draw, moveCard, shuffleLibrary, mulligan, setTapped, turnOver, untapAll, adjustLife, nextTurn, battlefieldRows, zoneCounts } from '../../../shared/zones.mjs';
+import { makeGame, draw, moveCard, shuffleLibrary, mulligan, setTapped, turnOver, untapAll, heldTapped, adjustLife, nextTurn, battlefieldRows, zoneCounts } from '../../../shared/zones.mjs';
 
 const $ = (id) => document.getElementById(id);
 const store = makeSafeStore();
@@ -45,7 +45,7 @@ function make(tag, className, content) {
 // Poison, energy and experience (src/player-counters.js, shared/player-counters.mjs). Commander damage needs opponents, so it is on the live table only.
 const playerCounters = mountPlayerCounters($('player-counters'), { onChange: (entry, step) => { const action = counterAction(game, entry.kind, step); apply(() => action.run(game), action.message); } });
 
-const cardNodes = makeCardNodes({ onSelect: (uid) => select(uid), isSelected: (uid) => uid === selected, onMark: (uid, hit) => markOnCard(uid, hit), onMenu: (uid, where) => openMenuFor(uid, where), printedStats: (card) => printedOf(card, lookup) });
+const cardNodes = makeCardNodes({ onSelect: (uid) => select(uid), isSelected: (uid) => uid === selected, onMark: (uid, hit) => markOnCard(uid, hit), onMenu: (uid, where) => openMenuFor(uid, where), onBadge: (uid, kind) => clearBadge(uid, kind), printedStats: (card) => printedOf(card, lookup) });
 const place = cardNodes.place;
 
 function findCard(uid) {
@@ -115,6 +115,7 @@ function renderSelected() {
   if (zone === 'battlefield') act(card.tapped ? 'Untap' : 'Tap', () => setTapped(game, card.uid, !card.tapped), `${card.tapped ? 'Untapped' : 'Tapped'} ${card.n}.`, false);
   if (zone === 'battlefield' && card.b === 1) act(turnLabel(card), () => turnOver(game, card.uid), turnMessage(card));
   if (zone === 'battlefield') actions.push({ label: 'Modify', secondary: true, modify: true });
+  if (zone === 'battlefield') for (const id of ['nountap', 'sick']) { const mark = menuAction(id, card); act(id === 'nountap' ? noUntapLabel(card) : sickLabel(card), () => mark.run(game), mark.message); }
   if (zone === 'battlefield') { const copy = menuAction('copy', card, 1, { printed: printedOf(card, lookup) }); act('Create copy', () => copy.run(game), copy.message); }
   if (card.md === 1 && card.b === 1 && PLAY_BACK_ZONES.includes(zone)) { const play = menuAction('playback', card); act(playBackLabel(card), () => play.run(game), play.message); }
   for (const [to, label] of [['hand', 'To hand'], ['battlefield', 'To battlefield'], ['graveyard', 'To graveyard'], ['exile', 'To exile'], ['command', 'To command zone'], ['sideboard', 'To sideboard']]) {
@@ -185,6 +186,15 @@ function pickFromMenu(uid, id, amount) {
   }
 }
 
+// A click on a badge of one of your cards on the battlefield (SICK or the lock) clears it: the one-click fix when haste, or an untap, comes from
+// somewhere the card data cannot see (src/card-nodes.js).
+function clearBadge(uid, kind) {
+  const found = findCard(uid);
+  if (!found || found.zone !== 'battlefield') return;
+  const action = menuAction(kind === 'sick' ? 'sick' : 'nountap', found.card);
+  if (action) apply(() => action.run(game), action.message);
+}
+
 // A click on a chip or on the change label of one of your cards on the battlefield (see src/card-nodes.js and shared/marks.mjs).
 // Returns false when nothing changed (the card or the click was refused), so the card shows its floating text only for real changes.
 function markOnCard(uid, hit) {
@@ -218,10 +228,12 @@ function drawOne() {
 }
 
 function goNextTurn() {
+  const held = heldTapped(game);
   const result = nextTurn(game);
   game = result.game;
   const drewName = result.short ? null : game.zones.hand.find((c) => c.uid === result.drawn[0]).n;
-  say(`Turn ${game.turn}: everything untapped${drewName ? ` and you drew ${drewName}` : '. Your library is empty, so nothing was drawn'}.`, result.short);
+  const untapped = held ? `everything untapped except ${held} that do not untap` : 'everything untapped';
+  say(`Turn ${game.turn}: ${untapped}${drewName ? ` and you drew ${drewName}` : '. Your library is empty, so nothing was drawn'}.`, result.short);
   render();
 }
 
@@ -273,7 +285,7 @@ mountMarksPanel($('marks'), {
 });
 $('draw').addEventListener('click', drawOne);
 $('next-turn').addEventListener('click', goNextTurn);
-$('untap-all').addEventListener('click', () => apply(() => untapAll(game), 'Untapped everything.'));
+$('untap-all').addEventListener('click', () => apply(() => untapAll(game), untapMessage(game)));
 $('shuffle').addEventListener('click', () => apply(() => shuffleLibrary(game), 'Shuffled your library.'));
 $('mulligan').addEventListener('click', doMulligan);
 $('new-game').addEventListener('click', () => { if (confirm('Start a new game? This one will be lost.')) deal(); });

@@ -153,7 +153,7 @@ same('player counters and seats', [PLAYER_COUNTERS, COMMANDER_SEATS], [['poison'
   const token = cardOf(made.game, made.uid);
   same('the token is on the battlefield at the end', [made.game.zones.battlefield.length, made.game.zones.battlefield.at(-1).uid], [before + 1, made.uid]);
   same('its uid comes from the game\'s counter and the counter moves on', [made.uid, made.game.nextUid], [`c${game.nextUid}`, game.nextUid + 1]);
-  same('what it holds', token, { uid: made.uid, i: id(70), n: 'Goblin', t: 'Token Creature - Goblin', m: '', k: [], tok: true, pt: '1/1', cl: 'R', tapped: false, turnEntered: game.turn });
+  same('what it holds', token, { uid: made.uid, i: id(70), n: 'Goblin', t: 'Token Creature - Goblin', m: '', k: [], tok: true, pt: '1/1', cl: 'R', sick: true, tapped: false, turnEntered: game.turn }); // a creature token comes in summoning sick
   check('the old game is untouched', game.zones.battlefield.length === before && game.nextUid === made.game.nextUid - 1);
   const plain = createToken(game, { n: 'Treasure', i: id(71), tt: 'Token Artifact - Treasure' });
   same('power, toughness and colors are optional and then not stored', ['pt' in cardOf(plain.game, plain.uid), 'cl' in cardOf(plain.game, plain.uid)], [false, false]);

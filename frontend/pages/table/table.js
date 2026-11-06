@@ -11,8 +11,9 @@ import { makeCardNodes } from '../../src/card-nodes.js';
 import { mountMarksPanel } from '../../src/marks-panel.js';
 import { openCardMenu } from '../../src/card-menu.js';
 import { mountPlayerCounters, mountCommanderDamage } from '../../src/player-counters.js';
-import { menuItems, menuAction, turnLabel, turnMessage, playBackLabel, PLAY_BACK_ZONES } from '../../../shared/card-menu.mjs';
+import { menuItems, menuAction, turnLabel, turnMessage, playBackLabel, PLAY_BACK_ZONES, noUntapLabel, sickLabel, untapMessage } from '../../../shared/card-menu.mjs';
 import { marksSentence, markClick, printedOf } from '../../../shared/marks.mjs';
+import { currentTurn, passAction, takeBackAction, canTakeBack, turnToStart, whoseWords, turnWords } from '../../../shared/turn-order.mjs';
 import { playerCounterEntries, commanderDamageSeatsFor, commanderDamageEntries, counterAction, damageAction } from '../../../shared/player-counters.mjs';
 import { presenceStatus, presenceText, ownConnectionText } from '../../../shared/presence.mjs';
 import { tableCodeFromPath } from '../../../shared/lobby-link.mjs';
@@ -20,7 +21,7 @@ import { seatDeckText, defaultDeckFor, hasConceded } from '../../../shared/lobby
 import { LIBRARY_KEY, LEGACY_KEY, readLibrary } from '../../../shared/deck-library.mjs';
 import { makeLookup } from '../../../shared/card-lookup.mjs';
 import { friendlyMessage } from '../../../shared/friendly-error.mjs';
-import { makeGame, draw, moveCard, shuffleLibrary, mulligan, setTapped, turnOver, untapAll, adjustLife, nextTurn, battlefieldRows, zoneCounts } from '../../../shared/zones.mjs';
+import { makeGame, draw, moveCard, shuffleLibrary, mulligan, setTapped, turnOver, untapAll, heldTapped, startTurn, adjustLife, battlefieldRows, zoneCounts } from '../../../shared/zones.mjs';
 import { gameWrites, joinGame, readPublic } from '../../../shared/game-sync.mjs';
 
 const $ = (id) => document.getElementById(id);
@@ -99,7 +100,7 @@ let viewing = null; // the pile being looked at: 'library', 'graveyard', 'exile'
 const playerCounters = mountPlayerCounters($('player-counters'), { onChange: (entry, step) => { if (!game) return; const action = counterAction(game, entry.kind, step); apply(() => action.run(game), action.message); } });
 const commanderDamage = mountCommanderDamage($('commander-damage'), { onChange: (entry, step) => { if (!game) return; const action = damageAction(game, entry.seat, step, entry.name); apply(() => action.run(game), action.message); } });
 
-const cardNodes = makeCardNodes({ onSelect: (uid) => select(uid), isSelected: (uid) => uid === selected, onMark: (uid, hit) => markOnCard(uid, hit), onMenu: (uid, where) => openMenuFor(uid, where), printedStats: (card) => printedOf(card, lookup) });
+const cardNodes = makeCardNodes({ onSelect: (uid) => select(uid), isSelected: (uid) => uid === selected, onMark: (uid, hit) => markOnCard(uid, hit), onMenu: (uid, where) => openMenuFor(uid, where), onBadge: (uid, kind) => clearBadge(uid, kind), printedStats: (card) => printedOf(card, lookup) });
 const place = cardNodes.place;
 
 function showBlocked(message, { link = true, retry = false } = {}) {
@@ -127,7 +128,7 @@ function renderCounters() {
 }
 
 function render() {
-  $('turn').textContent = String(game.turn);
+  renderTurn();
   renderCounters();
   $('life').textContent = String(game.life);
   const rows = battlefieldRows(game);
@@ -183,6 +184,7 @@ function renderSelected() {
   if (zone === 'battlefield') act(card.tapped ? 'Untap' : 'Tap', () => setTapped(game, card.uid, !card.tapped), `${card.tapped ? 'Untapped' : 'Tapped'} ${card.n}.`, false);
   if (zone === 'battlefield' && card.b === 1) act(turnLabel(card), () => turnOver(game, card.uid), turnMessage(card));
   if (zone === 'battlefield') actions.push({ label: 'Modify', secondary: true, modify: true });
+  if (zone === 'battlefield') for (const id of ['nountap', 'sick']) { const mark = menuAction(id, card); act(id === 'nountap' ? noUntapLabel(card) : sickLabel(card), () => mark.run(game), mark.message); }
   if (zone === 'battlefield') { const copy = menuAction('copy', card, 1, { printed: printedOf(card, lookup) }); act('Create copy', () => copy.run(game), copy.message); }
   if (card.md === 1 && card.b === 1 && PLAY_BACK_ZONES.includes(zone)) { const play = menuAction('playback', card); act(playBackLabel(card), () => play.run(game), play.message); }
   for (const [to, label] of [['hand', 'To hand'], ['battlefield', 'To battlefield'], ['graveyard', 'To graveyard'], ['exile', 'To exile'], ['command', 'To command zone'], ['sideboard', 'To sideboard']]) {
@@ -277,6 +279,16 @@ function pickFromMenu(uid, id, amount) {
   }
 }
 
+// A click on a badge of one of your cards on the battlefield (SICK or the lock) clears it: the one-click fix when haste, or an untap, comes from
+// somewhere the card data cannot see (src/card-nodes.js).
+function clearBadge(uid, kind) {
+  if (!game) return;
+  const found = findCard(uid);
+  if (!found || found.zone !== 'battlefield') return;
+  const action = menuAction(kind === 'sick' ? 'sick' : 'nountap', found.card);
+  if (action) apply(() => action.run(game), action.message);
+}
+
 // A click on a chip or on the change label of one of your cards on the battlefield (see src/card-nodes.js and shared/marks.mjs).
 // Returns false when nothing changed (the card or the click was refused), so the card shows its floating text only for real changes.
 function markOnCard(uid, hit) {
@@ -300,13 +312,47 @@ function drawOne() {
   sync();
 }
 
-function goNextTurn() {
-  const result = nextTurn(game);
-  game = result.game;
-  const drewName = result.short ? null : game.zones.hand.find((c) => c.uid === result.drawn[0]).n;
-  say(`Turn ${game.turn}: everything untapped${drewName ? ` and you drew ${drewName}` : '. Your library is empty, so nothing was drawn'}.`, result.short);
-  render();
-  sync();
+// ---- whose turn it is (shared/turn-order.mjs) ----
+// Passing the turn writes one small record on YOUR branch (a player can only write their own); every page reads everyone's branch, the newest
+// record is the turn, and the player it names starts it here: untap (cards marked "doesn't untap" stay tapped), draw, summoning sickness ends.
+// My own record comes from my own game, which is always current, not from the round trip through the database.
+function currentTurnInfo() {
+  const byUid = {};
+  for (const [uid, branch] of Object.entries(publicAll)) if (branch?.match === meta?.match) byUid[uid] = branch;
+  if (game && myUid) byUid[myUid] = { pass: game.pass };
+  return currentTurn(byUid, members);
+}
+const conceded = (uid) => hasConceded(members[uid], meta);
+const baseTitle = document.title;
+let turnNote = ''; // what starting my turn did, for the banner
+let lastStartTried = null; // the turn my page last tried to start, so a refused start is not tried again in a loop
+const capital = (text) => `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
+
+function renderTurn() {
+  if (!game) return;
+  const info = currentTurnInfo();
+  const mine = Boolean(myUid) && info.uid === myUid;
+  const wanted = turnToStart(info, members[myUid]?.seat, game);
+  if (wanted !== null && wanted !== lastStartTried) { lastStartTried = wanted; startMyTurn(wanted); return; } // apply() draws the page again
+  $('turn').textContent = String(info.turn);
+  $('turn-whose').textContent = capital(whoseWords(info, myUid));
+  const pass = $('pass-turn');
+  pass.textContent = mine ? 'Pass turn' : `Skip ${whoseWords(info, myUid).replace(/ \(no one is there\)$/, '')}`;
+  pass.classList.toggle('secondary', !mine);
+  pass.hidden = meta?.status !== 'playing';
+  $('take-back').hidden = !canTakeBack(info, myUid);
+  const banner = $('turn-banner');
+  banner.hidden = false; // always during a match: whose turn it is, and louder when it is yours
+  banner.classList.toggle('mine', mine);
+  banner.textContent = mine ? `It is your turn (turn ${info.turn}).${turnNote ? ` ${turnNote}` : ''}` : turnWords(info, myUid);
+  if (!mine) turnNote = '';
+  document.title = mine ? `Your turn - ${baseTitle}` : baseTitle;
+}
+
+function startMyTurn(turn) {
+  const held = heldTapped(game);
+  turnNote = `Everything untapped${held ? ` except ${held} that do not untap` : ''}, summoning sickness ended and you drew a card.`;
+  apply(() => startTurn(game, turn).game, `Your turn (turn ${turn}): ${turnNote.charAt(0).toLowerCase()}${turnNote.slice(1)}`);
 }
 
 function doMulligan() {
@@ -432,6 +478,9 @@ async function renderOpponents() {
   for (const [uid, member] of others) {
     const panel = opponentPanel(uid);
     panel.title.textContent = `Seat ${member.seat}: ${member.name}`; // names are other people's text: put in as text, never as markup
+    const theirTurn = game !== null && currentTurnInfo().uid === uid;
+    panel.section.classList.toggle('active', theirTurn);
+    if (theirTurn) panel.title.append(make('span', 'turn-mark', 'their turn'));
     // A public branch left over from an earlier match does not count: this match's game is the one with this match's number.
     const view = publicAll[uid]?.match === meta.match ? readPublic(publicAll[uid], known) : null;
     panel.waiting.hidden = view !== null;
@@ -485,6 +534,7 @@ async function start() {
     renderPlayers();
     checkStart();
     renderCounters();
+    renderTurn();
     renderOpponents();
   });
   watchMembers(tableCode, (value, error) => {
@@ -492,9 +542,10 @@ async function start() {
     members = value;
     renderPlayers();
     renderCounters();
+    renderTurn();
     renderOpponents();
   });
-  watchPublic(tableCode, (value) => { publicAll = value && typeof value === 'object' ? value : {}; renderOpponents(); });
+  watchPublic(tableCode, (value) => { publicAll = value && typeof value === 'object' ? value : {}; renderTurn(); renderOpponents(); });
   watchPresence(tableCode, (value) => { if (value) { presence = value; renderPlayers(); } });
   watchServerOffset((offset) => { serverOffset = offset; renderPlayers(); });
   watchConnection((connected) => {
@@ -531,8 +582,20 @@ mountMarksPanel($('marks'), {
   say,
 });
 $('draw').addEventListener('click', () => { if (game) drawOne(); });
-$('next-turn').addEventListener('click', () => { if (game) goNextTurn(); });
-$('untap-all').addEventListener('click', () => { if (game) apply(() => untapAll(game), 'Untapped everything.'); });
+$('pass-turn').addEventListener('click', () => {
+  if (!game) return;
+  const info = currentTurnInfo();
+  // Anyone may press it: when it is not your turn it skips that player (they have left the table, or cannot play), so it asks first.
+  if (info.uid !== myUid && !confirm(`Skip ${whoseWords(info, myUid)}? Use this when that player has left the table or cannot play.`)) return;
+  try {
+    const action = passAction(info, members, conceded, myUid);
+    apply(() => action.run(game), action.message);
+  } catch (error) {
+    say(error.message, true);
+  }
+});
+$('take-back').addEventListener('click', () => { if (game) { const action = takeBackAction(currentTurnInfo()); apply(() => action.run(game), action.message); } });
+$('untap-all').addEventListener('click', () => { if (game) apply(() => untapAll(game), untapMessage(game)); });
 $('shuffle').addEventListener('click', () => { if (game) apply(() => shuffleLibrary(game), 'Shuffled your library.'); });
 $('mulligan').addEventListener('click', () => { if (game) doMulligan(); });
 for (const [id, delta] of [['life-minus5', -5], ['life-minus1', -1], ['life-plus1', 1], ['life-plus5', 5]]) {

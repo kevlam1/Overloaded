@@ -38,7 +38,7 @@ function loaded() {
 {
   const { game, a, b, token } = loaded();
   const find = (g, uid) => ZONES.flatMap((zone) => g.zones[zone]).find((card) => card.uid === uid);
-  same('a card with counters, a modifier, a note: stored as ct, mp, mt, nt', packCard(find(game, a)), { u: a, i: find(game, a).i, n: find(game, a).n, e: 1, ct: { p: 3, l: 2 }, mp: 2, mt: -1, nt: 'equipped', ...(find(game, a).p ? { p: find(game, a).p } : {}) });
+  same('a card with counters, a modifier, a note: stored as ct, mp, mt, nt', packCard(find(game, a)), { u: a, i: find(game, a).i, n: find(game, a).n, e: 1, ct: { p: 3, l: 2 }, mp: 2, mt: -1, nt: 'equipped', sk: 1, ...(find(game, a).p ? { p: find(game, a).p } : {}) });
   same('a face-down card: f is 1', packCard(find(game, b)).f, 1);
   const stored = packCard(find(game, token));
   same('a token is stored with tok, its type line, power/toughness and colors', [stored.tok, stored.tt, stored.pt, stored.cl, stored.i, stored.n], [1, 'Token Creature - Goblin', '1/1', 'R', id(70), 'Goblin']);

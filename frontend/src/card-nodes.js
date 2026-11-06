@@ -68,6 +68,47 @@ function updateMarks(button, card, interactive, printed, onBattlefield) {
   box.title = marksSentence(card, printed) + (interactive ? MARK_HELP : '');
 }
 
+// The two state badges at the top-left of a card: the lock icon ("doesn't untap": the untap step skips this card) and SICK (summoning sick, a
+// reminder). Another player sees them too. On your own card a click on a badge clears it (data-badge, answered through onBadge), which is the
+// one-click fix when haste comes from somewhere the card data cannot see. The icon is our own plain turn arrow with a lock in the middle;
+// the Magic tap symbol belongs to Wizards and is not used. The SVG has its width, height and fill set directly.
+const SVG_NS = 'http://www.w3.org/2000/svg';
+function lockIcon() {
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  for (const [name, value] of [['width', '18'], ['height', '18'], ['viewBox', '0 0 24 24'], ['fill', 'none'], ['aria-hidden', 'true'], ['focusable', 'false']]) svg.setAttribute(name, value);
+  const part = (tag, attributes) => { const element = document.createElementNS(SVG_NS, tag); for (const [name, value] of Object.entries(attributes)) element.setAttribute(name, value); svg.append(element); };
+  part('path', { d: 'M17.14 5.87A8 8 0 1 1 12 4', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', fill: 'none' }); // the arc
+  part('path', { d: 'M11 0.9L11 7.1L15.4 4Z', fill: 'currentColor' }); // its arrowhead
+  part('rect', { x: '9.2', y: '11.2', width: '5.6', height: '5', rx: '0.9', fill: 'currentColor' }); // the lock
+  part('path', { d: 'M10.4 11.2V9.9a1.6 1.6 0 0 1 3.2 0V11.2', stroke: 'currentColor', 'stroke-width': '1.3', fill: 'none' }); // its shackle
+  return svg;
+}
+function updateBadges(button, card, clickable) {
+  const wantLock = card.noUntap === true;
+  const wantSick = card.sick === true;
+  let box = button.querySelector(':scope > .badges');
+  if (!wantLock && !wantSick) { if (box) box.remove(); return; }
+  if (!box) {
+    box = make('span', 'badges');
+    box.setAttribute('aria-hidden', 'true'); // the card's aria-label says the same in words
+    button.append(box);
+  }
+  const badge = (className, kind, title, build) => {
+    let element = box.querySelector(`:scope > .${className}`);
+    if (!element) {
+      element = make('span', `badge ${className}`);
+      build(element);
+      box.append(element);
+    }
+    element.title = clickable ? `${title} Click to clear it.` : title;
+    if (clickable) element.dataset.badge = kind; else delete element.dataset.badge;
+    return element;
+  };
+  const existing = (className) => box.querySelector(`:scope > .${className}`);
+  if (wantLock) badge('badge-lock', 'nountap', "Doesn't untap: the untap step skips this card.", (element) => element.append(lockIcon())); else existing('badge-lock')?.remove();
+  if (wantSick) badge('badge-sick', 'sick', 'Summoning sick: a reminder that it came in this turn, until your next turn starts.', (element) => { element.textContent = 'SICK'; }); else existing('badge-sick')?.remove();
+}
+
 // The floating text after a click on a mark (shared/marks.mjs says what it is). It rises and fades; with prefers-reduced-motion
 // it stays still. Removed after a second, and a new one replaces the old.
 function showToast(button, toast) {
@@ -95,7 +136,7 @@ function showFace(button, card) {
   picture.src = pictureAddress(card, side, false) ?? '';
 }
 
-export function makeCardNodes({ onSelect = () => {}, isSelected = () => false, readOnly = false, onMark = null, onMenu = null, printedStats = () => null } = {}) {
+export function makeCardNodes({ onSelect = () => {}, isSelected = () => false, readOnly = false, onMark = null, onMenu = null, onBadge = null, printedStats = () => null } = {}) {
   const nodes = new Map(); // uid -> its button
 
   function nodeFor(card, onBattlefield = false) {
@@ -138,9 +179,17 @@ export function makeCardNodes({ onSelect = () => {}, isSelected = () => false, r
           const target = onMark && event.target instanceof Element ? event.target.closest('[data-mark]') : null;
           return target && button.contains(target) ? { mark: target.dataset.mark, kind: target.dataset.kind, big: event.shiftKey } : null;
         };
+        // A click on a state badge (SICK, the lock) clears it: onBadge(uid, 'sick' | 'nountap').
+        const badgeHit = (event) => {
+          const target = onBadge && event.target instanceof Element ? event.target.closest('[data-badge]') : null;
+          return target && button.contains(target) ? target.dataset.badge : null;
+        };
         button.addEventListener('click', (event) => {
           const hit = markHit(event);
-          if (hit) { event.stopPropagation(); if (onMark(card.uid, hit) !== false) showToast(button, markToast(hit)); } else onSelect(card.uid);
+          const badge = badgeHit(event);
+          if (hit) { event.stopPropagation(); if (onMark(card.uid, hit) !== false) showToast(button, markToast(hit)); }
+          else if (badge) { event.stopPropagation(); onBadge(card.uid, badge); }
+          else onSelect(card.uid);
         });
         button.addEventListener('contextmenu', (event) => {
           const hit = markHit(event);
@@ -161,7 +210,8 @@ export function makeCardNodes({ onSelect = () => {}, isSelected = () => false, r
     showFace(button, card);
     const printed = printedStats(card);
     const marks = marksSentence(card, printed);
-    button.setAttribute('aria-label', `${card.n}${card.turned && !card.tok ? ', turned over' : ''}${card.tapped ? ', tapped' : ''}${marks ? `. ${marks}` : ''}`);
+    button.setAttribute('aria-label', `${card.n}${card.turned && !card.tok ? ', turned over' : ''}${card.tapped ? ', tapped' : ''}${card.noUntap ? ", doesn't untap" : ''}${card.sick ? ', summoning sick' : ''}${marks ? `. ${marks}` : ''}`);
+    updateBadges(button, card, Boolean(onBadge) && !readOnly);
     updateMarks(button, card, Boolean(onMark) && !readOnly, printed, onBattlefield);
     return button;
   }

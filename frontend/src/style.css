@@ -175,6 +175,12 @@ main.table { max-width: 80rem; }
 .bar .stat { margin: 0; font-size: 1.05rem; }
 .life { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
 .life button { min-width: 2.75rem; padding: 0.4rem 0.6rem; }
+/* Whose turn it is on the table page (shared/turn-order.mjs): a banner for the player whose turn it is, and a mark on that player's panel. */
+.turn-banner { margin: 0 0 0.75rem; padding: 0.5rem 0.9rem; border: 1px solid var(--line); border-radius: 0.6rem; background: var(--card); color: var(--muted); font-weight: 600; }
+.turn-banner.mine { border: 2px solid var(--accent); color: var(--text); font-size: 1.05rem; }
+.turn-banner[hidden] { display: none; }
+.opponent.active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+.opponent .turn-mark { margin-left: 0.5rem; padding: 0 0.45rem; border: 1px solid var(--accent); border-radius: 0.6rem; color: var(--accent); font-size: 0.75rem; font-weight: 600; }
 /* Player counters and commander damage (src/player-counters.js). One .stepper is one counter or one player's commander damage. */
 .counters-panel h2 { margin-bottom: 0.5rem; }
 .counters-sub { margin: 0.75rem 0 0.4rem; font-size: 0.95rem; }
@@ -215,6 +221,17 @@ main.table { max-width: 80rem; }
 .card.tapped { width: 9.25rem; }
 .card.tapped .face { position: absolute; top: 50%; left: 50%; width: 6.6rem; height: 9.25rem; transform: translate(-50%, -50%) rotate(90deg); }
 .card.selected { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent); }
+/* The state badges at the top-left of a card: the lock ("doesn't untap") and SICK. Only the badges of your own cards take clicks (they clear). */
+.card .badges { position: absolute; top: 0.25rem; left: 0.25rem; z-index: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 0.15rem; pointer-events: none; }
+.card .badge { display: inline-flex; align-items: center; justify-content: center; border: 1px solid rgba(255, 255, 255, 0.4); background: rgba(20, 20, 26, 0.92); color: #fff; font-size: 0.65rem; font-weight: 700; letter-spacing: 0.04em; line-height: 1.1rem; }
+.card.tapped .badges { top: 1.575rem; } /* a tapped card is turned on its side inside a square button: keep the badges on the card's own corner */
+.card .badge-lock { width: 1.4rem; height: 1.4rem; border-radius: 50%; }
+.card .badge-lock svg { display: block; }
+.card .badge-sick { padding: 0 0.35rem; border-radius: 0.6rem; color: #ffd98a; border-color: #ffd98a; }
+.card .badges [data-badge] { pointer-events: auto; cursor: pointer; }
+.opponent .card .badge { font-size: 0.55rem; line-height: 0.95rem; }
+.opponent .card .badge-lock { width: 1.15rem; height: 1.15rem; }
+.opponent .card .badge-lock svg { width: 14px; height: 14px; }
 .card .marks { position: absolute; left: 0; right: 0; bottom: 0.2rem; display: flex; align-items: flex-end; justify-content: space-between; gap: 0.15rem; padding: 0 0.2rem; pointer-events: none; }
 .card .marks .chips { display: flex; flex-direction: column; align-items: flex-start; gap: 0.1rem; }
 .card .marks .chip, .card .marks .change { padding: 0 0.3rem; border: 1px solid var(--line); border-radius: 0.6rem; background: var(--card); color: var(--text); font-size: 0.7rem; line-height: 1.15rem; font-weight: 600; white-space: nowrap; }

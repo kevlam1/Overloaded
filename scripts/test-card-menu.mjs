@@ -1,7 +1,7 @@
 // Checks shared/card-menu.mjs: which choices a card's right-click menu offers in each zone, and what each choice does to a real game.
 // Run from the repo root:  node scripts/test-card-menu.mjs
-import { menuItems, menuAction, turnLabel, turnMessage, playBackLabel, PLAY_BACK_ZONES, ZONE_NAMES, MOVE_TARGETS, COUNTER_AMOUNTS } from '../shared/card-menu.mjs';
-import { makeGame, moveCard, createToken, changeCounter, seededRandom, ZONES, checkGame, isLandCard, battlefieldRows } from '../shared/zones.mjs';
+import { menuItems, menuAction, turnLabel, turnMessage, playBackLabel, PLAY_BACK_ZONES, noUntapLabel, sickLabel, untapMessage, ZONE_NAMES, MOVE_TARGETS, COUNTER_AMOUNTS } from '../shared/card-menu.mjs';
+import { makeGame, moveCard, createToken, changeCounter, seededRandom, ZONES, checkGame, isLandCard, battlefieldRows, setTapped, setNoUntap } from '../shared/zones.mjs';
 
 let checks = 0;
 const fail = (label, detail) => { console.log(`FAILED CHECK: ${label}: ${detail}`); process.exit(1); };
@@ -34,14 +34,14 @@ same('every zone has words', ZONES.every((zone) => typeof ZONE_NAMES[zone] === '
 
 // ---- what is offered ----
 const ids = (items) => items.map((item) => item.id);
-same('on the battlefield: Modify, Tap, the counter, Create copy, Move to', ids(menuItems({ tapped: false }, 'battlefield')), ['modify', 'tap', 'counter', 'copy', 'move']);
+same('on the battlefield: Modify, Tap, the two marks (does not untap, summoning sick), the counter, Create copy, Move to', ids(menuItems({ tapped: false }, 'battlefield')), ['modify', 'tap', 'nountap', 'sick', 'counter', 'copy', 'move']);
 same('an untapped card offers Tap, a tapped one Untap', [menuItems({ tapped: false }, 'battlefield')[1].label, menuItems({ tapped: true }, 'battlefield')[1].label], ['Tap', 'Untap']);
-same('the counter item has the quick amounts and its own copy of the list', (() => { const item = menuItems({}, 'battlefield')[2]; item.amounts.push(99); return [item.label, menuItems({}, 'battlefield')[2].amounts]; })(), ['+1/+1 counter', [2, 3, 5]]);
+same('the counter item has the quick amounts and its own copy of the list', (() => { const item = menuItems({}, 'battlefield')[4]; item.amounts.push(99); return [item.label, menuItems({}, 'battlefield')[4].amounts]; })(), ['+1/+1 counter', [2, 3, 5]]);
 for (const zone of ['hand', 'graveyard', 'exile', 'command', 'sideboard', 'library']) same(`in ${zone} only Move to is offered`, ids(menuItems({}, zone)), ['move']);
-same('moves from the battlefield: every zone but the battlefield, then the two library places', ids(menuItems({}, 'battlefield')[4].items), ['move:hand', 'move:graveyard', 'move:exile', 'move:command', 'move:sideboard', 'move:library-top', 'move:library-bottom']);
+same('moves from the battlefield: every zone but the battlefield, then the two library places', ids(menuItems({}, 'battlefield')[6].items), ['move:hand', 'move:graveyard', 'move:exile', 'move:command', 'move:sideboard', 'move:library-top', 'move:library-bottom']);
 same('moves from the hand: not to the hand', ids(menuItems({}, 'hand')[0].items), ['move:battlefield', 'move:graveyard', 'move:exile', 'move:command', 'move:sideboard', 'move:library-top', 'move:library-bottom']);
 same('from the library you can still put it on the top or bottom of it', ids(menuItems({}, 'library')[0].items).slice(-2), ['move:library-top', 'move:library-bottom']);
-same('a card that is not there still gets a menu', ids(menuItems(null, 'battlefield')), ['modify', 'tap', 'counter', 'copy', 'move']);
+same('a card that is not there still gets a menu', ids(menuItems(null, 'battlefield')), ['modify', 'tap', 'nountap', 'sick', 'counter', 'copy', 'move']);
 same('labels are plain words', menuItems({}, 'hand')[0].items.map((item) => item.label), ['Battlefield', 'Graveyard', 'Exile', 'Command zone', 'Sideboard', 'Top of library', 'Bottom of library']);
 
 // ---- what each choice does ----
@@ -101,11 +101,11 @@ same('no card, no action', [menuAction('tap', null), menuAction('tap', undefined
   const delverUid = game.zones.hand.find((card) => card.b === 1)?.uid ?? game.zones.library.find((card) => card.b === 1).uid;
   game = deepFreeze(moveCard(game, delverUid, 'battlefield'));
   const delver = cardOf(game, delverUid);
-  same('a card with a back face offers Turn over, after Tap and before the counter', ids(menuItems(delver, 'battlefield')), ['modify', 'tap', 'turn', 'counter', 'copy', 'move']);
+  same('a card with a back face offers Turn over, after Tap and before the counter', ids(menuItems(delver, 'battlefield')), ['modify', 'tap', 'turn', 'nountap', 'sick', 'counter', 'copy', 'move']);
   same('its label says what it will do', [menuItems(delver, 'battlefield')[2].label, menuItems({ ...delver, turned: true }, 'battlefield')[2].label], ['Turn over', 'Turn back to front']);
   same('the label function says the same', [turnLabel(delver), turnLabel({ ...delver, turned: true })], ['Turn over', 'Turn back to front']);
   for (const zone of ['hand', 'graveyard', 'exile', 'command', 'sideboard', 'library']) same(`in ${zone} it is not offered, even for a card with a back`, ids(menuItems(delver, zone)), ['move']);
-  for (const bad of [0, true, '1', 2, null]) same(`b that is ${JSON.stringify(bad)} offers no Turn over`, ids(menuItems({ ...delver, b: bad }, 'battlefield')), ['modify', 'tap', 'counter', 'copy', 'move']);
+  for (const bad of [0, true, '1', 2, null]) same(`b that is ${JSON.stringify(bad)} offers no Turn over`, ids(menuItems({ ...delver, b: bad }, 'battlefield')), ['modify', 'tap', 'nountap', 'sick', 'counter', 'copy', 'move']);
   same('a card with no back, and no card, offer none', [ids(menuItems(onBattlefield().card, 'battlefield')).includes('turn'), ids(menuItems(null, 'battlefield')).includes('turn')], [false, false]);
   const turn = menuAction('turn', delver);
   same('Turn over says what it did', turn.message, `Turned ${delver.n} over.`);
@@ -202,6 +202,58 @@ same('no card, no action', [menuAction('tap', null), menuAction('tap', undefined
   refused('a card already on the battlefield cannot', () => menuAction('playback', byName(played, 'Valakut')).run(played), /already on the battlefield/);
   const onField = put(start, modal.uid, 'battlefield');
   refused('and not even when it is not turned yet', () => menuAction('playback', byName(onField, 'Valakut')).run(onField), /already on the battlefield/);
+}
+
+// ---- the two marks: "doesn't untap" and "summoning sick" (set by hand, because the card data cannot tell) ----
+{
+  const known = { [id(2)]: { t: 'Creature - Elf', m: '', k: [] }, [id(3)]: { t: 'Artifact', m: '{1}', k: [] }, [id(4)]: { t: 'Instant // Creature - Elf', m: '{G}', k: [], b: 1, md: 1 }, [id(5)]: { t: 'Creature - Elf // Instant', m: '{G}', k: [], b: 1, md: 1 } };
+  const look = (card) => (card.i === id(1) ? { t: 'Basic Land - Forest', m: '', k: [] } : known[card.i]);
+  const marksDeck = { cards: [{ i: id(1), n: 'Forest', qty: 20, section: 'main' }, { i: id(2), n: 'Elf', qty: 1, section: 'main' }, { i: id(3), n: 'Ring', qty: 1, section: 'main' }, { i: id(4), n: 'Spell // Elf Back', qty: 1, section: 'main' }, { i: id(5), n: 'Elf Front // Spell Back', qty: 1, section: 'main' }], commander: [] };
+  const start = makeGame(marksDeck, look, { random: seededRandom(4), handSize: 23 });
+  const byName = (game, name) => ZONES.flatMap((zone) => game.zones[zone]).find((card) => card.n === name);
+  let game = moveCard(moveCard(start, byName(start, 'Elf').uid, 'battlefield'), byName(start, 'Ring').uid, 'battlefield');
+  const elf = byName(game, 'Elf'), ring = byName(game, 'Ring');
+  same('a creature that came in is offered "Not summoning sick" and the other card "Summoning sick"', [menuItems(elf, 'battlefield')[3].label, menuItems(ring, 'battlefield')[3].label], ['Not summoning sick', 'Summoning sick']);
+  same('both cards offer "Doesn\'t untap" until it is set', [menuItems(elf, 'battlefield')[2].label, menuItems({ ...ring, noUntap: true }, 'battlefield')[2].label], ["Doesn't untap", 'Untaps normally']);
+  same('the label functions say the same', [noUntapLabel(ring), noUntapLabel({ ...ring, noUntap: true }), sickLabel(ring), sickLabel(elf)], ["Doesn't untap", 'Untaps normally', 'Summoning sick', 'Not summoning sick']);
+  for (const zone of ['hand', 'graveyard', 'exile', 'command', 'sideboard', 'library']) check(`neither is offered in ${zone}`, !ids(menuItems(elf, zone)).includes('nountap') && !ids(menuItems(elf, zone)).includes('sick'));
+  const held = menuAction('nountap', ring);
+  same('it says what it did', held.message, 'Ring will not untap in the untap step.');
+  const marked = held.run(game);
+  check('and marks the card', byName(marked, 'Ring').noUntap === true && checkGame(marked).length === 0);
+  same('chosen again it undoes it and says so', [menuAction('nountap', byName(marked, 'Ring')).message, 'noUntap' in byName(menuAction('nountap', byName(marked, 'Ring')).run(marked), 'Ring')], ['Ring untaps normally again.', false]);
+  const clear = menuAction('sick', elf);
+  same('clearing summoning sickness says so', clear.message, 'Elf is no longer marked summoning sick.');
+  check('and clears it', !('sick' in byName(clear.run(game), 'Elf')));
+  same('marking says so', menuAction('sick', ring).message, 'Ring is marked summoning sick.');
+  check('and marks a card that is not a creature (a crewed Vehicle)', byName(menuAction('sick', ring).run(game), 'Ring').sick === true);
+  refused('a card in the hand cannot be marked either way', () => menuAction('nountap', byName(start, 'Elf')).run(start), /battlefield/);
+  refused('...nor made sick', () => menuAction('sick', byName(start, 'Elf')).run(start), /battlefield/);
+  check('the old game is not changed (it is frozen)', !('noUntap' in byName(deepFreeze(JSON.parse(JSON.stringify(game))), 'Ring')));
+
+  // What "Untap all" and a new turn say when marked cards stay tapped.
+  const tappedBoth = setTapped(setTapped(game, byName(game, 'Elf').uid, true), byName(game, 'Ring').uid, true);
+  same('nothing held back: "Untapped everything."', untapMessage(tappedBoth), 'Untapped everything.');
+  const oneHeld = setNoUntap(tappedBoth, byName(tappedBoth, 'Ring').uid, true);
+  same('one card held back says so, in the singular', untapMessage(oneHeld), 'Untapped everything except 1 card that does not untap.');
+  const twoHeld = setNoUntap(oneHeld, byName(oneHeld, 'Elf').uid, true);
+  same('two cards held back say so, in the plural', untapMessage(twoHeld), 'Untapped everything except 2 cards that do not untap.');
+  same('the first words can be changed (the new turn uses its own)', untapMessage(oneHeld, 'everything untapped'), 'everything untapped except 1 card that does not untap.');
+  same('a marked card that is not tapped is not held back', untapMessage(setNoUntap(game, byName(game, 'Ring').uid, true)), 'Untapped everything.');
+
+  // Play the back face: the mark follows the face that ends up showing.
+  const spellFront = byName(start, 'Spell // Elf Back');
+  check('a modal card with a creature on its back is not sick as its front (a spell is not a creature), but is when played as the creature', (() => {
+    const front = moveCard(start, spellFront.uid, 'battlefield');
+    const back = menuAction('playback', spellFront).run(start);
+    return !('sick' in byName(front, 'Spell // Elf Back')) && byName(back, 'Spell // Elf Back').sick === true && byName(back, 'Spell // Elf Back').turned === true && checkGame(back).length === 0;
+  })());
+  const creatureFront = byName(start, 'Elf Front // Spell Back');
+  check('a modal card with a creature on its front is sick as its front, and not when played as its spell side', (() => {
+    const front = moveCard(start, creatureFront.uid, 'battlefield');
+    const back = menuAction('playback', creatureFront).run(start);
+    return byName(front, 'Elf Front // Spell Back').sick === true && !('sick' in byName(back, 'Elf Front // Spell Back')) && byName(back, 'Elf Front // Spell Back').turned === true;
+  })());
 }
 
 console.log(`All ${checks} card menu checks passed.`);

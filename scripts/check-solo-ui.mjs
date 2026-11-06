@@ -3,7 +3,7 @@
 // A deck is put into the browser's storage first, as the deck page would. Run from the repo root: node scripts/check-solo-ui.mjs
 // Skipped (exit 0, and it says so) when no card list has been built here yet.
 // Optional: --screenshot saves scratch-solo-*.png using the REAL pictures from Scryfall (a few dozen KB; git ignores scratch files).
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { createServer } from 'vite';
 import { openBrowser, closeAllBrowsers, waitFor, sleep } from './lib/browser.mjs';
 import { buildCardIndex, matchDeck } from '../shared/card-match.mjs';
@@ -155,7 +155,7 @@ try {
   await clickCard('#hand .card', otherIndex);
   await clickAction('To battlefield');
   check('and goes in the other permanents row, not the lands row', (await count('#row-other .card')) === 1 && (await count('#row-lands .card')) === 1);
-  check('the rows keep their cards where they were (the land is still in the lands row)', (await names('#row-lands .card')).join() === landName && (await names('#row-other .card')).join() === otherName, `${await names('#row-lands .card')} | ${await names('#row-other .card')}`);
+  check('the rows keep their cards where they were (the land is still in the lands row)', (await names('#row-lands .card')).join() === landName && (await names('#row-other .card')).join().replace(/, summoning sick$/, '') === otherName, `${await names('#row-lands .card')} | ${await names('#row-other .card')}`); // a creature that came in is summoning sick, which its label now says
 
   // ---- piles ----
   await clickAction('To graveyard');
@@ -517,7 +517,7 @@ try {
   check('there is no menu before a right click', (await menuState()) === null);
   await mouse('#row-other .card', { button: 'right', dy: 30 });
   let menu = await menuState();
-  check('a right click on a creature opens its menu: its name, then Modify, Tap, the counter with 2 3 5, Create copy and Move to', menu && menu.title === 'Llanowar Elves' && menu.role === 'menu' && JSON.stringify(menu.items) === JSON.stringify(['Modify...', 'Tap', '+1/+1 counter', '2', '3', '5', 'Create copy', 'Move to']), JSON.stringify(menu));
+  check('a right click on a creature opens its menu: its name, then Modify, Tap, the counter with 2 3 5, Create copy and Move to (with the two marks after Tap: Elves came in sick)', menu && menu.title === 'Llanowar Elves' && menu.role === 'menu' && JSON.stringify(menu.items) === JSON.stringify(['Modify...', 'Tap', "Doesn't untap", 'Not summoning sick', '+1/+1 counter', '2', '3', '5', 'Create copy', 'Move to']), JSON.stringify(menu));
   check('the menu is inside the window and the first item has the focus', menu.inside && menu.focused === 'Modify...', JSON.stringify(menu));
   check('the right click also selected the card', (await $text('selected-line')).startsWith('Llanowar Elves'), await $text('selected-line'));
   await clickMenuItem('Tap');
@@ -564,7 +564,7 @@ try {
   await mouse(cardSelector, { button: 'right', dy: 30 });
   check('the card on the battlefield again offers Tap', (await menuState()).items.includes('Tap'));
   {
-    await key('ArrowDown', 'ArrowDown', 40); await key('ArrowDown', 'ArrowDown', 40); // Tap, then the counter
+    for (let n = 0; n < 4; n++) await key('ArrowDown', 'ArrowDown', 40); // Tap, the two marks, then the counter
     await key('ArrowRight', 'ArrowRight', 39);
     check('Right moves along the counter row to its first amount', (await menuState()).focused === '2', JSON.stringify(await menuState()));
     await key('ArrowRight', 'ArrowRight', 39);
@@ -703,7 +703,7 @@ try {
   await mouse(cardAt('Delver'), { button: 'right', dy: 30 });
   check('the test is real: the right-click made the selected-card panel shorter, so the page had to scroll by itself', (await ev(`document.getElementById('selected').getBoundingClientRect().height`)) < panelBefore - 10, `${panelBefore} -> ${await ev(`document.getElementById('selected').getBoundingClientRect().height`)}`);
   const delverMenu = await menuState();
-  check('the menu for Delver lists Turn over between Tap and the counter', delverMenu && JSON.stringify(delverMenu.items.slice(0, 4)) === JSON.stringify(['Modify...', 'Tap', 'Turn over', '+1/+1 counter']), JSON.stringify(delverMenu?.items));
+  check('the menu for Delver lists Turn over between Tap and the counter', delverMenu && JSON.stringify(delverMenu.items.slice(0, 4)) === JSON.stringify(['Modify...', 'Tap', 'Turn over', "Doesn't untap"]), JSON.stringify(delverMenu?.items));
   await sleep(500);
   check('the menu is still open half a second later (it must not close by itself after a right click on a card that was not selected)', Boolean(await menuState()), JSON.stringify(await menuState()));
   await clickMenuItem('Turn over');
@@ -868,6 +868,70 @@ try {
   check('updating it changes the number and the lethal mark in place, with the same buttons (a pressed button keeps the focus)', standalone.before.count === '7' && !standalone.before.lethal && standalone.after.count === '21' && standalone.after.lethal && standalone.after.word && standalone.after.sameButtons, JSON.stringify(standalone.after));
   check('the read-only version of it hides itself at 0, has no buttons and says what it is once there is damage', standalone.hiddenAtZero && !standalone.shown.hidden && standalone.shown.buttons === 0 && /Commander damage from Seat 2: Bob/.test(standalone.shown.text) && /9/.test(standalone.shown.text), JSON.stringify(standalone.shown));
 
+  // ---- summoning sickness (hybrid) and "doesn't untap" (real mouse input; a 7-card deck, so everything is in the hand) ----
+  const MARKS_DECK = deckFrom("1 Goblin Guide\n1 Llanowar Elves\n1 Sol Ring\n1 Forest\n1 Lightning Bolt\n1 Hellrider\n1 Smuggler's Copter", 'Marks deck', null, []);
+  await open(MARKS_DECK);
+  for (const name of ['Goblin Guide', 'Llanowar Elves', 'Sol Ring', 'Forest', 'Hellrider', "Smuggler's Copter"]) {
+    await clickCard('#hand .card', (await handNames()).findIndex((x) => x.startsWith(name)));
+    await clickAction('To battlefield'); await clickAction('Deselect');
+  }
+  const badgeNames = (kind) => ev(`Array.from(document.querySelectorAll('#row-lands .card, #row-other .card')).filter((c) => c.querySelector('.badge-${kind}')).map((c) => c.getAttribute('aria-label').split(',')[0])`);
+  check('only the creature without printed haste came in sick: Goblin Guide and Hellrider (printed haste), Sol Ring, the Forest and a Vehicle did not', JSON.stringify(await badgeNames('sick')) === JSON.stringify(['Llanowar Elves']), JSON.stringify(await badgeNames('sick')));
+  check('the hand still holds Lightning Bolt, and nothing there has a badge', (await handNames()).join() === 'Lightning Bolt' && (await count('#hand .card .badge')) === 0);
+  const sickBadge = `${cardAt('Llanowar Elves')} .badge-sick`;
+  check('the badge says SICK in words and the card says so for a screen reader, with a tip that says how to clear it', (await ev(`document.querySelector(${JSON.stringify(sickBadge)}).textContent`)) === 'SICK' && /, summoning sick/.test(await labelOf('Llanowar Elves')) && /Summoning sick.*Click to clear it\./.test(await ev(`document.querySelector(${JSON.stringify(sickBadge)}).title`)));
+  await clickAction('Deselect');
+  await mouse(sickBadge);
+  check('a click on the badge clears it in one step, says so, and does not select the card', (await count(sickBadge)) === 0 && (await $text('status')) === 'Llanowar Elves is no longer marked summoning sick.' && /^Click a card/.test(await $text('selected-line')), `${await $text('status')} | ${await $text('selected-line')}`);
+  check('the card no longer says summoning sick', !/summoning sick/.test(await labelOf('Llanowar Elves')));
+  await mouse(cardAt('Goblin Guide'), { button: 'right', dy: 30 });
+  const guideMenu = await menuState();
+  check('a card that is not sick offers "Summoning sick" (for haste lost, or control gained), and "Doesn\'t untap"', guideMenu && guideMenu.items[2] === "Doesn't untap" && guideMenu.items[3] === 'Summoning sick', JSON.stringify(guideMenu?.items));
+  await clickMenuItem('Summoning sick');
+  check('choosing it marks the Goblin Guide (a mark by hand is never refused)', (await count(`${cardAt('Goblin Guide')} .badge-sick`)) === 1 && (await $text('status')) === 'Goblin Guide is marked summoning sick.', await $text('status'));
+  await clickAction('Create copy');
+  await clickAction('Deselect');
+  const copyBadges = await ev(`Array.from(document.querySelectorAll('.card[aria-label^="Goblin Guide"]')).map((c) => Boolean(c.querySelector('.badge-sick')))`);
+  check('a copy of a creature with printed haste is not sick (a new permanent, but it has the haste)', copyBadges.length === 2 && copyBadges.filter(Boolean).length === 1, JSON.stringify(copyBadges));
+  await clickCard(cardAt('Llanowar Elves')); await clickAction('Create copy'); await clickAction('Deselect');
+  check('a copy of a creature without haste comes in sick', (await ev(`Array.from(document.querySelectorAll('.card[aria-label^="Llanowar Elves"]')).filter((c) => c.querySelector('.badge-sick')).length`)) === 1);
+  await clickCard(cardAt('Hellrider'));
+  const buttons = await actionLabels();
+  check('the selected-card buttons have both marks (the way in on a phone)', buttons.includes("Doesn't untap") && buttons.includes('Summoning sick'), JSON.stringify(buttons));
+  await clickAction('Summoning sick'); await clickAction('Deselect');
+  check('and the button marks a card as the menu does', (await count(`${cardAt('Hellrider')} .badge-sick`)) === 1);
+  const sickBefore = await count('.card .badge-sick');
+  await press('next-turn');
+  check('Next turn ends every summoning sickness by itself, untaps, and says it', sickBefore >= 3 && (await count('.card .badge-sick')) === 0 && /^Turn 2: everything untapped/.test(await $text('status')), `${sickBefore} then ${await count('.card .badge-sick')} | ${await $text('status')}`);
+  check('a battlefield card is not marked again by a new turn', (await count('#row-lands .card .badge, #row-other .card .badge')) === 0);
+
+  // "Doesn't untap": Sol Ring and the Forest are tapped, Sol Ring is marked.
+  await clickCard(cardAt('Sol Ring')); await clickAction('Tap'); await clickAction('Deselect');
+  await clickCard(cardAt('Forest')); await clickAction('Tap'); await clickAction('Deselect');
+  await mouse(cardAt('Sol Ring'), { button: 'right', dy: 30 });
+  await clickMenuItem("Doesn't untap");
+  check('the menu marks Sol Ring and says so', (await $text('status')) === 'Sol Ring will not untap in the untap step.' && (await count(`${cardAt('Sol Ring')} .badge-lock`)) === 1, await $text('status'));
+  const lock = await ev(`(() => { const b = document.querySelector(${JSON.stringify(cardAt('Sol Ring') + ' .badge-lock')}); const s = b.querySelector('svg'); return { width: s.getAttribute('width'), height: s.getAttribute('height'), fill: s.getAttribute('fill'), hidden: s.getAttribute('aria-hidden'), title: b.title, shapes: s.querySelectorAll('path, rect').length, label: b.closest('.card').getAttribute('aria-label'), tag: s.tagName }; })()`);
+  check('the lock is an inline SVG with its width, height and fill set directly, hidden from screen readers, and its words are on the card and in a tooltip', lock.tag === 'svg' && lock.width === '18' && lock.height === '18' && lock.fill === 'none' && lock.hidden === 'true' && lock.shapes === 4 && /doesn't untap/.test(lock.label) && /Doesn't untap: the untap step skips this card\. Click to clear it\./.test(lock.title), JSON.stringify(lock));
+  await press('untap-all');
+  check('Untap all untaps the Forest and leaves the marked Sol Ring tapped, and says how many it held back', (await ev(`document.querySelector(${JSON.stringify(cardAt('Forest'))}).classList.contains('tapped')`)) === false && (await ev(`document.querySelector(${JSON.stringify(cardAt('Sol Ring'))}).classList.contains('tapped')`)) === true && (await $text('status')) === 'Untapped everything except 1 card that does not untap.', await $text('status'));
+  await clickCard(cardAt('Forest')); await clickAction('Tap'); await clickAction('Deselect');
+  await press('next-turn');
+  check('Next turn does the same, and the turn goes on', (await ev(`document.querySelector(${JSON.stringify(cardAt('Sol Ring'))}).classList.contains('tapped')`)) === true && (await ev(`document.querySelector(${JSON.stringify(cardAt('Forest'))}).classList.contains('tapped')`)) === false && /^Turn 3: everything untapped except 1 that do not untap/.test(await $text('status')), await $text('status'));
+  check('the lock stays across the turn (a Claustrophobia aura lasts many turns)', (await count(`${cardAt('Sol Ring')} .badge-lock`)) === 1);
+  await clickCard(cardAt('Sol Ring'));
+  await clickAction('Untap');
+  check('a marked card can still be untapped by hand (Mana Vault: pay at upkeep)', (await ev(`document.querySelector(${JSON.stringify(cardAt('Sol Ring'))}).classList.contains('tapped')`)) === false && (await count(`${cardAt('Sol Ring')} .badge-lock`)) === 1);
+  await clickAction('Tap'); await clickAction('Deselect');
+  await mouse(`${cardAt('Sol Ring')} .badge-lock`);
+  check('a click on the lock clears it in one step', (await count(`${cardAt('Sol Ring')} .badge-lock`)) === 0 && (await $text('status')) === 'Sol Ring untaps normally again.', await $text('status'));
+  await press('untap-all');
+  check('and the next untap step untaps the card (Untap all says nothing was held back)', (await ev(`document.querySelector(${JSON.stringify(cardAt('Sol Ring'))}).classList.contains('tapped')`)) === false && (await $text('status')) === 'Untapped everything.', await $text('status'));
+  await clickCard(cardAt('Sol Ring')); await clickAction("Doesn't untap"); await clickAction('To hand');
+  check('a card that leaves the battlefield loses the mark and comes back without it', (await count('#hand .badge')) === 0 && (await count(`${cardAt('Sol Ring')} .badge-lock`)) === 0);
+  await clickAction('To battlefield');
+  check('...and is not held back when it returns', (await count(`${cardAt('Sol Ring')} .badge-lock`)) === 0);
+
   // ---- storage blocked ----
   await browser.send('Page.addScriptToEvaluateOnNewDocument', { source: `Object.defineProperty(window, 'localStorage', { get() { throw new DOMException('blocked', 'SecurityError'); } });` });
   await browser.goto(PAGE);
@@ -955,7 +1019,24 @@ try {
     await browser.screenshot('scratch-solo-counters-dark.png');
     await scheme('light'); await sleep(300);
     await browser.screenshot('scratch-solo-counters-light.png');
-    console.log('saved scratch-solo-dark.png, -light.png, -piles.png, the four -menu- ones, three -twosided- ones, -copies-dark and two -counters- ones (delete them afterward)');
+    // the two marks on real cards: Llanowar Elves is sick, Goblin Guide and Hellrider have printed haste, Sol Ring is tapped and does not untap
+    await scheme('dark');
+    await open(MARKS_DECK);
+    for (const name of ['Goblin Guide', 'Llanowar Elves', 'Sol Ring', 'Forest', 'Hellrider', "Smuggler's Copter"]) {
+      await clickCard('#hand .card', (await handNames()).findIndex((x) => x.startsWith(name)));
+      await clickAction('To battlefield'); await clickAction('Deselect');
+    }
+    await clickCard(cardAt('Sol Ring')); await clickAction('Tap'); await clickAction("Doesn't untap"); await clickAction('Deselect');
+    await clickCard(cardAt('Hellrider')); await clickAction('Summoning sick'); await clickAction('Tap'); await clickAction('Deselect');
+    await sleep(3000);
+    await ev(`window.scrollTo(0, 0)`); await sleep(300);
+    await browser.screenshot('scratch-solo-marks-dark.png');
+    const zoomBox = await ev(`(() => { const r = document.querySelector('.card[aria-label^="Sol Ring"]').getBoundingClientRect(); return { x: r.x, y: r.y + scrollY, width: r.width, height: r.height }; })()`);
+    const zoom = await browser.send('Page.captureScreenshot', { format: 'png', clip: { x: zoomBox.x, y: zoomBox.y, width: zoomBox.width, height: zoomBox.height, scale: 5 } });
+    writeFileSync('scratch-solo-lock-zoom.png', Buffer.from(zoom.data, 'base64'));
+    await scheme('light'); await sleep(300);
+    await browser.screenshot('scratch-solo-marks-light.png');
+    console.log('saved scratch-solo-dark.png, -light.png, -piles.png, the four -menu- ones, three -twosided- ones, -copies-dark, two -counters- ones and two -marks- ones (delete them afterward)');
   }
 } finally {
   await closeAllBrowsers();
