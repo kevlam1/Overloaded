@@ -171,7 +171,8 @@ try {
   record('Not ready takes the mark back', Boolean(unready) && (await readyText(alice)) === 'Ready');
 
   // Start: only the host sees it, it waits until everyone is ready, and then both browsers are taken to the table page.
-  const startState = (browser) => browser.eval(`({ boxHidden: document.getElementById('start-box').hidden, disabled: document.getElementById('start').disabled, note: document.getElementById('start-note').textContent })`);
+  // A page that is still loading (or is not the lobby screen) has no start box yet: report that, with where the page is, instead of throwing out of a retry loop.
+  const startState = (browser) => browser.eval(`(() => { const box = document.getElementById('start-box'); const button = document.getElementById('start'); const note = document.getElementById('start-note'); if (!box || !button || !note) return { missing: true, url: location.pathname, boxHidden: true, disabled: true, note: '' }; return { boxHidden: box.hidden, disabled: button.disabled, note: note.textContent }; })()`);
   const early = await startState(alice);
   record('the host sees a Start button that waits, and says how many are ready', !early.boxHidden && early.disabled && /1 of 2 players are ready/.test(early.note), JSON.stringify(early));
   record('the other player sees no Start button', (await startState(bob)).boxHidden);
@@ -478,9 +479,9 @@ try {
   const passStored = await waitFor(async () => { const p = (await rest('GET', pathOf('public/pass'), cleanup.bob.token)).json; return p && p.n === 2 ? p : null; }, 15000, 250);
   record('Pass turn writes exactly one small record on Alice\'s own branch: turn 2, to seat 2 (and nothing for the first turn, which it replaced)', Boolean(passStored) && JSON.stringify(passStored) === '{"n":2,"to":"2"}', JSON.stringify(passStored));
   const bobStarted = await waitFor(async () => { const t = (await rest('GET', bobPath('turn'), cleanup.alice.token)).json; return t === 2 ? true : null; }, 20000, 250);
-  record("Bob's page starts Bob's turn by itself: his own turn number becomes 2 in the database, and he drew one card", Boolean(bobStarted) && (await handCount(cleanup.bob.uid)) === bobHandBefore + 1, `${bobHandBefore} -> ${await handCount(cleanup.bob.uid)}`);
+  record("Bob's page starts Bob's turn by itself: his own turn number becomes 2 in the database, and he did NOT draw (players draw their own card)", Boolean(bobStarted) && (await handCount(cleanup.bob.uid)) === bobHandBefore, `${bobHandBefore} -> ${await handCount(cleanup.bob.uid)}`);
   const bobBanner = await waitFor(async () => { const f = await turnFacts(bob); return /^It is your turn \(turn 2\)\./.test(f.banner) ? f : null; }, 20000, 250);
-  record('the banner on Bob page is highlighted and says what starting his turn did, "Your turn", the table\'s turn number 2, and the page title says it is his turn', Boolean(bobBanner) && /untapped/.test(bobBanner.banner) && /drew a card/.test(bobBanner.banner) && bobBanner.whose === 'Your turn' && bobBanner.turn === '2' && bobBanner.pass === 'Pass turn' && /^Your turn - /.test(bobBanner.title) && !bobBanner.takeBack, JSON.stringify(bobBanner));
+  record('the banner on Bob page is highlighted and tells him what to do next (sickness ended, draw and untap himself), "Your turn", the table\'s turn number 2, and the page title says it is his turn', Boolean(bobBanner) && /Summoning sickness ended/.test(bobBanner.banner) && /Draw and untap when you are ready/.test(bobBanner.banner) && bobBanner.whose === 'Your turn' && bobBanner.turn === '2' && bobBanner.pass === 'Pass turn' && /^Your turn - /.test(bobBanner.title) && !bobBanner.takeBack, JSON.stringify(bobBanner));
   const aliceAfterPass = await waitFor(async () => { const f = await turnFacts(alice); return f.banner === "Turn 2: Seat 2: Bob's turn" && !f.mine && f.whose === "Seat 2: Bob's turn" ? f : null; }, 20000, 250);
   record("Alice's banner is plain again (Turn 2: Seat 2: Bob's turn), her button now skips Bob's turn, she can take her pass back, and her title is the plain one", Boolean(aliceAfterPass) && aliceAfterPass.pass === "Skip Seat 2: Bob's turn" && aliceAfterPass.takeBack && !/^Your turn/.test(aliceAfterPass.title) && aliceAfterPass.turn === '2', JSON.stringify(aliceAfterPass));
   record("Alice's own turn number stayed 1 (a player only starts their own turns)", (await rest('GET', pathOf('public/turn'), cleanup.bob.token)).json === 1);
@@ -493,7 +494,7 @@ try {
   const bobPassStored = await waitFor(async () => { const p = (await rest('GET', bobPath('pass'), cleanup.alice.token)).json; return p && p.n === 3 ? p : null; }, 15000, 250);
   record("Bob's pass is turn 3, to seat 1, and remembers the turn it replaced (turn 2, seat 2), so it can be taken back", Boolean(bobPassStored) && JSON.stringify(bobPassStored) === '{"from":{"n":2,"to":"2"},"n":3,"to":"1"}' || JSON.stringify(bobPassStored) === '{"n":3,"to":"1","from":{"n":2,"to":"2"}}', JSON.stringify(bobPassStored));
   const aliceStarted = await waitFor(async () => { const t = (await rest('GET', pathOf('public/turn'), cleanup.bob.token)).json; return t === 3 ? true : null; }, 20000, 250);
-  record("Alice's page starts Alice's turn by itself: her own turn number becomes 3 and she drew one card", Boolean(aliceStarted) && (await handCount(cleanup.alice.uid)) === aliceHandBefore + 1, `${aliceHandBefore} -> ${await handCount(cleanup.alice.uid)}`);
+  record("Alice's page starts Alice's turn by itself: her own turn number becomes 3 and she did NOT draw", Boolean(aliceStarted) && (await handCount(cleanup.alice.uid)) === aliceHandBefore, `${aliceHandBefore} -> ${await handCount(cleanup.alice.uid)}`);
   const afterStart = await delverStored();
   record("her turn starting ended the summoning sickness of her Delver (no sk), and the card is still tapped and still marked not to untap (x 1, nu 1)", Boolean(afterStart) && !('sk' in afterStart) && afterStart.x === 1 && afterStart.nu === 1, JSON.stringify(afterStart));
   const bobSeesClear = await waitFor(async () => { const b = await aliceBadges(bob, '#opponent-list .opponent .card'); return b && !b.sick && b.lock ? b : null; }, 20000, 250);
@@ -518,7 +519,7 @@ try {
   const skipStored = await waitFor(async () => { const p = (await rest('GET', bobPath('pass'), cleanup.alice.token)).json; return p && p.n === 4 ? p : null; }, 15000, 250);
   record('Bob skipping Alice\'s turn (his button said "Skip Seat 1: Alice\'s turn", and asked first) writes turn 4, to himself, remembering turn 3', skipLabel === "Skip Seat 1: Alice's turn" && Boolean(skipStored) && skipStored.to === '2' && skipStored.from?.n === 3 && skipStored.from?.to === '1', JSON.stringify(skipStored));
   const bobSkipStarted = await waitFor(async () => { const t = (await rest('GET', bobPath('turn'), cleanup.alice.token)).json; return t === 4 ? true : null; }, 20000, 250);
-  record('and Bob\'s page starts his turn 4 (he drew a card)', Boolean(bobSkipStarted) && (await handCount(cleanup.bob.uid)) === bobHandBeforeSkip + 1);
+  record('and Bob\'s page starts his turn 4 (the number only: he did not draw)', Boolean(bobSkipStarted) && (await handCount(cleanup.bob.uid)) === bobHandBeforeSkip);
   // Taking it back: Bob's record goes back to turn 3 (Alice's), NOT to turn 2 (his earlier record had been replaced, which a first design got wrong).
   await waitFor(async () => (await turnFacts(bob)).takeBack ? true : null, 20000, 250);
   await click(bob, 'take-back');
@@ -551,6 +552,18 @@ try {
   record("Bob concedes: Alice's page shows him as conceded, the database has his match number, and his own button is off", Boolean(conceded) && (await rest('GET', `tables/${code}/members/${cleanup.bob.uid}/conceded`, cleanup.alice.token)).json === 1 && (await bob.eval(`document.getElementById('concede').disabled`)) === true);
   record("...and Alice, who did not concede, is not marked", !(await players(alice)).some((t) => t.includes('Alice') && t.includes('(conceded)')));
 
+  // A conceded player is skipped by Pass turn, and a conceded player's page does not start a turn even if a record names them.
+  const bobTurnBefore = (await rest('GET', bobPath('turn'), cleanup.alice.token)).json;
+  const bobHandBeforeNaming = await handCount(cleanup.bob.uid);
+  await waitFor(async () => (await turnFacts(alice)).pass === 'Pass turn' ? true : null, 20000, 250); // it is Alice's turn (turn 3)
+  await click(alice, 'pass-turn');
+  const skippedConceded = await waitFor(async () => { const p = (await rest('GET', pathOf('public/pass'), cleanup.bob.token)).json; return p && p.n === 4 ? p : null; }, 15000, 250);
+  record('Alice passes while Bob has conceded: the pass skips him and comes back to Alice herself (turn 4, seat 1)', Boolean(skippedConceded) && skippedConceded.to === '1', JSON.stringify(skippedConceded));
+  const wrote = await rest('PUT', pathOf('public/pass'), cleanup.alice.token, { n: 5, to: '2', from: { n: 4, to: '1' } }); // a record that names Bob, which the page never writes
+  await sleep(4000);
+  record('a pass that names a player who has conceded does not start a turn on his page: his own turn number and his hand are as they were', wrote.status === 200 && (await rest('GET', bobPath('turn'), cleanup.alice.token)).json === bobTurnBefore && (await handCount(cleanup.bob.uid)) === bobHandBeforeNaming, `${bobTurnBefore} -> ${(await rest('GET', bobPath('turn'), cleanup.alice.token)).json}, hand ${bobHandBeforeNaming} -> ${await handCount(cleanup.bob.uid)}`);
+  await rest('PUT', pathOf('public/pass'), cleanup.alice.token, skippedConceded); // put Alice's record back as her page has it
+
   await click(alice, 'end-match');
   record("the host ends the match: Alice's page goes back to the lobby", Boolean(await pathIs(alice, `/lobby/${code}`)));
   record("...and so does Bob's, without pressing anything", Boolean(await pathIs(bob, `/lobby/${code}`)));
@@ -564,7 +577,7 @@ try {
   await click(bob, 'ready');
   await rowHas(bob, 'Bob', 'Ready');
   const canStartAgain = await waitFor(async () => (await startState(alice)).disabled === false ? true : null, 20000, 250);
-  record('both ready again with the decks they brought (remembered, no popup) and the host can start', Boolean(canStartAgain) && !(await dialogOpen(alice)) && !(await dialogOpen(bob)));
+  record('both ready again with the decks they brought (remembered, no popup) and the host can start', Boolean(canStartAgain) && !(await dialogOpen(alice)) && !(await dialogOpen(bob)), JSON.stringify({ alice: await startState(alice), aliceDialog: await dialogOpen(alice).catch(() => 'n/a'), bobDialog: await dialogOpen(bob).catch(() => 'n/a') }));
   await click(alice, 'start');
   await pathIs(alice, `/table/${code}`);
   await pathIs(bob, `/table/${code}`);

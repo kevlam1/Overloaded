@@ -204,15 +204,19 @@ export function adjustLife(game, delta) {
   return { ...game, life: Math.min(MAX_LIFE, Math.max(-MAX_LIFE, game.life + delta)) };
 }
 
-// Your turn starts: the turn number is set (the table's turn number, see shared/turn-order.mjs), the untap step runs (cards marked "doesn't
-// untap" stay tapped), summoning sickness ends for every permanent (a reminder that ends when your own turn comes again), and one card is
-// drawn. Returns { game, drawn, short }.
-export function startTurn(game, turn = game.turn + 1) {
+// Your turn begins at a table: the turn number is set (the table's turn number, see shared/turn-order.mjs) and summoning sickness ends for
+// every permanent (a reminder that ends when your own turn comes again). NOTHING ELSE is automatic (Kevin, 2026-11-06): a player draws their
+// own card and untaps with the buttons, because some turns have exceptions (a player may not be allowed to draw or to untap). Returns the game.
+export function beginTurn(game, turn = game.turn + 1) {
   if (!Number.isInteger(turn) || turn < 1 || turn > MAX_TURN) throw new Error('That is not a turn number.');
   const battlefield = game.zones.battlefield.map((card) => { if (!('sick' in card)) return card; const { sick: _gone, ...rest } = card; return rest; });
-  return draw(untapAll({ ...game, turn, zones: { ...game.zones, battlefield } }), 1);
+  return { ...game, turn, zones: { ...game.zones, battlefield } };
 }
-// The next turn of a game with no table to pass to (the solo table): one more than this one.
+// A whole turn start for a game with no table to pass to (the solo table's "Next turn" button, pressed by the player): the turn begins, the
+// untap step runs (cards marked "doesn't untap" stay tapped) and one card is drawn. Returns { game, drawn, short }.
+export function startTurn(game, turn = game.turn + 1) {
+  return draw(untapAll(beginTurn(game, turn)), 1);
+}
 export const nextTurn = (game) => startTurn(game, game.turn + 1);
 
 // ---- counters, the modifier, notes, face-down and tokens ----

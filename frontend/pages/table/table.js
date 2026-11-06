@@ -21,7 +21,7 @@ import { seatDeckText, defaultDeckFor, hasConceded } from '../../../shared/lobby
 import { LIBRARY_KEY, LEGACY_KEY, readLibrary } from '../../../shared/deck-library.mjs';
 import { makeLookup } from '../../../shared/card-lookup.mjs';
 import { friendlyMessage } from '../../../shared/friendly-error.mjs';
-import { makeGame, draw, moveCard, shuffleLibrary, mulligan, setTapped, turnOver, untapAll, heldTapped, startTurn, adjustLife, battlefieldRows, zoneCounts } from '../../../shared/zones.mjs';
+import { makeGame, draw, moveCard, shuffleLibrary, mulligan, setTapped, turnOver, untapAll, beginTurn, adjustLife, battlefieldRows, zoneCounts } from '../../../shared/zones.mjs';
 import { gameWrites, joinGame, readPublic } from '../../../shared/game-sync.mjs';
 
 const $ = (id) => document.getElementById(id);
@@ -326,14 +326,17 @@ const conceded = (uid) => hasConceded(members[uid], meta);
 const baseTitle = document.title;
 let turnNote = ''; // what starting my turn did, for the banner
 let lastStartTried = null; // the turn my page last tried to start, so a refused start is not tried again in a loop
+let lastStartMatch = null; // the match that number belongs to: a new match starts the memory afresh
 const capital = (text) => `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
 
 function renderTurn() {
   if (!game) return;
+  if (lastStartMatch !== (meta?.match ?? null)) { lastStartMatch = meta?.match ?? null; lastStartTried = null; }
   const info = currentTurnInfo();
   const mine = Boolean(myUid) && info.uid === myUid;
   const wanted = turnToStart(info, members[myUid]?.seat, game);
-  if (wanted !== null && wanted !== lastStartTried) { lastStartTried = wanted; startMyTurn(wanted); return; } // apply() draws the page again
+  // A player who has conceded does not start turns (a pass can only name them if they conceded after it was written).
+  if (wanted !== null && wanted !== lastStartTried && !conceded(myUid)) { lastStartTried = wanted; startMyTurn(wanted); return; } // apply() draws the page again
   $('turn').textContent = String(info.turn);
   $('turn-whose').textContent = capital(whoseWords(info, myUid));
   const pass = $('pass-turn');
@@ -349,10 +352,11 @@ function renderTurn() {
   document.title = mine ? `Your turn - ${baseTitle}` : baseTitle;
 }
 
+// Your turn begins: the turn number is set and summoning sickness ends. Drawing and untapping are NOT done for you (some turns have
+// exceptions, Kevin 2026-11-06): the Draw and Untap all buttons are there when you are ready.
 function startMyTurn(turn) {
-  const held = heldTapped(game);
-  turnNote = `Everything untapped${held ? ` except ${held} that do not untap` : ''}, summoning sickness ended and you drew a card.`;
-  apply(() => startTurn(game, turn).game, `Your turn (turn ${turn}): ${turnNote.charAt(0).toLowerCase()}${turnNote.slice(1)}`);
+  turnNote = 'Summoning sickness ended. Draw and untap when you are ready.';
+  apply(() => beginTurn(game, turn), `Your turn (turn ${turn}). ${turnNote}`);
 }
 
 function doMulligan() {
@@ -475,10 +479,11 @@ async function renderOpponents() {
   lookup ??= known; // the same list answers for your own cards and the printed numbers on theirs
   const others = Object.entries(members).filter(([uid]) => uid !== myUid).sort((a, b) => Number(a[1].seat) - Number(b[1].seat));
   const panels = [];
+  const turnNow = game !== null ? currentTurnInfo() : null; // worked out once for all the panels, not once per player
   for (const [uid, member] of others) {
     const panel = opponentPanel(uid);
     panel.title.textContent = `Seat ${member.seat}: ${member.name}`; // names are other people's text: put in as text, never as markup
-    const theirTurn = game !== null && currentTurnInfo().uid === uid;
+    const theirTurn = turnNow !== null && turnNow.uid === uid;
     panel.section.classList.toggle('active', theirTurn);
     if (theirTurn) panel.title.append(make('span', 'turn-mark', 'their turn'));
     // A public branch left over from an earlier match does not count: this match's game is the one with this match's number.

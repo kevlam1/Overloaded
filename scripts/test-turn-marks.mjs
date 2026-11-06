@@ -2,7 +2,7 @@
 // The card shapes are the real list entries (checked 2026-11-06): Goblin Guide lists Haste, Fervor and Lightning Greaves (which GRANT haste) do not.
 // Run from the repo root:  node scripts/test-turn-marks.mjs
 import {
-  makeGame, moveCard, setTapped, untapAll, heldTapped, startTurn, nextTurn, setSick, markSickByFace, setNoUntap, turnOver, createToken, copyAsToken,
+  makeGame, moveCard, setTapped, untapAll, heldTapped, beginTurn, startTurn, nextTurn, setSick, markSickByFace, setNoUntap, turnOver, createToken, copyAsToken,
   isCreatureCard, hasPrintedHaste, entersSick, seededRandom, checkGame, ZONES, MAX_TURN, changeCounter,
 } from '../shared/zones.mjs';
 import { packCard, unpackCard, splitGame, joinGame } from '../shared/game-sync.mjs';
@@ -184,6 +184,31 @@ check('a creature with printed haste does not come in sick, any other creature d
   check('with no number given it is the next one', startTurn(game).game.turn === game.turn + 1);
   const frozen = deepFreeze(JSON.parse(JSON.stringify(game)));
   check('it works on a frozen game', startTurn(frozen, 3).game.turn === 3);
+}
+
+// ---- a turn begins at a table: the number is set and sickness ends, and NOTHING else is automatic ----
+{
+  let game = fresh();
+  for (const name of ['Fervor', 'Smugglers']) game = moveCard(game, named(game, name).uid, 'library'); // something to draw
+  game = play(play(play(game, 'Llanowar'), 'Sol Ring'), 'Forest');
+  for (const card of [...game.zones.battlefield]) game = setTapped(game, card.uid, true);
+  game = changeCounter(setNoUntap(game, named(game, 'Sol Ring').uid, true), named(game, 'Llanowar').uid, 'p', 2);
+  const begun = beginTurn(game, 5);
+  check('the turn number is the one given', begun.turn === 5);
+  check('summoning sickness ends for every permanent', game.zones.battlefield.some((card) => card.sick) && begun.zones.battlefield.every((card) => !('sick' in card)));
+  check('nothing untaps (the player untaps with the button, because some turns say otherwise)', begun.zones.battlefield.every((card) => card.tapped === true));
+  check('nothing is drawn: the hand and the library are exactly as they were', begun.zones.hand === game.zones.hand && begun.zones.library === game.zones.library && begun.zones.hand.length === game.zones.hand.length);
+  check('counters and the marks the player set stay', named(begun, 'Llanowar').ct.p === 2 && named(begun, 'Sol Ring').noUntap === true);
+  check('life, the graveyard and the rest are untouched, and the game checks out', begun.life === game.life && begun.zones.graveyard === game.zones.graveyard && checkGame(begun).length === 0);
+  check('it returns a game (not { game, drawn })', Array.isArray(begun.zones.battlefield) && !('drawn' in begun));
+  check('the old game is not changed', game.turn === 1 && game.zones.battlefield.some((card) => card.sick));
+  check('with no number given it is the next one', beginTurn(game).turn === game.turn + 1);
+  for (const bad of [0, -1, 1.5, '2', null, NaN, Infinity, MAX_TURN + 1]) refused(`turn ${JSON.stringify(bad)} is not a turn number`, () => beginTurn(game, bad), /not a turn number/);
+  check('the largest turn number is allowed', beginTurn(game, MAX_TURN).turn === MAX_TURN);
+  check('it works on a frozen game', beginTurn(deepFreeze(JSON.parse(JSON.stringify(game))), 3).turn === 3);
+  // The solo table's whole start is the beginning of the turn plus the untap step and one draw.
+  const whole = startTurn(game, 5);
+  check('startTurn (the solo "Next turn" button) is beginTurn, then untap except the marked card, then one draw', canon(whole.game.zones.battlefield) === canon(untapAll(begun).zones.battlefield) && whole.game.zones.hand.length === game.zones.hand.length + 1 && whole.game.turn === 5 && whole.game.zones.battlefield.filter((card) => card.tapped).map((card) => card.n).join() === 'Sol Ring');
 }
 
 // ---- storage ----

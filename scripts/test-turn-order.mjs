@@ -3,7 +3,7 @@
 import {
   validPass, seatOrder, latestPass, currentTurn, nextSeatAfter, nextPass, passAction, canTakeBack, takeBackAction, turnToStart, turnWords, whoseWords,
 } from '../shared/turn-order.mjs';
-import { makeGame, startTurn, seededRandom, checkGame, MAX_TURN } from '../shared/zones.mjs';
+import { makeGame, beginTurn, seededRandom, checkGame, MAX_TURN } from '../shared/zones.mjs';
 import { splitGame, joinGame, gameWrites, readPublic } from '../shared/game-sync.mjs';
 
 let checks = 0;
@@ -184,7 +184,7 @@ check('no one is never "your turn", even with no uid asked', whoseWords({ turn: 
   const everyPageReacts = () => {
     for (const [uid, game] of Object.entries(games)) {
       const wanted = turnToStart(currentTurn(publicOf(), members4), mySeat(uid), game);
-      if (wanted !== null) games[uid] = startTurn(game, wanted).game;
+      if (wanted !== null) games[uid] = beginTurn(game, wanted); // the page sets the turn number and ends sickness; it does not draw or untap
     }
   };
   const passFrom = (uid, isOut = () => false) => {
@@ -203,8 +203,7 @@ check('no one is never "your turn", even with no uid asked', whoseWords({ turn: 
   same('twelve passes in seat order make turns 1 to 12, the table\'s turn number', order, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
   same('each player\'s own turn number is the last turn they started (Alice 13, since Dee\'s twelfth pass began turn 13; Bob 10, Cy 11, Dee 12)', [games.ua.turn, games.ub.turn, games.uc.turn, games.ud.turn], [13, 10, 11, 12]);
   check('turn 13 is Alice again, who started it (her own game says 13) and the others did not', active().turn === 13 && active().uid === 'ua' && games.ua.turn === 13 && games.ub.turn === 10);
-  const handBefore = games.ub.zones.hand.length;
-  check('starting a turn drew one card for the player who started it (each player has drawn 3 or 4 times)', games.ua.zones.hand.length === 7 + 3 && games.ub.zones.hand.length === 7 + 3 && handBefore === 10);
+  check('starting a turn does NOT draw: every hand is still the 7 cards dealt (players draw their own card)', Object.values(games).every((game) => game.zones.hand.length === 7 && game.zones.library.length === 33));
   check('every game is consistent', Object.values(games).every((game) => checkGame(game).length === 0));
   // A player who conceded is skipped; Cy skips Dee's absent turn.
   passFrom('ua', (uid) => uid === 'ub');

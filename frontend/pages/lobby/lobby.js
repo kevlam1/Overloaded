@@ -89,6 +89,7 @@ let currentHost = null;
 let currentMembers = {};
 let currentMeta = null;
 let chosenDeckId = null; // the saved deck (an id in this browser's library) you brought to this table, or null
+let restoringDeck = null; // the promise of putting the remembered deck back (a database write), while it is still going
 let restoredFor = null; // the table whose remembered deck has been looked at already
 let currentPresence = {};
 let serverOffset = null; // until the database's clock is known, no one is judged disconnected
@@ -223,7 +224,10 @@ async function refreshDeckPicker() {
     restoredFor = currentCode;
     const remembered = rememberedDeckId();
     if (remembered && decks.some((entry) => entry.id === remembered)) {
-      try { await bringDeck(remembered); } catch { /* the table may have started or closed: the picker just shows no choice */ }
+      // bringDeck waits for a database write before it sets chosenDeckId, so Ready pressed in that gap used to find no deck and open the popup
+      // (seen in the two-browser check, one run in about six, 2026-11-06). The Ready button waits for this.
+      restoringDeck = bringDeck(remembered).catch(() => { /* the table may have started or closed: the picker just shows no choice */ }).finally(() => { restoringDeck = null; });
+      await restoringDeck;
     }
   }
   if (!decks.some((entry) => entry.id === chosenDeckId)) chosenDeckId = null;
@@ -283,6 +287,7 @@ $('ready').addEventListener('click', () => run(async () => {
     say('You are not ready any more.');
     return;
   }
+  if (restoringDeck) await restoringDeck; // the remembered deck is still being sent again: wait for it instead of asking
   if (!decksOfFormat(readMyLibrary(), currentMeta?.format).some((entry) => entry.id === chosenDeckId)) chosenDeckId = null;
   if (!chosenDeckId) { openDeckDialog(); return; }
   await setReady(currentCode);
