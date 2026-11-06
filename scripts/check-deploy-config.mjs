@@ -10,7 +10,8 @@
 // real headers on the deployed site with a plain GET after a deploy).
 // Run from the repo root:  node --env-file=.env scripts/check-deploy-config.mjs
 import { createServer } from 'node:http';
-import { readFileSync, existsSync, statSync, readdirSync } from 'node:fs';
+import { readFileSync, existsSync, statSync, readdirSync, mkdtempSync, cpSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { extname, join, normalize } from 'node:path';
 import { openBrowser, closeAllBrowsers, waitFor, authOf, text, setValue, click, tableShown, players, sleep } from './lib/browser.mjs';
@@ -30,6 +31,19 @@ function check(label, condition, detail = '') {
   if (!condition) { failures.push(label); console.log(`FAILED  ${label}${detail ? `  (${detail})` : ''}`); }
 }
 
+// The build below replaces frontend/public/data (the card list and the printing files) with the list cached for Vercel, which can be
+// older than the one built here with `npm run cards` for the browser checks that run after this one (it dropped the back-face fields of
+// list format 5 and made the two-sided card checks fail, 2026-11-06). So the folder is saved first and put back when this check ends,
+// however it ends.
+const dataFolder = join('frontend', 'public', 'data');
+const hadData = existsSync(dataFolder);
+let savedData = null;
+if (!LIVE && hadData) { savedData = mkdtempSync(join(tmpdir(), 'deploycheck-data-')); cpSync(dataFolder, savedData, { recursive: true }); }
+process.on('exit', () => {
+  if (LIVE) return;
+  rmSync(dataFolder, { recursive: true, force: true });
+  if (savedData) { cpSync(savedData, dataFolder, { recursive: true }); rmSync(savedData, { recursive: true, force: true }); }
+});
 // ---- 1. Build the site, so dist/ matches the source as it is now ----
 const build = LIVE ? { status: 0, stdout: '', stderr: '' } : spawnSync(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', 'build'], { encoding: 'utf8', shell: true, windowsHide: true, env: { ...process.env, CARD_LIST_NO_DOWNLOAD: '1' } }); // a test must never start the 100 MB card download; it uses the cached list or none
 check('the site builds', build.status === 0, (build.stdout + build.stderr).split('\n').filter((l) => /rror/.test(l)).slice(0, 2).join(' | '));
