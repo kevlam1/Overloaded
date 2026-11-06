@@ -349,6 +349,9 @@ export function createToken(game, spec) {
 export function copyAsToken(game, uid, { printed = null } = {}) {
   const { card } = onBattlefield(game, uid, 'a copy');
   if (game.zones.battlefield.length >= MAX_ZONE_CARDS) throw new Error(`The battlefield holds at most ${MAX_ZONE_CARDS} cards.`);
+  // A token carries its own type line (it is not in the card list). A card whose type is unknown (the list did not load, or does not have it)
+  // would make a token with an empty one, which readers drop and the database rules refuse, and a refused zone write stops ALL saves.
+  if (faceType(card).trim() === '') throw new Error(`${faceName(card)} cannot be copied: its type is not known (the card list did not load, or does not have this card).`);
   const copyUid = `c${game.nextUid}`;
   const stats = card.tok ? card.pt : (typeof printed === 'string' && TOKEN_POWER_TOUGHNESS.test(printed) ? printed : null);
   const back = card.turned === true && !card.tok; // a token copy of a turned card; a token that already is one keeps its own mark below

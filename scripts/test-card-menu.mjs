@@ -167,6 +167,14 @@ same('no card, no action', [menuAction('tap', null), menuAction('tap', undefined
   const counters = menuAction('counter', goblin, 3).run(game);
   check('a copy has no counters of the card it copies', !('ct' in menuAction('copy', byName(counters, 'Goblin'), 1, { printed: '2/2' }).run(counters).zones.battlefield.find((card) => card.tok)));
   refused('a card in the hand cannot be copied', () => menuAction('copy', byName(start, 'Goblin')).run(start), /battlefield/);
+  // A card the list does not know has no type line, so a copy of it would be a token with an empty one: refused, in words (the database rules
+  // refuse an empty token type, and a refused zone write would stop every save of that player).
+  const unknownGame = moveCard(makeGame(copyDeck, () => null, { random: seededRandom(3) }), makeGame(copyDeck, () => null, { random: seededRandom(3) }).zones.hand[0].uid, 'battlefield');
+  const unknownCard = unknownGame.zones.battlefield[0];
+  refused('a card whose type is unknown cannot be copied', () => menuAction('copy', unknownCard, 1, { printed: '2/2' }).run(unknownGame), /type is not known/);
+  check('and the refusal leaves the game as it was', unknownGame.zones.battlefield.length === 1 && checkGame(unknownGame).length === 0);
+  const blank = { ...unknownCard, t: '   ' };
+  refused('a type line of only spaces is no type either', () => menuAction('copy', blank).run({ ...unknownGame, zones: { ...unknownGame.zones, battlefield: [blank] } }), /type is not known/);
   const frozen = deepFreeze(game);
   check('works on a frozen game', menuAction('copy', byName(frozen, 'Goblin'), 1, { printed: '2/2' }).run(frozen).zones.battlefield.length === 4);
 
