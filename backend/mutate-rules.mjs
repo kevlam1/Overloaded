@@ -163,6 +163,8 @@ M.push(
 // same writes. Each reason was checked by reading the rules (and, for the first, by a test run).
 // A mutation listed here that survives is reported as "equivalent"; any other survivor fails the run.
 const EQUIVALENT = {
+  'game public: life need not be a number': 'the next checks use % 1 and comparisons, which a text or a boolean cannot satisfy in the rules language, so the write is refused anyway (the tests for "40" and true pass with the check removed)',
+  'game public: pass seat need not be text': 'the seat is then compared with the strings 1 to 4 using strict equality, which a number or boolean never satisfies (the test for a numeric seat passes with the check removed)',
   'deck: bracket need not be a number': 'the rule also compares the value with 1, 2, 3, 4 and 5 using strict equality, which a text, a boolean or an object never satisfies (the tests for "3", true and an object stay denied without this check)',
   'deck: commander need not be a string': 'the next checks read .length, which a number, a boolean or an object does not have in the rules language, so the write is refused anyway (the tests for a number, true and an object stay denied without this check)',
   'members: name string check removed': 'a number has no .length in the rules language, so a number name is still denied',
@@ -308,6 +310,156 @@ for (const n of ['1', '2', '3', '4']) {
   }
 }
 
+// Shape and size limits on a player's game (2026-11-06, docs/rules-batch-plan.md). Run alone with: node mutate-rules.mjs game:
+// the card fields are broken in one public list (battlefield) and one private list (hand); the test file tries every field in all seven lists
+// and checks that the seven rule blocks are identical, so a break in any one list is caught the same way.
+{
+  const whole = (low, high) => `newData.isNumber() && newData.val() % 1 === 0 && newData.val() >= ${low} && newData.val() <= ${high}`;
+  const cardPath = (branch, zone, ...rest) => ['rules', 'tables', '$code', branch, '$uid', zone, '$i', ...rest];
+  const K = 1000000000000;
+  const on = (branch, zone) => {
+    const tag = `${zone}`;
+    const f = (field) => cardPath(branch, zone, field, '.validate');
+    const block = cardPath(branch, zone, '.validate');
+    const g = (label, path, from, to, nth) => M.push([`game ${tag}: ${label}`, path, from, to, ...(nth ? [nth] : [])]);
+    // the entry itself: the key decides the length, and three fields are required
+    g('key rule removed (a list of any length)', block, '$i.matches(/^([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9])$/) && ', '');
+    g('key rule allows 250 to 259', block, '2[0-4][0-9]', '2[0-5][0-9]');
+    g('any other field allowed', cardPath(branch, zone, '$other', '.validate'), 'false', 'true');
+    if (!['battlefield', 'hand'].includes(zone)) return; // the other five lists: only these three list-level breaks
+    g('key rule allows leading zeros', block, '[1-9][0-9]|1', '[0-9][0-9]|1');
+    g('key rule has no start anchor', block, '/^(', '/(');
+    g('key rule has no end anchor', block, ')$/)', ')/)');
+    g('u is not required', block, "['u', 'i', 'n']", "['i', 'n']");
+    g('i is not required', block, "['u', 'i', 'n']", "['u', 'n']");
+    g('n is not required', block, "['u', 'i', 'n']", "['u', 'i']");
+    if (zone !== 'battlefield') return; // the field rules below are broken in one list only
+    g('u need not be text', f('u'), 'newData.isString() && ', '');
+    g('u: first digit may be 0', f('u'), '[1-9]', '[0-9]');
+    g('u: seven digits allowed', f('u'), '{0,5}', '{0,6}');
+    g('u: no start anchor', f('u'), '/^c', '/c');
+    g('u: no end anchor', f('u'), '{0,5}$/', '{0,5}/');
+    g('i: no start anchor', f('i'), '/^[0-9a-f]{8}', '/[0-9a-f]{8}');
+    g('i: no end anchor', f('i'), '{12}$/', '{12}/');
+    g('i: capital letters allowed', f('i'), '[0-9a-f]{8}', '[0-9a-fA-F]{8}');
+    g('i need not be text', f('i'), 'newData.isString() && ', '');
+    g('p: no start anchor', f('p'), '/^[0-9a-f]{8}', '/[0-9a-f]{8}');
+    g('p: no end anchor', f('p'), '{12}$/', '{12}/');
+    g('p: capital letters allowed', f('p'), '[0-9a-f]{8}', '[0-9a-fA-F]{8}');
+    g('n need not be text', f('n'), 'newData.isString() && ', '');
+    g('n may be empty', f('n'), '>= 1', '>= 0');
+    g('n limit is 201', f('n'), '<= 200', '<= 201');
+    for (const field of ['x', 'f', 'bk', 'sk', 'nu']) g(`${field} may be any value`, f(field), 'newData.val() === 1', 'true');
+    g('e may be a fraction', f('e'), '% 1 === 0', '% 1 >= 0');
+    g('e may be -1', f('e'), '>= 0', '>= -1');
+    g('e limit is 100001', f('e'), '<= 100000', '<= 100001');
+    g('e need not be a number', f('e'), 'newData.isNumber() && ', '');
+    g('tok does not need tt', f('tok'), " && newData.parent().child('tt').exists()", '');
+    g('tok may be any value', f('tok'), 'newData.val() === 1 &&', 'true &&');
+    g('tt may be empty', f('tt'), '>= 1', '>= 0');
+    g('tt limit is 61', f('tt'), '<= 60', '<= 61');
+    g('tt allowed on a card that is not a token', f('tt'), " && newData.parent().child('tok').val() === 1", '');
+    g('pt: no start anchor', f('pt'), '/^[0-9*+-]', '/[0-9*+-]');
+    g('pt: no end anchor', f('pt'), '{1,3}$/', '{1,3}/');
+    g('pt: four characters before the slash', f('pt'), '{1,3}', '{1,4}');
+    g('pt: letters allowed', f('pt'), '[0-9*+-]', '[0-9a-z*+-]');
+    g('pt allowed on a card that is not a token', f('pt'), " && newData.parent().child('tok').val() === 1", '');
+    g('cl: no start anchor', f('cl'), '/^[WUBRG]', '/[WUBRG]');
+    g('cl: no end anchor', f('cl'), '{1,5}$/', '{1,5}/');
+    g('cl: six colors allowed', f('cl'), '{1,5}', '{1,6}');
+    g('cl: another letter allowed', f('cl'), '[WUBRG]', '[WUBRGX]');
+    g('cl allowed on a card that is not a token', f('cl'), " && newData.parent().child('tok').val() === 1", '');
+    g('ct may be empty or a number', cardPath(branch, zone, 'ct', '.validate'), 'newData.hasChildren() && ', '');
+    g('ct may have +1/+1 and -1/-1 together', cardPath(branch, zone, 'ct', '.validate'), " && !(newData.hasChild('p') && newData.hasChild('m'))", '');
+    g('ct: +1/+1 may be zero', cardPath(branch, zone, 'ct', 'p', '.validate'), '>= 1', '>= 0');
+    g('ct: +1/+1 over the limit', cardPath(branch, zone, 'ct', 'p', '.validate'), `<= ${K}`, `<= ${K + 1}`);
+    g('ct: +1/+1 may be a fraction', cardPath(branch, zone, 'ct', 'p', '.validate'), '% 1 === 0', '% 1 >= 0');
+    g('ct: -1/-1 over the limit', cardPath(branch, zone, 'ct', 'm', '.validate'), `<= ${K}`, `<= ${K + 1}`);
+    g('ct: loyalty may be zero', cardPath(branch, zone, 'ct', 'l', '.validate'), '>= 1', '>= 0');
+    g('ct: loyalty over the limit', cardPath(branch, zone, 'ct', 'l', '.validate'), `<= ${K}`, `<= ${K + 1}`);
+    g('ct: charge may be zero', cardPath(branch, zone, 'ct', 'c', '.validate'), '>= 1', '>= 0');
+    g('ct: time may be zero', cardPath(branch, zone, 'ct', 't', '.validate'), '>= 1', '>= 0');
+    g('ct: other over the limit', cardPath(branch, zone, 'ct', 'o', '.validate'), `<= ${K}`, `<= ${K + 1}`);
+    g('ct: any other kind allowed', cardPath(branch, zone, 'ct', '$other', '.validate'), 'false', 'true');
+    g('mp may be zero', f('mp'), ' && newData.val() !== 0', '');
+    g('mp over the limit', f('mp'), `<= ${K}`, `<= ${K + 1}`);
+    g('mp under minus the limit', f('mp'), `>= -${K}`, `>= -${K + 1}`);
+    g('mp may be a fraction', f('mp'), '% 1 === 0', '% 1 >= 0');
+    g('mt may be zero', f('mt'), ' && newData.val() !== 0', '');
+    g('mt over the limit', f('mt'), `<= ${K}`, `<= ${K + 1}`);
+    g('mt under minus the limit', f('mt'), `>= -${K}`, `>= -${K + 1}`);
+    g('nt may be empty', f('nt'), '>= 1', '>= 0');
+    g('nt limit is 41', f('nt'), '<= 40', '<= 41');
+    g('nt need not be text', f('nt'), 'newData.isString() && ', '');
+    g('px over 4000', f('px'), '<= 4000', '<= 4001');
+    g('px may be -1', f('px'), '>= 0', '>= -1');
+    g('py over 4000', f('py'), '<= 4000', '<= 4001');
+    g('py may be a fraction', f('py'), '% 1 === 0', '% 1 >= 0');
+  };
+  on('public', 'battlefield');
+  on('private', 'hand');
+  // the other five lists: only their own list-level rules (the test tries every field in every list)
+  for (const [branch, zone] of [['public', 'graveyard'], ['public', 'exile'], ['public', 'command'], ['private', 'library'], ['private', 'sideboard']]) on(branch, zone);
+  for (const [branch, zone] of [['public', 'battlefield'], ['public', 'graveyard'], ['public', 'exile'], ['public', 'command'], ['private', 'library'], ['private', 'hand'], ['private', 'sideboard']]) {
+    M.push([`game ${zone}: a list may be a single value`, ['rules', 'tables', '$code', branch, '$uid', zone, '.validate'], 'newData.hasChildren()', 'true']);
+  }
+  // the two branches
+  const pub = (...rest) => ['rules', 'tables', '$code', 'public', '$uid', ...rest, '.validate'];
+  const prv = (...rest) => ['rules', 'tables', '$code', 'private', '$uid', ...rest, '.validate'];
+  M.push(
+    ['game public: the branch may be a single value', pub(), 'newData.hasChildren()', 'true'],
+    ['game public: any other key allowed', pub('$other'), 'false', 'true'],
+    ['game private: the branch may be a single value', prv(), 'newData.hasChildren()', 'true'],
+    ['game private: any other key allowed', prv('$other'), 'false', 'true'],
+    ['game public: life may be a fraction', pub('life'), '% 1 === 0', '% 1 >= 0'],
+    ['game public: life over the limit', pub('life'), `<= ${K}`, `<= ${K + 1}`],
+    ['game public: life under minus the limit', pub('life'), `>= -${K}`, `>= -${K + 1}`],
+    ['game public: life need not be a number', pub('life'), 'newData.isNumber() && ', ''],
+    ['game public: turn may be 0', pub('turn'), '>= 1', '>= 0'],
+    ['game public: turn over 100000', pub('turn'), '<= 100000', '<= 100001'],
+    ['game public: mulligans may be -1', pub('mulligans'), '>= 0', '>= -1'],
+    ['game public: mulligans over 1000', pub('mulligans'), '<= 1000', '<= 1001'],
+    ['game public: next may be 0', pub('next'), '>= 1', '>= 0'],
+    ['game public: next over a billion', pub('next'), '<= 1000000000', '<= 1000000001'],
+    ['game public: match may be any number', pub('match'), "newData.val() === root.child('tables').child($code).child('meta').child('match').val()", 'newData.isNumber()'],
+    ['game public: counts may be a single value', pub('counts'), 'newData.hasChildren()', 'true'],
+    ['game public: counts.library over 250', pub('counts', 'library'), '<= 250', '<= 251'],
+    ['game public: counts.hand over 250', pub('counts', 'hand'), '<= 250', '<= 251'],
+    ['game public: counts.sideboard over 250', pub('counts', 'sideboard'), '<= 250', '<= 251'],
+    ['game public: counts.library may be -1', pub('counts', 'library'), '>= 0', '>= -1'],
+    ['game public: counts.hand may be a fraction', pub('counts', 'hand'), '% 1 === 0', '% 1 >= 0'],
+    ['game public: another count allowed', pub('counts', '$other'), 'false', 'true'],
+    ['game public: pc may be a single value', pub('pc'), 'newData.hasChildren()', 'true'],
+    ['game public: poison may be zero', pub('pc', 'poison'), '>= 1', '>= 0'],
+    ['game public: poison over the limit', pub('pc', 'poison'), `<= ${K}`, `<= ${K + 1}`],
+    ['game public: energy over the limit', pub('pc', 'energy'), `<= ${K}`, `<= ${K + 1}`],
+    ['game public: experience may be zero', pub('pc', 'experience'), '>= 1', '>= 0'],
+    ['game public: another player counter allowed', pub('pc', '$other'), 'false', 'true'],
+    ['game public: cd may be a single value', pub('cd'), 'newData.hasChildren()', 'true'],
+    ['game public: cd seat 1 may be zero', pub('cd', '1'), '>= 1', '>= 0'],
+    ['game public: cd seat 2 may be zero', pub('cd', '2'), '>= 1', '>= 0'],
+    ['game public: cd seat 3 over the limit', pub('cd', '3'), `<= ${K}`, `<= ${K + 1}`],
+    ['game public: cd seat 4 over the limit', pub('cd', '4'), `<= ${K}`, `<= ${K + 1}`],
+    ['game public: a fifth seat allowed in cd', pub('cd', '$other'), 'false', 'true'],
+    ['game public: pass needs no seat', pub('pass'), "['n', 'to']", "['n']"],
+    ['game public: pass needs no turn', pub('pass'), "['n', 'to']", "['to']"],
+    ['game public: pass turn may be 1', pub('pass', 'n'), '>= 2', '>= 1'],
+    ['game public: pass turn over 100000', pub('pass', 'n'), '<= 100000', '<= 100001'],
+    ['game public: pass seat need not be text', pub('pass', 'to'), 'newData.isString() && ', ''],
+    ['game public: pass seat 1 refused', pub('pass', 'to'), "(newData.val() === '1' || ", '('],
+    ['game public: pass seat 4 refused', pub('pass', 'to'), " || newData.val() === '4'", ''],
+    ['game public: pass seat 5 allowed', pub('pass', 'to'), " || newData.val() === '4'", " || newData.val() === '4' || newData.val() === '5'"],
+    ['game public: pass from may be a later turn', pub('pass', 'from', 'n'), " && newData.val() < newData.parent().parent().child('n').val()", ''],
+    ['game public: pass from may be the same turn', pub('pass', 'from', 'n'), 'newData.val() < newData', 'newData.val() <= newData'],
+    ['game public: pass from may be turn 1', pub('pass', 'from', 'n'), '>= 2', '>= 1'],
+    ['game public: pass from needs no seat', pub('pass', 'from'), "['n', 'to']", "['n']"],
+    ['game public: pass from may hold another key', pub('pass', 'from', '$other'), 'false', 'true'],
+    ['game public: pass may hold another key', pub('pass', '$other'), 'false', 'true'],
+    // a host cannot delete their last-seen time (the takeover rule needs it)
+    ['game presence: lastSeen may be deleted', ['rules', 'tables', '$code', 'presence', '$uid', 'lastSeen', '.write'], 'newData.exists() && ', ''],
+  );
+}
+
 const getRule = (rules, path) => path.slice(0, -1).reduce((o, k) => o[k], rules);
 function mutate([name, path, from, to, nth = 1]) {
   const rules = JSON.parse(original);
@@ -341,7 +493,7 @@ try {
     const out = `${r.stdout}\n${r.stderr}`;
     if (r.status === 0 && EQUIVALENT[m[0]]) { console.log('equivalent', m[0], '(' + EQUIVALENT[m[0]] + ')'); equivalent++; }
     else if (r.status === 0) { console.log('SURVIVED  ', m[0]); survived++; }
-    else if (/Expected request to (fail|succeed)|PERMISSION_DENIED/.test(out)) {
+    else if (/Expected request to (fail|succeed)|PERMISSION_DENIED|Check failed/.test(out)) {
       // The failing check names itself; a kill with no named check, or one that looks unrelated, is worth a second look.
       const failed = /FAILED CHECK[^\n]*?: ([^\n]*)/.exec(out);
       console.log('killed    ', m[0], failed ? `  <- ${failed[1].trim()}` : '  <- (no named check)'); killed++;

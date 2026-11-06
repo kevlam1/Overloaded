@@ -17,7 +17,7 @@ const HOST = '127.0.0.1';
 const PORT = 9000;
 const here = new URL('.', import.meta.url);
 // ONLY_TESTS=test-table-flow.mjs runs just that file (used to check a test against deliberately broken copies).
-const TEST_FILES = process.env.ONLY_TESTS ? process.env.ONLY_TESTS.split(',') : ['test-rules.mjs', 'test-table-ops.mjs', 'test-table-flow.mjs'];
+const TEST_FILES = process.env.ONLY_TESTS ? process.env.ONLY_TESTS.split(',') : ['test-rules.mjs', 'test-rules-game.mjs', 'test-table-ops.mjs', 'test-table-flow.mjs'];
 
 function findJar() {
   const dir = join(homedir(), '.cache', 'firebase', 'emulators');

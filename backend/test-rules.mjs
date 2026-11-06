@@ -33,6 +33,9 @@ const PLAYING_IDLE = HOUR;
 // clock is this machine's clock, so a bare Date.now() sometimes equals the server's `now` to the millisecond
 // and is then (correctly) accepted, which made "a client time is denied" fail on roughly 1 run in 3.
 const clientTime = () => Date.now() - 5000;
+// A stored card as the pages write it (shared/game-sync.mjs packCard): the copy number, the Scryfall id and the name.
+const SOL_RING = '2cc8a1e2-4b2a-4b1e-9c11-0123456789ab';
+const aCard = (number, name = 'Island') => ({ u: `c${number}`, i: SOL_RING, n: name });
 
 // Seed a table, bypassing rules. Times are "how long ago", measured on this machine's clock,
 // which the emulator also uses for `now`. `members` is a list of [uid, seat] pairs; the host is alice.
@@ -71,7 +74,7 @@ await ok('owner reads own private', get(ref(alice, 'tables/ABC123/private/alice'
 await denied('opponent reads private', get(ref(bob, 'tables/ABC123/private/alice')));
 await denied('non-member reads private', get(ref(carol, 'tables/ABC123/private/alice')));
 await denied('signed-out reads private', get(ref(anon, 'tables/ABC123/private/alice')));
-await ok('owner writes own private', set(ref(alice, 'tables/ABC123/private/alice/hand'), ['Island', 'Swamp']));
+await ok('owner writes own private', set(ref(alice, 'tables/ABC123/private/alice/hand'), [aCard(1), aCard(2, 'Swamp')]));
 await denied('opponent writes private', set(ref(bob, 'tables/ABC123/private/alice/hand'), []));
 await denied('non-member writes own private', set(ref(carol, 'tables/ABC123/private/carol'), { hand: [] }));
 
@@ -455,7 +458,7 @@ await seed('HOSTGONE', { status: 'playing', active: 20 * MINUTE, members: [['ali
 await dropMember('HOSTGONE', 'alice');
 await ok('host gone: a player keeps the table alive with the heartbeat', set(ref(bob, 'tables/HOSTGONE/activity/lastActive'), serverTimestamp()));
 await ok('host gone: a player writes their own public zone', set(ref(bob, 'tables/HOSTGONE/public/bob'), { life: 38 }));
-await ok('host gone: a player writes their own private zone', set(ref(bob, 'tables/HOSTGONE/private/bob'), { hand: ['Island'] }));
+await ok('host gone: a player writes their own private zone', set(ref(bob, 'tables/HOSTGONE/private/bob'), { hand: [aCard(1)] }));
 await ok('host gone: a player concedes', set(ref(carol, 'tables/HOSTGONE/members/carol/conceded'), 1));
 await ok('host gone: a player leaves', set(ref(carol, 'tables/HOSTGONE/members/carol'), null));
 await denied('host gone: nobody else can end the match (only the host can, until the role can be handed over)', update(ref(bob), { 'tables/HOSTGONE/meta/status': 'lobby', 'tables/HOSTGONE/meta/idleLimit': LOBBY_IDLE, 'tables/HOSTGONE/meta/match': 2 }));
@@ -678,7 +681,9 @@ await denied('an unknown field in a player\'s presence', set(ref(bob, `${presenc
 await denied('an unknown field directly under presence', set(ref(bob, 'tables/PRS001/presence/junk'), 1));
 await denied('writing a player\'s whole presence node at once', set(ref(bob, presencePath('PRS001', 'bob')), { tabs: { [TAB1]: true } }));
 await denied('deleting every note at once from the parent node', set(ref(bob, 'tables/PRS001/presence'), null));
-await ok('a player removes their own last-seen time', set(ref(bob, `${presencePath('PRS001', 'bob')}/lastSeen`), null));
+// Changed in the batched rules change (2026-11-06): the takeover rule needs a host's last-seen time to exist, so a delete is refused.
+await denied('a player cannot remove their own last-seen time', set(ref(bob, `${presencePath('PRS001', 'bob')}/lastSeen`), null));
+await ok('and the time is still there afterwards', (async () => { if (!(await get(ref(bob, `${presencePath('PRS001', 'bob')}/lastSeen`))).exists()) throw new Error('lastSeen was deleted'); })());
 {
   const before = (await get(ref(alice, 'tables/PRS001/activity/lastActive'))).val();
   await set(ref(bob, `${presencePath('PRS001', 'bob')}/tabs/${TAB1}`), true);
