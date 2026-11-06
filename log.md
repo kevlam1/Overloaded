@@ -1995,6 +1995,29 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - The wider hover box covers the type column of the deck list but never the card names.
 - Not done: the keywords of a copy of a back face (they come from the whole card), Create copy through the menu on the live table page (the button is tested live, the menu only on the solo table), flip and meld cards, `bk` in the batched rules change, face-down pictures, emblems and the token creator, and phone width.
 
+## 97. Player counters and commander damage (2026-11-06)
+
+**What I asked for**
+- Go ahead with player counters and commander damage, and make it easy for a future UI change to separate commander damage to a specific player. I had also asked Claude to check the deploy first: the live site is on list format 6 (492 cards with `b`, 99 with `md`, 303 with `bpt`).
+
+**What changed**
+- `shared/player-counters.mjs` (no browser code): what each counter and each player's commander damage shows, whose commander can have dealt damage (a Commander table shows every seat with a commander; any other format only damage already recorded), what each button does, and the sentence for a screen reader.
+- `frontend/src/player-counters.js`: the elements. The unit is ONE entry: `commanderDamageNode(entry)` is the controls of one player's commander damage, and `mountCommanderDamage` only puts a list of them in a block. The data was already one number per player (`cd[seat]`, stored on the player who took it), so to put the damage from one player in that player's panel later, make the node for that entry and append it there. A browser check does exactly that with a node outside the block.
+- Both table pages: a "Your counters" section (poison, energy, experience with -1 and +1; the live table also commander damage, one entry per seat that has a commander, with -5 -1 +1 +5). Other players' panels show their counters read-only, only once something has happened, worded "Commander damage from Seat 2: Bob". Poison 10 and commander damage 21 from one commander get a "lethal" badge with the word, not colour alone. Nothing is enforced.
+- The elements are updated in place, so a button that was pressed keeps its keyboard focus while the number changes.
+
+**What I checked**
+- `test-player-counters` is 131 checks. The solo check is 260 (was 243), the two-browser live check 116 (was 107): Alice's counters and the damage from seat 2 are saved as small numbers, Bob sees them on her panel without a refresh and read-only, 21 shows lethal for both, taking 5 off removes it, a player with none shows none, and a refresh brings them back.
+- `npm test` is 40 suites and `npm run test:live` 48, all passing. Broken copies: 41 of the logic, all caught; 26 of 27 of the page code (one documented survivor: the table page passes `meta.format` into the tested rule, and no test uses a Standard table).
+- I looked at screenshots, dark and light: the solo counters with poison at 10 (red, with the badge), and Alice's and Bob's table pages.
+- Not checked: phone width.
+
+**Decisions**
+- Mistakes of mine: the first read-only wording under Bob's view said only "Seat 2: Bob 21 lethal", with no hint that it meant damage from Bob's commander; I only saw it in the screenshot and changed it. One of my checks accepted a life total of 20 or 40, which proved nothing; it is exactly 40 now. A button first reported the entry its node was made with, so a player who changed name would have been misnamed; a broken copy survived and the test now changes a name. My first command to delete my scratch files was blocked by the safety check (a shell variable that could have been empty); I deleted them by exact name instead.
+- A flaky check of mine from entry 95: the named-printing fallback waited for "any back picture" and not for the final one, so it failed one run in four. It now waits for the end state.
+- Unexplained and still open: one run of the two-browser live check failed at "both ready again with the decks they brought" after the match ended, and then passed ten runs in a row. I lost that output, so I do not know the cause. It is on `docs/todo.md`.
+- Two partner commanders of one seat share one number, because the key is the seat. Solo has no commander damage (no opponents). `pc` and `cd` still need to go into the batched rules change.
+
 ---
 
 ## Where AI misread me, or I had to correct course
@@ -2081,3 +2104,4 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - (2026-11-06, entry 95) The real card back is used for face-down cards, against Claude's advice. If Wizards objects, a plain design replaces it. Not built yet.
 - (2026-11-06, entry 95) Turn over covers transform and modal cards only (list format 5). Flip, meld and reversible printings are left out for now.
 - (2026-11-06, entry 96) Play back is only for modal cards, which needed a new list field (md, list format 6). A copy copies only the face that shows.
+- (2026-11-06, entry 97) Commander damage is one entry and one node per player, so it can be moved into a specific player's panel later without changing the logic. Poison 10 and commander damage 21 from one commander are shown as lethal but never enforced.

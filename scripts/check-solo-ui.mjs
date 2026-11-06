@@ -739,7 +739,8 @@ try {
   await waitFor(async () => asked.some((u) => u.includes(`/front/`) && u.includes(defaultId('Delver'))) || null, 3000, 50).catch(() => null);
   check('the named printing has no picture, so the card shows the default printing\'s FRONT picture', asked.some((u) => u.includes(NO_SUCH_PRINTING)) && /\/front\/.*/.test(await srcOf('Delver')) && (await srcOf('Delver')).includes(defaultId('Delver')), String(await srcOf('Delver')));
   await clickAction('Turn over');
-  await waitFor(async () => ((await srcOf('Delver')) ?? '').includes('/back/') || null, 3000, 50).catch(() => null);
+  // Wait for the END of the fallback (the default printing's back), not for any back picture: the printing's own back comes first, then it 404s.
+  await waitFor(async () => { const s = (await srcOf('Delver')) ?? ''; return s.includes('/back/') && s.includes(defaultId('Delver')) ? true : null; }, 5000, 50).catch(() => null);
   check('turned over, the missing printing falls back to the default printing\'s BACK picture (not its front), with no name fallback', ((await srcOf('Delver')) ?? '').includes(`/back/`) && (await srcOf('Delver')).includes(defaultId('Delver')) && !(await noImage('Delver')), String(await srcOf('Delver')));
   check('and the printing\'s own back picture was tried first', asked.some((u) => u.includes('/back/') && u.includes(NO_SUCH_PRINTING)));
   await clickAction('Deselect');
@@ -808,6 +809,64 @@ try {
   await clickAction('Deselect');
   const landCopies = await ev(`Array.from(document.querySelectorAll('#row-lands .card[aria-label^="Temple of the Dead"]')).map((c) => c.getAttribute('aria-label'))`);
   check('a copy of Aclazotz turned into its land is a land too: Temple of the Dead, in the lands row, with the back picture and no numbers', landCopies.length === 1 && (await ev(`document.querySelector('#row-lands .card[aria-label^="Temple of the Dead"] img').getAttribute('src').includes('/back/')`)) && (await box('#row-lands .card[aria-label^="Temple of the Dead"]')) === null, JSON.stringify(landCopies));
+
+  // ---- player counters: poison, energy and experience (real mouse input) ----
+  await open();
+  const stepper = (kind) => `#player-counters .counter-entry[data-id="counter:${kind}"]`;
+  const counterFacts = (kind) => ev(`(() => { const e = document.querySelector(${JSON.stringify(stepper(kind))}); if (!e) return null; return { count: e.querySelector('.stepper-count').textContent, lethal: e.classList.contains('lethal'), word: !e.querySelector('.stepper-lethal').hidden, label: e.querySelector('.stepper-name').textContent, buttons: [...e.querySelectorAll('button')].map((b) => [b.textContent, b.getAttribute('aria-label'), b.disabled]), title: e.title, role: e.getAttribute('role'), group: e.getAttribute('aria-label') }; })()`);
+  const bump = (kind, step) => mouse(`${stepper(kind)} button[data-step="${step}"]`);
+  check('the counters section shows, with the three counters in a fixed order, and there is no commander damage on the solo table', !(await $hidden('game')) && (await count('#player-counters .counter-entry')) === 3 && (await ev(`[...document.querySelectorAll('#player-counters .stepper-name')].map((n) => n.textContent).join()`)) === 'Poison,Energy,Experience' && (await count('#commander-damage')) === 0);
+  const zeroPoison = await counterFacts('poison');
+  check('each starts at 0, with its own words for a screen reader, and -1 is disabled (nothing to take off)', zeroPoison.count === '0' && !zeroPoison.lethal && !zeroPoison.word && zeroPoison.role === 'group' && zeroPoison.group === 'Poison' && JSON.stringify(zeroPoison.buttons) === JSON.stringify([['-1', 'Remove 1 poison counter', true], ['+1', 'Add 1 poison counter', false]]), JSON.stringify(zeroPoison));
+  await bump('poison', 1);
+  check('a click on +1 adds one, says so, and enables -1', (await counterFacts('poison')).count === '1' && (await $text('status')) === 'Poison 1.' && (await counterFacts('poison')).buttons[0][2] === false, await $text('status'));
+  check('the button that was pressed is still the focused one (the elements are updated in place, not rebuilt)', (await ev(`document.activeElement && document.activeElement.getAttribute('aria-label')`)) === 'Add 1 poison counter', await ev(`String(document.activeElement && document.activeElement.outerHTML.slice(0, 80))`));
+  for (let n = 0; n < 8; n++) await bump('poison', 1);
+  const nine = await counterFacts('poison');
+  check('9 poison is not lethal yet', nine.count === '9' && !nine.lethal && !nine.word && nine.title === '');
+  await bump('poison', 1);
+  const ten = await counterFacts('poison');
+  check('10 poison is lethal: the card is marked, the word "lethal" shows (not colour alone) and the tooltip says why', ten.count === '10' && ten.lethal && ten.word && /10 or more is lethal/.test(ten.title), JSON.stringify(ten));
+  check('and nothing stops the player: they can go on adding (it is a signal, not a rule)', await (async () => { await bump('poison', 1); return (await counterFacts('poison')).count === '11' && (await counterFacts('poison')).lethal; })());
+  await bump('poison', -1); await bump('poison', -1);
+  check('taking two off goes back to 9 and the mark goes away', (await counterFacts('poison')).count === '9' && !(await counterFacts('poison')).lethal && !(await counterFacts('poison')).word);
+  for (let n = 0; n < 11; n++) await bump('energy', 1);
+  await bump('experience', 1);
+  check('energy and experience are never lethal, and each counts on its own', (await counterFacts('energy')).count === '11' && !(await counterFacts('energy')).lethal && (await counterFacts('experience')).count === '1' && (await counterFacts('poison')).count === '9');
+  check('the status line names the counter that changed last', (await $text('status')) === 'Experience 1.', await $text('status'));
+  for (let n = 0; n < 9; n++) await bump('poison', -1);
+  check('taking all of it off ends at 0 and -1 is disabled again', (await counterFacts('poison')).count === '0' && (await counterFacts('poison')).buttons[0][2] === true);
+  await press('new-game');
+  check('a new game starts every counter at 0 again', (await counterFacts('energy')).count === '0' && (await counterFacts('experience')).count === '0' && (await counterFacts('poison')).count === '0');
+  check('the counters did not touch life: a commander deck starts at 40', (await $text('life')) === '40' && (await count('#hand .card')) === 7);
+
+  // ---- ONE player's commander damage works on its own, mounted anywhere (so a later design can put it in that player's panel) ----
+  const standalone = await ev(`(async () => {
+    const { commanderDamageNode } = await import('/src/player-counters.js');
+    const host = document.createElement('section'); host.id = 'test-host'; host.className = 'opponent'; document.body.append(host);
+    const entry = (count) => ({ id: 'damage:2', seat: '2', name: 'Bob', label: 'Seat 2: Bob', count, lethalAt: 21, lethal: count >= 21 });
+    const calls = [];
+    const node = commanderDamageNode(entry(7), { onChange: (e, step) => calls.push([e.seat, e.name, step]) });
+    host.append(node.element);
+    const buttons = [...node.element.querySelectorAll('button')];
+    buttons.find((b) => b.dataset.step === '5').click();
+    buttons.find((b) => b.dataset.step === '-1').click();
+    const before = { count: node.element.querySelector('.stepper-count').textContent, lethal: node.element.classList.contains('lethal'), labels: buttons.map((b) => b.getAttribute('aria-label')) };
+    node.update({ ...entry(21), name: 'Bobby', label: 'Seat 2: Bobby' }); // the player's name changed: a button must report the CURRENT entry
+    [...node.element.querySelectorAll('button')].find((b) => b.dataset.step === '1').click();
+    const after = { count: node.element.querySelector('.stepper-count').textContent, lethal: node.element.classList.contains('lethal'), word: !node.element.querySelector('.stepper-lethal').hidden, sameButtons: [...node.element.querySelectorAll('button')].every((b, i) => b === buttons[i]) };
+    const chip = commanderDamageNode(entry(0), { readOnly: true });
+    host.append(chip.element);
+    const hiddenAtZero = chip.element.hidden;
+    chip.update(entry(9));
+    const shown = { hidden: chip.element.hidden, text: chip.element.textContent, buttons: chip.element.querySelectorAll('button').length };
+    host.remove();
+    return { calls, before, after, hiddenAtZero, shown };
+  })()`);
+  check('one player\'s commander damage node works alone: its buttons report that player (seat and name) and the step', JSON.stringify(standalone.calls) === JSON.stringify([['2', 'Bob', 5], ['2', 'Bob', -1], ['2', 'Bobby', 1]]), JSON.stringify(standalone.calls));
+  check('it names the player in every button\'s words for a screen reader', standalone.before.labels.every((l) => /commander damage from Seat 2: Bob/.test(l)) && standalone.before.labels.length === 4, JSON.stringify(standalone.before.labels));
+  check('updating it changes the number and the lethal mark in place, with the same buttons (a pressed button keeps the focus)', standalone.before.count === '7' && !standalone.before.lethal && standalone.after.count === '21' && standalone.after.lethal && standalone.after.word && standalone.after.sameButtons, JSON.stringify(standalone.after));
+  check('the read-only version of it hides itself at 0, has no buttons and says what it is once there is damage', standalone.hiddenAtZero && !standalone.shown.hidden && standalone.shown.buttons === 0 && /Commander damage from Seat 2: Bob/.test(standalone.shown.text) && /9/.test(standalone.shown.text), JSON.stringify(standalone.shown));
 
   // ---- storage blocked ----
   await browser.send('Page.addScriptToEvaluateOnNewDocument', { source: `Object.defineProperty(window, 'localStorage', { get() { throw new DOMException('blocked', 'SecurityError'); } });` });
@@ -886,7 +945,17 @@ try {
     await sleep(3000);
     await ev(`window.scrollTo(0, 0)`); await sleep(200);
     await browser.screenshot('scratch-solo-copies-dark.png');
-    console.log('saved scratch-solo-dark.png, -light.png, -piles.png, the four -menu- ones, three -twosided- ones and -copies-dark (delete them afterward)');
+    // the counters section: poison at the lethal mark, some energy and experience, dark and light
+    await scheme('dark');
+    await open();
+    for (let n = 0; n < 10; n++) await bump('poison', 1);
+    for (let n = 0; n < 3; n++) await bump('energy', 1);
+    await bump('experience', 1);
+    await ev(`document.getElementById('counters').scrollIntoView()`); await sleep(400);
+    await browser.screenshot('scratch-solo-counters-dark.png');
+    await scheme('light'); await sleep(300);
+    await browser.screenshot('scratch-solo-counters-light.png');
+    console.log('saved scratch-solo-dark.png, -light.png, -piles.png, the four -menu- ones, three -twosided- ones, -copies-dark and two -counters- ones (delete them afterward)');
   }
 } finally {
   await closeAllBrowsers();

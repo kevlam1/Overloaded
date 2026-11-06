@@ -175,6 +175,23 @@ main.table { max-width: 80rem; }
 .bar .stat { margin: 0; font-size: 1.05rem; }
 .life { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
 .life button { min-width: 2.75rem; padding: 0.4rem 0.6rem; }
+/* Player counters and commander damage (src/player-counters.js). One .stepper is one counter or one player's commander damage. */
+.counters-panel h2 { margin-bottom: 0.5rem; }
+.counters-sub { margin: 0.75rem 0 0.4rem; font-size: 0.95rem; }
+.counters-block { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1.25rem; }
+.stepper { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0.3rem; }
+.stepper[hidden] { display: none; }
+.stepper-name { margin-right: 0.25rem; color: var(--muted); font-size: 0.9rem; }
+.stepper-count { min-width: 1.5rem; text-align: center; font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+.stepper button { min-width: 2.25rem; padding: 0.3rem 0.5rem; }
+.stepper-lethal { margin-left: 0.25rem; padding: 0 0.4rem; border: 1px solid var(--danger); border-radius: 0.6rem; color: var(--danger); font-size: 0.75rem; font-weight: 600; }
+.stepper-lethal[hidden] { display: none; }
+.stepper.lethal .stepper-count, .stepper.lethal .stepper-name { color: var(--danger); }
+/* On another player's panel the same nodes are read-only chips, shown only for what has happened. */
+.opponent-counters { display: flex; flex-wrap: wrap; gap: 0.25rem 0.9rem; margin: 0.35rem 0 0; }
+.opponent-counters:empty, .opponent-counters[hidden] { display: none; }
+.opponent-counters .stepper-name { margin-right: 0; font-size: 0.85rem; }
+.opponent-counters .stepper-count { min-width: 0; font-size: 0.95rem; }
 .bar .actions { margin-top: 0; }
 .selected-panel { position: sticky; top: 0; z-index: 1; }
 .selected-panel h2 { margin-bottom: 0.25rem; }

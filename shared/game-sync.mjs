@@ -162,7 +162,7 @@ export function readPublic(stored, lookup) {
     life: whole(stored.life, -MAX_LIFE, MAX_LIFE) ? stored.life : 0,
     turn: whole(stored.turn, 1, MAX_TURN) ? stored.turn : 1,
     counts: Object.fromEntries(PRIVATE_ZONES.map((zone) => [zone, count(stored.counts?.[zone])])),
-    pc: cleanCounts(stored.pc, PLAYER_COUNTERS), // always an object; only valid kinds with whole counts 1 to 999 survive
+    pc: cleanCounts(stored.pc, PLAYER_COUNTERS), // always an object; only valid kinds with whole counts from 1 to the number limit survive
     cd: cleanCounts(stored.cd, COMMANDER_SEATS),
     zones: Object.fromEntries(PUBLIC_ZONES.map((zone) => [zone, readCards(stored[zone], lookup)])),
   };

@@ -9,8 +9,10 @@ import { makeLookup } from '../../../shared/card-lookup.mjs';
 import { makeCardNodes } from '../../src/card-nodes.js';
 import { mountMarksPanel } from '../../src/marks-panel.js';
 import { openCardMenu } from '../../src/card-menu.js';
+import { mountPlayerCounters } from '../../src/player-counters.js';
 import { menuItems, menuAction, turnLabel, turnMessage, playBackLabel, PLAY_BACK_ZONES } from '../../../shared/card-menu.mjs';
 import { marksSentence, markClick, printedOf } from '../../../shared/marks.mjs';
+import { playerCounterEntries, counterAction } from '../../../shared/player-counters.mjs';
 import { makeGame, draw, moveCard, shuffleLibrary, mulligan, setTapped, turnOver, untapAll, adjustLife, nextTurn, battlefieldRows, zoneCounts } from '../../../shared/zones.mjs';
 
 const $ = (id) => document.getElementById(id);
@@ -40,6 +42,9 @@ function make(tag, className, content) {
 
 // ---- cards on the page ----
 // The buttons and pictures are in src/card-nodes.js (the live table draws cards the same way).
+// Poison, energy and experience (src/player-counters.js, shared/player-counters.mjs). Commander damage needs opponents, so it is on the live table only.
+const playerCounters = mountPlayerCounters($('player-counters'), { onChange: (entry, step) => { const action = counterAction(game, entry.kind, step); apply(() => action.run(game), action.message); } });
+
 const cardNodes = makeCardNodes({ onSelect: (uid) => select(uid), isSelected: (uid) => uid === selected, onMark: (uid, hit) => markOnCard(uid, hit), onMenu: (uid, where) => openMenuFor(uid, where), printedStats: (card) => printedOf(card, lookup) });
 const place = cardNodes.place;
 
@@ -55,6 +60,7 @@ function findCard(uid) {
 function render() {
   $('turn').textContent = String(game.turn);
   $('life').textContent = String(game.life);
+  playerCounters.update(playerCounterEntries(game.pc));
   const rows = battlefieldRows(game);
   place($('row-lands'), rows.lands, { battlefield: true });
   place($('row-other'), rows.other, { battlefield: true });

@@ -10,8 +10,10 @@ import { loadCardList } from '../../src/card-list.js';
 import { makeCardNodes } from '../../src/card-nodes.js';
 import { mountMarksPanel } from '../../src/marks-panel.js';
 import { openCardMenu } from '../../src/card-menu.js';
+import { mountPlayerCounters, mountCommanderDamage } from '../../src/player-counters.js';
 import { menuItems, menuAction, turnLabel, turnMessage, playBackLabel, PLAY_BACK_ZONES } from '../../../shared/card-menu.mjs';
 import { marksSentence, markClick, printedOf } from '../../../shared/marks.mjs';
+import { playerCounterEntries, commanderDamageSeatsFor, commanderDamageEntries, counterAction, damageAction } from '../../../shared/player-counters.mjs';
 import { presenceStatus, presenceText, ownConnectionText } from '../../../shared/presence.mjs';
 import { tableCodeFromPath } from '../../../shared/lobby-link.mjs';
 import { seatDeckText, defaultDeckFor, hasConceded } from '../../../shared/lobby-deck.mjs';
@@ -92,6 +94,11 @@ let saving = Promise.resolve();
 let selected = null; // the uid of the selected card
 let modifyOpen = false; // the counters and power/toughness panel is shown (from Modify, in the card menu or the selected-card buttons)
 let viewing = null; // the pile being looked at: 'library', 'graveyard', 'exile' or 'sideboard'
+// Your counters (src/player-counters.js, shared/player-counters.mjs). Commander damage is a separate mount from the other counters: each
+// player's damage is its own node, so a later design can put it in that player's panel instead of in one block.
+const playerCounters = mountPlayerCounters($('player-counters'), { onChange: (entry, step) => { if (!game) return; const action = counterAction(game, entry.kind, step); apply(() => action.run(game), action.message); } });
+const commanderDamage = mountCommanderDamage($('commander-damage'), { onChange: (entry, step) => { if (!game) return; const action = damageAction(game, entry.seat, step, entry.name); apply(() => action.run(game), action.message); } });
+
 const cardNodes = makeCardNodes({ onSelect: (uid) => select(uid), isSelected: (uid) => uid === selected, onMark: (uid, hit) => markOnCard(uid, hit), onMenu: (uid, where) => openMenuFor(uid, where), printedStats: (card) => printedOf(card, lookup) });
 const place = cardNodes.place;
 
@@ -111,8 +118,17 @@ function findCard(uid) {
   return null;
 }
 
+function renderCounters() {
+  if (!game) return;
+  playerCounters.update(playerCounterEntries(game.pc));
+  const entries = commanderDamageEntries(game.cd, commanderDamageSeatsFor(members, game.cd, meta?.format));
+  $('commander-damage-block').hidden = entries.length === 0;
+  commanderDamage.update(entries);
+}
+
 function render() {
   $('turn').textContent = String(game.turn);
+  renderCounters();
   $('life').textContent = String(game.life);
   const rows = battlefieldRows(game);
   place($('row-lands'), rows.lands, { battlefield: true });
@@ -392,8 +408,14 @@ function opponentPanel(uid) {
   const graveyard = pileDetails('Graveyard');
   const exile = pileDetails('Exile');
   panel = { section, title: make('h3'), stats: make('p', 'hint'), waiting: make('p', 'hint', 'Has not been dealt a game yet.'), body: make('div'), lands, other, command, graveyard, exile, nodes: makeCardNodes({ readOnly: true, printedStats: (card) => printedOf(card, lookup) }) };
+  // Another player's counters and the commander damage they have taken: the same nodes as yours, read-only, shown only once something has happened.
+  const countersBox = make('div', 'opponent-counters'); countersBox.setAttribute('role', 'group'); countersBox.setAttribute('aria-label', 'Counters'); countersBox.hidden = true;
+  const damageBox = make('div', 'opponent-counters'); damageBox.setAttribute('role', 'group'); damageBox.setAttribute('aria-label', 'Commander damage taken'); damageBox.hidden = true;
+  panel.countersBox = countersBox; panel.damageBox = damageBox;
+  panel.counterList = mountPlayerCounters(countersBox, { readOnly: true });
+  panel.damageList = mountCommanderDamage(damageBox, { readOnly: true });
   panel.body.append(make('h4', '', 'Lands'), lands, make('h4', '', 'Other permanents'), other, make('h4', '', 'Command zone'), command, graveyard.details, exile.details);
-  section.append(panel.title, panel.stats, panel.waiting, panel.body);
+  section.append(panel.title, panel.stats, countersBox, damageBox, panel.waiting, panel.body);
   opponents.set(uid, panel);
   return panel;
 }
@@ -415,7 +437,10 @@ async function renderOpponents() {
     panel.waiting.hidden = view !== null;
     panel.body.hidden = view === null;
     panel.stats.hidden = view === null;
+    if (!view) { panel.countersBox.hidden = true; panel.damageBox.hidden = true; }
     if (view) {
+      panel.countersBox.hidden = !panel.counterList.update(playerCounterEntries(view.pc));
+      panel.damageBox.hidden = !panel.damageList.update(commanderDamageEntries(view.cd, commanderDamageSeatsFor(members, view.cd, meta?.format)));
       panel.stats.textContent = `Life ${view.life}. Hand: ${plural(view.counts.hand, 'card', 'cards')}. Library: ${plural(view.counts.library, 'card', 'cards')}.`;
       panel.section.dataset.life = String(view.life);
       const rows = battlefieldRows({ zones: { battlefield: view.zones.battlefield } });
@@ -459,12 +484,14 @@ async function start() {
     renderMatchState();
     renderPlayers();
     checkStart();
+    renderCounters();
     renderOpponents();
   });
   watchMembers(tableCode, (value, error) => {
     if (!value) { members = {}; renderPlayers(); if (error) say('Lost sight of the table. It may have closed.', true); return; }
     members = value;
     renderPlayers();
+    renderCounters();
     renderOpponents();
   });
   watchPublic(tableCode, (value) => { publicAll = value && typeof value === 'object' ? value : {}; renderOpponents(); });
