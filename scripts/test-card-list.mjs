@@ -184,6 +184,18 @@ check('a reversible printing layout is not a second face', !hasBackFace({ ...tra
 check('a null face does not crash it', !hasBackFace({ ...transform, card_faces: [null, { image_uris: pic }] }) && !hasBackFace({ ...transform, card_faces: 'no' }));
 check('a back face with only a power gets no bpt', !('bpt' in toEntry({ ...transform, card_faces: [{ image_uris: pic }, { power: '3', image_uris: pic }] })));
 check('a card whose front has no stats but whose back has (Fable of the Mirror-Breaker) gets bpt and no pt', (() => { const e = toEntry({ ...transform, card_faces: [{ image_uris: pic }, { power: '2', toughness: '2', image_uris: pic }] }); return e.bpt === '2/2' && !('pt' in e); })());
+// A modal card can be played as either face (list format 6, `md`); a transform card has a back but cannot.
+check('a modal card gets md: 1, after b', toEntry(modal).md === 1 && Object.keys(toEntry(modal)).join() === 'n,t,m,k,i,b,md');
+check('a transform card has a back but no md', !('md' in toEntry(transform)));
+check('split and adventure cards have no md', !('md' in toEntry(split)) && !('md' in toEntry(adventure)));
+check('md comes after bpt and before the alternate titles', Object.keys(toEntry({ ...modal, card_faces: [{ power: '1', toughness: '1', image_uris: pic }, { power: '2', toughness: '2', image_uris: pic }] }, ['Y'], ['00000000-0000-4000-8000-000000000001'])).join() === 'n,t,m,k,i,pt,b,bpt,md,f,fp');
+check('a modal layout whose faces have no pictures gets neither b nor md', !('b' in toEntry({ ...modal, card_faces: [{}, {}] })) && !('md' in toEntry({ ...modal, card_faces: [{}, {}] })));
+check('a modal layout that is a reversible printing gets neither', !('md' in toEntry({ ...modal, layout: 'reversible_card' })));
+check('a list with modal cards passes', validateList(good.map((e, index) => (index % 2 ? { ...e, b: 1, md: 1 } : e)), opts).length === 0);
+for (const bad of [0, true, '1', 2, null, [1]]) {
+  check(`a list entry with md ${JSON.stringify(bad)} fails`, validateList(good.map((e, index) => (index === 3 ? { ...e, b: 1, md: bad } : e)), opts).some((p) => /missing a name, type, cost or keywords/.test(p)));
+}
+check('md without b fails', validateList(good.map((e, index) => (index === 3 ? { ...e, md: 1 } : e)), opts).some((p) => /missing a name, type, cost or keywords/.test(p)));
 check('a list with back faces passes', validateList(good.map((e, index) => (index % 2 ? { ...e, b: 1, bpt: '3/2' } : index % 3 === 0 ? { ...e, b: 1 } : e)), opts).length === 0);
 for (const bad of [0, true, '1', 2, null, [1]]) {
   check(`a list entry with b ${JSON.stringify(bad)} fails`, validateList(good.map((e, index) => (index === 3 ? { ...e, b: bad } : e)), opts).some((p) => /missing a name, type, cost or keywords/.test(p)));

@@ -24,8 +24,8 @@ export const MAX_STALE_MS = 30 * DAY_MS; // a failed rebuild falls back to a lis
 // The shape of the list this code builds. Raise it whenever the list gets new content (2 added each card's alternate titles,
 // `f`; 3 added the printing of each title, `fp`, and the per-set printing files; 4 added the printed power and toughness,
 // `pt`; 5 added `b` and `bpt`, a back face to turn over and its power and toughness), so a cached list in an older shape
-// is rebuilt once instead of being reused for up to a week.
-export const LIST_FORMAT = 5;
+// is rebuilt once instead of being reused for up to a week. 6 added `md`, a modal card (playable as either face).
+export const LIST_FORMAT = 6;
 export const BULK_DATA_URL = 'https://api.scryfall.com/bulk-data';
 // Scryfall's rules (docs/scryfall.md): every request names the app and says what it accepts.
 export const HEADERS = { 'User-Agent': 'Overloaded/0.1 (+https://github.com/kevlam1/Overloaded)', Accept: 'application/json' };

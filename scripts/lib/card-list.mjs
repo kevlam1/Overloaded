@@ -58,6 +58,9 @@ export function toEntry(record, alternateNames = [], alternateIds = []) {
     entry.b = 1;
     const back = statsText(record.card_faces[1].power, record.card_faces[1].toughness);
     if (back) entry.bpt = back;
+    // md (list format 6): a MODAL card, which can be played as either face (a spell on the front and a land on the back, 99 cards).
+    // A transform card has a back too but can only be played as its front.
+    if (record.layout === 'modal_dfc') entry.md = 1;
   }
   if (alternateNames.length) {
     entry.f = alternateNames;
@@ -189,6 +192,8 @@ export function validateList(list, { minCards = MIN_CARDS, previousCount = null,
     // `b` and `bpt` (format 5): a back face to turn over, and its power and toughness (only with `b`). A list in format 4 has neither.
     if ('b' in e && e.b !== 1) { badEntries++; continue; }
     if ('bpt' in e && !(e.b === 1 && typeof e.bpt === 'string' && PRINTED_STATS.test(e.bpt))) { badEntries++; continue; }
+    // `md` (format 6): a modal card, always together with `b`. A list in format 5 has none, and is still fine.
+    if ('md' in e && !(e.md === 1 && e.b === 1)) { badEntries++; continue; }
     if ('f' in e && !(Array.isArray(e.f) && e.f.length > 0 && e.f.every((title) => typeof title === 'string' && title.length > 0))) { badEntries++; continue; }
     // `fp` (format 3): the printing that carries each title, one per title. A list in format 2 has none, and is still fine.
     if ('fp' in e && !('f' in e && Array.isArray(e.fp) && e.fp.length === e.f.length && e.fp.every((id) => typeof id === 'string' && UUID.test(id)))) { badEntries++; continue; }

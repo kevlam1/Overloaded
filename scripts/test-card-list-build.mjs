@@ -83,7 +83,7 @@ try {
   // ---- decide: the rule, with its boundaries ----
   const cachedAt = (daysAgo, format = LIST_FORMAT) => ({ meta: { builtAt: new Date(T0 - daysAgo * DAY_MS).toISOString(), format } });
   check('7 days is the reuse limit', MAX_AGE_MS === 7 * DAY_MS && MAX_STALE_MS === 30 * DAY_MS);
-  check('the list format is 5 (3 had the printing of each title and the per-set printing files; 4 added the printed power and toughness; 5 adds b and bpt, a back face to turn over)', LIST_FORMAT === 5);
+  check('the list format is 6 (3 had the printing of each title and the per-set printing files; 4 added the printed power and toughness; 5 added b and bpt, a back face to turn over; 6 adds md, a modal card)', LIST_FORMAT === 6);
   check('a 1 day old list is reused', decide({ cached: cachedAt(1), now: T0, env: {} }).action === 'reuse');
   check('a list one millisecond under 7 days is reused', decide({ cached: { meta: { builtAt: new Date(T0 - MAX_AGE_MS + 1).toISOString(), format: LIST_FORMAT } }, now: T0, env: {} }).action === 'reuse');
   check('a recent list in an older format is rebuilt, not reused', decide({ cached: cachedAt(1, 1), now: T0, env: {} }).action === 'rebuild' && /older format/.test(decide({ cached: cachedAt(1, 1), now: T0, env: {} }).reason));
