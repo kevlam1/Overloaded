@@ -37,6 +37,7 @@ export function packCard(card) {
     ...(card.mp ? { mp: card.mp } : {}),
     ...(card.mt ? { mt: card.mt } : {}),
     ...(card.faceDown ? { f: 1 } : {}),
+    ...(card.turned ? { bk: 1 } : {}), // the other face of a two-sided card shows; whether the card HAS one (b) comes from each page's card list
     ...(card.nt ? { nt: card.nt } : {}),
   };
 }
@@ -72,6 +73,7 @@ export function unpackCard(raw, lookup = () => null) {
   if ('ct' in raw && !validCounters(raw.ct)) return null;
   for (const key of ['mp', 'mt']) if (key in raw && !(Number.isInteger(raw[key]) && raw[key] !== 0 && Math.abs(raw[key]) <= MAX_MODIFIER)) return null;
   if ('f' in raw && raw.f !== 1) return null;
+  if ('bk' in raw && raw.bk !== 1) return null;
   if ('nt' in raw && !(typeof raw.nt === 'string' && raw.nt.length > 0 && raw.nt.length <= MAX_NOTE)) return null;
   // A real card's type, cost and keywords come from the card list. A token's type line is stored with it (a token is not in the list),
   // but its cost and keywords are still looked up BY ID ONLY: a copy of a real card has that card's id and so keeps them, a token picture
@@ -85,6 +87,9 @@ export function unpackCard(raw, lookup = () => null) {
     t: token ? raw.tt : (typeof known.t === 'string' ? known.t : ''),
     m: typeof known.m === 'string' ? known.m : '',
     k: Array.isArray(known.k) ? known.k : [],
+    // A back face exists only when this page's card list says so (by id, never for a token): a stored turned-over mark on any
+    // other card is ignored, so another player cannot make an ordinary card show a back picture it does not have.
+    ...(!token && known.b === 1 ? { b: 1, ...(raw.bk === 1 ? { turned: true } : {}) } : {}),
     ...(token ? { tok: true, ...(raw.pt ? { pt: raw.pt } : {}), ...(raw.cl ? { cl: raw.cl } : {}) } : {}),
     ...('ct' in raw ? { ct: { ...raw.ct } } : {}),
     ...('mp' in raw ? { mp: raw.mp } : {}),

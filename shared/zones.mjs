@@ -13,7 +13,9 @@
 //   t: type line, m: mana cost, k: keywords, tapped, turnEntered: the turn it came to the battlefield (null elsewhere).
 // For the library, the graveyard and the other piles, index 0 is the TOP.
 // A card on the battlefield may also hold, each only when set: ct (counters, an object from kind to count, see COUNTER_KINDS), mp and
-// mt (the power and toughness modifier set by hand), nt (a short note), faceDown, and for a token tok: true with pt and cl. A game may hold
+// mt (the power and toughness modifier set by hand), nt (a short note), faceDown, turned (the other face of a two-sided card shows),
+// and for a token tok: true with pt and cl. A card whose list entry has a back face to turn over (transform and modal cards) has b: 1,
+// in any zone; it is copied from the card list when the game is made or read back, never chosen by a player. A game may hold
 // pc (poison, energy, experience) and cd (commander damage by seat). docs/tokens-counters.md explains them.
 
 import { scrubText } from './player-name.mjs';
@@ -42,7 +44,7 @@ export const MAX_TOKEN_TEXT = 60;
 export const MAX_ZONE_CARDS = 250;
 export const PLAYER_COUNTERS = ['poison', 'energy', 'experience'];
 export const COMMANDER_SEATS = ['1', '2', '3', '4'];
-const BATTLEFIELD_STATE = ['ct', 'mp', 'mt', 'faceDown', 'nt'];
+const BATTLEFIELD_STATE = ['ct', 'mp', 'mt', 'faceDown', 'turned', 'nt'];
 export const TOKEN_POWER_TOUGHNESS = /^[0-9*+-]{1,3}\/[0-9*+-]{1,3}$/;
 export const TOKEN_COLORS = /^[WUBRG]{1,5}$/;
 
@@ -81,11 +83,17 @@ export function shuffled(list, random = secureRandom) {
 }
 
 // ---- what a card is ----
-// Is this card a land? Judged by the front face, because some two-faced cards are a land only on their back (82 of them,
-// checked in docs/scryfall.md): the front face shows on the table. "Land Creature" and "Artifact Land" are lands.
+// The type line of the face that shows. A card is judged by its front face, even a split or adventure card (its type line has both
+// halves after " // "), until a card with a back face (b: 1) is turned over: then the part after " // " is the one that shows.
+export function faceType(card) {
+  const parts = String(card?.t ?? '').split(' // ');
+  return card?.b === 1 && card.turned === true && parts.length === 2 ? parts[1] : parts[0];
+}
+
+// Is this card a land? Judged by the face that shows, because some two-faced cards are a land only on their back (82 of them,
+// checked in docs/scryfall.md): the front face shows until the card is turned over. "Land Creature" and "Artifact Land" are lands.
 export function isLandCard(card) {
-  const front = String(card?.t ?? '').split(' // ')[0].split(EM_DASH)[0];
-  return /\bLand\b/.test(front);
+  return /\bLand\b/.test(faceType(card).split(EM_DASH)[0]);
 }
 
 // ---- starting a game ----
@@ -104,7 +112,7 @@ export function makeGame(deck, lookup = () => null, { random = secureRandom, han
     if (!zone) throw new Error(`A card is in a section this game does not know: ${saved.section}`);
     const known = lookup(saved) ?? {};
     for (let copy = 0; copy < saved.qty; copy++) {
-      zones[zone].push({ uid: `c${uid++}`, i: saved.i, ...(saved.p ? { p: saved.p } : {}), n: saved.n, t: known.t ?? '', m: known.m ?? '', k: known.k ?? [], tapped: false, turnEntered: null });
+      zones[zone].push({ uid: `c${uid++}`, i: saved.i, ...(saved.p ? { p: saved.p } : {}), n: saved.n, t: known.t ?? '', m: known.m ?? '', k: known.k ?? [], ...(known.b === 1 ? { b: 1 } : {}), tapped: false, turnEntered: null });
     }
   }
   zones.library = shuffled(zones.library, random);
@@ -254,6 +262,14 @@ export function setFaceDown(game, uid, down) {
   return putBattlefield(game, at, with_(card, 'faceDown', true, !down));
 }
 
+// Turns a two-sided card over (the other face shows), or back (a second call). Only a card with a back face (b: 1) on the
+// battlefield; it goes back to its front when it leaves the battlefield, like a counter is lost.
+export function turnOver(game, uid) {
+  const { card, at } = onBattlefield(game, uid, 'a turned-over face');
+  if (card.b !== 1) throw new Error(`${card.n} has no back face to turn over.`);
+  return putBattlefield(game, at, with_(card, 'turned', true, card.turned === true));
+}
+
 // Makes a token on the battlefield. spec: { n: name, i: the Scryfall id of the token (its picture), tt: its type line, pt: 'P/T'
 // (optional), cl: colors such as 'RG' (optional) }. Returns { game, uid }. A token is a card with tok: true; its type line is its t.
 export function createToken(game, spec) {
@@ -348,6 +364,8 @@ export function checkGame(game) {
       }
       if ('nt' in card && !(typeof card.nt === 'string' && card.nt.length > 0 && card.nt.length <= MAX_NOTE)) problems.push(`card ${card.uid} has a damaged note`);
       if ('faceDown' in card && card.faceDown !== true) problems.push(`card ${card.uid} has a damaged face-down mark`);
+      if ('b' in card && card.b !== 1) problems.push(`card ${card.uid} has a damaged back-face mark`);
+      if ('turned' in card && !(card.turned === true && card.b === 1)) problems.push(`card ${card.uid} is turned over but has no back face`);
       if ('tok' in card && card.tok !== true) problems.push(`card ${card.uid} has a damaged token mark`);
       if (('pt' in card || 'cl' in card) && card.tok !== true) problems.push(`card ${card.uid} has token fields but is not a token`);
       if ('pt' in card && !(typeof card.pt === 'string' && TOKEN_POWER_TOUGHNESS.test(card.pt))) problems.push(`token ${card.uid} has a damaged power and toughness`);

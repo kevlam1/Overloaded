@@ -137,11 +137,16 @@ export function openCardMenu({ title, items, x, y, onPick, returnFocus = null })
   const onAway = () => close({ restore: false });
   document.addEventListener('pointerdown', onOutside, true);
   document.addEventListener('contextmenu', onOutside, true);
-  window.addEventListener('scroll', onAway, true);
   window.addEventListener('resize', onAway);
   window.addEventListener('blur', onAway);
+  // A right-click selects the card, which can change the height of the selected-card panel above the cards; the browser then moves the
+  // scroll position to keep the cards still, and that scroll arrives a frame or two after the menu opens. It is not the player scrolling
+  // away, so scrolling is only listened for from the second frame on (found 2026-11-06 with a card whose type line has two lines).
+  let closed = false;
+  requestAnimationFrame(() => requestAnimationFrame(() => { if (!closed) window.addEventListener('scroll', onAway, true); }));
 
   function close({ restore }) {
+    closed = true;
     document.removeEventListener('pointerdown', onOutside, true);
     document.removeEventListener('contextmenu', onOutside, true);
     window.removeEventListener('scroll', onAway, true);

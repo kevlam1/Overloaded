@@ -67,11 +67,13 @@ export function statsOf(card, printed) {
 
 // The printed power and toughness of a card on the table, as text, or null. A token carries its own (its name can equal a real
 // card's, so it is never looked up); any other card is looked up in the card list by id, then name (shared/card-lookup.mjs).
+// A card turned over to its back face shows the back's numbers, and none if the back has none (a land): never the front's.
 export function printedOf(card, lookup) {
   if (!card) return null;
   if (card.tok) return typeof card.pt === 'string' ? card.pt : null;
   const known = typeof lookup === 'function' ? lookup(card) : null;
-  return typeof known?.pt === 'string' ? known.pt : null;
+  const printed = card.turned === true ? known?.bpt : known?.pt;
+  return typeof printed === 'string' ? printed : null;
 }
 
 // One sentence for the selected-card line and for screen readers: "Counters: +1/+1 3. Change: +5/+3. Now 5/4." ('' when there is

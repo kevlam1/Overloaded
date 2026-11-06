@@ -4,8 +4,9 @@
 // id first and by its name second. The picture is still made from the SAVED id, which keeps working.
 import { normalizeName } from './card-match.mjs';
 
-// cards: the card list ({ n, t, m, k, i } each, and pt for a card with printed power and toughness). Returns (savedCard) => { t, m, k, pt? }
-// or null if the list does not know it. pt is the printed power and toughness as text ("2/2"), only for a card that has them.
+// cards: the card list ({ n, t, m, k, i } each, pt for a card with printed power and toughness, b: 1 for a card with a back face to turn
+// over, bpt for that back's power and toughness). Returns (savedCard) => { t, m, k, pt?, b?, bpt? } or null if the list does not know it.
+// pt and bpt are the printed power and toughness as text ("2/2"), only for a face that has them.
 export function makeLookup(cards) {
   const byId = new Map();
   const byName = new Map();
@@ -17,6 +18,6 @@ export function makeLookup(cards) {
   return (saved) => {
     let card = typeof saved?.i === 'string' ? byId.get(saved.i) : undefined;
     if (!card && typeof saved?.n === 'string') card = byName.get(normalizeName(saved.n));
-    return card ? { t: card.t, m: card.m, k: card.k, ...(typeof card.pt === 'string' ? { pt: card.pt } : {}) } : null;
+    return card ? { t: card.t, m: card.m, k: card.k, ...(typeof card.pt === 'string' ? { pt: card.pt } : {}), ...(card.b === 1 ? { b: 1 } : {}), ...(card.b === 1 && typeof card.bpt === 'string' ? { bpt: card.bpt } : {}) } : null;
   };
 }

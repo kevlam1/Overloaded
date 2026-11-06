@@ -27,15 +27,18 @@ const record = (name, pass, detail = '') => { results.push({ name, pass }); cons
 
 // Saved decks written the way the deck page writes them (the strict reader of shared/deck-preview.mjs accepts these).
 const uuid = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
-const savedDeck = (name, commanders) => ({
+// sideboard: names of cards for the sideboard (always in the sideboard, never dealt: a way to get a given card on the table with no luck).
+const savedDeck = (name, commanders, sideboard = []) => ({
   version: 1, name, savedAt: new Date().toISOString(), skipped: 0, text: '',
   commander: commanders.map((_, n) => uuid(100 + n)),
-  cards: [...commanders.map((c, n) => ({ i: uuid(100 + n), n: c, qty: 1, section: 'commander' })), { i: uuid(1), n: 'Island', qty: 30, section: 'main' }],
+  cards: [...commanders.map((c, n) => ({ i: uuid(100 + n), n: c, qty: 1, section: 'commander' })), { i: uuid(1), n: 'Island', qty: 30, section: 'main' },
+    ...sideboard.map((c, n) => ({ i: uuid(300 + n), n: c, qty: 1, section: 'sideboard' }))],
 });
+const TWO_SIDED = 'Delver of Secrets // Insectile Aberration'; // a real transform card: the page finds it by NAME in the real card list (the id above is made up)
 let idNumber = 0;
 const newId = () => `d${String(++idNumber).padStart(10, '0')}`;
 const libraryWith = (...decks) => decks.reduce((library, [deck, format, bracket]) => addDeck(library, deck, { format, bracket: bracket ?? null, newId }).library, emptyLibrary());
-const aliceLibrary = libraryWith([savedDeck('Goblins', ['Krenko, Mob Boss']), 'commander', 3], [savedDeck('Partners', ['Tymna the Weaver', 'Thrasios, Triton Hero']), 'commander'], [savedDeck('Burn', []), 'standard']);
+const aliceLibrary = libraryWith([savedDeck('Goblins', ['Krenko, Mob Boss']), 'commander', 3], [savedDeck('Partners', ['Tymna the Weaver', 'Thrasios, Triton Hero'], [TWO_SIDED]), 'commander'], [savedDeck('Burn', []), 'standard']);
 const bobLibrary = libraryWith([savedDeck('Elves', ['Ezuri, Renegade Leader']), 'commander', 2]);
 const goblinsId = aliceLibrary.decks[0].id;
 const partnersId = aliceLibrary.decks[1].id;
@@ -348,6 +351,43 @@ try {
   const handAfter = Object.values((await rest('GET', pathOf('private/hand'), cleanup.alice.token)).json).map((card) => card.u).sort().join();
   record('...and it was put back, not dealt again: the hand in the database is exactly the one she left', handAfter === handBeforeRefresh && handAfter.split(',').length === 7, handAfter);
   record('...and 6 of those 7 cards were in her first hand (one was played, one was drawn)', handAfter.split(',').filter((u) => handBefore.includes(u)).length === 6);
+  // Turning a two-sided card over: Alice takes Delver (a transform card) out of her sideboard, plays it and turns it over. The database
+  // holds only a turned-over mark (bk), and Bob's page, which knows from its own card list that the card has a back, shows the back.
+  const delverOf = (browser, where) => browser.eval(`(() => {
+    const cards = Array.from(document.querySelectorAll(${JSON.stringify(where)}));
+    const card = cards.find((c) => (c.getAttribute('aria-label') || '').startsWith('Delver'));
+    if (!card) return null;
+    const img = card.querySelector('img');
+    return { label: card.getAttribute('aria-label'), src: img ? img.getAttribute('src') : null, parent: card.parentElement.id, disabled: card.disabled };
+  })()`);
+  const delverInDb = async () => { const r = await rest('GET', pathOf('public/battlefield'), cleanup.bob.token); return r.json ? Object.values(r.json).find((c) => c.n?.startsWith('Delver')) ?? null : null; };
+  await click(alice, 'pile-sideboard');
+  const sideRows = await waitFor(async () => { const n = await count(alice, '#viewer-list li'); return n >= 1 ? n : null; }, 10000, 100);
+  record("Alice's sideboard holds the Delver (the one card the deck put there)", sideRows === 1 && (await alice.eval(`document.querySelector('#viewer-list li').textContent`)).includes('Delver'), `rows ${sideRows} | button: ${await text(alice, 'pile-sideboard')} | viewer hidden: ${await alice.eval(`document.getElementById('viewer').hidden`)} | db sideboard: ${JSON.stringify((await rest('GET', pathOf('private/sideboard'), cleanup.alice.token)).json)} | deck line: ${await text(alice, 'deck-line')}`);
+  await alice.eval(`document.querySelector('#viewer-list li .pile-card').click()`);
+  await alice.eval(`Array.from(document.querySelectorAll('#selected-actions button')).find((b) => b.textContent === 'To battlefield').click()`);
+  const delverPlayed = await waitFor(async () => (await delverInDb()) ? true : null, 15000, 250);
+  record('playing it puts it on the public battlefield, showing its front: no turned-over mark in the database', Boolean(delverPlayed) && (await delverInDb()).bk === undefined, JSON.stringify(await delverInDb()));
+  const buttonLabels = () => alice.eval(`Array.from(document.querySelectorAll('#selected-actions button')).map((b) => b.textContent)`);
+  record('her selected-card buttons offer Turn over for it (the page found its back face by name in the card list)', (await buttonLabels()).includes('Turn over'), (await buttonLabels()).join(' | '));
+  await alice.eval(`Array.from(document.querySelectorAll('#selected-actions button')).find((b) => b.textContent === 'Turn over').click()`);
+  const delverTurned = await waitFor(async () => (await delverInDb())?.bk === 1 ? await delverInDb() : null, 15000, 250);
+  record('turning it over saves exactly one small mark on that card: bk is 1, and no back-face field (b) is stored', Boolean(delverTurned) && delverTurned.bk === 1 && !('b' in delverTurned) && !('turned' in delverTurned), JSON.stringify(delverTurned));
+  const aliceDelver = await delverOf(alice, '#row-lands .card, #row-other .card');
+  record("on Alice's page it shows the back picture, says it is turned over, and button now says how to turn it back", Boolean(aliceDelver) && aliceDelver.src.includes('/back/') && /turned over/.test(aliceDelver.label) && (await buttonLabels()).includes('Turn back to front'), JSON.stringify(aliceDelver));
+  const bobDelver = await waitFor(async () => { const d = await delverOf(bob, '#opponent-list .opponent .card'); return d && d.src?.includes('/back/') ? d : null; }, 20000, 250);
+  record("Bob's page, without a refresh, shows the BACK picture and the label turned over on Alice's card, and the card is read-only", Boolean(bobDelver) && /turned over/.test(bobDelver.label) && bobDelver.disabled === true, JSON.stringify(bobDelver));
+  const bobLabelsFor = await bob.eval(`Array.from(document.querySelectorAll('#opponent-list .opponent button')).map((b) => b.textContent).join('|')`);
+  record("Bob's page offers no Turn over button for Alice's card", !/Turn over|Turn back/.test(bobLabelsFor), bobLabelsFor);
+  await alice.goto(`http://127.0.0.1:${PORT}/table/${code}`);
+  const delverAfterRefresh = await waitFor(async () => { const d = await delverOf(alice, '#row-lands .card, #row-other .card'); return d && d.src?.includes('/back/') ? d : null; }, 30000, 250);
+  record('after a refresh Alice\'s Delver is still turned over (read back from the database)', Boolean(delverAfterRefresh) && /turned over/.test(delverAfterRefresh.label), JSON.stringify(delverAfterRefresh));
+  await alice.eval(`Array.from(document.querySelectorAll('#row-lands .card, #row-other .card')).find((c) => (c.getAttribute('aria-label') || '').startsWith('Delver')).click()`);
+  await alice.eval(`Array.from(document.querySelectorAll('#selected-actions button')).find((b) => b.textContent === 'Turn back to front').click()`);
+  const delverBack = await waitFor(async () => { const d = await delverInDb(); return d && d.bk === undefined ? d : null; }, 15000, 250);
+  record('turning it back removes the mark from the database (nothing is stored for a card showing its front)', Boolean(delverBack), JSON.stringify(await delverInDb()));
+  const bobFront = await waitFor(async () => { const d = await delverOf(bob, '#opponent-list .opponent .card'); return d && d.src?.includes('/front/') ? d : null; }, 20000, 250);
+  record("and Bob's page shows the front picture again", Boolean(bobFront) && !/turned over/.test(bobFront.label), JSON.stringify(bobFront));
   if (process.argv.includes('--screenshot')) { await sleep(300); await bob.screenshot('scratch-table-page.png'); }
   await bob.goto(`http://127.0.0.1:${PORT}/table/${code}`); // a refresh puts a player back at the table
   const afterRefresh2 = await tableRows(bob);

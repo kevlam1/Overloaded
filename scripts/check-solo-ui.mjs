@@ -35,11 +35,11 @@ const built = buildSavedDeck(preview, { name: 'Solo test deck', text: DECK_TEXT,
 if (!built.ok) { console.log(`The test deck could not be built: ${built.error}`); process.exit(1); }
 const DECK_JSON = serializeDeck(built.deck);
 // A deck made from other text the same way (for the sideboard scenario).
-const deckFrom = (text, name, printingFiles = null) => {
+const deckFrom = (text, name, printingFiles = null, commanderIds = null) => {
   const p = parseDeckText(text);
   const pv = makePreview(p, matchDeck(buildCardIndex(cards), p.entries), {}, printingFiles);
   if (pv.counts.problem !== 0) throw new Error(`the ${name} deck did not match the card list: ${JSON.stringify(pv.problems)}`);
-  const b = buildSavedDeck(pv, { name, text, commanderIds: pv.commander.ids });
+  const b = buildSavedDeck(pv, { name, text, commanderIds: commanderIds ?? pv.commander.ids });
   if (!b.ok) throw new Error(b.error);
   return serializeDeck(b.deck);
 };
@@ -47,9 +47,10 @@ const deckFrom = (text, name, printingFiles = null) => {
 // and the commander named last, after a blank line.
 const SIDE_JSON = deckFrom('1 Sol Ring\n1 Heart of the Mountain\n20 Forest\n20 Island\n10 Lightning Bolt\n\nSIDEBOARD:\n1 Annul\n1 Swords to Plowshares\n\nCommander\n1 Kyodai, Soul of Kamigawa', 'Side deck');
 const failIds = new Set(); // pictures with these ids are answered with 404, as Scryfall does for a picture that does not exist
+const failBackIds = new Set(); // the same for the BACK picture only of these ids
 const cardArt = (url) => {
   const id = url.split('/').pop().replace('.jpg', '');
-  if (failIds.has(id)) return { status: 404, type: 'text/plain', text: '' };
+  if (failIds.has(id) || (failBackIds.has(id) && url.includes('/back/'))) return { status: 404, type: 'text/plain', text: '' };
   const hue = parseInt(id.slice(0, 4), 16) % 360;
   return { type: 'image/svg+xml', text: `<svg xmlns="http://www.w3.org/2000/svg" width="146" height="204" viewBox="0 0 146 204"><rect width="146" height="204" rx="9" fill="hsl(${hue},45%,38%)"/><rect x="8" y="8" width="130" height="188" rx="5" fill="none" stroke="#fff" stroke-opacity=".6"/><text x="73" y="108" font-size="13" text-anchor="middle" fill="#fff" font-family="sans-serif">${id.slice(0, 8)}</text></svg>` };
 };
@@ -624,6 +625,125 @@ try {
   await clickAction('To hand');
   check('a card in the hand has no Modify button', !(await actionLabels()).includes('Modify'));
 
+  // ---- turning a two-sided card over (real list entries: Sephiroth, Valakut Awakening, Delver, Aclazotz, and Fire // Ice which has no back) ----
+  // Seven cards in a seven-card deck, so all of them are in the hand and nothing depends on luck.
+  const TWO_SIDED = deckFrom('1 Sephiroth, Fabled SOLDIER\n1 Valakut Awakening\n1 Delver of Secrets\n1 Aclazotz, Deepest Betrayal\n1 Fire // Ice\n1 Sol Ring\n1 Forest', 'Two-sided deck', null, []); // no commander: the page would guess one from the legendary creatures and take it out of the hand
+  const defaultId = (prefix) => cards.find((c) => c.n.startsWith(prefix)).i;
+  const cardAt = (prefix) => `.card[aria-label^="${prefix}"]`;
+  const srcOf = (prefix) => ev(`(() => { const i = document.querySelector(${JSON.stringify(cardAt(prefix) + ' img')}); return i ? i.getAttribute('src') : null; })()`);
+  const rowOf = (prefix) => ev(`(() => { const c = document.querySelector(${JSON.stringify(cardAt(prefix))}); return c && c.parentElement ? c.parentElement.id : null; })()`);
+  const labelOf = (prefix) => ev(`document.querySelector(${JSON.stringify(cardAt(prefix))}).getAttribute('aria-label')`);
+  asked.length = 0;
+  failBackIds.add(defaultId('Aclazotz')); // its back picture does not exist: turning it over must show the name, and turning back must bring the front picture back
+  await open(TWO_SIDED);
+  check('the two-sided deck deals all seven cards to the hand', (await count('#hand .card')) === 7 && (await pileCount('library')) === 'Library: 0', `${await $text('deck-line')} | hand ${await count('#hand .card')} | ${await pileCount('library')} | ${await $text('status')} | blocked: ${await $text('blocked-message')}`);
+  for (const name of ['Sephiroth', 'Valakut Awakening', 'Delver', 'Aclazotz', 'Fire', 'Sol Ring', 'Forest']) {
+    await clickCard('#hand .card', (await handNames()).findIndex((x) => x.startsWith(name)));
+    await clickAction('To battlefield');
+    await clickAction('Deselect');
+  }
+  check('before any turn: the Forest is the only land, the other six are in the other row', (await count('#row-lands .card')) === 1 && (await count('#row-other .card')) === 6, `${await count('#row-lands .card')} and ${await count('#row-other .card')}`);
+  const offers = async (prefix) => { await clickCard(cardAt(prefix)); const labels = await actionLabels(); await clickAction('Deselect'); return labels; };
+  check('Turn over is offered for Sephiroth, Valakut Awakening, Delver and Aclazotz', (await Promise.all(['Sephiroth', 'Valakut Awakening', 'Delver', 'Aclazotz'].map(async (n) => (await offers(n)).includes('Turn over')))).every(Boolean));
+  check('and not for Fire // Ice (one picture for both halves), Sol Ring or the Forest', (await Promise.all(['Fire', 'Sol Ring', 'Forest'].map(async (n) => (await offers(n)).includes('Turn over')))).every((has) => !has));
+  check('the front pictures were asked for, and no back picture yet', asked.some((u) => u.includes(`/front/`) && u.includes(defaultId('Valakut Awakening'))) && !asked.some((u) => u.includes('/back/')), asked.filter((u) => u.includes('/back/')).join(' '));
+
+  // Valakut Awakening: an Instant on the front and a land on the back.
+  await clickCard(cardAt('Valakut Awakening'));
+  check('its selected line gives both type lines and does not say turned over', /Instant \/\/ Land/.test(await $text('selected-line')) && !/turned over/.test(await $text('selected-line')));
+  await clickAction('Turn over');
+  check('turned over, it moves to the land row (now two lands), and the other row has five', (await rowOf('Valakut Awakening')) === 'row-lands' && (await count('#row-lands .card')) === 2 && (await count('#row-other .card')) === 5);
+  check('its label says it is turned over, and so does the selected line and the status', /, turned over/.test(await labelOf('Valakut Awakening')) && /\(turned over\)/.test(await $text('selected-line')) && /Turned .*Valakut Awakening.* over\./.test(await $text('status')), await $text('status'));
+  await waitFor(async () => (await srcOf('Valakut Awakening'))?.includes('/back/') || null, 3000, 50).catch(() => null);
+  const backUrl = await srcOf('Valakut Awakening');
+  check('the picture is now the BACK face of the same printing', Boolean(backUrl) && backUrl.includes(`/back/`) && backUrl.includes(defaultId('Valakut Awakening')), String(backUrl));
+  check('and that back picture was asked for (the stand-in answered it)', asked.some((u) => u.includes('/back/') && u.includes(defaultId('Valakut Awakening'))));
+  check('the card has no power and toughness box (a land has no numbers, and the front has none either)', (await box(cardAt('Valakut Awakening'))) === null);
+  check('the action button now says how to turn it back', (await actionLabels()).includes('Turn back to front') && !(await actionLabels()).includes('Turn over'));
+  await clickAction('Turn back to front');
+  check('turned back, it is in the other row again and shows its front picture', (await rowOf('Valakut Awakening')) === 'row-other' && (await count('#row-lands .card')) === 1 && /\/front\//.test(await srcOf('Valakut Awakening')) && !/turned over/.test(await labelOf('Valakut Awakening')));
+  await clickAction('Deselect');
+
+  // Sephiroth: a 3/3 on the front, a 5/5 on the back, and the numbers follow the face that shows.
+  const seph = '#row-other ' + cardAt('Sephiroth');
+  await clickCard(cardAt('Sephiroth'));
+  const front = await box(seph);
+  check('Sephiroth shows his printed 3/3 while selected', front && front.visibility === 'visible' && front.power === '3' && front.toughness === '3', JSON.stringify(front));
+  await clickAction('Turn over');
+  const back = await box(seph);
+  check('turned over, the box says 5/5 (the back face\'s numbers) and he is still in the other row', back && back.power === '5' && back.toughness === '5' && (await rowOf('Sephiroth')) === 'row-other', JSON.stringify(back));
+  await clickAction('Modify');
+  await setAmount('2'); await clickMark('Add counters'); // the default kind is +1/+1
+  await sleep(120);
+  check('a +1/+1 counter change adds to the back face\'s 5/5 (shown as 7/7 once changed)', await (async () => { const b = await box(seph); return b && b.power === '7' && b.toughness === '7'; })(), JSON.stringify(await box(seph)));
+  await clickAction('Turn back to front');
+  const frontAgain = await box(seph);
+  check('turned back, the counters stay and the numbers are the front\'s 3/3 plus them: 5/5', frontAgain && frontAgain.power === '5' && frontAgain.toughness === '5', JSON.stringify(frontAgain));
+  await clickAction('Deselect');
+
+  // Aclazotz: a 4/4 creature that turns into a land.
+  await clickCard(cardAt('Aclazotz'));
+  check('Aclazotz shows 4/4 on the front', (await box('#row-other ' + cardAt('Aclazotz'))).power === '4');
+  await clickAction('Turn over');
+  check('turned over it is a land: in the land row, with no numbers, never the front\'s 4/4', (await rowOf('Aclazotz')) === 'row-lands' && (await box(cardAt('Aclazotz'))) === null && (await count('#row-lands .card')) === 2);
+  const noImage = (prefix) => ev(`document.querySelector(${JSON.stringify(cardAt(prefix))}).classList.contains('noimage')`);
+  await waitFor(async () => (await noImage('Aclazotz')) || null, 3000, 50).catch(() => null);
+  check('its back picture does not exist (404), so the card shows its name instead of a broken picture', await noImage('Aclazotz'));
+  await clickAction('Turn back to front');
+  await waitFor(async () => !(await noImage('Aclazotz')) || null, 3000, 50).catch(() => null);
+  check('turned back, the front picture is shown again and the name fallback is gone', !(await noImage('Aclazotz')) && /\/front\//.test(await srcOf('Aclazotz')));
+  await clickAction('Turn over');
+  await clickAction('Deselect');
+
+  // The right-click menu offers it too, and a click with the real mouse does it.
+  // A card with a long, two-line type line is selected, so the selected-card panel gets shorter when the right-click selects Delver; the
+  // browser then moves the scroll position (here by 23 px) to keep the cards still. That used to close the menu at once (found 2026-11-06).
+  await clickCard(cardAt('Sephiroth'));
+  const panelBefore = await ev(`document.getElementById('selected').getBoundingClientRect().height`);
+  await mouse(cardAt('Delver'), { button: 'right', dy: 30 });
+  check('the test is real: the right-click made the selected-card panel shorter, so the page had to scroll by itself', (await ev(`document.getElementById('selected').getBoundingClientRect().height`)) < panelBefore - 10, `${panelBefore} -> ${await ev(`document.getElementById('selected').getBoundingClientRect().height`)}`);
+  const delverMenu = await menuState();
+  check('the menu for Delver lists Turn over between Tap and the counter', delverMenu && JSON.stringify(delverMenu.items.slice(0, 4)) === JSON.stringify(['Modify...', 'Tap', 'Turn over', '+1/+1 counter']), JSON.stringify(delverMenu?.items));
+  await sleep(500);
+  check('the menu is still open half a second later (it must not close by itself after a right click on a card that was not selected)', Boolean(await menuState()), JSON.stringify(await menuState()));
+  await clickMenuItem('Turn over');
+  check('choosing it turns Delver (the menu closes, the label says so, the box says 3/2)', !(await menuState()) && /, turned over/.test(await labelOf('Delver')) && (await box('#row-other ' + cardAt('Delver'))) !== null, await labelOf('Delver'));
+  await clickCard(cardAt('Delver'));
+  check('and the selected-card box shows the back face\'s 3/2', await (async () => { const b = await box('#row-other ' + cardAt('Delver')); return b && b.power === '3' && b.toughness === '2'; })(), JSON.stringify(await box('#row-other ' + cardAt('Delver'))));
+  await clickAction('Deselect');
+  await mouse(cardAt('Sol Ring'), { button: 'right', dy: 30 });
+  const solMenu = await menuState();
+  check('the menu of a card with no back has no Turn over', solMenu && !solMenu.items.includes('Turn over') && solMenu.items.includes('Tap'), JSON.stringify(solMenu?.items));
+  await key('Escape', 'Escape', 27);
+
+  // A turned card that leaves the battlefield comes back showing its front.
+  await clickCard(cardAt('Aclazotz'));
+  await clickAction('To hand');
+  const aclazotzInHand = await srcOf('Aclazotz');
+  check('Aclazotz, sent to the hand while turned over, is a front-face card there (not turned, front picture)', (await count('#hand ' + cardAt('Aclazotz'))) === 1 && !/turned over/.test(await labelOf('Aclazotz')) && /\/front\//.test(aclazotzInHand), String(aclazotzInHand));
+  check('and in the hand it has no Turn over button', !(await actionLabels()).includes('Turn over') && !(await actionLabels()).includes('Turn back to front'));
+  await clickAction('To battlefield');
+  check('played again it shows its front: a 4/4 creature in the other row', (await rowOf('Aclazotz')) === 'row-other' && !/turned over/.test(await labelOf('Aclazotz')));
+  await clickAction('Deselect');
+
+  // A card whose deck names a printing: the picture of the face that shows comes from that printing, and when that printing has none
+  // (a made-up id here, which the stand-in answers with 404) the fallback is the DEFAULT printing's picture of the SAME face.
+  const NO_SUCH_PRINTING = '11111111-1111-4111-8111-111111111111';
+  failIds.add(NO_SUCH_PRINTING);
+  const printed = JSON.parse(TWO_SIDED);
+  printed.cards.find((c) => c.n.startsWith('Delver')).p = NO_SUCH_PRINTING;
+  asked.length = 0;
+  await open(JSON.stringify(printed));
+  await clickCard('#hand .card', (await handNames()).findIndex((x) => x.startsWith('Delver')));
+  await clickAction('To battlefield');
+  await waitFor(async () => asked.some((u) => u.includes(`/front/`) && u.includes(defaultId('Delver'))) || null, 3000, 50).catch(() => null);
+  check('the named printing has no picture, so the card shows the default printing\'s FRONT picture', asked.some((u) => u.includes(NO_SUCH_PRINTING)) && /\/front\/.*/.test(await srcOf('Delver')) && (await srcOf('Delver')).includes(defaultId('Delver')), String(await srcOf('Delver')));
+  await clickAction('Turn over');
+  await waitFor(async () => ((await srcOf('Delver')) ?? '').includes('/back/') || null, 3000, 50).catch(() => null);
+  check('turned over, the missing printing falls back to the default printing\'s BACK picture (not its front), with no name fallback', ((await srcOf('Delver')) ?? '').includes(`/back/`) && (await srcOf('Delver')).includes(defaultId('Delver')) && !(await noImage('Delver')), String(await srcOf('Delver')));
+  check('and the printing\'s own back picture was tried first', asked.some((u) => u.includes('/back/') && u.includes(NO_SUCH_PRINTING)));
+  await clickAction('Deselect');
+
   // ---- storage blocked ----
   await browser.send('Page.addScriptToEvaluateOnNewDocument', { source: `Object.defineProperty(window, 'localStorage', { get() { throw new DOMException('blocked', 'SecurityError'); } });` });
   await browser.goto(PAGE);
@@ -667,7 +787,24 @@ try {
     await mouse('#row-other .card', { button: 'right', dy: 30 }); await sleep(300);
     await browser.screenshot('scratch-solo-menu-dark.png');
     await key('Escape', 'Escape', 27);
-    console.log('saved scratch-solo-dark.png, -light.png, -piles.png and the four -menu- ones (delete them afterward)');
+    // two-sided cards with the real pictures: Valakut Awakening, Sephiroth and Aclazotz turned over, Delver and the rest as they are
+    await scheme('dark');
+    await open(TWO_SIDED);
+    for (const name of ['Sephiroth', 'Valakut Awakening', 'Delver', 'Aclazotz', 'Fire', 'Sol Ring', 'Forest']) {
+      await clickCard('#hand .card', (await handNames()).findIndex((x) => x.startsWith(name)));
+      await clickAction('To battlefield'); await clickAction('Deselect');
+    }
+    for (const name of ['Valakut Awakening', 'Aclazotz']) { await clickCard(cardAt(name)); await clickAction('Turn over'); await clickAction('Deselect'); }
+    await clickCard(cardAt('Sephiroth')); await clickAction('Turn over');
+    await sleep(3000);
+    await browser.screenshot('scratch-solo-twosided-dark.png');
+    await scheme('light'); await sleep(400);
+    await browser.screenshot('scratch-solo-twosided-light.png');
+    await ev(`window.scrollTo(0, 0)`); await sleep(200);
+    await mouse(cardAt('Delver'), { button: 'right', dy: 30 }); await sleep(300);
+    await browser.screenshot('scratch-solo-twosided-menu-light.png');
+    await key('Escape', 'Escape', 27);
+    console.log('saved scratch-solo-dark.png, -light.png, -piles.png, the four -menu- ones and three -twosided- ones (delete them afterward)');
   }
 } finally {
   await closeAllBrowsers();

@@ -1941,9 +1941,39 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - Not done: Ping card (it would need to be sent to the other players), Create copy (a copy of a creature loses its printed numbers until `copyAsToken` gets them passed in), a long-press for phones (a phone has no right-click; the buttons are the way in there), and a menu for cards inside the pile viewer (those are rows, not card buttons). Phone width is not checked.
 - The panel's move buttons are still there next to the menu. If you want the selected-card area shorter still, they can go and the menu does the moving.
 
+## 95. Two-sided cards: turning a card over (2026-11-06)
+
+**What I asked for**
+- I asked whether modal cards were taken into consideration. They were not: a card with a land on its back, like Valakut Awakening, was drawn with its front picture and put in the wrong row, and nothing could turn a card over. I said it should work for cards with two sides like Sephiroth, Fabled SOLDIER.
+- I asked whether a card shows two faces at once (no: one face shows, and a button swaps the sides) and I decided the real card back is used for face-down cards, against Claude's advice (it carries the Magic logo and the policy was read through a summarizer). That is recorded as an exception in `CLAUDE.md`; it is not built yet.
+- I asked about emblems and a token creator. Neither is designed yet. Emblems go with the token creator, in the command zone.
+
+**What changed**
+- Card list, format 5 (`scripts/lib/card-list.mjs`, `card-list-build.mjs`): a card has a back face to turn over when its two faces carry their own pictures and the card has none. That is 492 cards (393 transform, 99 modal); split, adventure, prepare and flip cards have one picture, so they get none. A card gets `b: 1`, and `bpt` (the back's power and toughness) when the back has both, 303 cards. The first measurement said about 3.6 KB more gzipped (0.25%). The next Vercel build rebuilds the list once.
+- `shared/zones.mjs`: a card that has a back carries `b`; `turnOver` turns it and turns it back, only on the battlefield; it is cleared when the card leaves, like a counter. `isLandCard` follows the face that shows, so Valakut Stoneforge and Aclazotz's land side go to the lands row.
+- `shared/game-sync.mjs`: only `bk: 1` is stored. `b` is never stored: each page knows it from its own card list, so another player cannot make an ordinary card show a back picture. `shared/card-lookup.mjs` gives `b` and `bpt`; `shared/marks.mjs` uses the back's numbers for a turned card (and none if the back has none, never the front's).
+- `shared/card-menu.mjs` and `frontend/src/card-nodes.js`: "Turn over" (or "Turn back to front") in the right-click menu, between Tap and the counter, and a button next to Tap in the selected-card buttons on the solo and table pages. The card swaps its picture in place; a missing back picture shows the name and recovers when turned back; a named printing falls back to the default printing's picture of the same face.
+- `frontend/src/card-menu.js`: the menu used to close by itself (see below).
+- `scripts/check-deploy-config.mjs`: it now saves `frontend/public/data` before its build and puts it back after.
+
+**What I checked**
+- New `scripts/test-turn-over.mjs`, 913 checks, with the real entries for Sephiroth, Valakut Awakening, Delver, Fire // Ice and Aclazotz (a creature that turns into a land), and five random games of 1,500 steps. `test-card-list` is 220 checks, `test-card-menu` 87.
+- The solo browser check is 224 checks (was 191), in real Chrome with real mouse input: the rows, the 5/5 of Sephiroth on the back with counters added, Aclazotz losing its 4/4 when it becomes a land, a missing back picture, a named printing, and the menu. The two-browser live check against the real project is 102 (was 92): Alice turns Delver over, the database holds only `bk: 1`, Bob's browser shows the back picture without a refresh, it survives a refresh, and turning it back removes the mark.
+- `npm test` is 39 suites and `npm run test:live` 47, all passing. The real database rules accept `bk` as they stand (no paste needed).
+- Broken copies: 14 of the list builder, 25 of the logic and storage, 11 of the page code, one of the table page and three of the menu fix. All were caught in the end.
+- I looked at screenshots with the real pictures, dark and light: Valakut Stoneforge and Temple of the Dead in the lands row, Sephiroth, One-Winged Angel with a 5/5 box, and the menu on Delver. Phone width is not checked.
+
+**Decisions**
+- Mistakes of mine: the audit rule from 2026-10-26 said "land row from the showing face", but I had built only the front face, so a modal land sat in the wrong row until now. One of my broken copies caught nothing because its text was a syntax error, so I redid it. One real survivor (a turned card whose back has no numbers must not show the front's) showed that my test card had none on the front either, so I added Aclazotz. A browser check of mine put the sideboard card in the wrong deck (Alice plays her Partners deck). Several test slips: `nextTurn` returns `{ game, ... }`, objects compared by key order, and an `if` that could have skipped checks silently.
+- A bug from entry 94, found by the new test: right-clicking a card while a card with a long type line was selected made the selected-card panel shorter, the browser moved the scroll position to keep the cards still, and the menu treated that as me scrolling and closed at once. The menu now starts listening for scrolls two animation frames after it opens. It had been open for a card with a short type line only by luck.
+- The deploy check had overwritten my local card list for the third time, and now that made `npm run test:live` fail. It restores the folder itself now. I checked the list is identical before and after.
+- Left out on purpose: flip cards (turned upside down, 45 printings), meld cards, reversible Secret Lair printings (the same card with art on both sides).
+- Not done: a copy of a turned card (still shows the front picture), the back face in the deck page's hover picture (the table has no hover picture yet), playing a modal card straight from the hand as its land, `bk` in the batched database rules change, face-down pictures and the real card back, emblems and the token creator, and phone width.
+
 ---
 
 ## Where AI misread me, or I had to correct course
+- (2026-11-06, entry 95) Claude had built the land row from the front face only, although the 2026-10-26 audit said "from the showing face", so a modal card played as its land sat in the wrong row until I asked about modal cards. The new test of the menu then found that the menu closed itself when the page scrolled on its own, a bug from entry 94.
 - (2026-10-30, entry 75) Claude wrote the "refuse to run when the backup exists" guard first and only then noticed that `mutate-rules.mjs` calls the same script while its own backup exists, so every mutation would have failed at once and looked like a kill. It caught this by reading the runner before running anything, and fixed it with the `MUTATION_RUN` flag. It also had listed the `lastSeen` deletion as an untested suspicion when a test for it already existed.
 
 - In my first message I said to put the folder in my Portfolio project, which was wrong: the other artifacts live next to the Portfolio. I corrected it in my next message.
@@ -2022,3 +2052,5 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - Moved the deck builder to a stretch goal (entry 4). Importing a decklist as text comes first.
 - No user accounts (entry 4). Players pick a name in each lobby.
 - Skipped Forge's rules engine for now (entry 5). Casual mode only, where players manage their own cards.
+- (2026-11-06, entry 95) The real card back is used for face-down cards, against Claude's advice. If Wizards objects, a plain design replaces it. Not built yet.
+- (2026-11-06, entry 95) Turn over covers transform and modal cards only (list format 5). Flip, meld and reversible printings are left out for now.

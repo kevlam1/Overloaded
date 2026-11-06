@@ -80,6 +80,21 @@ function showToast(button, toast) {
   setTimeout(() => element.remove(), 1000);
 }
 
+// The picture of the face that shows: the printing the deck named (else the card's default printing), or with `tried` the default
+// one. A card turned over shows the back face's picture of the same printing (Scryfall keeps both under the one id).
+const pictureAddress = (card, side, tried) => imageUrl(tried ? card.i : (card.p ?? card.i), 'small', side);
+
+// Shows the face the card has now. A card button is built once and reused, so a turn changes the picture in place.
+function showFace(button, card) {
+  const picture = button.querySelector('img');
+  const side = card.turned === true ? 'back' : 'front';
+  if (!picture || picture.dataset.side === side) return;
+  picture.dataset.side = side;
+  picture.dataset.tried = '';
+  button.classList.remove('noimage'); // the other face may have a picture even if this one had none
+  picture.src = pictureAddress(card, side, false) ?? '';
+}
+
 export function makeCardNodes({ onSelect = () => {}, isSelected = () => false, readOnly = false, onMark = null, onMenu = null, printedStats = () => null } = {}) {
   const nodes = new Map(); // uid -> its button
 
@@ -90,7 +105,8 @@ export function makeCardNodes({ onSelect = () => {}, isSelected = () => false, r
       button.type = 'button';
       button.dataset.uid = card.uid;
       const face = make('span', 'face');
-      const url = imageUrl(card.p ?? card.i); // the printing the deck named, else the card's default printing
+      const side = card.turned === true ? 'back' : 'front';
+      const url = pictureAddress(card, side, false);
       if (url) {
         const picture = document.createElement('img');
         picture.alt = '';
@@ -99,11 +115,11 @@ export function makeCardNodes({ onSelect = () => {}, isSelected = () => false, r
         picture.loading = 'lazy';
         picture.decoding = 'async';
         picture.referrerPolicy = 'no-referrer';
-        let triedDefault = false;
+        picture.dataset.side = side;
         picture.addEventListener('error', () => {
           // The printing has no picture (or a damaged id): try the card's default picture once, then show the name.
-          const fallback = card.p && !triedDefault ? imageUrl(card.i) : null;
-          triedDefault = true;
+          const fallback = card.p && !picture.dataset.tried ? pictureAddress(card, picture.dataset.side, true) : null;
+          picture.dataset.tried = '1';
           if (fallback) { picture.src = fallback; return; }
           button.classList.add('noimage');
         });
@@ -142,9 +158,10 @@ export function makeCardNodes({ onSelect = () => {}, isSelected = () => false, r
     button.classList.toggle('tapped', card.tapped);
     button.classList.toggle('selected', selected);
     if (!readOnly) button.setAttribute('aria-pressed', String(selected));
+    showFace(button, card);
     const printed = printedStats(card);
     const marks = marksSentence(card, printed);
-    button.setAttribute('aria-label', `${card.n}${card.tapped ? ', tapped' : ''}${marks ? `. ${marks}` : ''}`);
+    button.setAttribute('aria-label', `${card.n}${card.turned ? ', turned over' : ''}${card.tapped ? ', tapped' : ''}${marks ? `. ${marks}` : ''}`);
     updateMarks(button, card, Boolean(onMark) && !readOnly, printed, onBattlefield);
     return button;
   }

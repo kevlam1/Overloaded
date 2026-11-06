@@ -1,6 +1,6 @@
 // Checks shared/card-menu.mjs: which choices a card's right-click menu offers in each zone, and what each choice does to a real game.
 // Run from the repo root:  node scripts/test-card-menu.mjs
-import { menuItems, menuAction, ZONE_NAMES, MOVE_TARGETS, COUNTER_AMOUNTS } from '../shared/card-menu.mjs';
+import { menuItems, menuAction, turnLabel, turnMessage, ZONE_NAMES, MOVE_TARGETS, COUNTER_AMOUNTS } from '../shared/card-menu.mjs';
 import { makeGame, moveCard, createToken, changeCounter, seededRandom, ZONES, checkGame } from '../shared/zones.mjs';
 
 let checks = 0;
@@ -92,5 +92,33 @@ same('labels are plain words', menuItems({}, 'hand')[0].items.map((item) => item
 same('Modify and the Move to heading are the page\'s own business', [menuAction('modify', { n: 'x', uid: 'c1' }), menuAction('move', { n: 'x', uid: 'c1' })], [null, null]);
 for (const bad of ['', 'nothing', 'move:', 'move:nowhere', 'move:library', 'move:__proto__', 'constructor', '__proto__', 'toString', 'hasOwnProperty', 5, null, undefined, {}]) same(`${JSON.stringify(bad)} is not a choice`, menuAction(bad, { n: 'x', uid: 'c1' }), null);
 same('no card, no action', [menuAction('tap', null), menuAction('tap', undefined)], [null, null]);
+
+// ---- turning a two-sided card over (a card with b: 1, list format 5) ----
+{
+  const backDeck = { cards: [{ i: id(1), n: 'Forest', qty: 30, section: 'main' }, { i: id(3), n: 'Delver of Secrets // Insectile Aberration', qty: 10, section: 'main' }], commander: [] };
+  const backLookup = (card) => (card.i === id(3) ? { t: 'Creature — Human Wizard // Creature — Human Insect', m: '{U}', k: [], b: 1 } : { t: 'Basic Land - Forest', m: '', k: [] });
+  let game = makeGame(backDeck, backLookup, { random: seededRandom(5) });
+  const delverUid = game.zones.hand.find((card) => card.b === 1)?.uid ?? game.zones.library.find((card) => card.b === 1).uid;
+  game = deepFreeze(moveCard(game, delverUid, 'battlefield'));
+  const delver = cardOf(game, delverUid);
+  same('a card with a back face offers Turn over, after Tap and before the counter', ids(menuItems(delver, 'battlefield')), ['modify', 'tap', 'turn', 'counter', 'move']);
+  same('its label says what it will do', [menuItems(delver, 'battlefield')[2].label, menuItems({ ...delver, turned: true }, 'battlefield')[2].label], ['Turn over', 'Turn back to front']);
+  same('the label function says the same', [turnLabel(delver), turnLabel({ ...delver, turned: true })], ['Turn over', 'Turn back to front']);
+  for (const zone of ['hand', 'graveyard', 'exile', 'command', 'sideboard', 'library']) same(`in ${zone} it is not offered, even for a card with a back`, ids(menuItems(delver, zone)), ['move']);
+  for (const bad of [0, true, '1', 2, null]) same(`b that is ${JSON.stringify(bad)} offers no Turn over`, ids(menuItems({ ...delver, b: bad }, 'battlefield')), ['modify', 'tap', 'counter', 'move']);
+  same('a card with no back, and no card, offer none', [ids(menuItems(onBattlefield().card, 'battlefield')).includes('turn'), ids(menuItems(null, 'battlefield')).includes('turn')], [false, false]);
+  const turn = menuAction('turn', delver);
+  same('Turn over says what it did', turn.message, `Turned ${delver.n} over.`);
+  const turned = turn.run(game);
+  check('and turns the card', cardOf(turned, delverUid).turned === true);
+  same('turned again it says it went back, and turns it back', [menuAction('turn', cardOf(turned, delverUid)).message, 'turned' in cardOf(menuAction('turn', cardOf(turned, delverUid)).run(turned), delverUid)], [`Turned ${delver.n} back to its front.`, false]);
+  same('the message function agrees', [turnMessage(delver), turnMessage({ ...delver, turned: true })], [`Turned ${delver.n} over.`, `Turned ${delver.n} back to its front.`]);
+  same('the turned game is consistent', checkGame(turned), []);
+  check('the game it started from is not changed (it is frozen)', !('turned' in cardOf(game, delverUid)));
+  const plain = onBattlefield();
+  refused('Turn over on a card with no back is refused in words, and the game is as it was', () => menuAction('turn', plain.card).run(plain.game), /no back face/);
+  const inHand = fresh();
+  refused('Turn over on a card that is not on the battlefield is refused', () => menuAction('turn', { ...delver, uid: inHand.zones.hand[0].uid }).run(inHand), /battlefield|no back face/);
+}
 
 console.log(`All ${checks} card menu checks passed.`);
