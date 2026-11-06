@@ -18,6 +18,6 @@ export function makeLookup(cards) {
   return (saved) => {
     let card = typeof saved?.i === 'string' ? byId.get(saved.i) : undefined;
     if (!card && typeof saved?.n === 'string') card = byName.get(normalizeName(saved.n));
-    return card ? { t: card.t, m: card.m, k: card.k, ...(typeof card.pt === 'string' ? { pt: card.pt } : {}), ...(card.b === 1 ? { b: 1 } : {}), ...(card.b === 1 && typeof card.bpt === 'string' ? { bpt: card.bpt } : {}) } : null;
+    return card ? { t: card.t, m: card.m, k: card.k, ...(typeof card.pt === 'string' ? { pt: card.pt } : {}), ...(card.b === 1 ? { b: 1 } : {}), ...(card.b === 1 && card.md === 1 ? { md: 1 } : {}), ...(card.b === 1 && typeof card.bpt === 'string' ? { bpt: card.bpt } : {}) } : null;
   };
 }

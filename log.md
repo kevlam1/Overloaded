@@ -1970,9 +1970,35 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - Left out on purpose: flip cards (turned upside down, 45 printings), meld cards, reversible Secret Lair printings (the same card with art on both sides).
 - Not done: a copy of a turned card (still shows the front picture), the back face in the deck page's hover picture (the table has no hover picture yet), playing a modal card straight from the hand as its land, `bk` in the batched database rules change, face-down pictures and the real card back, emblems and the token creator, and phone width.
 
+## 96. Create copy, playing a modal card as its back face, and the front and back hover picture (2026-11-06)
+
+**What I asked for**
+- Items 1 to 3 of the left-out list together: Create copy (including a copy of a turned card), playing a modal card as its land straight from the hand, and the back face in the hover picture.
+
+**What changed**
+- Card list, format 6: `md: 1` for a modal card (99 cards, all with `b`). A transform card has a back but can only be played as its front, and the list could not tell the two apart before. The back is not always a land: Esika, God of the Tree has an enchantment on hers.
+- `shared/zones.mjs`: `faceName` (the name of the face that shows, the same rule as `faceType`); `copyAsToken(game, uid, { printed })` now copies only the face that shows: its name, its type line, the printed numbers when they fit a token (joke values like 3.5/3.5 or ?/? are left out), the back picture for a copy of a turned card, no cost for a back face, and none of the original's counters. A token may now carry `turned`, meaning only "draw the back picture"; it cannot be turned over. `md` is copied from the card list like `b`.
+- `shared/game-sync.mjs`, `card-lookup.mjs`: `md` is read from each page's own list, and a stored token with `bk` shows the back picture (and has no cost).
+- `shared/card-menu.mjs`: "Create copy" on the battlefield (after the counter, before Move to) and "Play <back name>" for a modal card in the hand, graveyard, exile and command zone (before Move to). It puts the card on the battlefield already turned over. The same two as buttons on both pages, for a phone.
+- `frontend/src/card-peek.js`, `deck-importer.js`, `style.css`: on the deck page a card with a back face shows front and back side by side in the hover box (the second picture is made by the script, so the two HTML pages stay the same). Each is asked for once; if the back does not exist the front shows alone.
+- A copy is no longer called "turned over" in the selected line or the label, because it cannot be turned.
+
+**What I checked**
+- `test-turn-over` is 933 checks, `test-card-menu` 147 (was 87), `test-card-list` 234. The deck page check is 201 (was 192), the solo check 243 (was 224), the two-browser live check 107 (was 102): Alice copies her turned Delver, the database holds a small token (`tt` "Creature - Human Insect", `pt` 3/2, `bk` 1, no `b`, no counters), Bob sees it with the back picture without a refresh, and it survives a refresh.
+- `npm test` is 39 suites and `npm run test:live` 47. Broken copies: 37 of the logic and storage (one survived, see below) and 12 of the page code, all caught in the end.
+- I looked at screenshots with the real pictures: two copies of the turned Sephiroth with a plain 5/5 and no counters, Temple of the Dead copied as a land, Valakut Stoneforge played from the hand, and the hover box with Valakut Awakening and Valakut Stoneforge side by side. Phone width is not checked.
+- One of three full live runs had one failing suite and I do not know which: I had cut the output with `tail`, so the failing line was gone. The next two runs passed 47 of 47. I will keep the whole output next time.
+
+**Decisions**
+- Mistakes of mine: `copyAsToken` from entry 86 copied the whole type line. For 93 two-sided cards that is over the 60 characters a stored token may have, so a copy would have vanished for everyone who read it. Nothing used it yet, and I found it while measuring for Create copy. A broken copy survived because `faceName` returned the whole name for an adventure card (Bonecrusher Giant // Stomp is a Bonecrusher Giant on the battlefield), so I made it follow `faceType`. A stored copy of a turned card first read back with the front's mana cost. The shell swallowed a `${...}` in a test line (the trap in CLAUDE.md), and a stray apostrophe broke another; the test run caught both.
+- Play back only for modal cards, so it needed `md` and one more rebuild of the list on Vercel. It is offered where a card can be cast from (hand, graveyard, exile, command zone), not on the battlefield or in the library.
+- The wider hover box covers the type column of the deck list but never the card names.
+- Not done: the keywords of a copy of a back face (they come from the whole card), Create copy through the menu on the live table page (the button is tested live, the menu only on the solo table), flip and meld cards, `bk` in the batched rules change, face-down pictures, emblems and the token creator, and phone width.
+
 ---
 
 ## Where AI misread me, or I had to correct course
+- (2026-11-06, entry 96) Claude's `copyAsToken` from entry 86 copied the whole type line, which is over what a stored token may hold for 93 two-sided cards, so a copy would have vanished for everyone who read it. It found this while measuring for Create copy, before any button used it.
 - (2026-11-06, entry 95) Claude had built the land row from the front face only, although the 2026-10-26 audit said "from the showing face", so a modal card played as its land sat in the wrong row until I asked about modal cards. The new test of the menu then found that the menu closed itself when the page scrolled on its own, a bug from entry 94.
 - (2026-10-30, entry 75) Claude wrote the "refuse to run when the backup exists" guard first and only then noticed that `mutate-rules.mjs` calls the same script while its own backup exists, so every mutation would have failed at once and looked like a kill. It caught this by reading the runner before running anything, and fixed it with the `MUTATION_RUN` flag. It also had listed the `lastSeen` deletion as an untested suspicion when a test for it already existed.
 
@@ -2054,3 +2080,4 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - Skipped Forge's rules engine for now (entry 5). Casual mode only, where players manage their own cards.
 - (2026-11-06, entry 95) The real card back is used for face-down cards, against Claude's advice. If Wizards objects, a plain design replaces it. Not built yet.
 - (2026-11-06, entry 95) Turn over covers transform and modal cards only (list format 5). Flip, meld and reversible printings are left out for now.
+- (2026-11-06, entry 96) Play back is only for modal cards, which needed a new list field (md, list format 6). A copy copies only the face that shows.

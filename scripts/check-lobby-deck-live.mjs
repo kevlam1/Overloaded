@@ -327,7 +327,7 @@ try {
   await alice.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: cardAt.x, y: cardAt.y, button: 'right', buttons: 0, clickCount: 1 });
   await sleep(150);
   const aliceMenu = await menuOf(alice);
-  record("a right click on Alice's card opens its menu on the table page (Modify, Tap, the counter with its amounts, Move to)", Boolean(aliceMenu) && JSON.stringify(aliceMenu.items) === JSON.stringify(['Modify...', 'Tap', '+1/+1 counter', '2', '3', '5', 'Move to']), JSON.stringify(aliceMenu));
+  record("a right click on Alice's card opens its menu on the table page (Modify, Tap, the counter with its amounts, Create copy, Move to)", Boolean(aliceMenu) && JSON.stringify(aliceMenu.items) === JSON.stringify(['Modify...', 'Tap', '+1/+1 counter', '2', '3', '5', 'Create copy', 'Move to']), JSON.stringify(aliceMenu));
   await clickMenuText(alice, 'Tap');
   record('Tap from the menu is saved: the card is tapped in the database that Bob can read', Boolean(await waitFor(async () => (await tappedInDb()) === true ? true : null, 15000, 250)));
   record("...and Bob's page shows Alice's card tapped, without a refresh", Boolean(await waitFor(async () => (await bob.eval(`Array.from(document.querySelectorAll('#opponent-list .opponent')).some((p) => p.querySelector('h3').textContent.includes('Alice') && p.querySelector('.card.tapped'))`)) ? true : null, 20000, 250)));
@@ -379,7 +379,22 @@ try {
   record("Bob's page, without a refresh, shows the BACK picture and the label turned over on Alice's card, and the card is read-only", Boolean(bobDelver) && /turned over/.test(bobDelver.label) && bobDelver.disabled === true, JSON.stringify(bobDelver));
   const bobLabelsFor = await bob.eval(`Array.from(document.querySelectorAll('#opponent-list .opponent button')).map((b) => b.textContent).join('|')`);
   record("Bob's page offers no Turn over button for Alice's card", !/Turn over|Turn back/.test(bobLabelsFor), bobLabelsFor);
+  // Create copy: a copy copies only the face that shows. Alice's Delver is turned over, so the copy is Insectile Aberration, a 3/2 with the
+  // back picture. What is stored must be small and valid: the type line of ONE face (a whole "A // B" line is over the 60 characters a
+  // stored token may have for 93 cards, which would make the copy vanish for everyone who reads it).
+  const copyInDb = async () => { const r = await rest('GET', pathOf('public/battlefield'), cleanup.bob.token); return r.json ? Object.values(r.json).find((c) => c.tok === 1 && c.n === 'Insectile Aberration') ?? null : null; };
+  const faceOf = (browser, where, prefix) => browser.eval(`(() => { const card = Array.from(document.querySelectorAll(${JSON.stringify(where)})).find((c) => (c.getAttribute('aria-label') || '').startsWith(${JSON.stringify(prefix)})); if (!card) return null; const img = card.querySelector('img'); return { label: card.getAttribute('aria-label'), src: img ? img.getAttribute('src') : null, disabled: card.disabled }; })()`);
+  record('her selected-card buttons offer Create copy for the turned Delver', (await buttonLabels()).includes('Create copy'), (await buttonLabels()).join(' | '));
+  await alice.eval(`Array.from(document.querySelectorAll('#selected-actions button')).find((b) => b.textContent === 'Create copy').click()`);
+  const copyStored = await waitFor(async () => (await copyInDb()) ?? null, 15000, 250);
+  record('the copy is saved as a small token of the BACK face: its name, ONE face\'s type line, its 3/2, bk 1, and no back-face or counter fields', Boolean(copyStored) && copyStored.tt === 'Creature — Human Insect' && copyStored.pt === '3/2' && copyStored.bk === 1 && copyStored.tok === 1 && !('b' in copyStored) && !('ct' in copyStored) && copyStored.tt.length <= 60, JSON.stringify(copyStored));
+  const aliceCopy = await waitFor(async () => { const d = await faceOf(alice, '#row-lands .card, #row-other .card', 'Insectile Aberration'); return d && d.src?.includes('/back/') ? d : null; }, 15000, 250);
+  record('on Alice\'s page the copy shows the back picture, and is not called turned over (it is a copy, not a two-sided card)', Boolean(aliceCopy) && !/turned over/.test(aliceCopy.label), JSON.stringify(aliceCopy));
+  const bobCopy = await waitFor(async () => { const d = await faceOf(bob, '#opponent-list .opponent .card', 'Insectile Aberration'); return d && d.src?.includes('/back/') ? d : null; }, 20000, 250);
+  record('Bob\'s page shows the copy too, read-only, with the back picture and without a refresh (it is a valid card for him)', Boolean(bobCopy) && bobCopy.disabled === true, JSON.stringify(bobCopy));
   await alice.goto(`http://127.0.0.1:${PORT}/table/${code}`);
+  const copyAfterRefresh = await waitFor(async () => { const d = await faceOf(alice, '#row-lands .card, #row-other .card', 'Insectile Aberration'); return d && d.src?.includes('/back/') ? d : null; }, 30000, 250);
+  record('after a refresh the copy is still there with the back picture (read back from the database)', Boolean(copyAfterRefresh), JSON.stringify(copyAfterRefresh));
   const delverAfterRefresh = await waitFor(async () => { const d = await delverOf(alice, '#row-lands .card, #row-other .card'); return d && d.src?.includes('/back/') ? d : null; }, 30000, 250);
   record('after a refresh Alice\'s Delver is still turned over (read back from the database)', Boolean(delverAfterRefresh) && /turned over/.test(delverAfterRefresh.label), JSON.stringify(delverAfterRefresh));
   await alice.eval(`Array.from(document.querySelectorAll('#row-lands .card, #row-other .card')).find((c) => (c.getAttribute('aria-label') || '').startsWith('Delver')).click()`);

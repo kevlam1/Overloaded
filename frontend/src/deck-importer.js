@@ -207,6 +207,7 @@ function renderSections() {
         item.dataset.cardId = line.printingId ?? line.card.i;
         item.dataset.printing = line.printingSource ?? 'default';
         item.dataset.cardName = line.name;
+        if (line.card.b === 1) item.dataset.twoSided = '1'; // a card with a back face: the picture box shows both faces
         name.tabIndex = 0;
       }
       item.append(make('span', 'qty', String(line.qty)), name);

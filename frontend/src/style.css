@@ -162,6 +162,9 @@ h3 { margin: 1rem 0 0.4rem; font-size: 1rem; }
 .card-peek img { display: block; width: 100%; height: auto; }
 .card-peek img[hidden] { display: none; }
 .card-peek-note { margin: 0.35rem 0 0; font-size: 0.8rem; color: var(--muted); overflow-wrap: anywhere; }
+/* A card with a back face: both faces side by side, the note under both (src/card-peek.js adds the second picture). */
+.card-peek.two-faced:not([hidden]) { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; width: 34.4rem; max-width: calc(100vw - 1rem); }
+.card-peek.two-faced .card-peek-note { grid-column: 1 / -1; margin-top: 0; }
 @media (max-width: 36rem) { .card-line { grid-template-columns: 2rem minmax(0, 1fr); } .card-line .printing, .card-line .type, .card-line .cost { grid-column: 2; } .card-line .printing:empty { display: none; } }
 
 /* The solo table: a wide page, cards as pictures, a tapped card turned sideways, and the controls around them. */

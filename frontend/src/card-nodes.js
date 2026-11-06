@@ -161,7 +161,7 @@ export function makeCardNodes({ onSelect = () => {}, isSelected = () => false, r
     showFace(button, card);
     const printed = printedStats(card);
     const marks = marksSentence(card, printed);
-    button.setAttribute('aria-label', `${card.n}${card.turned ? ', turned over' : ''}${card.tapped ? ', tapped' : ''}${marks ? `. ${marks}` : ''}`);
+    button.setAttribute('aria-label', `${card.n}${card.turned && !card.tok ? ', turned over' : ''}${card.tapped ? ', tapped' : ''}${marks ? `. ${marks}` : ''}`);
     updateMarks(button, card, Boolean(onMark) && !readOnly, printed, onBattlefield);
     return button;
   }

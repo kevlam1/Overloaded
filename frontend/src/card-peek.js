@@ -21,6 +21,25 @@ export function setupCardPeek({ root, peek, image, note, win = window }) {
 
   const rowOf = (target) => (target instanceof win.Element ? target.closest('[data-card-id]') : null);
 
+  // A card with a back face (data-two-sided on its row) shows both faces side by side. The second picture is made here, beside the
+  // first, so the pages that hold the box need no extra markup.
+  const backImage = win.document.createElement('img');
+  backImage.alt = '';
+  backImage.width = 488;
+  backImage.height = 680;
+  backImage.decoding = 'async';
+  backImage.referrerPolicy = 'no-referrer';
+  backImage.hidden = true;
+  image.after(backImage);
+  const showBack = (url, name) => {
+    peek.classList.toggle('two-faced', Boolean(url));
+    backImage.hidden = !url;
+    if (url) {
+      if (backImage.getAttribute('src') !== url) backImage.setAttribute('src', url);
+      backImage.alt = `${name} (back)`;
+    }
+  };
+
   function place(x, y) {
     last = { x, y };
     const width = peek.offsetWidth;
@@ -41,6 +60,8 @@ export function setupCardPeek({ root, peek, image, note, win = window }) {
     const name = row.dataset.cardName ?? '';
     if (row !== current) {
       current = row;
+      const backUrl = row.dataset.twoSided === '1' ? imageUrl(row.dataset.cardId, 'normal', 'back') : null;
+      showBack(backUrl && !failed.has(backUrl) ? backUrl : null, name);
       if (failed.has(url)) {
         image.hidden = true;
         note.textContent = `No picture could be loaded for ${name}.`;
@@ -48,7 +69,7 @@ export function setupCardPeek({ root, peek, image, note, win = window }) {
         image.hidden = false;
         if (image.getAttribute('src') !== url) image.setAttribute('src', url);
         image.alt = name;
-        note.textContent = `${name}: ${PRINTING_NOTES[row.dataset.printing] ?? PRINTING_NOTES.default}`;
+        note.textContent = `${name}: ${PRINTING_NOTES[row.dataset.printing] ?? PRINTING_NOTES.default}${backUrl && !failed.has(backUrl) ? ', front and back' : ''}`;
       }
     }
     peek.hidden = false;
@@ -61,6 +82,14 @@ export function setupCardPeek({ root, peek, image, note, win = window }) {
   }
 
   image.addEventListener('load', () => { if (current && !peek.hidden) place(last.x, last.y); });
+  backImage.addEventListener('load', () => { if (current && !peek.hidden) place(last.x, last.y); });
+  backImage.addEventListener('error', () => {
+    // A back picture that is not there: show the front alone (and do not ask again), instead of a broken image.
+    failed.add(backImage.getAttribute('src'));
+    showBack(null, '');
+    note.textContent = note.textContent.replace(', front and back', '');
+    if (current && !peek.hidden) place(last.x, last.y);
+  });
   image.addEventListener('error', () => {
     // The picture is not there (a card Scryfall has no picture for, or no network): say so instead of showing a broken image.
     failed.add(image.getAttribute('src'));

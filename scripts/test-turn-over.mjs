@@ -3,7 +3,7 @@
 // real list entries printed on 2026-11-06 (Sephiroth and Delver are transform cards, Valakut Awakening is a modal card, Fire // Ice
 // is a split card with no back).
 import {
-  makeGame, moveCard, setTapped, nextTurn, seededRandom, checkGame, ZONES, faceType, isLandCard, battlefieldRows, turnOver, setFaceDown,
+  makeGame, moveCard, setTapped, nextTurn, seededRandom, checkGame, ZONES, faceType, faceName, isLandCard, battlefieldRows, turnOver, setFaceDown,
   changeCounter, changeModifier, setNote, createToken, copyAsToken,
 } from '../shared/zones.mjs';
 import { packCard, unpackCard, readCards, splitGame, joinGame } from '../shared/game-sync.mjs';
@@ -30,7 +30,7 @@ const FIRE_ICE = '18303862-4726-4136-814f-157aa7006579';
 const FOREST = '00000000-0000-4000-8000-000000000001';
 const LIST = [
   { n: 'Sephiroth, Fabled SOLDIER // Sephiroth, One-Winged Angel', t: 'Legendary Creature — Human Avatar Soldier // Legendary Creature — Angel Nightmare Avatar', m: '{2}{B}', k: ['Flying', 'Transform', 'Super Nova'], i: SEPHIROTH, pt: '3/3', b: 1, bpt: '5/5' },
-  { n: 'Valakut Awakening // Valakut Stoneforge', t: 'Instant // Land', m: '{2}{R}', k: [], i: VALAKUT, b: 1 },
+  { n: 'Valakut Awakening // Valakut Stoneforge', t: 'Instant // Land', m: '{2}{R}', k: [], i: VALAKUT, b: 1, md: 1 },
   { n: 'Delver of Secrets // Insectile Aberration', t: 'Creature — Human Wizard // Creature — Human Insect', m: '{U}', k: ['Flying', 'Transform'], i: DELVER, pt: '1/1', b: 1, bpt: '3/2' },
   { n: 'Fire // Ice', t: 'Instant // Instant', m: '{1}{R} // {1}{U}', k: [], i: FIRE_ICE },
   // 79 real cards have numbers on the front and none on the back; this one is a creature that turns into a land.
@@ -66,6 +66,9 @@ function table() {
   check('a transform card has b: 1 from the card list', firstOf(game, SEPHIROTH).b === 1 && firstOf(game, DELVER).b === 1);
   check('a modal card has b: 1', firstOf(game, VALAKUT).b === 1);
   check('a split card and a basic land have no b', !('b' in firstOf(game, FIRE_ICE)) && !('b' in firstOf(game, FOREST)));
+  check('only the modal card has md: 1 (Valakut Awakening); transform cards do not (Sephiroth, Delver)', firstOf(game, VALAKUT).md === 1 && !('md' in firstOf(game, SEPHIROTH)) && !('md' in firstOf(game, DELVER)));
+  check('a lookup that says md without b gives neither', allCards(makeGame(deck, () => ({ t: 'T', m: '', k: [], md: 1 }), { random: seededRandom(5) })).every((card) => !('md' in card) && !('b' in card)));
+  check('a lookup that says md: 2 gives b but not md', allCards(makeGame(deck, () => ({ t: 'T', m: '', k: [], b: 1, md: 2 }), { random: seededRandom(5) })).every((card) => card.b === 1 && !('md' in card)));
   check('a card is not turned when it is dealt', allCards(game).every((card) => !('turned' in card)));
   same('the new game is consistent', checkGame(game), []);
   const unknown = makeGame(deck, () => null, { random: seededRandom(5) });
@@ -112,6 +115,13 @@ function table() {
   check('a turned flag on a card with no back is ignored', faceType({ t: 'Instant // Land', turned: true }) === 'Instant');
   check('b without turned is the front', faceType({ t: 'Instant // Land', b: 1 }) === 'Instant');
   check('a type line with three parts is not cut at the back', faceType({ t: 'A // B // C', b: 1, turned: true }) === 'A');
+  // The name of the face that shows follows the same rule.
+  same('a turned card shows the back name, one not turned the front name', [faceName(cardOf(turnOver(game, uids.sephiroth), uids.sephiroth)), faceName(cardOf(game, uids.sephiroth))], ['Sephiroth, One-Winged Angel', 'Sephiroth, Fabled SOLDIER']);
+  same('an adventure or split card is its front name (that is what is on the battlefield), turned flag or not', [faceName({ n: 'Bonecrusher Giant // Stomp' }), faceName({ n: 'Fire // Ice' }), faceName({ n: 'Fire // Ice', turned: true }), faceName({ n: 'Fire // Ice', b: 0, turned: true })], ['Bonecrusher Giant', 'Fire', 'Fire', 'Fire']);
+  same('a name with no two halves is itself, with or without b', [faceName({ n: 'Delver of Secrets', b: 1, turned: true }), faceName({ n: 'Delver of Secrets', b: 1 }), faceName({ n: 'Forest' })], ['Delver of Secrets', 'Delver of Secrets', 'Forest']);
+  same('a name with three halves, an empty name and no card are left alone', [faceName({ n: 'A // B // C', b: 1, turned: true }), faceName({ n: '' }), faceName(null), faceName({})], ['A // B // C', '', '', '']);
+  const splitCopy = cardOf(copyAsToken(game, uids.fireIce).game, 'c' + game.nextUid);
+  check('a copy of Fire // Ice is called Fire and is an Instant (one face), not the whole card', splitCopy.n === 'Fire' && splitCopy.t === 'Instant' && !('turned' in splitCopy), JSON.stringify(splitCopy));
   check('Valakut Awakening is not a land in the hand or on the battlefield', !isLandCard(cardOf(game, uids.valakut)));
   check('turned over, Valakut Stoneforge is a land', isLandCard(cardOf(turnOver(game, uids.valakut), uids.valakut)));
   check('Sephiroth is not a land either way', !isLandCard(cardOf(game, uids.sephiroth)) && !isLandCard(cardOf(turnOver(game, uids.sephiroth), uids.sephiroth)));
@@ -145,9 +155,13 @@ function table() {
   check('it works with counters, a note, a modifier and face-down together', cardOf(rich, uids.sephiroth).turned === true && cardOf(rich, uids.sephiroth).ct.p === 1 && cardOf(rich, uids.sephiroth).faceDown === true);
   same('and the game is consistent', checkGame(rich), []);
   check('turning a face-down card over still works (face-down is a separate state)', cardOf(turnOver(setFaceDown(game, uids.delver, true), uids.delver), uids.delver).faceDown === true);
-  const copy = copyAsToken(turned, uids.sephiroth);
-  check('a copy is a token with no back face and not turned', copy.uid && !('b' in cardOf(copy.game, copy.uid)) && !('turned' in cardOf(copy.game, copy.uid)));
+  // A copy copies only the face that shows (the whole menu and storage side of this is in test-card-menu.mjs and below).
+  const copy = copyAsToken(turned, uids.sephiroth, { printed: '5/5' });
+  const copied = cardOf(copy.game, copy.uid);
+  check('a copy of a turned card is a token showing the back: no back face of its own, but the back picture, name, type line and numbers', copy.uid && !('b' in copied) && !('md' in copied) && copied.turned === true && copied.n === 'Sephiroth, One-Winged Angel' && copied.t === 'Legendary Creature — Angel Nightmare Avatar' && copied.pt === '5/5' && copied.t.length <= 60, JSON.stringify(copied));
   same('and the game with the copy is consistent', checkGame(copy.game), []);
+  const frontCopy = cardOf(copyAsToken(game, uids.sephiroth, { printed: '3/3' }).game, 'c' + game.nextUid);
+  check('a copy of the same card showing its front is the front: name, type line, numbers, no back picture', frontCopy.n === 'Sephiroth, Fabled SOLDIER' && frontCopy.t === 'Legendary Creature — Human Avatar Soldier' && frontCopy.pt === '3/3' && !('turned' in frontCopy), JSON.stringify(frontCopy));
   const token = createToken(game, { n: 'Goblin', i: '00000000-0000-4000-8000-000000000009', tt: 'Token Creature — Goblin', pt: '1/1', cl: 'R' });
   refused('a token has no back face', () => turnOver(token.game, token.uid), /no back face/);
 }
@@ -166,6 +180,9 @@ function table() {
   }
   const outside = { ...turned, zones: { ...turned.zones, hand: [{ ...turned.zones.hand[0], b: 1, turned: true }, ...turned.zones.hand.slice(1)] } };
   check('turned outside the battlefield is a problem', checkGame(outside).some((p) => /has turned outside the battlefield/.test(p)));
+  for (const bad of [0, true, '1', 2, null]) check(`md that is ${JSON.stringify(bad)} is a problem`, checkGame(edit(game, uids.valakut, (card) => ({ ...card, md: bad }))).some((p) => /damaged modal mark/.test(p)));
+  check('md without b is a problem', checkGame(edit(game, uids.forest, (card) => ({ ...card, md: 1 }))).some((p) => /damaged modal mark/.test(p)));
+  check('md on a card that has b is fine, in any zone', checkGame(game).length === 0 && fresh().zones.library.some((card) => card.md === 1));
   check('b outside the battlefield is fine', checkGame(fresh()).length === 0 && fresh().zones.library.some((card) => card.b === 1));
 }
 
@@ -190,7 +207,13 @@ function table() {
   for (const bad of [0, 2, true, '1', null, [1], {}]) check(`bk that is ${JSON.stringify(bad)} makes the stored card unreadable`, unpackCard({ ...packed, bk: bad }, lookup) === null);
   const token = createToken(game, { n: 'Sephiroth, Fabled SOLDIER // Sephiroth, One-Winged Angel', i: SEPHIROTH, tt: 'Token Creature — Goblin', pt: '1/1' });
   const tokenRead = unpackCard({ ...packCard(cardOf(token.game, token.uid)), bk: 1 }, lookup);
-  check('a token that shares a name and id with a card with a back never gets one', tokenRead && !('b' in tokenRead) && !('turned' in tokenRead));
+  check('a token that shares a name and id with a card with a back never gets one (b), but its mark means its picture is the back face', tokenRead && !('b' in tokenRead) && !('md' in tokenRead) && tokenRead.turned === true, JSON.stringify(tokenRead));
+  const tokenFront = unpackCard(packCard(cardOf(token.game, token.uid)), lookup);
+  check('a token with no mark shows its front', tokenFront && !('turned' in tokenFront) && !('b' in tokenFront));
+  const copy = copyAsToken(turned, uids.sephiroth, { printed: '5/5' });
+  const copyStored = packCard(cardOf(copy.game, copy.uid));
+  check('the stored copy of a turned card is small and valid: a token, the type line of its face (at most 60 characters), its numbers and bk', copyStored.tok === 1 && copyStored.tt === 'Legendary Creature — Angel Nightmare Avatar' && copyStored.pt === '5/5' && copyStored.bk === 1 && !('b' in copyStored), JSON.stringify(copyStored));
+  same('and it reads back the same (it would be dropped if the type line were over 60 characters)', unpackCard(copyStored, lookup), cardOf(copy.game, copy.uid));
   // Whole games through the public and private branches.
   const sides = splitGame(turned);
   const back = joinGame(sides.public, sides.private, lookup);
@@ -204,11 +227,13 @@ function table() {
 // ---- the list lookup ----
 {
   same('the lookup gives b and bpt for Sephiroth', lookup({ i: SEPHIROTH }), { t: LIST[0].t, m: '{2}{B}', k: LIST[0].k, pt: '3/3', b: 1, bpt: '5/5' });
-  same('and b alone for a modal card with no back power and toughness', lookup({ i: VALAKUT }), { t: 'Instant // Land', m: '{2}{R}', k: [], b: 1 });
+  same('and b and md for a modal card with no back power and toughness', lookup({ i: VALAKUT }), { t: 'Instant // Land', m: '{2}{R}', k: [], b: 1, md: 1 });
   same('and neither for a split card', lookup({ i: FIRE_ICE }), { t: 'Instant // Instant', m: '{1}{R} // {1}{U}', k: [] });
   same('found by name when the id is stale', lookup({ i: 'ffffffff-ffff-4fff-8fff-ffffffffffff', n: 'Delver of Secrets // Insectile Aberration' }).bpt, '3/2');
   const odd = makeLookup([{ n: 'X', t: 'T', m: '', k: [], i: 'a', bpt: '1/1' }, { n: 'Y', t: 'T', m: '', k: [], i: 'b', b: 0, bpt: '1/1' }, { n: 'Z', t: 'T', m: '', k: [], i: 'c', b: 1, bpt: 7 }]);
   check('bpt without b is ignored', !('bpt' in odd({ i: 'a' })) && !('b' in odd({ i: 'a' })));
+  const modalOdd = makeLookup([{ n: 'P', t: 'T', m: '', k: [], i: 'p', md: 1 }, { n: 'Q', t: 'T', m: '', k: [], i: 'q', b: 1, md: 0 }, { n: 'R', t: 'T', m: '', k: [], i: 'r', b: 1, md: true }]);
+  check('md without b is ignored, and md that is not exactly 1 is ignored', !('md' in modalOdd({ i: 'p' })) && !('md' in modalOdd({ i: 'q' })) && modalOdd({ i: 'q' }).b === 1 && !('md' in modalOdd({ i: 'r' })));
   check('b that is not exactly 1 is ignored', !('b' in odd({ i: 'b' })) && !('bpt' in odd({ i: 'b' })));
   check('a bpt that is not text is ignored but b stays', odd({ i: 'c' }).b === 1 && !('bpt' in odd({ i: 'c' })));
 }

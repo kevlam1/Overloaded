@@ -85,11 +85,14 @@ export function unpackCard(raw, lookup = () => null) {
     ...(raw.p ? { p: raw.p } : {}),
     n: raw.n,
     t: token ? raw.tt : (typeof known.t === 'string' ? known.t : ''),
-    m: typeof known.m === 'string' ? known.m : '',
+    m: token && raw.bk === 1 ? '' : typeof known.m === 'string' ? known.m : '', // a copy of a back face has no cost (the list's cost is the front's)
     k: Array.isArray(known.k) ? known.k : [],
     // A back face exists only when this page's card list says so (by id, never for a token): a stored turned-over mark on any
     // other card is ignored, so another player cannot make an ordinary card show a back picture it does not have.
-    ...(!token && known.b === 1 ? { b: 1, ...(raw.bk === 1 ? { turned: true } : {}) } : {}),
+    ...(!token && known.b === 1 ? { b: 1, ...(known.md === 1 ? { md: 1 } : {}), ...(raw.bk === 1 ? { turned: true } : {}) } : {}),
+    // A token that copies a turned-over card shows the back picture of the card it copies. It is no two-sided card (no b), so the mark
+    // means only "draw the back picture"; a card that has no such picture shows its name instead.
+    ...(token && raw.bk === 1 ? { turned: true } : {}),
     ...(token ? { tok: true, ...(raw.pt ? { pt: raw.pt } : {}), ...(raw.cl ? { cl: raw.cl } : {}) } : {}),
     ...('ct' in raw ? { ct: { ...raw.ct } } : {}),
     ...('mp' in raw ? { mp: raw.mp } : {}),

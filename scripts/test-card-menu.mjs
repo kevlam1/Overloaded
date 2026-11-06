@@ -1,7 +1,7 @@
 // Checks shared/card-menu.mjs: which choices a card's right-click menu offers in each zone, and what each choice does to a real game.
 // Run from the repo root:  node scripts/test-card-menu.mjs
-import { menuItems, menuAction, turnLabel, turnMessage, ZONE_NAMES, MOVE_TARGETS, COUNTER_AMOUNTS } from '../shared/card-menu.mjs';
-import { makeGame, moveCard, createToken, changeCounter, seededRandom, ZONES, checkGame } from '../shared/zones.mjs';
+import { menuItems, menuAction, turnLabel, turnMessage, playBackLabel, PLAY_BACK_ZONES, ZONE_NAMES, MOVE_TARGETS, COUNTER_AMOUNTS } from '../shared/card-menu.mjs';
+import { makeGame, moveCard, createToken, changeCounter, seededRandom, ZONES, checkGame, isLandCard, battlefieldRows } from '../shared/zones.mjs';
 
 let checks = 0;
 const fail = (label, detail) => { console.log(`FAILED CHECK: ${label}: ${detail}`); process.exit(1); };
@@ -34,14 +34,14 @@ same('every zone has words', ZONES.every((zone) => typeof ZONE_NAMES[zone] === '
 
 // ---- what is offered ----
 const ids = (items) => items.map((item) => item.id);
-same('on the battlefield: Modify, Tap, the counter, Move to', ids(menuItems({ tapped: false }, 'battlefield')), ['modify', 'tap', 'counter', 'move']);
+same('on the battlefield: Modify, Tap, the counter, Create copy, Move to', ids(menuItems({ tapped: false }, 'battlefield')), ['modify', 'tap', 'counter', 'copy', 'move']);
 same('an untapped card offers Tap, a tapped one Untap', [menuItems({ tapped: false }, 'battlefield')[1].label, menuItems({ tapped: true }, 'battlefield')[1].label], ['Tap', 'Untap']);
 same('the counter item has the quick amounts and its own copy of the list', (() => { const item = menuItems({}, 'battlefield')[2]; item.amounts.push(99); return [item.label, menuItems({}, 'battlefield')[2].amounts]; })(), ['+1/+1 counter', [2, 3, 5]]);
 for (const zone of ['hand', 'graveyard', 'exile', 'command', 'sideboard', 'library']) same(`in ${zone} only Move to is offered`, ids(menuItems({}, zone)), ['move']);
-same('moves from the battlefield: every zone but the battlefield, then the two library places', ids(menuItems({}, 'battlefield')[3].items), ['move:hand', 'move:graveyard', 'move:exile', 'move:command', 'move:sideboard', 'move:library-top', 'move:library-bottom']);
+same('moves from the battlefield: every zone but the battlefield, then the two library places', ids(menuItems({}, 'battlefield')[4].items), ['move:hand', 'move:graveyard', 'move:exile', 'move:command', 'move:sideboard', 'move:library-top', 'move:library-bottom']);
 same('moves from the hand: not to the hand', ids(menuItems({}, 'hand')[0].items), ['move:battlefield', 'move:graveyard', 'move:exile', 'move:command', 'move:sideboard', 'move:library-top', 'move:library-bottom']);
 same('from the library you can still put it on the top or bottom of it', ids(menuItems({}, 'library')[0].items).slice(-2), ['move:library-top', 'move:library-bottom']);
-same('a card that is not there still gets a menu', ids(menuItems(null, 'battlefield')), ['modify', 'tap', 'counter', 'move']);
+same('a card that is not there still gets a menu', ids(menuItems(null, 'battlefield')), ['modify', 'tap', 'counter', 'copy', 'move']);
 same('labels are plain words', menuItems({}, 'hand')[0].items.map((item) => item.label), ['Battlefield', 'Graveyard', 'Exile', 'Command zone', 'Sideboard', 'Top of library', 'Bottom of library']);
 
 // ---- what each choice does ----
@@ -101,11 +101,11 @@ same('no card, no action', [menuAction('tap', null), menuAction('tap', undefined
   const delverUid = game.zones.hand.find((card) => card.b === 1)?.uid ?? game.zones.library.find((card) => card.b === 1).uid;
   game = deepFreeze(moveCard(game, delverUid, 'battlefield'));
   const delver = cardOf(game, delverUid);
-  same('a card with a back face offers Turn over, after Tap and before the counter', ids(menuItems(delver, 'battlefield')), ['modify', 'tap', 'turn', 'counter', 'move']);
+  same('a card with a back face offers Turn over, after Tap and before the counter', ids(menuItems(delver, 'battlefield')), ['modify', 'tap', 'turn', 'counter', 'copy', 'move']);
   same('its label says what it will do', [menuItems(delver, 'battlefield')[2].label, menuItems({ ...delver, turned: true }, 'battlefield')[2].label], ['Turn over', 'Turn back to front']);
   same('the label function says the same', [turnLabel(delver), turnLabel({ ...delver, turned: true })], ['Turn over', 'Turn back to front']);
   for (const zone of ['hand', 'graveyard', 'exile', 'command', 'sideboard', 'library']) same(`in ${zone} it is not offered, even for a card with a back`, ids(menuItems(delver, zone)), ['move']);
-  for (const bad of [0, true, '1', 2, null]) same(`b that is ${JSON.stringify(bad)} offers no Turn over`, ids(menuItems({ ...delver, b: bad }, 'battlefield')), ['modify', 'tap', 'counter', 'move']);
+  for (const bad of [0, true, '1', 2, null]) same(`b that is ${JSON.stringify(bad)} offers no Turn over`, ids(menuItems({ ...delver, b: bad }, 'battlefield')), ['modify', 'tap', 'counter', 'copy', 'move']);
   same('a card with no back, and no card, offer none', [ids(menuItems(onBattlefield().card, 'battlefield')).includes('turn'), ids(menuItems(null, 'battlefield')).includes('turn')], [false, false]);
   const turn = menuAction('turn', delver);
   same('Turn over says what it did', turn.message, `Turned ${delver.n} over.`);
@@ -119,6 +119,89 @@ same('no card, no action', [menuAction('tap', null), menuAction('tap', undefined
   refused('Turn over on a card with no back is refused in words, and the game is as it was', () => menuAction('turn', plain.card).run(plain.game), /no back face/);
   const inHand = fresh();
   refused('Turn over on a card that is not on the battlefield is refused', () => menuAction('turn', { ...delver, uid: inHand.zones.hand[0].uid }).run(inHand), /battlefield|no back face/);
+}
+
+// ---- Create copy, and playing a modal card as its back face (list format 6, md) ----
+{
+  const VALAKUT = { i: id(4), n: 'Valakut Awakening // Valakut Stoneforge', t: 'Instant // Land', m: '{2}{R}', k: [], b: 1, md: 1 };
+  const DELVER = { i: id(3), n: 'Delver of Secrets // Insectile Aberration', t: 'Creature — Human Wizard // Creature — Human Insect', m: '{U}', k: ['Flying', 'Transform'], b: 1 };
+  const known = { [id(2)]: { t: 'Creature - Goblin', m: '', k: [] }, [id(3)]: DELVER, [id(4)]: VALAKUT };
+  const look = (card) => (card.i === id(1) ? { t: 'Basic Land - Forest', m: '', k: [] } : known[card.i]);
+  const copyDeck = { cards: [{ i: id(1), n: 'Forest', qty: 20, section: 'main' }, { i: id(2), n: 'Goblin Guide', qty: 1, section: 'main' }, { i: id(3), n: DELVER.n, qty: 1, section: 'main' }, { i: id(4), n: VALAKUT.n, qty: 1, section: 'main' }], commander: [] };
+  const start = makeGame(copyDeck, look, { random: seededRandom(3) });
+  const all = (game) => ZONES.flatMap((zone) => game.zones[zone]);
+  const byName = (game, prefix) => all(game).find((card) => card.n.startsWith(prefix));
+  const put = (game, uid, zone) => moveCard(game, uid, zone);
+
+  // Create copy
+  let game = start;
+  for (const name of ['Delver', 'Valakut', 'Goblin']) game = put(game, byName(game, name).uid, 'battlefield');
+  const delverCard = byName(game, 'Delver');
+  same('Create copy is offered on the battlefield, after the counter and before Move to', ids(menuItems(delverCard, 'battlefield')).slice(-3), ['counter', 'copy', 'move']);
+  for (const zone of ['hand', 'graveyard', 'exile', 'command', 'sideboard', 'library']) check(`Create copy is not offered in ${zone}`, !ids(menuItems(delverCard, zone)).includes('copy'));
+  const front = menuAction('copy', delverCard, 1, { printed: '1/1' });
+  same('a copy of a card showing its front says so, with the front face\'s name', front.message, 'Made a token copy of Delver of Secrets.');
+  const copiedFront = front.run(game);
+  const frontToken = copiedFront.zones.battlefield.find((card) => card.tok);
+  check('it is a token with the front\'s name, type line and printed numbers, and does not show the back', frontToken.n === 'Delver of Secrets' && frontToken.t === 'Creature — Human Wizard' && frontToken.pt === '1/1' && !('turned' in frontToken) && !('b' in frontToken), JSON.stringify(frontToken));
+  same('the game with the copy is consistent', checkGame(copiedFront), []);
+  check('the type line it carries fits what a stored token may hold (60 characters)', frontToken.t.length <= 60);
+  const turnedGame = menuAction('turn', delverCard).run(game);
+  const turnedDelver = byName(turnedGame, 'Delver');
+  const back = menuAction('copy', turnedDelver, 1, { printed: '3/2' });
+  same('a copy of a turned-over card says the back face\'s name', back.message, 'Made a token copy of Insectile Aberration.');
+  const copiedBack = back.run(turnedGame);
+  const backToken = copiedBack.zones.battlefield.find((card) => card.tok);
+  check('it is the BACK face: its name, type line, numbers and picture, with no cost and no back face of its own', backToken.n === 'Insectile Aberration' && backToken.t === 'Creature — Human Insect' && backToken.pt === '3/2' && backToken.turned === true && backToken.m === '' && !('b' in backToken) && !('md' in backToken), JSON.stringify(backToken));
+  same('and the game with it is consistent', checkGame(copiedBack), []);
+  refused('the copy of a turned card cannot itself be turned over (it is no two-sided card)', () => menuAction('turn', backToken).run(copiedBack), /no back face/);
+  const copyOfCopy = menuAction('copy', backToken, 1, { printed: '9/9' }).run(copiedBack);
+  const grandToken = copyOfCopy.zones.battlefield.filter((card) => card.tok)[1];
+  check('a copy of that copy keeps its numbers (not the printed ones passed in), its back picture and its face\'s name', grandToken.pt === '3/2' && grandToken.turned === true && grandToken.n === 'Insectile Aberration' && checkGame(copyOfCopy).length === 0, JSON.stringify(grandToken));
+  const goblin = byName(game, 'Goblin');
+  for (const [label, printed, expected] of [['no numbers', null, undefined], ['numbers that cannot be stored (3.5/3.5)', '3.5/3.5', undefined], ['joke numbers (?/?)', '?/?', undefined], ['infinity (∞/5)', '∞/5', undefined], ['a star (*/1+*)', '*/1+*', '*/1+*'], ['text that is not numbers', 'big', undefined], ['not text', 7, undefined], ['a negative modifier-like value (-1/-1)', '-1/-1', '-1/-1']]) {
+    const token = menuAction('copy', goblin, 1, { printed }).run(game).zones.battlefield.find((card) => card.tok);
+    same(`a copy with printed ${label} gets ${expected ?? 'no numbers'}`, token.pt, expected);
+  }
+  check('a copy of a card with no options at all still works', menuAction('copy', goblin).run(game).zones.battlefield.some((card) => card.tok && !('pt' in card)));
+  const counters = menuAction('counter', goblin, 3).run(game);
+  check('a copy has no counters of the card it copies', !('ct' in menuAction('copy', byName(counters, 'Goblin'), 1, { printed: '2/2' }).run(counters).zones.battlefield.find((card) => card.tok)));
+  refused('a card in the hand cannot be copied', () => menuAction('copy', byName(start, 'Goblin')).run(start), /battlefield/);
+  const frozen = deepFreeze(game);
+  check('works on a frozen game', menuAction('copy', byName(frozen, 'Goblin'), 1, { printed: '2/2' }).run(frozen).zones.battlefield.length === 4);
+
+  // Play the back face of a modal card
+  const modal = byName(start, 'Valakut');
+  same('a modal card in the hand offers its back face by name, before Move to', ids(menuItems(modal, 'hand')), ['playback', 'move']);
+  same('with the back face\'s name in the label', menuItems(modal, 'hand')[0].label, 'Play Valakut Stoneforge');
+  same('the label function says the same', playBackLabel(modal), 'Play Valakut Stoneforge');
+  same('where a card can be cast from: the hand, graveyard, exile and the command zone', PLAY_BACK_ZONES, ['hand', 'graveyard', 'exile', 'command']);
+  for (const zone of PLAY_BACK_ZONES) check(`it is offered in ${zone}`, ids(menuItems(modal, zone)).includes('playback'));
+  for (const zone of ['battlefield', 'library', 'sideboard']) check(`and not in ${zone}`, !ids(menuItems(modal, zone)).includes('playback'));
+  const transform = byName(start, 'Delver');
+  check('a transform card has a back but cannot be played as it', !ids(menuItems(transform, 'hand')).includes('playback') && transform.b === 1 && !('md' in transform));
+  same('a card with no back is not offered it either', ids(menuItems(byName(start, 'Goblin'), 'hand')), ['move']);
+  for (const bad of [0, true, '1', 2, null]) check(`md that is ${JSON.stringify(bad)} offers nothing`, !ids(menuItems({ ...modal, md: bad }, 'hand')).includes('playback'));
+  check('md without b offers nothing', !ids(menuItems({ ...modal, b: undefined }, 'hand')).includes('playback'));
+  same('a saved name with no two halves gets words instead of a face name', playBackLabel({ ...modal, n: 'Valakut Awakening' }), 'Play its back face');
+  const play = menuAction('playback', modal);
+  same('it says what was played', play.message, 'Played Valakut Stoneforge (the back of Valakut Awakening).');
+  const played = play.run(deepFreeze(start));
+  const stoneforge = byName(played, 'Valakut');
+  check('the card is on the battlefield, turned over, with its entry turn', played.zones.battlefield.includes(stoneforge) && stoneforge.turned === true && stoneforge.turnEntered === played.turn);
+  check('and it is a land (the back face shows), so it goes in the lands row', isLandCard(stoneforge) && battlefieldRows(played).lands.some((card) => card.uid === stoneforge.uid));
+  same('the game is consistent', checkGame(played), []);
+  check('the start is not changed (it is frozen)', byName(start, 'Valakut').turnEntered === null);
+  for (const zone of ['graveyard', 'exile', 'command']) {
+    const from = put(start, modal.uid, zone);
+    const result = menuAction('playback', byName(from, 'Valakut')).run(from);
+    check(`played from ${zone} it comes onto the battlefield turned over`, byName(result, 'Valakut').turned === true && result.zones.battlefield.some((card) => card.uid === modal.uid) && checkGame(result).length === 0);
+  }
+  refused('a transform card cannot be played as its back face', () => menuAction('playback', transform).run(start), /cannot be played as its back face/);
+  refused('a card with no back at all cannot', () => menuAction('playback', byName(start, 'Goblin')).run(start), /cannot be played as its back face/);
+  refused('a card already on the battlefield cannot', () => menuAction('playback', byName(played, 'Valakut')).run(played), /already on the battlefield/);
+  const onField = put(start, modal.uid, 'battlefield');
+  refused('and not even when it is not turned yet', () => menuAction('playback', byName(onField, 'Valakut')).run(onField), /already on the battlefield/);
 }
 
 console.log(`All ${checks} card menu checks passed.`);

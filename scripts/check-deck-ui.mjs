@@ -33,9 +33,10 @@ try {
   // An id in oddPictures answers a picture of a different shape (488 by 300) from the one the page expects (488 by 680).
   const failPictures = new Set();
   const oddPictures = new Set();
+  const failBackPictures = new Set(); // the BACK picture only of these ids is answered with 404
   const pictureRequests = await browser.fakeImages('https://cards.scryfall.io/*', (url) => {
     const id = url.split('/').pop().replace('.jpg', '');
-    if (failPictures.has(id)) return { status: 404, type: 'text/plain', text: '' };
+    if (failPictures.has(id) || (failBackPictures.has(id) && url.includes('/back/'))) return { status: 404, type: 'text/plain', text: '' };
     const height = oddPictures.has(id) ? 300 : 680;
     return { type: 'image/svg+xml', text: `<svg xmlns="http://www.w3.org/2000/svg" width="488" height="${height}" viewBox="0 0 488 ${height}"><rect width="488" height="${height}" rx="30" fill="#456"/></svg>` };
   });
@@ -552,6 +553,45 @@ try {
   check('a picture that turns out a different shape is placed again once it has loaded (centred on the pointer)', !odd.hidden && Math.abs((odd.top + odd.bottom) / 2 - atBolt.y) < 3 && odd.bottom - odd.top < 400, JSON.stringify({ atBolt, odd }));
   await away();
 
+  // ---- a card with a back face shows both faces in the hover picture (Valakut Awakening is a modal card, Delver of Secrets a transform card) ----
+  await load(); await paste('1 Valakut Awakening\n1 Sol Ring'); await press('check');
+  const twoRows = await ev(`Array.from(document.querySelectorAll('#sections .card-line')).map((li) => ({ name: li.dataset.cardName, two: li.dataset.twoSided ?? null, id: li.dataset.cardId }))`);
+  const valakutRow = twoRows.findIndex((r) => r.name?.startsWith('Valakut')), solRow = twoRows.findIndex((r) => r.name === 'Sol Ring');
+  check('only the card with a back face is marked two-sided (Valakut Awakening yes, Sol Ring no)', valakutRow >= 0 && solRow >= 0 && twoRows[valakutRow].two === '1' && twoRows[solRow].two === null, JSON.stringify(twoRows));
+  const both = () => ev(`(() => { const p = document.getElementById('card-peek'); const imgs = Array.from(p.querySelectorAll('img')); const r = p.getBoundingClientRect(); const a = imgs[0].getBoundingClientRect(); const b = imgs[1] ? imgs[1].getBoundingClientRect() : null; return { hidden: p.hidden, two: p.classList.contains('two-faced'), count: imgs.length, front: imgs[0].getAttribute('src'), frontHidden: imgs[0].hidden, back: imgs[1] ? imgs[1].getAttribute('src') : null, backHidden: imgs[1] ? imgs[1].hidden : null, frontBox: { left: a.left, right: a.right, width: a.width }, backBox: b && { left: b.left, right: b.right, width: b.width }, left: r.left, right: r.right, top: r.top, bottom: r.bottom, w: document.documentElement.clientWidth, h: innerHeight, note: document.getElementById('card-peek-note').textContent }; })()`);
+  const backUrl = (id) => `https://cards.scryfall.io/normal/back/${id[0]}/${id[1]}/${id}.jpg`;
+  pictureRequests.length = 0;
+  await away();
+  await hover(valakutRow);
+  const twoShown = await both();
+  check('hovering it shows the front AND the back of the same printing, side by side, in one box', !twoShown.hidden && twoShown.two && twoShown.front === pictureUrl(twoRows[valakutRow].id) && twoShown.back === backUrl(twoRows[valakutRow].id) && !twoShown.frontHidden && !twoShown.backHidden && twoShown.frontBox.right <= twoShown.backBox.left + 1 && Math.abs(twoShown.frontBox.width - twoShown.backBox.width) < 2, JSON.stringify(twoShown));
+  check('the two-faced box is inside the window and its note says front and back', twoShown.left >= 0 && twoShown.right <= twoShown.w && twoShown.top >= 0 && twoShown.bottom <= twoShown.h && /front and back/.test(twoShown.note), JSON.stringify({ l: twoShown.left, r: twoShown.right, w: twoShown.w, note: twoShown.note }));
+  check('each picture was asked for once, in the normal size', pictureRequests.filter((u) => u === pictureUrl(twoRows[valakutRow].id)).length === 1 && pictureRequests.filter((u) => u === backUrl(twoRows[valakutRow].id)).length === 1 && pictureRequests.length === 2, JSON.stringify(pictureRequests));
+  await away();
+  await hover(solRow);
+  const oneShown = await both();
+  check('a card with one face shows one picture: the box is back to its single size and the back picture is hidden', !oneShown.hidden && !oneShown.two && oneShown.backHidden === true && oneShown.front === pictureUrl(twoRows[solRow].id) && oneShown.frontBox.width > 0, JSON.stringify(oneShown));
+  check('and it asked for no back picture', !pictureRequests.some((u) => u.includes('/back/') && u.includes(twoRows[solRow].id)));
+  await away();
+  await hover(valakutRow);
+  check('hovering the two-sided card again shows both again, with no new request', (await both()).two && pictureRequests.length === 3, `${(await both()).two} ${pictureRequests.length}`);
+  await away();
+  // A back picture that does not exist (a 404): the front is shown alone, the note drops "front and back", and nothing is asked twice.
+  await load(); await paste('1 Delver of Secrets'); await press('check');
+  const delverRow = await rowFacts(0);
+  failBackPictures.add(delverRow.id);
+  pictureRequests.length = 0;
+  await hover(0);
+  await waitFor(async () => (!(await both()).two) || null, 3000, 50);
+  const noBack = await both();
+  check('when the back picture does not exist the front is shown alone, with no broken image and no mention of the back', !noBack.hidden && !noBack.two && noBack.backHidden === true && !noBack.frontHidden && !/front and back/.test(noBack.note) && noBack.front === pictureUrl(delverRow.id), JSON.stringify(noBack));
+  await away();
+  const askedBefore = pictureRequests.length;
+  await hover(0);
+  await sleep(300);
+  check('hovering it again does not ask for the missing back picture again', pictureRequests.length === askedBefore && !(await both()).two, `${askedBefore} ${pictureRequests.length}`);
+  await away();
+
   // ---- the number is optional ----
   await load(); await paste('Thrasios, Triton Hero\n2 Sol Ring\nLands (36)\nSIDEBOARD:\nAnnul'); await press('check');
   const bare = await ev(`({ headings: Array.from(document.querySelectorAll('#sections h3')).map((h) => h.textContent), lines: Array.from(document.querySelectorAll('#sections .card-line')).map((li) => li.querySelector('.qty').textContent + ' ' + li.querySelector('.name').textContent), notices: Array.from(document.querySelectorAll('#notices li')).map((li) => li.textContent), problems: !document.getElementById('problems').hidden })`);
@@ -634,8 +674,14 @@ try {
     await setField('deck-format', 'commander'); await setField('deck-bracket', '4');
     await ev(`document.getElementById('deck-format').scrollIntoView()`); await sleep(300);
     await browser.screenshot('scratch-deck-ui-bottom.png');
+    // the hover picture of a two-sided card with the REAL pictures: front and back side by side
+    await browser.send('Fetch.disable').catch(() => {});
+    await paste('1 Valakut Awakening\n1 Sol Ring\n1 Delver of Secrets'); await press('check');
+    const hoverRow = await ev(`Array.from(document.querySelectorAll('#sections .card-line')).findIndex((li) => (li.dataset.cardName || '').startsWith('Valakut'))`);
+    await hover(hoverRow); await sleep(2500);
+    await browser.screenshot('scratch-deck-ui-hover.png');
     await deleteAllSaved();
-    console.log('saved scratch-deck-ui-top.png, -light.png and -bottom.png (delete them afterward)');
+    console.log('saved scratch-deck-ui-top.png, -light.png, -bottom.png and -hover.png (delete them afterward)');
   }
 } finally {
   await closeAllBrowsers();

@@ -15,7 +15,9 @@
 // A card on the battlefield may also hold, each only when set: ct (counters, an object from kind to count, see COUNTER_KINDS), mp and
 // mt (the power and toughness modifier set by hand), nt (a short note), faceDown, turned (the other face of a two-sided card shows),
 // and for a token tok: true with pt and cl. A card whose list entry has a back face to turn over (transform and modal cards) has b: 1,
-// in any zone; it is copied from the card list when the game is made or read back, never chosen by a player. A game may hold
+// in any zone, and md: 1 as well when it is a modal card (playable as either face); both are copied from the card list when the game is
+// made or read back, never chosen by a player. A token that copies a turned-over card has turned: true too, fixed: its picture is the
+// back face of the card it copies (it is no two-sided card itself and cannot be turned). A game may hold
 // pc (poison, energy, experience) and cd (commander damage by seat). docs/tokens-counters.md explains them.
 
 import { scrubText } from './player-name.mjs';
@@ -90,6 +92,17 @@ export function faceType(card) {
   return card?.b === 1 && card.turned === true && parts.length === 2 ? parts[1] : parts[0];
 }
 
+// The name of the face that shows, the same rule as faceType: a card named "Front // Back" shows its front, which is the part on the
+// battlefield even for an adventure or split card (Bonecrusher Giant // Stomp is a Bonecrusher Giant there), until a card with a back
+// face (b: 1) is turned over and shows the back. A name with no two halves (an older saved deck may hold only the front name) is just
+// its name.
+export function faceName(card) {
+  const name = String(card?.n ?? '');
+  const parts = name.split(' // ');
+  if (parts.length !== 2) return name;
+  return card?.b === 1 && card.turned === true ? parts[1] : parts[0];
+}
+
 // Is this card a land? Judged by the face that shows, because some two-faced cards are a land only on their back (82 of them,
 // checked in docs/scryfall.md): the front face shows until the card is turned over. "Land Creature" and "Artifact Land" are lands.
 export function isLandCard(card) {
@@ -112,7 +125,7 @@ export function makeGame(deck, lookup = () => null, { random = secureRandom, han
     if (!zone) throw new Error(`A card is in a section this game does not know: ${saved.section}`);
     const known = lookup(saved) ?? {};
     for (let copy = 0; copy < saved.qty; copy++) {
-      zones[zone].push({ uid: `c${uid++}`, i: saved.i, ...(saved.p ? { p: saved.p } : {}), n: saved.n, t: known.t ?? '', m: known.m ?? '', k: known.k ?? [], ...(known.b === 1 ? { b: 1 } : {}), tapped: false, turnEntered: null });
+      zones[zone].push({ uid: `c${uid++}`, i: saved.i, ...(saved.p ? { p: saved.p } : {}), n: saved.n, t: known.t ?? '', m: known.m ?? '', k: known.k ?? [], ...(known.b === 1 ? { b: 1, ...(known.md === 1 ? { md: 1 } : {}) } : {}), tapped: false, turnEntered: null });
     }
   }
   zones.library = shuffled(zones.library, random);
@@ -290,11 +303,17 @@ export function createToken(game, spec) {
 }
 
 // A copy of a permanent on the battlefield, as a token (what it looks like and is called; no counters, no modifier). Returns { game, uid }.
-export function copyAsToken(game, uid) {
+// A copy copies only the face that shows: its name and type line are that face's (a whole "Front // Back" type line is over the 60
+// characters a stored token may have for 93 cards), and a copy of a turned-over card shows the back picture. printed: the card's printed
+// power and toughness as text ("3/2"), which the page knows from the card list; a token keeps its own, and values that cannot be
+// stored on a token (3.5/3.5, */*) are left out, so the copy simply shows no numbers.
+export function copyAsToken(game, uid, { printed = null } = {}) {
   const { card } = onBattlefield(game, uid, 'a copy');
   if (game.zones.battlefield.length >= MAX_ZONE_CARDS) throw new Error(`The battlefield holds at most ${MAX_ZONE_CARDS} cards.`);
   const copyUid = `c${game.nextUid}`;
-  const copy = { uid: copyUid, i: card.i, ...(card.p ? { p: card.p } : {}), n: card.n, t: card.t, m: card.m, k: card.k, tok: true, ...(card.pt ? { pt: card.pt } : {}), ...(card.cl ? { cl: card.cl } : {}), tapped: false, turnEntered: game.turn };
+  const stats = card.tok ? card.pt : (typeof printed === 'string' && TOKEN_POWER_TOUGHNESS.test(printed) ? printed : null);
+  const back = card.turned === true && !card.tok; // a token copy of a turned card; a token that already is one keeps its own mark below
+  const copy = { uid: copyUid, i: card.i, ...(card.p ? { p: card.p } : {}), n: faceName(card), t: faceType(card), m: back ? '' : card.m, k: card.k, tok: true, ...(stats ? { pt: stats } : {}), ...(card.cl ? { cl: card.cl } : {}), ...(card.turned === true ? { turned: true } : {}), tapped: false, turnEntered: game.turn };
   return { game: { ...game, zones: { ...game.zones, battlefield: [...game.zones.battlefield, copy] }, nextUid: game.nextUid + 1 }, uid: copyUid };
 }
 
@@ -365,7 +384,9 @@ export function checkGame(game) {
       if ('nt' in card && !(typeof card.nt === 'string' && card.nt.length > 0 && card.nt.length <= MAX_NOTE)) problems.push(`card ${card.uid} has a damaged note`);
       if ('faceDown' in card && card.faceDown !== true) problems.push(`card ${card.uid} has a damaged face-down mark`);
       if ('b' in card && card.b !== 1) problems.push(`card ${card.uid} has a damaged back-face mark`);
-      if ('turned' in card && !(card.turned === true && card.b === 1)) problems.push(`card ${card.uid} is turned over but has no back face`);
+      if ('md' in card && !(card.md === 1 && card.b === 1)) problems.push(`card ${card.uid} has a damaged modal mark`);
+      // turned: a card with a back face, or a token that copies a turned-over card (its picture is that back face, fixed)
+      if ('turned' in card && !(card.turned === true && (card.b === 1 || card.tok === true))) problems.push(`card ${card.uid} is turned over but has no back face`);
       if ('tok' in card && card.tok !== true) problems.push(`card ${card.uid} has a damaged token mark`);
       if (('pt' in card || 'cl' in card) && card.tok !== true) problems.push(`card ${card.uid} has token fields but is not a token`);
       if ('pt' in card && !(typeof card.pt === 'string' && TOKEN_POWER_TOUGHNESS.test(card.pt))) problems.push(`token ${card.uid} has a damaged power and toughness`);

@@ -517,7 +517,7 @@ try {
   check('there is no menu before a right click', (await menuState()) === null);
   await mouse('#row-other .card', { button: 'right', dy: 30 });
   let menu = await menuState();
-  check('a right click on a creature opens its menu: its name, then Modify, Tap, the counter with 2 3 5, and Move to', menu && menu.title === 'Llanowar Elves' && menu.role === 'menu' && JSON.stringify(menu.items) === JSON.stringify(['Modify...', 'Tap', '+1/+1 counter', '2', '3', '5', 'Move to']), JSON.stringify(menu));
+  check('a right click on a creature opens its menu: its name, then Modify, Tap, the counter with 2 3 5, Create copy and Move to', menu && menu.title === 'Llanowar Elves' && menu.role === 'menu' && JSON.stringify(menu.items) === JSON.stringify(['Modify...', 'Tap', '+1/+1 counter', '2', '3', '5', 'Create copy', 'Move to']), JSON.stringify(menu));
   check('the menu is inside the window and the first item has the focus', menu.inside && menu.focused === 'Modify...', JSON.stringify(menu));
   check('the right click also selected the card', (await $text('selected-line')).startsWith('Llanowar Elves'), await $text('selected-line'));
   await clickMenuItem('Tap');
@@ -744,6 +744,71 @@ try {
   check('and the printing\'s own back picture was tried first', asked.some((u) => u.includes('/back/') && u.includes(NO_SUCH_PRINTING)));
   await clickAction('Deselect');
 
+  // ---- playing a modal card as its back face, and Create copy (a copy copies only the face that shows) ----
+  asked.length = 0;
+  await open(TWO_SIDED);
+  const offersPlay = {};
+  for (const name of ['Sephiroth', 'Delver', 'Aclazotz', 'Fire', 'Sol Ring', 'Forest', 'Valakut Awakening']) {
+    await clickCard('#hand .card', (await handNames()).findIndex((x) => x.startsWith(name)));
+    offersPlay[name] = (await actionLabels()).filter((l) => /^Play /.test(l));
+    if (name === 'Valakut Awakening') await clickAction('Deselect'); else { await clickAction('To battlefield'); await clickAction('Deselect'); }
+  }
+  check('only the modal card (Valakut Awakening) is offered Play as its back face; the transform cards (Sephiroth, Delver, Aclazotz), Fire // Ice, Sol Ring and the Forest are not', JSON.stringify(offersPlay) === JSON.stringify({ Sephiroth: [], Delver: [], Aclazotz: [], Fire: [], 'Sol Ring': [], Forest: [], 'Valakut Awakening': ['Play Valakut Stoneforge'] }), JSON.stringify(offersPlay));
+  check('the hand now holds only Valakut Awakening', (await count('#hand .card')) === 1 && (await handNames())[0].startsWith('Valakut'));
+  await clickCard('#hand .card', 0);
+  await clickAction('Play Valakut Stoneforge');
+  check('the button plays it as its land in one step: on the battlefield, turned over, in the lands row, and the hand is empty', (await count('#hand .card')) === 0 && (await rowOf('Valakut Awakening')) === 'row-lands' && /, turned over/.test(await labelOf('Valakut Awakening')), await labelOf('Valakut Awakening'));
+  check('and the status says what was played', (await $text('status')) === 'Played Valakut Stoneforge (the back of Valakut Awakening).', await $text('status'));
+  await waitFor(async () => ((await srcOf('Valakut Awakening')) ?? '').includes('/back/') || null, 3000, 50).catch(() => null);
+  check('it shows the back picture', ((await srcOf('Valakut Awakening')) ?? '').includes('/back/'));
+  await clickAction('To hand');
+  check('sent back to the hand it is a front-face card again', (await count('#hand .card')) === 1 && !/turned over/.test(await labelOf('Valakut Awakening')) && /\/front\//.test(await srcOf('Valakut Awakening')));
+  await mouse('#hand .card', { button: 'right', dy: 30 });
+  const handMenu = await menuState();
+  check('the right-click menu of the modal card in the hand offers it first, before Move to', handMenu && JSON.stringify(handMenu.items.slice(0, 2)) === JSON.stringify(['Play Valakut Stoneforge', 'Move to']), JSON.stringify(handMenu?.items));
+  await clickMenuItem('Play Valakut Stoneforge');
+  check('choosing it plays the land the same way', (await count('#hand .card')) === 0 && (await rowOf('Valakut Awakening')) === 'row-lands' && /, turned over/.test(await labelOf('Valakut Awakening')));
+  await clickAction('Deselect');
+
+  // Create copy: Sephiroth turned over, with two counters on him; the copy is the BACK face and has none of his counters.
+  await clickCard(cardAt('Sephiroth'));
+  await clickAction('Turn over');
+  await clickAction('Modify');
+  await setAmount('2'); await clickMark('Add counters');
+  await clickAction('Modify');
+  await clickAction('Deselect');
+  const tokensBefore = await count('.card[aria-label^="Sephiroth, One-Winged"]');
+  await mouse(cardAt('Sephiroth, Fabled'), { button: 'right', dy: 30 });
+  const sephMenu = await menuState();
+  check('the menu of a battlefield card offers Create copy, after the counter and before Move to', sephMenu && sephMenu.items.includes('Create copy') && sephMenu.items.indexOf('Create copy') === sephMenu.items.indexOf('Move to') - 1, JSON.stringify(sephMenu?.items));
+  await clickMenuItem('Create copy');
+  check('the status names the face that was copied', (await $text('status')) === 'Made a token copy of Sephiroth, One-Winged Angel.', await $text('status'));
+  const copySel = '.card[aria-label^="Sephiroth, One-Winged"]';
+  check('there is a new card, named for the back face, and it shows the BACK picture of the card', (await count(copySel)) === tokensBefore + 1 && ((await ev(`document.querySelector(${JSON.stringify(copySel + ' img')}).getAttribute('src')`)) ?? '').includes('/back/'));
+  check('the copy has none of the counters of the card it copies, which keeps its own', (await count(copySel + ' .marks .chip')) === 0 && (await count(cardAt('Sephiroth, Fabled') + ' .marks .chip')) === 1);
+  await clickCard(copySel);
+  const copyBox = await box('#row-other ' + copySel);
+  check('selected, the copy shows the back face\'s printed 5/5 (not 5/5 plus the counters: 7/7)', copyBox && copyBox.power === '5' && copyBox.toughness === '5', JSON.stringify(copyBox));
+  check('its line gives only the back face\'s type line (a token carries one face)', /Sephiroth, One-Winged Angel: Legendary Creature — Angel Nightmare Avatar, in the battlefield/.test(await $text('selected-line')) && !/\/\//.test(await $text('selected-line')) && !/turned over/.test(await $text('selected-line')) && !/turned over/.test(await labelOf('Sephiroth, One-Winged')), await $text('selected-line'));
+  check('and it cannot be turned over (it is a copy of one face, not a two-sided card)', !(await actionLabels()).some((l) => /^Turn /.test(l)) && (await actionLabels()).includes('Create copy'));
+  await clickAction('Create copy');
+  check('a copy of the copy works and keeps the back face', (await count(copySel)) === tokensBefore + 2 && (await $text('status')) === 'Made a token copy of Sephiroth, One-Winged Angel.');
+  await clickAction('To hand');
+  check('a token that leaves the battlefield is gone, not put in the hand', (await count(copySel)) === tokensBefore + 1 && (await count('#hand .card')) === 0);
+  await clickAction('Deselect');
+  // A copy of a card showing its front, and of a creature that turned into a land.
+  await clickCard(cardAt('Delver'));
+  await clickAction('Create copy');
+  const delverCopy = await ev(`(() => { const cards = Array.from(document.querySelectorAll('.card[aria-label^="Delver of Secrets"]')); return cards.length; })()`);
+  check('a copy of Delver showing its front is a second Delver of Secrets with the front picture', delverCopy === 2 && (await ev(`Array.from(document.querySelectorAll('.card[aria-label^="Delver of Secrets"] img')).every((i) => i.getAttribute('src').includes('/front/'))`)), String(delverCopy));
+  await clickAction('Deselect');
+  await clickCard(cardAt('Aclazotz'));
+  await clickAction('Turn over');
+  await clickAction('Create copy');
+  await clickAction('Deselect');
+  const landCopies = await ev(`Array.from(document.querySelectorAll('#row-lands .card[aria-label^="Temple of the Dead"]')).map((c) => c.getAttribute('aria-label'))`);
+  check('a copy of Aclazotz turned into its land is a land too: Temple of the Dead, in the lands row, with the back picture and no numbers', landCopies.length === 1 && (await ev(`document.querySelector('#row-lands .card[aria-label^="Temple of the Dead"] img').getAttribute('src').includes('/back/')`)) && (await box('#row-lands .card[aria-label^="Temple of the Dead"]')) === null, JSON.stringify(landCopies));
+
   // ---- storage blocked ----
   await browser.send('Page.addScriptToEvaluateOnNewDocument', { source: `Object.defineProperty(window, 'localStorage', { get() { throw new DOMException('blocked', 'SecurityError'); } });` });
   await browser.goto(PAGE);
@@ -804,7 +869,24 @@ try {
     await mouse(cardAt('Delver'), { button: 'right', dy: 30 }); await sleep(300);
     await browser.screenshot('scratch-solo-twosided-menu-light.png');
     await key('Escape', 'Escape', 27);
-    console.log('saved scratch-solo-dark.png, -light.png, -piles.png, the four -menu- ones and three -twosided- ones (delete them afterward)');
+    // copies: Sephiroth turned over (with a counter) copied twice, Delver showing its front copied, Aclazotz turned into its land copied; and Valakut played as its land
+    await scheme('dark');
+    await open(TWO_SIDED);
+    for (const name of ['Sephiroth', 'Delver', 'Aclazotz', 'Fire', 'Sol Ring', 'Forest']) {
+      await clickCard('#hand .card', (await handNames()).findIndex((x) => x.startsWith(name)));
+      await clickAction('To battlefield'); await clickAction('Deselect');
+    }
+    await clickCard('#hand .card', 0); await clickAction('Play Valakut Stoneforge'); await clickAction('Deselect');
+    await clickCard(cardAt('Sephiroth')); await clickAction('Turn over'); await clickAction('Modify'); await setAmount('2'); await clickMark('Add counters'); await clickAction('Modify');
+    await clickAction('Create copy'); await clickAction('Create copy');
+    await clickAction('Deselect');
+    await clickCard(cardAt('Delver')); await clickAction('Create copy'); await clickAction('Deselect');
+    await clickCard(cardAt('Aclazotz')); await clickAction('Turn over'); await clickAction('Create copy');
+    await clickCard('.card[aria-label^="Sephiroth, One-Winged"]');
+    await sleep(3000);
+    await ev(`window.scrollTo(0, 0)`); await sleep(200);
+    await browser.screenshot('scratch-solo-copies-dark.png');
+    console.log('saved scratch-solo-dark.png, -light.png, -piles.png, the four -menu- ones, three -twosided- ones and -copies-dark (delete them afterward)');
   }
 } finally {
   await closeAllBrowsers();
