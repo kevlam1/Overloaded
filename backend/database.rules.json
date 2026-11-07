@@ -554,7 +554,103 @@
             "$other": {
               ".validate": false
             },
-            ".validate": "newData.hasChildren()"
+            ".validate": "newData.hasChildren()",
+            "ping": {
+              ".validate": "newData.hasChildren(['k', 'card'])",
+              "k": {
+                ".validate": "newData.isNumber() && newData.val() % 1 === 0 && newData.val() >= 1 && newData.val() <= 1000000000000"
+              },
+              "card": {
+                ".validate": "newData.hasChildren(['u', 'i', 'n'])",
+                "u": {
+                  ".validate": "newData.isString() && newData.val().matches(/^c[1-9][0-9]{0,5}$/)"
+                },
+                "i": {
+                  ".validate": "newData.isString() && newData.val().matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)"
+                },
+                "p": {
+                  ".validate": "newData.isString() && newData.val().matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)"
+                },
+                "n": {
+                  ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 200"
+                },
+                "x": {
+                  ".validate": "newData.val() === 1"
+                },
+                "e": {
+                  ".validate": "newData.isNumber() && newData.val() % 1 === 0 && newData.val() >= 0 && newData.val() <= 100000"
+                },
+                "tok": {
+                  ".validate": "newData.val() === 1 && newData.parent().child('tt').exists()"
+                },
+                "tt": {
+                  ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 60 && newData.parent().child('tok').val() === 1"
+                },
+                "pt": {
+                  ".validate": "newData.isString() && newData.val().matches(/^[0-9*+-]{1,3}\\/[0-9*+-]{1,3}$/) && newData.parent().child('tok').val() === 1"
+                },
+                "cl": {
+                  ".validate": "newData.isString() && newData.val().matches(/^[WUBRG]{1,5}$/) && newData.parent().child('tok').val() === 1"
+                },
+                "ct": {
+                  ".validate": "newData.hasChildren() && !(newData.hasChild('p') && newData.hasChild('m'))",
+                  "p": {
+                    ".validate": "newData.isNumber() && newData.val() % 1 === 0 && newData.val() >= 1 && newData.val() <= 1000000000000"
+                  },
+                  "m": {
+                    ".validate": "newData.isNumber() && newData.val() % 1 === 0 && newData.val() >= 1 && newData.val() <= 1000000000000"
+                  },
+                  "l": {
+                    ".validate": "newData.isNumber() && newData.val() % 1 === 0 && newData.val() >= 1 && newData.val() <= 1000000000000"
+                  },
+                  "c": {
+                    ".validate": "newData.isNumber() && newData.val() % 1 === 0 && newData.val() >= 1 && newData.val() <= 1000000000000"
+                  },
+                  "t": {
+                    ".validate": "newData.isNumber() && newData.val() % 1 === 0 && newData.val() >= 1 && newData.val() <= 1000000000000"
+                  },
+                  "o": {
+                    ".validate": "newData.isNumber() && newData.val() % 1 === 0 && newData.val() >= 1 && newData.val() <= 1000000000000"
+                  },
+                  "$other": {
+                    ".validate": false
+                  }
+                },
+                "mp": {
+                  ".validate": "newData.isNumber() && newData.val() % 1 === 0 && newData.val() >= -1000000000000 && newData.val() <= 1000000000000 && newData.val() !== 0"
+                },
+                "mt": {
+                  ".validate": "newData.isNumber() && newData.val() % 1 === 0 && newData.val() >= -1000000000000 && newData.val() <= 1000000000000 && newData.val() !== 0"
+                },
+                "f": {
+                  ".validate": "newData.val() === 1"
+                },
+                "bk": {
+                  ".validate": "newData.val() === 1"
+                },
+                "sk": {
+                  ".validate": "newData.val() === 1"
+                },
+                "nu": {
+                  ".validate": "newData.val() === 1"
+                },
+                "nt": {
+                  ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 40"
+                },
+                "px": {
+                  ".validate": "newData.isNumber() && newData.val() % 1 === 0 && newData.val() >= 0 && newData.val() <= 4000"
+                },
+                "py": {
+                  ".validate": "newData.isNumber() && newData.val() % 1 === 0 && newData.val() >= 0 && newData.val() <= 4000"
+                },
+                "$other": {
+                  ".validate": false
+                }
+              },
+              "$other": {
+                ".validate": false
+              }
+            }
           }
         },
         "private": {

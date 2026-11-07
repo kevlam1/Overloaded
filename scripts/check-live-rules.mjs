@@ -187,6 +187,14 @@ try {
   await expect('a pass record for turn 2 is allowed', call(member, 'PUT', `${pub}/pass`, { n: 2, to: '1' }), 'allowed');
   await expect('a pass record for turn 1 is refused', call(member, 'PUT', `${pub}/pass`, { n: 1, to: '1' }), 'refused');
   await expect('an unknown key in the public branch is refused', call(member, 'PUT', `${pub}/foo`, 1), 'refused');
+  // A ping (added 2026-11-06, shared/ping.mjs): { k, card } on the player's own public branch. The OLD rules refused the key, so these pass only once the new file is published.
+  await expect('a ping (a number and a card) is allowed', call(member, 'PUT', `${pub}/ping`, { k: 1800000000, card }), 'allowed');
+  await expect('a ping with the number 0 is refused', call(member, 'PUT', `${pub}/ping`, { k: 0, card }), 'refused');
+  await expect('a ping with a card that has an empty name is refused', call(member, 'PUT', `${pub}/ping`, { k: 5, card: { ...card, n: '' } }), 'refused');
+  await expect('a ping with no card is refused', call(member, 'PUT', `${pub}/ping`, { k: 5 }), 'refused');
+  await expect('a ping with an extra key is refused', call(member, 'PUT', `${pub}/ping`, { k: 5, card, extra: 1 }), 'refused');
+  await expect('a ping written by another player on my branch is refused', call(host, 'PUT', `${pub}/ping`, { k: 5, card }), 'refused');
+  await expect('a ping can be deleted', call(member, 'DELETE', `${pub}/ping`), 'allowed');
   await expect('the member cannot delete their own last-seen time', call(member, 'DELETE', `${T}/presence/${member.uid}/lastSeen`), 'refused');
 
   // Coming back to your own seat mid-match, and the host freeing a seat nobody sits in (added 2026-10-28). The OLD

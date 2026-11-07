@@ -163,6 +163,7 @@ M.push(
 // same writes. Each reason was checked by reading the rules (and, for the first, by a test run).
 // A mutation listed here that survives is reported as "equivalent"; any other survivor fails the run.
 const EQUIVALENT = {
+  'game ping: k need not be a number': 'the next checks use % 1 and comparisons, which a text or a boolean cannot satisfy in the rules language, so the write is refused anyway (the tests for "5" and true pass with the check removed)',
   'game public: life need not be a number': 'the next checks use % 1 and comparisons, which a text or a boolean cannot satisfy in the rules language, so the write is refused anyway (the tests for "40" and true pass with the check removed)',
   'game public: pass seat need not be text': 'the seat is then compared with the strings 1 to 4 using strict equality, which a number or boolean never satisfies (the test for a numeric seat passes with the check removed)',
   'deck: bracket need not be a number': 'the rule also compares the value with 1, 2, 3, 4 and 5 using strict equality, which a text, a boolean or an object never satisfies (the tests for "3", true and an object stay denied without this check)',
@@ -455,6 +456,25 @@ for (const n of ['1', '2', '3', '4']) {
     ['game public: pass from needs no seat', pub('pass', 'from'), "['n', 'to']", "['n']"],
     ['game public: pass from may hold another key', pub('pass', 'from', '$other'), 'false', 'true'],
     ['game public: pass may hold another key', pub('pass', '$other'), 'false', 'true'],
+    // a ping (2026-11-06): { k, card }, the card with the same validator as a card in a list
+    ['game ping: no number needed', pub('ping'), "['k', 'card']", "['card']"],
+    ['game ping: no card needed', pub('ping'), "['k', 'card']", "['k']"],
+    ['game ping: k may be 0', pub('ping', 'k'), '>= 1', '>= 0'],
+    ['game ping: k over the limit', pub('ping', 'k'), `<= ${K}`, `<= ${K + 1}`],
+    ['game ping: k may be a fraction', pub('ping', 'k'), '% 1 === 0', '% 1 >= 0'],
+    ['game ping: k need not be a number', pub('ping', 'k'), 'newData.isNumber() && ', ''],
+    ['game ping: any other key allowed', pub('ping', '$other'), 'false', 'true'],
+    ['game ping: the card needs no copy number', ['rules', 'tables', '$code', 'public', '$uid', 'ping', 'card', '.validate'], "['u', 'i', 'n']", "['i', 'n']"],
+    ['game ping: the card needs no id', ['rules', 'tables', '$code', 'public', '$uid', 'ping', 'card', '.validate'], "['u', 'i', 'n']", "['u', 'n']"],
+    ['game ping: the card needs no name', ['rules', 'tables', '$code', 'public', '$uid', 'ping', 'card', '.validate'], "['u', 'i', 'n']", "['u', 'i']"],
+    ['game ping: any other card field allowed', ['rules', 'tables', '$code', 'public', '$uid', 'ping', 'card', '$other', '.validate'], 'false', 'true'],
+    ['game ping: card id no end anchor', ['rules', 'tables', '$code', 'public', '$uid', 'ping', 'card', 'i', '.validate'], '{12}$/', '{12}/'],
+    ['game ping: card name limit 201', ['rules', 'tables', '$code', 'public', '$uid', 'ping', 'card', 'n', '.validate'], '<= 200', '<= 201'],
+    ['game ping: card x may be any value', ['rules', 'tables', '$code', 'public', '$uid', 'ping', 'card', 'x', '.validate'], 'newData.val() === 1', 'true'],
+    ['game ping: card tok needs no tt', ['rules', 'tables', '$code', 'public', '$uid', 'ping', 'card', 'tok', '.validate'], " && newData.parent().child('tt').exists()", ''],
+    ['game ping: card counters may mix +1/+1 and -1/-1', ['rules', 'tables', '$code', 'public', '$uid', 'ping', 'card', 'ct', '.validate'], " && !(newData.hasChild('p') && newData.hasChild('m'))", ''],
+    ['game ping: card mp may be zero', ['rules', 'tables', '$code', 'public', '$uid', 'ping', 'card', 'mp', '.validate'], ' && newData.val() !== 0', ''],
+    ['game ping: card note limit 41', ['rules', 'tables', '$code', 'public', '$uid', 'ping', 'card', 'nt', '.validate'], '<= 40', '<= 41'],
     // a host cannot delete their last-seen time (the takeover rule needs it)
     ['game presence: lastSeen may be deleted', ['rules', 'tables', '$code', 'presence', '$uid', 'lastSeen', '.write'], 'newData.exists() && ', ''],
   );

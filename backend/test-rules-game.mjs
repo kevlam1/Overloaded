@@ -18,6 +18,7 @@ import {
   turnOver, setSick, setNoUntap,
 } from '../shared/zones.mjs';
 import { gameWrites, joinGame, PUBLIC_ZONES, PRIVATE_ZONES } from '../shared/game-sync.mjs';
+import { makePing } from '../shared/ping.mjs';
 
 const rulesText = readFileSync(new URL('./database.rules.json', import.meta.url), 'utf8');
 const env = await initializeTestEnvironment({ projectId: 'demo-overloaded', database: { host: '127.0.0.1', port: 9000, rules: rulesText } });
@@ -71,8 +72,12 @@ const structureChecks = () => {
   check('the seven list rules exist', blocks.every((block) => block && block.length > 500));
   check('the seven list rules are identical', blocks.every((block) => block === blocks[0]));
   check('a list has only its own object check and the card rule (so nothing else can hide in one)', Object.keys(JSON.parse(blocks[0])).join() === '.validate,$i' && JSON.parse(blocks[0])['.validate'] === 'newData.hasChildren()');
-  check('the public branch has exactly the keys the pages write', Object.keys(rules.public.$uid).filter((key) => !key.startsWith('.') && key !== '$other').sort().join() === 'battlefield,cd,command,counts,exile,graveyard,life,match,mulligans,next,pass,pc,turn');
+  check('the public branch has exactly the keys the pages write', Object.keys(rules.public.$uid).filter((key) => !key.startsWith('.') && key !== '$other').sort().join() === 'battlefield,cd,command,counts,exile,graveyard,life,match,mulligans,next,pass,pc,ping,turn');
   check('the private branch has exactly the three hidden lists', Object.keys(rules.private.$uid).filter((key) => !key.startsWith('.') && key !== '$other').sort().join() === 'hand,library,sideboard');
+  const listCard = { ...JSON.parse(blocks[0]).$i }; delete listCard['.validate'];
+  const pingCard = { ...rules.public.$uid.ping.card }; delete pingCard['.validate'];
+  check('the card inside a ping has exactly the rules of a card in a list (the same generated block)', JSON.stringify(pingCard) === JSON.stringify(listCard));
+  check('a ping needs a number and a card, and nothing else is allowed in it', rules.public.$uid.ping['.validate'] === "newData.hasChildren(['k', 'card'])" && rules.public.$uid.ping.$other['.validate'] === false && Object.keys(rules.public.$uid.ping).filter((key) => !key.startsWith('.') && key !== '$other').sort().join() === 'card,k');
   check('both branches refuse any other key', rules.public.$uid.$other['.validate'] === false && rules.private.$uid.$other['.validate'] === false);
 };
 
@@ -202,6 +207,36 @@ const PRIVATE_CASES = [
 ];
 for (const [label, path, value] of PRIVATE_CASES) await denied(`private: ${label}`, put(alice, `private/alice/${path}`, value));
 
+// a ping (shared/ping.mjs): { k, card }: a number that differs for each ping and the pinged card packed like any stored card, with the same limits
+{
+  const ping = (fields = {}, k = 1800000000) => ({ k, card: { ...aCard(1), ...fields } });
+  await ok('a good ping', put(alice, 'public/alice/ping', ping()));
+  await ok('a ping of a card with every optional field at its maximum', put(alice, 'public/alice/ping', ping(CARD_CASES[1][1])));
+  for (const [label, k, accepted] of [['k: 1', 1, true], ['k: the limit', 1e12, true], ['k: 0', 0, false], ['k: -1', -1, false], ['k: over the limit', 1e12 + 1, false], ['k: 1.5', 1.5, false], ['k: text', '5', false], ['k: true', true, false], ['k: null (missing)', null, false]]) {
+    await (accepted ? ok : denied)('ping ' + label, put(alice, 'public/alice/ping', { k, card: aCard(1) }));
+  }
+  for (const [label, value] of [['no card', { k: 5 }], ['no number', { card: aCard(1) }], ['an extra key', { ...ping(), extra: 1 }], ['a card that is text', { k: 5, card: 'Island' }], ['a card that is a number', { k: 5, card: 7 }],
+    ['a card with no copy number', { k: 5, card: { i: aCard(1).i, n: 'Island' } }], ['a card with no id', { k: 5, card: { u: 'c1', n: 'Island' } }], ['a card with no name', { k: 5, card: { u: 'c1', i: aCard(1).i } }], ['text', 'ping'], ['a number', 5], ['true', true]]) { // (an empty object is not here: in Firebase it is a delete, which is allowed)
+    await denied('ping: ' + label, put(alice, 'public/alice/ping', value));
+  }
+  for (const [label, fields, accepted] of CARD_CASES) await (accepted ? ok : denied)('ping card: ' + label, put(alice, 'public/alice/ping', ping(fields)));
+  await ok('a ping can be changed by writing only its number', put(alice, 'public/alice/ping/k', 1800000001));
+  await denied('...but not to a bad number', put(alice, 'public/alice/ping/k', 0));
+  await ok('...or only its card', put(alice, 'public/alice/ping/card', aCard(2, { n: 'Sol Ring' })));
+  await denied('...but not to a bad card', put(alice, 'public/alice/ping/card', { ...aCard(2), n: '' }));
+  await denied('a ping cannot be given a second card', put(alice, 'public/alice/ping/card2', aCard(3)));
+  await denied('another player cannot write a ping on alice\'s branch', put(bob, 'public/alice/ping', ping()));
+  await denied('a stranger cannot write a ping', put(carol, 'public/alice/ping', ping()));
+  await denied('a ping cannot be written to the private branch', put(alice, 'private/alice/ping', ping()));
+  await ok('bob writes a ping on his own branch', put(bob, 'public/bob/ping', ping()));
+  await ok('a member reads another player\'s ping with the rest of their public branch', get(ref(bob, `tables/${T}/public/alice/ping`)));
+  await denied('a stranger cannot read a ping', get(ref(carol, `tables/${T}/public/alice/ping`)));
+  await ok('a ping is deleted', put(alice, 'public/alice/ping', null));
+  await ok('a game save that also carries a ping is one update', update(ref(alice), { [`tables/${T}/public/alice/life`]: 33, [`tables/${T}/public/alice/ping`]: ping() }));
+  await denied('...and one bad ping refuses the whole update', update(ref(alice), { [`tables/${T}/public/alice/life`]: 12, [`tables/${T}/public/alice/ping`]: { k: 0, card: aCard(1) } }));
+  check('...and the good half of it was not applied', (await get(ref(alice, `tables/${T}/public/alice/life`))).val() === 33);
+}
+
 // whole branches
 await ok('a whole public branch of real fields', put(alice, 'public/alice', { life: 40, turn: 1, mulligans: 0, next: 9, match: 1, counts: { library: 80, hand: 7, sideboard: 0 }, pc: { poison: 1 }, cd: { 2: 5 }, pass: { n: 2, to: '2' }, battlefield: [aCard(1)], command: [aCard(2, { n: 'Krenko, Mob Boss' })] }));
 await denied('a whole public branch with one bad field is refused entirely', put(alice, 'public/alice', { life: 40, turn: 0, battlefield: [aCard(1)] }));
@@ -272,7 +307,7 @@ async function playRandomGame(seed, steps, lookup, code) {
   const pick = (list) => pickFrom(random, list);
   let game = makeGame(gameDeck, lookup, { random: seededRandom(seed) });
   let before = null;
-  let sent = 0; let passN = 1; let refusedByPage = 0; let largest = 0;
+  let sent = 0; let passN = 1; let refusedByPage = 0; let largest = 0; let pings = 0; let lastPing = 0;
   const send = async (label) => {
     const writes = gameWrites('alice', before, game);
     if (before === null) writes['public/alice/match'] = 1; // the first save of a match writes its number (table.js)
@@ -292,7 +327,7 @@ async function playRandomGame(seed, steps, lookup, code) {
   for (let step = 0; step < steps; step++) {
     const battlefield = game.zones.battlefield;
     const all = ZONES.flatMap((zone) => game.zones[zone]);
-    const op = pick(['move', 'move', 'move', 'draw', 'counter', 'counter', 'modifier', 'reset', 'note', 'facedown', 'token', 'longtoken', 'copy', 'copy', 'player', 'commander', 'turn', 'tap', 'life', 'untap', 'shuffle', 'turnover', 'sick', 'nountap', 'pass', 'unpass']);
+    const op = pick(['move', 'move', 'move', 'draw', 'counter', 'counter', 'modifier', 'reset', 'note', 'facedown', 'token', 'longtoken', 'copy', 'copy', 'player', 'commander', 'turn', 'tap', 'life', 'untap', 'shuffle', 'turnover', 'sick', 'nountap', 'pass', 'unpass', 'ping', 'ping']);
     try {
       if (op === 'move' && all.length) game = moveCard(game, pick(all).uid, pick(ZONES), { position: pick(['top', 'bottom']) });
       else if (op === 'draw') game = draw(game, 1 + Math.floor(random() * 2)).game;
@@ -316,6 +351,17 @@ async function playRandomGame(seed, steps, lookup, code) {
       else if (op === 'nountap' && battlefield.length) game = setNoUntap(game, pick(battlefield).uid, random() < 0.5);
       else if (op === 'pass') { passN += 1; game = { ...game, pass: { n: passN, to: String(1 + (passN % 4)), ...(game.pass ? { from: { n: game.pass.n, to: game.pass.to } } : {}) } }; }
       else if (op === 'unpass' && game.pass) { const { pass, ...rest } = game; game = rest; }
+      else if (op === 'ping') {
+        // a ping is not part of the game: it is its own write on the public branch, built by the page's own makePing from a card in a public zone
+        const zones = PUBLIC_ZONES.filter((zone) => game.zones[zone].length);
+        if (zones.length) {
+          const zone = pick(zones);
+          const record = makePing(pick(game.zones[zone]), zone, { previous: lastPing, now: 1_800_000_000_000 + step * 700 });
+          lastPing = record.k;
+          try { await assertSucceeds(update(ref(alice), { [`tables/${code}/public/alice/ping`]: record })); } catch (error) { console.log(`FAILED CHECK: random game ${seed}, step ${step}: the rules refused a ping the page makes: ${JSON.stringify(record).slice(0, 600)}`); throw error; }
+          pings++; checks++;
+        }
+      }
     } catch (error) {
       if (/type is not known/.test(error.message)) { refusedByPage++; continue; } // the page refuses a copy of a card with no type (zones.mjs copyAsToken)
       throw error;
@@ -330,7 +376,7 @@ async function playRandomGame(seed, steps, lookup, code) {
   });
   const back = joinGame(stored[0], stored[1], lookup);
   check(`random game ${seed}: stored game reads back with the same zone sizes`, back && ZONES.every((zone) => back.zones[zone].length === game.zones[zone].length), JSON.stringify(ZONES.map((zone) => [zone, back?.zones[zone].length, game.zones[zone].length])));
-  console.log(`  random game ${seed}: ${steps} moves, ${sent} writes all accepted (largest save ${largest} bytes, ${refusedByPage} operations refused by the page itself)`);
+  console.log(`  random game ${seed}: ${steps} moves, ${sent} writes all accepted (largest save ${largest} bytes, ${refusedByPage} operations refused by the page itself, ${pings} pings accepted)`);
 }
 for (const seed of [1, 2, 3, 4]) await playRandomGame(seed, 220, known, `RNDG0${seed}`);
 // a game whose card list did not load: no card has a type, so copies are refused by the page (never written as a token with no type)
