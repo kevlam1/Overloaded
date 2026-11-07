@@ -2141,9 +2141,28 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 **Decisions**
 - Not done: a your-turn sound on the solo table.
 
+## 104. The slider looked wrong in my browser, and it made noise (2026-11-06)
+
+**What I asked for**
+- I sent a screenshot of the volume slider in my browser (a flat white bar with a dark notch, nothing like what Claude had shown me), said the UI was "literally the same" after the accent colour change, and said it was annoying that the slider keeps making a noise when I adjust it. I called the quality disappointing and asked for a fix.
+
+**What changed**
+- `frontend/src/sound.js`: adjusting the slider no longer plays a sample. That sample was Claude's own addition (I had not asked for it). The level is heard on the next draw or tap.
+- `frontend/src/style.css`: the slider is now drawn by the page (appearance none, a track and a round thumb with explicit colours, and a rule for high-contrast modes), not by the browser's own slider.
+- `scripts/check-solo-ui.mjs` is 311 checks: adjusting the slider makes no sound, the slider has appearance none, plus the earlier drag and padding checks.
+
+**What I checked**
+- The live site does serve the accent colour CSS from the previous push (read from the live stylesheet), so my browser ignored it. Claude could not reproduce my rendering: it tried a dark, a light, a forced high-contrast and a "force dark pages" emulation of the page's real CSS in headless Chrome, and none looked like my screenshot. So the cause is still unknown (the browser's own theme, an extension that recolours pages, or a different slider drawing). Drawing the slider with explicit colours removes the dependence on the browser's own look.
+- In those four emulations the new slider is visible, and the first version vanished in the high-contrast one, which is why that rule was added. Close-ups of the real page show the thumb reaching both ends.
+- **Not checked:** how it looks in my browser. I have to reload after the deploy and send another screenshot.
+
+**Decisions**
+- Mistakes of Claude: it told me the accent colour change "may" fix the look when it could not reproduce the problem, and it added a sample sound on adjustment that I did not ask for.
+
 ---
 
 ## Where AI misread me, or I had to correct course
+- (2026-11-06, entry 104) Claude guessed at the cause of my slider looking different, shipped a guess (an accent colour) that changed nothing, and had added a sound on every slider adjustment that I never asked for.
 - (2026-11-06, entry 101) Claude's first broken copy of the volume parsing had broken syntax, so it looked caught but proved nothing, and a test of the slider sample could not tell the sample from the previous sound. Both were found by reading the run, not by the tests.
 - (2026-11-06, entry 100) Claude's first draft of the new rules accepted any list key and accepted a list written as plain text; its own new tests caught both before anything was published.
 - (2026-11-06, entry 98) Claude's first Pass turn design could not take a pass back when one player had passed twice in a row (it went back to turn 2 instead of 3), and its first "your turn" banner sat below the other players' panels where nobody would see it. It found the first by planning the live test and the second from a screenshot.
