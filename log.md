@@ -2234,9 +2234,61 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - Not built: pinging a card in the hand (it would be a deliberate reveal and needs its own wording), pinging another player's card, a ping on the solo table, sounds for a ping. A hostile player can still ping very fast; the other pages just keep replacing the spotlight and each player can close it. The Stack stays a separate, larger feature that needs research first.
 - Mistakes of Claude: it first wrote an empty object as a "refused" ping (in Firebase an empty object is a delete) and passed a string where a test helper wanted an object. Its first ping tests did not cover a missing id or name. It picked a port another check already uses.
 
+## 109. The one-screen layout, Phase A (2026-11-06)
+
+**What I asked for**
+- Reorganize the entire layout of the table (not a UI revamp yet): in a Commander game I had to scroll up and down to see other players' battlefields, the Lands and Other permanents split is poorly organized and not intuitive, and I should not scroll the page at all. There will also be another way to play cards: drag and drop anywhere on a battlefield, snapping to a grid.
+- Claude proposed a plan and asked me four things. I chose: fit 1366x768 and up, all boards the same size in a 2x2 grid with mine bottom-left, new cards go to the first empty cell with lands apart, and build it in two phases (A, the one-screen layout; B, the grid and drag and drop). Claude noted that my first design notes said the opposite (no free drag and drop); I said the new instruction replaces them.
+
+**What changed (Phase A)**
+- `frontend/src/style.css`: while a game shows the table is one grid (the class `playing` on the body): a top bar, the controls, the boards, my hand along the bottom, and one column on the right (who is at the table with the match and sound buttons, my counters, the selected card, my piles). The page no longer scrolls; each part that is too full scrolls inside itself. Cards are sized from the height of their row, so they fit at any window size and player count.
+- Markup of the table and solo pages regrouped (a top bar, an aside, ids and classes on the sections); **no element ID changed**. The page scripts toggle the playing state and report how many others there are (`main[data-opponents]`).
+- Each other player's panel is compact: name and numbers on one line, their battlefield beside a narrow column for the command zone, graveyard and exile.
+- New `frontend/src/card-hover.js`: because the cards are small, any card shows its larger picture when the pointer rests on it (my design notes called it enlarge on hover).
+- The plan for Phase B is written in `docs/layout.md`.
+
+**What I checked**
+- New `scripts/check-table-layout.mjs` (365 checks, in `npm test`): the real page and style sheet at five window sizes (1366x650, 1366x768, 1280x720, 1600x900, 1920x950) with 0 to 3 other players, filled with worst-case content: nothing scrolls the page, nothing overlaps or is cut off, the boards are the equal 2x2 grid with mine bottom-left, my hand runs under them, and cards stay at least 60 px (hand), 40 px (my battlefield) and 7% of the window height (other players') tall. `scripts/test-card-hover.mjs` 22 checks; 14 real-mouse hover checks in the solo check (343 checks, at 1280x1000 and 1366x650). The two-browser live check passes 164 of 164 at 1366x650 with the new layout.
+- Broken copies of the layout CSS: 7 of 11 caught. The 4 that survived are protections that do not trigger with this content (a row of `1fr` against `minmax(0, 1fr)`, two `overflow: hidden` rules, and the explicit place of the third other player, which grid auto-placement gives anyway); I did not write tests that force them.
+- I looked at screenshots: the solo table, the real two-player table at 1366x650, and the four-player layout (fake panels) at 1366x650 and 1920x950.
+- **Not checked:** a real four-player game (the three-other-players layout is the real page and styles with fake panels built like the page's own), a screen narrower than 1366, and phones.
+
+**Decisions**
+- Kept all element ids so no script or check had to change structure. Rows that are too full scroll sideways inside themselves until Phase B replaces them with the grid.
+- Mistakes of Claude: its first version squeezed every card (a rule for button padding also applied to the card buttons) and its first live check right-clicked a counter chip, not the card, because the cards had got smaller; it first wrote a check that could not fail and I broke the CSS on purpose to prove it could; an older slider check wanted 100 px and the slider is now 96.
+
+---
+
+## 110. The one-screen layout, Phase B: the grid battlefield and drag and drop (2026-11-06)
+
+**What I asked for**
+- "Start phase b": the battlefield becomes one grid with no Lands / Other permanents split, cards snap to cells, and I can drag a card anywhere on my battlefield. I had already chosen how new cards are placed (first empty cell, lands apart, plus an Auto-arrange button).
+- Claude chose the numbers I had not: a grid of 12 columns by 4 rows (48 cells) for every player, a card dropped on a taken cell swaps with it, and a card from the hand cannot take a taken cell.
+
+**What changed**
+- New `shared/board-grid.mjs` (plain logic: the grid size, the first empty cell for lands and for other cards, settling a board, tidying it, finding the cell under a point, stepping one cell).
+- `shared/zones.mjs`: a card on the battlefield has a cell, `px` (column) and `py` (row); `moveCard` takes an optional cell, new `placeCard` (move, or swap), `arrangeBoard`, `settleBoard` (gives older cards a cell), `boardCells`; tokens and copies get a cell; a full board (48) refuses another card in words; `checkGame` checks cells. The cell is cleared when a card leaves the battlefield, like counters.
+- `shared/game-sync.mjs`: stores and reads `px` and `py`, and writes a zone that holds the same cards in the same places one card at a time (a drag is about 100 bytes, not the whole battlefield). **No database rules change:** the published rules already allowed `px` and `py` from 0 to 4000.
+- New `frontend/src/board-drag.js`: drag from the battlefield or the hand onto a cell of my battlefield; a picture follows the pointer and the cell is outlined (dashed for a swap, red for a taken cell). Mouse only (touch is on hold), starts after 6 px, a press on a chip or a badge is theirs, Escape cancels.
+- Both pages: one `#battlefield` grid instead of two rows, an Auto-arrange button, Alt and an arrow key move the selected card one cell. Other players' boards draw each card on the cell its owner stored.
+
+**What I checked**
+- `scripts/test-board-grid.mjs` (99 checks) and `scripts/test-board-play.mjs` (99 checks, including five random games of 2,500 operations in which no card is lost, no cell is shared, and a drag writes under 200 bytes). The older logic suites were updated on purpose where the data changed (a token now carries a cell, a battlefield write is per card, the full board is 48 not 250).
+- The solo check is now 366 checks with real mouse, finger and Alt-key input: drop on an empty cell, the taken-cell refusal, a swap, a move, a 2 px click, a drag that ends on its own card, Escape, drop outside, a press on a badge, Shift, a right button, a finger, Alt arrows and Auto-arrange. It passes at 1280x1000 and at 1366x650. The live two-browser check (165) passes at 1366x650, and Bob sees the cell Alice stored. The layout check is still 365 checks, with the fake panels rebuilt as grids.
+- Broken copies: 16 of 16 of the grid logic, 19 of 19 of the zone logic after four survivors got tests, 10 of 10 of the sync code after one survivor got a test, and 11 of 13 of `board-drag.js` after three survivors got tests. Two stay uncaught on purpose: the touch guard (a real finger move makes the browser scroll and cancel the pointer, so the test cannot tell the guard from the browser) and the guard against the browser's own picture dragging (synthetic mouse input cannot start it).
+- I looked at screenshots: the solo table at 1366x768 with 16 cards on the grid, and one in the middle of a drag.
+- **Measured, and mine to decide:** the grid makes cards small with three other players. On another player's board a card is 26 px tall at 1366x650, 31 px at 1366x768 and 55 px at 1920x950; mine 40 px at 1366x650. The layout check now only guards 24 px for others and 36 px for mine, and the hover picture is how they are read. If I think it is too small, the choices are fewer columns or rows (one constant each) or moving counters, command zone and piles off the other players' panels.
+- **Not checked:** a real four-player game, phones, a touch version of the drag, and the drag picture under the deployed content policy (it is sized from script, which the policy allows, but only a deployed run proves it).
+
+**Decisions**
+- 12 x 4 and the swap rule are Claude's choices, listed in `docs/layout.md`; I can change them.
+- Dragging onto another player's board, free placement off the grid, and a touch drag are not built.
+- Mistakes of Claude: its first drag check swiped from the left edge of the page, which Chrome treats as the Back gesture, so the page left and the check failed in confusing ways (it looked flaky until the cause was found); one test line was accidentally turned into a comment and still "passed" (found by counting the checks); a first live check right-clicked a counter chip again because cards are only 28 px wide; the first run of broken copies found five weak spots in the tests (the half-cell cases, an in-board point that is not a number, the click after a drag, Shift, and the hidden outline), now covered.
+
 ---
 
 ## Where AI misread me, or I had to correct course
+- (2026-11-06, entry 110) Claude's first drag check swiped from the left edge of the page, which Chrome reads as Back, so the page left and the check looked flaky; one test line became a comment by accident and still passed (found by counting the checks); and the first run of broken copies showed five spots the tests did not cover (the click after a drag, Shift, the hidden outline, a half cell, an in-board point that is not a number).
 - (2026-11-06, entry 104) Claude guessed at the cause of my slider looking different, shipped a guess (an accent colour) that changed nothing, and had added a sound on every slider adjustment that I never asked for.
 - (2026-11-06, entry 101) Claude's first broken copy of the volume parsing had broken syntax, so it looked caught but proved nothing, and a test of the slider sample could not tell the sample from the previous sound. Both were found by reading the run, not by the tests.
 - (2026-11-06, entry 100) Claude's first draft of the new rules accepted any list key and accepted a list written as plain text; its own new tests caught both before anything was published.
