@@ -2159,6 +2159,20 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 **Decisions**
 - Mistakes of Claude: it told me the accent colour change "may" fix the look when it could not reproduce the problem, and it added a sample sound on adjustment that I did not ask for.
 
+## 105. All four sounds at the same, lower level (2026-11-06)
+
+**What I asked for**
+- I asked what the sounds sound like at a volume of 100%. Claude measured the files and showed they were very uneven (the your-turn sound about 16 dB louder than the tap, by average level). I said yes, bring them all to the same level, and make them all lower, because even drawing was still loud.
+
+**What changed**
+- `shared/sound-settings.mjs`: each sound's gain changed from 0.5 to a value chosen so that all four have the same average level at a slider of 100%, about -51.6 dBFS: draw 0.10, shuffle 0.095, tap 1, your turn 0.047. A gain cannot go above 1, so the quietest file sets the target. Claude first measured the old tap file (-40.6) and set the target at -46.6; I replaced `tap.mp3` with a much quieter one (-51.6, peak -29.7) while it worked, Claude re-measured and recomputed, and everything else came down to match it. The measurements and the formula are in a comment above `SOUND_GAIN`.
+- `scripts/test-sound-settings.mjs` (52 checks) now checks the gains, that none is above 1, and, from the measured levels, that the four come out within half a dB of each other and no louder than -51 dBFS. The solo check (311) expects the new volumes.
+
+**What I checked**
+- The levels are the average level of each whole file, decoded in headless Chrome (draw -31.8, shuffle -31.2, tap -51.6, your turn -25.0 dBFS, after I replaced the tap file). A short sharp click (draw) can still feel punchier than its average says: its peak is the highest of the four.
+- Not checked: how they actually sound. Nobody has listened since the change. The gains are single numbers in `SOUND_GAIN` if one feels too soft or too loud.
+- I ran the unit test and the solo check, not the whole `npm test`: only the gain numbers and their expectations changed.
+
 ---
 
 ## Where AI misread me, or I had to correct course
