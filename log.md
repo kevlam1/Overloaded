@@ -2173,6 +2173,28 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - Not checked: how they actually sound. Nobody has listened since the change. The gains are single numbers in `SOUND_GAIN` if one feels too soft or too loud.
 - I ran the unit test and the solo check, not the whole `npm test`: only the gain numbers and their expectations changed.
 
+## 106. Dealing the hand one card at a time (2026-11-06)
+
+**What I asked for**
+- When I draw my first seven cards, deal them one at a time, quickly, with the draw sound for each card, like Balatro. Clicking Mulligan plays the shuffle sound and then deals the 7 the same way.
+
+**What changed**
+- `shared/deal-sequence.mjs` (new, plain logic with an injectable timer): deals a hand of N cards, one every 120 ms, and a pause of 800 ms before the first card when a shuffle sound has just played. It says how many cards of the hand to show, how many are still waiting, and which card was just dealt.
+- This is only what is SHOWN. The game is still dealt and saved all at once, so the database, other players' pages and the library count never wait for the animation. The library count includes the cards not yet dealt, so library plus hand never changes while dealing. A refresh in the middle shows the whole hand.
+- Both table pages: the first deal (a fresh game, not one put back after a refresh), Mulligan, and on the solo table New game. Each card makes the draw sound, and drops in with a short animation (`.card.deal-in`). Mulligan and New game play the shuffle sound first and the cards start 0.8 seconds later. Pressing Mulligan again in the middle of a deal starts over.
+- Under prefers-reduced-motion the whole hand shows at once and the cards make no sound (the shuffle sound still plays for a mulligan), which is what my rules ask of every animation.
+
+**What I checked**
+- `scripts/test-deal-sequence.mjs` (40 checks, new suite, `npm test` is now 44 suites) with a fake clock. The solo browser check is 329 checks: real timers, the sounds recorded, the hand and library count watched every 10 ms (7 draw sounds for the first deal, the shuffle sound then 7 draws for a mulligan and New game, the first card about 0.8 s after the shuffle, a second mulligan in the middle starting over, reduced motion). The two-browser live check is 152: a mulligan on the real table page plays the shuffle sound, shows an empty hand while it waits, saves the new hand of 7 at once, and then 7 draw sounds follow. That check and the solo check now run with reduced motion on except in those blocks, because many checks count the hand right away.
+- I looked at the solo table in the middle of a deal: "Hand: 4", four cards, the newest still fading in.
+- Broken copies: 15 of 15 of the logic caught, and 4 of 4 of the page wiring after one fix: "New game does not wait for the shuffle" survived because my test only checked the order of the sounds, which is the same with no pause, so I added the same timing check the Mulligan test has.
+- You swapped `draw.mp3` and `yourturn.mp3` again while this was being built, so I measured all four files again: draw -31.4 (was -31.8), yourturn -24.9 (was -25.0) dBFS on average. The gains still put all four within 0.3 dB of each other, so they are unchanged; the measurements in `shared/sound-settings.mjs` and its test were updated.
+- **Not checked:** how it feels and sounds. The 120 ms between cards and the 800 ms pause are single numbers in `shared/deal-sequence.mjs`. Browsers can block the sounds on the very first deal after opening a page, until I have clicked something on it, so the first hand may be silent.
+
+**Decisions**
+- Chose to stage only the display, not the game: dealing the game for real one card at a time would have meant seven saves, other players seeing a half-dealt hand, and a refresh in the middle leaving a partial game.
+- Mistakes of Claude: its first test used a hand of seven cards for a deal of three; its first screenshot showed the whole hand because the navigation helper waited for the deal to finish; its recorder in the live check was lost on a reload; and its first mulligan block changed Alice's hand before a check that compares it with her first one.
+
 ---
 
 ## Where AI misread me, or I had to correct course
