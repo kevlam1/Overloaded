@@ -2,6 +2,7 @@
 // tests can load it (scripts/test-card-menu.mjs). The menu itself is drawn by frontend/src/card-menu.js; the pages run the
 // action with their own apply() so a refused move leaves the game as it was.
 import { moveCard, setTapped, changeCounter, turnOver, copyAsToken, faceName, setNoUntap, setSick, markSickByFace, heldTapped } from './zones.mjs';
+import { canPing } from './ping.mjs';
 
 export const ZONE_NAMES = { library: 'your library', hand: 'your hand', battlefield: 'the battlefield', graveyard: 'your graveyard', exile: 'exile', command: 'the command zone', sideboard: 'your sideboard' };
 export const MOVE_TARGETS = [['hand', 'Hand'], ['battlefield', 'Battlefield'], ['graveyard', 'Graveyard'], ['exile', 'Exile'], ['command', 'Command zone'], ['sideboard', 'Sideboard']];
@@ -34,7 +35,8 @@ export const playBackLabel = (card) => `Play ${backNameOf(card) ?? 'its back fac
 
 // The items for a card in a zone: { id, label, amounts? } for a choice, { id, label, items } for a heading that opens more.
 // Tap, counters and Modify belong to a card on the battlefield; moving is offered everywhere (not to the zone it is already in).
-export function menuItems(card, zone) {
+// live: this is a table with other players, so a card in a public zone can also be pinged to them (shared/ping.mjs); the solo table has nobody to ping.
+export function menuItems(card, zone, { live = false } = {}) {
   const items = [];
   if (zone === 'battlefield') {
     items.push({ id: 'modify', label: 'Modify...' });
@@ -46,6 +48,7 @@ export function menuItems(card, zone) {
     items.push({ id: 'copy', label: 'Create copy' });
   }
   if (card?.md === 1 && card.b === 1 && PLAY_BACK_ZONES.includes(zone)) items.push({ id: 'playback', label: playBackLabel(card) });
+  if (live && canPing(zone)) items.push({ id: 'ping', label: 'Ping card' }); // the page sends the ping itself (it is not a change to the game), so menuAction has nothing to run for it
   items.push({
     id: 'move',
     label: 'Move to',

@@ -42,6 +42,14 @@ same('moves from the battlefield: every zone but the battlefield, then the two l
 same('moves from the hand: not to the hand', ids(menuItems({}, 'hand')[0].items), ['move:battlefield', 'move:graveyard', 'move:exile', 'move:command', 'move:sideboard', 'move:library-top', 'move:library-bottom']);
 same('from the library you can still put it on the top or bottom of it', ids(menuItems({}, 'library')[0].items).slice(-2), ['move:library-top', 'move:library-bottom']);
 same('a card that is not there still gets a menu', ids(menuItems(null, 'battlefield')), ['modify', 'tap', 'nountap', 'sick', 'counter', 'copy', 'move']);
+// Ping card (shared/ping.mjs): only on a live table (other players to ping), only for a card in a public zone, and the page sends it (menuAction has nothing to run)
+for (const zone of ['battlefield', 'graveyard', 'exile', 'command', 'hand', 'library', 'sideboard']) same('the solo menu never offers Ping card (' + zone + ')', ids(menuItems({}, zone)).includes('ping'), false);
+for (const zone of ['battlefield', 'graveyard', 'exile', 'command']) same('a live table offers Ping card for a card in the ' + zone + ', just before Move to', (() => { const list = ids(menuItems({}, zone, { live: true })); return [list.includes('ping'), list.at(-2), list.at(-1)]; })(), [true, 'ping', 'move']);
+for (const zone of ['hand', 'library', 'sideboard']) same('a live table does not offer Ping card for a card in the ' + zone + ' (it is hidden: a ping would reveal it)', ids(menuItems({}, zone, { live: true })).includes('ping'), false);
+same('the label is plain words', menuItems({}, 'battlefield', { live: true }).find((item) => item.id === 'ping').label, 'Ping card');
+same('on the battlefield of a live table the order is the old one with Ping card before Move to', ids(menuItems({}, 'battlefield', { live: true })), ['modify', 'tap', 'nountap', 'sick', 'counter', 'copy', 'ping', 'move']);
+same('the options object may be left out or empty', [ids(menuItems({}, 'graveyard', {})).includes('ping'), ids(menuItems({}, 'graveyard', undefined)).includes('ping')], [false, false]);
+same('menuAction has nothing to run for ping (the page sends it)', menuAction('ping', { uid: 'c1', n: 'X' }), null);
 same('labels are plain words', menuItems({}, 'hand')[0].items.map((item) => item.label), ['Battlefield', 'Graveyard', 'Exile', 'Command zone', 'Sideboard', 'Top of library', 'Bottom of library']);
 
 // ---- what each choice does ----
