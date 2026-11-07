@@ -230,10 +230,10 @@ try {
     check('moving the slider to 30 is remembered as 0.3', (await stored()) === '{"on":true,"volume":0.3}', await stored());
     await press('draw');
     same('the next sound plays at the new volume', (await plays()).at(-1), { src: '/sfx/draw.mp3', volume: 0.15 });
-    await press('shuffle'); // so the last sound is a shuffle: only a sample can make the next one a draw
-    const beforeSample = (await plays()).length;
+    const beforeRelease = (await plays()).length;
     await ev(`document.getElementById('sound-volume').dispatchEvent(new Event('change'))`);
-    check('letting go of the slider plays exactly one sample (the draw sound) so the level can be heard', (await plays()).length === beforeSample + 1 && JSON.stringify((await plays()).at(-1)) === JSON.stringify({ src: '/sfx/draw.mp3', volume: 0.15 }), JSON.stringify((await plays()).slice(-2)));
+    await ev(`document.getElementById('sound-volume').dispatchEvent(new Event('input'))`);
+    check('moving or letting go of the slider makes no sound (Kevin found a sample on every adjustment annoying)', (await plays()).length === beforeRelease, JSON.stringify((await plays()).slice(-2)));
     await ev(`(() => { const v = document.getElementById('sound-volume'); v.value = '0'; v.dispatchEvent(new Event('input')); })()`);
     const beforeZero = (await plays()).length;
     await press('draw');
@@ -262,6 +262,7 @@ try {
     check('the slider is wide enough to use (at least 100 px)', box.width >= 100, JSON.stringify(box));
     check('the checkbox and the slider use the page accent colour, not each browser\'s own default', (await ev(`['sound-on', 'sound-volume'].map((id) => getComputedStyle(document.getElementById(id)).accentColor === getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || getComputedStyle(document.getElementById(id)).accentColor !== 'auto').every(Boolean)`)) === true);
     check('the slider has no padding or border of its own, so the thumb can reach both ends of the track (a close-up screenshot showed it stopping 17 px short with the general input style)', (await ev(`(() => { const s = getComputedStyle(document.getElementById('sound-volume')); return [s.paddingLeft, s.paddingRight, s.borderLeftWidth, s.borderRightWidth].join(); })()`)) === '0px,0px,0px,0px');
+    check('the slider is drawn by the page, not by the browser (appearance none), so it looks the same in every browser', (await ev(`getComputedStyle(document.getElementById('sound-volume')).appearance`)) === 'none');
     check('dragging the slider far to the left reaches 0', (await dragSlider(box.left - 80)) === '0');
     check('dragging the slider far to the right reaches 100', (await dragSlider(box.right + 80)) === '100');
     if (realPictures) { // a close-up of the slider with the thumb at the far right and the far left, to look at

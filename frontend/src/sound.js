@@ -30,7 +30,7 @@ export function play(name) {
   } catch { /* silent */ }
 }
 
-// Draws the settings into `host` (an empty element): a Sound checkbox and a Volume slider. Changing the volume plays a short sample so the level can be heard.
+// Draws the settings into `host` (an empty element): a Sound checkbox and a Volume slider. Changing a setting makes no sound: the level is heard on the next draw or tap.
 export function mountSoundSettings(host) {
   if (!host) return;
   const group = document.createElement('div');
@@ -64,7 +64,6 @@ export function mountSoundSettings(host) {
     save();
   });
   volume.addEventListener('input', () => { settings = { ...settings, volume: Number(volume.value) / 100 }; save(); });
-  volume.addEventListener('change', () => play('draw'));
 
   group.append(onLabel, volumeLabel);
   host.replaceChildren(group);
