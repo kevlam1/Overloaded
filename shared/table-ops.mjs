@@ -93,6 +93,19 @@ export function createTableOps({ sdk, db, getUid, makeCode = makeTableCode }) {
 
   // Creates a table and takes seat 1. If the host already holds a table, it is deleted in the same write.
   // The page should warn first (findMyTable); this function does what it is told.
+  // Deletes the table at this code IF IT HAS EXPIRED, so dead tables do not pile up in the database (nothing runs on a timer, so whoever finds one cleans it). The rules
+  // accept a delete from a stranger only for a table past its idle or 8-hour limit and refuse it for a live one, so this is safe to try on any code. It is best effort:
+  // any failure is ignored. It is NOT used on a table you belong to: the rules let a host (or the last player standing) delete their table even while it is alive, so a page
+  // that wrongly believed its own table had closed could destroy a live one. A code that is your own host slot is skipped for the same reason.
+  async function closeIfExpired(code) {
+    if (!isValidCode(code)) return;
+    try {
+      const uid = await getUid();
+      if ((await get(ref(db, `hosts/${uid}`))).val() === code) return; // your own table
+      await update(ref(db), { [`tables/${code}`]: null });
+    } catch { /* best effort: a live table refuses the delete, and nothing here needs to succeed */ }
+  }
+
   async function createTable({ name, seats = 4, format = DEFAULT_FORMAT }) {
     const playerName = cleanPlayerName(name);
     if (!SEAT_COUNTS.includes(seats)) throw new Error('A table has 2, 3 or 4 seats.');
@@ -110,6 +123,7 @@ export function createTableOps({ sdk, db, getUid, makeCode = makeTableCode }) {
       }
     }
 
+    let slotChecked = false; // the check of a stale host slot below is made once
     for (let attempt = 0; attempt < CREATE_ATTEMPTS; attempt++) {
       const code = makeCode();
       const table = `tables/${code}`;
@@ -124,13 +138,35 @@ export function createTableOps({ sdk, db, getUid, makeCode = makeTableCode }) {
       // already gone (it expired and was cleaned up) the rules refuse that delete, but accept the same write without
       // it, so try that second (found by the table logic test on 2026-10-28: a stale slot made every attempt fail).
       const variants = oldCode ? [{ ...writes, [`tables/${oldCode}`]: null }, writes] : [writes];
-      for (const variant of variants) {
-        try {
-          await update(ref(db), variant);
-          return { code, uid, seat: '1', replaced: oldCode || null };
-        } catch (error) {
-          // A refused write is a code already in use or an old table that is gone; try the next way, then a new code.
-          if (!isPermissionDenied(error)) throw error;
+      // Two passes: if every way is refused the code is in use. If the table that holds it has EXPIRED it is dead data: it is deleted and the code is used (Kevin's idea,
+      // 2026-11-06). A live table refuses the delete, so the second pass fails the same way and the next attempt tries a new code.
+      for (let pass = 0; pass < 2; pass++) {
+        for (const variant of variants) {
+          try {
+            await update(ref(db), variant);
+            return { code, uid, seat: '1', replaced: oldCode || null };
+          } catch (error) {
+            // A refused write is a code already in use or an old table that is gone; try the next way, then a new code.
+            if (!isPermissionDenied(error)) throw error;
+          }
+        }
+        if (pass === 0) await closeIfExpired(code);
+      }
+      // Every way failed. Besides a code that is in use there is one more cause: the host slot names a table that someone ELSE owns now (a dead table's code was reused,
+      // see closeIfExpired), which the rules will not let this person replace. A host can always read their own table, so if the slot's table cannot be read it is not
+      // theirs: clear the slot and try this code once more. (Not done when the table can be read and is theirs: that slot is right and the failure was the code.)
+      if (oldCode && !slotChecked) {
+        slotChecked = true;
+        const ownsIt = await get(ref(db, `tables/${oldCode}/meta/host`)).then((snapshot) => snapshot.val() === uid, (error) => { if (isPermissionDenied(error)) return false; throw error; });
+        if (!ownsIt) {
+          await update(ref(db), { [`hosts/${uid}`]: null });
+          oldCode = null;
+          try {
+            await update(ref(db), writes);
+            return { code, uid, seat: '1', replaced: null };
+          } catch (error) {
+            if (!isPermissionDenied(error)) throw error;
+          }
         }
       }
     }
@@ -180,6 +216,7 @@ export function createTableOps({ sdk, db, getUid, makeCode = makeTableCode }) {
         if (!isPermissionDenied(error)) throw error;
       }
     }
+    await closeIfExpired(code); // a stranger opening an old link to a table that has expired deletes it (a live table, full or started, refuses the delete)
     throw new TableUnavailableError();
   }
 
@@ -489,5 +526,5 @@ export function createTableOps({ sdk, db, getUid, makeCode = makeTableCode }) {
     );
   }
 
-  return { findMyTable, createTable, rejoinTable, joinTable, watchMembers, setReady, clearReady, setDeck, startMatch, concede, endMatch, endTable, leaveTable, passHost, takeOverHost, claimHostSlot, heartbeat, watchActivity, watchMeta, watchServerOffset, watchConnection, startPresence, watchPresence, saveGame, loadGame, watchPublic };
+  return { findMyTable, createTable, closeIfExpired, rejoinTable, joinTable, watchMembers, setReady, clearReady, setDeck, startMatch, concede, endMatch, endTable, leaveTable, passHost, takeOverHost, claimHostSlot, heartbeat, watchActivity, watchMeta, watchServerOffset, watchConnection, startPresence, watchPresence, saveGame, loadGame, watchPublic };
 }

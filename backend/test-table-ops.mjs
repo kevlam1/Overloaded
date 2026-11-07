@@ -152,6 +152,116 @@ await admin(async (db) => { await set(ref(db, `tables/${evesTable.code}/meta/cre
 const eve2 = await eve.ops.createTable({ name: 'Eve', seats: 2 });
 check('replacing works when the old table has passed 8 hours', eve2.replaced === evesTable.code && (await readAdmin(`tables/${evesTable.code}`)) === null);
 
+console.log('an expired table is cleaned up by whoever finds it (2026-11-06)');
+{
+  const old = (hours) => Date.now() - hours * 3600000;
+  const minutesAgo = (m) => Date.now() - m * 60000;
+  // helper: a lobby with a host and a joiner, game data in it, and the heartbeat or creation time set back
+  const makeTable = async (hostName, joinerName, { createdAt, lastActive } = {}) => {
+    const host = person(hostName); const joiner = person(joinerName);
+    const table = await host.ops.createTable({ name: hostName, seats: 2 });
+    await joiner.ops.joinTable({ code: table.code, name: joinerName });
+    await admin(async (db) => {
+      await set(ref(db, `tables/${table.code}/public/${hostName}/life`), 40);
+      await set(ref(db, `tables/${table.code}/private/${hostName}/hand`), [{ u: 'c1', i: '00000000-0000-4000-8000-000000000001', n: 'Island' }]);
+      if (createdAt !== undefined) await set(ref(db, `tables/${table.code}/meta/createdAt`), createdAt);
+      if (lastActive !== undefined) await set(ref(db, `tables/${table.code}/activity/lastActive`), lastActive);
+    });
+    return { host, joiner, code: table.code };
+  };
+
+  // 1. a stranger who opens the old link of an expired table deletes it
+  const t1 = await makeTable('gchost', 'gcjoiner', { createdAt: old(9) });
+  const visitor = person('gcvisitor');
+  await throwsWith('a stranger opening the link of a table past 8 hours is refused as before', visitor.ops.joinTable({ code: t1.code, name: 'Visitor' }), 'TableUnavailableError');
+  check('...and that visit deleted the expired table with everything in it', (await readAdmin(`tables/${t1.code}`)) === null);
+  await throwsWith('visiting the same link again is still refused (nothing there any more)', visitor.ops.joinTable({ code: t1.code, name: 'Visitor' }), 'TableUnavailableError');
+
+  // 2. the same for a table that went idle (30 minutes in the lobby), and not before
+  const t2 = await makeTable('gchost2', 'gcjoiner2', { lastActive: minutesAgo(29) });
+  await throwsWith('a table idle for 29 minutes in the lobby is still open: a stranger is refused', person('gcv2').ops.joinTable({ code: t2.code, name: 'V2' }), 'TableUnavailableError');
+  check('...and it is NOT deleted (it is full, so the join is refused, but it is alive)', (await readAdmin(`tables/${t2.code}/meta`)) !== null && (await readAdmin(`tables/${t2.code}/public/gchost2/life`)) === 40);
+  await admin((db) => set(ref(db, `tables/${t2.code}/activity/lastActive`), minutesAgo(31)));
+  await throwsWith('after 31 minutes idle the table has expired: a stranger is refused', person('gcv3').ops.joinTable({ code: t2.code, name: 'V3' }), 'TableUnavailableError');
+  check('...and now the visit deletes it', (await readAdmin(`tables/${t2.code}`)) === null);
+
+  // 3. a live table is never deleted by a stranger, however it is asked
+  const t3 = await makeTable('gchost3', 'gcjoiner3');
+  const nosy = person('gcnosy');
+  await nosy.ops.closeIfExpired(t3.code);
+  check('closeIfExpired by a stranger leaves a live table alone', (await readAdmin(`tables/${t3.code}/meta/host`)) === 'gchost3' && (await readAdmin(`tables/${t3.code}/members/gcjoiner3`)) !== null);
+  await t3.joiner.ops.closeIfExpired(t3.code);
+  check('...and by a player at the table (the rules would not let a non-host delete it)', (await readAdmin(`tables/${t3.code}/meta/host`)) === 'gchost3');
+  await admin((db) => set(ref(db, `tables/${t3.code}/meta/status`), 'playing'));
+  await admin((db) => set(ref(db, `tables/${t3.code}/meta/idleLimit`), 3600000));
+  await throwsWith('a stranger joining a live table that has started is refused', person('gcv4').ops.joinTable({ code: t3.code, name: 'V4' }), 'TableUnavailableError');
+  check('...and the started table is untouched', (await readAdmin(`tables/${t3.code}/meta/status`)) === 'playing' && (await readAdmin(`tables/${t3.code}/public/gchost3/life`)) === 40);
+
+  // 4. the host's own live table is protected by the page, not only by the rules: the rules let a host delete their table even while it is alive
+  await t3.host.ops.closeIfExpired(t3.code);
+  check('closeIfExpired by the HOST of a live table does nothing (the page skips its own table)', (await readAdmin(`tables/${t3.code}/meta/host`)) === 'gchost3');
+  const rawDelete = await update(ref(t3.host.db), { [`tables/${t3.code}`]: null }).then(() => 'deleted', () => 'refused');
+  check('...which matters: a plain delete by that host IS accepted by the rules, so only the page keeps the live table safe', rawDelete === 'deleted' && (await readAdmin(`tables/${t3.code}`)) === null);
+
+  // 5. nonsense does nothing
+  await nosy.ops.closeIfExpired('');
+  await nosy.ops.closeIfExpired('not a code');
+  await nosy.ops.closeIfExpired('../hosts');
+  check('a code that is not a code is ignored without an error, and nothing was deleted', (await readAdmin('hosts')) !== undefined);
+  {
+    // ... and the page sends no request at all for them (the same ops with a database call that is counted)
+    const sent = [];
+    const counting = createTableOps({ sdk: { ...sdk, update: (...args) => { sent.push(args); return update(...args); } }, db: env.authenticatedContext('gccount').database(), getUid: async () => 'gccount' });
+    for (const bad of ['', 'abc', 'not a code', 'ABCDEF/x', '../hosts', 'abcdef', 'ABCDE', 'ABCDEFG', null, undefined, 123456]) await counting.closeIfExpired(bad);
+    check('a code that is not a valid code sends no request to the database', sent.length === 0, String(sent.length));
+    await counting.closeIfExpired('ABCDEF');
+    check('...while a valid-looking code does send one', sent.length === 1);
+  }
+  // a host whose own live table is replaced by a new one, when the new code happens to be held by someone else's LIVE table: the old table is still replaced and the slot ends up on the new one
+  {
+    const other = await makeTable('gcother', 'gcotherj');
+    const hostA = person('gchosta', (() => { const codes = [other.code, 'GCFRSH']; return () => codes.shift() ?? 'GCLAST'; })());
+    const first = await person('gchosta2').ops.createTable({ name: 'x', seats: 2 }); // (a different person: keeps hostA's own table below separate)
+    const ownTable = await hostA.ops.createTable({ name: 'HostA', seats: 2 }); // takes the live code, so it is skipped, and lands on GCFRSH
+    check('a host with no table yet: a live code is skipped and the next one used', ownTable.code === 'GCFRSH' && first.code !== undefined);
+    const again = person('gchosta', (() => { const codes = [other.code, 'GCNXT2']; return () => codes.shift() ?? 'GCLAST'; })());
+    const second = await again.ops.createTable({ name: 'HostA', seats: 2 }); // now HAS a live table; the first code collides with a live table
+    check('a host with a live table of their own whose new code collides with a live table: the old table is replaced and the new one made', second.replaced === 'GCFRSH' && second.code === 'GCNXT2', JSON.stringify(second));
+    check('...the old table is gone, the slot is on the new table, and the other live table is untouched', (await readAdmin('tables/GCFRSH')) === null && (await readAdmin('hosts/gchosta')) === 'GCNXT2' && (await readAdmin(`tables/${other.code}/meta/host`)) === 'gcother');
+  }
+
+  // 6. making a table at a code held by an expired table (Kevin's idea): the dead table is deleted and the code is used for the new one
+  const t6 = await makeTable('gchost6', 'gcjoiner6', { createdAt: old(9) });
+  const fresh = person('gcfresh', (() => { const codes = [t6.code]; return () => codes.shift() ?? 'GCNEW2'; })());
+  const made6 = await fresh.ops.createTable({ name: 'Fresh', seats: 3 });
+  check('the new table got the SAME code as the expired one', made6.code === t6.code, made6.code);
+  const meta6 = await readAdmin(`tables/${t6.code}/meta`);
+  check('...as a brand new table: new host, lobby, match 1, 3 seats, the new creation time', meta6.host === 'gcfresh' && meta6.status === 'lobby' && meta6.match === 1 && meta6.seats === 3 && meta6.createdAt > Date.now() - 60000, JSON.stringify(meta6));
+  const members6 = await readAdmin(`tables/${t6.code}/members`);
+  check('...with only the new host in it: nothing of the old players or the old game is left', Object.keys(members6).join() === 'gcfresh' && (await readAdmin(`tables/${t6.code}/private`)) === null && (await readAdmin(`tables/${t6.code}/public`)) === null && (await readAdmin(`tables/${t6.code}/seats`)).hasOwnProperty('1') && !(await readAdmin(`tables/${t6.code}/seats`)).hasOwnProperty('2'));
+  check('...and the new host holds the host slot', (await readAdmin('hosts/gcfresh')) === t6.code);
+  // the old host's slot still names that code (it was not cleared by the deleter): making a new table must not touch the new owner's table
+  check('the old host\'s slot still names the code (stale)', (await readAdmin('hosts/gchost6')) === t6.code);
+  const old6 = await t6.host.ops.createTable({ name: 'GcHost6', seats: 2 });
+  check('the old host can make a new table, with a different code', old6.code !== t6.code && old6.replaced === null, JSON.stringify(old6));
+  check('...and the table that now owns the old code was NOT deleted by that', (await readAdmin(`tables/${t6.code}/meta/host`)) === 'gcfresh');
+  check('...the old host\'s slot moved to the new table', (await readAdmin('hosts/gchost6')) === old6.code);
+  // an old player of the dead table cannot get into the new one by being a former member
+  check('a player of the dead table is not at the new table', (await t6.joiner.ops.rejoinTable(t6.code)) === null);
+
+  // 7. a code held by a LIVE table is still skipped, and that table is untouched (the existing behaviour)
+  const t7 = await makeTable('gchost7', 'gcjoiner7');
+  const unlucky7 = person('gcunlucky', (() => { const codes = [t7.code, t7.code]; return () => codes.shift() ?? 'GCNEW3'; })());
+  const made7 = await unlucky7.ops.createTable({ name: 'Unlucky', seats: 2 });
+  check('a code held by a live table is skipped for a new code', made7.code === 'GCNEW3');
+  check('...and the live table is untouched', (await readAdmin(`tables/${t7.code}/meta/host`)) === 'gchost7' && (await readAdmin(`tables/${t7.code}/public/gchost7/life`)) === 40);
+
+  // 8. the host's own old table at a colliding code is still replaced the normal way
+  const t8 = await makeTable('gchost8', 'gcjoiner8', { createdAt: old(9) });
+  const again = await t8.host.ops.createTable({ name: 'GcHost8', seats: 2 });
+  check('a host whose own table expired makes a new one: replaced as before', again.replaced === t8.code && (await readAdmin(`tables/${t8.code}`)) === null);
+}
+
 console.log('host handover');
 const hana = person('hana');
 const ivo = person('ivo');
