@@ -246,6 +246,35 @@ try {
     await waitFor(async () => !(await $hidden('game')) || null, 15000, 50);
     check('damaged stored settings fall back to the defaults', (await ev(`document.getElementById('sound-on').checked`)) === true && (await ev(`document.getElementById('sound-volume').value`)) === '100');
     await ev(`localStorage.removeItem('overloaded.sound')`);
+    // The slider can be dragged all the way to both ends with a real mouse (Kevin found it could not: the page's general input style squeezed it).
+    await browser.goto(PAGE);
+    await waitFor(async () => !(await $hidden('game')) || null, 15000, 50);
+    const box = await ev(`(() => { const r = document.getElementById('sound-volume').getBoundingClientRect(); return { left: r.left, right: r.right, y: r.top + r.height / 2, width: r.width, height: r.height }; })()`);
+    const mouseAt = (type, x, extra = {}) => browser.send('Input.dispatchMouseEvent', { type, x, y: box.y, button: 'left', buttons: type === 'mouseReleased' ? 0 : 1, clickCount: 1, ...extra });
+    const dragSlider = async (toX) => {
+      const from = (box.left + box.right) / 2;
+      await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: from, y: box.y });
+      await mouseAt('mousePressed', from);
+      for (let i = 1; i <= 8; i++) await mouseAt('mouseMoved', from + ((toX - from) * i) / 8);
+      await mouseAt('mouseReleased', toX);
+      return ev(`document.getElementById('sound-volume').value`);
+    };
+    check('the slider is wide enough to use (at least 100 px)', box.width >= 100, JSON.stringify(box));
+    check('the slider has no padding or border of its own, so the thumb can reach both ends of the track (a close-up screenshot showed it stopping 17 px short with the general input style)', (await ev(`(() => { const s = getComputedStyle(document.getElementById('sound-volume')); return [s.paddingLeft, s.paddingRight, s.borderLeftWidth, s.borderRightWidth].join(); })()`)) === '0px,0px,0px,0px');
+    check('dragging the slider far to the left reaches 0', (await dragSlider(box.left - 80)) === '0');
+    check('dragging the slider far to the right reaches 100', (await dragSlider(box.right + 80)) === '100');
+    if (realPictures) { // a close-up of the slider with the thumb at the far right and the far left, to look at
+      const close = async (name) => { const { data } = await browser.send('Page.captureScreenshot', { format: 'png', clip: { x: Math.max(0, box.left - 120), y: box.y - 30, width: box.width + 240, height: 60, scale: 4 } }); writeFileSync(name, Buffer.from(data, 'base64')); };
+      await dragSlider(box.right + 80); await close('scratch-slider-right.png');
+      await dragSlider(box.left - 80); await close('scratch-slider-left.png');
+    }
+    // a click at the very ends of the visible slider also reaches the ends (or within one step of them)
+    await mouseAt('mousePressed', box.left + 3); await mouseAt('mouseReleased', box.left + 3);
+    const nearLeft = Number(await ev(`document.getElementById('sound-volume').value`));
+    await mouseAt('mousePressed', box.right - 3); await mouseAt('mouseReleased', box.right - 3);
+    const nearRight = Number(await ev(`document.getElementById('sound-volume').value`));
+    check('clicking the left end of the slider gives 0 to 10 and the right end 90 to 100', nearLeft <= 10 && nearRight >= 90, `${nearLeft} and ${nearRight}`);
+    await ev(`localStorage.removeItem('overloaded.sound')`);
   }
   await clickCard('#hand .card', 0);
   check('Escape deselects', (await count('.card.selected')) === 1 && await (async () => { await ev(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))`); return (await count('.card.selected')) === 0 && (await actionLabels()).length === 0; })());
