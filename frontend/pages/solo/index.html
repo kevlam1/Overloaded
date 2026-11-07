@@ -9,11 +9,12 @@
   </head>
   <body>
     <main class="table">
-      <p class="back"><a href="/deck">Back to your deck</a> &middot; <a href="/">Lobby</a></p>
-      <h1>Solo table</h1>
-      <p id="deck-line" class="lede">Loading your deck...</p>
-
-      <p id="status" class="status" role="status" aria-live="polite"></p>
+      <header class="topbar">
+        <p class="back"><a href="/deck">Back to your deck</a> &middot; <a href="/">Lobby</a></p>
+        <h1>Solo table</h1>
+        <p id="deck-line" class="lede">Loading your deck...</p>
+        <p id="status" class="status" role="status" aria-live="polite"></p>
+      </header>
 
       <section id="blocked" aria-labelledby="blocked-heading" hidden>
         <h2 id="blocked-heading">Nothing to play yet</h2>
@@ -39,6 +40,7 @@
             <button id="draw" type="button">Draw</button>
             <button id="next-turn" type="button">Next turn</button>
             <button id="untap-all" type="button" class="secondary">Untap all</button>
+            <button id="arrange" type="button" class="secondary">Auto-arrange</button>
             <button id="shuffle" type="button" class="secondary">Shuffle library</button>
             <button id="mulligan" type="button" class="secondary">Mulligan</button>
             <button id="new-game" type="button" class="secondary">New game</button>
@@ -46,6 +48,17 @@
           <div id="sound-settings"></div>
         </section>
 
+        <section id="my-board" class="board mine" aria-labelledby="battlefield-heading">
+          <h2 id="battlefield-heading">Battlefield</h2>
+          <div id="battlefield" class="battlefield" data-empty="Nothing on the battlefield yet."></div>
+        </section>
+
+        <section id="hand-section" class="hand-section" aria-labelledby="hand-heading">
+          <h2 id="hand-heading">Hand: <span id="hand-count">0</span></h2>
+          <div id="hand" class="row" data-empty="Your hand is empty."></div>
+        </section>
+
+        <aside class="side-panels" aria-label="Counters, the selected card and your piles">
         <section id="counters" class="counters-panel" aria-labelledby="counters-heading">
           <h2 id="counters-heading">Your counters</h2>
           <div id="player-counters" class="counters-block" role="group" aria-label="Poison, energy and experience"></div>
@@ -58,20 +71,7 @@
           <div id="marks" class="marks-panel" hidden></div>
         </section>
 
-        <section aria-labelledby="battlefield-heading">
-          <h2 id="battlefield-heading">Battlefield</h2>
-          <h3>Lands</h3>
-          <div id="row-lands" class="row" data-empty="No lands yet."></div>
-          <h3>Other permanents</h3>
-          <div id="row-other" class="row" data-empty="Nothing else yet."></div>
-        </section>
-
-        <section aria-labelledby="hand-heading">
-          <h2 id="hand-heading">Hand: <span id="hand-count">0</span></h2>
-          <div id="hand" class="row" data-empty="Your hand is empty."></div>
-        </section>
-
-        <section aria-labelledby="piles-heading">
+        <section id="piles-section" class="piles-section" aria-labelledby="piles-heading">
           <h2 id="piles-heading">Piles</h2>
           <div class="piles">
             <div>
@@ -91,6 +91,7 @@
             <ul id="viewer-list" class="pile-list"></ul>
           </div>
         </section>
+        </aside>
       </div>
     </main>
 

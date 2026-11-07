@@ -346,3 +346,187 @@ dialog h2 { margin-top: 0; }
 .card-menu-sub[hidden] { display: none; }
 .card-menu .card-menu-subitem { padding-left: 1.6rem; }
 .card-menu-arrow { margin-left: 0.5rem; }
+
+/* ---- The table while a game is on: ONE screen, no page scroll (Kevin, 2026-11-06). Designed for 1366x768 and up; the page puts the class "playing" on the body while the
+   game shows. The same IDs and elements as before, in one grid: a top bar, the controls, the boards (everyone's battlefield, yours bottom-left, the same size), your hand along
+   the bottom and one column on the right. Card sizes follow the window height so everything fits; a card is read by hovering it (src/card-hover.js). ---- */
+body.playing { --cw-mine: clamp(2.6rem, 8.4vh, 6.2rem); --cw-opp: clamp(2.2rem, 6vh, 4.6rem); --cw-hand: clamp(3rem, 10.5vh, 6.6rem); height: 100vh; height: 100dvh; overflow: hidden; display: flex; flex-direction: column; font-size: 14px; line-height: 1.3; }
+body.playing main.table { flex: 1 1 auto; min-height: 0; max-width: none; margin: 0; padding: 0.35rem 0.5rem 0; display: grid; gap: 0.35rem;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 17rem; grid-template-rows: auto auto minmax(0, 1fr) minmax(0, 1fr) auto; }
+body.playing #game, body.playing #opponents, body.playing #opponent-list { display: contents; }
+body.playing footer { flex: 0 0 auto; max-width: none; margin: 0; padding: 0.1rem 0.5rem 0.2rem; font-size: 0.62rem; line-height: 1.2; }
+body.playing footer p { margin: 0; }
+body.playing h1 { margin: 0; font-size: 1.05rem; }
+body.playing h2 { margin: 0 0 0.2rem; font-size: 0.85rem; }
+body.playing h3 { margin: 0 0 0.15rem; font-size: 0.75rem; color: var(--muted); }
+body.playing section { margin: 0; padding: 0.3rem 0.5rem; border-radius: 0.5rem; }
+body.playing button, body.playing input, body.playing select { min-height: 1.9rem; }
+body.playing button { padding: 0.1rem 0.6rem; font-size: 0.85rem; }
+body.playing .card { min-height: 0; padding: 0; } /* a card is a button too: the general button padding must not squeeze its picture */
+body.playing .extra, body.playing #deck-line, body.playing #opponents > h2 { display: none; }
+
+/* the top: the title, the status and the banners in one line that wraps */
+body.playing .topbar { grid-column: 1 / -1; grid-row: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 0.1rem 0.9rem; }
+body.playing .topbar p, body.playing .topbar div { margin: 0; }
+body.playing .topbar .status { min-height: 0; }
+body.playing .topbar .banner, body.playing .topbar .turn-banner { padding: 0.1rem 0.6rem; font-size: 0.8rem; }
+body.playing .bar { grid-column: 1 / 3; grid-row: 2; gap: 0.2rem 0.9rem; padding: 0.2rem 0.5rem; }
+body.playing .bar .sound-settings { margin: 0; }
+body.playing .bar .stat { font-size: 0.9rem; }
+body.playing .life { gap: 0.25rem; }
+body.playing .life button { min-width: 2rem; padding: 0.1rem 0.4rem; }
+body.playing .bar .actions { gap: 0.3rem; }
+
+/* the boards: yours at the bottom-left, the other players around it, all the same size. 0 others: yours fills the middle; 1: one board on top and yours below, both across;
+   2: two on top and yours across the bottom; 3: two on top, yours bottom-left and the third bottom-right. */
+body.playing main:not([data-opponents]), body.playing main[data-opponents="0"] { --cw-mine: clamp(3rem, 13vh, 8.5rem); }
+body.playing main[data-opponents="1"] { --cw-mine: clamp(2.8rem, 10.5vh, 7rem); --cw-opp: clamp(2.8rem, 10.5vh, 7rem); }
+body.playing .piles-section { --cw: 3.4rem; }
+body.playing .board, body.playing .opponent { display: flex; flex-direction: column; min-width: 0; min-height: 0; margin: 0; padding: 0.25rem 0.4rem; border: 1px solid var(--line); border-radius: 0.5rem; overflow: hidden; }
+body.playing #my-board { grid-column: 1; grid-row: 4; --cw: var(--cw-mine); }
+body.playing main:not([data-opponents]) #my-board, body.playing main[data-opponents="0"] #my-board { grid-column: 1 / 3; grid-row: 3 / 5; }
+body.playing main[data-opponents="1"] #my-board, body.playing main[data-opponents="2"] #my-board { grid-column: 1 / 3; }
+body.playing .opponent { position: relative; --cw: var(--cw-opp); }
+body.playing main[data-opponents="1"] .opponent:nth-child(1) { grid-column: 1 / 3; grid-row: 3; }
+body.playing main[data-opponents="2"] .opponent:nth-child(1), body.playing main[data-opponents="3"] .opponent:nth-child(1) { grid-column: 1; grid-row: 3; }
+body.playing main[data-opponents="2"] .opponent:nth-child(2), body.playing main[data-opponents="3"] .opponent:nth-child(2) { grid-column: 2; grid-row: 3; }
+body.playing main[data-opponents="3"] .opponent:nth-child(3) { grid-column: 2; grid-row: 4; }
+body.playing .board .row, body.playing .opponent .row { flex: 1 1 0; min-height: 0; gap: 0.2rem; overflow: auto; align-content: flex-start; }
+body.playing .board .row:empty::before, body.playing .opponent .row:empty::before { font-size: 0.7rem; line-height: 1.2; }
+body.playing .opponent h3 { color: var(--text); font-size: 0.85rem; }
+body.playing .opponent h4 { margin: 0.15rem 0 0.05rem; font-size: 0.65rem; }
+body.playing .opponent .hint, body.playing .opponent-counters { margin: 0; font-size: 0.72rem; }
+body.playing .opponent > div:not(.opponent-counters) { display: flex; flex-direction: column; flex: 1 1 0; min-height: 0; }
+body.playing .opponent details { margin: 0; font-size: 0.75rem; }
+body.playing .opponent details[open] .pile-list { position: absolute; z-index: 6; left: 0.4rem; right: 0.4rem; max-height: 9rem; background: var(--card); }
+
+/* cards: one width variable per area, the height follows; a tapped card is as wide as the card is tall */
+body.playing .card, body.playing .opponent .card { width: var(--cw); height: calc(var(--cw) * 1.4015); border-width: 1px; border-radius: 0.3rem; flex: 0 0 auto; }
+body.playing .card.tapped, body.playing .opponent .card.tapped { width: calc(var(--cw) * 1.4015); }
+body.playing .card .face, body.playing .opponent .card.tapped .face { width: var(--cw); height: calc(var(--cw) * 1.4015); border-radius: 0.25rem; }
+body.playing .card.tapped .badges { top: calc(var(--cw) * 0.2); }
+body.playing .card .badge, body.playing .opponent .card .badge { font-size: 0.5rem; line-height: 0.8rem; }
+body.playing .card .badge-lock, body.playing .opponent .card .badge-lock { width: 0.95rem; height: 0.95rem; }
+body.playing .card .badge-lock svg { width: 10px; height: 10px; }
+body.playing .card .marks .chip, body.playing .card .marks .change, body.playing .opponent .card .marks .chip, body.playing .opponent .card .marks .change { padding: 0 0.2rem; font-size: 0.5rem; line-height: 0.8rem; }
+body.playing .card .marks .ptbox, body.playing .opponent .card .marks .ptbox { font-size: 0.55rem; line-height: 0.9rem; }
+body.playing .card .marks .ptbox .pt, body.playing .opponent .card .marks .ptbox .pt { min-width: 0.9rem; padding: 0 0.12rem; }
+body.playing .card .fallback { font-size: 0.55rem; padding: 0.15rem; }
+
+/* your hand: along the bottom, one line, scrolling sideways inside itself if it is long */
+body.playing .hand-section { grid-column: 1 / 3; grid-row: 5; min-width: 0; --cw: var(--cw-hand); }
+body.playing #hand { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; min-height: 0; padding-bottom: 0.15rem; gap: 0.3rem; }
+
+/* the right-hand column: who is at the table (and the sound and match buttons) above, your counters, the selected card and your piles below; each scrolls inside itself */
+body.playing .players-section { grid-column: 3; grid-row: 2 / 4; min-height: 0; overflow: auto; padding: 0.3rem 0.5rem; border: 1px solid var(--line); border-radius: 0.5rem; }
+body.playing #players { margin: 0; padding-left: 1rem; font-size: 0.8rem; }
+body.playing #match-state { margin: 0 0 0.15rem; font-size: 0.8rem; }
+body.playing .players-section .actions { margin-top: 0.3rem; gap: 0.3rem; }
+body.playing .players-section .sound-settings { margin-top: 0.3rem; font-size: 0.75rem; }
+body.playing .players-section .hint { margin: 0.2rem 0 0; font-size: 0.7rem; }
+body.playing .side-panels { grid-column: 3; grid-row: 4 / 6; display: flex; flex-direction: column; gap: 0.35rem; min-height: 0; overflow: auto; }
+body.playing.solo .side-panels { grid-row: 2 / 6; }
+body.playing .side-panels > section { padding: 0.3rem 0.5rem; border: 1px solid var(--line); border-radius: 0.5rem; flex: 0 0 auto; }
+body.playing .selected-panel { position: static; }
+body.playing .selected-panel .hint { margin: 0 0 0.25rem; font-size: 0.8rem; }
+body.playing .selected-panel .actions, body.playing .piles-section .pile-buttons { gap: 0.25rem; margin-top: 0; }
+body.playing .piles { gap: 0.4rem 1rem; }
+body.playing .piles-section .row { min-height: 0; }
+body.playing .viewer { margin-top: 0.4rem; }
+body.playing .pile-list { max-height: 11rem; }
+
+/* a pinged card is shown over the table (the spotlight), not in the page flow */
+body.playing .spotlight { position: fixed; z-index: 20; top: 2.6rem; right: 0.5rem; width: min(20rem, 38vw); flex-direction: column; flex-wrap: nowrap; margin: 0; box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.45); }
+body.playing .spotlight .spot-picture { width: 100%; }
+
+/* ---- the one-screen layout, second pass: cards sized from the row they are in, a compact panel for each other player, tighter side column ---- */
+/* A card fills the height of its row (the row is a size container), so it always fits whatever the window and however many players; a tapped card is as wide as the card is tall.
+   (Where container units are not supported the window-height sizes above stay.) */
+@supports (height: 1cqh) {
+  body.playing .board .row, body.playing .opponent .row, body.playing #hand { container-type: size; }
+  body.playing #hand { height: clamp(4.4rem, 15.5vh, 9.5rem); }
+  body.playing .board .row > .card, body.playing .opponent .row > .card, body.playing #hand > .card { height: calc(100cqh - 4px); width: calc((100cqh - 4px) / 1.4015); }
+  body.playing .board .row > .card.tapped, body.playing .opponent .row > .card.tapped, body.playing #hand > .card.tapped { width: calc(100cqh - 4px); }
+  body.playing .board .row > .card .face, body.playing .opponent .row > .card .face, body.playing #hand > .card .face { width: calc((100cqh - 4px) / 1.4015); height: calc(100cqh - 4px); }
+  body.playing .board .row > .card:not(.tapped) .face, body.playing .opponent .row > .card:not(.tapped) .face, body.playing #hand > .card:not(.tapped) .face { width: 100%; height: 100%; }
+  body.playing .board .row, body.playing .opponent .row { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; align-items: stretch; }
+  body.playing .card.tapped .badges { top: 0.2rem; }
+}
+
+/* each other player: the name and the numbers on one line, their counters under it, then the battlefield beside a narrow column for the command zone, graveyard and exile */
+body.playing .opponent { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto auto auto minmax(0, 1fr); column-gap: 0.6rem; row-gap: 0.1rem; }
+body.playing .opponent > h3 { grid-column: 1; grid-row: 1; margin: 0; }
+body.playing .opponent > .hint { grid-column: 2; grid-row: 1; margin: 0; align-self: baseline; }
+body.playing .opponent > .opponent-counters { grid-column: 1 / -1; }
+body.playing .opponent > .opponent-counters[data-for="counters"], body.playing .opponent > .opponent-counters:nth-of-type(1) { grid-row: 2; }
+body.playing .opponent > .opponent-counters:nth-of-type(2) { grid-row: 3; }
+body.playing .opponent > div:not(.opponent-counters) { grid-column: 1 / -1; grid-row: 5; display: grid; grid-template-columns: minmax(0, 1fr) 6.2rem; grid-template-rows: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 0.15rem 0.4rem; min-height: 0; }
+body.playing .opponent > div > :nth-child(1) { grid-column: 1; grid-row: 1 / 4; }
+body.playing .opponent > div > h4:nth-child(2) { grid-column: 2; grid-row: 1; align-self: start; margin: 0; }
+body.playing .opponent > div > :nth-child(3) { grid-column: 2; grid-row: 1; margin-top: 0.8rem; }
+body.playing .opponent > div > :nth-child(4) { grid-column: 2; grid-row: 2; align-self: start; }
+body.playing .opponent > div > :nth-child(5) { grid-column: 2; grid-row: 3; }
+body.playing .opponent > p.hint:not(:nth-of-type(1)) { grid-column: 1 / -1; grid-row: 4; }
+
+/* the right-hand column, tighter */
+body.playing .players-section .sound-settings { flex-wrap: nowrap; gap: 0.5rem; }
+body.playing .sound-settings input[type="range"] { width: 6rem; }
+body.playing .side-panels button, body.playing .players-section button { min-height: 1.6rem; padding: 0 0.45rem; }
+body.playing .side-panels .stepper-name, body.playing .side-panels .stepper-count { font-size: 0.85rem; }
+body.playing .counters-block { gap: 0.15rem 0.6rem; }
+
+/* ---- The battlefield grid (Phase B, docs/layout.md): 12 columns by 4 rows, the same for every player. A card sits on the cell its data-col and data-row say (plain rules, no inline
+   style); the cell is as wide as the board is wide over 12 and as high as it is high over 4, and a card is as big as the smaller side of its cell so a tapped card (turned on its side)
+   still fits. ---- */
+.battlefield { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); grid-template-rows: repeat(4, minmax(0, 1fr)); min-height: 6rem; }
+.battlefield:empty::before { content: attr(data-empty); grid-column: 1 / -1; grid-row: 1 / -1; align-self: center; justify-self: center; color: var(--muted); font-size: 0.75rem; }
+.battlefield > .card[data-col="0"] { grid-column: 1; }
+.battlefield > .card[data-col="1"] { grid-column: 2; }
+.battlefield > .card[data-col="2"] { grid-column: 3; }
+.battlefield > .card[data-col="3"] { grid-column: 4; }
+.battlefield > .card[data-col="4"] { grid-column: 5; }
+.battlefield > .card[data-col="5"] { grid-column: 6; }
+.battlefield > .card[data-col="6"] { grid-column: 7; }
+.battlefield > .card[data-col="7"] { grid-column: 8; }
+.battlefield > .card[data-col="8"] { grid-column: 9; }
+.battlefield > .card[data-col="9"] { grid-column: 10; }
+.battlefield > .card[data-col="10"] { grid-column: 11; }
+.battlefield > .card[data-col="11"] { grid-column: 12; }
+.battlefield > .card[data-row="0"] { grid-row: 1; }
+.battlefield > .card[data-row="1"] { grid-row: 2; }
+.battlefield > .card[data-row="2"] { grid-row: 3; }
+.battlefield > .card[data-row="3"] { grid-row: 4; }
+body.playing .battlefield { flex: 1 1 0; min-height: 0; container-type: size; }
+body.playing .battlefield > .card { justify-self: center; align-self: center; height: calc(min(100cqh / 4, 100cqw / 12) - 3px); width: calc((min(100cqh / 4, 100cqw / 12) - 3px) / 1.4015); }
+body.playing .battlefield > .card.tapped { width: calc(min(100cqh / 4, 100cqw / 12) - 3px); }
+body.playing .battlefield > .card .face { width: 100%; height: 100%; }
+body.playing .battlefield > .card.tapped .face { width: calc((min(100cqh / 4, 100cqw / 12) - 3px) / 1.4015); height: calc(min(100cqh / 4, 100cqw / 12) - 3px); }
+body.playing .battlefield > .card.tapped .badges { top: 0.2rem; }
+
+/* dragging a card on the battlefield grid (src/board-drag.js): the card follows the pointer, the cell under it is outlined (dashed for a swap, red where a card from the hand cannot go) */
+.battlefield { position: relative; }
+.battlefield > .cell-highlight { z-index: 2; margin: 1px; border: 2px solid var(--accent); border-radius: 0.3rem; background: color-mix(in srgb, var(--accent) 22%, transparent); pointer-events: none; }
+.battlefield > .cell-highlight.swap { border-style: dashed; }
+.battlefield > .cell-highlight.taken { border-color: var(--danger); background: color-mix(in srgb, var(--danger) 22%, transparent); }
+.battlefield > .cell-highlight[data-col="0"] { grid-column: 1; }
+.battlefield > .cell-highlight[data-col="1"] { grid-column: 2; }
+.battlefield > .cell-highlight[data-col="2"] { grid-column: 3; }
+.battlefield > .cell-highlight[data-col="3"] { grid-column: 4; }
+.battlefield > .cell-highlight[data-col="4"] { grid-column: 5; }
+.battlefield > .cell-highlight[data-col="5"] { grid-column: 6; }
+.battlefield > .cell-highlight[data-col="6"] { grid-column: 7; }
+.battlefield > .cell-highlight[data-col="7"] { grid-column: 8; }
+.battlefield > .cell-highlight[data-col="8"] { grid-column: 9; }
+.battlefield > .cell-highlight[data-col="9"] { grid-column: 10; }
+.battlefield > .cell-highlight[data-col="10"] { grid-column: 11; }
+.battlefield > .cell-highlight[data-col="11"] { grid-column: 12; }
+.battlefield > .cell-highlight[data-row="0"] { grid-row: 1; }
+.battlefield > .cell-highlight[data-row="1"] { grid-row: 2; }
+.battlefield > .cell-highlight[data-row="2"] { grid-row: 3; }
+.battlefield > .cell-highlight[data-row="3"] { grid-row: 4; }
+.drag-ghost { position: fixed; left: 0; top: 0; z-index: 50; overflow: hidden; border-radius: 0.3rem; background: var(--line); box-shadow: 0 0.4rem 1rem rgba(0, 0, 0, 0.5); opacity: 0.92; pointer-events: none; font-size: 0.6rem; }
+.drag-ghost img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.card.dragging { opacity: 0.35; }
+body.dragging-card { cursor: grabbing; user-select: none; }
+body.playing .battlefield > .card, body.playing #hand > .card { cursor: grab; user-select: none; }
+body.dragging-card .battlefield > .card, body.dragging-card #hand > .card { cursor: grabbing; }

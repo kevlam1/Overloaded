@@ -7,6 +7,8 @@ import { rejoinTable, watchMembers, watchMeta, watchPresence, watchServerOffset,
 import { startKeepAlive } from '../../src/keep-alive.js';
 import { makeSafeStore } from '../../src/safe-store.js';
 import { play, mountSoundSettings } from '../../src/sound.js';
+import { mountCardHover } from '../../src/card-hover.js';
+import { mountBoardDrag } from '../../src/board-drag.js';
 import { createSpotlight } from '../../src/spotlight.js';
 import { canPing, makePing, newPings, pingSentence } from '../../../shared/ping.mjs';
 import { createDealer, SHUFFLE_PAUSE_MS } from '../../../shared/deal-sequence.mjs';
@@ -25,8 +27,9 @@ import { seatDeckText, defaultDeckFor, hasConceded } from '../../../shared/lobby
 import { LIBRARY_KEY, LEGACY_KEY, readLibrary } from '../../../shared/deck-library.mjs';
 import { makeLookup } from '../../../shared/card-lookup.mjs';
 import { friendlyMessage } from '../../../shared/friendly-error.mjs';
-import { makeGame, draw, moveCard, shuffleLibrary, mulligan, setTapped, turnOver, untapAll, beginTurn, adjustLife, battlefieldRows, zoneCounts } from '../../../shared/zones.mjs';
+import { makeGame, draw, moveCard, shuffleLibrary, mulligan, setTapped, turnOver, untapAll, beginTurn, adjustLife, boardCells, settleBoard, isLandCard, placeCard, arrangeBoard, zoneCounts } from '../../../shared/zones.mjs';
 import { gameWrites, joinGame, readPublic } from '../../../shared/game-sync.mjs';
+import { placeAll, stepFrom } from '../../../shared/board-grid.mjs';
 
 const $ = (id) => document.getElementById(id);
 const store = makeSafeStore();
@@ -123,6 +126,7 @@ const dealer = createDealer({
 
 function showBlocked(message, { link = true, retry = false } = {}) {
   $('game').hidden = true;
+  document.body.classList.remove('playing');
   $('blocked').hidden = false;
   $('blocked-message').textContent = message;
   $('blocked-link').hidden = !link;
@@ -149,9 +153,7 @@ function render() {
   renderTurn();
   renderCounters();
   $('life').textContent = String(game.life);
-  const rows = battlefieldRows(game);
-  place($('row-lands'), rows.lands, { battlefield: true });
-  place($('row-other'), rows.other, { battlefield: true });
+  place($('battlefield'), game.zones.battlefield, { battlefield: true, cells: boardCells(game) });
   place($('hand'), dealer.visible(game.zones.hand));
   place($('command'), game.zones.command);
   $('hand-count').textContent = String(dealer.visible(game.zones.hand).length);
@@ -425,6 +427,7 @@ async function beginGame() {
   if (stored.public && stored.public.match === matchNow) {
     game = joinGame(stored.public, stored.private, lookup);
     lastSaved = game;
+    game = settleBoard(game); // an older game has no cells: every card gets one (what changed is saved by the sync below)
     $('deck-line').textContent = 'Your game from before is back.';
     say('Back at your game.');
   } else {
@@ -444,6 +447,7 @@ async function beginGame() {
   viewing = null;
   cardNodes.clear();
   $('game').hidden = false;
+  document.body.classList.add('playing'); // the one-screen layout (src/style.css)
   if (fresh) dealer.start(game.zones.hand.length); // a new hand is dealt one card at a time; a game put back after a refresh shows whole
   else render();
   sync();
@@ -456,6 +460,7 @@ function checkStart() {
   begun = false;
   game = null;
   $('game').hidden = true;
+  document.body.classList.remove('playing');
   $('blocked').hidden = true;
   // The match is over (the host ended it): everyone goes back to the lobby to get ready for the next one.
   if (meta.status === 'lobby') location.assign(`/lobby/${tableCode}`);
@@ -481,19 +486,18 @@ function opponentPanel(uid) {
   if (panel) return panel;
   const section = make('section', 'opponent');
   section.dataset.uid = uid;
-  const lands = make('div', 'row'); lands.dataset.empty = 'No lands.';
-  const other = make('div', 'row'); other.dataset.empty = 'Nothing else.';
+  const board = make('div', 'battlefield'); board.dataset.empty = 'Nothing on the battlefield.';
   const command = make('div', 'row'); command.dataset.empty = 'Empty.';
   const graveyard = pileDetails('Graveyard');
   const exile = pileDetails('Exile');
-  panel = { section, title: make('h3'), stats: make('p', 'hint'), waiting: make('p', 'hint', 'Has not been dealt a game yet.'), body: make('div'), lands, other, command, graveyard, exile, nodes: makeCardNodes({ readOnly: true, printedStats: (card) => printedOf(card, lookup) }) };
+  panel = { section, title: make('h3'), stats: make('p', 'hint'), waiting: make('p', 'hint', 'Has not been dealt a game yet.'), body: make('div'), board, command, graveyard, exile, nodes: makeCardNodes({ readOnly: true, printedStats: (card) => printedOf(card, lookup) }) };
   // Another player's counters and the commander damage they have taken: the same nodes as yours, read-only, shown only once something has happened.
   const countersBox = make('div', 'opponent-counters'); countersBox.setAttribute('role', 'group'); countersBox.setAttribute('aria-label', 'Counters'); countersBox.hidden = true;
   const damageBox = make('div', 'opponent-counters'); damageBox.setAttribute('role', 'group'); damageBox.setAttribute('aria-label', 'Commander damage taken'); damageBox.hidden = true;
   panel.countersBox = countersBox; panel.damageBox = damageBox;
   panel.counterList = mountPlayerCounters(countersBox, { readOnly: true });
   panel.damageList = mountCommanderDamage(damageBox, { readOnly: true });
-  panel.body.append(make('h4', '', 'Lands'), lands, make('h4', '', 'Other permanents'), other, make('h4', '', 'Command zone'), command, graveyard.details, exile.details);
+  panel.body.append(board, make('h4', '', 'Command zone'), command, graveyard.details, exile.details);
   section.append(panel.title, panel.stats, countersBox, damageBox, panel.waiting, panel.body);
   opponents.set(uid, panel);
   return panel;
@@ -507,6 +511,7 @@ async function renderOpponents() {
   try { known = await lookupReady(); } catch { known = () => null; } // without the list every permanent shows in the "other" row
   lookup ??= known; // the same list answers for your own cards and the printed numbers on theirs
   const others = Object.entries(members).filter(([uid]) => uid !== myUid).sort((a, b) => Number(a[1].seat) - Number(b[1].seat));
+  document.querySelector('main').dataset.opponents = String(Math.min(others.length, 3)); // how the boards are placed on the one-screen layout
   const panels = [];
   const turnNow = game !== null ? currentTurnInfo() : null; // worked out once for all the panels, not once per player
   for (const [uid, member] of others) {
@@ -526,9 +531,7 @@ async function renderOpponents() {
       panel.damageBox.hidden = !panel.damageList.update(commanderDamageEntries(view.cd, commanderDamageSeatsFor(members, view.cd, meta?.format)));
       panel.stats.textContent = `Life ${view.life}. Hand: ${plural(view.counts.hand, 'card', 'cards')}. Library: ${plural(view.counts.library, 'card', 'cards')}.`;
       panel.section.dataset.life = String(view.life);
-      const rows = battlefieldRows({ zones: { battlefield: view.zones.battlefield } });
-      panel.nodes.place(panel.lands, rows.lands);
-      panel.nodes.place(panel.other, rows.other);
+      panel.nodes.place(panel.board, view.zones.battlefield, { battlefield: true, cells: placeAll(view.zones.battlefield, isLandCard) }); // their battlefield on the same grid, each card on the cell they stored
       panel.nodes.place(panel.command, view.zones.command);
       for (const pile of [panel.graveyard, panel.exile]) {
         const cards = view.zones[pile.label.toLowerCase()];
@@ -685,6 +688,42 @@ $('take-back').addEventListener('click', () => { if (game) { const action = take
 $('untap-all').addEventListener('click', () => { if (game) { play('tap'); apply(() => untapAll(game), untapMessage(game)); } });
 $('shuffle').addEventListener('click', () => { if (game) { play('shuffle'); apply(() => shuffleLibrary(game), 'Shuffled your library.'); } });
 mountSoundSettings($('sound-settings'));
+mountCardHover(); // a larger picture of any card the pointer rests on (the cards are small on the one-screen layout)
+// ---- the battlefield grid: drag and drop, Auto-arrange and Alt+arrow keys (shared/board-grid.mjs, src/board-drag.js) ----
+// A card dropped on a cell of your battlefield: from the hand it is played there (a taken cell is refused); from the battlefield it moves there, or swaps places with the card that is there.
+function dropOnBoard({ uid, from, col, row }) {
+  if (!game) return;
+  const found = findCard(uid);
+  if (!found || found.zone !== from) return;
+  try {
+    if (from === 'hand') { apply(() => moveCard(game, uid, 'battlefield', { cell: { col, row } }), `Played ${found.card.n}.`); return; }
+    const result = placeCard(game, uid, col, row);
+    if (result.game === game) return; // dropped on its own cell
+    const other = result.swapped ? result.game.zones.battlefield.find((card) => card.uid === result.swapped) : null;
+    apply(() => result.game, other ? `Swapped ${found.card.n} with ${other.n}.` : `Moved ${found.card.n}.`);
+  } catch (error) {
+    say(error.message, true);
+  }
+}
+// The same without a mouse: Alt and an arrow key move the selected card on your battlefield one cell (and swap with the card there).
+function nudgeSelected(direction) {
+  if (!game || !selected) return false;
+  const found = findCard(selected);
+  if (!found || found.zone !== 'battlefield') return false;
+  const cell = boardCells(game).get(selected);
+  const to = cell ? stepFrom(cell, direction) : null;
+  if (!to) { say('That is the edge of the battlefield.'); return true; }
+  dropOnBoard({ uid: selected, from: 'battlefield', col: to.col, row: to.row });
+  return true;
+}
+document.addEventListener('keydown', (event) => {
+  if (!event.altKey || event.ctrlKey || event.metaKey || event.target.closest?.('input, select, textarea')) return;
+  const direction = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' }[event.key];
+  if (direction && nudgeSelected(direction)) event.preventDefault();
+});
+$('arrange').addEventListener('click', () => { if (!game) return; apply(() => arrangeBoard(game), 'Tidied the battlefield: lands along the bottom, everything else along the top, cards with the same name side by side.'); });
+mountBoardDrag({ board: () => $('battlefield'), onDrop: dropOnBoard, isEnabled: () => Boolean(game) });
+
 $('mulligan').addEventListener('click', () => { if (game) doMulligan(); });
 for (const [id, delta] of [['life-minus5', -5], ['life-minus1', -1], ['life-plus1', 1], ['life-plus5', 5]]) {
   $(id).addEventListener('click', () => { if (game) apply(() => adjustLife(game, delta), ''); });

@@ -4,6 +4,9 @@
 // markup. Nothing here is saved: a refresh deals a new game.
 import { makeSafeStore } from '../../src/safe-store.js';
 import { play, mountSoundSettings } from '../../src/sound.js';
+import { mountCardHover } from '../../src/card-hover.js';
+import { mountBoardDrag } from '../../src/board-drag.js';
+import { stepFrom } from '../../../shared/board-grid.mjs';
 import { createDealer, SHUFFLE_PAUSE_MS } from '../../../shared/deal-sequence.mjs';
 import { loadCardList } from '../../src/card-list.js';
 import { LIBRARY_KEY, LEGACY_KEY, readLibrary, selectedEntry } from '../../../shared/deck-library.mjs';
@@ -15,7 +18,7 @@ import { mountPlayerCounters } from '../../src/player-counters.js';
 import { menuItems, menuAction, turnLabel, turnMessage, playBackLabel, PLAY_BACK_ZONES, noUntapLabel, sickLabel, untapMessage } from '../../../shared/card-menu.mjs';
 import { marksSentence, markClick, printedOf } from '../../../shared/marks.mjs';
 import { playerCounterEntries, counterAction } from '../../../shared/player-counters.mjs';
-import { makeGame, draw, moveCard, shuffleLibrary, mulligan, setTapped, turnOver, untapAll, heldTapped, adjustLife, nextTurn, battlefieldRows, zoneCounts } from '../../../shared/zones.mjs';
+import { makeGame, draw, moveCard, shuffleLibrary, mulligan, setTapped, turnOver, untapAll, heldTapped, adjustLife, nextTurn, boardCells, placeCard, arrangeBoard, zoneCounts } from '../../../shared/zones.mjs';
 
 const $ = (id) => document.getElementById(id);
 const store = makeSafeStore();
@@ -77,9 +80,7 @@ function render() {
   $('turn').textContent = String(game.turn);
   $('life').textContent = String(game.life);
   playerCounters.update(playerCounterEntries(game.pc));
-  const rows = battlefieldRows(game);
-  place($('row-lands'), rows.lands, { battlefield: true });
-  place($('row-other'), rows.other, { battlefield: true });
+  place($('battlefield'), game.zones.battlefield, { battlefield: true, cells: boardCells(game) });
   place($('hand'), dealer.visible(game.zones.hand));
   place($('command'), game.zones.command);
   $('hand-count').textContent = String(dealer.visible(game.zones.hand).length);
@@ -232,6 +233,7 @@ function deal({ pause = 0 } = {}) {
   viewing = null;
   cardNodes.clear();
   $('game').hidden = false;
+  document.body.classList.add('playing', 'solo'); // the one-screen layout (src/style.css)
   $('blocked').hidden = true;
   dealer.start(game.zones.hand.length, { pause }); // draws the table, and deals the hand one card at a time
   say(`Dealt ${plural(game.zones.hand.length, 'card', 'cards')}. ${game.zones.command.length ? `Your commander is in the command zone. Life is ${game.life}.` : `Life is ${game.life}.`}`);
@@ -271,6 +273,7 @@ function togglePile(zone) {
 // ---- starting ----
 function showBlocked(message, { link = true, retry = false } = {}) {
   $('game').hidden = true;
+  document.body.classList.remove('playing', 'solo');
   $('blocked').hidden = false;
   $('blocked-message').textContent = message;
   $('blocked-link').hidden = !link;
@@ -309,6 +312,42 @@ $('next-turn').addEventListener('click', goNextTurn);
 $('untap-all').addEventListener('click', () => { play('tap'); apply(() => untapAll(game), untapMessage(game)); });
 $('shuffle').addEventListener('click', () => { play('shuffle'); apply(() => shuffleLibrary(game), 'Shuffled your library.'); });
 mountSoundSettings($('sound-settings'));
+mountCardHover(); // a larger picture of any card the pointer rests on (the cards are small on the one-screen layout)
+// ---- the battlefield grid: drag and drop, Auto-arrange and Alt+arrow keys (shared/board-grid.mjs, src/board-drag.js) ----
+// A card dropped on a cell of your battlefield: from the hand it is played there (a taken cell is refused); from the battlefield it moves there, or swaps places with the card that is there.
+function dropOnBoard({ uid, from, col, row }) {
+  if (!game) return;
+  const found = findCard(uid);
+  if (!found || found.zone !== from) return;
+  try {
+    if (from === 'hand') { apply(() => moveCard(game, uid, 'battlefield', { cell: { col, row } }), `Played ${found.card.n}.`); return; }
+    const result = placeCard(game, uid, col, row);
+    if (result.game === game) return; // dropped on its own cell
+    const other = result.swapped ? result.game.zones.battlefield.find((card) => card.uid === result.swapped) : null;
+    apply(() => result.game, other ? `Swapped ${found.card.n} with ${other.n}.` : `Moved ${found.card.n}.`);
+  } catch (error) {
+    say(error.message, true);
+  }
+}
+// The same without a mouse: Alt and an arrow key move the selected card on your battlefield one cell (and swap with the card there).
+function nudgeSelected(direction) {
+  if (!game || !selected) return false;
+  const found = findCard(selected);
+  if (!found || found.zone !== 'battlefield') return false;
+  const cell = boardCells(game).get(selected);
+  const to = cell ? stepFrom(cell, direction) : null;
+  if (!to) { say('That is the edge of the battlefield.'); return true; }
+  dropOnBoard({ uid: selected, from: 'battlefield', col: to.col, row: to.row });
+  return true;
+}
+document.addEventListener('keydown', (event) => {
+  if (!event.altKey || event.ctrlKey || event.metaKey || event.target.closest?.('input, select, textarea')) return;
+  const direction = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' }[event.key];
+  if (direction && nudgeSelected(direction)) event.preventDefault();
+});
+$('arrange').addEventListener('click', () => { apply(() => arrangeBoard(game), 'Tidied the battlefield: lands along the bottom, everything else along the top, cards with the same name side by side.'); });
+mountBoardDrag({ board: () => $('battlefield'), onDrop: dropOnBoard, isEnabled: () => Boolean(game) });
+
 $('mulligan').addEventListener('click', doMulligan);
 $('new-game').addEventListener('click', () => { if (confirm('Start a new game? This one will be lost.')) { play('shuffle'); deal({ pause: SHUFFLE_PAUSE_MS }); } });
 for (const [id, delta] of [['life-minus5', -5], ['life-minus1', -1], ['life-plus1', 1], ['life-plus5', 5]]) {

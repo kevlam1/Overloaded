@@ -10,15 +10,17 @@
   </head>
   <body>
     <main class="table">
-      <p class="back"><a id="back" href="/">Back to the lobby</a></p>
-      <h1>Table <span id="code" class="code"></span></h1>
-      <p id="status" class="status" role="status" aria-live="polite"></p>
-      <div id="banner" class="banner" role="status" aria-live="polite" hidden></div>
-      <p id="connection" class="banner" data-level="urgent" role="status" hidden></p>
-      <p id="turn-banner" class="turn-banner" role="status" aria-live="polite" hidden></p>
+      <header class="topbar">
+        <p class="back"><a id="back" href="/">Back to the lobby</a></p>
+        <h1>Table <span id="code" class="code"></span></h1>
+        <p id="status" class="status" role="status" aria-live="polite"></p>
+        <div id="banner" class="banner" role="status" aria-live="polite" hidden></div>
+        <p id="connection" class="banner" data-level="urgent" role="status" hidden></p>
+        <p id="turn-banner" class="turn-banner" role="status" aria-live="polite" hidden></p>
+      </header>
       <section id="spotlight" aria-label="Pinged card" hidden></section>
 
-      <section aria-labelledby="players-heading">
+      <section id="players-section" class="players-section" aria-labelledby="players-heading">
         <h2 id="players-heading">At the table</h2>
         <p id="match-state"></p>
         <ul id="players"></ul>
@@ -27,12 +29,14 @@
           <button id="end-match" type="button" class="secondary" hidden>End the match</button>
           <button id="leave" type="button" class="secondary">Leave the table</button>
         </div>
-        <p class="hint">Play is casual: conceding is a sign to the table, it does not stop you from looking. Only the host can end the match for everyone. If you leave during a match your seat is kept for you until it ends.</p>
+        <div id="sound-settings"></div>
+        <p id="save-state" class="hint" role="status" aria-live="polite"></p>
+        <p class="hint extra">Play is casual: conceding is a sign to the table, it does not stop you from looking. Only the host can end the match for everyone. If you leave during a match your seat is kept for you until it ends.</p>
       </section>
 
       <section id="opponents" aria-labelledby="opponents-heading" hidden>
         <h2 id="opponents-heading">Other players</h2>
-        <p class="hint">You can see their battlefield, command zone, graveyard and exile, and how many cards they hold. Their hand and library stay hidden. You look; you cannot move their cards.</p>
+        <p class="hint extra">You can see their battlefield, command zone, graveyard and exile, and how many cards they hold. Their hand and library stay hidden. You look; you cannot move their cards.</p>
         <div id="opponent-list"></div>
       </section>
 
@@ -62,63 +66,61 @@
             <button id="pass-turn" type="button">Pass turn</button>
             <button id="take-back" type="button" class="secondary" hidden>Take back the pass</button>
             <button id="untap-all" type="button" class="secondary">Untap all</button>
+            <button id="arrange" type="button" class="secondary">Auto-arrange</button>
             <button id="shuffle" type="button" class="secondary">Shuffle library</button>
             <button id="mulligan" type="button" class="secondary">Mulligan</button>
           </div>
-          <div id="sound-settings"></div>
-          <p id="save-state" class="hint" role="status" aria-live="polite"></p>
         </section>
 
-        <section id="counters" class="counters-panel" aria-labelledby="counters-heading">
-          <h2 id="counters-heading">Your counters</h2>
-          <div id="player-counters" class="counters-block" role="group" aria-label="Poison, energy and experience"></div>
-          <div id="commander-damage-block" hidden>
-            <h3 id="commander-damage-heading" class="counters-sub">Commander damage you have taken</h3>
-            <div id="commander-damage" class="counters-block" role="group" aria-labelledby="commander-damage-heading"></div>
-          </div>
-        </section>
-
-        <section id="selected" class="selected-panel" aria-labelledby="selected-heading">
-          <h2 id="selected-heading">Selected card</h2>
-          <p id="selected-line" class="hint">Click a card to move it, tap it or look at it.</p>
-          <div id="selected-actions" class="actions" role="group" aria-label="What to do with the selected card"></div>
-          <div id="marks" class="marks-panel" hidden></div>
-        </section>
-
-        <section aria-labelledby="battlefield-heading">
+        <section id="my-board" class="board mine" aria-labelledby="battlefield-heading">
           <h2 id="battlefield-heading">Your battlefield</h2>
-          <h3>Lands</h3>
-          <div id="row-lands" class="row" data-empty="No lands yet."></div>
-          <h3>Other permanents</h3>
-          <div id="row-other" class="row" data-empty="Nothing else yet."></div>
+          <div id="battlefield" class="battlefield" data-empty="Nothing on the battlefield yet."></div>
         </section>
 
-        <section aria-labelledby="hand-heading">
+        <section id="hand-section" class="hand-section" aria-labelledby="hand-heading">
           <h2 id="hand-heading">Your hand: <span id="hand-count">0</span></h2>
-          <p class="hint">Only you can see your hand and your library.</p>
+          <p class="hint extra">Only you can see your hand and your library.</p>
           <div id="hand" class="row" data-empty="Your hand is empty."></div>
         </section>
 
-        <section aria-labelledby="piles-heading">
-          <h2 id="piles-heading">Your piles</h2>
-          <div class="piles">
-            <div>
-              <h3>Command zone</h3>
-              <div id="command" class="row" data-empty="Empty."></div>
+        <aside class="side-panels" aria-label="Counters, the selected card and your piles">
+          <section id="counters" class="counters-panel" aria-labelledby="counters-heading">
+            <h2 id="counters-heading">Your counters</h2>
+            <div id="player-counters" class="counters-block" role="group" aria-label="Poison, energy and experience"></div>
+            <div id="commander-damage-block" hidden>
+              <h3 id="commander-damage-heading" class="counters-sub">Commander damage you have taken</h3>
+              <div id="commander-damage" class="counters-block" role="group" aria-labelledby="commander-damage-heading"></div>
             </div>
-            <div class="pile-buttons" role="group" aria-label="Look at a pile">
-              <button id="pile-library" type="button" class="secondary" data-zone="library" aria-pressed="false">Library: 0</button>
-              <button id="pile-graveyard" type="button" class="secondary" data-zone="graveyard" aria-pressed="false">Graveyard: 0</button>
-              <button id="pile-exile" type="button" class="secondary" data-zone="exile" aria-pressed="false">Exile: 0</button>
-              <button id="pile-sideboard" type="button" class="secondary" data-zone="sideboard" aria-pressed="false">Sideboard: 0</button>
+          </section>
+
+          <section id="selected" class="selected-panel" aria-labelledby="selected-heading">
+            <h2 id="selected-heading">Selected card</h2>
+            <p id="selected-line" class="hint">Click a card to move it, tap it or look at it.</p>
+            <div id="selected-actions" class="actions" role="group" aria-label="What to do with the selected card"></div>
+            <div id="marks" class="marks-panel" hidden></div>
+          </section>
+
+          <section id="piles-section" class="piles-section" aria-labelledby="piles-heading">
+            <h2 id="piles-heading">Your piles</h2>
+            <div class="piles">
+              <div>
+                <h3>Command zone</h3>
+                <div id="command" class="row" data-empty="Empty."></div>
+              </div>
+              <div class="pile-buttons" role="group" aria-label="Look at a pile">
+                <button id="pile-library" type="button" class="secondary" data-zone="library" aria-pressed="false">Library: 0</button>
+                <button id="pile-graveyard" type="button" class="secondary" data-zone="graveyard" aria-pressed="false">Graveyard: 0</button>
+                <button id="pile-exile" type="button" class="secondary" data-zone="exile" aria-pressed="false">Exile: 0</button>
+                <button id="pile-sideboard" type="button" class="secondary" data-zone="sideboard" aria-pressed="false">Sideboard: 0</button>
+              </div>
             </div>
-          </div>
-          <div id="viewer" class="viewer" hidden>
-            <h3 id="viewer-title"></h3>
-            <p id="viewer-note" class="hint"></p>
-            <ul id="viewer-list" class="pile-list"></ul>
-          </div>
-        </section>
+            <div id="viewer" class="viewer" hidden>
+              <h3 id="viewer-title"></h3>
+              <p id="viewer-note" class="hint"></p>
+              <ul id="viewer-list" class="pile-list"></ul>
+            </div>
+          </section>
+        </aside>
       </div>
     </main>
 

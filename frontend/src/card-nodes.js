@@ -7,6 +7,7 @@
 // the power/toughness numbers and returns false when the change was refused; printedStats(card) gives a card's printed power and
 // toughness as text ("2/2") or null.
 import { imageUrl } from '../../shared/card-image.mjs';
+import { isLandCard } from '../../shared/zones.mjs';
 import { changeParts, counterChips, marksSentence, markToast, shortNumber, statsOf } from '../../shared/marks.mjs';
 
 function make(tag, className, content) {
@@ -220,8 +221,15 @@ export function makeCardNodes({ onSelect = () => {}, isSelected = () => false, r
     nodeFor,
     // Shows the floating text (see markToast in shared/marks.mjs) on a card, for a change made some other way than clicking its numbers.
     flash: (uid, toast) => { const button = nodes.get(uid); if (button) showToast(button, toast); },
-    // battlefield: true for the rows of permanents; only there does your own creature offer its power and toughness box.
-    place: (container, cards, { battlefield = false } = {}) => container.replaceChildren(...cards.map((card) => nodeFor(card, battlefield))),
+    // battlefield: true for the battlefield grid; only there does your own creature offer its power and toughness box, and each card is put on its cell (cells: a Map from uid to
+    // { col, row }, shared/zones.mjs boardCells) with data-col and data-row, which the style sheet turns into a place in the grid; data-kind says land or other (the checks use it).
+    place: (container, cards, { battlefield = false, cells = null } = {}) => container.replaceChildren(...cards.map((card) => {
+      const button = nodeFor(card, battlefield);
+      const cell = battlefield ? cells?.get(card.uid) : null;
+      if (cell) { button.dataset.col = String(cell.col); button.dataset.row = String(cell.row); } else { delete button.dataset.col; delete button.dataset.row; }
+      if (battlefield) button.dataset.kind = isLandCard(card) ? 'land' : 'other'; else delete button.dataset.kind;
+      return button;
+    })),
     clear: () => nodes.clear(),
   };
 }
