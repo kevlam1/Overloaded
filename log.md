@@ -2106,6 +2106,24 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - Not done on purpose: no sound for other players' moves, none for "your turn" (still on the list), and no setting for that yet.
 - Mistakes of mine: one of my first broken copies had text that broke the syntax, so its "caught" meant nothing; I rewrote it and it was caught for the right reason. One broken copy (no sample after moving the slider) survived because the previous sound was the same one, so the test could not tell; I changed the test to play a shuffle first and count the plays, and it is caught now. The two files showed up as "added" in git's index under their old names (something staged them, not me); I unstaged them, which touched only the index.
 
+## 102. Tap and your-turn sounds, and the volume scheme (2026-11-06)
+
+**What I asked for**
+- I added more sounds (a tap and a your-turn sound, and a new recording of the shuffle) and said: make every sound play at 50%, with the volume slider at 100%.
+
+**What changed**
+- `frontend/public/sfx/`: `tap.mp3` and `yourturn.mp3` added, `shuffle.mp3` replaced by my new recording. `credits.md` lists them as source and licence not recorded.
+- `shared/sound-settings.mjs`: the slider now starts at 100% (was 70%), and each sound has its own gain in `SOUND_GAIN` (all four are 0.5), so a sound plays at the slider times its gain. One number per sound if I want to tune one. A slider saved before this change keeps its saved value.
+- Tap plays when you tap or untap a card with the Tap button or the right-click menu, and when you press Untap all, on both tables. Your turn plays on the live table when my turn begins by itself after a pass; a browser may keep it silent until the page has been clicked once.
+
+**What I checked**
+- `test-sound-settings` 49 checks, the solo page check 304 (the volumes now read 0.5 at the default and 0.15 at a slider of 30%, plus the button, menu and Untap all), the two-browser live check 149 (Bob's page plays your-turn once when his turn begins, Alice's plays none). `npm test` is 43 suites, all passed.
+- Broken copies: 11 of 12 caught. The survivor was the rounding of the level, which does nothing while every gain is 0.5 (halving is exact), so Claude removed the rounding instead of keeping dead code.
+- Not checked: how they sound, whether 50% of the slider is a good loudness, and the your-turn sound in a real second browser that has never been clicked (the check records the call, it does not hear it).
+
+**Decisions**
+- Mistakes of mine: a regex in a template literal in my new check lost its backslash and was read as a comment, which made the page throw; and my live check assumed Alice's page still had its recorder after a reload. Both were found by the first run and fixed.
+
 ---
 
 ## Where AI misread me, or I had to correct course
