@@ -2124,6 +2124,23 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 **Decisions**
 - Mistakes of mine: a regex in a template literal in my new check lost its backslash and was read as a comment, which made the page throw; and my live check assumed Alice's page still had its recorder after a reload. Both were found by the first run and fixed.
 
+## 103. The volume slider could not reach its ends (2026-11-06)
+
+**What I asked for**
+- I asked whether the solo table plays the your-turn sound, whether every sound was really reduced by 50%, and said the volume bar could not be slid all the way down or up.
+
+**What changed**
+- `frontend/src/style.css`: the slider no longer takes the general input style (padding, border), and is a little wider (9rem). A close-up screenshot showed the thumb stopping about 17 px short of both ends of the track with the old style, so it looked stuck even though the value reached 0 and 100. After the change the thumb reaches both ends (looked at).
+- `scripts/check-solo-ui.mjs` is 309 checks: a real mouse drag to both ends gives 0 and 100, and the slider has no padding or border of its own. The old style fails the new check.
+- `frontend/public/sfx/draw.mp3` is modified: I replaced it with a new recording (20,013 bytes), which Claude did not touch.
+
+**What I checked**
+- The solo table does not play the your-turn sound: it exists only on the live table, where it plays when a pass makes it my turn. The solo Next turn plays the draw sound only. I have not changed that.
+- Every sound plays at the slider times 0.5, checked by recording the volume of each played sound (0.5 at a slider of 100%). That is the audio element's volume, a linear level (about 6 dB down); it is not the same as sounding half as loud, and the files themselves are unchanged. A slider I had already moved keeps its saved position, so it may not start at 100% in my browser.
+
+**Decisions**
+- Not done: a your-turn sound on the solo table.
+
 ---
 
 ## Where AI misread me, or I had to correct course
