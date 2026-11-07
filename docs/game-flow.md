@@ -19,7 +19,7 @@ A table is in one of two states: **lobby** (people join, leave, ready up) and **
 | Hand over the table | the host | anytime the table is alive | The host picks another player at the table and becomes an ordinary player. The new host claims the one-table-per-host slot afterwards. Refused if the new host already hosts another live table. |
 | Come back | a player who left or crashed | mid-match | Join again with the same code. You get your own seat back (with a fresh ready/concede mark: see question 3). A different browser, or cleared browser data, is a different person to the database, so it cannot reclaim the seat. |
 | Close table | the host | anytime | The table is deleted for everyone. |
-| Expire | the clock | 8 hours after creation, or idle 30 min in the lobby / 1 h playing | Nothing can change except closing it. |
+| Expire | the clock | 8 hours after creation, or idle 30 min in the lobby / 1 h playing | An expired table is deleted by whoever finds it (2026-11-06): a stranger opening its link, or a new table whose random code it holds. Nothing can change except closing it. |
 
 ## What enforces each rule today
 

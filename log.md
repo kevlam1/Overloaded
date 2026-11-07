@@ -2195,6 +2195,25 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - Chose to stage only the display, not the game: dealing the game for real one card at a time would have meant seven saves, other players seeing a half-dealt hand, and a refresh in the middle leaving a partial game.
 - Mistakes of Claude: its first test used a hand of seven cards for a deal of three; its first screenshot showed the whole hand because the navigation helper waited for the deal to finish; its recorder in the live check was lost on a reload; and its first mulligan block changed Alice's hand before a check that compares it with her first one.
 
+## 107. Expired tables are cleaned up by whoever finds them (2026-11-06)
+
+**What I asked for**
+- I asked whether closed tables fill the 1 GB of free storage with dead data, and whether a better way would be that a user who generates a table whose code belongs to a closed table deletes it and opens it again.
+
+**What changed**
+- `shared/table-ops.mjs`: new `closeIfExpired(code)`, a best-effort delete. The database rules accept a delete from a stranger only when the table has expired, and refuse it for a live one, so it is safe to try on any code. Two uses: (1) `joinTable`: a stranger who opens the old link of an expired table is refused as before and the visit deletes the table; (2) `createTable`: when every way to create at a random code is refused, it tries to delete the table there (my idea, which was good for the rare collision) and uses the code. No rules change, so there was no paste.
+- `createTable` also clears the host slot when the slot names a table the host cannot read (it belongs to someone else now). Found by a test, see below.
+
+**What I checked**
+- `backend/test-table-ops.mjs` is 224 checks (193 before): a stranger opening an expired link deletes it (8 hours and 30 minutes idle), nothing is deleted at 29 minutes idle, a live table (full or started) is never deleted by a stranger or a member, the host of a live table is protected by the page (a plain delete by that host IS accepted by the rules, which the test shows), nonsense codes send no request, and a new table takes the code of an expired one with nothing left of the old players or game. The whole `npm test` is 44 suites.
+- Broken copies: 8 of 8 caught, after two test gaps were closed (a host with a live table whose new code collides with a live table, and the code check, which my first test could not see because the failure was swallowed).
+- Not checked: nothing was run against the real project for the cleanup itself (an expired table needs 30 minutes or 8 hours to exist); the emulator runs the real rules file.
+
+**Decisions**
+- A page never deletes a table it belongs to. The rules let a host (or the last player standing) delete their table while it is alive, so a page that wrongly believed it had closed (stale read, offline queue) could destroy a live table. Only the safe cases were built: a stranger, and a new table at a colliding code.
+- Not solved: a table nobody ever opens again, whose host never makes a new table, still stays in the database. Each host account leaves at most one (a new table replaces the old). The full fix is a scheduled job; Firebase's needs a paid plan. A free scheduled job elsewhere (GitHub Actions or Vercel Cron with a service account key as a secret) is an option, not checked, and the key is your decision.
+- Mistakes of mine: reusing a code created a bug I had not thought of until the test of the old host found it: the old host's slot named the reused code, which now belongs to someone else's live table, so the rules refused every new table for that host. Fixed as above. My first version of two tests could not fail (the code guard and the live-table slot).
+
 ---
 
 ## Where AI misread me, or I had to correct course
