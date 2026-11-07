@@ -205,9 +205,15 @@ try {
   record("...and none of her hand's card numbers is in what he can read", !JSON.stringify(publicFirst).includes(Object.values(savedFirst?.hand ?? {})[0]?.u ?? 'no-hand'));
   const handBefore = Object.values(savedFirst.hand).map((card) => card.u);
 
+  // The sound wiring on the table page (the check records the call; it cannot hear it): Draw plays the draw sound, Shuffle the shuffle sound.
+  await alice.eval(`window.__plays = []; HTMLMediaElement.prototype.play = function () { window.__plays.push(new URL(this.src).pathname); return Promise.resolve(); };`);
   await click(alice, 'draw');
   const drew = await waitFor(async () => { const r = await rest('GET', pathOf('private/hand'), cleanup.alice.token); return r.json && Object.keys(r.json).length === 8 ? true : null; }, 15000, 250);
   record('Draw shows 8 cards and saves them (the hand 8, the library 22, both counts)', Boolean(drew) && (await count(alice, '#hand .card')) === 8 && (await rest('GET', pathOf('public/counts'), cleanup.bob.token)).json?.hand === 8 && Object.keys((await rest('GET', pathOf('private/library'), cleanup.alice.token)).json).length === 22);
+
+  record('Draw on the table page plays the draw sound, and the sound settings are on the page', JSON.stringify(await alice.eval(`window.__plays`)) === '["/sfx/draw.mp3"]' && (await alice.eval(`document.getElementById('sound-on').checked`)) === true);
+  await click(alice, 'shuffle');
+  record('Shuffle on the table page plays the shuffle sound', JSON.stringify(await alice.eval(`window.__plays`)) === '["/sfx/draw.mp3","/sfx/shuffle.mp3"]');
 
   await alice.eval(`document.querySelector('#hand .card').click()`);
   await alice.eval(`Array.from(document.querySelectorAll('#selected-actions button')).find((b) => b.textContent === 'To battlefield').click()`);

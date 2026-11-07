@@ -190,6 +190,54 @@ try {
   check('Shuffle keeps the same cards and says so', (await pileCount('library')) === libCount && (await $text('status')) === 'Shuffled your library.');
   await press('mulligan');
   check('a mulligan deals a new hand of 7, counts itself and tells you what to do', (await count('#hand .card')) === 7 && (await $text('mulligan')) === 'Mulligan (1 so far)' && /^Mulligan 1: a new hand of 7 cards\. Put 1 card on the bottom of your library/.test(await $text('status')), await $text('status'));
+  // ---- sound (the check records which file is played at what volume; it cannot hear them) ----
+  {
+    const same = (label, actual, expected) => check(label, JSON.stringify(actual) === JSON.stringify(expected), `got ${JSON.stringify(actual)}`);
+    const served = await ev(`Promise.all(['draw', 'shuffle'].map((n) => fetch('/sfx/' + n + '.mp3').then(async (r) => ({ ok: r.ok, type: r.headers.get('content-type'), bytes: (await r.arrayBuffer()).byteLength }))))`);
+    check('both sound files are served as audio and are not empty', served.every((f) => f.ok && /^audio\//.test(f.type ?? '') && f.bytes > 1000), JSON.stringify(served));
+    check('an unknown sound file is not served as audio', await ev(`fetch('/sfx/nothing.mp3').then((r) => !/^audio\\//.test(r.headers.get('content-type') ?? ''))`));
+    await ev(`localStorage.removeItem('overloaded.sound')`);
+    await ev(`window.__plays = []; HTMLMediaElement.prototype.play = function () { window.__plays.push({ src: new URL(this.src).pathname, volume: this.volume }); return Promise.resolve(); };`);
+    const plays = () => ev(`window.__plays.slice()`);
+    const stored = () => ev(`localStorage.getItem('overloaded.sound')`);
+    check('the sound settings are on the page: Sound is on and the volume is 70', (await ev(`document.getElementById('sound-on').checked`)) === true && (await ev(`document.getElementById('sound-volume').value`)) === '70' && (await ev(`document.getElementById('sound-volume').disabled`)) === false);
+    check('nothing is played before anything is pressed', (await plays()).length === 0);
+    await press('draw');
+    same('Draw plays the draw sound at the saved volume', await plays(), [{ src: '/sfx/draw.mp3', volume: 0.7 }]);
+    await press('shuffle');
+    same('Shuffle plays the shuffle sound', (await plays()).at(-1), { src: '/sfx/shuffle.mp3', volume: 0.7 });
+    await press('mulligan');
+    same('a mulligan plays the shuffle sound', (await plays()).at(-1), { src: '/sfx/shuffle.mp3', volume: 0.7 });
+    await press('next-turn');
+    same('Next turn (which draws) plays the draw sound', (await plays()).at(-1), { src: '/sfx/draw.mp3', volume: 0.7 });
+    const beforeMute = (await plays()).length;
+    await ev(`(() => { const c = document.getElementById('sound-on'); c.checked = false; c.dispatchEvent(new Event('change')); })()`);
+    check('turning Sound off disables the volume slider and is remembered', (await ev(`document.getElementById('sound-volume').disabled`)) === true && (await stored()) === '{"on":false,"volume":0.7}', await stored());
+    await press('draw'); await press('shuffle');
+    check('with Sound off nothing is played', (await plays()).length === beforeMute);
+    await ev(`(() => { const c = document.getElementById('sound-on'); c.checked = true; c.dispatchEvent(new Event('change')); })()`);
+    check('turning Sound on again enables the slider', (await ev(`document.getElementById('sound-volume').disabled`)) === false && (await stored()) === '{"on":true,"volume":0.7}');
+    await ev(`(() => { const v = document.getElementById('sound-volume'); v.value = '30'; v.dispatchEvent(new Event('input')); })()`);
+    check('moving the slider to 30 is remembered as 0.3', (await stored()) === '{"on":true,"volume":0.3}', await stored());
+    await press('draw');
+    same('the next sound plays at the new volume', (await plays()).at(-1), { src: '/sfx/draw.mp3', volume: 0.3 });
+    await press('shuffle'); // so the last sound is a shuffle: only a sample can make the next one a draw
+    const beforeSample = (await plays()).length;
+    await ev(`document.getElementById('sound-volume').dispatchEvent(new Event('change'))`);
+    check('letting go of the slider plays exactly one sample (the draw sound) so the level can be heard', (await plays()).length === beforeSample + 1 && JSON.stringify((await plays()).at(-1)) === JSON.stringify({ src: '/sfx/draw.mp3', volume: 0.3 }), JSON.stringify((await plays()).slice(-2)));
+    await ev(`(() => { const v = document.getElementById('sound-volume'); v.value = '0'; v.dispatchEvent(new Event('input')); })()`);
+    const beforeZero = (await plays()).length;
+    await press('draw');
+    check('at volume 0 nothing is played', (await plays()).length === beforeZero);
+    await browser.goto(PAGE);
+    await waitFor(async () => !(await $hidden('game')) || null, 15000, 50);
+    check('the settings are remembered after a reload (on, volume 0)', (await ev(`document.getElementById('sound-on').checked`)) === true && (await ev(`document.getElementById('sound-volume').value`)) === '0');
+    await ev(`localStorage.setItem('overloaded.sound', '{"on":"yes","volume":"loud","x":1}')`);
+    await browser.goto(PAGE);
+    await waitFor(async () => !(await $hidden('game')) || null, 15000, 50);
+    check('damaged stored settings fall back to the defaults', (await ev(`document.getElementById('sound-on').checked`)) === true && (await ev(`document.getElementById('sound-volume').value`)) === '70');
+    await ev(`localStorage.removeItem('overloaded.sound')`);
+  }
   await clickCard('#hand .card', 0);
   check('Escape deselects', (await count('.card.selected')) === 1 && await (async () => { await ev(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))`); return (await count('.card.selected')) === 0 && (await actionLabels()).length === 0; })());
   check('every card is somewhere: 61 cards in the game', await (async () => { const n = async (s) => parseInt((await $text(s)).split(': ').at(-1), 10); return (await count('.card')) + (await n('pile-library')) + (await n('pile-graveyard')) + (await n('pile-exile')) + (await n('pile-sideboard')) === 61; })());

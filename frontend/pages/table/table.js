@@ -6,6 +6,7 @@
 import { rejoinTable, watchMembers, watchMeta, watchPresence, watchServerOffset, watchConnection, startPresence, heartbeat, watchActivity, saveGame, loadGame, watchPublic, concede, endMatch, leaveTable } from '../../src/db.js';
 import { startKeepAlive } from '../../src/keep-alive.js';
 import { makeSafeStore } from '../../src/safe-store.js';
+import { play, mountSoundSettings } from '../../src/sound.js';
 import { loadCardList } from '../../src/card-list.js';
 import { makeCardNodes } from '../../src/card-nodes.js';
 import { mountMarksPanel } from '../../src/marks-panel.js';
@@ -307,6 +308,7 @@ function markOnCard(uid, hit) {
 function drawOne() {
   const result = draw(game, 1);
   game = result.game;
+  if (!result.short) play('draw');
   say(result.short ? 'Your library is empty.' : `Drew ${game.zones.hand.find((c) => c.uid === result.drawn[0]).n}.`, result.short);
   render();
   sync();
@@ -360,6 +362,7 @@ function startMyTurn(turn) {
 }
 
 function doMulligan() {
+  play('shuffle');
   apply(() => mulligan(game), '');
   say(`Mulligan ${game.mulligans}: a new hand of ${plural(game.zones.hand.length, 'card', 'cards')}. Put ${plural(game.mulligans, 'card', 'cards')} on the bottom of your library with the card buttons.`);
 }
@@ -601,7 +604,8 @@ $('pass-turn').addEventListener('click', () => {
 });
 $('take-back').addEventListener('click', () => { if (game) { const action = takeBackAction(currentTurnInfo()); apply(() => action.run(game), action.message); } });
 $('untap-all').addEventListener('click', () => { if (game) apply(() => untapAll(game), untapMessage(game)); });
-$('shuffle').addEventListener('click', () => { if (game) apply(() => shuffleLibrary(game), 'Shuffled your library.'); });
+$('shuffle').addEventListener('click', () => { if (game) { play('shuffle'); apply(() => shuffleLibrary(game), 'Shuffled your library.'); } });
+mountSoundSettings($('sound-settings'));
 $('mulligan').addEventListener('click', () => { if (game) doMulligan(); });
 for (const [id, delta] of [['life-minus5', -5], ['life-minus1', -1], ['life-plus1', 1], ['life-plus5', 5]]) {
   $(id).addEventListener('click', () => { if (game) apply(() => adjustLife(game, delta), ''); });

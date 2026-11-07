@@ -3,6 +3,7 @@
 // (shared/card-image.mjs) and are only requested when a card is on the page. Card names go into the page as text, never as
 // markup. Nothing here is saved: a refresh deals a new game.
 import { makeSafeStore } from '../../src/safe-store.js';
+import { play, mountSoundSettings } from '../../src/sound.js';
 import { loadCardList } from '../../src/card-list.js';
 import { LIBRARY_KEY, LEGACY_KEY, readLibrary, selectedEntry } from '../../../shared/deck-library.mjs';
 import { makeLookup } from '../../../shared/card-lookup.mjs';
@@ -223,6 +224,7 @@ function deal() {
 function drawOne() {
   const result = draw(game, 1);
   game = result.game;
+  if (!result.short) play('draw');
   say(result.short ? 'Your library is empty.' : `Drew ${game.zones.hand.find((c) => c.uid === result.drawn[0]).n}.`, result.short);
   render();
 }
@@ -231,6 +233,7 @@ function goNextTurn() {
   const held = heldTapped(game);
   const result = nextTurn(game);
   game = result.game;
+  if (!result.short) play('draw');
   const drewName = result.short ? null : game.zones.hand.find((c) => c.uid === result.drawn[0]).n;
   const untapped = held ? `everything untapped except ${held} that do not untap` : 'everything untapped';
   say(`Turn ${game.turn}: ${untapped}${drewName ? ` and you drew ${drewName}` : '. Your library is empty, so nothing was drawn'}.`, result.short);
@@ -238,6 +241,7 @@ function goNextTurn() {
 }
 
 function doMulligan() {
+  play('shuffle');
   apply(() => mulligan(game), '');
   say(`Mulligan ${game.mulligans}: a new hand of ${plural(game.zones.hand.length, 'card', 'cards')}. Put ${plural(game.mulligans, 'card', 'cards')} on the bottom of your library with the card buttons.`);
 }
@@ -286,9 +290,10 @@ mountMarksPanel($('marks'), {
 $('draw').addEventListener('click', drawOne);
 $('next-turn').addEventListener('click', goNextTurn);
 $('untap-all').addEventListener('click', () => apply(() => untapAll(game), untapMessage(game)));
-$('shuffle').addEventListener('click', () => apply(() => shuffleLibrary(game), 'Shuffled your library.'));
+$('shuffle').addEventListener('click', () => { play('shuffle'); apply(() => shuffleLibrary(game), 'Shuffled your library.'); });
+mountSoundSettings($('sound-settings'));
 $('mulligan').addEventListener('click', doMulligan);
-$('new-game').addEventListener('click', () => { if (confirm('Start a new game? This one will be lost.')) deal(); });
+$('new-game').addEventListener('click', () => { if (confirm('Start a new game? This one will be lost.')) { play('shuffle'); deal(); } });
 for (const [id, delta] of [['life-minus5', -5], ['life-minus1', -1], ['life-plus1', 1], ['life-plus5', 5]]) {
   $(id).addEventListener('click', () => apply(() => adjustLife(game, delta), ''));
 }
