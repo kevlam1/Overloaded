@@ -1,7 +1,7 @@
 // Sound effects for the table pages: play(name) and the small settings control (Sound on or off, and a volume slider), remembered in this browser.
 // A sound that fails to load or play (a blocked autoplay, a missing file) never breaks the page: it is simply silent.
 import { makeSafeStore } from './safe-store.js';
-import { SOUND_KEY, SOUND_FILES, readSoundSettings, writeSoundSettings, soundVolume } from '../../shared/sound-settings.mjs';
+import { SOUND_KEY, SOUND_FILES, readSoundSettings, writeSoundSettings, soundLevel } from '../../shared/sound-settings.mjs';
 
 const store = makeSafeStore();
 let settings = readSoundSettings(store.get(SOUND_KEY));
@@ -16,15 +16,15 @@ function audioFor(name) {
   return loaded[name];
 }
 
-// Plays a sound once at the saved volume. A copy of the loaded element plays, so a sound can overlap itself (two quick draws).
+// Plays a sound once at the saved volume times that sound's own gain (shared/sound-settings.mjs). A copy of the loaded element plays, so a sound can overlap itself (two quick draws).
 export function play(name) {
-  const volume = soundVolume(settings);
-  if (volume === 0) return;
+  const level = soundLevel(settings, name);
+  if (level === 0) return;
   try {
     const base = audioFor(name);
     if (!base) return;
     const sound = base.cloneNode();
-    sound.volume = volume;
+    sound.volume = level;
     const started = sound.play();
     if (started && typeof started.catch === 'function') started.catch(() => {});
   } catch { /* silent */ }

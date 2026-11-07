@@ -182,7 +182,7 @@ function renderSelected() {
   $('marks').hidden = zone !== 'battlefield' || !modifyOpen; // counters and the power/toughness change belong to a card on the battlefield, and show after Modify
   const actions = [];
   const act = (label, run, message, secondary = true) => actions.push({ label, run, message, secondary, deselect: false });
-  if (zone === 'battlefield') act(card.tapped ? 'Untap' : 'Tap', () => setTapped(game, card.uid, !card.tapped), `${card.tapped ? 'Untapped' : 'Tapped'} ${card.n}.`, false);
+  if (zone === 'battlefield') act(card.tapped ? 'Untap' : 'Tap', () => { const next = setTapped(game, card.uid, !card.tapped); play('tap'); return next; }, `${card.tapped ? 'Untapped' : 'Tapped'} ${card.n}.`, false);
   if (zone === 'battlefield' && card.b === 1) act(turnLabel(card), () => turnOver(game, card.uid), turnMessage(card));
   if (zone === 'battlefield') actions.push({ label: 'Modify', secondary: true, modify: true });
   if (zone === 'battlefield') for (const id of ['nountap', 'sick']) { const mark = menuAction(id, card); act(id === 'nountap' ? noUntapLabel(card) : sickLabel(card), () => mark.run(game), mark.message); }
@@ -274,6 +274,7 @@ function pickFromMenu(uid, id, amount) {
     const action = menuAction(id, found.card, amount, { printed: printedOf(found.card, lookup) });
     if (!action) return;
     const made = apply(() => action.run(game), action.message);
+    if (made && id === 'tap') play('tap');
     if (made && action.toast) cardNodes.flash(uid, action.toast);
   } catch (error) {
     say(error.message, true);
@@ -358,7 +359,7 @@ function renderTurn() {
 // exceptions, Kevin 2026-11-06): the Draw and Untap all buttons are there when you are ready.
 function startMyTurn(turn) {
   turnNote = 'Summoning sickness ended. Draw and untap when you are ready.';
-  apply(() => beginTurn(game, turn), `Your turn (turn ${turn}). ${turnNote}`);
+  if (apply(() => beginTurn(game, turn), `Your turn (turn ${turn}). ${turnNote}`)) play('yourturn'); // may be blocked by the browser until the page has been clicked once: then it is silent
 }
 
 function doMulligan() {
@@ -603,7 +604,7 @@ $('pass-turn').addEventListener('click', () => {
   }
 });
 $('take-back').addEventListener('click', () => { if (game) { const action = takeBackAction(currentTurnInfo()); apply(() => action.run(game), action.message); } });
-$('untap-all').addEventListener('click', () => { if (game) apply(() => untapAll(game), untapMessage(game)); });
+$('untap-all').addEventListener('click', () => { if (game) { play('tap'); apply(() => untapAll(game), untapMessage(game)); } });
 $('shuffle').addEventListener('click', () => { if (game) { play('shuffle'); apply(() => shuffleLibrary(game), 'Shuffled your library.'); } });
 mountSoundSettings($('sound-settings'));
 $('mulligan').addEventListener('click', () => { if (game) doMulligan(); });

@@ -1,9 +1,11 @@
 // The sound settings and which file each sound is: plain data, no browser code, so Node tests can load it (the page's frontend/src/sound.js
 // plays the files and draws the controls). The settings are kept in the browser only (a small piece of text), never sent to the database.
 export const SOUND_KEY = 'overloaded.sound';
-export const DEFAULT_SOUND = { on: true, volume: 0.7 }; // sound is on by default (Kevin, 2026-11-06)
+export const DEFAULT_SOUND = { on: true, volume: 1 }; // sound is on by default and the slider starts at 100% (Kevin, 2026-11-06)
 // The sounds the pages know. The files are in frontend/public/sfx/ and served at /sfx/NAME.mp3 (credits.md there says where each came from).
-export const SOUND_FILES = { draw: '/sfx/draw.mp3', shuffle: '/sfx/shuffle.mp3' };
+export const SOUND_FILES = { draw: '/sfx/draw.mp3', shuffle: '/sfx/shuffle.mp3', tap: '/sfx/tap.mp3', yourturn: '/sfx/yourturn.mp3' };
+// How loud each sound is at a slider of 100%: every sound plays at 50% of the slider (Kevin, 2026-11-06). Change one number to tune one sound.
+export const SOUND_GAIN = { draw: 0.5, shuffle: 0.5, tap: 0.5, yourturn: 0.5 };
 
 const cleanVolume = (value) => (typeof value === 'number' && Number.isFinite(value) ? Math.round(Math.min(1, Math.max(0, value)) * 100) / 100 : DEFAULT_SOUND.volume);
 
@@ -24,3 +26,6 @@ export function writeSoundSettings(settings) {
 
 // How loud a sound plays: 0 when sound is off. At 0 the page plays nothing at all.
 export const soundVolume = (settings) => (settings.on ? settings.volume : 0);
+
+// How loud a named sound plays: the slider (or 0 when Sound is off) times that sound's own gain. 0 means play nothing.
+export const soundLevel = (settings, name) => soundVolume(settings) * (Object.hasOwn(SOUND_GAIN, name) ? SOUND_GAIN[name] : 1);

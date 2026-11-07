@@ -483,6 +483,7 @@ try {
   // Alice passes: one record on HER branch; Bob's own page starts Bob's turn (untap, draw, his turn number).
   const bobHandBefore = await handCount(cleanup.bob.uid);
   const aliceDialogsBefore = alice.dialogs.length;
+  await bob.eval(`window.__plays = []; HTMLMediaElement.prototype.play = function () { window.__plays.push(new URL(this.src).pathname); return Promise.resolve(); };`);
   await click(alice, 'pass-turn');
   record('passing your OWN turn asks nothing (no popup)', alice.dialogs.length === aliceDialogsBefore, JSON.stringify(alice.dialogs.slice(aliceDialogsBefore)));
   const passStored = await waitFor(async () => { const p = (await rest('GET', pathOf('public/pass'), cleanup.bob.token)).json; return p && p.n === 2 ? p : null; }, 15000, 250);
@@ -491,6 +492,7 @@ try {
   record("Bob's page starts Bob's turn by itself: his own turn number becomes 2 in the database, and he did NOT draw (players draw their own card)", Boolean(bobStarted) && (await handCount(cleanup.bob.uid)) === bobHandBefore, `${bobHandBefore} -> ${await handCount(cleanup.bob.uid)}`);
   const bobBanner = await waitFor(async () => { const f = await turnFacts(bob); return /^It is your turn \(turn 2\)\./.test(f.banner) ? f : null; }, 20000, 250);
   record('the banner on Bob page is highlighted and tells him what to do next (sickness ended, draw and untap himself), "Your turn", the table\'s turn number 2, and the page title says it is his turn', Boolean(bobBanner) && /Summoning sickness ended/.test(bobBanner.banner) && /Draw and untap when you are ready/.test(bobBanner.banner) && bobBanner.whose === 'Your turn' && bobBanner.turn === '2' && bobBanner.pass === 'Pass turn' && /^Your turn - /.test(bobBanner.title) && !bobBanner.takeBack, JSON.stringify(bobBanner));
+  record("Bob's page plays the your-turn sound once when his turn begins by itself (Alice's page plays none)", JSON.stringify(await bob.eval(`window.__plays`)) === '["/sfx/yourturn.mp3"]' && !String(JSON.stringify(await alice.eval(`window.__plays`))).includes('yourturn'), JSON.stringify(await bob.eval(`window.__plays`)));
   const aliceAfterPass = await waitFor(async () => { const f = await turnFacts(alice); return f.banner === "Turn 2: Seat 2: Bob's turn" && !f.mine && f.whose === "Seat 2: Bob's turn" ? f : null; }, 20000, 250);
   record("Alice's banner is plain again (Turn 2: Seat 2: Bob's turn), her button now skips Bob's turn, she can take her pass back, and her title is the plain one", Boolean(aliceAfterPass) && aliceAfterPass.pass === "Skip Seat 2: Bob's turn" && aliceAfterPass.takeBack && !/^Your turn/.test(aliceAfterPass.title) && aliceAfterPass.turn === '2', JSON.stringify(aliceAfterPass));
   record("Alice's own turn number stayed 1 (a player only starts their own turns)", (await rest('GET', pathOf('public/turn'), cleanup.bob.token)).json === 1);

@@ -113,7 +113,7 @@ function renderSelected() {
   $('marks').hidden = zone !== 'battlefield' || !modifyOpen; // counters and the power/toughness change belong to a card on the battlefield, and show after Modify
   const actions = [];
   const act = (label, run, message, secondary = true) => actions.push({ label, run, message, secondary, deselect: false });
-  if (zone === 'battlefield') act(card.tapped ? 'Untap' : 'Tap', () => setTapped(game, card.uid, !card.tapped), `${card.tapped ? 'Untapped' : 'Tapped'} ${card.n}.`, false);
+  if (zone === 'battlefield') act(card.tapped ? 'Untap' : 'Tap', () => { const next = setTapped(game, card.uid, !card.tapped); play('tap'); return next; }, `${card.tapped ? 'Untapped' : 'Tapped'} ${card.n}.`, false);
   if (zone === 'battlefield' && card.b === 1) act(turnLabel(card), () => turnOver(game, card.uid), turnMessage(card));
   if (zone === 'battlefield') actions.push({ label: 'Modify', secondary: true, modify: true });
   if (zone === 'battlefield') for (const id of ['nountap', 'sick']) { const mark = menuAction(id, card); act(id === 'nountap' ? noUntapLabel(card) : sickLabel(card), () => mark.run(game), mark.message); }
@@ -181,6 +181,7 @@ function pickFromMenu(uid, id, amount) {
     const action = menuAction(id, found.card, amount, { printed: printedOf(found.card, lookup) });
     if (!action) return;
     const made = apply(() => action.run(game), action.message);
+    if (made && id === 'tap') play('tap');
     if (made && action.toast) cardNodes.flash(uid, action.toast);
   } catch (error) {
     say(error.message, true);
@@ -289,7 +290,7 @@ mountMarksPanel($('marks'), {
 });
 $('draw').addEventListener('click', drawOne);
 $('next-turn').addEventListener('click', goNextTurn);
-$('untap-all').addEventListener('click', () => apply(() => untapAll(game), untapMessage(game)));
+$('untap-all').addEventListener('click', () => { play('tap'); apply(() => untapAll(game), untapMessage(game)); });
 $('shuffle').addEventListener('click', () => { play('shuffle'); apply(() => shuffleLibrary(game), 'Shuffled your library.'); });
 mountSoundSettings($('sound-settings'));
 $('mulligan').addEventListener('click', doMulligan);
