@@ -260,6 +260,7 @@ try {
       return ev(`document.getElementById('sound-volume').value`);
     };
     check('the slider is wide enough to use (at least 100 px)', box.width >= 100, JSON.stringify(box));
+    check('the checkbox and the slider use the page accent colour, not each browser\'s own default', (await ev(`['sound-on', 'sound-volume'].map((id) => getComputedStyle(document.getElementById(id)).accentColor === getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || getComputedStyle(document.getElementById(id)).accentColor !== 'auto').every(Boolean)`)) === true);
     check('the slider has no padding or border of its own, so the thumb can reach both ends of the track (a close-up screenshot showed it stopping 17 px short with the general input style)', (await ev(`(() => { const s = getComputedStyle(document.getElementById('sound-volume')); return [s.paddingLeft, s.paddingRight, s.borderLeftWidth, s.borderRightWidth].join(); })()`)) === '0px,0px,0px,0px');
     check('dragging the slider far to the left reaches 0', (await dragSlider(box.left - 80)) === '0');
     check('dragging the slider far to the right reaches 100', (await dragSlider(box.right + 80)) === '100');
