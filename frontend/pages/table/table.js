@@ -7,6 +7,7 @@ import { rejoinTable, watchMembers, watchMeta, watchPresence, watchServerOffset,
 import { startKeepAlive } from '../../src/keep-alive.js';
 import { makeSafeStore } from '../../src/safe-store.js';
 import { play, mountSoundSettings } from '../../src/sound.js';
+import { createDealer, SHUFFLE_PAUSE_MS } from '../../../shared/deal-sequence.mjs';
 import { loadCardList } from '../../src/card-list.js';
 import { makeCardNodes } from '../../src/card-nodes.js';
 import { mountMarksPanel } from '../../src/marks-panel.js';
@@ -104,6 +105,20 @@ const commanderDamage = mountCommanderDamage($('commander-damage'), { onChange: 
 const cardNodes = makeCardNodes({ onSelect: (uid) => select(uid), isSelected: (uid) => uid === selected, onMark: (uid, hit) => markOnCard(uid, hit), onMenu: (uid, where) => openMenuFor(uid, where), onBadge: (uid, kind) => clearBadge(uid, kind), printedStats: (card) => printedOf(card, lookup) });
 const place = cardNodes.place;
 
+// The hand is shown one card at a time with the draw sound for each (shared/deal-sequence.mjs). Only what is SHOWN is staged: the game was dealt all at once, so
+// what is saved and what other players see never waits for the animation. A refresh in the middle just shows the whole hand.
+const dealer = createDealer({
+  onChange() {
+    if (!game) return;
+    render();
+    const newest = dealer.dealt();
+    const node = newest ? $('hand').children[newest - 1] : null;
+    if (node) { node.classList.add('deal-in'); node.addEventListener('animationend', () => node.classList.remove('deal-in'), { once: true }); }
+  },
+  onCard: () => play('draw'),
+  reducedMotion: () => globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true,
+});
+
 function showBlocked(message, { link = true, retry = false } = {}) {
   $('game').hidden = true;
   $('blocked').hidden = false;
@@ -135,13 +150,13 @@ function render() {
   const rows = battlefieldRows(game);
   place($('row-lands'), rows.lands, { battlefield: true });
   place($('row-other'), rows.other, { battlefield: true });
-  place($('hand'), game.zones.hand);
+  place($('hand'), dealer.visible(game.zones.hand));
   place($('command'), game.zones.command);
-  $('hand-count').textContent = String(game.zones.hand.length);
+  $('hand-count').textContent = String(dealer.visible(game.zones.hand).length);
   const counts = zoneCounts(game);
   for (const zone of ['library', 'graveyard', 'exile', 'sideboard']) {
     const button = $(`pile-${zone}`);
-    button.textContent = `${zone[0].toUpperCase()}${zone.slice(1)}: ${counts[zone]}`;
+    button.textContent = `${zone[0].toUpperCase()}${zone.slice(1)}: ${counts[zone] + (zone === 'library' ? dealer.waiting(game.zones.hand) : 0)}`; // cards not yet dealt still count as library
     button.setAttribute('aria-pressed', String(viewing === zone));
   }
   $('mulligan').textContent = game.mulligans ? `Mulligan (${game.mulligans} so far)` : 'Mulligan';
@@ -364,7 +379,9 @@ function startMyTurn(turn) {
 
 function doMulligan() {
   play('shuffle');
-  apply(() => mulligan(game), '');
+  try { game = mulligan(game); } catch (error) { say(error.message, true); render(); return; }
+  dealer.start(game.zones.hand.length, { pause: SHUFFLE_PAUSE_MS }); // the shuffle sound, then the new hand one card at a time (the game is saved at once)
+  sync();
   say(`Mulligan ${game.mulligans}: a new hand of ${plural(game.zones.hand.length, 'card', 'cards')}. Put ${plural(game.mulligans, 'card', 'cards')} on the bottom of your library with the card buttons.`);
 }
 
@@ -391,6 +408,7 @@ async function beginGame() {
     return;
   }
   let stored;
+  let fresh = false;
   try {
     stored = await loadGame(tableCode);
   } catch (error) {
@@ -412,6 +430,7 @@ async function beginGame() {
       return;
     }
     game = makeGame(deck, lookup);
+    fresh = true;
     lastSaved = null; // nothing is saved for this match yet: the first save writes everything and clears an older match's cards
     $('deck-line').textContent = `${deck.name}: ${plural(deck.cards.reduce((sum, c) => sum + c.qty, 0), 'card', 'cards')}. Your hand is dealt.`;
     say(`Dealt ${plural(game.zones.hand.length, 'card', 'cards')}. Life is ${game.life}.`);
@@ -420,7 +439,8 @@ async function beginGame() {
   viewing = null;
   cardNodes.clear();
   $('game').hidden = false;
-  render();
+  if (fresh) dealer.start(game.zones.hand.length); // a new hand is dealt one card at a time; a game put back after a refresh shows whole
+  else render();
   sync();
 }
 

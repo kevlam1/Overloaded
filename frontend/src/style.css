@@ -270,6 +270,10 @@ main.table { max-width: 80rem; }
 .card .toast-down { background: rgba(170, 40, 30, 0.95); }
 @keyframes toast-rise { from { opacity: 1; transform: translate(-50%, 0.6rem); } 70% { opacity: 1; } to { opacity: 0; transform: translate(-50%, -0.9rem); } }
 @media (prefers-reduced-motion: reduce) { .card .toast { animation: none; } }
+/* A card dealt into the hand drops in quickly (the hand is dealt one card at a time, shared/deal-sequence.mjs). Under prefers-reduced-motion the hand shows at once and this is off. */
+@keyframes deal-in { from { opacity: 0; transform: translateY(-1.25rem) scale(0.92); } to { opacity: 1; transform: none; } }
+.card.deal-in { animation: deal-in 160ms ease-out; }
+@media (prefers-reduced-motion: reduce) { .card.deal-in { animation: none; } }
 .opponent .card .marks .chip, .opponent .card .marks .change { font-size: 0.6rem; line-height: 1rem; }
 .opponent .card .marks .ptbox { font-size: 0.7rem; line-height: 1.1rem; }
 .opponent .card .marks .ptbox .pt { min-width: 1rem; padding: 0 0.15rem; }

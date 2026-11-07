@@ -4,6 +4,7 @@
 // markup. Nothing here is saved: a refresh deals a new game.
 import { makeSafeStore } from '../../src/safe-store.js';
 import { play, mountSoundSettings } from '../../src/sound.js';
+import { createDealer, SHUFFLE_PAUSE_MS } from '../../../shared/deal-sequence.mjs';
 import { loadCardList } from '../../src/card-list.js';
 import { LIBRARY_KEY, LEGACY_KEY, readLibrary, selectedEntry } from '../../../shared/deck-library.mjs';
 import { makeLookup } from '../../../shared/card-lookup.mjs';
@@ -49,6 +50,20 @@ const playerCounters = mountPlayerCounters($('player-counters'), { onChange: (en
 const cardNodes = makeCardNodes({ onSelect: (uid) => select(uid), isSelected: (uid) => uid === selected, onMark: (uid, hit) => markOnCard(uid, hit), onMenu: (uid, where) => openMenuFor(uid, where), onBadge: (uid, kind) => clearBadge(uid, kind), printedStats: (card) => printedOf(card, lookup) });
 const place = cardNodes.place;
 
+// The hand is shown one card at a time with the draw sound for each (shared/deal-sequence.mjs). Only what is SHOWN is staged: the game was dealt all at once, so
+// what is saved and what other players see never waits for the animation. A refresh in the middle just shows the whole hand.
+const dealer = createDealer({
+  onChange() {
+    if (!game) return;
+    render();
+    const newest = dealer.dealt();
+    const node = newest ? $('hand').children[newest - 1] : null;
+    if (node) { node.classList.add('deal-in'); node.addEventListener('animationend', () => node.classList.remove('deal-in'), { once: true }); }
+  },
+  onCard: () => play('draw'),
+  reducedMotion: () => globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true,
+});
+
 function findCard(uid) {
   for (const zone of Object.keys(game.zones)) {
     const card = game.zones[zone].find((c) => c.uid === uid);
@@ -65,13 +80,13 @@ function render() {
   const rows = battlefieldRows(game);
   place($('row-lands'), rows.lands, { battlefield: true });
   place($('row-other'), rows.other, { battlefield: true });
-  place($('hand'), game.zones.hand);
+  place($('hand'), dealer.visible(game.zones.hand));
   place($('command'), game.zones.command);
-  $('hand-count').textContent = String(game.zones.hand.length);
+  $('hand-count').textContent = String(dealer.visible(game.zones.hand).length);
   const counts = zoneCounts(game);
   for (const zone of ['library', 'graveyard', 'exile', 'sideboard']) {
     const button = $(`pile-${zone}`);
-    button.textContent = `${zone[0].toUpperCase()}${zone.slice(1)}: ${counts[zone]}`;
+    button.textContent = `${zone[0].toUpperCase()}${zone.slice(1)}: ${counts[zone] + (zone === 'library' ? dealer.waiting(game.zones.hand) : 0)}`; // cards not yet dealt still count as library
     button.setAttribute('aria-pressed', String(viewing === zone));
   }
   $('mulligan').textContent = game.mulligans ? `Mulligan (${game.mulligans} so far)` : 'Mulligan';
@@ -211,14 +226,14 @@ function markOnCard(uid, hit) {
   }
 }
 
-function deal() {
+function deal({ pause = 0 } = {}) {
   game = makeGame(deck, lookup);
   selected = null;
   viewing = null;
   cardNodes.clear();
   $('game').hidden = false;
   $('blocked').hidden = true;
-  render();
+  dealer.start(game.zones.hand.length, { pause }); // draws the table, and deals the hand one card at a time
   say(`Dealt ${plural(game.zones.hand.length, 'card', 'cards')}. ${game.zones.command.length ? `Your commander is in the command zone. Life is ${game.life}.` : `Life is ${game.life}.`}`);
 }
 
@@ -243,7 +258,8 @@ function goNextTurn() {
 
 function doMulligan() {
   play('shuffle');
-  apply(() => mulligan(game), '');
+  try { game = mulligan(game); } catch (error) { say(error.message, true); render(); return; }
+  dealer.start(game.zones.hand.length, { pause: SHUFFLE_PAUSE_MS }); // the shuffle sound, then the new hand one card at a time
   say(`Mulligan ${game.mulligans}: a new hand of ${plural(game.zones.hand.length, 'card', 'cards')}. Put ${plural(game.mulligans, 'card', 'cards')} on the bottom of your library with the card buttons.`);
 }
 
@@ -294,7 +310,7 @@ $('untap-all').addEventListener('click', () => { play('tap'); apply(() => untapA
 $('shuffle').addEventListener('click', () => { play('shuffle'); apply(() => shuffleLibrary(game), 'Shuffled your library.'); });
 mountSoundSettings($('sound-settings'));
 $('mulligan').addEventListener('click', doMulligan);
-$('new-game').addEventListener('click', () => { if (confirm('Start a new game? This one will be lost.')) { play('shuffle'); deal(); } });
+$('new-game').addEventListener('click', () => { if (confirm('Start a new game? This one will be lost.')) { play('shuffle'); deal({ pause: SHUFFLE_PAUSE_MS }); } });
 for (const [id, delta] of [['life-minus5', -5], ['life-minus1', -1], ['life-plus1', 1], ['life-plus5', 5]]) {
   $(id).addEventListener('click', () => apply(() => adjustLife(game, delta), ''));
 }

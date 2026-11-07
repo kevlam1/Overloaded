@@ -62,6 +62,8 @@ try {
   const realPictures = process.argv.includes('--screenshot');
   const browser = await openBrowser('solo-ui', { width: 1280, height: 1000 });
   const ev = (expression) => browser.eval(expression);
+  const motion = (value) => browser.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value }] });
+  await motion('reduce'); // the hand is dealt one card at a time unless the browser asks for reduced motion; almost every check below wants the hand at once
   const $text = (id) => ev(`document.getElementById(${JSON.stringify(id)}).textContent`);
   const $hidden = (id) => ev(`document.getElementById(${JSON.stringify(id)}).hidden`);
   const press = (id) => ev(`document.getElementById(${JSON.stringify(id)}).click()`);
@@ -277,6 +279,97 @@ try {
     const nearRight = Number(await ev(`document.getElementById('sound-volume').value`));
     check('clicking the left end of the slider gives 0 to 10 and the right end 90 to 100', nearLeft <= 10 && nearRight >= 90, `${nearLeft} and ${nearRight}`);
     await ev(`localStorage.removeItem('overloaded.sound')`);
+  }
+  // ---- dealing the hand one card at a time (shared/deal-sequence.mjs): real timers, the sounds recorded, the hand and the library watched every 10 ms ----
+  {
+    const same = (label, actual, expected) => check(label, JSON.stringify(actual) === JSON.stringify(expected), `got ${JSON.stringify(actual)}`);
+    await motion('no-preference');
+    const { identifier } = await browser.send('Page.addScriptToEvaluateOnNewDocument', { source: `
+      window.__plays = []; HTMLMediaElement.prototype.play = function () { window.__plays.push({ src: new URL(this.src).pathname, t: performance.now() }); return Promise.resolve(); };
+      window.__snaps = [];
+      setInterval(() => { const h = document.getElementById('hand'); const l = document.getElementById('pile-library'); const g = document.getElementById('game'); if (!h || !l || !g || g.hidden) return; const key = h.children.length + ':' + l.textContent; const last = window.__snaps.at(-1); if (!last || last.key !== key) window.__snaps.push({ key, hand: h.children.length, lib: parseInt(l.textContent.split(': ')[1], 10), t: performance.now() }); }, 10);` });
+    await ev(`localStorage.removeItem('overloaded.sound')`);
+    const reset = () => ev(`window.__plays = []; window.__snaps = []; 0`);
+    const state = () => ev(`({ plays: window.__plays, snaps: window.__snaps })`);
+    const handIs = (n) => waitFor(async () => (await count('#hand .card')) === n || null, 8000, 25);
+    const summary = ({ plays, snaps }) => ({ sounds: plays.map((p) => p.src.replace('/sfx/', '').replace('.mp3', '')), counts: snaps.map((x) => x.hand), totals: [...new Set(snaps.map((x) => x.lib + x.hand))] });
+
+    if (realPictures) { // a look at the table part-way through the deal
+      await browser.goto(PAGE);
+      await handIs(7);
+      await press('mulligan');
+      await sleep(1180); // the shuffle pause is 800 ms and a card comes every 120 ms: about four cards are in
+      await browser.screenshot('scratch-solo-dealing.png');
+      await handIs(7);
+    }
+    // the first deal, when the page opens
+    await browser.goto(PAGE);
+    await handIs(7);
+    await sleep(300);
+    let seen = await state();
+    let sum = summary(seen);
+    same('opening the page plays the draw sound once for each of the 7 cards and nothing else', sum.sounds, Array(7).fill('draw'));
+    check('the hand fills one card at a time: the cards shown only ever go up, and at least 6 of the 8 steps (0 to 7) were seen', sum.counts.every((n, i) => i === 0 || n >= sum.counts[i - 1]) && new Set(sum.counts).size >= 6 && sum.counts.at(-1) === 7, JSON.stringify(sum.counts));
+    check('the cards not yet dealt still count in the library: library plus hand is the same at every step', sum.totals.length === 1, JSON.stringify(sum.totals));
+    const span = seen.plays.at(-1).t - seen.plays[0].t;
+    check('the 7 cards take about 0.7 seconds (between 0.5 and 1.5)', span >= 500 && span <= 1500, `${Math.round(span)} ms`);
+    check('the hand count in the page agrees with the cards shown at the end', (await $text('hand-count')) === '7' && (await count('#hand .card')) === 7);
+
+    // a mulligan: the shuffle sound first, the hand goes away, then the new hand one card at a time
+    await reset();
+    await press('mulligan');
+    await sleep(150);
+    const early = await state();
+    same('a mulligan plays the shuffle sound at once and nothing else yet', summary(early).sounds, ['shuffle']);
+    check('...and the hand is empty while the shuffle plays', (await count('#hand .card')) === 0 && (await $text('hand-count')) === '0');
+    await handIs(7);
+    await sleep(300);
+    seen = await state();
+    sum = summary(seen);
+    same('then the 7 cards are dealt with a draw sound each', sum.sounds, ['shuffle', ...Array(7).fill('draw')]);
+    const wait = seen.plays[1].t - seen.plays[0].t;
+    check('the first card comes about 0.8 seconds after the shuffle sound (between 0.6 and 1.4)', wait >= 600 && wait <= 1400, `${Math.round(wait)} ms`);
+    check('the new hand also fills one card at a time with the library count staying right', new Set(sum.counts).size >= 6 && sum.totals.length === 1, JSON.stringify(sum));
+    check('the mulligan is counted once and the hand is 7', (await $text('mulligan')) === 'Mulligan (1 so far)' && (await count('#hand .card')) === 7);
+
+    // a second mulligan in the middle of the first deal starts over: still exactly 7 cards in the end, nothing dealt twice
+    await reset();
+    await press('mulligan');
+    await sleep(1100); // the shuffle pause is over and a few cards are dealt
+    await press('mulligan');
+    await sleep(150);
+    check('pressing Mulligan again in the middle of a deal empties the hand and starts over', (await count('#hand .card')) === 0);
+    await handIs(7);
+    await sleep(400);
+    seen = await state();
+    sum = summary(seen);
+    check('...and the old deal does not carry on: 2 shuffle sounds, at least 7 draw sounds, 7 cards and the second mulligan counted', sum.sounds.filter((x) => x === 'shuffle').length === 2 && sum.sounds.filter((x) => x === 'draw').length >= 7 && (await count('#hand .card')) === 7 && (await $text('mulligan')) === 'Mulligan (3 so far)', JSON.stringify(sum.sounds));
+    check('library plus hand never changes', sum.totals.length === 1, JSON.stringify(sum.totals));
+
+    // New game: the same, with the shuffle sound first
+    await reset();
+    await press('new-game');
+    await handIs(7);
+    await sleep(300);
+    seen = await state();
+    same('New game plays the shuffle sound and then the 7 draw sounds', summary(seen).sounds, ['shuffle', ...Array(7).fill('draw')]);
+    const newGameWait = seen.plays[1].t - seen.plays[0].t;
+    check('...and the first card comes about 0.8 seconds after the shuffle sound (between 0.6 and 1.4)', newGameWait >= 600 && newGameWait <= 1400, `${Math.round(newGameWait)} ms`);
+
+    // prefers-reduced-motion: the whole hand at once, no card sounds
+    await motion('reduce');
+    await browser.goto(PAGE);
+    await handIs(7);
+    await sleep(300);
+    seen = await state();
+    check('with reduced motion the hand shows all 7 cards at once and plays no card sounds', summary(seen).sounds.length === 0 && seen.snaps.every((x) => x.hand === 7), JSON.stringify(summary(seen)));
+    await reset();
+    await press('mulligan');
+    await sleep(100);
+    check('with reduced motion a mulligan gives the new hand at once and plays only the shuffle sound', (await count('#hand .card')) === 7 && JSON.stringify(summary(await state()).sounds) === '["shuffle"]');
+    await browser.send('Page.removeScriptToEvaluateOnNewDocument', { identifier });
+    await browser.goto(PAGE);
+    await handIs(7);
   }
   await clickCard('#hand .card', 0);
   check('Escape deselects', (await count('.card.selected')) === 1 && await (async () => { await ev(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))`); return (await count('.card.selected')) === 0 && (await actionLabels()).length === 0; })());
@@ -556,12 +649,13 @@ try {
   check('the chips are on the left and the box on the right of the card', await ev(`(() => { const m = document.querySelector('#row-other .card .marks'); const chips = m.querySelector('.chips').getBoundingClientRect(); const b = m.querySelector('.ptbox').getBoundingClientRect(); return chips.right <= b.left + 1; })()`));
   check('the box does not cover the chips (they do not overlap)', await ev(`(() => { const m = document.querySelector('#row-other .card .marks'); const chips = m.querySelector('.chips').getBoundingClientRect(); const b = m.querySelector('.ptbox').getBoundingClientRect(); return chips.right <= b.left + 1 || chips.bottom <= b.top + 1; })()`));
   // the floating text and reduced motion
+  await motion('no-preference'); // the whole check runs with reduced motion on; this one measures the normal animation first
   await mouse('#row-other .card .ptbox .power');
   const moving = await ev(`getComputedStyle(document.querySelector('#row-other .card .toast')).animationName`);
   await browser.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
   await mouse('#row-other .card .ptbox .power');
   const still = await ev(`getComputedStyle(document.querySelector('#row-other .card .toast')).animationName`);
-  await browser.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] });
+  await motion('reduce');
   check('the floating text moves normally and stays still under prefers-reduced-motion', moving === 'toast-rise' && still === 'none', `${moving} / ${still}`);
   await sleep(1100);
   check('the floating text goes away by itself', (await toastOf()) === null);
@@ -1038,7 +1132,7 @@ try {
     // A few looks at desktop width with the REAL pictures: the page with a hand and a battlefield, dark and light.
     await browser.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: '1' }).catch(() => {});
     await browser.send('Fetch.disable').catch(() => {});
-    const scheme = (value) => browser.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value }] });
+    const scheme = (value) => browser.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value }, { name: 'prefers-reduced-motion', value: 'reduce' }] });
     await scheme('dark');
     await open();
     await drawUntil((n) => n === 'Llanowar Elves');

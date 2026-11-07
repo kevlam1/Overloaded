@@ -62,6 +62,10 @@ try {
   await server.listen();
   const alice = await openBrowser('lobbydeck-alice');
   const bob = await openBrowser('lobbydeck-bob');
+  // The hand is dealt one card at a time unless the browser asks for reduced motion; most checks below count the hand at once, so both pages ask for it. One block turns it off for Alice.
+  const motion = (page, value) => page.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value }] });
+  await motion(alice, 'reduce');
+  await motion(bob, 'reduce');
   await alice.fakeImages('https://cards.scryfall.io/*'); // the saved decks use made-up card ids: no picture is fetched from Scryfall
   await bob.fakeImages('https://cards.scryfall.io/*');
 
@@ -215,6 +219,7 @@ try {
   await click(alice, 'shuffle');
   record('Shuffle on the table page plays the shuffle sound', JSON.stringify(await alice.eval(`window.__plays`)) === '["/sfx/draw.mp3","/sfx/shuffle.mp3"]');
 
+
   await alice.eval(`document.querySelector('#hand .card').click()`);
   await alice.eval(`Array.from(document.querySelectorAll('#selected-actions button')).find((b) => b.textContent === 'To battlefield').click()`);
   const played = await waitFor(async () => { const r = await rest('GET', pathOf('public/battlefield'), cleanup.bob.token); return r.json && Object.keys(r.json).length === 1 ? r.json : null; }, 15000, 250);
@@ -361,6 +366,25 @@ try {
   const handAfter = Object.values((await rest('GET', pathOf('private/hand'), cleanup.alice.token)).json).map((card) => card.u).sort().join();
   record('...and it was put back, not dealt again: the hand in the database is exactly the one she left', handAfter === handBeforeRefresh && handAfter.split(',').length === 7, handAfter);
   record('...and 6 of those 7 cards were in her first hand (one was played, one was drawn)', handAfter.split(',').filter((u) => handBefore.includes(u)).length === 6);
+  // Dealing a new hand one card at a time on the table page: the shuffle sound, then the cards with a draw sound each. The game is dealt and SAVED at once; only what is
+  // shown is staged. (It comes after the checks that compare Alice's hand with her first one, because a mulligan changes the hand.)
+  {
+    const handBefore = await count(alice, '#hand .card');
+    await alice.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] });
+    await alice.eval(`window.__plays = []; HTMLMediaElement.prototype.play = function () { window.__plays.push(new URL(this.src).pathname); return Promise.resolve(); };`); // the page was reloaded since the earlier recorder
+    await click(alice, 'mulligan');
+    await sleep(150);
+    record('Mulligan on the table page plays the shuffle sound and the shown hand is empty while the new hand waits to be dealt', JSON.stringify(await alice.eval(`window.__plays`)) === '["/sfx/shuffle.mp3"]' && (await count(alice, '#hand .card')) === 0);
+    const savedAtOnce = await waitFor(async () => { const r = await rest('GET', pathOf('private/hand'), cleanup.alice.token); return r.json && Object.keys(r.json).length === 7 ? true : null; }, 15000, 250);
+    record('...and the new hand of 7 is saved in the database without waiting for the animation', Boolean(savedAtOnce));
+    await waitFor(async () => (await count(alice, '#hand .card')) === 7 ? true : null, 8000, 50);
+    await sleep(300);
+    record('then 7 draw sounds follow, one for each card, and the hand shows 7', JSON.stringify(await alice.eval(`window.__plays`)) === JSON.stringify(['/sfx/shuffle.mp3', ...Array(7).fill('/sfx/draw.mp3')]) && (await count(alice, '#hand .card')) === 7);
+    await alice.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
+    for (let n = 7; n < handBefore; n++) await click(alice, 'draw'); // back to the size the hand had, as the checks below expect
+    await waitFor(async () => (await count(alice, '#hand .card')) === Math.max(handBefore, 7) ? true : null, 8000, 50);
+  }
+
   // Turning a two-sided card over: Alice takes Delver (a transform card) out of her sideboard, plays it and turns it over. The database
   // holds only a turned-over mark (bk), and Bob's page, which knows from its own card list that the card has a back, shows the back.
   const delverOf = (browser, where) => browser.eval(`(() => {
