@@ -2086,9 +2086,30 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - Mistakes of mine: my first draft of the rules had two holes the new tests found before anything ran against the project. The 250-card key check was overwritten by the card's own `.validate` when I merged the two blocks, so any key was accepted. And a rule on a child never runs for a value with no children, so a list or a whole branch written as one long string was accepted. The first mutation run also marked 107 mutations "suspicious" because my own structure check threw before any behavior test, which hid what the tests catch; I moved it to the end of the file. My `timeout` once killed a mutation run midway; the script repaired the rules file from its backup and I checked the hash.
 - Not done: your paste into the Firebase console, then `npm run test:live`; the scheduled cleanup of old tables (still needed before strangers use the site); a rule against one person making many tables.
 
+## 101. The first sound effects: draw and shuffle (2026-11-06)
+
+**What I asked for**
+- A folder for sound effects. I dropped in two mp3 files and told Claude to rename them, skip the licence check ("public sounds"), have sound on by default, and add the settings it thought were good.
+
+**What changed**
+- `frontend/public/sfx/` (new): `draw.mp3` and `shuffle.mp3` (renamed from `CardDrawSFX.mp3` and `DeckShuffleSFX.mp3`, about 20 KB each) and `credits.md`, which says the source and licence are **not recorded or checked** because I said they are public sounds. Served at `/sfx/draw.mp3` and `/sfx/shuffle.mp3`; the content policy already allows same-site audio.
+- `shared/sound-settings.mjs` (new, plain logic): the settings are Sound on or off (on by default) and a volume (0 to 1, default 0.7), kept in this browser only under `overloaded.sound`, with damaged text falling back to the defaults. `frontend/src/sound.js` (new) plays a sound (a copy of the loaded file, so two quick draws overlap) and draws the controls: a Sound checkbox and a Volume slider under the action buttons. Letting go of the slider plays a sample. At volume 0 or with Sound off nothing plays. A sound that cannot play (autoplay blocked, file missing) is silent and never breaks the page.
+- Wired into both the solo table and the live table: Draw (and Next turn on the solo table, when it draws) plays the draw sound; Shuffle library, Mulligan and, on the solo table, New game play the shuffle sound. Only your own actions make sounds. An empty-library draw is silent.
+
+**What I checked**
+- `scripts/test-sound-settings.mjs`: 39 checks (new suite, `npm test` is now 43 suites). The solo browser check is 300 (17 new): both files are served as audio, which file plays for each button at what volume, off and volume 0 play nothing, the settings survive a reload, damaged stored settings fall back. The two-browser live check is 148 (2 new: Draw and Shuffle on the real table page). I looked at the solo page in dark and light at desktop width: the checkbox and slider sit under the buttons.
+- Broken copies: 10 of 10 of the settings logic and 4 of 4 of the page wiring caught (after one fix, below).
+- **What I could not check:** that the sounds actually sound right or play at a good loudness. Headless Chrome cannot hear, so the checks record which file is played at what volume. I need to listen on the live site. I also did not test on a phone (on hold).
+
+**Decisions**
+- Licence: I said once that the repo is public and the rule is to check, then followed my decision to skip it. It is recorded as unverified in `credits.md`; if either file turns out to be restricted, delete it and its line in `SOUND_FILES`.
+- Not done on purpose: no sound for other players' moves, none for "your turn" (still on the list), and no setting for that yet.
+- Mistakes of mine: one of my first broken copies had text that broke the syntax, so its "caught" meant nothing; I rewrote it and it was caught for the right reason. One broken copy (no sample after moving the slider) survived because the previous sound was the same one, so the test could not tell; I changed the test to play a shuffle first and count the plays, and it is caught now. The two files showed up as "added" in git's index under their old names (something staged them, not me); I unstaged them, which touched only the index.
+
 ---
 
 ## Where AI misread me, or I had to correct course
+- (2026-11-06, entry 101) Claude's first broken copy of the volume parsing had broken syntax, so it looked caught but proved nothing, and a test of the slider sample could not tell the sample from the previous sound. Both were found by reading the run, not by the tests.
 - (2026-11-06, entry 100) Claude's first draft of the new rules accepted any list key and accepted a list written as plain text; its own new tests caught both before anything was published.
 - (2026-11-06, entry 98) Claude's first Pass turn design could not take a pass back when one player had passed twice in a row (it went back to turn 2 instead of 3), and its first "your turn" banner sat below the other players' panels where nobody would see it. It found the first by planning the live test and the second from a screenshot.
 - (2026-11-06, entry 96) Claude's `copyAsToken` from entry 86 copied the whole type line, which is over what a stored token may hold for 93 two-sided cards, so a copy would have vanished for everyone who read it. It found this while measuring for Create copy, before any button used it.
