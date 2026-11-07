@@ -7,6 +7,8 @@ import { rejoinTable, watchMembers, watchMeta, watchPresence, watchServerOffset,
 import { startKeepAlive } from '../../src/keep-alive.js';
 import { makeSafeStore } from '../../src/safe-store.js';
 import { play, mountSoundSettings } from '../../src/sound.js';
+import { createSpotlight } from '../../src/spotlight.js';
+import { canPing, makePing, newPings, pingSentence } from '../../../shared/ping.mjs';
 import { createDealer, SHUFFLE_PAUSE_MS } from '../../../shared/deal-sequence.mjs';
 import { loadCardList } from '../../src/card-list.js';
 import { makeCardNodes } from '../../src/card-nodes.js';
@@ -203,6 +205,7 @@ function renderSelected() {
   if (zone === 'battlefield') for (const id of ['nountap', 'sick']) { const mark = menuAction(id, card); act(id === 'nountap' ? noUntapLabel(card) : sickLabel(card), () => mark.run(game), mark.message); }
   if (zone === 'battlefield') { const copy = menuAction('copy', card, 1, { printed: printedOf(card, lookup) }); act('Create copy', () => copy.run(game), copy.message); }
   if (card.md === 1 && card.b === 1 && PLAY_BACK_ZONES.includes(zone)) { const play = menuAction('playback', card); act(playBackLabel(card), () => play.run(game), play.message); }
+  if (canPing(zone)) actions.push({ label: 'Ping card', secondary: true, ping: true }); // show this card to the whole table (shared/ping.mjs)
   for (const [to, label] of [['hand', 'To hand'], ['battlefield', 'To battlefield'], ['graveyard', 'To graveyard'], ['exile', 'To exile'], ['command', 'To command zone'], ['sideboard', 'To sideboard']]) {
     if (to !== zone) act(label, () => moveCard(game, card.uid, to), `Moved ${card.n} to ${ZONE_WORDS[to]}.`);
   }
@@ -222,6 +225,7 @@ function renderSelected() {
         return;
       }
       if (action.deselect) { selected = null; render(); return; }
+      if (action.ping) { sendPing(card, zone); return; }
       apply(action.run, action.message);
     });
     return button;
@@ -277,7 +281,7 @@ function openMenuFor(uid, where) {
   const found = findCard(uid);
   if (!found) return;
   select(uid);
-  openCardMenu({ title: found.card.n, items: menuItems(found.card, found.zone), x: where.x, y: where.y, returnFocus: where.element, onPick: (id, amount) => pickFromMenu(uid, id, amount) });
+  openCardMenu({ title: found.card.n, items: menuItems(found.card, found.zone, { live: true }), x: where.x, y: where.y, returnFocus: where.element, onPick: (id, amount) => pickFromMenu(uid, id, amount) });
 }
 
 function pickFromMenu(uid, id, amount) {
@@ -285,6 +289,7 @@ function pickFromMenu(uid, id, amount) {
   const found = findCard(uid);
   if (!found) return;
   if (id === 'modify') { modifyOpen = true; render(); $('marks-amount').focus(); return; }
+  if (id === 'ping') { sendPing(found.card, found.zone); return; }
   try {
     const action = menuAction(id, found.card, amount, { printed: printedOf(found.card, lookup) });
     if (!action) return;
@@ -537,6 +542,58 @@ async function renderOpponents() {
   $('opponent-list').replaceChildren(...panels);
 }
 
+// ---- pinging a card (shared/ping.mjs) ----
+// A ping is one record on the pinger's own public branch; every page shows a ping whose number differs from the last one it saw for that player. The first snapshot after the
+// page loads is only remembered, so an old ping does not come back after a refresh.
+const spotlight = createSpotlight($('spotlight'));
+let pingSeen = null; // uid -> the number of the last ping seen; null until the first snapshot of the table's public branches (and its match number) has arrived
+let publicSeen = false;
+let lastPingKey = 0; // the number of my own last ping
+let lastPingAt = 0;
+
+// The card's glow: for a few seconds the card shows a ring, in its owner's row on every screen (my own cards are in my rows, another player's in their panel).
+function glowCard(ownerUid, cardUid) {
+  const root = ownerUid === myUid ? $('game') : opponents.get(ownerUid)?.section;
+  const node = root ? [...root.querySelectorAll('.card')].find((button) => button.dataset.uid === cardUid) : null;
+  if (!node) return;
+  node.classList.add('pinged');
+  setTimeout(() => node.classList.remove('pinged'), 4000);
+}
+
+function showPing({ uid, card }) {
+  const member = members[uid];
+  const sentence = pingSentence(typeof member?.name === 'string' ? member.name : 'A player', typeof member?.seat === 'string' ? member.seat : '', card);
+  spotlight.show({ card, sentence, detail: marksSentence(card, printedOf(card, lookup)) });
+  glowCard(uid, card.uid);
+}
+
+// Shows the pings that are new in the table's public branches (this match's branches only: one left over from an earlier match does not count).
+function processPings() {
+  if (!publicSeen || !meta) return; // nothing is judged until both are known, so the first snapshot is not mistaken for new pings
+  const branches = {};
+  for (const [uid, branch] of Object.entries(publicAll)) if (branch?.match === meta.match) branches[uid] = branch;
+  const result = newPings(branches, pingSeen, lookup ?? (() => null));
+  pingSeen = result.seen;
+  for (const ping of result.shown) if (ping.uid !== myUid) showPing(ping); // my own ping was shown when I sent it
+}
+
+async function sendPing(card, zone) {
+  if (!game || !canPing(zone)) return;
+  if (Date.now() - lastPingAt < 700) return; // a key held down or a double click is one ping
+  let record;
+  try { record = makePing(card, zone, { previous: lastPingKey }); } catch (error) { say(error.message, true); return; }
+  lastPingAt = Date.now();
+  lastPingKey = record.k;
+  if (pingSeen) pingSeen = { ...pingSeen, [myUid]: record.k }; // so the copy that comes back from the database is not shown a second time
+  showPing({ uid: myUid, k: record.k, card });
+  try {
+    await saveGame(tableCode, { [`public/${myUid}/ping`]: record });
+    say(`Pinged ${card.n}.`);
+  } catch (error) {
+    say(`The ping could not be sent to the other players (${friendlyMessage(error)}).`, true);
+  }
+}
+
 // ---- starting the page ----
 async function start() {
   tableCode = tableCodeFromPath(location.pathname);
@@ -558,6 +615,7 @@ async function start() {
   watchMeta(tableCode, (value) => {
     meta = value ?? null;
     host = value?.host ?? null;
+    processPings(); // the first snapshot of the pings is remembered once the match number and the public branches are both known, whichever arrives first
     if (value === null || value === undefined) say('This table has closed.', true);
     renderMatchState();
     renderPlayers();
@@ -574,7 +632,7 @@ async function start() {
     renderTurn();
     renderOpponents();
   });
-  watchPublic(tableCode, (value) => { publicAll = value && typeof value === 'object' ? value : {}; renderTurn(); renderOpponents(); });
+  watchPublic(tableCode, (value) => { publicAll = value && typeof value === 'object' ? value : {}; publicSeen = true; processPings(); renderTurn(); renderOpponents(); });
   watchPresence(tableCode, (value) => { if (value) { presence = value; renderPlayers(); } });
   watchServerOffset((offset) => { serverOffset = offset; renderPlayers(); });
   watchConnection((connected) => {

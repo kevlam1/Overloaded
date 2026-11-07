@@ -39,6 +39,7 @@ const suites = [
   { name: 'game zones: draw, move, tap, shuffle', cmd: node, args: ['scripts/test-zones.mjs'] },
   { name: 'sound settings', cmd: node, args: ['scripts/test-sound-settings.mjs'] },
   { name: 'dealing a hand one card at a time', cmd: node, args: ['scripts/test-deal-sequence.mjs'] },
+  { name: 'pinging a card: the record, reading it back, which pings show', cmd: node, args: ['scripts/test-ping.mjs'] },
   { name: 'counters, modifier, tokens, player counters', cmd: node, args: ['scripts/test-counters.mjs'] },
   { name: 'counters and tokens: how they are stored and read back', cmd: node, args: ['scripts/test-sync-counters.mjs'] },
   { name: 'counter chips, the change label and typed amounts', cmd: node, args: ['scripts/test-marks.mjs'] },
@@ -54,6 +55,7 @@ const suites = [
 ];
 if (!quick) {
   suites.push({ name: 'lobby page in headless Chrome', cmd: node, args: ['scripts/check-lobby-ui.mjs'] });
+  suites.push({ name: 'the pinged card: spotlight and glow in headless Chrome', cmd: node, args: ['scripts/check-spotlight-ui.mjs'] });
   suites.push({ name: 'deck page in headless Chrome (needs the card list)', cmd: node, args: ['scripts/check-deck-ui.mjs'] });
   suites.push({ name: 'solo table in headless Chrome (needs the card list)', cmd: node, args: ['scripts/check-solo-ui.mjs'] });
   suites.push({ name: 'database rules (local emulator)', cmd: process.platform === 'win32' ? 'npm.cmd' : 'npm', args: ['test'], cwd: 'backend', shell: true });

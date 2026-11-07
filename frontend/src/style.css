@@ -270,6 +270,21 @@ main.table { max-width: 80rem; }
 .card .toast-down { background: rgba(170, 40, 30, 0.95); }
 @keyframes toast-rise { from { opacity: 1; transform: translate(-50%, 0.6rem); } 70% { opacity: 1; } to { opacity: 0; transform: translate(-50%, -0.9rem); } }
 @media (prefers-reduced-motion: reduce) { .card .toast { animation: none; } }
+/* A pinged card (shared/ping.mjs): shown large to everyone in the spotlight, and its card glows for a few seconds. Both stay still under prefers-reduced-motion. */
+.spotlight { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 1rem; margin: 1rem 0; padding: 0.75rem 1rem; border: 2px solid var(--accent); border-radius: 0.75rem; background: var(--card); }
+.spotlight[hidden] { display: none; }
+.spotlight .spot-picture { width: min(15rem, 60vw); height: auto; border-radius: 0.6rem; }
+.spotlight .spot-picture[hidden] { display: none; }
+.spotlight .spot-text { flex: 1 1 14rem; min-width: 0; }
+.spotlight .spot-line { margin: 0 0 0.5rem; color: var(--muted); }
+.spotlight .spot-name { margin: 0; font-size: 1.25rem; font-weight: 700; overflow-wrap: anywhere; }
+.spotlight .spot-type, .spotlight .spot-detail { margin: 0.25rem 0 0; overflow-wrap: anywhere; }
+.spotlight .spot-close { margin-top: 0.75rem; }
+@keyframes spot-in { from { opacity: 0; transform: translateY(-0.5rem); } to { opacity: 1; transform: none; } }
+.spotlight.enter { animation: spot-in 180ms ease-out; }
+@keyframes ping-pulse { 50% { box-shadow: 0 0 0 0.6rem rgba(120, 140, 255, 0.35); } }
+.card.pinged { outline: 3px solid var(--accent); outline-offset: 2px; animation: ping-pulse 800ms ease-in-out 3; }
+@media (prefers-reduced-motion: reduce) { .spotlight.enter { animation: none; } .card.pinged { animation: none; } }
 /* A card dealt into the hand drops in quickly (the hand is dealt one card at a time, shared/deal-sequence.mjs). Under prefers-reduced-motion the hand shows at once and this is off. */
 @keyframes deal-in { from { opacity: 0; transform: translateY(-1.25rem) scale(0.92); } to { opacity: 1; transform: none; } }
 .card.deal-in { animation: deal-in 160ms ease-out; }

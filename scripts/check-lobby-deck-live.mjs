@@ -342,7 +342,7 @@ try {
   await alice.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: cardAt.x, y: cardAt.y, button: 'right', buttons: 0, clickCount: 1 });
   await sleep(150);
   const aliceMenu = await menuOf(alice);
-  record("a right click on Alice's card opens its menu on the table page (Modify, Tap, the two marks, the counter with its amounts, Create copy, Move to)", Boolean(aliceMenu) && JSON.stringify(aliceMenu.items) === JSON.stringify(['Modify...', 'Tap', "Doesn't untap", 'Summoning sick', '+1/+1 counter', '2', '3', '5', 'Create copy', 'Move to']), JSON.stringify(aliceMenu));
+  record("a right click on Alice's card opens its menu on the table page (Modify, Tap, the two marks, the counter with its amounts, Create copy, Ping card, Move to)", Boolean(aliceMenu) && JSON.stringify(aliceMenu.items) === JSON.stringify(['Modify...', 'Tap', "Doesn't untap", 'Summoning sick', '+1/+1 counter', '2', '3', '5', 'Create copy', 'Ping card', 'Move to']), JSON.stringify(aliceMenu));
   await clickMenuText(alice, 'Tap');
   record('Tap from the menu is saved: the card is tapped in the database that Bob can read', Boolean(await waitFor(async () => (await tappedInDb()) === true ? true : null, 15000, 250)));
   record("...and Bob's page shows Alice's card tapped, without a refresh", Boolean(await waitFor(async () => (await bob.eval(`Array.from(document.querySelectorAll('#opponent-list .opponent')).some((p) => p.querySelector('h3').textContent.includes('Alice') && p.querySelector('.card.tapped'))`)) ? true : null, 20000, 250)));
@@ -383,6 +383,57 @@ try {
     await alice.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
     for (let n = 7; n < handBefore; n++) await click(alice, 'draw'); // back to the size the hand had, as the checks below expect
     await waitFor(async () => (await count(alice, '#hand .card')) === Math.max(handBefore, 7) ? true : null, 8000, 50);
+  }
+
+  // Pinging a card (shared/ping.mjs): Alice shows one of her battlefield cards to the table. The record is one small write on HER branch; both pages show the spotlight and the card
+  // glows on both screens; closing it is local; a refresh does not bring an old ping back; a card in the hand cannot be pinged. (Needs the rules published with the ping field.)
+  {
+    const spot = (page) => page.eval(`(() => { const r = document.getElementById('spotlight'); return { hidden: r.hidden, name: r.querySelector('.spot-name')?.textContent ?? '', line: r.querySelector('.spot-line')?.textContent ?? '', src: r.querySelector('.spot-picture')?.getAttribute('src') ?? '' }; })()`);
+    const battlefieldCard = (await rest('GET', pathOf('public/battlefield'), cleanup.bob.token)).json;
+    const first = battlefieldCard ? Object.values(battlefieldCard)[0] : null;
+    record('Alice has a card on the battlefield to ping', Boolean(first?.n && first?.u), JSON.stringify(first));
+    const aliceCard = `#row-lands .card, #row-other .card`;
+    await alice.eval(`document.querySelector(${JSON.stringify(aliceCard)}).click()`);
+    await sleep(200);
+    await alice.eval(`Array.from(document.querySelectorAll('#selected-actions button')).find((b) => b.textContent === 'Ping card').click()`);
+    const stored = await waitFor(async () => { const r = (await rest('GET', pathOf('public/ping'), cleanup.bob.token)).json; return r && r.k ? r : null; }, 15000, 250);
+    record('the ping is ONE small record on Alice\'s own branch: a number and the card, nothing else', Boolean(stored) && Object.keys(stored).sort().join() === 'card,k' && Number.isInteger(stored.k) && stored.card.u === first?.u && stored.card.n === first?.n && stored.card.i === first?.i, JSON.stringify(stored));
+    const aliceSees = await waitFor(async () => { const v = await spot(alice); return v.hidden ? null : v; }, 5000, 100);
+    record('Alice\'s own page shows her ping at once: who, which card, and the card\'s picture (normal size)', Boolean(aliceSees) && aliceSees.name === first?.n && /^Seat 1: Alice pinged /.test(aliceSees.line) && aliceSees.src.includes('/normal/') , JSON.stringify(aliceSees));
+    const bobSees = await waitFor(async () => { const v = await spot(bob); return v.hidden ? null : v; }, 20000, 250);
+    record('Bob\'s page shows the same ping: the sentence names Alice and her seat, and the card', Boolean(bobSees) && bobSees.name === first?.n && bobSees.line === `Seat 1: Alice pinged ${first?.n}.` && bobSees.src.includes('/normal/'), JSON.stringify(bobSees));
+    const glowOnBob = await waitFor(async () => (await bob.eval(`document.querySelectorAll('#opponent-list .opponent .card.pinged').length`)) >= 1 ? true : null, 5000, 100);
+    record('the pinged card glows in Alice\'s panel on Bob\'s screen, and on Alice\'s own screen too', Boolean(glowOnBob) && (await alice.eval(`document.querySelectorAll('#game .card.pinged').length`)) >= 1);
+    await bob.eval(`document.querySelector('#spotlight .spot-close').click()`);
+    record('Bob closes his spotlight; Alice\'s stays open (closing is local)', (await spot(bob)).hidden === true && (await spot(alice)).hidden === false);
+
+    // the right-click menu path, a second ping of the same card (the number must differ so Bob shows it again)
+    await sleep(900);
+    await alice.eval(`document.querySelector(${JSON.stringify(aliceCard)}).dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 300, clientY: 300, button: 2 }))`);
+    await sleep(300);
+    const offered = await alice.eval(`[...document.querySelectorAll('.card-menu [role="menuitem"]')].map((b) => b.textContent.replace(/[^A-Za-z/ ]/g, '').trim())`);
+    record('the right-click menu of a battlefield card offers Ping card', offered.includes('Ping card'), JSON.stringify(offered));
+    await alice.eval(`[...document.querySelectorAll('.card-menu [role="menuitem"]')].find((b) => b.textContent.includes('Ping card')).click()`);
+    const second = await waitFor(async () => { const r = (await rest('GET', pathOf('public/ping'), cleanup.bob.token)).json; return r && r.k !== stored?.k ? r : null; }, 15000, 250);
+    record('pinging from the menu writes a record with a DIFFERENT number', Boolean(second) && second.k > stored.k, JSON.stringify([stored?.k, second?.k]));
+    const bobAgain = await waitFor(async () => { const v = await spot(bob); return v.hidden ? null : v; }, 20000, 250);
+    record('and Bob\'s page shows it again, after he had closed the first', Boolean(bobAgain) && bobAgain.name === first?.n);
+
+    // a refresh does not bring an old ping back
+    await bob.eval(`location.reload()`);
+    await waitFor(async () => (await bob.eval(`document.getElementById('game')?.hidden === false`)) ? true : null, 30000, 250);
+    await sleep(2500);
+    record('after Bob refreshes his page the old ping is not shown again', (await spot(bob)).hidden === true);
+
+    // a card in the hand cannot be pinged: not from the buttons, not from the menu (a ping would reveal it)
+    await alice.eval(`document.querySelector('#hand .card').click()`);
+    await sleep(200);
+    record('a card in the hand has no Ping card button', (await alice.eval(`Array.from(document.querySelectorAll('#selected-actions button')).some((b) => b.textContent === 'Ping card')`)) === false);
+    await alice.eval(`document.querySelector('#hand .card').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 300, clientY: 700, button: 2 }))`);
+    await sleep(300);
+    record('...and no Ping card item in its right-click menu', (await alice.eval(`[...document.querySelectorAll('.card-menu [role="menuitem"]')].some((b) => b.textContent.includes('Ping'))`)) === false);
+    await alice.eval(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))`);
+    await alice.eval(`document.querySelector('#spotlight .spot-close').click()`);
   }
 
   // Turning a two-sided card over: Alice takes Delver (a transform card) out of her sideboard, plays it and turns it over. The database
