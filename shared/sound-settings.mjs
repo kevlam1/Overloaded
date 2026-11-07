@@ -6,7 +6,7 @@ export const DEFAULT_SOUND = { on: true, volume: 1 }; // sound is on by default 
 export const SOUND_FILES = { draw: '/sfx/draw.mp3', shuffle: '/sfx/shuffle.mp3', tap: '/sfx/tap.mp3', yourturn: '/sfx/yourturn.mp3' };
 // How loud each sound is at a slider of 100% (an audio element's volume, 0 to 1). The files differ a lot in loudness, so each has its own gain, chosen so that all
 // four have the SAME average level, and quiet: about -51.6 dBFS at a slider of 100% (Kevin, 2026-11-06: even them out and lower them all, draw was still loud).
-// Measured in a browser (average level of the whole file, dBFS), tap.mp3 as replaced at 17:42 on 2026-11-06: draw -31.8, shuffle -31.2, tap -51.6, yourturn -25.0.
+// Measured in a browser (average level of the whole file, dBFS) on 2026-11-06, after the last file swap (tap 17:42, draw 17:55, yourturn 17:57): draw -31.4, shuffle -31.2, tap -51.6, yourturn -24.9.
 // The gain that gives -51.6 is 10 ^ ((-51.6 - average) / 20): draw 0.10, shuffle 0.095, tap 1, yourturn 0.047. A sound cannot have a gain above 1, so the quietest file
 // (tap) sets the target; a louder tap file would allow a louder set. RE-MEASURE AND RECOMPUTE whenever a sound file is replaced.
 // A short sharp click (draw) can still feel punchier than its average says. Change one number to tune one sound.

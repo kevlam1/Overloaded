@@ -13,7 +13,7 @@ same('the four sounds and their files', SOUND_FILES, { draw: '/sfx/draw.mp3', sh
 same('the gain of each sound (chosen so all four have the same average level, see the note in sound-settings.mjs)', SOUND_GAIN, { draw: 0.1, shuffle: 0.095, tap: 1, yourturn: 0.047 });
 same('no gain is above 1 (an audio element cannot play louder than full)', Object.values(SOUND_GAIN).every((g) => g > 0 && g <= 1), true);
 // the files' measured average levels in dBFS (decoded in a browser on 2026-11-06): with each gain the four come out within half a dB of each other
-const AVERAGE_DB = { draw: -31.8, shuffle: -31.2, tap: -51.6, yourturn: -25.0 };
+const AVERAGE_DB = { draw: -31.4, shuffle: -31.2, tap: -51.6, yourturn: -24.9 };
 const atFull = Object.keys(AVERAGE_DB).map((name) => AVERAGE_DB[name] + 20 * Math.log10(SOUND_GAIN[name]));
 same('at a slider of 100% all four sounds have the same average level to within half a dB', Math.max(...atFull) - Math.min(...atFull) < 0.5, true);
 same('...and that level is no louder than -51 dBFS', Math.max(...atFull) < -51, true);
