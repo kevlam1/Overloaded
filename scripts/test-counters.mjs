@@ -153,7 +153,8 @@ same('player counters and seats', [PLAYER_COUNTERS, COMMANDER_SEATS], [['poison'
   const token = cardOf(made.game, made.uid);
   same('the token is on the battlefield at the end', [made.game.zones.battlefield.length, made.game.zones.battlefield.at(-1).uid], [before + 1, made.uid]);
   same('its uid comes from the game\'s counter and the counter moves on', [made.uid, made.game.nextUid], [`c${game.nextUid}`, game.nextUid + 1]);
-  same('what it holds', token, { uid: made.uid, i: id(70), n: 'Goblin', t: 'Token Creature - Goblin', m: '', k: [], tok: true, pt: '1/1', cl: 'R', sick: true, tapped: false, turnEntered: game.turn }); // a creature token comes in summoning sick
+  same('what it holds', token, { uid: made.uid, i: id(70), n: 'Goblin', t: 'Token Creature - Goblin', m: '', k: [], tok: true, pt: '1/1', cl: 'R', sick: true, tapped: false, turnEntered: game.turn, px: token.px, py: token.py }); // a creature token comes in summoning sick, and on a cell of the grid
+  check('...whose cell is on the grid', Number.isInteger(token.px) && Number.isInteger(token.py) && token.px >= 0 && token.px < 12 && token.py >= 0 && token.py < 4);
   check('the old game is untouched', game.zones.battlefield.length === before && game.nextUid === made.game.nextUid - 1);
   const plain = createToken(game, { n: 'Treasure', i: id(71), tt: 'Token Artifact - Treasure' });
   same('power, toughness and colors are optional and then not stored', ['pt' in cardOf(plain.game, plain.uid), 'cl' in cardOf(plain.game, plain.uid)], [false, false]);
@@ -174,10 +175,10 @@ same('player counters and seats', [PLAYER_COUNTERS, COMMANDER_SEATS], [['poison'
   ]) refused(`a token with ${label}`, () => createToken(game, spec), words);
   // a full battlefield
   let full = game;
-  while (full.zones.battlefield.length < MAX_ZONE_CARDS) full = createToken(full, { n: 'Spirit', i: id(73), tt: 'Token Creature - Spirit' }).game;
-  same('the battlefield stops at its limit', full.zones.battlefield.length, MAX_ZONE_CARDS);
-  refused('one more token', () => createToken(full, TOKEN), /at most 250/);
-  refused('one more copy', () => copyAsToken(full, ids[0]), /at most 250/);
+  while (full.zones.battlefield.length < 48) full = createToken(full, { n: 'Spirit', i: id(73), tt: 'Token Creature - Spirit' }).game;
+  same('the battlefield stops at the 48 cells of the grid', full.zones.battlefield.length, 48);
+  refused('one more token', () => createToken(full, TOKEN), /battlefield is full \(48 cards fit\)/);
+  refused('one more copy', () => copyAsToken(full, ids[0]), /battlefield is full \(48 cards fit\)/);
   check('a full battlefield is still a consistent game', problemsOf(full).length === 0);
   check('the old game is not changed', (() => { const frozen = deepFreeze(structuredClone(game)); createToken(frozen, TOKEN); copyAsToken(frozen, ids[0]); return true; })());
 }
@@ -331,7 +332,10 @@ for (const seed of [1, 2, 3, 4, 5]) {
       else if (op === 'tap' && battlefield.length) { const card = pick(battlefield); game = setTapped(game, card.uid, !card.tapped); }
       else if (op === 'life') game = adjustLife(game, Math.floor(random() * 11) - 5);
       else if (op === 'untap') game = untapAll(game);
-    } catch (error) { fail(`random game ${seed}, step ${step} (${op})`, `an operation that should work threw: ${error.message}`); }
+    } catch (error) {
+      if (/battlefield is full/.test(error.message)) continue; // the grid holds 48 cards: a move or a token that does not fit is refused in words
+      fail(`random game ${seed}, step ${step} (${op})`, `an operation that should work threw: ${error.message}`);
+    }
     const problems = problemsOf(game);
     if (problems.length) fail(`random game ${seed}, step ${step} (${op})`, problems.join('; '));
     if (step % 100 === 0 || step === 1999) {

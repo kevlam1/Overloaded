@@ -86,7 +86,7 @@ same('nothing changed means nothing to write', gameWrites('u1', game, game), {})
   const played = moveCard(game, card.uid, 'battlefield');
   same('playing a card writes the hand, the battlefield and the hand count', key(gameWrites('u1', game, played)), ['private/u1/hand', 'public/u1/battlefield', 'public/u1/counts/hand']);
   const tapped = setTapped(played, card.uid, true);
-  same('tapping writes only the battlefield', key(gameWrites('u1', played, tapped)), ['public/u1/battlefield']);
+  same('tapping writes only that one card of the battlefield (the same cards in the same places: one small write)', key(gameWrites('u1', played, tapped)), ['public/u1/battlefield/0']);
   same('a life change writes only the life', key(gameWrites('u1', game, adjustLife(game, -3))), ['public/u1/life']);
   same('the new life is the value written', gameWrites('u1', game, adjustLife(game, -3))['public/u1/life'], game.life - 3);
   const emptied = moveCard(played, card.uid, 'hand');

@@ -41,6 +41,7 @@ export function packCard(card) {
     ...(card.sick ? { sk: 1 } : {}), // summoning sick (a reminder)
     ...(card.noUntap ? { nu: 1 } : {}), // the untap step skips it
     ...(card.nt ? { nt: card.nt } : {}),
+    ...(Number.isInteger(card.px) && Number.isInteger(card.py) ? { px: card.px, py: card.py } : {}), // the cell on the battlefield grid (shared/board-grid.mjs)
   };
 }
 
@@ -79,6 +80,7 @@ export function unpackCard(raw, lookup = () => null) {
   if ('sk' in raw && raw.sk !== 1) return null;
   if ('nu' in raw && raw.nu !== 1) return null;
   if ('nt' in raw && !(typeof raw.nt === 'string' && raw.nt.length > 0 && raw.nt.length <= MAX_NOTE)) return null;
+  for (const key of ['px', 'py']) if (key in raw && !(Number.isInteger(raw[key]) && raw[key] >= 0 && raw[key] <= 4000)) return null; // 0 to 4000 is what the database accepts; the page only uses a cell that is on the grid
   // A real card's type, cost and keywords come from the card list. A token's type line is stored with it (a token is not in the list),
   // but its cost and keywords are still looked up BY ID ONLY: a copy of a real card has that card's id and so keeps them, a token picture
   // is not in the list and gets none, and a token that merely shares a name with a real card (87 names do) is never matched by name.
@@ -105,6 +107,7 @@ export function unpackCard(raw, lookup = () => null) {
     ...(raw.sk === 1 ? { sick: true } : {}),
     ...(raw.nu === 1 ? { noUntap: true } : {}),
     ...(raw.nt ? { nt: raw.nt } : {}),
+    ...('px' in raw && 'py' in raw ? { px: raw.px, py: raw.py } : {}),
     tapped: raw.x === 1,
     turnEntered: 'e' in raw ? raw.e : null,
   };
@@ -190,7 +193,17 @@ export function gameWrites(uid, before, after) {
   for (const key of ['life', 'turn', 'mulligans', 'next']) put(`public/${uid}/${key}`, now.public[key], then?.public[key]);
   for (const zone of PRIVATE_ZONES) put(`public/${uid}/counts/${zone}`, now.public.counts[zone], then?.public.counts[zone]);
   for (const key of ['pc', 'cd', 'pass']) put(`public/${uid}/${key}`, now.public[key] ?? null, then ? (then.public[key] ?? null) : undefined);
-  for (const zone of PUBLIC_ZONES) put(`public/${uid}/${zone}`, now.public[zone].length ? now.public[zone] : null, then ? (then.public[zone].length ? then.public[zone] : null) : undefined);
-  for (const zone of PRIVATE_ZONES) put(`private/${uid}/${zone}`, now.private[zone].length ? now.private[zone] : null, then ? (then.private[zone].length ? then.private[zone] : null) : undefined);
+  // A zone is written as ONE piece, except when it holds the same cards in the same places as before (a tap, a counter, a drag on the grid): then only the cards that changed
+  // are written, one small write each (about 100 bytes), not the whole zone.
+  const zoneWrites = (branch, zone, nowList, thenList) => {
+    const base = `${branch}/${uid}/${zone}`;
+    if (thenList && nowList.length && thenList.length === nowList.length && nowList.every((card, index) => card.u === thenList[index].u)) {
+      nowList.forEach((card, index) => put(`${base}/${index}`, card, thenList[index]));
+      return;
+    }
+    put(base, nowList.length ? nowList : null, then ? (thenList.length ? thenList : null) : undefined);
+  };
+  for (const zone of PUBLIC_ZONES) zoneWrites('public', zone, now.public[zone], then?.public[zone] ?? null);
+  for (const zone of PRIVATE_ZONES) zoneWrites('private', zone, now.private[zone], then?.private[zone] ?? null);
   return writes;
 }

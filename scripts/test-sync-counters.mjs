@@ -38,7 +38,7 @@ function loaded() {
 {
   const { game, a, b, token } = loaded();
   const find = (g, uid) => ZONES.flatMap((zone) => g.zones[zone]).find((card) => card.uid === uid);
-  same('a card with counters, a modifier, a note: stored as ct, mp, mt, nt', packCard(find(game, a)), { u: a, i: find(game, a).i, n: find(game, a).n, e: 1, ct: { p: 3, l: 2 }, mp: 2, mt: -1, nt: 'equipped', sk: 1, ...(find(game, a).p ? { p: find(game, a).p } : {}) });
+  same('a card with counters, a modifier, a note: stored as ct, mp, mt, nt', packCard(find(game, a)), { u: a, i: find(game, a).i, n: find(game, a).n, e: 1, ct: { p: 3, l: 2 }, mp: 2, mt: -1, nt: 'equipped', sk: 1, px: find(game, a).px, py: find(game, a).py, ...(find(game, a).p ? { p: find(game, a).p } : {}) });
   same('a face-down card: f is 1', packCard(find(game, b)).f, 1);
   const stored = packCard(find(game, token));
   same('a token is stored with tok, its type line, power/toughness and colors', [stored.tok, stored.tt, stored.pt, stored.cl, stored.i, stored.n], [1, 'Token Creature - Goblin', '1/1', 'R', id(70), 'Goblin']);
@@ -63,8 +63,8 @@ function loaded() {
 {
   const { game, a, token } = loaded();
   const key = (writes) => Object.keys(writes).sort();
-  same('a counter change writes only the battlefield', key(gameWrites('u', game, changeCounter(game, a, 'c', 1))), ['public/u/battlefield']);
-  same('a modifier change writes only the battlefield', key(gameWrites('u', game, changeModifier(game, a, 'power', 1))), ['public/u/battlefield']);
+  same('a counter change writes only that one card of the battlefield', key(gameWrites('u', game, changeCounter(game, a, 'c', 1))), [`public/u/battlefield/${game.zones.battlefield.findIndex((c) => c.uid === a)}`]);
+  same('a modifier change writes only that one card of the battlefield', key(gameWrites('u', game, changeModifier(game, a, 'power', 1))), [`public/u/battlefield/${game.zones.battlefield.findIndex((c) => c.uid === a)}`]);
   same('a new token writes the battlefield and the next card number', key(gameWrites('u', game, createToken(game, TOKEN).game)), ['public/u/battlefield', 'public/u/next']);
   same('a poison counter writes only pc', key(gameWrites('u', game, changePlayerCounter(game, 'poison', 1))), ['public/u/pc']);
   same('commander damage writes only cd', key(gameWrites('u', game, changeCommanderDamage(game, '3', 1))), ['public/u/cd']);
@@ -141,14 +141,14 @@ for (const seed of [1, 2, 3, 4, 5]) {
     const bf = current.zones.battlefield;
     const all = ZONES.flatMap((zone) => current.zones[zone]);
     const op = pick(['move', 'move', 'draw', 'counter', 'modifier', 'note', 'facedown', 'token', 'copy', 'player', 'commander', 'turn', 'tap', 'untap', 'life']);
-    if (op === 'move' && all.length) current = moveCard(current, pick(all).uid, pick(ZONES), { position: pick(['top', 'bottom']) });
+    if (op === 'move' && all.length) { try { current = moveCard(current, pick(all).uid, pick(ZONES), { position: pick(['top', 'bottom']) }); } catch (error) { if (!/battlefield is full/.test(error.message)) throw error; } } // the grid holds 48 cards
     else if (op === 'draw') current = draw(current, 1).game;
     else if (op === 'counter' && bf.length) current = changeCounter(current, pick(bf).uid, pick(COUNTER_KINDS), (random() < 0.5 ? -1 : 1) * (1 + Math.floor(random() * 3)));
     else if (op === 'modifier' && bf.length) current = changeModifier(current, pick(bf).uid, pick(['power', 'toughness']), (random() < 0.5 ? -1 : 1) * (1 + Math.floor(random() * 20)));
     else if (op === 'note' && bf.length) current = setNote(current, pick(bf).uid, random() < 0.3 ? '' : `n${Math.floor(random() * 99)}`);
     else if (op === 'facedown' && bf.length) current = setFaceDown(current, pick(bf).uid, random() < 0.5);
-    else if (op === 'token' && bf.length < 100) current = createToken(current, TOKEN).game;
-    else if (op === 'copy' && bf.length && bf.length < 100) current = copyAsToken(current, pick(bf).uid).game;
+    else if (op === 'token' && bf.length < 40) current = createToken(current, TOKEN).game; // the grid holds 48 cards
+    else if (op === 'copy' && bf.length && bf.length < 40) current = copyAsToken(current, pick(bf).uid).game;
     else if (op === 'player') current = changePlayerCounter(current, pick(PLAYER_COUNTERS), (random() < 0.5 ? -1 : 1) * (1 + Math.floor(random() * 4)));
     else if (op === 'commander') current = changeCommanderDamage(current, pick(COMMANDER_SEATS), (random() < 0.5 ? -1 : 1) * (1 + Math.floor(random() * 4)));
     else if (op === 'turn') current = nextTurn(current).game;

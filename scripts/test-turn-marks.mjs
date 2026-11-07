@@ -216,7 +216,7 @@ check('a creature with printed haste does not come in sick, any other creature d
   let game = play(play(fresh(), 'Llanowar'), 'Sol Ring');
   game = setNoUntap(setTapped(game, named(game, 'Sol Ring').uid, true), named(game, 'Sol Ring').uid, true);
   const elves = packCard(named(game, 'Llanowar')), ring = packCard(named(game, 'Sol Ring'));
-  check('a sick card is stored with sk: 1, and nothing else changes', elves.sk === 1 && !('nu' in elves) && Object.keys(elves).sort().join() === 'e,i,n,sk,u');
+  check('a sick card is stored with sk: 1, and nothing else changes', elves.sk === 1 && !('nu' in elves) && Object.keys(elves).sort().join() === 'e,i,n,px,py,sk,u'); // (px and py: the card's cell on the battlefield grid)
   check('a card that does not untap is stored with nu: 1', ring.nu === 1 && !('sk' in ring) && ring.x === 1);
   same('both read back as the card they were', [unpackCard(elves, lookup), unpackCard(ring, lookup)], [named(game, 'Llanowar'), named(game, 'Sol Ring')]);
   for (const key of ['sk', 'nu']) for (const bad of [0, 2, true, '1', null, [1], {}]) check(`${key} that is ${JSON.stringify(bad)} makes the stored card unreadable`, unpackCard({ ...elves, [key]: bad }, lookup) === null);
