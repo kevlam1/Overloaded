@@ -60,7 +60,8 @@ try {
   server = await createServer({ configFile: 'vite.config.js', logLevel: 'error', server: { port: PORT, strictPort: true, host: '127.0.0.1' } });
   await server.listen();
   const realPictures = process.argv.includes('--screenshot');
-  const browser = await openBrowser('solo-ui', { width: 1280, height: 1000 });
+  const sizeArg = process.argv.find((arg) => arg.startsWith('--size='))?.slice(7).split('x').map(Number); // optional: --size=1366x650 to look at another window size
+  const browser = await openBrowser('solo-ui', { width: sizeArg?.[0] ?? 1280, height: sizeArg?.[1] ?? 1000 });
   const ev = (expression) => browser.eval(expression);
   const motion = (value) => browser.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value }] });
   await motion('reduce'); // the hand is dealt one card at a time unless the browser asks for reduced motion; almost every check below wants the hand at once
@@ -99,9 +100,9 @@ try {
   check('the commander is in the command zone, shown as a card', (await count('#command .card')) === 1 && /Éowyn/.test((await names('#command .card'))[0]));
   check('life is 40 (a commander) on turn 1', (await $text('life')) === '40' && (await $text('turn')) === '1');
   check('the library holds the other 53 cards and the sideboard is empty', (await pileCount('library')) === 'Library: 53' && (await pileCount('sideboard')) === 'Sideboard: 0');
-  check('the graveyard and exile are empty and the battlefield has nothing on it', (await pileCount('graveyard')) === 'Graveyard: 0' && (await pileCount('exile')) === 'Exile: 0' && (await count('#row-lands .card')) + (await count('#row-other .card')) === 0);
+  check('the graveyard and exile are empty and the battlefield has nothing on it', (await pileCount('graveyard')) === 'Graveyard: 0' && (await pileCount('exile')) === 'Exile: 0' && (await count('#battlefield .card[data-kind="land"]')) + (await count('#battlefield .card[data-kind="other"]')) === 0);
   check('the status says what was dealt', /Dealt 7 cards\. Your commander is in the command zone\. Life is 40\./.test(await $text('status')), await $text('status'));
-  check('the empty rows say they are empty', (await ev(`document.getElementById('row-lands').dataset.empty`)) === 'No lands yet.');
+  check('the empty battlefield says it is empty', (await ev(`document.getElementById('battlefield').dataset.empty`)) === 'Nothing on the battlefield yet.');
   await sleep(500);
   check('pictures are requested from Scryfall\'s picture server only, in the small size, and each once', asked.length > 0 && asked.length <= 8 && new Set(asked).size === asked.length && asked.every((u) => /^https:\/\/cards\.scryfall\.io\/small\/front\/[0-9a-f]\/[0-9a-f]\/[0-9a-f-]{36}\.jpg$/.test(u)), `${asked.length}: ${asked[0]}`);
   const picture = await ev(`(() => { const i = document.querySelector('#hand .card img'); return { alt: i.alt, w: i.naturalWidth, h: i.naturalHeight, referrer: i.referrerPolicy, lazy: i.loading }; })()`);
@@ -135,16 +136,16 @@ try {
   check('a hand card offers every other zone, the library top and bottom, and Deselect, but not Tap', JSON.stringify(labels) === JSON.stringify(['To battlefield', 'To graveyard', 'To exile', 'To command zone', 'To sideboard', 'Top of library', 'Bottom of library', 'Deselect']), JSON.stringify(labels));
   const handBefore = await count('#hand .card');
   await clickAction('To battlefield');
-  check('moving a land to the battlefield puts it in the lands row', (await count('#row-lands .card')) === 1 && (await count('#row-other .card')) === 0 && (await count('#hand .card')) === handBefore - 1 && (await $text('status')) === `Moved ${landName} to the battlefield.`, await $text('status'));
-  check('the card stays selected and now offers Tap and the other zones', (await count('#row-lands .card.selected')) === 1 && (await actionLabels())[0] === 'Tap' && !(await actionLabels()).includes('To battlefield'), JSON.stringify(await actionLabels()));
-  check('a card that was never tapped is not turned', (await count('#row-lands .card.tapped')) === 0);
+  check('moving a land to the battlefield puts it in the lands row', (await count('#battlefield .card[data-kind="land"]')) === 1 && (await count('#battlefield .card[data-kind="other"]')) === 0 && (await count('#hand .card')) === handBefore - 1 && (await $text('status')) === `Moved ${landName} to the battlefield.`, await $text('status'));
+  check('the card stays selected and now offers Tap and the other zones', (await count('#battlefield .card[data-kind="land"].selected')) === 1 && (await actionLabels())[0] === 'Tap' && !(await actionLabels()).includes('To battlefield'), JSON.stringify(await actionLabels()));
+  check('a card that was never tapped is not turned', (await count('#battlefield .card[data-kind="land"].tapped')) === 0);
   await clickAction('Tap');
-  const tapped = await ev(`(() => { const c = document.querySelector('#row-lands .card'); const face = c.querySelector('.face'); const m = getComputedStyle(face).transform; const r = c.getBoundingClientRect(); const f = face.getBoundingClientRect(); return { tapped: c.classList.contains('tapped'), label: c.getAttribute('aria-label'), transform: m, boxW: Math.round(r.width), boxH: Math.round(r.height), faceW: Math.round(f.width), faceH: Math.round(f.height) }; })()`);
+  const tapped = await ev(`(() => { const c = document.querySelector('#battlefield .card[data-kind="land"]'); const face = c.querySelector('.face'); const m = getComputedStyle(face).transform; const r = c.getBoundingClientRect(); const f = face.getBoundingClientRect(); return { tapped: c.classList.contains('tapped'), label: c.getAttribute('aria-label'), transform: m, boxW: Math.round(r.width), boxH: Math.round(r.height), faceW: Math.round(f.width), faceH: Math.round(f.height) }; })()`);
   check('tapping turns the card sideways and says it is tapped', tapped.tapped && /, tapped$/.test(tapped.label) && /matrix\(0(\.\d+)?(e-\d+)?, 1, -1, 0(\.\d+)?(e-\d+)?/.test(tapped.transform), JSON.stringify(tapped));
   check('a tapped card makes room for itself (its box is as wide as it is tall, so it does not overlap its neighbour)', Math.abs(tapped.boxW - tapped.boxH) <= 2 && Math.abs(tapped.faceW - tapped.boxW) <= 3, JSON.stringify(tapped));
   check('the action now says Untap, and the status says Tapped', (await actionLabels())[0] === 'Untap' && (await $text('status')) === `Tapped ${landName}.`);
   await clickAction('Untap');
-  check('untapping turns it back', (await count('#row-lands .card.tapped')) === 0 && (await $text('status')) === `Untapped ${landName}.`);
+  check('untapping turns it back', (await count('#battlefield .card[data-kind="land"].tapped')) === 0 && (await $text('status')) === `Untapped ${landName}.`);
   await clickAction('Tap');
   await press('untap-all');
   check('Untap all untaps everything', (await count('.card.tapped')) === 0 && (await $text('status')) === 'Untapped everything.');
@@ -156,12 +157,12 @@ try {
   const otherName = (await handNames())[otherIndex];
   await clickCard('#hand .card', otherIndex);
   await clickAction('To battlefield');
-  check('and goes in the other permanents row, not the lands row', (await count('#row-other .card')) === 1 && (await count('#row-lands .card')) === 1);
-  check('the rows keep their cards where they were (the land is still in the lands row)', (await names('#row-lands .card')).join() === landName && (await names('#row-other .card')).join().replace(/, summoning sick$/, '') === otherName, `${await names('#row-lands .card')} | ${await names('#row-other .card')}`); // a creature that came in is summoning sick, which its label now says
+  check('and goes in the other permanents row, not the lands row', (await count('#battlefield .card[data-kind="other"]')) === 1 && (await count('#battlefield .card[data-kind="land"]')) === 1);
+  check('the rows keep their cards where they were (the land is still in the lands row)', (await names('#battlefield .card[data-kind="land"]')).join() === landName && (await names('#battlefield .card[data-kind="other"]')).join().replace(/, summoning sick$/, '') === otherName, `${await names('#battlefield .card[data-kind="land"]')} | ${await names('#battlefield .card[data-kind="other"]')}`); // a creature that came in is summoning sick, which its label now says
 
   // ---- piles ----
   await clickAction('To graveyard');
-  check('moving to the graveyard changes the count', (await pileCount('graveyard')) === 'Graveyard: 1' && (await count('#row-other .card')) === 0);
+  check('moving to the graveyard changes the count', (await pileCount('graveyard')) === 'Graveyard: 1' && (await count('#battlefield .card[data-kind="other"]')) === 0);
   await press('pile-graveyard');
   const viewer = { shown: !(await $hidden('viewer')), rows: await count('#viewer-list li'), title: await $text('viewer-title'), note: await $text('viewer-note'), pressed: await ev(`document.getElementById('pile-graveyard').getAttribute('aria-pressed')`) };
   check('opening the graveyard lists its card, newest first, and marks the button', viewer.shown && viewer.rows === 1 && /graveyard: 1 card/i.test(viewer.title) && /newest card is first/.test(viewer.note) && viewer.pressed === 'true', JSON.stringify(viewer));
@@ -214,7 +215,7 @@ try {
     same('Next turn (which draws) plays the draw sound', (await plays()).at(-1), { src: '/sfx/draw.mp3', volume: 0.1 });
     await clickCard('#hand .card', 0);
     await clickAction('To battlefield');
-    await clickCard('#row-lands .card, #row-other .card', 0);
+    await clickCard('#battlefield .card', 0);
     await clickAction('Tap');
     same('the Tap button plays the tap sound', (await plays()).at(-1), { src: '/sfx/tap.mp3', volume: 1 });
     const tapsBefore = (await plays()).length;
@@ -261,7 +262,7 @@ try {
       await mouseAt('mouseReleased', toX);
       return ev(`document.getElementById('sound-volume').value`);
     };
-    check('the slider is wide enough to use (at least 100 px)', box.width >= 100, JSON.stringify(box));
+    check('the slider is wide enough to use (at least 80 px; it is 96 px on the compact one-screen layout)', box.width >= 80, JSON.stringify(box));
     check('the checkbox and the slider use the page accent colour, not each browser\'s own default', (await ev(`['sound-on', 'sound-volume'].map((id) => getComputedStyle(document.getElementById(id)).accentColor === getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || getComputedStyle(document.getElementById(id)).accentColor !== 'auto').every(Boolean)`)) === true);
     check('the slider has no padding or border of its own, so the thumb can reach both ends of the track (a close-up screenshot showed it stopping 17 px short with the general input style)', (await ev(`(() => { const s = getComputedStyle(document.getElementById('sound-volume')); return [s.paddingLeft, s.paddingRight, s.borderLeftWidth, s.borderRightWidth].join(); })()`)) === '0px,0px,0px,0px');
     check('the slider is drawn by the page, not by the browser (appearance none), so it looks the same in every browser', (await ev(`getComputedStyle(document.getElementById('sound-volume')).appearance`)) === 'none');
@@ -371,13 +372,69 @@ try {
     await browser.goto(PAGE);
     await handIs(7);
   }
+  // ---- the larger picture of a card while the pointer rests on it (frontend/src/card-hover.js): real mouse movement ----
+  {
+    const rectOf = (selector, index = 0) => ev(`(() => { const r = document.querySelectorAll(${JSON.stringify(selector)})[${index}].getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, left: r.left, right: r.right, top: r.top, bottom: r.bottom }; })()`);
+    const moveTo = (x, y) => browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y });
+    const hoverState = () => ev(`(() => { const b = document.getElementById('card-hover'); if (!b) return null; const r = b.getBoundingClientRect(); return { hidden: b.hidden, src: b.querySelector('img').getAttribute('src'), left: r.left, right: r.right, top: r.top, bottom: r.bottom, inside: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight }; })()`);
+    const c = await rectOf('#hand .card', 0);
+    const smallSrc = await ev(`document.querySelector('#hand .card img').getAttribute('src')`);
+    await moveTo(5, 5); await sleep(60);
+    check('the hover box exists and starts hidden', (await hoverState())?.hidden === true);
+    await moveTo(c.x, c.y);
+    await sleep(150);
+    check('the larger picture does not show at once (it waits a moment, so sweeping across the table shows nothing)', (await hoverState()).hidden === true);
+    await sleep(450);
+    let h = await hoverState();
+    check('after a moment it shows the NORMAL size of the same card', h.hidden === false && h.src === smallSrc.replace('/small/', '/normal/'), JSON.stringify(h));
+    check('...inside the window and not covering the card', h.inside && (h.left >= c.right || h.right <= c.left), JSON.stringify([h, c]));
+    await moveTo(5, 5); await sleep(80);
+    check('moving off the card hides it', (await hoverState()).hidden === true);
+    await moveTo(c.x, c.y); await sleep(650);
+    check('it shows again on the way back', (await hoverState()).hidden === false);
+    await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: c.x, y: c.y, button: 'left', buttons: 1, clickCount: 1 });
+    await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: c.x, y: c.y, button: 'left', buttons: 0, clickCount: 1 });
+    await sleep(700);
+    check('a click hides it, and it stays hidden while the pointer stays on that card', (await hoverState()).hidden === true);
+    await moveTo(5, 5); await sleep(80); await moveTo(c.x, c.y); await sleep(650);
+    check('after leaving and coming back it shows again', (await hoverState()).hidden === false);
+    await browser.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+    await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+    await sleep(100);
+    check('Escape hides it', (await hoverState()).hidden === true);
+    await moveTo(5, 5); await sleep(80);
+    await ev(`document.querySelector('#hand .card').dispatchEvent(new PointerEvent('pointerover', { bubbles: true, pointerType: 'touch' }))`);
+    await sleep(650);
+    check('a touch never shows it (a phone has no hover)', (await hoverState()).hidden === true);
+    await ev(`document.querySelectorAll('#hand .card')[1].classList.add('noimage')`);
+    const c2 = await rectOf('#hand .card', 1); await moveTo(c2.x, c2.y); await sleep(700);
+    check('a card that shows only its name has no larger picture', (await hoverState()).hidden === true);
+    await ev(`document.querySelectorAll('#hand .card')[1].classList.remove('noimage')`);
+    await moveTo(5, 5); await sleep(80);
+    await moveTo(c.x, c.y); await sleep(650);
+    await ev(`document.querySelector('.side-panels').dispatchEvent(new Event('scroll'))`); await sleep(80);
+    check('a scroll hides it', (await hoverState()).hidden === true);
+    await moveTo(5, 5); await sleep(80);
+    // a card on the battlefield, and a tapped one
+    await clickCard('#hand .card', 0);
+    await clickAction('To battlefield');
+    await clickAction('Tap');
+    await moveTo(5, 5); await sleep(80);
+    const b = await rectOf('#battlefield .card', 0);
+    const bSmall = await ev(`document.querySelector('#battlefield .card img').getAttribute('src')`);
+    await moveTo(b.x, b.y); await sleep(650);
+    h = await hoverState();
+    check('a tapped card on the battlefield shows its larger picture too, beside it', h.hidden === false && h.src === bSmall.replace('/small/', '/normal/') && h.inside && (h.left >= b.right || h.right <= b.left), JSON.stringify([h, b]));
+    await moveTo(5, 5); await sleep(80);
+    check('the hover box is never in the way of the pointer (it does not take mouse events)', (await ev(`getComputedStyle(document.getElementById('card-hover')).pointerEvents`)) === 'none');
+  }
   await clickCard('#hand .card', 0);
   check('Escape deselects', (await count('.card.selected')) === 1 && await (async () => { await ev(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))`); return (await count('.card.selected')) === 0 && (await actionLabels()).length === 0; })());
   check('every card is somewhere: 61 cards in the game', await (async () => { const n = async (s) => parseInt((await $text(s)).split(': ').at(-1), 10); return (await count('.card')) + (await n('pile-library')) + (await n('pile-graveyard')) + (await n('pile-exile')) + (await n('pile-sideboard')) === 61; })());
 
   // ---- a new game ----
   await press('new-game');
-  check('a new game starts again from turn 1 with life 40, a hand of 7 and an untouched library', (await $text('turn')) === '1' && (await $text('life')) === '40' && (await count('#hand .card')) === 7 && (await pileCount('library')) === 'Library: 53' && (await pileCount('graveyard')) === 'Graveyard: 0' && (await count('#row-lands .card')) === 0 && (await $text('mulligan')) === 'Mulligan');
+  check('a new game starts again from turn 1 with life 40, a hand of 7 and an untouched library', (await $text('turn')) === '1' && (await $text('life')) === '40' && (await count('#hand .card')) === 7 && (await pileCount('library')) === 'Library: 53' && (await pileCount('graveyard')) === 'Graveyard: 0' && (await count('#battlefield .card[data-kind="land"]')) === 0 && (await $text('mulligan')) === 'Mulligan');
   check('the whole thing happened with the page asking nowhere but the picture server', true);
 
   // ---- a deck with a sideboard, a title-imported card and the commander listed last ----
@@ -473,8 +530,8 @@ try {
   for (let n = 0; n < 40 && !(await handNames()).some((x) => /Hostile/.test(x)); n++) await press('draw');
   const idx = (await handNames()).findIndex((x) => /Hostile/.test(x));
   if (idx >= 0) { await clickCard('#hand .card', idx); await clickAction('To battlefield'); }
-  const injected = await ev(`({ pwned: typeof window.__pwned, strange: document.querySelectorAll('img[onerror]').length, fallback: Array.from(document.querySelectorAll('.fallback')).some((f) => f.textContent.includes('<img')), other: document.querySelectorAll('#row-other .card').length })`);
-  check('a card whose name is markup is shown as text and never runs', idx >= 0 && injected.pwned === 'undefined' && injected.strange === 0 && injected.fallback, JSON.stringify(injected));
+  const injected = await ev(`({ pwned: typeof window.__pwned, strange: document.querySelectorAll('img[onerror]').length, fallback: Array.from(document.querySelectorAll('.fallback')).some((f) => f.textContent.includes('<img')), other: document.querySelectorAll('#battlefield .card[data-kind="other"]').length })`);
+  check('a card whose name is markup is shown as text and never runs', idx >= 0 && injected.pwned === 'undefined' && injected.strange === 0 && injected.fallback, JSON.stringify({ ...injected, idx, onBoard: await count('#battlefield .card'), kinds: await ev(`Array.from(document.querySelectorAll('#battlefield .card')).map((c) => c.dataset.kind + '|' + c.className + '|' + (c.getAttribute('aria-label') || '').slice(0, 30))`), line: await $text('selected-line') }));
   check('a card the list does not know still plays, in the other permanents row', injected.other === 1);
 
   // ---- the card list cannot be loaded ----
@@ -492,8 +549,8 @@ try {
   const setAmount = (value) => ev(`document.getElementById('marks-amount').value = ${JSON.stringify(value)}`);
   const setKind = (kind) => ev(`document.querySelector('#marks select').value = ${JSON.stringify(kind)}`);
   const clickMark = (label) => ev(`(() => { const b = Array.from(document.querySelectorAll('#marks button')).find((x) => x.textContent === ${JSON.stringify(label)}); if (!b) return false; b.click(); return true; })()`);
-  const changeOnCard = async () => (await markText('#row-other .card .marks .change'))[0] ?? '';
-  const chipsOnCard = () => markText('#row-other .card .marks .chip');
+  const changeOnCard = async () => (await markText('#battlefield .card[data-kind="other"] .marks .change'))[0] ?? '';
+  const chipsOnCard = () => markText('#battlefield .card[data-kind="other"] .marks .chip');
   await drawUntil((n) => NO_STATS.includes(n));
   const spell = (await handNames()).findIndex((x) => NO_STATS.includes(x));
   await clickCard('#hand .card', spell);
@@ -503,11 +560,11 @@ try {
   await clickAction('Modify');
   check('Modify shows the counter controls', !(await $hidden('marks')));
   check('the controls are an amount box, a kind of counter and nine buttons', (await count('#marks input')) === 1 && (await count('#marks select option')) === 6 && (await count('#marks button')) === 9);
-  check('a new card shows no counters and no change', (await count('#row-other .card .marks')) === 0);
+  check('a new card shows no counters and no change', (await count('#battlefield .card[data-kind="other"] .marks')) === 0);
   await setAmount('1'); await clickMark('Add counters');
   check('adding one +1/+1 counter shows a chip and a +1/+1 change on the card', JSON.stringify(await chipsOnCard()) === '["+1/+1 1"]' && (await changeOnCard()) === '+1/+1', JSON.stringify(await chipsOnCard()));
   check('the status says what was added', (await $text('status')).startsWith('Added 1 +1/+1 counter to '), await $text('status'));
-  check('the card tells a screen reader about it', (await names('#row-other .card'))[0].endsWith('. Counters: +1/+1 1. Change: +1/+1.'), (await names('#row-other .card'))[0]);
+  check('the card tells a screen reader about it', (await names('#battlefield .card[data-kind="other"]'))[0].endsWith('. Counters: +1/+1 1. Change: +1/+1.'), (await names('#battlefield .card[data-kind="other"]'))[0]);
   check('the selected line says it too', (await $text('selected-line')).endsWith(' Counters: +1/+1 1. Change: +1/+1.'), await $text('selected-line'));
   check('the typed amount and the panel are still there after the click (nothing was rebuilt)', (await ev(`document.getElementById('marks-amount').value`)) === '1');
   await setAmount('2'); await clickMark('Power +');
@@ -519,19 +576,19 @@ try {
   await clickMark('Reset change');
   check('reset takes off the hand-set change and leaves the counter', (await changeOnCard()) === '+1/+1' && JSON.stringify(await chipsOnCard()) === '["+1/+1 1"]', await changeOnCard());
   await setKind('m'); await clickMark('Add counters');
-  check('a -1/-1 counter cancels the +1/+1 counter, as the rules do', (await count('#row-other .card .marks')) === 0, JSON.stringify(await chipsOnCard()));
+  check('a -1/-1 counter cancels the +1/+1 counter, as the rules do', (await count('#battlefield .card[data-kind="other"] .marks')) === 0, JSON.stringify(await chipsOnCard()));
   await setKind('l'); await setAmount('4'); await clickMark('Add counters');
   check('loyalty counters show a chip but change nothing', JSON.stringify(await chipsOnCard()) === '["Loyalty 4"]' && (await changeOnCard()) === '');
   await clickMark('Remove counters'); 
-  check('removing the same number takes them off', (await count('#row-other .card .marks')) === 0);
-  const before = await ev(`document.querySelector('#row-other .card').getAttribute('aria-label')`);
+  check('removing the same number takes them off', (await count('#battlefield .card[data-kind="other"] .marks')) === 0);
+  const before = await ev(`document.querySelector('#battlefield .card[data-kind="other"]').getAttribute('aria-label')`);
   for (const bad of ['abc', '0', '-3', '1.5', '', '1000000000001']) {
     await setAmount(bad); await clickMark('Add counters');
-    check(`the amount "${bad}" is refused with a message and changes nothing`, /whole number from 1 to 1,000,000,000,000/.test(await $text('status')) && (await ev(`document.querySelector('#row-other .card').getAttribute('aria-label')`)) === before, await $text('status'));
+    check(`the amount "${bad}" is refused with a message and changes nothing`, /whole number from 1 to 1,000,000,000,000/.test(await $text('status')) && (await ev(`document.querySelector('#battlefield .card[data-kind="other"]').getAttribute('aria-label')`)) === before, await $text('status'));
   }
   await setKind('o'); await setAmount('5,000,000,000'); await clickMark('Add counters');
   check('an amount in the billions works and the chip is shortened', JSON.stringify(await chipsOnCard()) === '["Other 5B"]' && /Added 5,000,000,000 Other counters to /.test(await $text('status')), JSON.stringify(await chipsOnCard()));
-  check('the card keeps every digit for a screen reader', /Other 5,000,000,000/.test((await names('#row-other .card'))[0]));
+  check('the card keeps every digit for a screen reader', /Other 5,000,000,000/.test((await names('#battlefield .card[data-kind="other"]'))[0]));
   await setAmount('2'); await clickMark('Both +');
   check('a change next to billions of counters shows too', (await changeOnCard()) === '+2/+2');
   await clickAction('To hand');
@@ -550,10 +607,10 @@ try {
     await browser.send('Input.dispatchMouseEvent', { ...base, type: 'mouseReleased', buttons: 0 });
     await sleep(60);
   };
-  const chip0 = '#row-other .card .marks .chip';
-  const part = (name) => `#row-other .card .marks .change .${name}`;
-  const chipText = async () => (await ev(`Array.from(document.querySelectorAll('#row-other .card .marks .chip')).map((n) => n.textContent)`)).join('|');
-  const changeText = async () => (await ev(`document.querySelector('#row-other .card .marks .change')?.textContent ?? ''`));
+  const chip0 = '#battlefield .card[data-kind="other"] .marks .chip';
+  const part = (name) => `#battlefield .card[data-kind="other"] .marks .change .${name}`;
+  const chipText = async () => (await ev(`Array.from(document.querySelectorAll('#battlefield .card[data-kind="other"] .marks .chip')).map((n) => n.textContent)`)).join('|');
+  const changeText = async () => (await ev(`document.querySelector('#battlefield .card[data-kind="other"] .marks .change')?.textContent ?? ''`));
   await drawUntil((n) => NO_STATS.includes(n));
   await clickCard('#hand .card', (await handNames()).findIndex((x) => NO_STATS.includes(x)));
   await clickAction('To battlefield');
@@ -582,15 +639,15 @@ try {
   await mouse(part('power'), { button: 'right', shift: true });
   check('Shift and right click on power lowers power by ten (+2/+12)', (await changeText()) === '+2/+12', await changeText());
   check('none of those clicks selected the card', /^Click a card/.test(await $text('selected-line')));
-  await mouse('#row-other .card', { dy: 14 });
+  await mouse('#battlefield .card[data-kind="other"]', { dy: 14 });
   check('a click on the card itself (not on a number) still selects it', !/^Click a card/.test(await $text('selected-line')) && (await $text('selected-line')).includes('Counters: +1/+1 1.'), await $text('selected-line'));
-  check('the marks explain themselves in a tooltip', /right-click to take 1 off, hold Shift for 10/.test(await ev(`document.querySelector('#row-other .card .marks').title`)));
-  check('every mark has its meaning in a data attribute and nothing else on the card does', (await ev(`Array.from(document.querySelectorAll('#row-other .card [data-mark]')).map((n) => n.dataset.mark).join()`)) === 'chip,power,both,toughness');
-  const prevented = await ev(`(() => { const card = document.querySelector('#row-other .card'); const on = (el) => { const e = new MouseEvent('contextmenu', { bubbles: true, cancelable: true }); el.dispatchEvent(e); return e.defaultPrevented; }; return { chip: on(card.querySelector('.marks .chip')), body: on(card.querySelector('.face')) }; })()`);
+  check('the marks explain themselves in a tooltip', /right-click to take 1 off, hold Shift for 10/.test(await ev(`document.querySelector('#battlefield .card[data-kind="other"] .marks').title`)));
+  check('every mark has its meaning in a data attribute and nothing else on the card does', (await ev(`Array.from(document.querySelectorAll('#battlefield .card[data-kind="other"] [data-mark]')).map((n) => n.dataset.mark).join()`)) === 'chip,power,both,toughness');
+  const prevented = await ev(`(() => { const card = document.querySelector('#battlefield .card[data-kind="other"]'); const on = (el) => { const e = new MouseEvent('contextmenu', { bubbles: true, cancelable: true }); el.dispatchEvent(e); return e.defaultPrevented; }; return { chip: on(card.querySelector('.marks .chip')), body: on(card.querySelector('.face')) }; })()`);
   check('right click on a number is taken by the table (a counter comes off), and on the rest of the card by the card menu', prevented.chip === true && prevented.body === true && (await count('.card-menu')) === 1, JSON.stringify(prevented));
   await ev(`document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))`); // a click elsewhere closes the menu
   const beforeClick = await changeText();
-  await ev(`document.querySelector('#row-other .card .marks .change .power').click()`);
+  await ev(`document.querySelector('#battlefield .card[data-kind="other"] .marks .change .power').click()`);
   check('a click on a number reaches the table even without a mouse (an assistive tool pressing it)', (await changeText()) !== beforeClick, `${beforeClick} -> ${await changeText()}`);
   await clickAction('To hand');
   check('a card that goes back to the hand has no marks to click', (await count('#hand .card .marks')) === 0);
@@ -600,8 +657,8 @@ try {
   const mouseMoveTo = async (x, y) => browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y });
   const centerOf = (selector) => ev(`(() => { const e = document.querySelector(${JSON.stringify(selector)}); e.scrollIntoView({ block: 'center' }); const r = e.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`);
   const away = () => mouseMoveTo(2, 2);
-  const box = (selector = '#row-other .card') => ev(`(() => { const card = document.querySelector(${JSON.stringify(selector)}); const b = card && card.querySelector('.ptbox'); if (!b) return null; const power = b.querySelector('.power'); const toughness = b.querySelector('.toughness'); return { idle: b.classList.contains('idle'), visibility: getComputedStyle(b).visibility, power: power.textContent, powerClass: power.className, toughness: toughness.textContent, toughnessClass: toughness.className }; })()`);
-  const toastOf = () => ev(`(() => { const t = document.querySelector('#row-other .card .toast'); return t ? { text: t.textContent, tone: t.className } : null; })()`);
+  const box = (selector = '#battlefield .card[data-kind="other"]') => ev(`(() => { const card = document.querySelector(${JSON.stringify(selector)}); const b = card && card.querySelector('.ptbox'); if (!b) return null; const power = b.querySelector('.power'); const toughness = b.querySelector('.toughness'); return { idle: b.classList.contains('idle'), visibility: getComputedStyle(b).visibility, power: power.textContent, powerClass: power.className, toughness: toughness.textContent, toughnessClass: toughness.className }; })()`);
+  const toastOf = () => ev(`(() => { const t = document.querySelector('#battlefield .card[data-kind="other"] .toast'); return t ? { text: t.textContent, tone: t.className } : null; })()`);
   await drawUntil((n) => n === 'Llanowar Elves');
   const elvesInHand = (await handNames()).findIndex((x) => x === 'Llanowar Elves');
   const handCenter = await centerOf(`#hand .card:nth-child(${elvesInHand + 1})`);
@@ -613,32 +670,32 @@ try {
   await away(); await sleep(80);
   const idle = await box();
   check('your own creature on the battlefield has its box with the printed numbers (1 and 1), hidden while the pointer is elsewhere and the card is not selected', idle && idle.idle && idle.visibility === 'hidden' && idle.power === '1' && idle.toughness === '1' && !/up|down/.test(idle.powerClass + idle.toughnessClass), JSON.stringify(idle));
-  const at = await centerOf('#row-other .card');
+  const at = await centerOf('#battlefield .card[data-kind="other"]');
   await mouseMoveTo(at.x, at.y); await sleep(80);
   check('the box shows when the pointer is on the card', (await box()).visibility === 'visible');
-  await mouse('#row-other .card .ptbox .power');
+  await mouse('#battlefield .card[data-kind="other"] .ptbox .power');
   const raisedPower = await box();
   check('a click on the power number raises power: 2 and 1, power in green', raisedPower.power === '2' && raisedPower.toughness === '1' && / up/.test(raisedPower.powerClass) && !/up|down/.test(raisedPower.toughnessClass) && !raisedPower.idle, JSON.stringify(raisedPower));
   const toast = await toastOf();
   check('a floating +1 power appears, green', toast && toast.text === '+1 power' && /toast-up/.test(toast.tone), JSON.stringify(toast));
   check('and the status says what happened', /power up by 1/.test(await $text('status')));
-  await mouse('#row-other .card .ptbox .toughness');
+  await mouse('#battlefield .card[data-kind="other"] .ptbox .toughness');
   check('a click on the toughness number raises toughness: 2 and 2', JSON.stringify([(await box()).power, (await box()).toughness]) === '["2","2"]');
-  await mouse('#row-other .card .ptbox .both');
+  await mouse('#battlefield .card[data-kind="other"] .ptbox .both');
   check('a click on the line between raises both: 3 and 3', JSON.stringify([(await box()).power, (await box()).toughness]) === '["3","3"]', JSON.stringify(await box()));
   check('the floating text for that is +1/+1', (await toastOf())?.text === '+1/+1');
-  await mouse('#row-other .card .ptbox .both', { button: 'right' });
+  await mouse('#battlefield .card[data-kind="other"] .ptbox .both', { button: 'right' });
   check('a right click on the line lowers both: 2 and 2, with a red floating -1/-1', JSON.stringify([(await box()).power, (await box()).toughness]) === '["2","2"]' && (await toastOf())?.text === '-1/-1' && /toast-down/.test((await toastOf()).tone));
-  await mouse('#row-other .card .ptbox .both', { shift: true });
+  await mouse('#battlefield .card[data-kind="other"] .ptbox .both', { shift: true });
   check('Shift and click on the line raises both by ten: 12 and 12', JSON.stringify([(await box()).power, (await box()).toughness]) === '["12","12"]' && (await toastOf())?.text === '+10/+10');
-  await mouse('#row-other .card .ptbox .power', { button: 'right', shift: true });
+  await mouse('#battlefield .card[data-kind="other"] .ptbox .power', { button: 'right', shift: true });
   check('Shift and right click on power lowers it by ten: 2 and 12', JSON.stringify([(await box()).power, (await box()).toughness]) === '["2","12"]', JSON.stringify(await box()));
-  await mouse('#row-other .card .ptbox .power', { button: 'right', shift: true });
+  await mouse('#battlefield .card[data-kind="other"] .ptbox .power', { button: 'right', shift: true });
   const negative = await box();
   check('power can go below zero and is then red: -8 and 12', negative.power === '-8' && / down/.test(negative.powerClass) && negative.toughness === '12' && / up/.test(negative.toughnessClass), JSON.stringify(negative));
-  check('the card tells a screen reader what it is now', (await ev(`document.querySelector('#row-other .card').getAttribute('aria-label')`)).endsWith('Change: -9/+11. Now -8/12.'), await ev(`document.querySelector('#row-other .card').getAttribute('aria-label')`));
+  check('the card tells a screen reader what it is now', (await ev(`document.querySelector('#battlefield .card[data-kind="other"]').getAttribute('aria-label')`)).endsWith('Change: -9/+11. Now -8/12.'), await ev(`document.querySelector('#battlefield .card[data-kind="other"]').getAttribute('aria-label')`));
   check('none of those clicks selected the card', /^Click a card/.test(await $text('selected-line')));
-  await mouse('#row-other .card', { dy: 14 });
+  await mouse('#battlefield .card[data-kind="other"]', { dy: 36 }); // the plain middle of the card: the badge at the top and the chips at the bottom are theirs
   check('a click on the card itself selects it, and the line says what it is now', (await $text('selected-line')).includes('Now -8/12.'), await $text('selected-line'));
   await clickMark('Reset change');
   const reset = await box();
@@ -646,15 +703,15 @@ try {
   await setKind('p'); await setAmount('2'); await clickMark('Add counters');
   const withCounters = await box();
   check('two +1/+1 counters: a chip at the left and 3 and 3 in the box, both green', (await chipText()) === '+1/+1 2' && withCounters.power === '3' && withCounters.toughness === '3' && / up/.test(withCounters.powerClass + withCounters.toughnessClass), `${await chipText()} ${JSON.stringify(withCounters)}`);
-  check('the chips are on the left and the box on the right of the card', await ev(`(() => { const m = document.querySelector('#row-other .card .marks'); const chips = m.querySelector('.chips').getBoundingClientRect(); const b = m.querySelector('.ptbox').getBoundingClientRect(); return chips.right <= b.left + 1; })()`));
-  check('the box does not cover the chips (they do not overlap)', await ev(`(() => { const m = document.querySelector('#row-other .card .marks'); const chips = m.querySelector('.chips').getBoundingClientRect(); const b = m.querySelector('.ptbox').getBoundingClientRect(); return chips.right <= b.left + 1 || chips.bottom <= b.top + 1; })()`));
+  check('the chips are on the left and the box on the right of the card', await ev(`(() => { const m = document.querySelector('#battlefield .card[data-kind="other"] .marks'); const chips = m.querySelector('.chips').getBoundingClientRect(); const b = m.querySelector('.ptbox').getBoundingClientRect(); return chips.right <= b.left + 1; })()`));
+  check('the box does not cover the chips (they do not overlap)', await ev(`(() => { const m = document.querySelector('#battlefield .card[data-kind="other"] .marks'); const chips = m.querySelector('.chips').getBoundingClientRect(); const b = m.querySelector('.ptbox').getBoundingClientRect(); return chips.right <= b.left + 1 || chips.bottom <= b.top + 1; })()`));
   // the floating text and reduced motion
   await motion('no-preference'); // the whole check runs with reduced motion on; this one measures the normal animation first
-  await mouse('#row-other .card .ptbox .power');
-  const moving = await ev(`getComputedStyle(document.querySelector('#row-other .card .toast')).animationName`);
+  await mouse('#battlefield .card[data-kind="other"] .ptbox .power');
+  const moving = await ev(`getComputedStyle(document.querySelector('#battlefield .card[data-kind="other"] .toast')).animationName`);
   await browser.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
-  await mouse('#row-other .card .ptbox .power');
-  const still = await ev(`getComputedStyle(document.querySelector('#row-other .card .toast')).animationName`);
+  await mouse('#battlefield .card[data-kind="other"] .ptbox .power');
+  const still = await ev(`getComputedStyle(document.querySelector('#battlefield .card[data-kind="other"] .toast')).animationName`);
   await motion('reduce');
   check('the floating text moves normally and stays still under prefers-reduced-motion', moving === 'toast-rise' && still === 'none', `${moving} / ${still}`);
   await sleep(1100);
@@ -665,9 +722,9 @@ try {
   await drawUntil((n) => n === 'Sol Ring' || n === 'Lightning Bolt');
   await clickCard('#hand .card', (await handNames()).findIndex((x) => x === 'Sol Ring' || x === 'Lightning Bolt'));
   await clickAction('To battlefield');
-  const noStatsAt = await centerOf('#row-other .card:last-child');
+  const noStatsAt = await centerOf('#battlefield .card:last-child');
   await mouseMoveTo(noStatsAt.x, noStatsAt.y); await sleep(80);
-  check('a card with no printed power and toughness shows no box and no marks, even with the pointer on it', (await count('#row-other .card:last-child .marks')) === 0);
+  check('a card with no printed power and toughness shows no box and no marks, even with the pointer on it', (await count('#battlefield .card:last-child .marks')) === 0);
 
   // ---- the right-click menu of a card (real mouse and keyboard input) ----
   await open();
@@ -697,7 +754,7 @@ try {
   await clickAction('Deselect');
   await away(); await sleep(60);
   check('there is no menu before a right click', (await menuState()) === null);
-  await mouse('#row-other .card', { button: 'right', dy: 30 });
+  await mouse('#battlefield .card[data-kind="other"]', { button: 'right', dy: 30 });
   let menu = await menuState();
   check('a right click on a creature opens its menu: its name, then Modify, Tap, the counter with 2 3 5, Create copy and Move to (with the two marks after Tap: Elves came in sick)', menu && menu.title === 'Llanowar Elves' && menu.role === 'menu' && JSON.stringify(menu.items) === JSON.stringify(['Modify...', 'Tap', "Doesn't untap", 'Not summoning sick', '+1/+1 counter', '2', '3', '5', 'Create copy', 'Move to']), JSON.stringify(menu));
   check('the menu is inside the window and the first item has the focus', menu.inside && menu.focused === 'Modify...', JSON.stringify(menu));
@@ -705,38 +762,38 @@ try {
   await ev(`window.__plays = []; HTMLMediaElement.prototype.play = function () { window.__plays.push({ src: new URL(this.src).pathname, volume: Math.round(this.volume * 10000) / 10000 }); return Promise.resolve(); };`);
   await clickMenuItem('Tap');
   check('Tap from the right-click menu plays the tap sound', JSON.stringify(await ev(`window.__plays`)) === JSON.stringify([{ src: '/sfx/tap.mp3', volume: 1 }]), JSON.stringify(await ev(`window.__plays`)));
-  check('Tap taps the card, closes the menu, says so and gives the focus back to the card', (await menuState()) === null && (await ev(`document.querySelector('#row-other .card').classList.contains('tapped')`)) && (await $text('status')) === 'Tapped Llanowar Elves.' && (await activeIsCard()), `${await $text('status')} ${await activeIsCard()}`);
-  await mouse('#row-other .card', { button: 'right', dy: 30 });
+  check('Tap taps the card, closes the menu, says so and gives the focus back to the card', (await menuState()) === null && (await ev(`document.querySelector('#battlefield .card[data-kind="other"]').classList.contains('tapped')`)) && (await $text('status')) === 'Tapped Llanowar Elves.' && (await activeIsCard()), `${await $text('status')} ${await activeIsCard()}`);
+  await mouse('#battlefield .card[data-kind="other"]', { button: 'right', dy: 30 });
   menu = await menuState();
   check('a tapped card offers Untap', menu.items[1] === 'Untap', JSON.stringify(menu.items));
   await clickMenuItem('3');
   const threeCounters = await box();
   check('the 3 next to the counter adds three +1/+1 counters: a chip, 4 and 4 in the box, a green floating +3/+3 and the status', (await chipText()) === '+1/+1 3' && threeCounters.power === '4' && threeCounters.toughness === '4' && (await toastOf())?.text === '+3/+3' && /toast-up/.test((await toastOf()).tone) && (await $text('status')) === 'Added 3 +1/+1 counters to Llanowar Elves.', `${await chipText()} ${JSON.stringify(threeCounters)} ${JSON.stringify(await toastOf())} ${await $text('status')}`);
-  await mouse('#row-other .card', { button: 'right', dy: 30 });
+  await mouse('#battlefield .card[data-kind="other"]', { button: 'right', dy: 30 });
   await clickMenuItem('+1/+1 counter');
   check('the name itself adds one', (await chipText()) === '+1/+1 4', await chipText());
-  await mouse('#row-other .card', { button: 'right', dy: 30 });
+  await mouse('#battlefield .card[data-kind="other"]', { button: 'right', dy: 30 });
   await clickMenuItem('Modify...');
   check('Modify opens the counters panel and puts the cursor in its amount box', !(await $hidden('marks')) && (await ev(`document.activeElement && document.activeElement.id`)) === 'marks-amount');
-  await mouse('#row-other .card', { button: 'right', dy: 30 });
+  await mouse('#battlefield .card[data-kind="other"]', { button: 'right', dy: 30 });
   await clickMenuItem('Move to');
   menu = await menuState();
   check('Move to opens inline under its heading, with every other zone and both ends of the library', menu.items.slice(-8).join() === 'Move to,Hand,Graveyard,Exile,Command zone,Sideboard,Top of library,Bottom of library' && (await ev(`document.querySelector('.card-menu .has-sub').getAttribute('aria-expanded')`)) === 'true' && menu.inside, JSON.stringify(menu));
   await clickMenuItem('Graveyard');
-  check('Graveyard moves the card there (the pile says so, the battlefield is empty again) and the menu is gone', (await pileCount('graveyard')) === 'Graveyard: 1' && (await count('#row-other .card')) === 0 && (await menuState()) === null && (await $text('status')) === 'Moved Llanowar Elves to your graveyard.', `${await pileCount('graveyard')} ${await $text('status')}`);
+  check('Graveyard moves the card there (the pile says so, the battlefield is empty again) and the menu is gone', (await pileCount('graveyard')) === 'Graveyard: 1' && (await count('#battlefield .card[data-kind="other"]')) === 0 && (await menuState()) === null && (await $text('status')) === 'Moved Llanowar Elves to your graveyard.', `${await pileCount('graveyard')} ${await $text('status')}`);
   // a card in the hand has only Move to
   await mouse('#hand .card', { button: 'right', dy: 30 });
   menu = await menuState();
   check('a card in the hand offers only Move to', menu && JSON.stringify(menu.items) === JSON.stringify(['Move to']), JSON.stringify(menu));
   await clickMenuItem('Move to');
   await clickMenuItem('Battlefield');
-  check('and Battlefield from there puts it on the battlefield', (await count('#row-lands .card, #row-other .card')) === 1 && (await menuState()) === null);
+  check('and Battlefield from there puts it on the battlefield', (await count('#battlefield .card')) === 1 && (await menuState()) === null);
   // keyboard
-  const cardSelector = (await count('#row-lands .card')) === 1 ? '#row-lands .card' : '#row-other .card';
+  const cardSelector = (await count('#battlefield .card[data-kind="land"]')) === 1 ? '#battlefield .card[data-kind="land"]' : '#battlefield .card[data-kind="other"]';
   await ev(`(() => { const c = document.querySelector(${JSON.stringify(cardSelector)}); c.focus(); c.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 0, clientY: 0 })); })()`);
   menu = await menuState();
   check('the keyboard way to a context menu (no pointer position) opens the menu next to the card', menu && menu.focused !== null && menu.inside, JSON.stringify(menu));
-  check('and it opens at the middle of the card, not in a corner of the window', await ev(`(() => { const c = document.querySelector(${JSON.stringify(cardSelector)}).getBoundingClientRect(); const m = document.querySelector('.card-menu').getBoundingClientRect(); return Math.abs(m.left - (c.left + c.width / 2)) < 60 && Math.abs(m.top - (c.top + c.height / 2)) < 60; })()`));
+  check('and it opens at the middle of the card, not in a corner of the window', await ev(`(() => { const c = document.querySelector(${JSON.stringify(cardSelector)}).getBoundingClientRect(); const m = document.querySelector('.card-menu').getBoundingClientRect(); return Math.abs(m.left - (c.left + c.width / 2)) < 60 && (Math.abs(m.top - (c.top + c.height / 2)) < 60 || (m.bottom > innerHeight - 16 && m.top < c.top + c.height)); })()`)); // a card in the bottom row of a short window: the menu is moved up just enough to stay on the screen
   await key('ArrowDown', 'ArrowDown', 40);
   check('Down moves to the next item', (await menuState()).focused === menu.items[1], JSON.stringify(await menuState()));
   await key('End', 'End', 35);
@@ -770,8 +827,9 @@ try {
   await sleep(60);
   check('a click anywhere else closes the menu', (await menuState()) === null);
   await mouse(cardSelector, { button: 'right', dy: 30 });
-  await ev(`window.scrollBy(0, 40)`); await sleep(120);
-  check('scrolling closes the menu', (await menuState()) === null);
+  // The page itself no longer scrolls (the one-screen layout), but the panel on the right and the hand scroll inside themselves: a scroll anywhere closes the menu.
+  await ev(`document.querySelector('.side-panels').dispatchEvent(new Event('scroll'))`); await sleep(120);
+  check('scrolling closes the menu (a scroll inside the side panel, as the page itself does not scroll)', (await menuState()) === null);
   await ev(`window.scrollTo(0, 0)`); await sleep(60);
   await mouse(cardSelector, { button: 'right', dy: 30 });
   await ev(`window.dispatchEvent(new Event('resize'))`); await sleep(60);
@@ -780,32 +838,32 @@ try {
   const landFromHand = (await handNames()).findIndex((x) => LANDS.includes(x));
   await clickCard('#hand .card', landFromHand);
   await clickAction('To battlefield');
-  await mouse('#row-lands .card:last-child', { button: 'right', dy: 30 });
-  await mouse('#row-other .card, #row-lands .card:first-child', { button: 'right', dy: 30 });
+  await mouse('#battlefield .card:last-child', { button: 'right', dy: 30 });
+  await mouse('#battlefield .card:first-child', { button: 'right', dy: 30 });
   check('a second right click on another card leaves exactly one menu, for that card', (await menuState())?.count === 1, JSON.stringify(await menuState()));
   await key('Escape', 'Escape', 27);
-  await ev(`(() => { const c = document.querySelector('#row-lands .card'); c.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: innerWidth - 2, clientY: innerHeight - 2 })); })()`);
+  await ev(`(() => { const c = document.querySelector('#battlefield .card[data-kind="land"]'); c.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: innerWidth - 2, clientY: innerHeight - 2 })); })()`);
   menu = await menuState();
   check('a right click in the bottom right corner of the window still gives a menu that fits inside it', menu && menu.inside, JSON.stringify(menu));
   await key('Escape', 'Escape', 27);
   // the numbers on a card keep their own right click: a counter comes off and no menu opens
   await clickAction('Deselect');
-  await clickCard('#row-lands .card', 0);
+  await clickCard('#battlefield .card[data-kind="land"]', 0);
   await setKind('l'); await setAmount('2'); await clickMark('Add counters');
-  const loyaltyChip = await ev(`Array.from(document.querySelectorAll('#row-lands .card .marks .chip')).findIndex((c) => c.textContent === 'Loyalty 2') + 1`);
+  const loyaltyChip = await ev(`Array.from(document.querySelectorAll('#battlefield .card[data-kind="land"] .marks .chip')).findIndex((c) => c.textContent === 'Loyalty 2') + 1`);
   check('the land has a Loyalty chip to click', loyaltyChip > 0, String(loyaltyChip));
-  await mouse(`#row-lands .card .marks .chip:nth-child(${loyaltyChip})`, { button: 'right' });
-  check('a right click on a counter takes one off and opens no menu', (await menuState()) === null && (await ev(`Array.from(document.querySelectorAll('#row-lands .card .marks .chip')).map((c) => c.textContent).includes('Loyalty 1')`)), await ev(`Array.from(document.querySelectorAll('#row-lands .card .marks .chip')).map((c) => c.textContent).join()`));
+  await mouse(`#battlefield .card[data-kind="land"] .marks .chip:nth-child(${loyaltyChip})`, { button: 'right' });
+  check('a right click on a counter takes one off and opens no menu', (await menuState()) === null && (await ev(`Array.from(document.querySelectorAll('#battlefield .card[data-kind="land"] .marks .chip')).map((c) => c.textContent).includes('Loyalty 1')`)), await ev(`Array.from(document.querySelectorAll('#battlefield .card[data-kind="land"] .marks .chip')).map((c) => c.textContent).join()`));
   // the Modify button and the hidden panel
   await clickAction('Deselect');
-  await clickCard('#row-lands .card', 0);
+  await clickCard('#battlefield .card[data-kind="land"]', 0);
   check('selecting a card on the battlefield does not open the counters panel by itself', await $hidden('marks'));
   await clickAction('Modify');
   check('the Modify button opens it (and says so with aria-expanded) and puts the cursor in the amount box', !(await $hidden('marks')) && (await ev(`Array.from(document.querySelectorAll('#selected-actions button')).find((b) => b.textContent === 'Modify').getAttribute('aria-expanded')`)) === 'true' && (await ev(`document.activeElement.id`)) === 'marks-amount');
   await clickAction('Modify');
   check('pressing it again hides the panel and keeps the focus on the button', (await $hidden('marks')) && (await ev(`document.activeElement.textContent`)) === 'Modify');
   await clickAction('Deselect');
-  await clickCard('#row-lands .card', 0);
+  await clickCard('#battlefield .card[data-kind="land"]', 0);
   await clickAction('To hand');
   check('a card in the hand has no Modify button', !(await actionLabels()).includes('Modify'));
 
@@ -815,7 +873,7 @@ try {
   const defaultId = (prefix) => cards.find((c) => c.n.startsWith(prefix)).i;
   const cardAt = (prefix) => `.card[aria-label^="${prefix}"]`;
   const srcOf = (prefix) => ev(`(() => { const i = document.querySelector(${JSON.stringify(cardAt(prefix) + ' img')}); return i ? i.getAttribute('src') : null; })()`);
-  const rowOf = (prefix) => ev(`(() => { const c = document.querySelector(${JSON.stringify(cardAt(prefix))}); return c && c.parentElement ? c.parentElement.id : null; })()`);
+  const rowOf = (prefix) => ev(`(() => { const c = document.querySelector(${JSON.stringify(cardAt(prefix))}); return c ? (c.dataset.kind === 'land' ? 'row-lands' : c.dataset.kind === 'other' ? 'row-other' : (c.parentElement ? c.parentElement.id : null)) : null; })()`); // which kind of card it is now: the battlefield is one grid, and a card's kind (land or other) is what the old two rows were
   const labelOf = (prefix) => ev(`document.querySelector(${JSON.stringify(cardAt(prefix))}).getAttribute('aria-label')`);
   asked.length = 0;
   failBackIds.add(defaultId('Aclazotz')); // its back picture does not exist: turning it over must show the name, and turning back must bring the front picture back
@@ -826,7 +884,7 @@ try {
     await clickAction('To battlefield');
     await clickAction('Deselect');
   }
-  check('before any turn: the Forest is the only land, the other six are in the other row', (await count('#row-lands .card')) === 1 && (await count('#row-other .card')) === 6, `${await count('#row-lands .card')} and ${await count('#row-other .card')}`);
+  check('before any turn: the Forest is the only land, the other six are in the other row', (await count('#battlefield .card[data-kind="land"]')) === 1 && (await count('#battlefield .card[data-kind="other"]')) === 6, `${await count('#battlefield .card[data-kind="land"]')} and ${await count('#battlefield .card[data-kind="other"]')}`);
   const offers = async (prefix) => { await clickCard(cardAt(prefix)); const labels = await actionLabels(); await clickAction('Deselect'); return labels; };
   check('Turn over is offered for Sephiroth, Valakut Awakening, Delver and Aclazotz', (await Promise.all(['Sephiroth', 'Valakut Awakening', 'Delver', 'Aclazotz'].map(async (n) => (await offers(n)).includes('Turn over')))).every(Boolean));
   check('and not for Fire // Ice (one picture for both halves), Sol Ring or the Forest', (await Promise.all(['Fire', 'Sol Ring', 'Forest'].map(async (n) => (await offers(n)).includes('Turn over')))).every((has) => !has));
@@ -836,7 +894,7 @@ try {
   await clickCard(cardAt('Valakut Awakening'));
   check('its selected line gives both type lines and does not say turned over', /Instant \/\/ Land/.test(await $text('selected-line')) && !/turned over/.test(await $text('selected-line')));
   await clickAction('Turn over');
-  check('turned over, it moves to the land row (now two lands), and the other row has five', (await rowOf('Valakut Awakening')) === 'row-lands' && (await count('#row-lands .card')) === 2 && (await count('#row-other .card')) === 5);
+  check('turned over, it moves to the land row (now two lands), and the other row has five', (await rowOf('Valakut Awakening')) === 'row-lands' && (await count('#battlefield .card[data-kind="land"]')) === 2 && (await count('#battlefield .card[data-kind="other"]')) === 5);
   check('its label says it is turned over, and so does the selected line and the status', /, turned over/.test(await labelOf('Valakut Awakening')) && /\(turned over\)/.test(await $text('selected-line')) && /Turned .*Valakut Awakening.* over\./.test(await $text('status')), await $text('status'));
   await waitFor(async () => (await srcOf('Valakut Awakening'))?.includes('/back/') || null, 3000, 50).catch(() => null);
   const backUrl = await srcOf('Valakut Awakening');
@@ -845,11 +903,11 @@ try {
   check('the card has no power and toughness box (a land has no numbers, and the front has none either)', (await box(cardAt('Valakut Awakening'))) === null);
   check('the action button now says how to turn it back', (await actionLabels()).includes('Turn back to front') && !(await actionLabels()).includes('Turn over'));
   await clickAction('Turn back to front');
-  check('turned back, it is in the other row again and shows its front picture', (await rowOf('Valakut Awakening')) === 'row-other' && (await count('#row-lands .card')) === 1 && /\/front\//.test(await srcOf('Valakut Awakening')) && !/turned over/.test(await labelOf('Valakut Awakening')));
+  check('turned back, it is in the other row again and shows its front picture', (await rowOf('Valakut Awakening')) === 'row-other' && (await count('#battlefield .card[data-kind="land"]')) === 1 && /\/front\//.test(await srcOf('Valakut Awakening')) && !/turned over/.test(await labelOf('Valakut Awakening')));
   await clickAction('Deselect');
 
   // Sephiroth: a 3/3 on the front, a 5/5 on the back, and the numbers follow the face that shows.
-  const seph = '#row-other ' + cardAt('Sephiroth');
+  const seph = '#battlefield ' + cardAt('Sephiroth');
   await clickCard(cardAt('Sephiroth'));
   const front = await box(seph);
   check('Sephiroth shows his printed 3/3 while selected', front && front.visibility === 'visible' && front.power === '3' && front.toughness === '3', JSON.stringify(front));
@@ -867,9 +925,9 @@ try {
 
   // Aclazotz: a 4/4 creature that turns into a land.
   await clickCard(cardAt('Aclazotz'));
-  check('Aclazotz shows 4/4 on the front', (await box('#row-other ' + cardAt('Aclazotz'))).power === '4');
+  check('Aclazotz shows 4/4 on the front', (await box('#battlefield ' + cardAt('Aclazotz'))).power === '4');
   await clickAction('Turn over');
-  check('turned over it is a land: in the land row, with no numbers, never the front\'s 4/4', (await rowOf('Aclazotz')) === 'row-lands' && (await box(cardAt('Aclazotz'))) === null && (await count('#row-lands .card')) === 2);
+  check('turned over it is a land: in the land row, with no numbers, never the front\'s 4/4', (await rowOf('Aclazotz')) === 'row-lands' && (await box(cardAt('Aclazotz'))) === null && (await count('#battlefield .card[data-kind="land"]')) === 2);
   const noImage = (prefix) => ev(`document.querySelector(${JSON.stringify(cardAt(prefix))}).classList.contains('noimage')`);
   await waitFor(async () => (await noImage('Aclazotz')) || null, 3000, 50).catch(() => null);
   check('its back picture does not exist (404), so the card shows its name instead of a broken picture', await noImage('Aclazotz'));
@@ -891,9 +949,9 @@ try {
   await sleep(500);
   check('the menu is still open half a second later (it must not close by itself after a right click on a card that was not selected)', Boolean(await menuState()), JSON.stringify(await menuState()));
   await clickMenuItem('Turn over');
-  check('choosing it turns Delver (the menu closes, the label says so, the box says 3/2)', !(await menuState()) && /, turned over/.test(await labelOf('Delver')) && (await box('#row-other ' + cardAt('Delver'))) !== null, await labelOf('Delver'));
+  check('choosing it turns Delver (the menu closes, the label says so, the box says 3/2)', !(await menuState()) && /, turned over/.test(await labelOf('Delver')) && (await box('#battlefield ' + cardAt('Delver'))) !== null, await labelOf('Delver'));
   await clickCard(cardAt('Delver'));
-  check('and the selected-card box shows the back face\'s 3/2', await (async () => { const b = await box('#row-other ' + cardAt('Delver')); return b && b.power === '3' && b.toughness === '2'; })(), JSON.stringify(await box('#row-other ' + cardAt('Delver'))));
+  check('and the selected-card box shows the back face\'s 3/2', await (async () => { const b = await box('#battlefield ' + cardAt('Delver')); return b && b.power === '3' && b.toughness === '2'; })(), JSON.stringify(await box('#battlefield ' + cardAt('Delver'))));
   await clickAction('Deselect');
   await mouse(cardAt('Sol Ring'), { button: 'right', dy: 30 });
   const solMenu = await menuState();
@@ -972,7 +1030,7 @@ try {
   check('there is a new card, named for the back face, and it shows the BACK picture of the card', (await count(copySel)) === tokensBefore + 1 && ((await ev(`document.querySelector(${JSON.stringify(copySel + ' img')}).getAttribute('src')`)) ?? '').includes('/back/'));
   check('the copy has none of the counters of the card it copies, which keeps its own', (await count(copySel + ' .marks .chip')) === 0 && (await count(cardAt('Sephiroth, Fabled') + ' .marks .chip')) === 1);
   await clickCard(copySel);
-  const copyBox = await box('#row-other ' + copySel);
+  const copyBox = await box('#battlefield ' + copySel);
   check('selected, the copy shows the back face\'s printed 5/5 (not 5/5 plus the counters: 7/7)', copyBox && copyBox.power === '5' && copyBox.toughness === '5', JSON.stringify(copyBox));
   check('its line gives only the back face\'s type line (a token carries one face)', /Sephiroth, One-Winged Angel: Legendary Creature — Angel Nightmare Avatar, in the battlefield/.test(await $text('selected-line')) && !/\/\//.test(await $text('selected-line')) && !/turned over/.test(await $text('selected-line')) && !/turned over/.test(await labelOf('Sephiroth, One-Winged')), await $text('selected-line'));
   check('and it cannot be turned over (it is a copy of one face, not a two-sided card)', !(await actionLabels()).some((l) => /^Turn /.test(l)) && (await actionLabels()).includes('Create copy'));
@@ -991,8 +1049,8 @@ try {
   await clickAction('Turn over');
   await clickAction('Create copy');
   await clickAction('Deselect');
-  const landCopies = await ev(`Array.from(document.querySelectorAll('#row-lands .card[aria-label^="Temple of the Dead"]')).map((c) => c.getAttribute('aria-label'))`);
-  check('a copy of Aclazotz turned into its land is a land too: Temple of the Dead, in the lands row, with the back picture and no numbers', landCopies.length === 1 && (await ev(`document.querySelector('#row-lands .card[aria-label^="Temple of the Dead"] img').getAttribute('src').includes('/back/')`)) && (await box('#row-lands .card[aria-label^="Temple of the Dead"]')) === null, JSON.stringify(landCopies));
+  const landCopies = await ev(`Array.from(document.querySelectorAll('#battlefield .card[data-kind="land"][aria-label^="Temple of the Dead"]')).map((c) => c.getAttribute('aria-label'))`);
+  check('a copy of Aclazotz turned into its land is a land too: Temple of the Dead, in the lands row, with the back picture and no numbers', landCopies.length === 1 && (await ev(`document.querySelector('#battlefield .card[data-kind="land"][aria-label^="Temple of the Dead"] img').getAttribute('src').includes('/back/')`)) && (await box('#battlefield .card[data-kind="land"][aria-label^="Temple of the Dead"]')) === null, JSON.stringify(landCopies));
 
   // ---- player counters: poison, energy and experience (real mouse input) ----
   await open();
@@ -1059,7 +1117,7 @@ try {
     await clickCard('#hand .card', (await handNames()).findIndex((x) => x.startsWith(name)));
     await clickAction('To battlefield'); await clickAction('Deselect');
   }
-  const badgeNames = (kind) => ev(`Array.from(document.querySelectorAll('#row-lands .card, #row-other .card')).filter((c) => c.querySelector('.badge-${kind}')).map((c) => c.getAttribute('aria-label').split(',')[0])`);
+  const badgeNames = (kind) => ev(`Array.from(document.querySelectorAll('#battlefield .card')).filter((c) => c.querySelector('.badge-${kind}')).map((c) => c.getAttribute('aria-label').split(',')[0])`);
   check('only the creature without printed haste came in sick: Goblin Guide and Hellrider (printed haste), Sol Ring, the Forest and a Vehicle did not', JSON.stringify(await badgeNames('sick')) === JSON.stringify(['Llanowar Elves']), JSON.stringify(await badgeNames('sick')));
   check('the hand still holds Lightning Bolt, and nothing there has a badge', (await handNames()).join() === 'Lightning Bolt' && (await count('#hand .card .badge')) === 0);
   const sickBadge = `${cardAt('Llanowar Elves')} .badge-sick`;
@@ -1087,7 +1145,7 @@ try {
   const sickBefore = await count('.card .badge-sick');
   await press('next-turn');
   check('Next turn ends every summoning sickness by itself, untaps, and says it', sickBefore >= 3 && (await count('.card .badge-sick')) === 0 && /^Turn 2: everything untapped/.test(await $text('status')), `${sickBefore} then ${await count('.card .badge-sick')} | ${await $text('status')}`);
-  check('a battlefield card is not marked again by a new turn', (await count('#row-lands .card .badge, #row-other .card .badge')) === 0);
+  check('a battlefield card is not marked again by a new turn', (await count('#battlefield .card .badge')) === 0);
 
   // "Doesn't untap": Sol Ring and the Forest are tapped, Sol Ring is marked.
   await clickCard(cardAt('Sol Ring')); await clickAction('Tap'); await clickAction('Deselect');
@@ -1116,6 +1174,116 @@ try {
   await clickAction('To battlefield');
   check('...and is not held back when it returns', (await count(`${cardAt('Sol Ring')} .badge-lock`)) === 0);
 
+  // ---- drag and drop on the battlefield grid, Alt+arrow keys and Auto-arrange (real mouse and keyboard input; a 7-card deck, so everything is in the hand) ----
+  await open(MARKS_DECK);
+  const boardRect = () => ev(`(() => { const r = document.getElementById('battlefield').getBoundingClientRect(); return { left: r.left, top: r.top, width: r.width, height: r.height }; })()`);
+  const cellCenter = async (col, row) => { const r = await boardRect(); return { x: r.left + (col + 0.5) * r.width / 12, y: r.top + (row + 0.5) * r.height / 4 }; };
+  const centerOfSelector = (selector) => ev(`(() => { const r = document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`);
+  const handCardPoint = async (name) => centerOfSelector(`#hand .card:nth-child(${(await handNames()).findIndex((x) => x.startsWith(name)) + 1})`);
+  const mouseAt = (type, p, buttons) => browser.send('Input.dispatchMouseEvent', { type, x: p.x, y: p.y, button: type === 'mouseMoved' ? 'none' : 'left', buttons, clickCount: 1 });
+  // press on `from`, move to `to` in steps, then (by default) let go; `during` runs with the button still down
+  const dragTo = async (from, to, { release = true, during = null } = {}) => {
+    await mouseAt('mouseMoved', from, 0);
+    await mouseAt('mousePressed', from, 1);
+    for (let step = 1; step <= 8; step++) await mouseAt('mouseMoved', { x: from.x + (to.x - from.x) * step / 8, y: from.y + (to.y - from.y) * step / 8 }, 1);
+    if (during) await during();
+    if (release) { await mouseAt('mouseReleased', to, 0); await sleep(80); }
+  };
+  const cellOfCard = (name) => ev(`(() => { const c = document.querySelector(${JSON.stringify(cardAt(name))}); return c ? c.dataset.col + ',' + c.dataset.row : null; })()`);
+  const dragStateGone = async () => (await count('.drag-ghost')) === 0 && (await count('.cell-highlight')) === 0 && (await ev(`!document.body.classList.contains('dragging-card')`)) && (await count('#hand .card.dragging, #battlefield .card.dragging')) === 0;
+
+  await dragTo(await handCardPoint('Forest'), await cellCenter(5, 1));
+  check('dragging a card from the hand to an empty cell plays it there, and says so', (await cellOfCard('Forest')) === '5,1' && !(await handNames()).includes('Forest') && (await $text('status')) === 'Played Forest.', `${await cellOfCard('Forest')} | ${await $text('status')}`);
+  check('...the picture and the outline are gone afterwards, and the drag did not select the card', await dragStateGone() && /^Click a card/.test(await $text('selected-line')), await $text('selected-line'));
+
+  let outline = null;
+  await dragTo(await handCardPoint('Sol Ring'), await cellCenter(5, 1), { release: false, during: async () => { outline = await ev(`(() => { const h = document.querySelector('.cell-highlight'); return h && !h.hidden ? { cls: h.className, col: h.dataset.col, row: h.dataset.row, ghost: document.querySelectorAll('.drag-ghost').length } : null; })()`); } });
+  check('while a hand card is over a taken cell the cell is outlined as taken, and a picture follows the pointer', outline && /taken/.test(outline.cls) && outline.col === '5' && outline.row === '1' && outline.ghost === 1, JSON.stringify(outline));
+  await mouseAt('mouseReleased', await cellCenter(5, 1), 0); await sleep(80);
+  check('dropping it there is refused in words, and nothing moves', (await handNames()).includes('Sol Ring') && (await cellOfCard('Forest')) === '5,1' && /That space is taken\./.test(await $text('status')) && await dragStateGone(), await $text('status'));
+
+  await dragTo(await handCardPoint('Sol Ring'), await cellCenter(6, 1));
+  check('a hand card dropped on the next empty cell goes there', (await cellOfCard('Sol Ring')) === '6,1');
+
+  let swapOutline = null;
+  await dragTo(await centerOfSelector(cardAt('Forest')), await cellCenter(6, 1), { release: false, during: async () => { swapOutline = await ev(`document.querySelector('.cell-highlight')?.className ?? null`); } });
+  check('a battlefield card over another card is outlined as a swap', /swap/.test(swapOutline ?? ''), swapOutline);
+  await mouseAt('mouseReleased', await cellCenter(6, 1), 0); await sleep(80);
+  check('dropping it swaps the two cards, and says so', (await cellOfCard('Forest')) === '6,1' && (await cellOfCard('Sol Ring')) === '5,1' && /^Swapped Forest with Sol Ring\./.test(await $text('status')), `${await cellOfCard('Forest')} ${await cellOfCard('Sol Ring')} | ${await $text('status')}`);
+
+  await dragTo(await centerOfSelector(cardAt('Forest')), await cellCenter(0, 3));
+  check('a battlefield card dropped on an empty cell moves there, and the card it left is free again', (await cellOfCard('Forest')) === '0,3' && (await cellOfCard('Sol Ring')) === '5,1' && /^Moved Forest\./.test(await $text('status')));
+
+  // a tiny movement is still a click: it selects the card and does not move it
+  await dragTo(await centerOfSelector(cardAt('Forest')), { ...(await centerOfSelector(cardAt('Forest'))), x: (await centerOfSelector(cardAt('Forest'))).x + 2 });
+  check('moving only 2 pixels is a click: the card is selected and stays where it was', (await cellOfCard('Forest')) === '0,3' && /^Forest/.test(await $text('selected-line')), `${await cellOfCard('Forest')} | ${await $text('selected-line')}`);
+  await clickAction('Deselect');
+
+  // a drag that ends on the card it started on is not a click either (the click that follows is swallowed)
+  { const here = await centerOfSelector(cardAt('Forest')); await dragTo(here, { x: here.x + 10, y: here.y });
+    check('a drag of 10 pixels that ends on the same card leaves it where it was and does not select it', (await cellOfCard('Forest')) === '0,3' && /^Click a card/.test(await $text('selected-line')) && await dragStateGone(), `${await cellOfCard('Forest')} | ${await $text('selected-line')}`); }
+  // a press with Shift held is a marks click (10 at a time), not the start of a drag
+  { const here = await centerOfSelector(cardAt('Forest')); const away = await cellCenter(8, 2);
+    await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: here.x, y: here.y });
+    await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: here.x, y: here.y, button: 'left', buttons: 1, clickCount: 1, modifiers: 8 });
+    for (let step = 1; step <= 6; step++) await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: here.x + (away.x - here.x) * step / 6, y: here.y + (away.y - here.y) * step / 6, buttons: 1, modifiers: 8 });
+    const shiftGhost = await count('.drag-ghost');
+    await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: away.x, y: away.y, button: 'left', buttons: 0, clickCount: 1, modifiers: 8 }); await sleep(80);
+    check('pressing with Shift held and moving does not drag the card', shiftGhost === 0 && (await cellOfCard('Forest')) === '0,3', `${shiftGhost} ${await cellOfCard('Forest')}`);
+    await clickAction('Deselect'); }
+  // the outline is only shown over a cell of the battlefield
+  { let over = null;
+    await dragTo(await centerOfSelector(cardAt('Forest')), await centerOfSelector('#hand .card'), { release: false, during: async () => { over = await ev(`(() => { const h = document.querySelector('.cell-highlight'); return h ? h.hidden : 'none'; })()`); } });
+    await mouseAt('mouseReleased', await centerOfSelector('#hand .card'), 0); await sleep(80);
+    check('while a card is held over the hand the outline on the battlefield is hidden', over === true, String(over)); }
+  // Escape cancels a drag; so does letting go outside the battlefield
+  await dragTo(await centerOfSelector(cardAt('Forest')), await cellCenter(3, 2), { release: false });
+  await key('Escape', 'Escape', 27);
+  await mouseAt('mouseReleased', await cellCenter(3, 2), 0); await sleep(80);
+  check('Escape during a drag cancels it: the card stays, the picture and the outline are gone', (await cellOfCard('Forest')) === '0,3' && await dragStateGone());
+  const handSpot = await centerOfSelector('#hand .card');
+  await dragTo(await centerOfSelector(cardAt('Forest')), handSpot);
+  check('letting go outside the battlefield does nothing', (await cellOfCard('Forest')) === '0,3' && await dragStateGone());
+
+  // a press on a badge is the badge's, not the start of a drag
+  await dragTo(await handCardPoint('Llanowar Elves'), await cellCenter(3, 0));
+  const sickOn = `${cardAt('Llanowar Elves')} .badge-sick`;
+  check('a creature played by dragging comes in summoning sick like any other way', (await cellOfCard('Llanowar Elves')) === '3,0' && (await count(sickOn)) === 1);
+  await dragTo(await centerOfSelector(sickOn), await cellCenter(4, 0));
+  check('pressing on the SICK badge and moving does not drag the card', (await cellOfCard('Llanowar Elves')) === '3,0' && await dragStateGone());
+
+  // another mouse button, or a modifier key, is not a drag
+  await mouseAt('mouseMoved', await centerOfSelector(cardAt('Forest')), 0);
+  await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: (await centerOfSelector(cardAt('Forest'))).x, y: (await centerOfSelector(cardAt('Forest'))).y, button: 'right', buttons: 2, clickCount: 1 });
+  await mouseAt('mouseMoved', await cellCenter(7, 2), 2);
+  check('a right-button press does not start a drag', (await count('.drag-ghost')) === 0);
+  await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: (await cellCenter(7, 2)).x, y: (await cellCenter(7, 2)).y, button: 'right', buttons: 0, clickCount: 1 });
+  await key('Escape', 'Escape', 27); await sleep(60);
+
+  // a finger is not a drag either (touch is on hold; a finger is for scrolling)
+  const fingerFrom = await centerOfSelector(cardAt('Sol Ring')); const fingerTo = await cellCenter(5, 0); // straight up from a card in the middle: a sideways swipe from the left edge is the browser's own Back gesture and left the page
+  await browser.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: fingerFrom.x, y: fingerFrom.y }] });
+  for (let step = 1; step <= 6; step++) await browser.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: fingerFrom.x + (fingerTo.x - fingerFrom.x) * step / 6, y: fingerFrom.y + (fingerTo.y - fingerFrom.y) * step / 6 }] });
+  const fingerGhost = await count('.drag-ghost');
+  await browser.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await sleep(80);
+  check('a touch that moves across the battlefield does not drag a card', fingerGhost === 0 && (await cellOfCard('Sol Ring')) === '5,1' && await dragStateGone(), `${fingerGhost} ${await cellOfCard('Sol Ring')}`);
+  // Alt and an arrow key move the selected card one cell (and swap with the card there), without a mouse
+  const altKey = async (name, vk) => { await browser.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: name, code: name, windowsVirtualKeyCode: vk, modifiers: 1 }); await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: name, code: name, windowsVirtualKeyCode: vk, modifiers: 1 }); await sleep(80); };
+  await clickCard(cardAt('Forest')); await ev(`document.activeElement && document.activeElement.blur()`);
+  await altKey('ArrowRight', 39);
+  check('Alt and the right arrow move the selected card one cell right', (await cellOfCard('Forest')) === '1,3' && /^Moved Forest\./.test(await $text('status')), `${await cellOfCard('Forest')} | ${await $text('status')}`);
+  await altKey('ArrowLeft', 37); await altKey('ArrowLeft', 37);
+  check('...and at the edge of the battlefield it says so and stays', (await cellOfCard('Forest')) === '0,3' && /edge of the battlefield/.test(await $text('status')), `${await cellOfCard('Forest')} | ${await $text('status')}`);
+  await altKey('ArrowUp', 38);
+  check('Alt and the up arrow move it one row up', (await cellOfCard('Forest')) === '0,2');
+  await clickAction('Deselect');
+
+  // Auto-arrange: lands along the bottom from the left, everything else along the top from the left
+  await press('arrange');
+  const arranged = await ev(`Array.from(document.querySelectorAll('#battlefield .card')).map((c) => c.getAttribute('aria-label').split(',')[0] + '@' + c.dataset.col + ',' + c.dataset.row + ':' + c.dataset.kind).sort()`);
+  check('Auto-arrange puts the land at the bottom-left and the others along the top from the left (by name), and says so', JSON.stringify(arranged) === JSON.stringify(['Forest@0,3:land', 'Llanowar Elves@0,0:other', 'Sol Ring@1,0:other']) && /^Tidied the battlefield/.test(await $text('status')), JSON.stringify(arranged));
+  check('the battlefield is one grid that does not scroll the page, and every card sits on its own cell', await ev(`(() => { const b = document.getElementById('battlefield'); const cells = Array.from(b.querySelectorAll('.card')).map((c) => c.dataset.col + ',' + c.dataset.row); return new Set(cells).size === cells.length && document.documentElement.scrollHeight <= innerHeight + 1; })()`));
+
   // ---- storage blocked ----
   await browser.send('Page.addScriptToEvaluateOnNewDocument', { source: `Object.defineProperty(window, 'localStorage', { get() { throw new DOMException('blocked', 'SecurityError'); } });` });
   await browser.goto(PAGE);
@@ -1139,9 +1307,9 @@ try {
     for (let n = 0; n < 3; n++) { const i = (await handNames()).findIndex((x) => LANDS.includes(x)); if (i >= 0) { await clickCard('#hand .card', i); await clickAction('To battlefield'); } }
     const e = (await handNames()).findIndex((x) => x === 'Llanowar Elves');
     if (e >= 0) { await clickCard('#hand .card', e); await clickAction('To battlefield'); }
-    await clickCard('#row-lands .card', 0); await clickAction('Tap');
-    await clickCard('#row-lands .card', 0); await setKind('o'); await setAmount('12,000'); await clickMark('Add counters');
-    await clickCard('#row-other .card', 0); await setKind('p'); await setAmount('3'); await clickMark('Add counters'); await setAmount('2'); await clickMark('Power +');
+    await clickCard('#battlefield .card[data-kind="land"]', 0); await clickAction('Tap');
+    await clickCard('#battlefield .card[data-kind="land"]', 0); await setKind('o'); await setAmount('12,000'); await clickMark('Add counters');
+    await clickCard('#battlefield .card[data-kind="other"]', 0); await setKind('p'); await setAmount('3'); await clickMark('Add counters'); await setAmount('2'); await clickMark('Power +');
     await sleep(2500);
     await browser.screenshot('scratch-solo-dark.png');
     await scheme('light'); await sleep(400);
@@ -1150,13 +1318,13 @@ try {
     await browser.screenshot('scratch-solo-piles.png');
     // the right-click menu, light and dark, closed up and with Move to open
     await ev(`window.scrollTo(0, 0)`); await sleep(200);
-    await mouse('#row-other .card', { button: 'right', dy: 30 }); await sleep(300);
+    await mouse('#battlefield .card[data-kind="other"]', { button: 'right', dy: 30 }); await sleep(300);
     await browser.screenshot('scratch-solo-menu-light.png');
     await clickMenuItem('Move to'); await sleep(200);
     await browser.screenshot('scratch-solo-menu-open-light.png');
     await key('Escape', 'Escape', 27);
     await scheme('dark'); await sleep(300);
-    await mouse('#row-other .card', { button: 'right', dy: 30 }); await sleep(300);
+    await mouse('#battlefield .card[data-kind="other"]', { button: 'right', dy: 30 }); await sleep(300);
     await browser.screenshot('scratch-solo-menu-dark.png');
     await key('Escape', 'Escape', 27);
     // two-sided cards with the real pictures: Valakut Awakening, Sephiroth and Aclazotz turned over, Delver and the rest as they are

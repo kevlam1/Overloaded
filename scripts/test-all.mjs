@@ -40,6 +40,9 @@ const suites = [
   { name: 'sound settings', cmd: node, args: ['scripts/test-sound-settings.mjs'] },
   { name: 'dealing a hand one card at a time', cmd: node, args: ['scripts/test-deal-sequence.mjs'] },
   { name: 'pinging a card: the record, reading it back, which pings show', cmd: node, args: ['scripts/test-ping.mjs'] },
+  { name: 'the battlefield grid: cells, order, settling, tidying', cmd: node, args: ['scripts/test-board-grid.mjs'] },
+  { name: 'playing cards on the grid: drops, swaps, tidying, writes', cmd: node, args: ['scripts/test-board-play.mjs'] },
+  { name: 'the card hover preview: which picture, where the box goes', cmd: node, args: ['scripts/test-card-hover.mjs'] },
   { name: 'counters, modifier, tokens, player counters', cmd: node, args: ['scripts/test-counters.mjs'] },
   { name: 'counters and tokens: how they are stored and read back', cmd: node, args: ['scripts/test-sync-counters.mjs'] },
   { name: 'counter chips, the change label and typed amounts', cmd: node, args: ['scripts/test-marks.mjs'] },
@@ -56,6 +59,7 @@ const suites = [
 if (!quick) {
   suites.push({ name: 'lobby page in headless Chrome', cmd: node, args: ['scripts/check-lobby-ui.mjs'] });
   suites.push({ name: 'the pinged card: spotlight and glow in headless Chrome', cmd: node, args: ['scripts/check-spotlight-ui.mjs'] });
+  suites.push({ name: 'the table fits one screen: 5 window sizes, 0 to 3 other players (headless Chrome)', cmd: node, args: ['scripts/check-table-layout.mjs'] });
   suites.push({ name: 'deck page in headless Chrome (needs the card list)', cmd: node, args: ['scripts/check-deck-ui.mjs'] });
   suites.push({ name: 'solo table in headless Chrome (needs the card list)', cmd: node, args: ['scripts/check-solo-ui.mjs'] });
   suites.push({ name: 'database rules (local emulator)', cmd: process.platform === 'win32' ? 'npm.cmd' : 'npm', args: ['test'], cwd: 'backend', shell: true });

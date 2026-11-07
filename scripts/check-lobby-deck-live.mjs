@@ -60,8 +60,10 @@ const cleanup = { alice: null, bob: null, code: null };
 try {
   server = await createServer({ configFile: 'vite.config.js', logLevel: 'error', server: { port: PORT, strictPort: true, host: '127.0.0.1' } });
   await server.listen();
-  const alice = await openBrowser('lobbydeck-alice');
-  const bob = await openBrowser('lobbydeck-bob');
+  const sizeArg = process.argv.find((arg) => arg.startsWith('--size='))?.slice(7).split('x').map(Number); // optional: --size=1366x650 to look at another window size
+  const windowSize = { width: sizeArg?.[0] ?? 1280, height: sizeArg?.[1] ?? 800 };
+  const alice = await openBrowser('lobbydeck-alice', windowSize);
+  const bob = await openBrowser('lobbydeck-bob', windowSize);
   // The hand is dealt one card at a time unless the browser asks for reduced motion; most checks below count the hand at once, so both pages ask for it. One block turns it off for Alice.
   const motion = (page, value) => page.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value }] });
   await motion(alice, 'reduce');
@@ -223,7 +225,7 @@ try {
   await alice.eval(`document.querySelector('#hand .card').click()`);
   await alice.eval(`Array.from(document.querySelectorAll('#selected-actions button')).find((b) => b.textContent === 'To battlefield').click()`);
   const played = await waitFor(async () => { const r = await rest('GET', pathOf('public/battlefield'), cleanup.bob.token); return r.json && Object.keys(r.json).length === 1 ? r.json : null; }, 15000, 250);
-  record('playing a card puts it on her battlefield on the page and in the public branch that Bob can read', Boolean(played) && (await count(alice, '#row-lands .card, #row-other .card')) === 1 && (await count(alice, '#hand .card')) === 7, JSON.stringify(played));
+  record('playing a card puts it on her battlefield on the page and in the public branch that Bob can read', Boolean(played) && (await count(alice, '#battlefield .card')) === 1 && (await count(alice, '#hand .card')) === 7, JSON.stringify(played));
   record('the played card is no longer in her private hand', Object.keys((await rest('GET', pathOf('private/hand'), cleanup.alice.token)).json).length === 7);
   await click(alice, 'life-minus5');
   const lifeSaved = await waitFor(async () => (await rest('GET', pathOf('public/life'), cleanup.bob.token)).json === 35 ? true : null, 15000, 250);
@@ -234,14 +236,16 @@ try {
   const panelOf = (browser, name) => browser.eval(`(() => {
     const panel = Array.from(document.querySelectorAll('#opponent-list .opponent')).find((p) => p.querySelector('h3').textContent.includes(${JSON.stringify(name)}));
     if (!panel) return null;
-    const rows = panel.querySelectorAll('.row');
+    const rows = panel.querySelectorAll('.row'); // the command zone is the only row now; the battlefield is one grid
+    const board = panel.querySelector('.battlefield');
     const cards = Array.from(panel.querySelectorAll('.card'));
-    return { life: panel.dataset.life, stats: panel.querySelector('p.hint').textContent, onBattlefield: rows[0].querySelectorAll('.card').length + rows[1].querySelectorAll('.card').length, inCommandZone: rows[2].querySelectorAll('.card').length, allCards: cards.length, allReadOnly: cards.every((c) => c.disabled), heading: panel.querySelector('h3').textContent };
+    return { life: panel.dataset.life, stats: panel.querySelector('p.hint').textContent, onBattlefield: board.querySelectorAll('.card').length, cells: Array.from(board.querySelectorAll('.card')).map((c) => c.dataset.col + ',' + c.dataset.row), inCommandZone: rows[0].querySelectorAll('.card').length, allCards: cards.length, allReadOnly: cards.every((c) => c.disabled), heading: panel.querySelector('h3').textContent };
   })()`);
   const bobSeesAliceBoard = await waitFor(async () => { const p = await panelOf(bob, 'Alice'); return p && p.life === '35' && p.onBattlefield === 1 ? p : null; }, 30000, 250);
   record("Bob's page shows Alice's board live: life 35, one card on her battlefield, two in her command zone", Boolean(bobSeesAliceBoard) && bobSeesAliceBoard.inCommandZone === 2, JSON.stringify(bobSeesAliceBoard ?? await panelOf(bob, 'Alice')));
   record("...and how many cards she holds, but not which: hand 7 and library 22", /Hand: 7 cards. Library: 22 cards./.test(bobSeesAliceBoard?.stats ?? ''), bobSeesAliceBoard?.stats);
   record("...and only her public cards are on his page (the battlefield and the command zone: 3 cards), all of them read-only", bobSeesAliceBoard?.allCards === 3 && bobSeesAliceBoard.allReadOnly === true, JSON.stringify(bobSeesAliceBoard));
+  record("...and her battlefield card is on the cell she stored (column 0, row 3: a land goes to the bottom-left)", JSON.stringify(bobSeesAliceBoard?.cells) === JSON.stringify(['0,3']), JSON.stringify(bobSeesAliceBoard?.cells));
   record("...with her name and seat as a heading", /^Seat 1: Alice/.test(bobSeesAliceBoard?.heading ?? ''));
   const aliceSeesBobBoard = await waitFor(async () => { const p = await panelOf(alice, 'Bob'); return p && p.life === '40' && p.inCommandZone === 1 ? p : null; }, 30000, 250);
   record("Alice's page shows Bob's board too: life 40, his commander in the command zone, hand 7", Boolean(aliceSeesBobBoard) && /Hand: 7 cards/.test(aliceSeesBobBoard.stats), JSON.stringify(aliceSeesBobBoard ?? await panelOf(alice, 'Bob')));
@@ -275,7 +279,7 @@ try {
 
   // Counters and the power/toughness change: Alice sets them with the panel, the database holds them, Bob's page shows them read-only,
   // and they are still there after a refresh.
-  await alice.eval(`document.querySelector('#row-lands .card, #row-other .card').click()`);
+  await alice.eval(`document.querySelector('#battlefield .card').click()`);
   record('the counter controls stay hidden until Modify is pressed', (await alice.eval(`document.getElementById('marks').hidden`)) === true);
   await alice.eval(`Array.from(document.querySelectorAll('#selected-actions button')).find((b) => b.textContent === 'Modify').click()`);
   record('and Modify shows the counter controls for her card on the battlefield on the table page', (await alice.eval(`document.getElementById('marks').hidden`)) === false);
@@ -290,7 +294,7 @@ try {
   }, 15000, 250);
   record('the database holds three +1/+1 counters and a +2 power change on that card (and no toughness change)', Boolean(marksSaved) && marksSaved.mt === undefined, JSON.stringify(marksSaved));
   const bobSeesMarks = await waitFor(async () => {
-    const seen = await bob.eval(`(() => { const p = Array.from(document.querySelectorAll('#opponent-list .opponent')).find((x) => x.querySelector('h3').textContent.includes('Alice')); const c = p && Array.from(p.querySelectorAll('.row')).slice(0, 2).flatMap((r) => Array.from(r.querySelectorAll('.card'))).find((x) => x.querySelector('.marks')); return c ? { chips: Array.from(c.querySelectorAll('.marks .chip')).map((x) => x.textContent), change: c.querySelector('.marks .change')?.textContent ?? '', readOnly: c.disabled } : null; })()`);
+    const seen = await bob.eval(`(() => { const p = Array.from(document.querySelectorAll('#opponent-list .opponent')).find((x) => x.querySelector('h3').textContent.includes('Alice')); const c = p && Array.from(p.querySelectorAll('.battlefield .card')).find((x) => x.querySelector('.marks')); return c ? { chips: Array.from(c.querySelectorAll('.marks .chip')).map((x) => x.textContent), change: c.querySelector('.marks .change')?.textContent ?? '', readOnly: c.disabled } : null; })()`);
     return seen && seen.change === '+5/+3' ? seen : null;
   }, 20000, 250);
   record("Bob's page shows the counters and the +5/+3 change on Alice's card, read-only, without a refresh", Boolean(bobSeesMarks) && JSON.stringify(bobSeesMarks.chips) === '["+1/+1 3"]' && bobSeesMarks.readOnly === true, JSON.stringify(bobSeesMarks));
@@ -313,7 +317,7 @@ try {
     await page.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: p.x, y: p.y, button, buttons: button === 'left' ? 1 : 2, clickCount: 1 });
     await page.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: p.x, y: p.y, button, buttons: 0, clickCount: 1 });
   };
-  const aliceChip = '#row-lands .card .marks .chip, #row-other .card .marks .chip';
+  const aliceChip = '#battlefield .card .marks .chip';
   const counterInDb = async () => { const r = await rest('GET', pathOf('public/battlefield'), cleanup.bob.token); const card = r.json ? Object.values(r.json)[0] : null; return card?.ct?.p ?? null; };
   await clickMarkOnCard(alice, aliceChip);
   record('a click on the +1/+1 chip of her card adds a counter and saves it (3 to 4 in the database)', Boolean(await waitFor(async () => (await counterInDb()) === 4 ? true : null, 15000, 250)), String(await counterInDb()));
@@ -333,10 +337,11 @@ try {
     await page.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: p.x, y: p.y, button: 'left', buttons: 1, clickCount: 1 });
     await page.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: p.x, y: p.y, button: 'left', buttons: 0, clickCount: 1 });
   };
-  const aliceCard = '#row-lands .card, #row-other .card';
+  const aliceCard = '#battlefield .card';
   const tappedInDb = async () => { const r = await rest('GET', pathOf('public/battlefield'), cleanup.bob.token); const card = r.json ? Object.values(r.json)[0] : null; return card ? card.x === 1 : null; };
   await alice.eval(`document.querySelector(${JSON.stringify(aliceCard)}).scrollIntoView({ block: 'center' })`);
-  const cardAt = await alice.eval(`(() => { const r = document.querySelector(${JSON.stringify(aliceCard)}).getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + 30 }; })()`);
+  const cardAt = await alice.eval(`(() => { const r = document.querySelector(${JSON.stringify(aliceCard)}).getBoundingClientRect(); return { x: r.x + r.width * 0.85, y: r.y + r.height * 0.06 }; })()`); // the top right corner of the card: the counter chips and the badges are lower or on the left (a card is only 28 pixels wide at 1366x650, so the chips cover most of it)
+  if (process.argv.includes('--screenshot')) { await alice.screenshot('scratch-table-alice-before-menu.png'); console.log('card at', JSON.stringify(cardAt), 'window', JSON.stringify(await alice.eval(`({ w: innerWidth, h: innerHeight, rect: document.querySelector(${JSON.stringify(aliceCard)}).getBoundingClientRect().toJSON(), under: (() => { const r = document.querySelector(${JSON.stringify(aliceCard)}).getBoundingClientRect(); const e = document.elementFromPoint(r.x + r.width / 2, r.y + 30); return e ? e.tagName + '.' + e.className : null; })() })`))); }
   await alice.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: cardAt.x, y: cardAt.y });
   await alice.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: cardAt.x, y: cardAt.y, button: 'right', buttons: 2, clickCount: 1 });
   await alice.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: cardAt.x, y: cardAt.y, button: 'right', buttons: 0, clickCount: 1 });
@@ -356,10 +361,10 @@ try {
 
   const handBeforeRefresh = Object.values((await rest('GET', pathOf('private/hand'), cleanup.alice.token)).json).map((card) => card.u).sort().join();
   await alice.goto(`http://127.0.0.1:${PORT}/table/${code}`);
-  const restored = await waitFor(async () => (await count(alice, '#hand .card')) === 7 && (await count(alice, '#row-lands .card, #row-other .card')) === 1 ? true : null, 30000, 200);
+  const restored = await waitFor(async () => (await count(alice, '#hand .card')) === 7 && (await count(alice, '#battlefield .card')) === 1 ? true : null, 30000, 200);
   record('after a refresh Alice has the same game: 7 in hand, 1 on the battlefield, life 35', Boolean(restored) && (await text(alice, 'life')) === '35' && /back/i.test(await text(alice, 'deck-line')), `${await text(alice, 'life')} ${await text(alice, 'deck-line')}`);
   const marksAfterRefresh = await waitFor(async () => {
-    const seen = await alice.eval(`(() => { const c = Array.from(document.querySelectorAll('#row-lands .card, #row-other .card')).find((x) => x.querySelector('.marks')); return c ? { chips: Array.from(c.querySelectorAll('.marks .chip')).map((x) => x.textContent), change: c.querySelector('.marks .change')?.textContent ?? '' } : null; })()`);
+    const seen = await alice.eval(`(() => { const c = Array.from(document.querySelectorAll('#battlefield .card')).find((x) => x.querySelector('.marks')); return c ? { chips: Array.from(c.querySelectorAll('.marks .chip')).map((x) => x.textContent), change: c.querySelector('.marks .change')?.textContent ?? '' } : null; })()`);
     return seen && seen.chips.length === 2 ? seen : null;
   }, 15000, 250);
   record('after a refresh her card still has its counters and its +5/+3 change (read back from the database)', Boolean(marksAfterRefresh) && JSON.stringify(marksAfterRefresh.chips) === '["+1/+1 3","Other 5B"]' && marksAfterRefresh.change === '+5/+3', JSON.stringify(marksAfterRefresh));
@@ -392,7 +397,7 @@ try {
     const battlefieldCard = (await rest('GET', pathOf('public/battlefield'), cleanup.bob.token)).json;
     const first = battlefieldCard ? Object.values(battlefieldCard)[0] : null;
     record('Alice has a card on the battlefield to ping', Boolean(first?.n && first?.u), JSON.stringify(first));
-    const aliceCard = `#row-lands .card, #row-other .card`;
+    const aliceCard = `#battlefield .card`;
     await alice.eval(`document.querySelector(${JSON.stringify(aliceCard)}).click()`);
     await sleep(200);
     await alice.eval(`Array.from(document.querySelectorAll('#selected-actions button')).find((b) => b.textContent === 'Ping card').click()`);
@@ -458,7 +463,7 @@ try {
   await alice.eval(`Array.from(document.querySelectorAll('#selected-actions button')).find((b) => b.textContent === 'Turn over').click()`);
   const delverTurned = await waitFor(async () => (await delverInDb())?.bk === 1 ? await delverInDb() : null, 15000, 250);
   record('turning it over saves exactly one small mark on that card: bk is 1, and no back-face field (b) is stored', Boolean(delverTurned) && delverTurned.bk === 1 && !('b' in delverTurned) && !('turned' in delverTurned), JSON.stringify(delverTurned));
-  const aliceDelver = await delverOf(alice, '#row-lands .card, #row-other .card');
+  const aliceDelver = await delverOf(alice, '#battlefield .card');
   record("on Alice's page it shows the back picture, says it is turned over, and button now says how to turn it back", Boolean(aliceDelver) && aliceDelver.src.includes('/back/') && /turned over/.test(aliceDelver.label) && (await buttonLabels()).includes('Turn back to front'), JSON.stringify(aliceDelver));
   const bobDelver = await waitFor(async () => { const d = await delverOf(bob, '#opponent-list .opponent .card'); return d && d.src?.includes('/back/') ? d : null; }, 20000, 250);
   record("Bob's page, without a refresh, shows the BACK picture and the label turned over on Alice's card, and the card is read-only", Boolean(bobDelver) && /turned over/.test(bobDelver.label) && bobDelver.disabled === true, JSON.stringify(bobDelver));
@@ -473,16 +478,16 @@ try {
   await alice.eval(`Array.from(document.querySelectorAll('#selected-actions button')).find((b) => b.textContent === 'Create copy').click()`);
   const copyStored = await waitFor(async () => (await copyInDb()) ?? null, 15000, 250);
   record('the copy is saved as a small token of the BACK face: its name, ONE face\'s type line, its 3/2, bk 1, and no back-face or counter fields', Boolean(copyStored) && copyStored.tt === 'Creature — Human Insect' && copyStored.pt === '3/2' && copyStored.bk === 1 && copyStored.tok === 1 && !('b' in copyStored) && !('ct' in copyStored) && copyStored.tt.length <= 60, JSON.stringify(copyStored));
-  const aliceCopy = await waitFor(async () => { const d = await faceOf(alice, '#row-lands .card, #row-other .card', 'Insectile Aberration'); return d && d.src?.includes('/back/') ? d : null; }, 15000, 250);
+  const aliceCopy = await waitFor(async () => { const d = await faceOf(alice, '#battlefield .card', 'Insectile Aberration'); return d && d.src?.includes('/back/') ? d : null; }, 15000, 250);
   record('on Alice\'s page the copy shows the back picture, and is not called turned over (it is a copy, not a two-sided card)', Boolean(aliceCopy) && !/turned over/.test(aliceCopy.label), JSON.stringify(aliceCopy));
   const bobCopy = await waitFor(async () => { const d = await faceOf(bob, '#opponent-list .opponent .card', 'Insectile Aberration'); return d && d.src?.includes('/back/') ? d : null; }, 20000, 250);
   record('Bob\'s page shows the copy too, read-only, with the back picture and without a refresh (it is a valid card for him)', Boolean(bobCopy) && bobCopy.disabled === true, JSON.stringify(bobCopy));
   await alice.goto(`http://127.0.0.1:${PORT}/table/${code}`);
-  const copyAfterRefresh = await waitFor(async () => { const d = await faceOf(alice, '#row-lands .card, #row-other .card', 'Insectile Aberration'); return d && d.src?.includes('/back/') ? d : null; }, 30000, 250);
+  const copyAfterRefresh = await waitFor(async () => { const d = await faceOf(alice, '#battlefield .card', 'Insectile Aberration'); return d && d.src?.includes('/back/') ? d : null; }, 30000, 250);
   record('after a refresh the copy is still there with the back picture (read back from the database)', Boolean(copyAfterRefresh), JSON.stringify(copyAfterRefresh));
-  const delverAfterRefresh = await waitFor(async () => { const d = await delverOf(alice, '#row-lands .card, #row-other .card'); return d && d.src?.includes('/back/') ? d : null; }, 30000, 250);
+  const delverAfterRefresh = await waitFor(async () => { const d = await delverOf(alice, '#battlefield .card'); return d && d.src?.includes('/back/') ? d : null; }, 30000, 250);
   record('after a refresh Alice\'s Delver is still turned over (read back from the database)', Boolean(delverAfterRefresh) && /turned over/.test(delverAfterRefresh.label), JSON.stringify(delverAfterRefresh));
-  await alice.eval(`Array.from(document.querySelectorAll('#row-lands .card, #row-other .card')).find((c) => (c.getAttribute('aria-label') || '').startsWith('Delver')).click()`);
+  await alice.eval(`Array.from(document.querySelectorAll('#battlefield .card')).find((c) => (c.getAttribute('aria-label') || '').startsWith('Delver')).click()`);
   await alice.eval(`Array.from(document.querySelectorAll('#selected-actions button')).find((b) => b.textContent === 'Turn back to front').click()`);
   const delverBack = await waitFor(async () => { const d = await delverInDb(); return d && d.bk === undefined ? d : null; }, 15000, 250);
   record('turning it back removes the mark from the database (nothing is stored for a card showing its front)', Boolean(delverBack), JSON.stringify(await delverInDb()));
@@ -547,7 +552,7 @@ try {
   record('Alice\'s Delver came in summoning sick: one small mark in the database (sk 1), which Bob\'s page shows as a SICK badge he cannot click', Boolean(sickStored) && sickStored.sk === 1 && !('nu' in sickStored), JSON.stringify(sickStored));
   const bobSeesSick = await waitFor(async () => { const b = await aliceBadges(bob, '#opponent-list .opponent .card'); return b && b.sick ? b : null; }, 20000, 250);
   record("Bob's page shows the SICK badge on Alice's Delver, read-only, and its label says so", Boolean(bobSeesSick) && !bobSeesSick.clickable && /summoning sick/.test(bobSeesSick.label), JSON.stringify(bobSeesSick));
-  await alice.eval(`Array.from(document.querySelectorAll('#row-lands .card, #row-other .card')).find((c) => (c.getAttribute('aria-label') || '').startsWith('Delver')).click()`);
+  await alice.eval(`Array.from(document.querySelectorAll('#battlefield .card')).find((c) => (c.getAttribute('aria-label') || '').startsWith('Delver')).click()`);
   await alice.eval(`Array.from(document.querySelectorAll('#selected-actions button')).find((b) => b.textContent === "Doesn't untap").click()`);
   await alice.eval(`Array.from(document.querySelectorAll('#selected-actions button')).find((b) => b.textContent === 'Tap').click()`);
   const lockStored = await waitFor(async () => { const c = await delverStored(); return c && c.nu === 1 && c.x === 1 ? c : null; }, 15000, 250);
@@ -585,7 +590,7 @@ try {
   record("her turn starting ended the summoning sickness of her Delver (no sk), and the card is still tapped and still marked not to untap (x 1, nu 1)", Boolean(afterStart) && !('sk' in afterStart) && afterStart.x === 1 && afterStart.nu === 1, JSON.stringify(afterStart));
   const bobSeesClear = await waitFor(async () => { const b = await aliceBadges(bob, '#opponent-list .opponent .card'); return b && !b.sick && b.lock ? b : null; }, 20000, 250);
   record("Bob's page shows the lock but no SICK badge any more", Boolean(bobSeesClear));
-  const aliceOwn = await aliceBadges(alice, '#row-lands .card, #row-other .card');
+  const aliceOwn = await aliceBadges(alice, '#battlefield .card');
   record("on Alice's page the lock is a badge she can click, and SICK is gone", Boolean(aliceOwn) && aliceOwn.lock && !aliceOwn.sick && aliceOwn.clickable, JSON.stringify(aliceOwn));
 
   // A refresh must not start the turn again (no second draw).
