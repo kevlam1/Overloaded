@@ -2363,7 +2363,78 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 114. Deselect by clicking off, tapping by clicking twice, a wider tap step, a second pile style and where tapped stacks go (2026-11-09)
+
+**What I asked for**
+- Clicking off a highlighted card did not remove the highlight. A double click on a card should tap it. A card tapped out of a pile should move one more cell to the right. And a second way to draw a pile: keep the diagonal one as it is, and add one where the copies go in a horizontal row with the bottom-most card on the left.
+
+**What changed**
+- **Click off:** a click on empty space (the battlefield, the page background, the hand area) takes the highlight off the selected card; a click on a card, a button, the selected-card panel, a menu or a link does not. Escape already did it.
+- **Two clicks tap:** two clicks on a card of mine on the battlefield, close together in time (under 450 ms) and place (under 14 px), tap or untap the card under the second (clicks on a counter or a badge are theirs). On both the solo and the live table. This is counted in the page, not taken from the browser's double-click event, which Chrome fires only for the second click of a run: a third and fourth quick click are not double clicks, which is why fast tapping seemed inconsistent. There is no cooldown. A pair is used up (four quick clicks are two taps), and clicks made by the keyboard or a script do not count.
+- **Tap step:** a card tapped out of a pile now goes a whole card plus one cell to the right (\`TAP_GAP\` in \`shared/board-grid.mjs\`); untapping rejoins a pile within that distance.
+- **Pile style:** a "Piles" choice next to the sound settings, Diagonal (the first way, still the default) or Horizontal (the copies under the top card go straight to the left, so the bottom-most is on the far left). Only how it is drawn changes; the piles, the count and the game are the same. Kept in this browser (\`shared/pile-style.mjs\`, \`frontend/src/pile-style.js\`).
+
+**What I checked**
+- \`test-pile-style\` (20), \`test-board-grid\` (131) and \`test-stacks\` (85) updated for the new gap, with a boundary test (a tapped card 9 columns away rejoins, 10 does not). While fixing a stack test I found that its set-up had never done what its label said (the Forests it moved were already on the battlefield, so the explicit cell was ignored); it is now set up properly.
+- The solo check is 393: a click on empty battlefield space and on the page corner deselects, a click on a panel button does not, a double click taps (the tapped card steps out of the pile) and two more untap (back to 6x), six quick clicks tap three cards, a slow second click is not a pair, two clicks 150 ms or so apart or 8 px apart are a pair and two 30 px apart or an empty space then a card are not, Horizontal moves the copies straight left and a tapped card goes straight up, Horizontal moves the copies straight left (no vertical shift) and Diagonal brings it back, and the choice is remembered. The live two-browser check is 169: a double click taps Alice's card in the database and a second one untaps it.
+- Broken copies: 5 of 5 of the gap logic; the page code results are below.
+- A screenshot of the horizontal pile was looked at: six Forests in a row with the bottom-most on the far left and the count on the top card.
+- **Not checked:** the horizontal pile on another player's board in a real game, and the layout of the "Piles" select on a narrow screen (it wraps under the sound settings).
+
+**Decisions**
+- A pile on the board's left edge needs room for its copies, so the board gets extra padding on the left in horizontal mode (it shifts the board a little when you switch).
+- Mistakes of Claude: I first used the browser's own double click for tapping, which is inconsistent for fast clicking; my first answer to "the hitbox of a tapped card" was a guess that I only tested after the fact; a comment I added at the end of a code line in the live check swallowed the rest of the line (found at once by a syntax check); the first double-click check aimed at a spot a counter covers, because the card is small and has counters by then.
+
+---
+
+## 115. Tapped stacks fan up, untapping goes left, a wider board, cards on the lines, drag back to the hand (2026-11-10)
+
+**What I asked for**
+- I had meant the tapped stack to fan straight UP (like the horizontal pile, but up instead of sideways), not go diagonal. A card untapped from a tapped stack should appear on its left, and if that is off the board the stack and the card scooch right. The board had a lot of empty space, so more cells. The lines had a small gap to the cards. Dragging a tapped card showed the outline of an untapped one. And I wanted to drag cards back into my hand.
+
+**What changed**
+- **Tapped stacks fan up:** the copies under the top one of a stack of tapped cards are shifted straight up, in both pile styles (`style.css`).
+- **Untapping to the left:** an untapped card leaving a stack of tapped cards, with no untapped pile beside it, goes to the left of the stack (a card and two cells away; below it in the Horizontal style). If the left is off the board and there is room on the right, the stack is scooched right and the card takes the place the stack was in (`regroupAfterTap` in `shared/zones.mjs`, `nearbyFreeBlock` with 'left' and 'down' in `shared/board-grid.mjs`).
+- **A wider board:** 14 cards across instead of 12 (112 by 44 cells, 56 blocks). The number is one constant (`BOARD_COLS`); the grid test now takes its numbers from the constants, so the next change of size does not mean rewriting it.
+- **Cards on the lines:** a card is now exactly as high as its block, sits on the left and bottom lines (a tapped card on the same corner), and the 3 pixel gap is gone (it was a deliberate `- 3px` that I had added).
+- **Dragging a tapped card** shows a landscape outline (11 by 8 cells on the bottom line of its block).
+- **Drag back to the hand:** a card of mine dragged from the battlefield and let go over the hand goes back into it; the hand is marked while one is over it (solo and live table).
+
+**What I checked**
+- `test-board-grid` 140, `test-board-play` 115, `test-stacks` 107 (the untap to the left, the scooch, the blocked scooch and the Horizontal untap included); the solo check 408 (the tapped stack fan, the landscape outline, the hand drop and playing the card again); the layout check 365; `npm test` and the live check as below. Broken copies of the new logic only (7 of 7 after three survivors got tests); no browser broken-copy runs this time.
+- A screenshot showed the card flush against the grid lines.
+- **Not checked:** the hand drop on the live table page in a real game (it is the same code as the solo page), a tapped card in the last 3 columns of the board (it is clamped when dragged but a card tapped there can overhang the edge), and the Horizontal style with a pile on the bottom row.
+
+**Decisions**
+- 14 across is my guess at how much room you wanted; it fits a 16:9 window better than 12 did.
+- Mistakes of Claude: a test that let go of a card over the hand now moved it into the hand (the old check had to cancel with Escape); my first tapped-stack test built a stack that could not exist (a tapped card steps out when tapped, so I had to place the cards on one cell by hand); a regex lost its backslash in my edit script.
+
+---
+
+## 116. Tapping goes to the side in both pile styles, and whole piles can be dragged (2026-11-10)
+
+**What I asked for**
+- With Horizontal piles, tapping a card out of a pile sent it above the pile; I wanted it to act like the Diagonal one (to the side). And dragging a whole pile.
+
+**What changed**
+- Tapped cards step out to the side in both pile styles (`stepOutFor` in `shared/pile-style.mjs` now always says right; the "up" way is still in `shared/zones.mjs` and could be given to a style again with one line). This undoes the Horizontal part of entry 114.
+- **Whole-pile drag:** Shift and drag any card of a pile of more than one, or take the small triangle at the top-left corner of the top card, and the whole pile moves together (`placeStack` in `shared/zones.mjs`: the cards on that cell with the same name and state, in the same order; a tapped card on the same cell stays; it snaps onto a pile of its kind that is close; it goes to the end of the list only if it lands on a card that comes later, like moving one card). A plain drag still takes one card off. The picture that follows the pointer shows the number of cards it carries. Shift on a card that is not in a pile still starts no drag.
+
+**What I checked**
+- `test-stacks` 121 (the whole-pile cases, with the order in the list both ways), `test-pile-style` 21; the solo check 413 (Shift and drag moves all six, the handle moves all six without Shift, a plain drag still takes one, a tapped card with Horizontal piles goes to the side); `npm test` and the live check as below. Logic broken copies only: 8 of 8 after three real survivors got tests (a tapped card on the pile's cell, a move onto an earlier card, and a move onto a later one).
+- A screenshot showed the handle on the top card of a pile.
+- **Not checked:** whole-pile drag on the live table page in a real game (same code as solo), and the handle on a touch screen (touch drag is still off).
+
+**Decisions**
+- I made the corner handle a small triangle at the top-left of the top card; a dotted border around the pile (from your earlier answer) is not drawn. Tell me if you want it.
+- Mistakes of Claude: my first whole-pile tests used helpers that were out of scope, and two of the first broken copies survived because the order tests had no card after the pile in the list.
+
+---
+
 ## Where AI misread me, or I had to correct course
+- (2026-11-10, entry 116) Claude had Horizontal piles send a tapped card above the pile because it read "the tapped stack goes up" as part of that style; the style was only meant to change how a pile is drawn.
+- (2026-11-10, entry 115) Claude read "tapped cards go up" as moving the whole tapped stack above the pile in the Horizontal style only; what was meant was a tapped stack drawn straight up in both styles, and untapping to the left of it.
+- (2026-11-09, entry 114) Claude's stack test set-up for the order test had never done what its label said (the cards it "moved to a cell" were already on the battlefield), which showed up only when the tap gap changed; and a comment it put at the end of a code line swallowed the rest of the line.
 - (2026-11-09, entry 113) Claude shipped the pile (entry 112) with tapped cards drawn over it and called that step 3; the tapped card UI was the thing I complained about. It also made grid cells rectangles (an eighth of a card both ways) when I wanted cubes.
 - (2026-11-09, entry 112) Claude ran its first broken copies of the stack wiring without the new test file, so four real gaps looked caught; it was found by reading the list of results, not by a test.
 - (2026-11-09, entry 111) Claude's first drag and drop (entry 110) was not what I meant (a fixed grid with swaps and refusals instead of a loose, snapping board with overlap and stacks); it also drew the new board stretched so cards filled only 60% of their blocks, let the drag picture hide the outline, and rewrote the whole battlefield when a card was lifted from underneath, which it found only when I asked and it measured.
