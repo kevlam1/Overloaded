@@ -290,10 +290,6 @@ main.table { max-width: 80rem; }
 .opponent .card .marks .ptbox { font-size: 0.7rem; line-height: 1.1rem; }
 .opponent .card .marks .ptbox .pt { min-width: 1rem; padding: 0 0.15rem; }
 .opponent .card .toast { font-size: 0.75rem; line-height: 1.1rem; }
-.piles { display: flex; flex-wrap: wrap; gap: 1rem 2rem; align-items: flex-start; }
-.piles h3 { margin-top: 0; }
-.pile-buttons { display: flex; flex-wrap: wrap; gap: 0.5rem; }
-.pile-buttons button[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
 .viewer { margin-top: 1rem; }
 .pile-list { list-style: none; margin: 0; padding: 0; max-height: 22rem; overflow-y: auto; border: 1px solid var(--line); border-radius: 0.5rem; }
 .pile-card { display: grid; grid-template-columns: 2.5rem minmax(0, 1fr) minmax(0, 1.2fr); gap: 0.5rem; width: 100%; min-height: 0; padding: 0.3rem 0.6rem; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; color: var(--text); font-weight: 400; text-align: left; }
@@ -427,8 +423,6 @@ body.playing .side-panels > section { padding: 0.3rem 0.5rem; border: 1px solid 
 body.playing .selected-panel { position: static; }
 body.playing .selected-panel .hint { margin: 0 0 0.25rem; font-size: 0.8rem; }
 body.playing .selected-panel .actions, body.playing .piles-section .pile-buttons { gap: 0.25rem; margin-top: 0; }
-body.playing .piles { gap: 0.4rem 1rem; }
-body.playing .piles-section .row { min-height: 0; }
 body.playing .viewer { margin-top: 0.4rem; }
 body.playing .pile-list { max-height: 11rem; }
 
@@ -706,3 +700,34 @@ body .battlefield > .card.tapped[data-stack-ext="3"]::before { left: -3px; top: 
 .settings-menu[hidden] { display: none; }
 .settings-menu h2 { margin: 0 0 0.4rem; font-size: 1rem; }
 .settings-menu .sound-settings, .settings-menu #pile-style-settings { display: flex; flex-direction: column; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.5rem; }
+
+/* Your piles as stacks of cards and the command zone with its two outlined slots (frontend/src/pile-stack.js, command-zone.js). The number and the name drawn on a stack come from its data
+   attributes, so the only text in the button is the line for a screen reader. */
+.zones { --sw: 4rem; display: flex; flex-direction: column; gap: 0.7rem; }
+.zone-stacks { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; align-items: flex-start; }
+.pile-stack { position: relative; display: inline-block; width: calc(var(--sw) + 0.5rem); min-height: 0; padding: 0 0 1.7rem; border: 0; background: none; color: var(--text); cursor: pointer; }
+.pile-stack .stack-layers { position: relative; display: block; width: var(--sw); height: calc(var(--sw) * 1.4015); }
+.pile-stack .stack-layer, .pile-stack .stack-face { position: absolute; left: 0; top: 0; width: 100%; height: 100%; box-sizing: border-box; border: 1px solid var(--line); border-radius: 0.3rem; background: var(--card); overflow: hidden; }
+.pile-stack .stack-layer:nth-child(1) { transform: translate(0.4rem, 0.4rem); }
+.pile-stack .stack-layer:nth-child(2) { transform: translate(0.2rem, 0.2rem); }
+.pile-stack .stack-face img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.pile-stack .stack-face[data-name]::after { content: attr(data-name); display: block; padding: 0.25rem; font-size: 0.6rem; line-height: 1.15; overflow-wrap: anywhere; }
+.pile-stack .stack-face.back { border: 2px solid #2b1a0c; background: repeating-linear-gradient(45deg, #5b3a1e 0 0.25rem, #7a4f27 0.25rem 0.5rem); box-shadow: inset 0 0 0 0.2rem #d9b77a; }
+.pile-stack::before { content: attr(data-count); position: absolute; z-index: 1; top: -0.35rem; right: 0.05rem; min-width: 1.3rem; padding: 0 0.3rem; border-radius: 0.8rem; background: var(--accent); color: var(--bg); font-size: 0.75rem; font-weight: 700; line-height: 1.3rem; text-align: center; }
+.pile-stack::after { content: attr(data-label); position: absolute; left: 0; bottom: 0; width: var(--sw); font-size: 0.7rem; color: var(--muted); text-align: center; }
+.pile-stack[data-empty="true"] .stack-layer { display: none; }
+.pile-stack[data-empty="true"] .stack-face { border: 1px dashed var(--muted); background: none; }
+.pile-stack[data-empty="true"]::before { background: var(--line); color: var(--muted); }
+.pile-stack:hover .stack-face, .pile-stack[aria-pressed="true"] .stack-face { box-shadow: 0 0 0 2px var(--accent); }
+.pile-stack:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.command-zone h3 { margin: 0 0 0.3rem; font-size: 0.85rem; color: var(--muted); }
+.command-slots { --cw: var(--sw); display: flex; flex-wrap: wrap; gap: 0.6rem; }
+.cmd-slot { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; }
+.cmd-slot .slot-cards { display: flex; align-items: center; justify-content: center; width: calc(var(--sw) + 0.4rem); height: calc(var(--sw) * 1.4015 + 0.4rem); box-sizing: border-box; border: 2px dotted var(--accent); border-radius: 0.5rem; }
+.cmd-slot.empty-slot .slot-cards { border-color: var(--line); }
+.cmd-slot.away .slot-cards { border-style: dotted; opacity: 0.7; }
+.cmd-slot .tax { display: inline-flex; align-items: center; gap: 0.25rem; }
+.cmd-slot .tax[hidden] { display: none; }
+.cmd-slot .tax-button { min-width: 1.6rem; min-height: 0; padding: 0 0.4rem; line-height: 1.4; }
+.cmd-slot .tax-words { min-width: 3.4rem; font-size: 0.8rem; font-variant-numeric: tabular-nums; text-align: center; }
+.settings-row { margin-bottom: 0.5rem; }

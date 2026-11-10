@@ -10,6 +10,9 @@ import { play, mountSoundSettings } from '../../src/sound.js';
 import { mountPileStyle } from '../../src/pile-style.js';
 import { mountPileViewer } from '../../src/pile-viewer.js';
 import { mountSettingsMenu } from '../../src/settings-menu.js';
+import { mountPileStack } from '../../src/pile-stack.js';
+import { mountCommandZone } from '../../src/command-zone.js';
+import { taxAction, COMMANDER_TAX_PUBLISHED } from '../../../shared/commander-zone.mjs';
 import { pileMenuItems, pileAction } from '../../../shared/pile-menu.mjs';
 import { mountCardHover } from '../../src/card-hover.js';
 import { mountBoardDrag } from '../../src/board-drag.js';
@@ -121,6 +124,9 @@ $('life-area').addEventListener('contextmenu', (event) => {
 
 const cardNodes = makeCardNodes({ onSelect: (uid) => select(uid), isSelected: (uid) => uid === selected, onMark: (uid, hit) => markOnCard(uid, hit), onMenu: (uid, where) => openMenuFor(uid, where), onBadge: (uid, kind) => clearBadge(uid, kind), printedStats: (card) => printedOf(card, lookup) });
 const place = cardNodes.place;
+// The piles as stacks of cards (src/pile-stack.js) and the command zone with its two outlined slots and the commander tax (src/command-zone.js).
+const stacks = Object.fromEntries([['library', 'Library'], ['graveyard', 'Graveyard'], ['exile', 'Exile']].map(([zone, label]) => [zone, mountPileStack($(`pile-${zone}`), { zone, label })]));
+const commandZone = mountCommandZone({ root: $('command'), place, showTax: COMMANDER_TAX_PUBLISHED, onTax: (uid, delta) => { if (!game) return; const action = taxAction(game, uid, delta); if (action) apply(() => action.run(game), action.message); } });
 
 // The hand is shown one card at a time with the draw sound for each (shared/deal-sequence.mjs). Only what is SHOWN is staged: the game was dealt all at once, so
 // what is saved and what other players see never waits for the animation. A refresh in the middle just shows the whole hand.
@@ -164,14 +170,14 @@ function render() {
   $('life').textContent = String(game.life);
   place($('battlefield'), game.zones.battlefield, { battlefield: true, cells: boardCells(game) });
   place($('hand'), dealer.visible(game.zones.hand));
-  place($('command'), game.zones.command);
+  commandZone.update(game);
   $('hand-count').textContent = String(dealer.visible(game.zones.hand).length);
   const counts = zoneCounts(game);
-  for (const zone of ['library', 'graveyard', 'exile', 'sideboard']) {
-    const button = $(`pile-${zone}`);
-    button.textContent = `${zone[0].toUpperCase()}${zone.slice(1)}: ${counts[zone] + (zone === 'library' ? dealer.waiting(game.zones.hand) : 0)}`; // cards not yet dealt still count as library
-    button.setAttribute('aria-pressed', String(viewing === zone));
+  for (const zone of ['library', 'graveyard', 'exile']) {
+    stacks[zone].update({ count: counts[zone] + (zone === 'library' ? dealer.waiting(game.zones.hand) : 0), top: zone === 'library' ? null : game.zones[zone][0] ?? null }); // cards not yet dealt still count as library; the top of the graveyard and exile is the newest card
   }
+  $('pile-sideboard').textContent = `Sideboard: ${counts.sideboard}`;
+  for (const zone of ['library', 'graveyard', 'exile', 'sideboard']) $(`pile-${zone}`).setAttribute('aria-pressed', String(viewing === zone));
   $('mulligan').textContent = game.mulligans ? `Mulligan (${game.mulligans} so far)` : 'Mulligan';
   renderViewer();
   renderSelected();
@@ -708,7 +714,8 @@ for (const zone of ['library', 'graveyard', 'exile', 'sideboard']) {
     openPileMenu(zone, { x: fromKeyboard ? box.left + box.width / 2 : event.clientX, y: fromKeyboard ? box.top + box.height / 2 : event.clientY, element: event.currentTarget });
   });
 }
-mountSettingsMenu({ button: $('settings-button'), panel: $('settings-menu') });
+const settings = mountSettingsMenu({ button: $('settings-button'), panel: $('settings-menu') });
+$('pile-sideboard').addEventListener('click', () => settings.close()); // the viewer opens over the table; the Settings panel would only be in the way
 
 // Two clicks close together in time and place tap or untap the card under the second one. This is counted here rather than taken from the browser's own double click event, which fires only for
 // the second click of a run (a third and fourth quick click are not double clicks) and so made fast tapping unreliable. A pair is used up, so four quick clicks are two taps. No waiting time.

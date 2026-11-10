@@ -848,9 +848,9 @@ try {
   }
   // closing in the other ways
   await mouse(cardSelector, { button: 'right', dy: 30 });
-  await mouseMoveTo(1100, 60);
-  await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: 1100, y: 60, button: 'left', buttons: 1, clickCount: 1 });
-  await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: 1100, y: 60, button: 'left', buttons: 0, clickCount: 1 });
+  await mouseMoveTo(1100, 600);
+  await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: 1100, y: 600, button: 'left', buttons: 1, clickCount: 1 });
+  await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: 1100, y: 600, button: 'left', buttons: 0, clickCount: 1 });
   await sleep(60);
   check('a click anywhere else closes the menu', (await menuState()) === null);
   await mouse(cardSelector, { button: 'right', dy: 30 });
@@ -1117,6 +1117,53 @@ try {
   check('the chips did not touch life: a commander deck starts at 40', (await $text('life')) === '40' && (await count('#hand .card')) === 7);
   await press('new-game');
   check('a new game takes every chip away', (await chips()).length === 0);
+
+  // ---- the piles as stacks of cards, the command zone with its two outlined slots and the commander tax, and the sideboard in Settings ----
+  await open(SIDE_JSON);
+  const stack = (zone) => ev(`(() => { const b = document.getElementById('pile-${zone}'); const face = b.querySelector('.stack-face'); return { cls: b.classList.contains('pile-stack'), count: b.dataset.count, empty: b.dataset.empty, label: b.dataset.label, text: b.textContent, back: face.classList.contains('back'), img: face.querySelectorAll('img').length, layers: b.querySelectorAll('.stack-layer').length, badge: getComputedStyle(b, '::before').content, name: getComputedStyle(b, '::after').content, pressed: b.getAttribute('aria-pressed') }; })()`);
+  const lib = await stack('library');
+  check('the library is a stack: three layers, a card back (no picture of the top card), the number on it and a line for a screen reader that is the only text', lib.cls && lib.layers === 2 && lib.back && lib.img === 0 && lib.count === '45' && lib.text === 'Library: 45' && lib.badge === '"45"' && lib.name === '"Library"', JSON.stringify(lib));
+  const gy0 = await stack('graveyard');
+  check('an empty graveyard is an empty outline with a 0 on it', gy0.empty === 'true' && gy0.count === '0' && gy0.img === 0 && gy0.text === 'Graveyard: 0', JSON.stringify(gy0));
+  await clickCard('#hand .card', 0);
+  const toGraveyard = (await handNames())[0];
+  await clickAction('To graveyard');
+  const gy1 = await stack('graveyard');
+  check('a card in the graveyard shows on top of its stack, with its picture, and the stack counts it', gy1.empty === 'false' && gy1.count === '1' && gy1.img === 1 && gy1.text === 'Graveyard: 1' && gy1.layers === 2, JSON.stringify(gy1));
+  await clickAction('Deselect');
+  await clickCard('#hand .card', 0);
+  await clickAction('To graveyard');
+  check('the newest card is the one on top (the picture is the second card moved, and the count is 2)', (await stack('graveyard')).count === '2' && (await ev(`document.querySelector('#pile-graveyard .stack-face img').getAttribute('src')`)) !== null);
+  await mouse('#pile-graveyard');
+  check('a click on a stack opens the viewer and marks it pressed', !(await $hidden('viewer')) && (await stack('graveyard')).pressed === 'true');
+  await press('viewer-close');
+  check('the old pile buttons and the Piles heading text are gone from the side column', (await count('.side-panels #pile-sideboard')) === 0 && (await count('#settings-menu #pile-sideboard')) === 1 && (await $text('pile-sideboard')) === 'Sideboard: 2');
+  await press('settings-button'); await sleep(100);
+  await mouse('#pile-sideboard');
+  check('the sideboard is opened from the Settings menu: its viewer opens with both cards and the Settings panel steps aside', !(await $hidden('viewer')) && (await count('#viewer-list .card')) === 2 && (await $hidden('settings-menu')) && /sideboard: 2 cards/i.test(await $text('viewer-title')));
+  await press('viewer-close');
+  // the command zone: two outlined slots, the commander in the first, and its tax
+  check('the command zone has two slots; the commander is in the first, the second is an empty outline with no tax', (await count('#command .cmd-slot')) === 2 && (await count('#command .cmd-slot[data-slot="1"] .card')) === 1 && (await count('#command .cmd-slot.empty-slot')) === 1 && (await ev(`document.querySelector('.cmd-slot[data-slot="2"] .tax').hidden`)) === true);
+  check('each slot has its own dotted outline', (await ev(`[...document.querySelectorAll('.cmd-slot .slot-cards')].map((e) => getComputedStyle(e).borderTopStyle).join()`)) === 'dotted,dotted');
+  const taxFacts = () => ev(`(() => { const slot = document.querySelector('.cmd-slot[data-slot="1"]'); const [minus, plus] = slot.querySelectorAll('.tax button'); return { words: slot.querySelector('.tax-words').textContent, minusOff: minus.disabled, plusOff: plus.disabled, away: slot.classList.contains('away'), cards: slot.querySelectorAll('.card').length }; })()`);
+  const t0 = await taxFacts();
+  check('the tax starts at +0 and cannot go below it', t0.words === 'Tax +0' && t0.minusOff && !t0.plusOff, JSON.stringify(t0));
+  await mouse('.cmd-slot[data-slot="1"] .tax button:last-of-type');
+  const t1 = await taxFacts();
+  check('+ adds a cast: the tax is +2 and the status says so', t1.words === 'Tax +2' && !t1.minusOff && /cast 1 time, tax \+2\.$/.test(await $text('status')), JSON.stringify(t1) + await $text('status'));
+  await mouse('.cmd-slot[data-slot="1"] .tax button:last-of-type');
+  check('a second cast is +4 and the status says "times"', (await taxFacts()).words === 'Tax +4' && /cast 2 times, tax \+4\.$/.test(await $text('status')));
+  await ev(`document.querySelector('#command .card').click()`);
+  await clickAction('To battlefield');
+  const cast = await taxFacts();
+  check('when the commander is cast the slot stays, empty and marked, and the tax stays with it', cast.away && cast.cards === 0 && cast.words === 'Tax +4' && (await count('#command .card')) === 0 && (await count('#battlefield .card')) >= 1, JSON.stringify(cast));
+  await mouse('.cmd-slot[data-slot="1"] .tax button:first-of-type');
+  check('- takes a cast back', (await taxFacts()).words === 'Tax +2');
+  await press('new-game');
+  const fresh = await taxFacts();
+  check('a new game puts the commander back in its slot and starts the tax at +0', fresh.cards === 1 && fresh.words === 'Tax +0' && !fresh.away, JSON.stringify(fresh));
+  await open(deckFrom(['40 Forest', '1 Sol Ring'].join(String.fromCharCode(10)), 'Plain deck', null, []));
+  check('a deck with no commander has no command zone on show', await $hidden('command-zone'));
 
   // ---- summoning sickness (hybrid) and "doesn't untap" (real mouse input; a 7-card deck, so everything is in the hand) ----
   const MARKS_DECK = deckFrom("1 Goblin Guide\n1 Llanowar Elves\n1 Sol Ring\n1 Forest\n1 Lightning Bolt\n1 Hellrider\n1 Smuggler's Copter", 'Marks deck', null, []);

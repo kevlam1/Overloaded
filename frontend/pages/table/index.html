@@ -86,21 +86,18 @@
         <aside class="side-panels" aria-label="The selected card and your piles">
           <p id="selected-line" class="sr-only" aria-live="polite">Click a card to select it; right-click it for what you can do.</p>
 
-          <section id="piles-section" class="piles-section" aria-labelledby="piles-heading">
-            <h2 id="piles-heading">Your piles</h2>
-            <div class="piles">
-              <div>
-                <h3>Command zone</h3>
-                <div id="command" class="row" data-empty="Empty."></div>
-              </div>
-              <div class="pile-buttons" role="group" aria-label="Look at a pile">
-                <button id="pile-library" type="button" class="secondary" data-zone="library" aria-pressed="false">Library: 0</button>
-                <button id="pile-graveyard" type="button" class="secondary" data-zone="graveyard" aria-pressed="false">Graveyard: 0</button>
-                <button id="pile-exile" type="button" class="secondary" data-zone="exile" aria-pressed="false">Exile: 0</button>
-                <button id="pile-sideboard" type="button" class="secondary" data-zone="sideboard" aria-pressed="false">Sideboard: 0</button>
-              </div>
-            </div>
-                      </section>
+          <section id="piles-section" class="piles-section zones" aria-labelledby="piles-heading">
+          <h2 id="piles-heading" class="sr-only">Your piles and command zone</h2>
+          <div class="zone-stacks" role="group" aria-label="Look at a pile">
+            <button id="pile-library" type="button" data-zone="library" aria-pressed="false">Library: 0</button>
+            <button id="pile-graveyard" type="button" data-zone="graveyard" aria-pressed="false">Graveyard: 0</button>
+            <button id="pile-exile" type="button" data-zone="exile" aria-pressed="false">Exile: 0</button>
+          </div>
+          <div id="command-zone" class="command-zone">
+            <h3>Command zone</h3>
+            <div id="command" class="command-slots"></div>
+          </div>
+        </section>
         </aside>
       </div>
     <div id="viewer" class="viewer-overlay" hidden>
@@ -116,6 +113,7 @@
     </div>
     <div id="settings-menu" class="settings-menu" role="dialog" aria-label="Settings" hidden>
       <h2>Settings</h2>
+      <div class="settings-row"><button id="pile-sideboard" type="button" class="secondary" data-zone="sideboard" aria-pressed="false">Sideboard: 0</button></div>
       <div id="sound-settings"></div>
       <div id="pile-style-settings"></div>
     </div>

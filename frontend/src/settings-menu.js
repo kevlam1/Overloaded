@@ -1,7 +1,7 @@
 // The Settings menu of the table pages: a gear button that opens a small panel next to it (sound, volume, how piles are drawn). It closes with Escape, with a click outside it, or with the
 // button again. The controls inside are mounted by their own modules (sound.js, pile-style.js); this only shows and hides the panel and keeps aria-expanded right.
 export function mountSettingsMenu({ button, panel }) {
-  if (!button || !panel) return;
+  if (!button || !panel) return { close() {} };
   const isOpen = () => !panel.hidden;
   function place() {
     const box = button.getBoundingClientRect();
@@ -25,4 +25,5 @@ export function mountSettingsMenu({ button, panel }) {
     setOpen(false);
   });
   window.addEventListener('resize', () => { if (isOpen()) place(); });
+  return { close: () => { if (isOpen()) setOpen(false); } };
 }
