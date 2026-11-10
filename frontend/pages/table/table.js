@@ -487,7 +487,7 @@ function opponentPanel(uid) {
   if (panel) return panel;
   const section = make('section', 'opponent');
   section.dataset.uid = uid;
-  const board = make('div', 'battlefield'); board.dataset.empty = 'Nothing on the battlefield.';
+  const board = make('div', 'battlefield');
   const command = make('div', 'row'); command.dataset.empty = 'Empty.';
   const graveyard = pileDetails('Graveyard');
   const exile = pileDetails('Exile');

@@ -26,7 +26,7 @@ export function mountBoardDrag({ doc = document, board, onDrop, hand = () => nul
       drag.ghost.remove();
       hand()?.classList.remove('drop-hand');
       drag.highlight.remove();
-      drag.button.classList.remove('dragging');
+      for (const c of drag.carried) c.classList.remove('dragging');
       doc.body.classList.remove('dragging-card');
     }
     drag = null;
@@ -53,11 +53,14 @@ export function mountBoardDrag({ doc = document, board, onDrop, hand = () => nul
     highlight.className = 'cell-highlight';
     highlight.hidden = true;
     boardElement.append(highlight);
-    press.button.classList.add('dragging');
+    // the cards being carried are not shown where they were: the one pressed, and for a whole pile every card of it (the same cell, tapped or not like it)
+    const carried = [press.button];
+    if (press.whole) carried.push(...[...boardElement.querySelectorAll(':scope > .card')].filter((c) => c !== press.button && c.dataset.col === press.button.dataset.col && c.dataset.row === press.button.dataset.row && c.classList.contains('tapped') === press.button.classList.contains('tapped') && c.dataset.stackSize !== undefined));
+    for (const c of carried) c.classList.add('dragging');
     doc.body.classList.add('dragging-card');
     const grab = { x: Math.min(1, Math.max(0, (press.x - rect.left) / (rect.width || 1))), y: Math.min(1, Math.max(0, (press.y - rect.top) / (rect.height || 1))) }; // where on the card it was taken, as fractions
     if (press.whole) ghost.dataset.count = press.button.dataset.stackSize; // the picture says how many cards it carries
-    drag = { button: press.button, uid: press.uid, from: press.from, whole: press.whole, tapped, ghost, highlight, cell: null, overHand: false, width, height, grab, startX: press.x, startY: press.y, start: press.start };
+    drag = { carried, button: press.button, uid: press.uid, from: press.from, whole: press.whole, tapped, ghost, highlight, cell: null, overHand: false, width, height, grab, startX: press.x, startY: press.y, start: press.start };
     press = null;
   };
 

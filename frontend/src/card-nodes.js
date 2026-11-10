@@ -239,6 +239,7 @@ export function makeCardNodes({ onSelect = () => {}, isSelected = () => false, r
           button.dataset.stackSize = String(stack.size);
           button.dataset.stackDepth = String(stack.depth);
           if (stack.depth >= STACK_VISIBLE) button.dataset.stackHidden = '1'; else delete button.dataset.stackHidden;
+          if (stack.depth === 0) button.dataset.stackExt = String(Math.min(stack.size, STACK_VISIBLE) - 1); else delete button.dataset.stackExt;
           if (stack.depth === 0) {
             const badge = count ?? make('span', 'stack-count');
             badge.textContent = `${stack.size}x`;
@@ -254,7 +255,7 @@ export function makeCardNodes({ onSelect = () => {}, isSelected = () => false, r
             button.setAttribute('aria-label', `${button.getAttribute('aria-label')}, top of a stack of ${stack.size}`);
           } else { count?.remove(); button.querySelector(':scope > .stack-handle')?.remove(); }
         } else {
-          delete button.dataset.stackSize; delete button.dataset.stackDepth; delete button.dataset.stackHidden;
+          delete button.dataset.stackSize; delete button.dataset.stackDepth; delete button.dataset.stackHidden; delete button.dataset.stackExt;
           count?.remove();
           button.querySelector(':scope > .stack-handle')?.remove();
         }
