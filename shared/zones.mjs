@@ -529,6 +529,17 @@ export function arrangeBoard(game) {
 // Where each card on the battlefield is drawn: a Map from uid to { col, row } (shared/board-grid.mjs placeAll).
 export const boardCells = (game) => placeAll(game.zones.battlefield, isLandCard);
 
+// Moves every card of one zone to another (the whole graveyard back to the hand, the whole library to the graveyard), keeping their order: the card that was first in the zone goes first (the top of
+// a library it is put on, the first card of a pile it lands in). `position` is 'top' or 'bottom' for a library. A token that leaves the battlefield stops existing, like with any move. Returns a NEW game.
+export function moveAll(game, from, to, { position } = {}) {
+  if (!ZONES.includes(from) || !ZONES.includes(to)) throw new Error('There is no such zone.');
+  if (from === to) return game;
+  const uids = game.zones[from].map((card) => card.uid);
+  // put on TOP one by one means the last one ends up on top, so go through them backwards to keep the first one first
+  const order = (position ?? DEFAULT_POSITION[to]) === 'top' ? [...uids].reverse() : uids;
+  return order.reduce((next, uid) => moveCard(next, uid, to, position ? { position } : {}), game);
+}
+
 export const zoneCounts = (game) => Object.fromEntries(ZONES.map((zone) => [zone, game.zones[zone].length]));
 
 // Is this game consistent? Every card is in exactly one zone, uids are unique, every card has the fields a card needs,
