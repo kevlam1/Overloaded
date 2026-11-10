@@ -478,8 +478,8 @@ body.playing .counters-block { gap: 0.15rem 0.6rem; }
 /* ---- The battlefield grid (Phase B, docs/layout.md; a fine grid since 2026-11-09): 96 columns by 32 rows, the same for every player. A card covers 8 by 8 cells (an eighth of a card is one step) and starts
    on the cell its data-col and data-row say (plain rules, no inline style); cards may overlap and the later card in the page is drawn on top. A card is as big as the smaller side of its 12 by 4
    block so a tapped card (turned on its side) still fits. ---- */
-.battlefield { display: grid; grid-template-columns: repeat(96, minmax(0, 1fr)); grid-template-rows: repeat(32, minmax(0, 1fr)); min-height: 6rem; }
-.battlefield > .card, .battlefield > .cell-highlight { grid-column-end: span 8; grid-row-end: span 8; }
+.battlefield { display: grid; grid-template-columns: repeat(96, minmax(0, 1fr)); grid-template-rows: repeat(44, minmax(0, 1fr)); min-height: 6rem; }
+.battlefield > .card, .battlefield > .cell-highlight { grid-column-end: span 8; grid-row-end: span 11; }
 .battlefield:empty::before { content: attr(data-empty); grid-column: 1 / -1; grid-row: 1 / -1; align-self: center; justify-self: center; color: var(--muted); font-size: 0.75rem; }
 /* the board has the shape of 12 by 4 cards (48 : 22.424 is 12 card widths by 4 card heights), so a block of 8 by 8 cells is exactly one card; it takes the height it is given and is as wide as that makes it (never wider than its box) */
 .battlefield > .card[data-col="0"], .battlefield > .cell-highlight[data-col="0"] { grid-column-start: 1; }
@@ -596,19 +596,36 @@ body.playing .counters-block { gap: 0.15rem 0.6rem; }
 .battlefield > .card[data-row="22"], .battlefield > .cell-highlight[data-row="22"] { grid-row-start: 23; }
 .battlefield > .card[data-row="23"], .battlefield > .cell-highlight[data-row="23"] { grid-row-start: 24; }
 .battlefield > .card[data-row="24"], .battlefield > .cell-highlight[data-row="24"] { grid-row-start: 25; }
-body.playing .battlefield { flex: 1 1 0; min-height: 0; container-type: size; align-self: flex-start; aspect-ratio: 48 / 22.424; max-width: 100%; }
+.battlefield > .card[data-row="25"], .battlefield > .cell-highlight[data-row="25"] { grid-row-start: 26; }
+.battlefield > .card[data-row="26"], .battlefield > .cell-highlight[data-row="26"] { grid-row-start: 27; }
+.battlefield > .card[data-row="27"], .battlefield > .cell-highlight[data-row="27"] { grid-row-start: 28; }
+.battlefield > .card[data-row="28"], .battlefield > .cell-highlight[data-row="28"] { grid-row-start: 29; }
+.battlefield > .card[data-row="29"], .battlefield > .cell-highlight[data-row="29"] { grid-row-start: 30; }
+.battlefield > .card[data-row="30"], .battlefield > .cell-highlight[data-row="30"] { grid-row-start: 31; }
+.battlefield > .card[data-row="31"], .battlefield > .cell-highlight[data-row="31"] { grid-row-start: 32; }
+.battlefield > .card[data-row="32"], .battlefield > .cell-highlight[data-row="32"] { grid-row-start: 33; }
+.battlefield > .card[data-row="33"], .battlefield > .cell-highlight[data-row="33"] { grid-row-start: 34; }
+body.playing .battlefield { flex: 1 1 0; min-height: 0; container-type: size; align-self: flex-start; aspect-ratio: 96 / 44; max-width: 100%; }
 /* debugging: the snap grid drawn on the board. A thin line at every cell (an eighth of a card, the step a card snaps to) and a stronger line at every card (8 cells), so what is stored matches what is seen */
-body.playing .battlefield { background-image: linear-gradient(to right, rgba(255, 255, 255, 0.22) 1px, transparent 1px), linear-gradient(to bottom, rgba(255, 255, 255, 0.22) 1px, transparent 1px), linear-gradient(to right, rgba(255, 255, 255, 0.07) 1px, transparent 1px), linear-gradient(to bottom, rgba(255, 255, 255, 0.07) 1px, transparent 1px); background-size: calc(100% / 12) calc(100% / 4), calc(100% / 12) calc(100% / 4), calc(100% / 96) calc(100% / 32), calc(100% / 96) calc(100% / 32); }
+body.playing .battlefield { background-image: linear-gradient(to right, rgba(255, 255, 255, 0.22) 1px, transparent 1px), linear-gradient(to bottom, rgba(255, 255, 255, 0.22) 1px, transparent 1px), linear-gradient(to right, rgba(255, 255, 255, 0.07) 1px, transparent 1px), linear-gradient(to bottom, rgba(255, 255, 255, 0.07) 1px, transparent 1px); background-size: calc(100% / 12) calc(100% / 4), calc(100% / 12) calc(100% / 4), calc(100% / 96) calc(100% / 44), calc(100% / 96) calc(100% / 44); }
 /* your own board: the section is a size container, so the grid is never taller than its width allows (12 by 4 cards), whatever the window is shaped like */
-body.playing .board.mine { container-type: size; }
-body.playing .board.mine > .battlefield { max-height: calc(100cqw / 2.143); }
+body.playing .board.mine { container-type: size; padding-left: 1.6rem; } /* room for the copies under a pile at the left edge */
+body.playing .board.mine > .battlefield { max-height: calc(100cqw * 44 / 96); }
 /* another player's board sits in a grid area instead of a column: it takes the height of the area and is as wide as the card shape makes it */
 body.playing .opponent .battlefield { flex: none; height: 100%; align-self: start; }
 body.playing .battlefield > .card { justify-self: center; align-self: center; height: calc(min(100cqh / 4, 100cqw / 12 * 1.4015) - 3px); width: calc((min(100cqh / 4, 100cqw / 12 * 1.4015) - 3px) / 1.4015); }
-body.playing .battlefield > .card.tapped { width: calc(min(100cqh / 4, 100cqw / 12 * 1.4015) - 3px); }
+body.playing .battlefield > .card.tapped { width: calc(min(100cqh / 4, 100cqw / 12 * 1.4015) - 3px); height: calc((min(100cqh / 4, 100cqw / 12 * 1.4015) - 3px) / 1.4015); }
 body.playing .battlefield > .card .face { width: 100%; height: 100%; }
 body.playing .battlefield > .card.tapped .face { width: calc((min(100cqh / 4, 100cqw / 12 * 1.4015) - 3px) / 1.4015); height: calc(min(100cqh / 4, 100cqw / 12 * 1.4015) - 3px); }
 body.playing .battlefield > .card.tapped .badges { top: 0.2rem; }
+/* piles (shared/stacks.mjs): up to 4 copies, each one lower and to the right of the one above it (the top card is on its cell), the rest hidden; the top card carries the count */
+.battlefield { --step: calc(100cqw / 12 * 0.11); } /* how far each copy under the top one is shifted: a tenth of a card */
+.battlefield > .card[data-stack-depth="1"] { translate: calc(var(--step) * -1) calc(var(--step) * -1); }
+.battlefield > .card[data-stack-depth="2"] { translate: calc(var(--step) * -2) calc(var(--step) * -2); }
+.battlefield > .card[data-stack-depth="3"] { translate: calc(var(--step) * -3) calc(var(--step) * -3); }
+.battlefield > .card[data-stack-hidden] { display: none; }
+.card .stack-count { position: absolute; top: 0.15rem; right: 0.15rem; padding: 0 0.3rem; border: 1px solid rgba(255, 255, 255, 0.4); border-radius: 0.6rem; background: rgba(20, 20, 26, 0.92); color: #fff; font-size: 0.75rem; font-weight: 700; line-height: 1.1rem; pointer-events: none; }
+body.playing .card .stack-count { font-size: 0.6rem; line-height: 0.9rem; }
 
 /* dragging a card on the battlefield grid (src/board-drag.js): the card follows the pointer, the 8 by 8 cells it would start on are outlined */
 .battlefield { position: relative; }

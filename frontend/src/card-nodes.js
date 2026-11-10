@@ -8,6 +8,7 @@
 // toughness as text ("2/2") or null.
 import { imageUrl } from '../../shared/card-image.mjs';
 import { isLandCard } from '../../shared/zones.mjs';
+import { stackInfo, STACK_VISIBLE } from '../../shared/stacks.mjs';
 import { changeParts, counterChips, marksSentence, markToast, shortNumber, statsOf } from '../../shared/marks.mjs';
 
 function make(tag, className, content) {
@@ -223,13 +224,35 @@ export function makeCardNodes({ onSelect = () => {}, isSelected = () => false, r
     flash: (uid, toast) => { const button = nodes.get(uid); if (button) showToast(button, toast); },
     // battlefield: true for the battlefield grid; only there does your own creature offer its power and toughness box, and each card is put on its cell (cells: a Map from uid to
     // { col, row }, shared/zones.mjs boardCells) with data-col and data-row, which the style sheet turns into a place in the grid; data-kind says land or other (the checks use it).
-    place: (container, cards, { battlefield = false, cells = null } = {}) => container.replaceChildren(...cards.map((card) => {
-      const button = nodeFor(card, battlefield);
-      const cell = battlefield ? cells?.get(card.uid) : null;
-      if (cell) { button.dataset.col = String(cell.col); button.dataset.row = String(cell.row); } else { delete button.dataset.col; delete button.dataset.row; }
-      if (battlefield) button.dataset.kind = isLandCard(card) ? 'land' : 'other'; else delete button.dataset.kind;
-      return button;
-    })),
+    // Cards with the same name and state on one cell are a pile (shared/stacks.mjs): the top one carries the count (a "3x" badge), up to STACK_VISIBLE copies are drawn each a little lower and to the right of
+    // the one above it (data-stack-depth, the style sheet offsets them), and the rest are hidden. Every card is still its own button.
+    place: (container, cards, { battlefield = false, cells = null } = {}) => {
+      const stacks = battlefield && cells ? stackInfo(cards, cells) : null;
+      container.replaceChildren(...cards.map((card) => {
+        const button = nodeFor(card, battlefield);
+        const cell = battlefield ? cells?.get(card.uid) : null;
+        if (cell) { button.dataset.col = String(cell.col); button.dataset.row = String(cell.row); } else { delete button.dataset.col; delete button.dataset.row; }
+        if (battlefield) button.dataset.kind = isLandCard(card) ? 'land' : 'other'; else delete button.dataset.kind;
+        const stack = stacks?.get(card.uid);
+        const count = button.querySelector(':scope > .stack-count');
+        if (stack && stack.size > 1) {
+          button.dataset.stackSize = String(stack.size);
+          button.dataset.stackDepth = String(stack.depth);
+          if (stack.depth >= STACK_VISIBLE) button.dataset.stackHidden = '1'; else delete button.dataset.stackHidden;
+          if (stack.depth === 0) {
+            const badge = count ?? make('span', 'stack-count');
+            badge.textContent = `${stack.size}x`;
+            badge.setAttribute('aria-hidden', 'true');
+            if (!count) button.append(badge);
+            button.setAttribute('aria-label', `${button.getAttribute('aria-label')}, top of a stack of ${stack.size}`);
+          } else count?.remove();
+        } else {
+          delete button.dataset.stackSize; delete button.dataset.stackDepth; delete button.dataset.stackHidden;
+          count?.remove();
+        }
+        return button;
+      }));
+    },
     clear: () => nodes.clear(),
   };
 }
