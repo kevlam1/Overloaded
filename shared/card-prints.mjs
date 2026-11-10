@@ -1,7 +1,7 @@
 // All the printings of one card, for choosing which art a deck uses. Plain JavaScript with no browser or network code, so Node tests can load it (scripts/test-card-prints.mjs).
 //
 // The card list build writes them as small files grouped by card (the per-set files of shared/printings.mjs go the other way, from a set and a number to a card). A card's name picks the file:
-//   /data/prints/XX.json    where XX is the first two characters of the card's key (shared/printings.mjs cardKey), 256 files; a file is { "Sol Ring": [["cmm", "410", "<printing id>"], ...] }
+//   /data/prints/XX.json    where XX is the first two characters of the card's key (shared/printings.mjs cardKey), 256 files; a file is { "Sol Ring": [["cmm", "410", "<printing id>", "2023"], ...] }, the last being the year the printing came out
 //                           the printings newest first, then by set code and number, paper only, English (or the card's other language when it has no English printing), no placeholder pictures
 //   /data/prints/sets.json  { "cmm": ["Commander Masters", "2023-08-04"], ... } the name and release date of every set that appears
 // The name is the card's real English name, as in the card list. A file is only fetched when someone opens a card's printings, and only that one (about 9 KB compressed).
@@ -11,6 +11,7 @@ export const PRINTS_PATH = '/data/prints';
 export const SETS_FILE = 'sets.json';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
+const YEAR = /^\d{4}$/;
 export const MAX_NAME = 200;
 
 // The file a card's printings are in (two hex characters), and its address.
@@ -19,15 +20,15 @@ export const shardUrl = (name) => (typeof name === 'string' && name.length > 0 &
 export const shardFileName = (shard) => (typeof shard === 'string' && /^[0-9a-f]{2}$/.test(shard) ? `${shard}.json` : null);
 export const setsUrl = () => `${PRINTS_PATH}/${SETS_FILE}`;
 
-// One printing row as the page uses it: { set, number, id }, or null for a row that is not one (never trust what came over the network).
+// One printing row as the page uses it: { set, number, id, year }, or null for a row that is not one (never trust what came over the network).
 export function readRow(row) {
-  if (!Array.isArray(row) || row.length !== 3) return null;
-  const [set, number, id] = row;
-  if (typeof set !== 'string' || !SET_CODE.test(set) || typeof number !== 'string' || number.length === 0 || number.length > 30 || /[\s/\\]/.test(number) || typeof id !== 'string' || !UUID.test(id)) return null;
-  return { set, number, id };
+  if (!Array.isArray(row) || row.length !== 4) return null;
+  const [set, number, id, year] = row;
+  if (typeof set !== 'string' || !SET_CODE.test(set) || typeof number !== 'string' || number.length === 0 || number.length > 30 || /[\s/\\]/.test(number) || typeof id !== 'string' || !UUID.test(id) || typeof year !== 'string' || !YEAR.test(year)) return null;
+  return { set, number, id, year };
 }
 
-// The printings of a card from a parsed shard: [{ set, number, id }] in the file's order (newest first), the bad rows dropped; [] when the card is not in it.
+// The printings of a card from a parsed shard: [{ set, number, id, year }] in the file's order (newest first), the bad rows dropped; [] when the card is not in it.
 export function printingsOf(shard, name) {
   if (!shard || typeof shard !== 'object' || Array.isArray(shard) || typeof name !== 'string' || !Object.hasOwn(shard, name) || !Array.isArray(shard[name])) return [];
   return shard[name].map(readRow).filter(Boolean);
@@ -64,7 +65,7 @@ export function validatePrints(prints, { minCards = 20000, minRows = 80000, prev
   if (names.length < minCards) problems.push(`only ${names.length} cards have printings, fewer than the minimum of ${minCards}`);
   if (rows < minRows) problems.push(`only ${rows} printings by card, fewer than the minimum of ${minRows}`);
   if (previousRows && rows < previousRows * (1 - maxShrink)) problems.push(`${rows} printings by card is more than ${maxShrink * 100}% fewer than the last good build (${previousRows})`);
-  if (badRows) problems.push(`${badRows} printing rows are not a set, a number and a printing id`);
+  if (badRows) problems.push(`${badRows} printing rows are not a set, a number, a printing id and a year`);
   if (badNames) problems.push(`${badNames} card names are empty or too long`);
   if (empty) problems.push(`${empty} cards have no printings listed`);
   if (unknownSets) problems.push(`${unknownSets} printings are in a set the sets file does not have`);

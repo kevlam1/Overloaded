@@ -130,7 +130,7 @@ export class PrintingSummary {
     }
     return files;
   }
-  // Every printing of each card in the list, for choosing the art: { sets: { code: [name, first release] }, cards: { name: [[set, number, id], ...] } }. A card's printings are paper ones with a real picture, newest first,
+  // Every printing of each card in the list, for choosing the art: { sets: { code: [name, first release] }, cards: { name: [[set, number, id, year], ...] } }. A card's printings are paper ones with a real picture, newest first,
   // then by set code and number; English ones, or all of them for a card with no English printing. Names and sets are in code-unit order so the same data is always the same bytes. `names` maps an oracle id to the card's name.
   cardPrints(names) {
     const byCard = new Map();
@@ -149,7 +149,7 @@ export class PrintingSummary {
       const rows = [];
       const seenIds = new Set();
       for (const printing of list) {
-        const row = [printing.set, printing.number, printing.id];
+        const row = [printing.set, printing.number, printing.id, printing.released.slice(0, 4)];
         if (seenIds.has(printing.id) || !readRow(row)) continue;
         seenIds.add(printing.id);
         rows.push(row);

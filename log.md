@@ -2657,6 +2657,26 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 128. The printing window shows the pictures (2026-11-10)
+
+**What I asked for**
+- Show the printings as the card pictures instead of a list, in columns of three, ordered by release date with the newest at the top left; a search bar for the card id, set name and set code; and should the explicit "Default printing" go, since the default is probably the latest non-Secret-Lair printing or the cheapest?
+
+**What changed** (`frontend/src/printing-picker.js`, `shared/card-prints.mjs`, `scripts/lib/card-list.mjs`, `style.css`)
+- A grid of three pictures to a row, left to right and then down, newest first. Each is the small picture (about 12 KB), fetched only when it scrolls into view (the browser's lazy loading; 24 of Sol Ring's 133 were fetched on opening), with the set code and number in bold and the set name and year under it. Pointing at one still shows the normal-size picture. The printing in use has a frame and is scrolled into view.
+- Search takes words in any order, all required: set name, set code, collector number, year or a Scryfall id (the start of it or all). "card id" could mean the collector number or the Scryfall id; both work.
+- The "Default printing" row is gone. The printing the card list uses by default carries a small "Default" mark on its picture (when it is one of the printings listed), and "Use the default" in the window's header appears only when a printing was chosen and takes the choice off again.
+- The year shown is now the printing's own, not its set's first year: a printing in The List or a Secret Lair drop came out later than its set's first release, which made the order look wrong. The data rows carry the year (`["cmm","410","<id>","2023"]`), list format 8; the files grew by about 0.14 MB compressed in all (3.21 MB, median file 12.5 KB, largest 32.6 KB), and one card's file plus the sets file is still about 20 KB to open.
+
+**What the default printing is, from the real data (not my guess)**
+- The list's default is Scryfall's own pick for the card (the id in its Oracle Cards file), not the cheapest and not always the latest non-Secret-Lair. Of 33,973 cards: the default is the newest printing for 22,697 and the newest non-SLD printing for 23,046; it is some older printing for the rest (Lightning Bolt's is the 8th newest, Counterspell's the 16th), and for 1,224 cards (3.6%, for example Sol Ring) it is not among the paper printings I list at all. So it cannot be replaced by a rule like "latest non-SLD" without changing which art decks show today; marking it on its picture keeps that visible. Say if you would rather have the rule (or the cheapest, which needs prices I do not have).
+
+**What I checked**
+- The deck page check is 257 (8 new: three columns, newest first, lazy pictures and only a few fetched, search by set name, set code, code plus number, Scryfall id, year plus name, no match, the reset button). Card prints (17), card list (234), card list build (163), `npm test` quick suites; a screenshot at 1920x1080 of Lightning Bolt's printings.
+- **Not checked:** a real Vercel build of the new files, phone width (three columns in a narrow dialog), light mode.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-10, entry 122) Claude's first deck page started a library it could not read at the box to paste into, hiding the message about it; the old check noticed.
 - (2026-11-10, entry 120) Claude's solo check clicked a fixed empty spot that stopped being empty once the graveyard stack moved there, and the failure first looked like a menu bug; a screenshot at the moment of the failure showed the open viewer.
