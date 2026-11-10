@@ -248,7 +248,7 @@ try {
   record("...and her battlefield card is on the cell she stored (column 0, row 33: a land goes to the bottom-left block of the 96 by 44 grid)", JSON.stringify(bobSeesAliceBoard?.cells) === JSON.stringify(['0,33']), JSON.stringify(bobSeesAliceBoard?.cells));
   // Alice drags her card on the grid with the real mouse; the move is saved as one small write and Bob sees the new cell
   {
-    const geo = await alice.eval(`(() => { const b = document.getElementById('battlefield').getBoundingClientRect(); const c = document.querySelector('#battlefield .card').getBoundingClientRect(); return { cw: b.width / 96, ch: b.height / 44, x: c.x + c.width / 2, y: c.y + c.height / 2 }; })()`);
+    const geo = await alice.eval(`(() => { const b = document.getElementById('battlefield').getBoundingClientRect(); const c = document.querySelector('#battlefield .card').getBoundingClientRect(); return { cw: b.width / 112, ch: b.height / 44, x: c.x + c.width / 2, y: c.y + c.height / 2 }; })()`);
     const to = { x: geo.x + 16 * geo.cw, y: geo.y - 11 * geo.ch };
     const mouse = (page, type, p, buttons) => page.send('Input.dispatchMouseEvent', { type, x: p.x, y: p.y, button: type === 'mouseMoved' ? 'none' : 'left', buttons, clickCount: 1 });
     await mouse(alice, 'mouseMoved', geo, 0); await mouse(alice, 'mousePressed', geo, 1);
@@ -351,6 +351,15 @@ try {
   };
   const aliceCard = '#battlefield .card';
   const tappedInDb = async () => { const r = await rest('GET', pathOf('public/battlefield'), cleanup.bob.token); const card = r.json ? Object.values(r.json)[0] : null; return card ? card.x === 1 : null; };
+  // a double click on her card taps it, and again untaps it (saved, and Bob sees it)
+  {
+  // aim at a spot that is the card itself, not a counter (the card is small and has counters by now)
+    const dbl = async () => { const p = await alice.eval(`(() => { const card = document.querySelector('#battlefield .card'); const r = card.getBoundingClientRect(); for (let fy = 0.1; fy < 1; fy += 0.1) for (let fx = 0.9; fx > 0; fx -= 0.1) { const x = r.x + r.width * fx; const y = r.y + r.height * fy; const e = document.elementFromPoint(x, y); if (e && e.closest('.card') === card && !e.closest('[data-mark], [data-badge]')) return { x, y }; } return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`); await alice.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p.x, y: p.y }); for (const n of [1, 2]) { await alice.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: p.x, y: p.y, button: 'left', buttons: 1, clickCount: n }); await alice.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: p.x, y: p.y, button: 'left', buttons: 0, clickCount: n }); } };
+    await dbl();
+    record('a double click on the card of Alice taps it: tapped in the database that Bob can read', Boolean(await waitFor(async () => (await tappedInDb()) === true ? true : null, 15000, 250)));
+    await dbl();
+    record('...and a second double click untaps it again', Boolean(await waitFor(async () => (await tappedInDb()) === false ? true : null, 15000, 250)));
+  }
   await alice.eval(`document.querySelector(${JSON.stringify(aliceCard)}).scrollIntoView({ block: 'center' })`);
   const cardAt = await alice.eval(`(() => { const r = document.querySelector(${JSON.stringify(aliceCard)}).getBoundingClientRect(); return { x: r.x + r.width * 0.85, y: r.y + r.height * 0.06 }; })()`); // the top right corner of the card: the counter chips and the badges are lower or on the left (a card is only 28 pixels wide at 1366x650, so the chips cover most of it)
   if (process.argv.includes('--screenshot')) { await alice.screenshot('scratch-table-alice-before-menu.png'); console.log('card at', JSON.stringify(cardAt), 'window', JSON.stringify(await alice.eval(`({ w: innerWidth, h: innerHeight, rect: document.querySelector(${JSON.stringify(aliceCard)}).getBoundingClientRect().toJSON(), under: (() => { const r = document.querySelector(${JSON.stringify(aliceCard)}).getBoundingClientRect(); const e = document.elementFromPoint(r.x + r.width / 2, r.y + 30); return e ? e.tagName + '.' + e.className : null; })() })`))); }
