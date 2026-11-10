@@ -154,7 +154,7 @@ same('player counters and seats', [PLAYER_COUNTERS, COMMANDER_SEATS], [['poison'
   same('the token is on the battlefield at the end', [made.game.zones.battlefield.length, made.game.zones.battlefield.at(-1).uid], [before + 1, made.uid]);
   same('its uid comes from the game\'s counter and the counter moves on', [made.uid, made.game.nextUid], [`c${game.nextUid}`, game.nextUid + 1]);
   same('what it holds', token, { uid: made.uid, i: id(70), n: 'Goblin', t: 'Token Creature - Goblin', m: '', k: [], tok: true, pt: '1/1', cl: 'R', sick: true, tapped: false, turnEntered: game.turn, px: token.px, py: token.py }); // a creature token comes in summoning sick, and on a cell of the grid
-  check('...whose cell is on the grid', Number.isInteger(token.px) && Number.isInteger(token.py) && token.px >= 0 && token.px < 12 && token.py >= 0 && token.py < 4);
+  check('...whose cell is on the grid', Number.isInteger(token.px) && Number.isInteger(token.py) && token.px >= 0 && token.px <= 88 && token.py >= 0 && token.py <= 24);
   check('the old game is untouched', game.zones.battlefield.length === before && game.nextUid === made.game.nextUid - 1);
   const plain = createToken(game, { n: 'Treasure', i: id(71), tt: 'Token Artifact - Treasure' });
   same('power, toughness and colors are optional and then not stored', ['pt' in cardOf(plain.game, plain.uid), 'cl' in cardOf(plain.game, plain.uid)], [false, false]);
@@ -176,9 +176,9 @@ same('player counters and seats', [PLAYER_COUNTERS, COMMANDER_SEATS], [['poison'
   // a full battlefield
   let full = game;
   while (full.zones.battlefield.length < 48) full = createToken(full, { n: 'Spirit', i: id(73), tt: 'Token Creature - Spirit' }).game;
-  same('the battlefield stops at the 48 cells of the grid', full.zones.battlefield.length, 48);
-  refused('one more token', () => createToken(full, TOKEN), /battlefield is full \(48 cards fit\)/);
-  refused('one more copy', () => copyAsToken(full, ids[0]), /battlefield is full \(48 cards fit\)/);
+  same('48 tokens fill the 48 blocks of the grid', full.zones.battlefield.length, 48);
+  same('one more token is accepted (cards may overlap, nothing is refused)', createToken(full, TOKEN).game.zones.battlefield.length, 49);
+  same('one more copy is accepted too', copyAsToken(full, ids[0]).game.zones.battlefield.length, 49);
   check('a full battlefield is still a consistent game', problemsOf(full).length === 0);
   check('the old game is not changed', (() => { const frozen = deepFreeze(structuredClone(game)); createToken(frozen, TOKEN); copyAsToken(frozen, ids[0]); return true; })());
 }

@@ -193,13 +193,17 @@ export function gameWrites(uid, before, after) {
   for (const key of ['life', 'turn', 'mulligans', 'next']) put(`public/${uid}/${key}`, now.public[key], then?.public[key]);
   for (const zone of PRIVATE_ZONES) put(`public/${uid}/counts/${zone}`, now.public.counts[zone], then?.public.counts[zone]);
   for (const key of ['pc', 'cd', 'pass']) put(`public/${uid}/${key}`, now.public[key] ?? null, then ? (then.public[key] ?? null) : undefined);
-  // A zone is written as ONE piece, except when it holds the same cards in the same places as before (a tap, a counter, a drag on the grid): then only the cards that changed
-  // are written, one small write each (about 100 bytes), not the whole zone.
+  // A zone is written as ONE piece, except when it holds the same number of cards as before and only a few places changed (a tap, a counter, a drag on the grid): then only those
+  // places are written, one small write each (about 100 bytes). A card put on top of the others moves every card after it one place, so that is written as the whole zone.
+  const MAX_PIECES = 4; // more changed places than this and one write of the whole zone is smaller and simpler
   const zoneWrites = (branch, zone, nowList, thenList) => {
     const base = `${branch}/${uid}/${zone}`;
-    if (thenList && nowList.length && thenList.length === nowList.length && nowList.every((card, index) => card.u === thenList[index].u)) {
-      nowList.forEach((card, index) => put(`${base}/${index}`, card, thenList[index]));
-      return;
+    if (thenList && nowList.length && thenList.length === nowList.length) {
+      const changed = nowList.map((card, index) => index).filter((index) => JSON.stringify(nowList[index]) !== JSON.stringify(thenList[index]));
+      if (changed.length <= MAX_PIECES) {
+        changed.forEach((index) => put(`${base}/${index}`, nowList[index], thenList[index]));
+        return;
+      }
     }
     put(base, nowList.length ? nowList : null, then ? (thenList.length ? thenList : null) : undefined);
   };

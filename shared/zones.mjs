@@ -22,7 +22,7 @@
 // pc (poison, energy, experience) and cd (commander damage by seat). docs/tokens-counters.md explains them.
 
 import { scrubText } from './player-name.mjs';
-import { BOARD_CAPACITY, validCell, cellOf, firstEmptyCell, takenCells, cellKey, placeAll, arrangeAll } from './board-grid.mjs';
+import { validCell, cellOf, cellOrder, firstEmptyCell, placeAll, arrangeAll, overlaps } from './board-grid.mjs';
 
 const SCRYFALL_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 export const ZONES = ['library', 'hand', 'battlefield', 'graveyard', 'exile', 'command', 'sideboard'];
@@ -145,14 +145,14 @@ function locate(game, uid) {
   throw new Error('That card is not in the game.');
 }
 
-// A card with a cell on the battlefield: the cell given, or the first empty cell for its kind. Throws, in words, when the board is full.
+// A card with a cell on the battlefield: the cell given, or the first free block for its kind (when every block is covered, the last block tried: cards may overlap, nothing is refused).
 function withCell(game, card, cell = null) {
-  const at = cell ?? firstEmptyCell(game.zones.battlefield, isLandCard(card));
-  if (!at) throw new Error(`The battlefield is full (${BOARD_CAPACITY} cards fit). Move a card off it first.`);
+  const land = isLandCard(card);
+  const at = cell ?? firstEmptyCell(game.zones.battlefield, land) ?? cellOrder(land).at(-1);
   return { ...card, px: at.col, py: at.row };
 }
 
-// Moves one card to a zone. position: 'top' or 'bottom' of that pile (see DEFAULT_POSITION). cell: where on the battlefield grid it goes if it is moved there ({ col, row }; refused if it is taken). A card that leaves the
+// Moves one card to a zone. position: 'top' or 'bottom' of that pile (see DEFAULT_POSITION). cell: where on the battlefield grid its top-left corner goes if it is moved there ({ col, row }; cards may overlap). A card that leaves the
 // battlefield is untapped; one that arrives there remembers the turn it arrived.
 export function moveCard(game, uid, to, { position, cell = null } = {}) {
   if (!ZONES.includes(to)) throw new Error(`There is no zone called ${to}.`);
@@ -169,7 +169,6 @@ export function moveCard(game, uid, to, { position, cell = null } = {}) {
   if (to === 'battlefield' && from !== 'battlefield' && entersSick(moved)) moved.sick = true; // a creature that comes in is summoning sick, unless it has printed haste
   if (to === 'battlefield' && from !== 'battlefield') { // it takes the cell it was dropped on, or the first empty cell (lands from the bottom-left, the rest from the top-left)
     if (cell && !validCell(cell.col, cell.row)) throw new Error('That is not a space on the battlefield.');
-    if (cell && takenCells(game.zones.battlefield).has(cellKey(cell.col, cell.row))) throw new Error('That space is taken.');
     Object.assign(moved, withCell(game, moved, cell));
   }
   zones[to] = where === 'top' ? [moved, ...zones[to]] : [...zones[to], moved];
@@ -405,7 +404,7 @@ export function battlefieldRows(game) {
 }
 
 // ---- the battlefield grid (shared/board-grid.mjs, docs/layout.md) ----
-// Gives every card on the battlefield the cell it is drawn in: a card keeps a good cell, and one with none (an older game) or a taken one gets the first empty cell for its
+// Gives every card on the battlefield the cell it is drawn in: a card keeps a good cell, and one with none (an older game) gets the first free block for its
 // kind. Returns the same game object when nothing had to change, so a page does not save a game it did not alter.
 export function settleBoard(game) {
   const cells = placeAll(game.zones.battlefield, isLandCard);
@@ -419,17 +418,22 @@ export function settleBoard(game) {
   return changed ? { ...game, zones: { ...game.zones, battlefield } } : game;
 }
 
-// Puts a card on the battlefield on a cell. An empty cell: the card moves there. A cell another card holds: the two swap places. Returns { game, swapped } where swapped is the uid
-// of the card it swapped with, or null.
+// Puts a card on the battlefield with its top-left corner on a cell. Other cards may be there: they overlap. A card later in the battlefield list is drawn on top, so the placed card
+// goes to the end of the list only when it now covers a card that comes after it (it must be above that card); otherwise it keeps its place in the list, which makes the common case, a
+// card moved to free space, one small write instead of a rewrite of the whole battlefield. Returns { game, swapped } where swapped is always null (cards no longer swap places; the
+// field stays so callers need no change). A card dropped on the cell it is already on is not changed.
 export function placeCard(game, uid, col, row) {
   if (!validCell(col, row)) throw new Error('That is not a space on the battlefield.');
   const settled = settleBoard(game);
   const { card } = onBattlefield(settled, uid, 'a place on the grid');
   const here = cellOf(card);
   if (here.col === col && here.row === row) return { game: settled, swapped: null };
-  const other = settled.zones.battlefield.find((c) => c.uid !== uid && c.px === col && c.py === row) ?? null;
-  const battlefield = settled.zones.battlefield.map((c) => (c.uid === uid ? { ...c, px: col, py: row } : other && c.uid === other.uid ? { ...c, px: here.col, py: here.row } : c));
-  return { game: { ...settled, zones: { ...settled.zones, battlefield } }, swapped: other ? other.uid : null };
+  const list = settled.zones.battlefield;
+  const index = list.findIndex((c) => c.uid === uid);
+  const moved = { ...card, px: col, py: row };
+  const coversALaterCard = list.slice(index + 1).some((c) => overlaps({ col, row }, { col: c.px, row: c.py }));
+  const battlefield = coversALaterCard ? [...list.filter((c) => c.uid !== uid), moved] : list.map((c) => (c.uid === uid ? moved : c));
+  return { game: { ...settled, zones: { ...settled.zones, battlefield } }, swapped: null };
 }
 
 // Tidies the battlefield: every card placed again, lands from the bottom-left and the rest from the top-left, cards of the same name side by side.
@@ -451,7 +455,6 @@ export function checkGame(game) {
   const problems = [];
   if (!game || typeof game !== 'object' || !game.zones) return ['not a game'];
   const seen = new Set();
-  const cellsUsed = new Set();
   for (const zone of ZONES) {
     if (!Array.isArray(game.zones[zone])) { problems.push(`zone ${zone} is not a list`); continue; }
     for (const card of game.zones[zone]) {
@@ -462,7 +465,6 @@ export function checkGame(game) {
       if (zone !== 'battlefield' && (card.tapped || card.turnEntered !== null)) problems.push(`card ${card.uid} is tapped or has an entry turn outside the battlefield`);
       if (zone === 'battlefield' && !Number.isInteger(card.turnEntered)) problems.push(`battlefield card ${card.uid} has no entry turn`);
       if (zone === 'battlefield' && ('px' in card || 'py' in card) && !validCell(card.px, card.py)) problems.push(`battlefield card ${card.uid} has a cell that is not on the grid`);
-      if (zone === 'battlefield' && validCell(card.px, card.py)) { if (cellsUsed.has(cellKey(card.px, card.py))) problems.push(`battlefield card ${card.uid} is on a cell another card is on`); cellsUsed.add(cellKey(card.px, card.py)); }
       if (zone !== 'battlefield') {
         for (const key of [...BATTLEFIELD_STATE, 'tok', 'pt', 'cl']) if (key in card) problems.push(`card ${card.uid} has ${key} outside the battlefield`);
       }

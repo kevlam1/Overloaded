@@ -1,15 +1,22 @@
-// The battlefield grid (Kevin, 2026-11-06, docs/layout.md "Phase B"). Plain logic with no browser or network code, so Node tests can load it (scripts/test-board-grid.mjs).
+// The battlefield grid (Kevin, 2026-11-06, docs/layout.md "Phase B"; redone 2026-11-09 as a fine grid). Plain logic with no browser or network code, so Node tests can load it
+// (scripts/test-board-grid.mjs).
 //
-// A battlefield is one grid of BOARD_COLS columns by BOARD_ROWS rows, the same for every player. A card on the battlefield is in one cell: it stores px (the column, 0 to
-// BOARD_COLS - 1) and py (the row, 0 at the top). Positions are stored when a card arrives, so a card never moves because another one was placed. A card with no position
-// (an older game, or a damaged value) is given one when the board is drawn or the game is loaded: the first empty cell, lands from the bottom-left and every other card from
-// the top-left, which keeps a loose order without two labelled sections.
-export const BOARD_COLS = 12;
-export const BOARD_ROWS = 4;
-export const BOARD_CAPACITY = BOARD_COLS * BOARD_ROWS;
+// A battlefield is a grid of BOARD_COLS columns by BOARD_ROWS rows, the same for every player. A card is CARD_COLS cells wide and CARD_ROWS cells tall (an eighth-card step in
+// each direction), so there are 12 by 4 card-sized blocks, but a card may sit on ANY cell where it still fits: it stores px (the column of its top-left cell, 0 to MAX_COL) and
+// py (the row, 0 at the top, 0 to MAX_ROW). Cards may overlap; the card later in the battlefield list is drawn on top. Positions are stored when a card arrives or is moved, so a
+// card never moves because another one was placed. A card with no position (an older game, or a damaged value) is given one when the board is drawn or the game is loaded: the
+// first free block, lands from the bottom-left and every other card from the top-left, which keeps a loose order without two labelled sections. If every block is taken the card
+// goes on top of the last one tried: nothing is refused.
+export const BOARD_COLS = 96;
+export const BOARD_ROWS = 32;
+export const CARD_COLS = 8;
+export const CARD_ROWS = 8;
+export const MAX_COL = BOARD_COLS - CARD_COLS; // the last column a card can start in
+export const MAX_ROW = BOARD_ROWS - CARD_ROWS; // the last row a card can start in
+export const BOARD_CAPACITY = (BOARD_COLS / CARD_COLS) * (BOARD_ROWS / CARD_ROWS); // 48 blocks: how many cards fit side by side without overlapping
 
 const whole = (value) => Number.isInteger(value);
-export const validCell = (col, row) => whole(col) && whole(row) && col >= 0 && col < BOARD_COLS && row >= 0 && row < BOARD_ROWS;
+export const validCell = (col, row) => whole(col) && whole(row) && col >= 0 && col <= MAX_COL && row >= 0 && row <= MAX_ROW;
 export const cellKey = (col, row) => `${col},${row}`;
 
 // The cell a card is stored in, or null when it has none (or a value outside the grid).
@@ -17,17 +24,21 @@ export function cellOf(card) {
   return validCell(card?.px, card?.py) ? { col: card.px, row: card.py } : null;
 }
 
-// The cells in the order a new card tries them. Lands: the bottom row from the left, then the row above, and so on up. Everything else: the top row from the left, then down.
+// The blocks in the order a new card tries them. Lands: the bottom row of blocks from the left, then the row above, and so on up. Everything else: the top row from the left, then down.
 export function cellOrder(land) {
   const order = [];
-  for (let step = 0; step < BOARD_ROWS; step++) {
-    const row = land ? BOARD_ROWS - 1 - step : step;
-    for (let col = 0; col < BOARD_COLS; col++) order.push({ col, row });
+  const rows = BOARD_ROWS / CARD_ROWS;
+  for (let step = 0; step < rows; step++) {
+    const row = (land ? rows - 1 - step : step) * CARD_ROWS;
+    for (let col = 0; col <= MAX_COL; col += CARD_COLS) order.push({ col, row });
   }
   return order;
 }
 
-// The set of cells that are taken, from the cards' stored cells. A second card on the same cell does not take another one (it will be moved when the board is settled).
+// Do two cards starting at these cells overlap? (They do unless they are a whole card apart in one direction.)
+export const overlaps = (a, b) => Math.abs(a.col - b.col) < CARD_COLS && Math.abs(a.row - b.row) < CARD_ROWS;
+
+// The cells cards are on, from their stored cells (a card with no valid cell is not counted).
 export function takenCells(cards) {
   const taken = new Map();
   for (const card of cards) {
@@ -37,54 +48,55 @@ export function takenCells(cards) {
   return taken;
 }
 
-// The first empty cell for a new card of this kind, or null when the board is full. cards: the cards already on the battlefield.
+const freeBlock = (order, placed) => order.find((block) => !placed.some((cell) => overlaps(block, cell))) ?? null;
+
+// The first block no card covers, for a new card of this kind, or null when every block is covered. cards: the cards already on the battlefield.
 export function firstEmptyCell(cards, land) {
-  const taken = takenCells(cards);
-  return cellOrder(land).find((cell) => !taken.has(cellKey(cell.col, cell.row))) ?? null;
+  const placed = cards.map(cellOf).filter(Boolean);
+  return freeBlock(cellOrder(land), placed);
 }
 
-// The cell every card is drawn in: a card keeps its stored cell if it is valid and no earlier card has it; every other card gets the first empty cell for its kind, in the
-// order the cards are listed. Returns a Map from uid to { col, row }. A card for which there is no room (more than BOARD_CAPACITY cards) is put on the last cell so it is still
-// shown; that only happens for a damaged or very old game.
+// The cell every card is drawn in: a card keeps its stored cell when it is on the grid (overlapping is allowed); every other card gets the first free block for its kind, in the
+// order the cards are listed, or, when every block is covered, the last block tried. Returns a Map from uid to { col, row }.
 export function placeAll(cards, isLand) {
   const result = new Map();
-  const taken = new Set();
+  const placed = [];
   for (const card of cards) {
     const cell = cellOf(card);
-    if (cell && !taken.has(cellKey(cell.col, cell.row))) { taken.add(cellKey(cell.col, cell.row)); result.set(card.uid, cell); }
+    if (cell) { placed.push(cell); result.set(card.uid, cell); }
   }
   const orders = { land: cellOrder(true), other: cellOrder(false) };
   for (const card of cards) {
     if (result.has(card.uid)) continue;
-    const cell = orders[isLand(card) ? 'land' : 'other'].find((c) => !taken.has(cellKey(c.col, c.row))) ?? { col: BOARD_COLS - 1, row: BOARD_ROWS - 1 };
-    taken.add(cellKey(cell.col, cell.row));
+    const order = orders[isLand(card) ? 'land' : 'other'];
+    const cell = freeBlock(order, placed) ?? order[order.length - 1];
+    placed.push(cell);
     result.set(card.uid, cell);
   }
   return result;
 }
 
 // Tidying the board: every card is placed again by the rule above, lands from the bottom-left and the rest from the top-left, with cards of the same name side by side (by name,
-// then in the order they came). Returns a Map from uid to { col, row }. Needs at most BOARD_CAPACITY cards.
+// then in the order they came). Returns a Map from uid to { col, row }. With more than BOARD_CAPACITY cards the extra ones go on top of the first blocks again.
 export function arrangeAll(cards, isLand) {
-  if (cards.length > BOARD_CAPACITY) throw new Error(`Only ${BOARD_CAPACITY} cards fit on the battlefield.`);
   const number = (card) => Number(String(card.uid).slice(1)) || 0;
   const byName = (a, b) => (a.n < b.n ? -1 : a.n > b.n ? 1 : number(a) - number(b));
   const lands = cards.filter((card) => isLand(card)).sort(byName);
   const other = cards.filter((card) => !isLand(card)).sort(byName);
   const result = new Map();
-  const taken = new Set();
+  const placed = [];
   for (const [group, land] of [[lands, true], [other, false]]) {
     const order = cellOrder(land);
-    for (const card of group) {
-      const cell = order.find((c) => !taken.has(cellKey(c.col, c.row)));
-      taken.add(cellKey(cell.col, cell.row));
+    group.forEach((card, index) => {
+      const cell = freeBlock(order, placed) ?? order[index % order.length];
+      placed.push(cell);
       result.set(card.uid, cell);
-    }
+    });
   }
   return result;
 }
 
-// The cell under a point, for a board drawn in a rectangle { left, top, width, height } (window coordinates, as getBoundingClientRect gives them); null outside it.
+// The raw cell under a point, for a board drawn in a rectangle { left, top, width, height } (window coordinates, as getBoundingClientRect gives them); null outside it.
 export function cellAtPoint(rect, x, y) {
   if (!rect || !(rect.width > 0) || !(rect.height > 0) || !Number.isFinite(x) || !Number.isFinite(y)) return null;
   const fx = (x - rect.left) / rect.width;
@@ -93,7 +105,23 @@ export function cellAtPoint(rect, x, y) {
   return { col: Math.floor(fx * BOARD_COLS), row: Math.floor(fy * BOARD_ROWS) };
 }
 
-// The cell one step from a cell in a direction ('left', 'right', 'up', 'down'), or null at the edge of the grid.
+// Where a card dropped with the pointer at (x, y) goes: the cell its top-left corner gets so that the pointer is in the middle of the card, kept on the board. Null outside the board.
+export function anchorAtPoint(rect, x, y) {
+  const cell = cellAtPoint(rect, x, y);
+  if (!cell) return null;
+  return { col: Math.min(MAX_COL, Math.max(0, cell.col - CARD_COLS / 2)), row: Math.min(MAX_ROW, Math.max(0, cell.row - CARD_ROWS / 2)) };
+}
+
+// Where a card that started on cell `start` goes when the pointer has moved dx and dy pixels since it was grabbed: the same number of cells (rounded), kept on the board. Moving by
+// the distance travelled, not to the pointer, keeps the spot where the card was grabbed under the pointer. Null when the board has no size or a number is not finite.
+export function shiftedAnchor(rect, start, dx, dy) {
+  if (!rect || !(rect.width > 0) || !(rect.height > 0) || !Number.isFinite(dx) || !Number.isFinite(dy) || !start) return null;
+  const col = start.col + Math.round(dx / (rect.width / BOARD_COLS));
+  const row = start.row + Math.round(dy / (rect.height / BOARD_ROWS));
+  return { col: Math.min(MAX_COL, Math.max(0, col)), row: Math.min(MAX_ROW, Math.max(0, row)) };
+}
+
+// The cell one step (one eighth of a card) from a cell in a direction ('left', 'right', 'up', 'down'), or null at the edge of the grid.
 export function stepFrom(cell, direction) {
   const next = { left: { col: cell.col - 1, row: cell.row }, right: { col: cell.col + 1, row: cell.row }, up: { col: cell.col, row: cell.row - 1 }, down: { col: cell.col, row: cell.row + 1 } }[direction];
   return next && validCell(next.col, next.row) ? next : null;
