@@ -2700,6 +2700,21 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 130. The pictures and the stacks fill the width (2026-11-10)
+
+**What I asked for**
+- Eight columns is good, but the cards must be larger to fill the space (that was why I wanted fewer columns), and the stacks view should be spread out too.
+
+**What changed** (`style.css`, `deck-groups.js`)
+- My cap of 10 rem a picture, put there to keep the small pictures sharp, left the row short; it is gone. The picture view and the stacks are now eight columns that share the whole width of the page (six, four and three on narrower windows), and the deck page may use up to 120 rem, so on a 1920 window each card is about 222 px wide. In the stacks the strip of each card that shows is 15% of its width (it was a fixed 1.5 rem), so the names stay readable as the cards grow, and the gaps between stacks are wider.
+- **Sharper pictures, and what they cost:** a tile now offers the browser two pictures: the small one (146 px, 12 KB) for a tile up to 190 px wide, and the normal one (488 px, 71 KB) for a wider tile. On 1920 it picks the normal one (39 of 39 loaded ones in my run), on a 1280 window the small one. So the sharp cards on a big window cost about six times the bytes per card; they still load only as they scroll into view (about 40 at a time), and only in the pictures and stacks views. If you would rather keep the small ones everywhere, it is one line.
+
+**What I checked**
+- The deck page check is 264 (2 new at 1920: the stacks in eight columns of cards 200 px or more wide with the last at the right edge, and the pictures filling the row with the normal-size picture picked; the old width cap check became "the row fills the width"). Screenshots at 1920x1080 of the pictures and of the stacks.
+- **Not checked:** a 2560 window (the page stops at 120 rem, so the cards stop growing at about 1920 wide), phone width, light mode.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-10, entry 122) Claude's first deck page started a library it could not read at the box to paste into, hiding the message about it; the old check noticed.
 - (2026-11-10, entry 120) Claude's solo check clicked a fixed empty spot that stopped being empty once the graveyard stack moved there, and the failure first looked like a menu bug; a screenshot at the moment of the failure showed the open viewer.

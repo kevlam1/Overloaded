@@ -120,6 +120,12 @@ function tile(line, withMenu) {
     image.decoding = 'async';
     image.draggable = false;
     image.addEventListener('error', fallback);
+    // The small picture (146 px wide, 12 KB) serves a tile up to 190 px wide (stretched at most 1.3 times); a wider tile gets the normal one (488 px, 71 KB), chosen by the browser from the width the tile will have. So the pictures are sharp on a large window and cost the least on a smaller one. (The 190w is the width the small picture is allowed to stand for, not its real width.)
+    const normal = imageUrl(line.printingId ?? line.card.i, 'normal');
+    if (normal) {
+      image.srcset = `${url} 190w, ${normal} 488w`;
+      image.sizes = '(max-width: 520px) calc((100vw - 3rem) / 3), (max-width: 800px) calc((100vw - 3rem) / 4), (max-width: 1100px) calc((100vw - 3rem) / 6), calc((100vw - 4rem) / 8)';
+    }
     image.src = url;
     picture.append(image);
   } else {
