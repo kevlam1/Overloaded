@@ -175,7 +175,7 @@ same('player counters and seats', [PLAYER_COUNTERS, COMMANDER_SEATS], [['poison'
   ]) refused(`a token with ${label}`, () => createToken(game, spec), words);
   // a full battlefield
   let full = game;
-  while (full.zones.battlefield.length < 48) full = createToken(full, { n: 'Spirit', i: id(73), tt: 'Token Creature - Spirit' }).game;
+  while (full.zones.battlefield.length < 48) full = createToken(full, { n: 'Spirit ' + full.zones.battlefield.length, i: id(73), tt: 'Token Creature - Spirit' }).game; // different names, so they do not stack
   same('48 tokens fill the 48 blocks of the grid', full.zones.battlefield.length, 48);
   same('one more token is accepted (cards may overlap, nothing is refused)', createToken(full, TOKEN).game.zones.battlefield.length, 49);
   same('one more copy is accepted too', copyAsToken(full, ids[0]).game.zones.battlefield.length, 49);

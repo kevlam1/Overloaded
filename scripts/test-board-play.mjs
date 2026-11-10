@@ -1,11 +1,12 @@
 // Tests for playing cards on the battlefield grid in shared/zones.mjs (cells, drops, overlapping, tidying, older games, a crowded board) and for how the cells are stored and written
 // (shared/game-sync.mjs): a drag writes one small piece, not the whole battlefield. The grid itself is tested in test-board-grid.mjs.
-// The grid is 96 by 32 cells and a card is 8 by 8 (an eighth-card step); cards may overlap and the card later in the battlefield list is drawn on top.
+// The grid is 96 by 44 square cells and a card is 8 wide and 11 tall; cards may overlap and the card later in the battlefield list is drawn on top.
 import {
   makeGame, moveCard, draw, createToken, copyAsToken, changeCounter, setTapped, placeCard, arrangeBoard, settleBoard, boardCells, checkGame, seededRandom, ZONES,
 } from '../shared/zones.mjs';
 import { packCard, unpackCard, gameWrites, joinGame, splitGame, readPublic } from '../shared/game-sync.mjs';
 import { BOARD_CAPACITY, validCell, overlaps } from '../shared/board-grid.mjs';
+import { stackKey } from '../shared/stacks.mjs';
 
 let checks = 0;
 const fail = (label, detail) => { console.log(`FAILED CHECK: ${label}: ${detail}`); process.exit(1); };
@@ -36,6 +37,8 @@ const cellOfCard = (card) => (card && validCell(card.px, card.py) ? [card.px, ca
 // the first card of the hand that is (or is not) a land
 const handCard = (game, land) => game.zones.hand.find((card) => /Land/.test(card.t) === land);
 const everyCardHasACell = (game) => game.zones.battlefield.every((card) => validCell(card.px, card.py));
+// two cards either share a cell exactly (and then are one stack: the same name and state) or do not overlap at all
+const noPartialOverlap = (game) => game.zones.battlefield.every((a, i) => game.zones.battlefield.every((b, j) => i === j || (a.px === b.px && a.py === b.py ? stackKey(a) === stackKey(b) : !overlaps({ col: a.px, row: a.py }, { col: b.px, row: b.py }))));
 const noOverlap = (game) => game.zones.battlefield.every((a, i) => game.zones.battlefield.every((b, j) => i === j || !overlaps({ col: a.px, row: a.py }, { col: b.px, row: b.py })));
 
 // ---- a card entering the battlefield gets a cell ----
@@ -45,26 +48,28 @@ const noOverlap = (game) => game.zones.battlefield.every((a, i) => game.zones.ba
   check('the test hand has a land and a spell', Boolean(land && spell));
   check('a card in the hand has no cell', !('px' in land) && !('py' in land));
   game = moveCard(game, land.uid, 'battlefield');
-  same('the first land goes to the bottom-left block', cellOfCard(cardOf(game, land.uid)), [0, 24]);
+  same('the first land goes to the bottom-left block', cellOfCard(cardOf(game, land.uid)), [0, 33]);
   game = moveCard(game, spell.uid, 'battlefield');
   same('the first other card goes to the top-left block', cellOfCard(cardOf(game, spell.uid)), [0, 0]);
   const land2 = handCard(game, true);
   game = moveCard(game, land2.uid, 'battlefield');
-  same('the next land goes beside the first, a whole card away', cellOfCard(cardOf(game, land2.uid)), [8, 24]);
+  same('a second Forest joins the first one (same name, same state): the same cell, a pile of two', cellOfCard(cardOf(game, land2.uid)), [0, 33]);
+  game = createToken(game, LAND_TOKEN).game;
+  same('a land with another name goes beside the pile, a whole card away', cellOfCard(game.zones.battlefield.at(-1)), [8, 33]);
   same('the move leaves a consistent game', checkGame(game), []);
-  same('boardCells gives the same cells', [...boardCells(game)].map(([uid, c]) => [uid, c.col, c.row]).sort(), [[land.uid, 0, 24], [land2.uid, 8, 24], [spell.uid, 0, 0]].sort());
+  same('boardCells gives the same cells', [...boardCells(game)].map(([uid, c]) => [uid, c.col, c.row]).sort(), [[land.uid, 0, 33], [land2.uid, 0, 33], [spell.uid, 0, 0], [game.zones.battlefield.at(-1).uid, 8, 33]].sort());
 
   // a drop on a chosen cell
   const spell2 = handCard(game, false);
   const dropped = moveCard(game, spell2.uid, 'battlefield', { cell: { col: 52, row: 12 } });
   same('a card dropped on a cell goes there', cellOfCard(cardOf(dropped, spell2.uid)), [52, 12]);
-  const onTop = moveCard(game, spell2.uid, 'battlefield', { cell: { col: 0, row: 24 } });
-  same('a card dropped on a card is allowed: both stay, they overlap, and the new one is later in the list (drawn on top)', [cellOfCard(cardOf(onTop, spell2.uid)), cellOfCard(cardOf(onTop, land.uid)), onTop.zones.battlefield.at(-1).uid === spell2.uid], [[0, 24], [0, 24], true]);
-  same('a card dropped half over another is allowed too', cellOfCard(cardOf(moveCard(game, spell2.uid, 'battlefield', { cell: { col: 4, row: 22 } }), spell2.uid)), [4, 22]);
-  for (const [label, cell] of [['outside the grid (column 89: the card would run off the edge)', { col: 89, row: 0 }], ['outside the grid (row 25)', { col: 0, row: 25 }], ['a negative column', { col: -1, row: 0 }], ['a fraction', { col: 1.5, row: 0 }], ['text', { col: '1', row: '1' }]]) {
+  const onTop = moveCard(game, spell2.uid, 'battlefield', { cell: { col: 0, row: 33 } });
+  same('a card dropped on a card is allowed: both stay, they overlap, and the new one is later in the list (drawn on top)', [cellOfCard(cardOf(onTop, spell2.uid)), cellOfCard(cardOf(onTop, land.uid)), onTop.zones.battlefield.at(-1).uid === spell2.uid], [[0, 33], [0, 33], true]);
+  same('a card dropped half over another is allowed too', cellOfCard(cardOf(moveCard(game, spell2.uid, 'battlefield', { cell: { col: 4, row: 30 } }), spell2.uid)), [4, 30]);
+  for (const [label, cell] of [['outside the grid (column 89: the card would run off the edge)', { col: 89, row: 0 }], ['outside the grid (row 34)', { col: 0, row: 34 }], ['a negative column', { col: -1, row: 0 }], ['a fraction', { col: 1.5, row: 0 }], ['text', { col: '1', row: '1' }]]) {
     refused(`a drop ${label} is refused, in words`, () => moveCard(game, spell2.uid, 'battlefield', { cell }), /not a space on the battlefield/);
   }
-  same('the refused drops changed nothing', game.zones.battlefield.length, 3);
+  same('the refused drops changed nothing', game.zones.battlefield.length, 4);
 
   // leaving the battlefield takes the cell away
   const back = moveCard(game, spell.uid, 'hand');
@@ -73,8 +78,10 @@ const noOverlap = (game) => game.zones.battlefield.every((a, i) => game.zones.ba
   same('and takes the first free block when it comes back', cellOfCard(cardOf(again, spell.uid)), [0, 0]);
   check('a block is free again when its card leaves', cellOfCard(cardOf(moveCard(moveCard(game, spell.uid, 'graveyard'), spell2.uid, 'battlefield'), spell2.uid)).join() === '0,0');
   const overlapped = moveCard(game, spell2.uid, 'battlefield', { cell: { col: 4, row: 0 } });
+  const made = createToken(overlapped, { ...TOKEN, n: 'Spirit' });
+  same('a new card of another name skips the blocks that the cards at (0, 0) and (4, 0) cover', cellOfCard(cardOf(made.game, made.uid)), [16, 0]);
   const third = handCard(overlapped, false);
-  same('a new card skips a block that a card half over it covers', cellOfCard(cardOf(moveCard(overlapped, third.uid, 'battlefield'), third.uid)), [16, 0]);
+  same('a new Goblin Guide joins the Goblin Guide that is already there (same name and state) instead of taking a block', cellOfCard(cardOf(moveCard(overlapped, third.uid, 'battlefield'), third.uid)), [0, 0]);
 }
 
 // ---- tokens and copies ----
@@ -83,9 +90,9 @@ const noOverlap = (game) => game.zones.battlefield.every((a, i) => game.zones.ba
   const made = createToken(game, TOKEN);
   same('a token goes to the first free block for other cards', cellOfCard(cardOf(made.game, made.uid)), [0, 0]);
   const landToken = createToken(made.game, LAND_TOKEN);
-  same('a land token goes to the bottom-left like a land', cellOfCard(cardOf(landToken.game, landToken.uid)), [0, 24]);
+  same('a land token goes to the bottom-left like a land', cellOfCard(cardOf(landToken.game, landToken.uid)), [0, 33]);
   const copied = copyAsToken(landToken.game, made.uid);
-  same('a copy takes the next free block for its kind', cellOfCard(cardOf(copied.game, copied.uid)), [8, 0]);
+  same('a copy of a token joins the pile of the token (same name and state)', cellOfCard(cardOf(copied.game, copied.uid)), [0, 0]);
   check('a token that leaves the battlefield is gone, and its block is free', cardOf(moveCard(copied.game, made.uid, 'hand'), made.uid) === undefined && cellOfCard(cardOf(createToken(moveCard(copied.game, made.uid, 'hand'), TOKEN).game, 'c' + (copied.game.nextUid))) !== null);
   same('everything is consistent', checkGame(copied.game), []);
 }
@@ -115,7 +122,7 @@ const noOverlap = (game) => game.zones.battlefield.every((a, i) => game.zones.ba
   same('placing the later card where it half covers the other changes no list order', result.game.zones.battlefield.map((c) => c.uid), [a.uid, second.uid]);
   {
     // three cards: the middle one dropped on the first stays in the middle of the list (it is already above it), and dropped on the last goes to the end
-    let three = game; three = moveCard(three, handCard(three, false).uid, 'battlefield');
+    let three = createToken(game, { ...TOKEN, n: 'Spirit' }).game; // three cards with different names, so each has its own cell
     const [first, middle, lastOne] = three.zones.battlefield;
     same('the middle card dropped on an earlier card keeps its place in the list', placeCard(three, middle.uid, first.px, first.py).game.zones.battlefield.map((c) => c.uid), [first.uid, middle.uid, lastOne.uid]);
     same('the middle card dropped on a later card goes to the end', placeCard(three, middle.uid, lastOne.px, lastOne.py).game.zones.battlefield.map((c) => c.uid), [first.uid, lastOne.uid, middle.uid]);
@@ -155,12 +162,12 @@ const noOverlap = (game) => game.zones.battlefield.every((a, i) => game.zones.ba
     same('...and so is one with the right row and an impossible column', [colWrong.px, colWrong.py], [0, 0]);
     const nearEdge = settleBoard(lone(spell, { px: 89, py: 0 })).zones.battlefield[0];
     same('...and one that would run off the right edge', [nearEdge.px, nearEdge.py], [0, 0]);
-    same('boardCells puts a land that has no cell on the bottom row and a spell on the top row', [...boardCells({ ...game, zones: { ...game.zones, battlefield: [{ ...land, tapped: false, turnEntered: 1 }, { ...spell, tapped: false, turnEntered: 1 }] } })].map(([, c]) => [c.col, c.row]), [[0, 24], [0, 0]]);
+    same('boardCells puts a land that has no cell on the bottom row and a spell on the top row', [...boardCells({ ...game, zones: { ...game.zones, battlefield: [{ ...land, tapped: false, turnEntered: 1 }, { ...spell, tapped: false, turnEntered: 1 }] } })].map(([, c]) => [c.col, c.row]), [[0, 33], [0, 0]]);
     const shared = lone(spell, { px: 4, py: 2 });
     const doubled = { ...shared, zones: { ...shared.zones, hand: shared.zones.hand.filter((c) => c.uid !== land.uid), battlefield: [shared.zones.battlefield[0], { ...land, tapped: false, turnEntered: 1, px: 4, py: 2 }] } };
     same('checkGame accepts two cards on one cell (they overlap)', checkGame(doubled), []);
     check('checkGame reports a cell that is not on the grid', checkGame(lone(spell, { px: 99, py: 0 })).some((p) => /not on the grid/.test(p)) && checkGame(lone(spell, { px: 2 })).some((p) => /not on the grid/.test(p)) && checkGame(lone(spell, { px: 89, py: 0 })).some((p) => /not on the grid/.test(p)));
-    same('checkGame accepts a card on a good cell', checkGame(lone(spell, { px: 88, py: 24 })), []);
+    same('checkGame accepts a card on a good cell', checkGame(lone(spell, { px: 88, py: 33 })), []);
   }
   check('placing a card on an older game settles it first', (() => { const r = placeCard(legacy, legacy.zones.battlefield[0].uid, 48, 8); return cellOfCard(cardOf(r.game, legacy.zones.battlefield[0].uid)).join() === '48,8' && everyCardHasACell(r.game); })());
 }
@@ -172,11 +179,14 @@ const noOverlap = (game) => game.zones.battlefield.every((a, i) => game.zones.ba
   game = draw(game, 5).game;
   for (let i = 0; i < 4; i++) { const spell = handCard(game, false); if (spell) game = moveCard(game, spell.uid, 'battlefield', { cell: { col: 80 - i * 6, row: 10 } }); } // dropped so that they overlap
   const tidy = arrangeBoard(game);
-  check('every card is on its own block afterwards, and the game is consistent', noOverlap(tidy) && everyCardHasACell(tidy) && checkGame(tidy).length === 0);
+  check('every card is on a block afterwards (a stack on one block), none half over another, and the game is consistent', noPartialOverlap(tidy) && everyCardHasACell(tidy) && checkGame(tidy).length === 0);
   const lands = tidy.zones.battlefield.filter((c) => /Land/.test(c.t));
   const others = tidy.zones.battlefield.filter((c) => !/Land/.test(c.t));
-  check('lands are in the bottom row from the left, a card apart', lands.every((c) => c.py === 24) && lands.map((c) => c.px).sort((a, b) => a - b).join() === lands.map((_, i) => i * 8).join());
-  check('other cards are in the top row from the left, a card apart', others.every((c) => c.py === 0) && others.map((c) => c.px).sort((a, b) => a - b).join() === others.map((_, i) => i * 8).join());
+  const piles = (cards) => [...new Set(cards.map((c) => c.px))].sort((a, b) => a - b);
+  const kinds = (cards) => new Set(cards.map((c) => stackKey(c))).size;
+  check('lands are in the bottom row from the left, a pile a card apart', lands.every((c) => c.py === 33) && piles(lands).join() === Array.from({ length: kinds(lands) }, (_, i) => i * 8).join());
+  check('other cards are in the top row from the left, a pile a card apart', others.every((c) => c.py === 0) && piles(others).join() === Array.from({ length: kinds(others) }, (_, i) => i * 8).join());
+  check('cards with the same name and state share one block after tidying', lands.every((a) => lands.every((b) => stackKey(a) !== stackKey(b) || a.px === b.px)) && others.every((a) => others.every((b) => stackKey(a) !== stackKey(b) || a.px === b.px)));
   same('the same lands are next to each other (by name)', lands.slice().sort((a, b) => a.px - b.px).map((c) => c.n).join() === lands.slice().sort((a, b) => a.n < b.n ? -1 : a.n > b.n ? 1 : 0).map((c) => c.n).join(), true);
   check('tidying twice gives the same board', JSON.stringify(arrangeBoard(tidy).zones.battlefield) === JSON.stringify(tidy.zones.battlefield));
   check('tidying changes nothing but the cells', tidy.zones.battlefield.every((c) => { const before = cardOf(game, c.uid); const { px, py, ...rest } = c; const { px: bx, py: by, ...beforeRest } = before; return JSON.stringify(rest) === JSON.stringify(beforeRest); }));
@@ -188,12 +198,12 @@ const noOverlap = (game) => game.zones.battlefield.every((a, i) => game.zones.ba
 // ---- a crowded battlefield: nothing is refused ----
 {
   let game = fresh();
-  while (game.zones.battlefield.length < BOARD_CAPACITY) game = createToken(game, TOKEN).game;
+  while (game.zones.battlefield.length < BOARD_CAPACITY) game = createToken(game, { ...TOKEN, n: 'Goblin ' + game.zones.battlefield.length }).game; // different names, so they do not stack
   same('48 cards fill the 48 blocks', game.zones.battlefield.length, 48);
   check('all 48 are on blocks of their own', noOverlap(game) && checkGame(game).length === 0);
   const card = game.zones.hand[0];
   const more = moveCard(game, card.uid, 'battlefield');
-  same('one more card from the hand is still accepted, and goes on the last block it tried', [more.zones.battlefield.length, cellOfCard(cardOf(more, card.uid))], [49, /Land/.test(card.t) ? [88, 0] : [88, 24]]);
+  same('one more card from the hand is still accepted, and goes on the last block it tried', [more.zones.battlefield.length, cellOfCard(cardOf(more, card.uid))], [49, /Land/.test(card.t) ? [88, 0] : [88, 33]]);
   same('one more token is accepted', createToken(game, TOKEN).game.zones.battlefield.length, 49);
   same('one more copy is accepted', copyAsToken(game, game.zones.battlefield[0].uid).game.zones.battlefield.length, 49);
   check('a crowded game is consistent', checkGame(more).length === 0 && everyCardHasACell(more));
@@ -282,8 +292,8 @@ for (const seed of [1, 2, 3, 4, 5]) {
     try {
       if (op === 'move' && all.length) game = moveCard(game, pick(all).uid, pick(ZONES));
       else if (op === 'draw') game = draw(game, 1).game;
-      else if (op === 'place' && field.length) game = placeCard(game, pick(field).uid, Math.floor(random() * 89), Math.floor(random() * 25)).game;
-      else if (op === 'drop') { const c = pick(game.zones.hand.length ? game.zones.hand : all); if (!field.some((f) => f.uid === c.uid)) game = moveCard(game, c.uid, 'battlefield', { cell: { col: Math.floor(random() * 89), row: Math.floor(random() * 25) } }); }
+      else if (op === 'place' && field.length) game = placeCard(game, pick(field).uid, Math.floor(random() * 89), Math.floor(random() * 34)).game;
+      else if (op === 'drop') { const c = pick(game.zones.hand.length ? game.zones.hand : all); if (!field.some((f) => f.uid === c.uid)) game = moveCard(game, c.uid, 'battlefield', { cell: { col: Math.floor(random() * 89), row: Math.floor(random() * 34) } }); }
       else if (op === 'arrange') game = arrangeBoard(game);
       else if (op === 'token') game = createToken(game, random() < 0.2 ? LAND_TOKEN : TOKEN).game;
       else if (op === 'copy' && field.length) game = copyAsToken(game, pick(field).uid).game;

@@ -22,7 +22,8 @@
 // pc (poison, energy, experience) and cd (commander damage by seat). docs/tokens-counters.md explains them.
 
 import { scrubText } from './player-name.mjs';
-import { validCell, cellOf, cellOrder, firstEmptyCell, placeAll, arrangeAll, overlaps } from './board-grid.mjs';
+import { validCell, cellOf, cellOrder, firstEmptyCell, placeAll, arrangeAll, overlaps, nearbyFreeBlock, CARD_COLS, CARD_ROWS } from './board-grid.mjs';
+import { stackKey, stackCellFor, snapToStack } from './stacks.mjs';
 
 const SCRYFALL_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 export const ZONES = ['library', 'hand', 'battlefield', 'graveyard', 'exile', 'command', 'sideboard'];
@@ -148,7 +149,7 @@ function locate(game, uid) {
 // A card with a cell on the battlefield: the cell given, or the first free block for its kind (when every block is covered, the last block tried: cards may overlap, nothing is refused).
 function withCell(game, card, cell = null) {
   const land = isLandCard(card);
-  const at = cell ?? firstEmptyCell(game.zones.battlefield, land) ?? cellOrder(land).at(-1);
+  const at = cell ?? stackCellFor(game.zones.battlefield, card) ?? firstEmptyCell(game.zones.battlefield, land) ?? cellOrder(land).at(-1); // a card that matches a pile joins it
   return { ...card, px: at.col, py: at.row };
 }
 
@@ -169,7 +170,7 @@ export function moveCard(game, uid, to, { position, cell = null } = {}) {
   if (to === 'battlefield' && from !== 'battlefield' && entersSick(moved)) moved.sick = true; // a creature that comes in is summoning sick, unless it has printed haste
   if (to === 'battlefield' && from !== 'battlefield') { // it takes the cell it was dropped on, or the first empty cell (lands from the bottom-left, the rest from the top-left)
     if (cell && !validCell(cell.col, cell.row)) throw new Error('That is not a space on the battlefield.');
-    Object.assign(moved, withCell(game, moved, cell));
+    Object.assign(moved, withCell(game, moved, cell ? snapToStack(game.zones.battlefield, moved, cell) : null));
   }
   zones[to] = where === 'top' ? [moved, ...zones[to]] : [...zones[to], moved];
   return { ...game, zones };
@@ -196,17 +197,51 @@ export function mulligan(game, { random = secureRandom, handSize = HAND_SIZE } =
   return draw(back, handSize).game;
 }
 
+// A card that was tapped or untapped may have to change pile (shared/stacks.mjs): tapped and untapped copies are different stacks. list is the battlefield after the change, index the card.
+//  - Tapped: it joins the pile of tapped copies of its name if one is within a card of it; else, if it was in a pile (others with its old state on its cell), it steps to a free place beside
+//    that pile (nearbyFreeBlock), so the tapped copies sit next to the untapped ones instead of under them. A card alone on its cell with no tapped pile next to it stays where it is.
+//  - Untapped: it goes back to the pile of untapped copies of its name if one is within a card of it. (A pile farther away is not joined: a card does not jump across the board.)
+// The card goes to the end of the list (drawn on top) when it lands on a card that is later in the list; otherwise it keeps its place, so one card is one small write.
+function regroupAfterTap(list, index, before) {
+  const card = list[index];
+  const here = cellOf(card);
+  if (!here) return list;
+  const others = list.filter((c, i) => i !== index);
+  let to = null;
+  const pile = stackCellFor(others, card);
+  const close = pile && Math.abs(pile.col - here.col) <= CARD_COLS && Math.abs(pile.row - here.row) <= CARD_ROWS; // within a card of it, in both directions
+  if (close) to = pile;
+  else if (card.tapped) {
+    const oldKey = stackKey(before);
+    const mates = others.some((c) => stackKey(c) === oldKey && c.px === here.col && c.py === here.row);
+    if (mates) to = nearbyFreeBlock(others, here);
+  }
+  if (!to || (to.col === here.col && to.row === here.row)) return list;
+  const moved = { ...card, px: to.col, py: to.row };
+  const coversALaterCard = list.slice(index + 1).some((c) => overlaps(to, { col: c.px, row: c.py }));
+  return coversALaterCard ? [...list.filter((c, i) => i !== index), moved] : list.map((c, i) => (i === index ? moved : c));
+}
+
 export function setTapped(game, uid, tapped) {
   const { zone, at } = locate(game, uid);
   if (zone !== 'battlefield') throw new Error('Only a card on the battlefield can be tapped.');
-  const battlefield = game.zones.battlefield.map((card, index) => (index === at ? { ...card, tapped: Boolean(tapped) } : card));
-  return { ...game, zones: { ...game.zones, battlefield } };
+  const before = game.zones.battlefield[at];
+  if (Boolean(before.tapped) === Boolean(tapped)) return game;
+  const changed = game.zones.battlefield.map((card, index) => (index === at ? { ...card, tapped: Boolean(tapped) } : card));
+  const settled = settleBoard({ ...game, zones: { ...game.zones, battlefield: changed } });
+  return { ...settled, zones: { ...settled.zones, battlefield: regroupAfterTap(settled.zones.battlefield, at, before) } };
 }
 
 // Untaps the battlefield, except the cards marked "doesn't untap" (setNoUntap): the card data cannot tell which cards say so, so the
 // player marks them. A marked card is still untapped by hand with setTapped.
 export function untapAll(game) {
-  return { ...game, zones: { ...game.zones, battlefield: game.zones.battlefield.map((card) => (card.tapped && !card.noUntap ? { ...card, tapped: false } : card)) } };
+  const untapped = game.zones.battlefield.filter((card) => card.tapped && !card.noUntap).map((card) => card.uid);
+  if (!untapped.length) return game;
+  const changed = game.zones.battlefield.map((card) => (card.tapped && !card.noUntap ? { ...card, tapped: false } : card));
+  const settled = settleBoard({ ...game, zones: { ...game.zones, battlefield: changed } });
+  let list = settled.zones.battlefield;
+  for (const uid of untapped) { const index = list.findIndex((card) => card.uid === uid); list = regroupAfterTap(list, index, { ...list[index], tapped: true }); } // each one rejoins the untapped pile of its name
+  return { ...settled, zones: { ...settled.zones, battlefield: list } };
 }
 // How many cards the untap step would leave tapped (tapped and marked "doesn't untap").
 export const heldTapped = (game) => game.zones.battlefield.filter((card) => card.tapped && card.noUntap).length;
@@ -430,15 +465,16 @@ export function placeCard(game, uid, col, row) {
   if (here.col === col && here.row === row) return { game: settled, swapped: null };
   const list = settled.zones.battlefield;
   const index = list.findIndex((c) => c.uid === uid);
-  const moved = { ...card, px: col, py: row };
-  const coversALaterCard = list.slice(index + 1).some((c) => overlaps({ col, row }, { col: c.px, row: c.py }));
+  const at = snapToStack(list, card, { col, row }, undefined, here); // dropped close to a pile it could join (not the pile it is leaving): it joins it
+  const moved = { ...card, px: at.col, py: at.row };
+  const coversALaterCard = list.slice(index + 1).some((c) => overlaps(at, { col: c.px, row: c.py }));
   const battlefield = coversALaterCard ? [...list.filter((c) => c.uid !== uid), moved] : list.map((c) => (c.uid === uid ? moved : c));
   return { game: { ...settled, zones: { ...settled.zones, battlefield } }, swapped: null };
 }
 
 // Tidies the battlefield: every card placed again, lands from the bottom-left and the rest from the top-left, cards of the same name side by side.
 export function arrangeBoard(game) {
-  const cells = arrangeAll(game.zones.battlefield, isLandCard);
+  const cells = arrangeAll(game.zones.battlefield, isLandCard, stackKey); // cards of one stack stay together
   const battlefield = game.zones.battlefield.map((card) => { const cell = cells.get(card.uid); return card.px === cell.col && card.py === cell.row ? card : { ...card, px: cell.col, py: cell.row }; });
   return { ...game, zones: { ...game.zones, battlefield } };
 }

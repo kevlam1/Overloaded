@@ -8,12 +8,12 @@
 // first free block, lands from the bottom-left and every other card from the top-left, which keeps a loose order without two labelled sections. If every block is taken the card
 // goes on top of the last one tried: nothing is refused.
 export const BOARD_COLS = 96;
-export const BOARD_ROWS = 32;
+export const BOARD_ROWS = 44;
 export const CARD_COLS = 8;
-export const CARD_ROWS = 8;
+export const CARD_ROWS = 11; // a card is 8 cells wide and 11 tall, so a cell is square (a card is 5 by 7)
 export const MAX_COL = BOARD_COLS - CARD_COLS; // the last column a card can start in
 export const MAX_ROW = BOARD_ROWS - CARD_ROWS; // the last row a card can start in
-export const BOARD_CAPACITY = (BOARD_COLS / CARD_COLS) * (BOARD_ROWS / CARD_ROWS); // 48 blocks: how many cards fit side by side without overlapping
+export const BOARD_CAPACITY = (BOARD_COLS / CARD_COLS) * (BOARD_ROWS / CARD_ROWS); // 48 blocks (12 by 4): how many cards fit side by side without overlapping
 
 const whole = (value) => Number.isInteger(value);
 export const validCell = (col, row) => whole(col) && whole(row) && col >= 0 && col <= MAX_COL && row >= 0 && row <= MAX_ROW;
@@ -78,7 +78,8 @@ export function placeAll(cards, isLand) {
 
 // Tidying the board: every card is placed again by the rule above, lands from the bottom-left and the rest from the top-left, with cards of the same name side by side (by name,
 // then in the order they came). Returns a Map from uid to { col, row }. With more than BOARD_CAPACITY cards the extra ones go on top of the first blocks again.
-export function arrangeAll(cards, isLand) {
+// keyOf (optional): cards with the same key (the same name and state, shared/stacks.mjs stackKey) are put on one block together, as a stack, instead of one block each.
+export function arrangeAll(cards, isLand, keyOf = null) {
   const number = (card) => Number(String(card.uid).slice(1)) || 0;
   const byName = (a, b) => (a.n < b.n ? -1 : a.n > b.n ? 1 : number(a) - number(b));
   const lands = cards.filter((card) => isLand(card)).sort(byName);
@@ -87,11 +88,17 @@ export function arrangeAll(cards, isLand) {
   const placed = [];
   for (const [group, land] of [[lands, true], [other, false]]) {
     const order = cellOrder(land);
-    group.forEach((card, index) => {
-      const cell = freeBlock(order, placed) ?? order[index % order.length];
+    const blockOf = new Map(); // key -> the cell its stack was given
+    let count = 0;
+    for (const card of group) {
+      const key = keyOf ? keyOf(card) : null;
+      if (key !== null && blockOf.has(key)) { result.set(card.uid, blockOf.get(key)); continue; }
+      const cell = freeBlock(order, placed) ?? order[count % order.length];
+      count++;
       placed.push(cell);
       result.set(card.uid, cell);
-    });
+      if (key !== null) blockOf.set(key, cell);
+    }
   }
   return result;
 }
@@ -109,7 +116,7 @@ export function cellAtPoint(rect, x, y) {
 export function anchorAtPoint(rect, x, y) {
   const cell = cellAtPoint(rect, x, y);
   if (!cell) return null;
-  return { col: Math.min(MAX_COL, Math.max(0, cell.col - CARD_COLS / 2)), row: Math.min(MAX_ROW, Math.max(0, cell.row - CARD_ROWS / 2)) };
+  return { col: Math.min(MAX_COL, Math.max(0, cell.col - Math.floor(CARD_COLS / 2))), row: Math.min(MAX_ROW, Math.max(0, cell.row - Math.floor(CARD_ROWS / 2))) };
 }
 
 // Where a card that started on cell `start` goes when the pointer has moved dx and dy pixels since it was grabbed: the same number of cells (rounded), kept on the board. Moving by
@@ -119,6 +126,14 @@ export function shiftedAnchor(rect, start, dx, dy) {
   const col = start.col + Math.round(dx / (rect.width / BOARD_COLS));
   const row = start.row + Math.round(dy / (rect.height / BOARD_ROWS));
   return { col: Math.min(MAX_COL, Math.max(0, col)), row: Math.min(MAX_ROW, Math.max(0, row)) };
+}
+
+// A free place next to a card at `cell`, for a card that has to step out of a pile: the block to its right, else to its left, else below, else above (each a whole card away), the first
+// that is on the board and that no card in `cards` covers. Null when there is none. (The pile at `cell` itself never covers a block a whole card away, so it needs no special case.)
+export function nearbyFreeBlock(cards, cell) {
+  const placed = cards.map(cellOf).filter(Boolean);
+  const candidates = [{ col: cell.col + CARD_COLS, row: cell.row }, { col: cell.col - CARD_COLS, row: cell.row }, { col: cell.col, row: cell.row + CARD_ROWS }, { col: cell.col, row: cell.row - CARD_ROWS }];
+  return candidates.find((c) => validCell(c.col, c.row) && !placed.some((p) => overlaps(c, p))) ?? null;
 }
 
 // The cell one step (one eighth of a card) from a cell in a direction ('left', 'right', 'up', 'down'), or null at the edge of the grid.
