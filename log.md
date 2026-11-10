@@ -2542,7 +2542,32 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 122. The deck page: three screens, the deck by card type, a text list or card pictures (2026-11-10)
+
+**What I asked for**
+- Reorganize the deck page: more comprehensive and easier to navigate, moving on from the proof of concept. Show the whole decklist either as text only or as card images, grouped by card type (other than the commander(s) and the sideboard), with a three-line icon for text and a rectangle for pictures. Remove redundant buttons and text. The overall look comes later; this is only to make it usable.
+- My answers to Claude's questions: two screens (saved decks, then one deck) over keeping one long page, and the lobby gets the new layout too.
+
+**What changed** (`shared/deck-view.mjs`, `frontend/src/deck-importer.js`, `frontend/src/deck-groups.js`, both pages, `style.css`)
+- **Three screens, one at a time:** "Your decks" (each deck with Open, Play solo and Delete, and New deck), "Add a deck" (the box, Check deck, Try a sample deck, Cancel) and one deck (All decks, Edit list, the name with Save, Format, Bracket, Commander and Partner in one row, the summary, the view buttons, and the groups). The page opens at the list when there are saved decks and at the box when there are none.
+- **The deck by type:** Commander first, then Creatures, Planeswalkers, Battles, Instants, Sorceries, Artifacts, Enchantments, Lands, Other, then Sideboard (and a Companion or Maybeboard if there is one). A card with two types goes in the first that applies (a land before a creature before an artifact), by its front face. Inside a group the cards are by name. A line the card list could not match has a group of its own, first, so the counts add up. Choosing a different commander moves that card into the Commander group straight away.
+- **Two views:** a three-line icon for the text list and a card-shaped rectangle for pictures. The picture view is a grid of small pictures with a count on a card with copies, loaded only as they scroll into view; pointing at either still shows the big picture. The choice is remembered in this browser.
+- **Less repeated:** gone are the Clear button (New deck does it), the second "Check: N cards, all matched" line (the summary says it), the "Play the selected deck" link and the "Use for the solo table" button (Play solo does both), the "Selected" sentence (a small "solo deck" tag), the permanent save note (now the Save button's tooltip), the type column in the text list (its tooltip), the separate Commander legend and its two labels, and the lede on every screen.
+- **One copy of the markup:** the manager now builds its own markup inside `#deck-app`, so the deck page and the lobby cannot drift apart. The lobby's "Import or change a deck" opens it without the Play solo button.
+
+**What I checked**
+- `scripts/test-deck-view.mjs` (53 checks: which type a card is, the order, sorting, commanders taken from a line, bad input). `scripts/check-deck-ui.mjs` is 222 checks in real Chrome against the real card list (201 before; I changed the old ones to the new screens and groups and added 21 for the toggle, the icons, the picture view, the commander group, the screens and Cancel). `scripts/test-importer-markup.mjs` is rewritten (52 checks). `npm test` passes all 56 suites and the live room check passes 26 of 26 (it opens the manager inside a real table). Screenshots at 1280 wide of the text view, the picture view, the list, the paste screen and the lobby panel.
+- **Not checked:** phone width, light mode, and more than 100 pictures at once on a slow connection.
+
+**Decisions**
+- The text list default stays text, so a visit does not fetch 100 pictures.
+- Mana costs are still shown as the raw text ({2}{G}); symbols are for the visual pass.
+- Claude's own mistakes: its first version started a page with a damaged saved-decks library at the box to paste into, so the message that the decks could not be read was never shown (the old check caught it, and the page now starts at the list when there is such a message); a rename in the suite list left an unescaped apostrophe that broke `npm test` until it was found; a check that clicked Play solo went to the solo table, and the pictures it loaded were counted as requests by a later test; and the live room check read the Check button before the manager had been built.
+
+---
+
 ## Where AI misread me, or I had to correct course
+- (2026-11-10, entry 122) Claude's first deck page started a library it could not read at the box to paste into, hiding the message about it; the old check noticed.
 - (2026-11-10, entry 120) Claude's solo check clicked a fixed empty spot that stopped being empty once the graveyard stack moved there, and the failure first looked like a menu bug; a screenshot at the moment of the failure showed the open viewer.
 - (2026-11-10, entry 119) Claude let the random game test use every new player counter, which the published rules refuse; the full test run found it. It also left the mutation run's own time limit too short, so the run stopped with the rules file broken (restored by hand).
 - (2026-11-10, entry 118) Claude's first library search matched the letters in order against the type line as well, so searching "ft" found every artifact; the letters rule now applies to names only.
