@@ -2451,7 +2451,32 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 118. Fewer buttons: card options in the right-click menu, a Settings menu, a library window with search (2026-11-10)
+
+**What I asked for**
+- Move the Modify options into the right-click menu, add a Settings menu and put sound and the like in it, remove "move to battlefield" and similar buttons (the right-click menu does that), rework the library so I can see the cards and search it (by name, by letters in order such as "ft" for Forest, and by card type), and let me right-click the deck to search, shuffle and so on. The point is to remove buttons that were debugging leftovers and free space.
+- My answers to Claude's questions: Settings holds Sound, Volume, Piles and the way back; the top bar keeps Draw, Next turn, Untap all, Auto-arrange, Mulligan and New game; card details only in the hover picture; the library opens as a large window over the table; the pile menu gets Search, Shuffle, Draw (one or several), Look at the top N, Mill and Move all to another zone.
+
+**What changed** (`shared/card-search.mjs`, `shared/pile-menu.mjs`, `shared/zones.mjs` `moveAll`, `frontend/src/pile-viewer.js`, `frontend/src/settings-menu.js`, both pages' HTML and script, `style.css`)
+- The selected-card panel and its buttons are gone. A right-click on a card does everything (Modify opens a small window with the counters, Tap, Move to, and so on). The selected card is described only by a line for screen readers, and by the hover picture.
+- The Shuffle button is gone; a right-click on the library offers Search, Shuffle, Draw (2 to 7), Look at the top cards and Mill. A right-click on the graveyard, exile or sideboard offers Search and Move all to.
+- A pile opens as a large window with the cards themselves (not names) and a search bar. The search matches the start of a name, then any part of a name, then a word of the type line, then letters in order within the name only. The library window numbers cards from the top.
+- A Settings button next to New game holds Sound, Volume and the Piles style.
+
+**What I checked**
+- Two new unit suites: card search (21 checks) and the pile menu (33 checks, including 400 random menu choices that never lose or copy a card). A screenshot at 1366x768 of the main view, the library window, a search for "ft" (21 of 53 cards, all Forests) and the Settings panel.
+- I moved the old browser checks to the new controls: the solo check (415), the layout check (365) and the live two-browser check (169 of 169 against the real project) pass. `npm test` was 54 suites; the only failure was the layout check, which was still building the removed panel.
+- No broken-copy runs for the page code (a UI round, as agreed). **Not checked:** the library window at other window sizes, the search with accents on real names, light mode.
+
+**Decisions**
+- "Reveal the top card" is only "Look at the top card" for now (a private look). Showing it to the table needs a new public field, so it waits.
+- The "Back to your deck" and "Lobby" links and the table's Leave button were NOT moved into Settings yet.
+- Claude's own mistakes: it first let the letters-in-order search match the type line too, so "ft" matched every artifact; restricted to names after I saw the results. Two expected orderings in its first tests were its own arithmetic errors, not code bugs. And several old browser checks pointed at buttons that no longer exist; they are updated, but the old test of the page scrolling when the selected-card panel shrank has no equivalent any more and was removed.
+
+---
+
 ## Where AI misread me, or I had to correct course
+- (2026-11-10, entry 118) Claude's first library search matched the letters in order against the type line as well, so searching "ft" found every artifact; the letters rule now applies to names only.
 - (2026-11-10, entry 116) Claude had Horizontal piles send a tapped card above the pile because it read "the tapped stack goes up" as part of that style; the style was only meant to change how a pile is drawn.
 - (2026-11-10, entry 115) Claude read "tapped cards go up" as moving the whole tapped stack above the pile in the Horizontal style only; what was meant was a tapped stack drawn straight up in both styles, and untapping to the left of it.
 - (2026-11-09, entry 114) Claude's stack test set-up for the order test had never done what its label said (the cards it "moved to a cell" were already on the battlefield), which showed up only when the tap gap changed; and a comment it put at the end of a code line swallowed the rest of the line.
