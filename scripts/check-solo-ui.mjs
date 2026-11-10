@@ -553,7 +553,7 @@ try {
   const hostile = JSON.parse(DECK_JSON);
   hostile.cards.push({ i: '11111111-1111-4111-8111-111111111111', n: '<img src=x onerror="window.__pwned=1">Hostile', qty: 3, section: 'main' });
   await open(JSON.stringify(hostile));
-  for (let n = 0; n < 40 && !(await handNames()).some((x) => /Hostile/.test(x)); n++) await press('draw');
+  for (let n = 0; n < 70 && !(await handNames()).some((x) => /Hostile/.test(x)); n++) await press('draw');
   const idx = (await handNames()).findIndex((x) => /Hostile/.test(x));
   if (idx >= 0) { await clickCard('#hand .card', idx); await clickAction('To battlefield'); }
   const injected = await ev(`({ pwned: typeof window.__pwned, strange: document.querySelectorAll('img[onerror]').length, fallback: Array.from(document.querySelectorAll('.fallback')).some((f) => f.textContent.includes('<img')), other: document.querySelectorAll('#battlefield .card[data-kind="other"]').length })`);
@@ -767,7 +767,7 @@ try {
     return { title: m.querySelector('.card-menu-title').textContent, role: m.getAttribute('role'), items: [...m.querySelectorAll('[role="menuitem"]')].filter((b) => !b.closest('[hidden]')).map(label), focused: active && m.contains(active) ? label(active) : null, inside: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight, count: document.querySelectorAll('.card-menu').length, box: [Math.round(r.left), Math.round(r.top), Math.round(r.right), Math.round(r.bottom)], win: [innerWidth, innerHeight] };
   })()`);
   const clickMenuItem = async (text, opts = {}) => {
-    const p = await ev(`(() => { const arrow = String.fromCharCode(0x25b8); const b = [...document.querySelectorAll('.card-menu [role="menuitem"]')].find((x) => x.textContent.replace(arrow, '').trim() === ${JSON.stringify(text)}); if (!b) return null; const r = b.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`);
+    const p = await ev(`(() => { const arrow = String.fromCharCode(0x25b8); const b = [...document.querySelectorAll('.card-menu [role="menuitem"]')].filter((x) => !x.closest('[hidden]')).find((x) => x.textContent.replace(arrow, '').trim() === ${JSON.stringify(text)}); if (!b) return null; const r = b.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`);
     if (!p) throw new Error(`no menu item "${text}"`);
     await mouseMoveTo(p.x, p.y);
     await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: p.x, y: p.y, button: 'left', buttons: 1, clickCount: 1 });
@@ -1077,63 +1077,46 @@ try {
   const landCopies = await ev(`Array.from(document.querySelectorAll('#battlefield .card[data-kind="land"][aria-label^="Temple of the Dead"]')).map((c) => c.getAttribute('aria-label'))`);
   check('a copy of Aclazotz turned into its land is a land too: Temple of the Dead, in the lands row, with the back picture and no numbers', landCopies.length === 1 && (await ev(`document.querySelector('#battlefield .card[data-kind="land"][aria-label^="Temple of the Dead"] img').getAttribute('src').includes('/back/')`)) && (await box('#battlefield .card[data-kind="land"][aria-label^="Temple of the Dead"]')) === null, JSON.stringify(landCopies));
 
-  // ---- player counters: poison, energy and experience (real mouse input) ----
+  // ---- what a player has on them: chips next to the life total, set from a right-click on the life (real mouse input) ----
   await open();
-  const stepper = (kind) => `#player-counters .counter-entry[data-id="counter:${kind}"]`;
-  const counterFacts = (kind) => ev(`(() => { const e = document.querySelector(${JSON.stringify(stepper(kind))}); if (!e) return null; return { count: e.querySelector('.stepper-count').textContent, lethal: e.classList.contains('lethal'), word: !e.querySelector('.stepper-lethal').hidden, label: e.querySelector('.stepper-name').textContent, buttons: [...e.querySelectorAll('button')].map((b) => [b.textContent, b.getAttribute('aria-label'), b.disabled]), title: e.title, role: e.getAttribute('role'), group: e.getAttribute('aria-label') }; })()`);
-  const bump = (kind, step) => mouse(`${stepper(kind)} button[data-step="${step}"]`);
-  check('the counters section shows, with the three counters in a fixed order, and there is no commander damage on the solo table', !(await $hidden('game')) && (await count('#player-counters .counter-entry')) === 3 && (await ev(`[...document.querySelectorAll('#player-counters .stepper-name')].map((n) => n.textContent).join()`)) === 'Poison,Energy,Experience' && (await count('#commander-damage')) === 0);
-  const zeroPoison = await counterFacts('poison');
-  check('each starts at 0, with its own words for a screen reader, and -1 is disabled (nothing to take off)', zeroPoison.count === '0' && !zeroPoison.lethal && !zeroPoison.word && zeroPoison.role === 'group' && zeroPoison.group === 'Poison' && JSON.stringify(zeroPoison.buttons) === JSON.stringify([['-1', 'Remove 1 poison counter', true], ['+1', 'Add 1 poison counter', false]]), JSON.stringify(zeroPoison));
-  await bump('poison', 1);
-  check('a click on +1 adds one, says so, and enables -1', (await counterFacts('poison')).count === '1' && (await $text('status')) === 'Poison 1.' && (await counterFacts('poison')).buttons[0][2] === false, await $text('status'));
-  check('the button that was pressed is still the focused one (the elements are updated in place, not rebuilt)', (await ev(`document.activeElement && document.activeElement.getAttribute('aria-label')`)) === 'Add 1 poison counter', await ev(`String(document.activeElement && document.activeElement.outerHTML.slice(0, 80))`));
-  for (let n = 0; n < 8; n++) await bump('poison', 1);
-  const nine = await counterFacts('poison');
-  check('9 poison is not lethal yet', nine.count === '9' && !nine.lethal && !nine.word && nine.title === '');
-  await bump('poison', 1);
-  const ten = await counterFacts('poison');
-  check('10 poison is lethal: the card is marked, the word "lethal" shows (not colour alone) and the tooltip says why', ten.count === '10' && ten.lethal && ten.word && /10 or more is lethal/.test(ten.title), JSON.stringify(ten));
-  check('and nothing stops the player: they can go on adding (it is a signal, not a rule)', await (async () => { await bump('poison', 1); return (await counterFacts('poison')).count === '11' && (await counterFacts('poison')).lethal; })());
-  await bump('poison', -1); await bump('poison', -1);
-  check('taking two off goes back to 9 and the mark goes away', (await counterFacts('poison')).count === '9' && !(await counterFacts('poison')).lethal && !(await counterFacts('poison')).word);
-  for (let n = 0; n < 11; n++) await bump('energy', 1);
-  await bump('experience', 1);
-  check('energy and experience are never lethal, and each counts on its own', (await counterFacts('energy')).count === '11' && !(await counterFacts('energy')).lethal && (await counterFacts('experience')).count === '1' && (await counterFacts('poison')).count === '9');
-  check('the status line names the counter that changed last', (await $text('status')) === 'Experience 1.', await $text('status'));
-  for (let n = 0; n < 9; n++) await bump('poison', -1);
-  check('taking all of it off ends at 0 and -1 is disabled again', (await counterFacts('poison')).count === '0' && (await counterFacts('poison')).buttons[0][2] === true);
+  const chips = () => ev(`[...document.querySelectorAll('#life-chips .counter-chip')].map((c) => ({ id: c.dataset.id, label: c.getAttribute('aria-label'), number: c.querySelector('.chip-count').hidden ? null : c.querySelector('.chip-count').textContent, icon: (() => { const s = c.querySelector('svg'); return Boolean(s) && s.getAttribute('width') === '16' && s.getAttribute('height') === '16' && s.getAttribute('fill') === 'currentColor'; })(), lethal: c.classList.contains('lethal'), word: !c.querySelector('.chip-lethal').hidden, title: c.title }))`);
+  const lifeMenu = async (...path) => { await mouse('#life', { button: 'right' }); for (const step of path) await clickMenuItem(step); };
+  check('a new game shows no chips, and the old counters section and the commander damage block are gone', !(await $hidden('game')) && (await chips()).length === 0 && (await count('#counters, #player-counters, #commander-damage')) === 0);
+  await mouse('#life', { button: 'right' });
+  const lifeItems = await menuState();
+  check('a right-click on the life opens a menu of every counter a player can have: six counts and three marks', lifeItems && lifeItems.title === 'Your counters' && JSON.stringify(lifeItems.items) === JSON.stringify(['Poison: 0', 'Energy: 0', 'Experience: 0', 'Rad: 0', 'Ticket: 0', 'Speed: 0', 'The Ring tempts you: 0', 'Monarch: off', 'Initiative: off', "City's blessing: off"]), JSON.stringify(lifeItems));
+  await escapeKey();
+  check('Escape closes it and changes nothing', !(await menuState()) && (await chips()).length === 0);
+  await ev(`document.getElementById('life-area').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 0, clientY: 0 }))`);
+  check('the context-menu key (a contextmenu event with no pointer position) opens it too, next to the life', Boolean(await menuState()));
+  await escapeKey();
+  await lifeMenu('Poison: 0', 'Add 1');
+  const one = await chips();
+  check('Add 1 puts a poison chip next to the life: an icon (width, height and fill set) and the number, and the status says so', one.length === 1 && one[0].id === 'counter:poison' && one[0].number === '1' && one[0].icon && one[0].label === 'Poison 1' && (await $text('status')) === 'Poison 1.', JSON.stringify(one));
+  await lifeMenu('Poison: 1', 'Add 5'); await lifeMenu('Poison: 6', 'Add 1');
+  check('the menu shows the count now, and Add 5 then Add 1 make 7', (await chips())[0].number === '7');
+  await lifeMenu('Poison: 7', 'Add 5'); await lifeMenu('Poison: 12', 'Remove 1');
+  const lethal = (await chips())[0];
+  check('11 poison is lethal: the chip is marked, says "lethal" in words (not colour alone) and the tooltip says why', lethal.number === '11' && lethal.lethal && lethal.word && /lethal at 10/.test(lethal.title), JSON.stringify(lethal));
+  await lifeMenu('Poison: 11', 'Remove 5'); await lifeMenu('Poison: 6', 'Remove 5');
+  const downTo1 = (await chips())[0];
+  check('taking it down to 1 ends the lethal mark', downTo1.number === '1' && !downTo1.lethal && !downTo1.word);
+  await lifeMenu('Poison: 1', 'Remove 1');
+  check('removing the last one takes the chip away', (await chips()).length === 0);
+  await lifeMenu('Monarch: off');
+  const monarch = await chips();
+  check('a mark is one choice: the monarch is a chip with its icon and no number, and the menu now says it is on', monarch.length === 1 && monarch[0].id === 'counter:monarch' && monarch[0].number === null && monarch[0].icon && monarch[0].label === 'Monarch' && (await $text('status')) === 'Monarch: on.', JSON.stringify(monarch));
+  await mouse('#life', { button: 'right' });
+  check('and says "Monarch: on" now', (await menuState()).items.includes('Monarch: on'));
+  await escapeKey();
+  await lifeMenu('Rad: 0', 'Add 5'); await lifeMenu('Initiative: off'); await lifeMenu('Energy: 0', 'Add 1');
+  check('the chips come in a fixed order, not the order they were added in: energy, rad, monarch, initiative', JSON.stringify((await chips()).map((c) => c.id)) === JSON.stringify(['counter:energy', 'counter:rad', 'counter:monarch', 'counter:initiative']), JSON.stringify((await chips()).map((c) => c.id)));
+  check('every chip has an icon', (await chips()).every((c) => c.icon));
+  await lifeMenu('Rad: 5', 'Remove all'); await lifeMenu('Monarch: on');
+  check('Remove all and turning a mark off both take their chips away', JSON.stringify((await chips()).map((c) => c.id)) === JSON.stringify(['counter:energy', 'counter:initiative']));
+  check('the chips did not touch life: a commander deck starts at 40', (await $text('life')) === '40' && (await count('#hand .card')) === 7);
   await press('new-game');
-  check('a new game starts every counter at 0 again', (await counterFacts('energy')).count === '0' && (await counterFacts('experience')).count === '0' && (await counterFacts('poison')).count === '0');
-  check('the counters did not touch life: a commander deck starts at 40', (await $text('life')) === '40' && (await count('#hand .card')) === 7);
-
-  // ---- ONE player's commander damage works on its own, mounted anywhere (so a later design can put it in that player's panel) ----
-  const standalone = await ev(`(async () => {
-    const { commanderDamageNode } = await import('/src/player-counters.js');
-    const host = document.createElement('section'); host.id = 'test-host'; host.className = 'opponent'; document.body.append(host);
-    const entry = (count) => ({ id: 'damage:2', seat: '2', name: 'Bob', label: 'Seat 2: Bob', count, lethalAt: 21, lethal: count >= 21 });
-    const calls = [];
-    const node = commanderDamageNode(entry(7), { onChange: (e, step) => calls.push([e.seat, e.name, step]) });
-    host.append(node.element);
-    const buttons = [...node.element.querySelectorAll('button')];
-    buttons.find((b) => b.dataset.step === '5').click();
-    buttons.find((b) => b.dataset.step === '-1').click();
-    const before = { count: node.element.querySelector('.stepper-count').textContent, lethal: node.element.classList.contains('lethal'), labels: buttons.map((b) => b.getAttribute('aria-label')) };
-    node.update({ ...entry(21), name: 'Bobby', label: 'Seat 2: Bobby' }); // the player's name changed: a button must report the CURRENT entry
-    [...node.element.querySelectorAll('button')].find((b) => b.dataset.step === '1').click();
-    const after = { count: node.element.querySelector('.stepper-count').textContent, lethal: node.element.classList.contains('lethal'), word: !node.element.querySelector('.stepper-lethal').hidden, sameButtons: [...node.element.querySelectorAll('button')].every((b, i) => b === buttons[i]) };
-    const chip = commanderDamageNode(entry(0), { readOnly: true });
-    host.append(chip.element);
-    const hiddenAtZero = chip.element.hidden;
-    chip.update(entry(9));
-    const shown = { hidden: chip.element.hidden, text: chip.element.textContent, buttons: chip.element.querySelectorAll('button').length };
-    host.remove();
-    return { calls, before, after, hiddenAtZero, shown };
-  })()`);
-  check('one player\'s commander damage node works alone: its buttons report that player (seat and name) and the step', JSON.stringify(standalone.calls) === JSON.stringify([['2', 'Bob', 5], ['2', 'Bob', -1], ['2', 'Bobby', 1]]), JSON.stringify(standalone.calls));
-  check('it names the player in every button\'s words for a screen reader', standalone.before.labels.every((l) => /commander damage from Seat 2: Bob/.test(l)) && standalone.before.labels.length === 4, JSON.stringify(standalone.before.labels));
-  check('updating it changes the number and the lethal mark in place, with the same buttons (a pressed button keeps the focus)', standalone.before.count === '7' && !standalone.before.lethal && standalone.after.count === '21' && standalone.after.lethal && standalone.after.word && standalone.after.sameButtons, JSON.stringify(standalone.after));
-  check('the read-only version of it hides itself at 0, has no buttons and says what it is once there is damage', standalone.hiddenAtZero && !standalone.shown.hidden && standalone.shown.buttons === 0 && /Commander damage from Seat 2: Bob/.test(standalone.shown.text) && /9/.test(standalone.shown.text), JSON.stringify(standalone.shown));
+  check('a new game takes every chip away', (await chips()).length === 0);
 
   // ---- summoning sickness (hybrid) and "doesn't untap" (real mouse input; a 7-card deck, so everything is in the hand) ----
   const MARKS_DECK = deckFrom("1 Goblin Guide\n1 Llanowar Elves\n1 Sol Ring\n1 Forest\n1 Lightning Bolt\n1 Hellrider\n1 Smuggler's Copter", 'Marks deck', null, []);

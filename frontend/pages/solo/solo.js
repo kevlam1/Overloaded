@@ -18,10 +18,10 @@ import { makeLookup } from '../../../shared/card-lookup.mjs';
 import { makeCardNodes } from '../../src/card-nodes.js';
 import { mountMarksPanel } from '../../src/marks-panel.js';
 import { openCardMenu } from '../../src/card-menu.js';
-import { mountPlayerCounters } from '../../src/player-counters.js';
+import { mountCounterChips } from '../../src/counter-chips.js';
 import { menuItems, menuAction, turnLabel, turnMessage, playBackLabel, PLAY_BACK_ZONES, noUntapLabel, sickLabel, untapMessage } from '../../../shared/card-menu.mjs';
 import { marksSentence, markClick, printedOf } from '../../../shared/marks.mjs';
-import { playerCounterEntries, counterAction } from '../../../shared/player-counters.mjs';
+import { chipEntries, playerMenuItems, playerAction } from '../../../shared/player-counters.mjs';
 import { makeGame, draw, moveCard, shuffleLibrary, mulligan, setTapped, turnOver, untapAll, heldTapped, adjustLife, nextTurn, boardCells, placeCard, placeStack, arrangeBoard, zoneCounts } from '../../../shared/zones.mjs';
 
 const $ = (id) => document.getElementById(id);
@@ -52,8 +52,15 @@ function make(tag, className, content) {
 
 // ---- cards on the page ----
 // The buttons and pictures are in src/card-nodes.js (the live table draws cards the same way).
-// Poison, energy and experience (src/player-counters.js, shared/player-counters.mjs). Commander damage needs opponents, so it is on the live table only.
-const playerCounters = mountPlayerCounters($('player-counters'), { onChange: (entry, step) => { const action = counterAction(game, entry.kind, step); apply(() => action.run(game), action.message); } });
+// What a player has on them (src/counter-chips.js, shared/player-counters.mjs): chips next to the life total, and a right-click on the life area adds or removes any of them. Commander damage needs opponents, so it is on the live table only.
+const lifeChips = mountCounterChips($('life-chips'));
+$('life-area').addEventListener('contextmenu', (event) => {
+  if (!game) return;
+  event.preventDefault();
+  const box = event.currentTarget.getBoundingClientRect();
+  const fromKeyboard = event.clientX === 0 && event.clientY === 0;
+  openCardMenu({ title: 'Your counters', items: playerMenuItems(game), x: fromKeyboard ? box.left + box.width / 2 : event.clientX, y: fromKeyboard ? box.top + box.height / 2 : event.clientY, returnFocus: event.currentTarget, onPick: (id) => { const action = playerAction(id, game); if (action) apply(() => action.run(game), action.message); } });
+});
 
 const cardNodes = makeCardNodes({ onSelect: (uid) => select(uid), isSelected: (uid) => uid === selected, onMark: (uid, hit) => markOnCard(uid, hit), onMenu: (uid, where) => openMenuFor(uid, where), onBadge: (uid, kind) => clearBadge(uid, kind), printedStats: (card) => printedOf(card, lookup) });
 const place = cardNodes.place;
@@ -84,7 +91,7 @@ function findCard(uid) {
 function render() {
   $('turn').textContent = String(game.turn);
   $('life').textContent = String(game.life);
-  playerCounters.update(playerCounterEntries(game.pc));
+  lifeChips.update(chipEntries(game.pc));
   place($('battlefield'), game.zones.battlefield, { battlefield: true, cells: boardCells(game) });
   place($('hand'), dealer.visible(game.zones.hand));
   place($('command'), game.zones.command);

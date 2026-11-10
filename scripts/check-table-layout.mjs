@@ -35,15 +35,14 @@ const FILL = (opponents) => `(() => {
     const section = make('section', 'opponent' + (n === 1 ? ' active' : ''));
     const title = make('h3', '', 'Seat ' + (n + 1) + ': Opponent number ' + n); if (n === 1) title.append(make('span', 'turn-mark', 'their turn'));
     const stats = make('p', 'hint', 'Life 40. Hand: 7 cards. Library: 61 cards.');
-    const counters = make('div', 'opponent-counters'); counters.append(make('span', 'stepper-name', 'Poison'), make('span', 'stepper-count', '3'), make('span', 'stepper-name', 'Energy'), make('span', 'stepper-count', '2'));
-    const damage = make('div', 'opponent-counters'); damage.append(make('span', 'stepper-name', 'Commander damage from Seat 1: Someone'), make('span', 'stepper-count', '21'));
+    const counters = make('div', 'opponent-counters counter-chips'); for (const text of ['3', '2', '21']) { const chip = make('span', 'counter-chip'); chip.append(make('strong', 'chip-count', text)); counters.append(chip); }
     const waiting = make('p', 'hint', 'Has not been dealt a game yet.'); waiting.hidden = true;
     const body = make('div');
     const grid = make('div', 'battlefield'); const command = make('div', 'row');
     board(grid, 10, 14, 4); fill(command, 2, 0);
     const pile = (label) => { const details = make('details'); const summary = make('summary', '', label + ': 12'); const ul = make('ul', 'pile-list'); details.append(summary, ul); return details; };
     body.append(grid, make('h4', '', 'Command zone'), command, pile('Graveyard'), pile('Exile'));
-    section.append(title, stats, counters, damage, waiting, body);
+    section.append(title, stats, counters, waiting, body);
     list.append(section);
   }
   board(document.getElementById('battlefield'), 12, 20, 5);

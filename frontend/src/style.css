@@ -199,23 +199,20 @@ main.table { max-width: 80rem; }
 .turn-banner[hidden] { display: none; }
 .opponent.active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
 .opponent .turn-mark { margin-left: 0.5rem; padding: 0 0.45rem; border: 1px solid var(--accent); border-radius: 0.6rem; color: var(--accent); font-size: 0.75rem; font-weight: 600; }
-/* Player counters and commander damage (src/player-counters.js). One .stepper is one counter or one player's commander damage. */
-.counters-panel h2 { margin-bottom: 0.5rem; }
-.counters-sub { margin: 0.75rem 0 0.4rem; font-size: 0.95rem; }
-.counters-block { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1.25rem; }
-.stepper { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0.3rem; }
-.stepper[hidden] { display: none; }
-.stepper-name { margin-right: 0.25rem; color: var(--muted); font-size: 0.9rem; }
-.stepper-count { min-width: 1.5rem; text-align: center; font-size: 1.05rem; font-variant-numeric: tabular-nums; }
-.stepper button { min-width: 2.25rem; padding: 0.3rem 0.5rem; }
-.stepper-lethal { margin-left: 0.25rem; padding: 0 0.4rem; border: 1px solid var(--danger); border-radius: 0.6rem; color: var(--danger); font-size: 0.75rem; font-weight: 600; }
-.stepper-lethal[hidden] { display: none; }
-.stepper.lethal .stepper-count, .stepper.lethal .stepper-name { color: var(--danger); }
-/* On another player's panel the same nodes are read-only chips, shown only for what has happened. */
-.opponent-counters { display: flex; flex-wrap: wrap; gap: 0.25rem 0.9rem; margin: 0.35rem 0 0; }
-.opponent-counters:empty, .opponent-counters[hidden] { display: none; }
-.opponent-counters .stepper-name { margin-right: 0; font-size: 0.85rem; }
-.opponent-counters .stepper-count { min-width: 0; font-size: 0.95rem; }
+/* What a player has on them (src/counter-chips.js): small chips next to the life total, each an icon and a number; a mark such as the monarch is only the icon. */
+.counter-chips { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.4rem; }
+.counter-chips:empty, .counter-chips[hidden] { display: none; }
+.counter-chip { display: inline-flex; align-items: center; gap: 0.2rem; padding: 0.1rem 0.4rem; border: 1px solid var(--border, currentColor); border-radius: 0.8rem; font-size: 0.85rem; line-height: 1.2; cursor: default; }
+.counter-chip .chip-icon { display: inline-flex; color: var(--accent); }
+.counter-chip .chip-count { font-variant-numeric: tabular-nums; }
+.counter-chip .chip-seat { align-self: flex-end; font-size: 0.6rem; color: var(--muted); }
+.counter-chip .chip-lethal { padding: 0 0.3rem; border: 1px solid var(--danger); border-radius: 0.6rem; color: var(--danger); font-size: 0.65rem; font-weight: 600; }
+.counter-chip [hidden] { display: none; }
+.counter-chip.lethal { border-color: var(--danger); }
+.counter-chip.lethal .chip-icon, .counter-chip.lethal .chip-count { color: var(--danger); }
+.life[title] { cursor: context-menu; }
+/* On another player's panel the same chips are shown, only for what has happened. */
+.opponent-counters { margin: 0.35rem 0 0; }
 .bar .actions { margin-top: 0; }
 .selected-panel { position: sticky; top: 0; z-index: 1; }
 .selected-panel h2 { margin-bottom: 0.25rem; }
@@ -459,7 +456,6 @@ body.playing .opponent > h3 { grid-column: 1; grid-row: 1; margin: 0; }
 body.playing .opponent > .hint { grid-column: 2; grid-row: 1; margin: 0; align-self: baseline; }
 body.playing .opponent > .opponent-counters { grid-column: 1 / -1; }
 body.playing .opponent > .opponent-counters[data-for="counters"], body.playing .opponent > .opponent-counters:nth-of-type(1) { grid-row: 2; }
-body.playing .opponent > .opponent-counters:nth-of-type(2) { grid-row: 3; }
 body.playing .opponent > div:not(.opponent-counters) { grid-column: 1 / -1; grid-row: 5; display: grid; grid-template-columns: minmax(0, 1fr) 6.2rem; grid-template-rows: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 0.15rem 0.4rem; min-height: 0; }
 body.playing .opponent > div > :nth-child(1) { grid-column: 1; grid-row: 1 / 4; }
 body.playing .opponent > div > h4:nth-child(2) { grid-column: 2; grid-row: 1; align-self: start; margin: 0; }
@@ -472,8 +468,6 @@ body.playing .opponent > p.hint:not(:nth-of-type(1)) { grid-column: 1 / -1; grid
 body.playing .players-section .sound-settings { flex-wrap: nowrap; gap: 0.5rem; }
 body.playing .sound-settings input[type="range"] { width: 6rem; }
 body.playing .side-panels button, body.playing .players-section button { min-height: 1.6rem; padding: 0 0.45rem; }
-body.playing .side-panels .stepper-name, body.playing .side-panels .stepper-count { font-size: 0.85rem; }
-body.playing .counters-block { gap: 0.15rem 0.6rem; }
 
 /* ---- The battlefield grid (Phase B, docs/layout.md; a fine grid since 2026-11-09): 96 columns by 32 rows, the same for every player. A card covers 8 by 8 cells (an eighth of a card is one step) and starts
    on the cell its data-col and data-row say (plain rules, no inline style); cards may overlap and the later card in the page is drawn on top. A card is as big as the smaller side of its 12 by 4

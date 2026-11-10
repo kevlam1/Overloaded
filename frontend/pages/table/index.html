@@ -53,10 +53,11 @@
         <section class="bar" aria-label="Your game">
           <p class="stat">Turn <strong id="turn">1</strong></p>
           <p id="turn-whose" class="stat"></p>
-          <div class="life" role="group" aria-label="Life total">
+          <div id="life-area" class="life" role="group" aria-label="Life total and counters" title="Right-click for counters">
             <button id="life-minus5" type="button" class="secondary" aria-label="Lose 5 life">-5</button>
             <button id="life-minus1" type="button" class="secondary" aria-label="Lose 1 life">-1</button>
             <p class="stat">Life <strong id="life">20</strong></p>
+            <div id="life-chips" class="counter-chips" role="group" aria-label="Your counters"></div>
             <button id="life-plus1" type="button" class="secondary" aria-label="Gain 1 life">+1</button>
             <button id="life-plus5" type="button" class="secondary" aria-label="Gain 5 life">+5</button>
           </div>
@@ -82,16 +83,7 @@
           <div id="hand" class="row" data-empty="Your hand is empty."></div>
         </section>
 
-        <aside class="side-panels" aria-label="Counters, the selected card and your piles">
-          <section id="counters" class="counters-panel" aria-labelledby="counters-heading">
-            <h2 id="counters-heading">Your counters</h2>
-            <div id="player-counters" class="counters-block" role="group" aria-label="Poison, energy and experience"></div>
-            <div id="commander-damage-block" hidden>
-              <h3 id="commander-damage-heading" class="counters-sub">Commander damage you have taken</h3>
-              <div id="commander-damage" class="counters-block" role="group" aria-labelledby="commander-damage-heading"></div>
-            </div>
-          </section>
-
+        <aside class="side-panels" aria-label="The selected card and your piles">
           <p id="selected-line" class="sr-only" aria-live="polite">Click a card to select it; right-click it for what you can do.</p>
 
           <section id="piles-section" class="piles-section" aria-labelledby="piles-heading">

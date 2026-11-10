@@ -528,43 +528,52 @@ try {
   record('turning it back removes the mark from the database (nothing is stored for a card showing its front)', Boolean(delverBack), JSON.stringify(await delverInDb()));
   const bobFront = await waitFor(async () => { const d = await delverOf(bob, '#opponent-list .opponent .card'); return d && d.src?.includes('/front/') ? d : null; }, 20000, 250);
   record("and Bob's page shows the front picture again", Boolean(bobFront) && !/turned over/.test(bobFront.label), JSON.stringify(bobFront));
-  // Player counters and commander damage. Alice's table is a Commander table, so her page has one commander damage entry for every seat
-  // with a commander (hers and Bob's). The damage is stored as one number per seat on HER public branch (she took it), and Bob's page shows
-  // it on her panel, read-only.
-  const stepFacts = (browser, selector) => browser.eval(`(() => { const e = document.querySelector(${JSON.stringify(selector)}); if (!e) return null; return { count: e.querySelector('.stepper-count').textContent, lethal: e.classList.contains('lethal'), word: !e.querySelector('.stepper-lethal').hidden, hidden: e.hidden || Boolean(e.closest('[hidden]')), buttons: e.querySelectorAll('button').length, label: e.querySelector('.stepper-name').textContent }; })()`);
-  const pressStep = (browser, selector, times = 1) => browser.eval(`(() => { const b = document.querySelector(${JSON.stringify(selector)}); for (let n = 0; n < ${times}; n++) b.click(); })()`);
-  const ownDamage = (seat) => `#commander-damage .cd-entry[data-id="damage:${seat}"]`;
-  const ownCounter = (kind) => `#player-counters .counter-entry[data-id="counter:${kind}"]`;
-  const onAlicePanel = (selector) => `#opponent-list .opponent[data-uid="${cleanup.alice.uid}"] ${selector}`;
-  const damageNames = await alice.eval(`Array.from(document.querySelectorAll('#commander-damage .stepper-name')).map((n) => n.textContent)`);
-  record('Alice has a counters section, and commander damage for the two seats that have a commander (the format is Commander)', (await alice.eval(`!document.getElementById('counters').hidden && !document.getElementById('commander-damage-block').hidden`)) && JSON.stringify(damageNames) === JSON.stringify(['Seat 1: Alice', 'Seat 2: Bob']), JSON.stringify(damageNames));
-  await pressStep(alice, `${ownCounter('poison')} button[data-step="1"]`, 3);
-  await pressStep(alice, `${ownDamage('2')} button[data-step="5"]`, 1);
-  await pressStep(alice, `${ownDamage('2')} button[data-step="1"]`, 2);
+  // Player counters and commander damage, as chips next to the life total, set from a right-click on the life. Alice's table is a Commander table, so her menu has commander
+  // damage for every seat with a commander (hers and Bob's). The damage is stored as one number per seat on HER public branch (she took it), and Bob's page shows it as chips on her panel, read-only.
+  // Only the counters the PUBLISHED rules accept are offered on this table (poison, energy, experience); the rest are for the solo table until the rules are changed.
+  const rightClickLife = async (page) => {
+    const p = await page.eval(`(() => { const r = document.getElementById('life').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`);
+    await page.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p.x, y: p.y });
+    await page.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: p.x, y: p.y, button: 'right', buttons: 2, clickCount: 1 });
+    await page.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: p.x, y: p.y, button: 'right', buttons: 0, clickCount: 1 });
+    await sleep(150);
+  };
+  const lifeMenuPick = async (page, ...path) => { await rightClickLife(page); for (const step of path) await pressMenuEntry(page, step); };
+  const closeAnyMenu = async (page) => { await page.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await page.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await sleep(60); };
+  const chipFacts = (browser, scope) => browser.eval(`(() => { const box = document.querySelector(${JSON.stringify(scope)}); if (!box) return null; return [...box.querySelectorAll('.counter-chip')].map((c) => ({ id: c.dataset.id, number: c.querySelector('.chip-count').hidden ? null : c.querySelector('.chip-count').textContent, label: c.getAttribute('aria-label'), lethal: c.classList.contains('lethal'), word: !c.querySelector('.chip-lethal').hidden, buttons: c.querySelectorAll('button').length })); })()`);
+  const onAlice = `#opponent-list .opponent[data-uid="${cleanup.alice.uid}"] .opponent-counters`;
+  const hit = (chips, id) => (chips ?? []).find((c) => c.id === id) ?? null;
+  await rightClickLife(alice);
+  const aliceLifeMenu = await menuOf(alice);
+  await closeAnyMenu(alice);
+  record('Alice has no counters section any more; a right-click on her life opens a menu with the counters the database accepts and commander damage for the two seats that have a commander (the format is Commander)', Boolean(aliceLifeMenu) && aliceLifeMenu.title === 'Your counters' && JSON.stringify(aliceLifeMenu.items) === JSON.stringify(['Poison: 0', 'Energy: 0', 'Experience: 0', 'Commander damage from Seat 1: Alice: 0', 'Commander damage from Seat 2: Bob: 0']) && (await count(alice, '#counters, #player-counters, #commander-damage-block')) === 0, JSON.stringify(aliceLifeMenu));
+  await lifeMenuPick(alice, 'Poison: 0', 'Add 1'); await lifeMenuPick(alice, 'Poison: 1', 'Add 1'); await lifeMenuPick(alice, 'Poison: 2', 'Add 1');
+  await lifeMenuPick(alice, 'Commander damage from Seat 2: Bob: 0', 'Add 5'); await lifeMenuPick(alice, 'Commander damage from Seat 2: Bob: 5', 'Add 1'); await lifeMenuPick(alice, 'Commander damage from Seat 2: Bob: 6', 'Add 1');
   const countersSaved = await waitFor(async () => { const pc = (await rest('GET', pathOf('public/pc'), cleanup.bob.token)).json; const cd = (await rest('GET', pathOf('public/cd'), cleanup.bob.token)).json; return pc?.poison === 3 && cd?.['2'] === 7 ? { pc, cd } : null; }, 15000, 250);
   record('3 poison and 7 commander damage from seat 2 are saved: one small number each, and nothing for the counters at 0', Boolean(countersSaved) && JSON.stringify(countersSaved.pc) === '{"poison":3}' && JSON.stringify(countersSaved.cd) === '{"2":7}', JSON.stringify(countersSaved));
-  const bobSeesPoison = await waitFor(async () => { const f = await stepFacts(bob, onAlicePanel('.counter-entry[data-id="counter:poison"]')); return f && f.count === '3' && !f.hidden ? f : null; }, 20000, 250);
-  const bobSeesDamage = await stepFacts(bob, onAlicePanel('.cd-entry[data-id="damage:2"]'));
-  record("Bob's page shows Alice's poison 3 and the 7 damage from seat 2 on her panel, without a refresh, and with no buttons (read-only)", Boolean(bobSeesPoison) && bobSeesPoison.buttons === 0 && bobSeesDamage && bobSeesDamage.count === '7' && bobSeesDamage.label === 'Commander damage from Seat 2: Bob' && !bobSeesDamage.hidden && bobSeesDamage.buttons === 0, JSON.stringify({ bobSeesPoison, bobSeesDamage }));
-  const bobSeesEnergy = await stepFacts(bob, onAlicePanel('.counter-entry[data-id="counter:energy"]'));
-  record("a counter Alice does not have is not shown on her panel (energy is at 0, so it is hidden)", Boolean(bobSeesEnergy) && bobSeesEnergy.hidden === true, JSON.stringify(bobSeesEnergy));
-  const aliceSeesBob = await alice.eval(`(() => { const panel = document.querySelector('#opponent-list .opponent[data-uid="${cleanup.bob.uid}"]'); if (!panel) return null; return { boxes: panel.querySelectorAll('.opponent-counters').length, shown: Array.from(panel.querySelectorAll('.opponent-counters')).filter((b) => !b.hidden).length }; })()`);
-  record("a player with no counters shows none on their panel: Alice's view of Bob has the boxes, all hidden", Boolean(aliceSeesBob) && aliceSeesBob.boxes === 2 && aliceSeesBob.shown === 0, JSON.stringify(aliceSeesBob));
-  const bobOwn = await stepFacts(bob, ownCounter('poison'));
-  const bobOwnDamage = await bob.eval(`Array.from(document.querySelectorAll('#commander-damage .stepper-name')).map((n) => n.textContent)`);
-  record("Bob's own counters are separate: his poison is 0, and his commander damage lists the same two seats", bobOwn && bobOwn.count === '0' && JSON.stringify(bobOwnDamage) === JSON.stringify(['Seat 1: Alice', 'Seat 2: Bob']), JSON.stringify({ bobOwn, bobOwnDamage }));
-  await pressStep(alice, `${ownDamage('2')} button[data-step="5"]`, 2);
-  await pressStep(alice, `${ownDamage('2')} button[data-step="1"]`, 4);
+  const aliceChips = await chipFacts(alice, '#life-chips');
+  record("Alice's life area shows the two chips: poison 3 and the damage from seat 2, 7", aliceChips && aliceChips.length === 2 && hit(aliceChips, 'counter:poison')?.number === '3' && hit(aliceChips, 'damage:2')?.number === '7' && hit(aliceChips, 'damage:2')?.label === 'Commander damage from Seat 2: Bob: 7', JSON.stringify(aliceChips));
+  const bobSeesChips = await waitFor(async () => { const c = await chipFacts(bob, onAlice); return hit(c, 'counter:poison')?.number === '3' && hit(c, 'damage:2')?.number === '7' ? c : null; }, 20000, 250);
+  record("Bob's page shows Alice's poison 3 and the 7 damage from seat 2 as chips on her panel, without a refresh, and with no buttons (read-only)", Boolean(bobSeesChips) && bobSeesChips.every((c) => c.buttons === 0) && hit(bobSeesChips, 'damage:2').label === 'Commander damage from Seat 2: Bob: 7' && bobSeesChips.length === 2, JSON.stringify(bobSeesChips));
+  record("a counter Alice does not have is not shown on her panel (energy is at 0, so there is no chip)", !hit(bobSeesChips, 'counter:energy'));
+  const bobOwnChips = await chipFacts(bob, '#life-chips');
+  await rightClickLife(bob);
+  const bobLifeMenu = await menuOf(bob);
+  await closeAnyMenu(bob);
+  record("Bob's own life area is separate: no chips, and his menu has the same counters and the same two seats of commander damage", bobOwnChips && bobOwnChips.length === 0 && bobLifeMenu && JSON.stringify(bobLifeMenu.items) === JSON.stringify(aliceLifeMenu.items), JSON.stringify({ bobOwnChips, bobLifeMenu }));
+  const damage = (n) => `Commander damage from Seat 2: Bob: ${n}`;
+  await lifeMenuPick(alice, damage(7), 'Add 5'); await lifeMenuPick(alice, damage(12), 'Add 5');
+  for (const n of [17, 18, 19, 20]) await lifeMenuPick(alice, damage(n), 'Add 1');
   const lethalSaved = await waitFor(async () => (await rest('GET', pathOf('public/cd/2'), cleanup.bob.token)).json === 21 ? true : null, 15000, 250);
-  const aliceLethal = await stepFacts(alice, ownDamage('2'));
-  const bobLethal = await waitFor(async () => { const f = await stepFacts(bob, onAlicePanel('.cd-entry[data-id="damage:2"]')); return f && f.lethal && f.word ? f : null; }, 20000, 250);
+  const aliceLethal = hit(await chipFacts(alice, '#life-chips'), 'damage:2');
+  const bobLethal = await waitFor(async () => { const f = hit(await chipFacts(bob, onAlice), 'damage:2'); return f && f.lethal && f.word ? f : null; }, 20000, 250);
   record('21 damage from one commander is saved, and is marked lethal (with the word) on Alice\'s page and on Bob\'s view of her panel', Boolean(lethalSaved) && aliceLethal.lethal && aliceLethal.word && Boolean(bobLethal), JSON.stringify({ aliceLethal, bobLethal }));
-  await pressStep(alice, `${ownDamage('2')} button[data-step="-5"]`, 1);
+  await lifeMenuPick(alice, damage(21), 'Remove 5');
   const backDown = await waitFor(async () => (await rest('GET', pathOf('public/cd/2'), cleanup.bob.token)).json === 16 ? true : null, 15000, 250);
-  const bobNotLethal = await waitFor(async () => { const f = await stepFacts(bob, onAlicePanel('.cd-entry[data-id="damage:2"]')); return f && f.count === '16' && !f.lethal && !f.word ? f : null; }, 20000, 250);
+  const bobNotLethal = await waitFor(async () => { const f = hit(await chipFacts(bob, onAlice), 'damage:2'); return f && f.number === '16' && !f.lethal && !f.word ? f : null; }, 20000, 250);
   record('taking 5 off saves 16 and the lethal mark goes away for both players', Boolean(backDown) && Boolean(bobNotLethal), JSON.stringify(bobNotLethal));
   await alice.goto(`http://127.0.0.1:${PORT}/table/${code}`);
-  const counterRefresh = await waitFor(async () => { const p = await stepFacts(alice, ownCounter('poison')); const d = await stepFacts(alice, ownDamage('2')); return p && d && p.count === '3' && d.count === '16' ? { p, d } : null; }, 30000, 250);
+  const counterRefresh = await waitFor(async () => { const c = await chipFacts(alice, '#life-chips'); return hit(c, 'counter:poison')?.number === '3' && hit(c, 'damage:2')?.number === '16' ? c : null; }, 30000, 250);
   record('after a refresh Alice has her counters back: 3 poison and 16 damage from seat 2 (read from the database)', Boolean(counterRefresh), JSON.stringify(counterRefresh));
 
   // Whose turn it is, passing it, and the two marks. Alice is seat 1, so the match starts on her turn. A pass is ONE small record on the passer's own
@@ -658,7 +667,7 @@ try {
     await pressStep(alice, `${ownDamage('2')} button[data-step="5"]`, 1); // back to 21, so the picture shows the lethal mark
     await pressStep(alice, `${ownCounter('energy')} button[data-step="1"]`, 2);
     await sleep(2500);
-    await alice.eval(`document.getElementById('counters').scrollIntoView()`); await sleep(300);
+    await alice.eval(`document.getElementById('life-area').scrollIntoView()`); await sleep(300);
     await alice.screenshot('scratch-table-alice-counters.png');
     await bob.eval(`document.getElementById('opponents').scrollIntoView()`); await sleep(300);
     await bob.screenshot('scratch-table-page.png');
