@@ -19,6 +19,7 @@ import {
 } from '../shared/zones.mjs';
 import { gameWrites, joinGame, PUBLIC_ZONES, PRIVATE_ZONES } from '../shared/game-sync.mjs';
 import { makePing } from '../shared/ping.mjs';
+import { PUBLISHED_COUNTERS } from '../shared/player-counters.mjs';
 
 const rulesText = readFileSync(new URL('./database.rules.json', import.meta.url), 'utf8');
 const env = await initializeTestEnvironment({ projectId: 'demo-overloaded', database: { host: '127.0.0.1', port: 9000, rules: rulesText } });
@@ -68,6 +69,11 @@ const put = (db, path, value) => set(ref(db, `tables/${T}/${path}`), value);
 // (run at the END of this file, so that a broken rule is caught by the behavior tests first and this only backs them up)
 const structureChecks = () => {
   const rules = JSON.parse(rulesText).rules.tables.$code;
+  // The live table offers only PUBLISHED_COUNTERS (shared/player-counters.mjs). It must be exactly the player counters this rules file accepts, or a page would write a key the
+  // database refuses (which fails the player's whole public branch), or hold back a counter the database would take.
+  const acceptedCounters = Object.keys(rules.public.$uid.pc).filter((key) => !key.startsWith('.') && !key.startsWith('$'));
+  check('the counters the live table offers are exactly the player counters these rules accept', JSON.stringify([...PUBLISHED_COUNTERS].sort()) === JSON.stringify([...acceptedCounters].sort()), `offered ${PUBLISHED_COUNTERS} / accepted ${acceptedCounters}`);
+  check('and every other player counter is still waiting for a rules change (so the list above is the only place to change)', PLAYER_COUNTERS.filter((kind) => !PUBLISHED_COUNTERS.includes(kind)).every((kind) => !acceptedCounters.includes(kind)));
   const blocks = ALL_LISTS.map((zone) => JSON.stringify(rules[branchOf(zone)].$uid[zone]));
   check('the seven list rules exist', blocks.every((block) => block && block.length > 500));
   check('the seven list rules are identical', blocks.every((block) => block === blocks[0]));
@@ -339,7 +345,7 @@ async function playRandomGame(seed, steps, lookup, code) {
       else if (op === 'token' && battlefield.length < MAX_ZONE_CARDS) game = createToken(game, TOKEN).game;
       else if (op === 'longtoken' && battlefield.length < MAX_ZONE_CARDS) game = createToken(game, LONG_TOKEN).game;
       else if (op === 'copy' && battlefield.length && battlefield.length < MAX_ZONE_CARDS) game = copyAsToken(game, pick(battlefield).uid, { printed: pick([null, '2/2', '3/2', '*/*']) }).game;
-      else if (op === 'player') game = changePlayerCounter(game, pick(PLAYER_COUNTERS), (random() < 0.5 ? -1 : 1) * (1 + Math.floor(random() * 5)));
+      else if (op === 'player') game = changePlayerCounter(game, pick(PUBLISHED_COUNTERS), (random() < 0.5 ? -1 : 1) * (1 + Math.floor(random() * 5)));
       else if (op === 'commander') game = changeCommanderDamage(game, pick(COMMANDER_SEATS), (random() < 0.5 ? -1 : 1) * (1 + Math.floor(random() * 5)));
       else if (op === 'turn') game = nextTurn(game).game;
       else if (op === 'tap' && battlefield.length) { const card = pick(battlefield); game = setTapped(game, card.uid, !card.tapped); }

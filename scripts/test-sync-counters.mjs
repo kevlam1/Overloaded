@@ -114,11 +114,11 @@ function loaded() {
   same('an opponent sees the player counters and commander damage', [view.pc, view.cd], [{ poison: 3, energy: 7 }, { 2: 5 }]);
   same('a view without them has empty tables', [readPublic({ life: 20 }, lookup).pc, readPublic({ life: 20 }, lookup).cd], [{}, {}]);
   same('a life total in the billions is read back whole, one past the limit is not', [readPublic({ life: 8_000_000_000 }, lookup).life, readPublic({ life: -3_000_000_000 }, lookup).life, readPublic({ life: 1_000_000_000_001 }, lookup).life], [8_000_000_000, -3_000_000_000, 0]);
-  const hostile = readPublic({ life: 20, pc: { poison: 5, rad: 3, energy: '9', experience: MAX_COUNT + 1, evil: 1 }, cd: { 1: 2, 5: 3, 0: 1, x: 4, 2: 1.5, 3: -1 } }, lookup);
+  const hostile = readPublic({ life: 20, pc: { poison: 5, loyalty: 3, monarch: 4, energy: '9', experience: MAX_COUNT + 1, evil: 1 }, cd: { 1: 2, 5: 3, 0: 1, x: 4, 2: 1.5, 3: -1 } }, lookup);
   same('unknown kinds, text, fractions, zero, negatives and over-limit counts are dropped, the good ones kept', [hostile.pc, hostile.cd], [{ poison: 5 }, { 1: 2 }]);
   same('counters that are not tables read as empty', [readPublic({ life: 20, pc: 5, cd: 'x' }, lookup).pc, readPublic({ life: 20, pc: [1, 2], cd: null }, lookup).cd], [{}, {}]);
-  same('joinGame drops them the same way', (({ pc, cd }) => [pc, cd])(joinGame({ life: 20, turn: 1, mulligans: 0, next: 5, pc: { poison: 5, rad: 3 }, cd: { 9: 1 } }, {}, lookup)), [{ poison: 5 }, undefined]);
-  check('joinGame with all of them bad has neither key', (() => { const g = joinGame({ life: 20, pc: { rad: 1 }, cd: {} }, {}, lookup); return !('pc' in g) && !('cd' in g); })());
+  same('joinGame drops them the same way', (({ pc, cd }) => [pc, cd])(joinGame({ life: 20, turn: 1, mulligans: 0, next: 5, pc: { poison: 5, loyalty: 3 }, cd: { 9: 1 } }, {}, lookup)), [{ poison: 5 }, undefined]);
+  check('joinGame with all of them bad has neither key', (() => { const g = joinGame({ life: 20, pc: { loyalty: 1 }, cd: {} }, {}, lookup); return !('pc' in g) && !('cd' in g); })());
 }
 
 // ---- long random games: every move's writes, applied to a fake database, rebuild exactly the same game ----

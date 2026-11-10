@@ -4,6 +4,7 @@
 import {
   POISON_LETHAL, COMMANDER_LETHAL, COUNTER_LABELS, COUNTER_STEPS, DAMAGE_STEPS,
   counterEntry, playerCounterEntries, commanderDamageEntry, commanderDamageSeats, commanderDamageEntries, commanderDamageSeatsFor, counterAction, damageAction, countersSentence,
+  PUBLISHED_COUNTERS, offeredCounters, chipEntries, playerMenuItems, playerAction,
 } from '../shared/player-counters.mjs';
 import { makeGame, seededRandom, checkGame, PLAYER_COUNTERS, COMMANDER_SEATS, MAX_COUNT } from '../shared/zones.mjs';
 
@@ -23,20 +24,20 @@ const deck = { cards: [{ i: id(1), n: 'Forest', qty: 30, section: 'main' }], com
 const fresh = () => makeGame(deck, () => ({ t: 'Basic Land - Forest', m: '', k: [] }), { random: seededRandom(1) });
 
 // ---- the constants are what the design says ----
-same('the three counters a player can have', PLAYER_COUNTERS, ['poison', 'energy', 'experience']);
-same('every one has words', PLAYER_COUNTERS.map((kind) => COUNTER_LABELS[kind]), ['Poison', 'Energy', 'Experience']);
+same('what a player can have: six counts and three marks', PLAYER_COUNTERS, ['poison', 'energy', 'experience', 'rad', 'ticket', 'speed', 'ring', 'monarch', 'initiative', 'blessing']);
+same('every one has words', PLAYER_COUNTERS.map((kind) => COUNTER_LABELS[kind]), ['Poison', 'Energy', 'Experience', 'Rad', 'Ticket', 'Speed', 'The Ring tempts you', 'Monarch', 'Initiative', "City's blessing"]);
 check('poison is lethal at 10 and commander damage at 21 (from one commander)', POISON_LETHAL === 10 && COMMANDER_LETHAL === 21);
 same('the buttons of a counter and of commander damage', [COUNTER_STEPS, DAMAGE_STEPS], [[-1, 1], [-5, -1, 1, 5]]);
 
 // ---- player counters ----
-same('a player with no counters shows each at 0, not lethal, in the fixed order', playerCounterEntries(undefined).map((e) => [e.id, e.count, e.lethal]), [['counter:poison', 0, false], ['counter:energy', 0, false], ['counter:experience', 0, false]]);
-same('the counts come from the game', playerCounterEntries({ poison: 3, experience: 7 }).map((e) => e.count), [3, 0, 7]);
-same('an entry says what it is', counterEntry('poison', { poison: 3 }), { id: 'counter:poison', kind: 'poison', label: 'Poison', count: 3, lethalAt: 10, lethal: false });
+same('a player with no counters shows each at 0, not lethal, in the fixed order', playerCounterEntries(undefined).slice(0, 3).map((e) => [e.id, e.count, e.lethal]), [['counter:poison', 0, false], ['counter:energy', 0, false], ['counter:experience', 0, false]]);
+same('the counts come from the game', playerCounterEntries({ poison: 3, experience: 7 }).slice(0, 3).map((e) => e.count), [3, 0, 7]);
+same('an entry says what it is', counterEntry('poison', { poison: 3 }), { id: 'counter:poison', kind: 'poison', label: 'Poison', count: 3, flag: false, lethalAt: 10, lethal: false });
 for (const [count, lethal] of [[0, false], [1, false], [9, false], [10, true], [11, true], [1000, true]]) check(`poison ${count} is ${lethal ? '' : 'not '}lethal`, counterEntry('poison', { poison: count }).lethal === lethal);
 for (const kind of ['energy', 'experience']) check(`${kind} is never lethal, even at ${MAX_COUNT.toLocaleString('en-US')}`, !counterEntry(kind, { [kind]: MAX_COUNT }).lethal && counterEntry(kind, { [kind]: 99 }).lethalAt === null);
 for (const bad of [-1, 1.5, '3', null, undefined, NaN, Infinity, [3], {}, true]) check(`a damaged count ${JSON.stringify(bad)} shows as 0`, counterEntry('poison', { poison: bad }).count === 0);
 check('a count past the limit stops at it', counterEntry('energy', { energy: MAX_COUNT * 5 }).count === MAX_COUNT);
-for (const bad of ['', 'loyalty', 'Poison', '__proto__', 'constructor', 5, null, undefined]) refused(`${JSON.stringify(bad)} is not a counter`, () => counterEntry(bad, {}), /not a counter/);
+for (const bad of ['', 'loyalty', 'Poison', 'Monarch', '__proto__', 'constructor', 5, null, undefined]) refused(`${JSON.stringify(bad)} is not a counter`, () => counterEntry(bad, {}), /not a counter/);
 check('a missing or odd game object does not crash it', playerCounterEntries(null).every((e) => e.count === 0) && playerCounterEntries('x').every((e) => e.count === 0) && playerCounterEntries([5]).every((e) => e.count === 0));
 
 // ---- commander damage: ONE player's entry ----
@@ -145,6 +146,50 @@ check('names are kept as text exactly (they are put in the page as text, never m
   same('only counters', countersSentence(playerCounterEntries({ experience: 3 })), 'Experience 3.');
   same('only damage', countersSentence(playerCounterEntries({}), damage.slice(0, 1)), 'Commander damage: 7 from Seat 1: Alice.');
   same('nothing at all is an empty sentence', [countersSentence(playerCounterEntries({}), damage.slice(2)), countersSentence([], [])], ['', '']);
+}
+
+// ---- the new counters, the chips and the menu of the life total ----
+{
+  const live = offeredCounters({ live: true });
+  same('the live table offers only what the published rules accept', [live, PUBLISHED_COUNTERS], [['poison', 'energy', 'experience'], ['poison', 'energy', 'experience']]);
+  same('a solo table offers everything', offeredCounters({ live: false }), PLAYER_COUNTERS);
+  same('a mark is on or off: an entry of 7 monarchs is 1', [counterEntry('monarch', { monarch: 7 }).count, counterEntry('monarch', { monarch: 7 }).flag, counterEntry('poison', {}).flag], [1, true, false]);
+  same('rad is a count and never lethal', [counterEntry('rad', { rad: 50 }).lethal, counterEntry('rad', { rad: 50 }).lethalAt], [false, null]);
+  same('no chips for a player with nothing', chipEntries(undefined), []);
+  same('the chips are the counters above 0 in the fixed order, then the commander damage', chipEntries({ monarch: 1, poison: 3, rad: 2 }, { 2: 21 }, [{ seat: '2', name: 'Bob' }]).map((e) => [e.id, e.count]), [['counter:poison', 3], ['counter:rad', 2], ['counter:monarch', 1], ['damage:2', 21]]);
+  same('damage from a seat that is not listed has no chip', chipEntries({}, { 3: 5 }, [{ seat: '2', name: 'Bob' }]), []);
+
+  const game = fresh();
+  const solo = playerMenuItems(game);
+  same('the solo menu has one entry for each of the nine, counts opening Add and Remove, marks being one choice', solo.map((i) => [i.id, i.items ? i.items.map((x) => x.id.split(':').pop()) : null]), PLAYER_COUNTERS.map((kind) => [kind === 'monarch' || kind === 'initiative' || kind === 'blessing' ? `flag:${kind}` : `counter:${kind}`, kind === 'monarch' || kind === 'initiative' || kind === 'blessing' ? null : ['+1', '+5']]));
+  same('the live menu has only the published counters', playerMenuItems(game, { live: true }).map((i) => i.id), ['counter:poison', 'counter:energy', 'counter:experience']);
+  same('with something to take off, Remove appears; with more than one, Remove all or Remove 5', playerMenuItems({ pc: { poison: 1, energy: 3, experience: 9 } }).slice(0, 3).map((i) => i.items.map((x) => x.label)), [['Add 1', 'Add 5', 'Remove 1'], ['Add 1', 'Add 5', 'Remove 1', 'Remove all'], ['Add 1', 'Add 5', 'Remove 1', 'Remove 5']]);
+  same('the labels show what is on now', [playerMenuItems({ pc: { poison: 4, monarch: 1 } }).filter((i) => ['counter:poison', 'flag:monarch', 'flag:initiative'].includes(i.id)).map((i) => i.label)], [['Poison: 4', 'Monarch: on', 'Initiative: off']]);
+  const withSeats = playerMenuItems({ cd: { 2: 3 } }, { live: true, seats: [{ seat: '1', name: 'Alice' }, { seat: '2', name: 'Bob' }] });
+  same('commander damage comes after the counters, one entry per seat', [withSeats.slice(-2).map((i) => i.id), withSeats.at(-1).label], [['damage:1', 'damage:2'], 'Commander damage from Seat 2: Bob: 3']);
+
+  const act = (id, g = game, options) => playerAction(id, g, options);
+  same('adding rad and taking it away', [act('counter:rad:+5').run(game).pc, act('counter:rad:-1', { ...game, pc: { rad: 5 } }).run({ ...game, pc: { rad: 5 } }).pc], [{ rad: 5 }, { rad: 4 }]);
+  same('and says so', act('counter:rad:+5').message, 'Rad 5.');
+  same('a mark toggles and says so', [act('flag:monarch').run(game).pc, act('flag:monarch').message, act('flag:monarch', { ...game, pc: { monarch: 1 } }).message, 'pc' in act('flag:monarch', { ...game, pc: { monarch: 1 } }).run({ ...game, pc: { monarch: 1 } })], [{ monarch: 1 }, 'Monarch: on.', 'Monarch: off.', false]);
+  same('commander damage by menu', [act('damage:2:+5', game, { names: { 2: 'Bob' } }).run(game).cd, act('damage:2:+5', game, { names: { 2: 'Bob' } }).message], [{ 2: 5 }, 'Commander damage from Bob: 5.']);
+  same('on the live table a counter the rules do not accept is refused, a published one is fine', [act('counter:rad:+1', game, { live: true }), act('flag:monarch', game, { live: true }), act('counter:poison:+1', game, { live: true }) !== null], [null, null, true]);
+  same('ids that are not choices give nothing', ['', 'counter', 'counter:poison', 'counter:poison:+x', 'counter:loyalty:+1', 'counter:monarch:+1', 'flag:poison', 'flag:rad', 'damage:5:+1', 'damage:2', 7, null, undefined, 'counter:poison:+1; drop'].map((x) => act(x)), Array(14).fill(null));
+  check('a random walk of menu choices keeps the game consistent', (() => {
+    const random = seededRandom(5);
+    let g = fresh();
+    for (let step = 0; step < 600; step++) {
+      const items = playerMenuItems(g, { seats: [{ seat: '1', name: 'A' }, { seat: '3', name: 'C' }] });
+      const item = items[Math.floor(random() * items.length)];
+      const choices = item.items ?? [item];
+      const choice = choices[Math.floor(random() * choices.length)];
+      const action = act(choice.id, g);
+      if (!action) return false;
+      g = action.run(g);
+      if (checkGame(g).length) return false;
+    }
+    return true;
+  })());
 }
 
 console.log(`All ${checks} player counter checks passed.`);

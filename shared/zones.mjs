@@ -47,7 +47,9 @@ export const MAX_MODIFIER = NUMBER_LIMIT;
 export const MAX_NOTE = 40;
 export const MAX_TOKEN_TEXT = 60;
 export const MAX_ZONE_CARDS = 250;
-export const PLAYER_COUNTERS = ['poison', 'energy', 'experience'];
+// What a player can have on them. The first six are counts; the last three are marks that are either on or off (the monarch, the initiative, the city's blessing).
+export const PLAYER_FLAGS = ['monarch', 'initiative', 'blessing'];
+export const PLAYER_COUNTERS = ['poison', 'energy', 'experience', 'rad', 'ticket', 'speed', 'ring', ...PLAYER_FLAGS];
 export const COMMANDER_SEATS = ['1', '2', '3', '4'];
 const BATTLEFIELD_STATE = ['ct', 'mp', 'mt', 'faceDown', 'turned', 'nt', 'sick', 'noUntap', 'px', 'py']; // px and py: the cell on the battlefield grid (shared/board-grid.mjs)
 export const MAX_TURN = 100000; // the largest turn number a game or a saved game may have
@@ -438,7 +440,7 @@ export function copyAsToken(game, uid, { printed = null } = {}) {
 const bumped = (table, key, delta, what) => {
   wholeStep(delta, what);
   const next = { ...(table ?? {}) };
-  next[key] = Math.min(MAX_COUNT, Math.max(0, (next[key] ?? 0) + delta));
+  next[key] = Math.min(PLAYER_FLAGS.includes(key) ? 1 : MAX_COUNT, Math.max(0, (next[key] ?? 0) + delta)); // a mark is on (1) or off (0)
   if (!next[key]) delete next[key];
   return next;
 };
@@ -589,7 +591,7 @@ export function checkGame(game) {
     }
   }
   if ('pc' in game) {
-    const ok = game.pc && typeof game.pc === 'object' && !Array.isArray(game.pc) && Object.keys(game.pc).length > 0 && Object.entries(game.pc).every(([key, value]) => PLAYER_COUNTERS.includes(key) && Number.isInteger(value) && value >= 1 && value <= MAX_COUNT);
+    const ok = game.pc && typeof game.pc === 'object' && !Array.isArray(game.pc) && Object.keys(game.pc).length > 0 && Object.entries(game.pc).every(([key, value]) => PLAYER_COUNTERS.includes(key) && Number.isInteger(value) && value >= 1 && value <= (PLAYER_FLAGS.includes(key) ? 1 : MAX_COUNT));
     if (!ok) problems.push('the player counters are damaged');
   }
   if ('cd' in game) {

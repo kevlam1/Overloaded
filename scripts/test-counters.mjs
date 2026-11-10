@@ -44,7 +44,7 @@ const TOKEN = { n: 'Goblin', i: id(70), tt: 'Token Creature - Goblin', pt: '1/1'
 same('counter kinds', COUNTER_KINDS, ['p', 'm', 'l', 'c', 't', 'o']);
 same('counter words', COUNTER_WORDS, { p: '+1/+1', m: '-1/-1', l: 'Loyalty', c: 'Charge', t: 'Time', o: 'Other' });
 same('the limits', [MAX_COUNT, MAX_MODIFIER, MAX_NOTE, MAX_TOKEN_TEXT, MAX_ZONE_CARDS], [1_000_000_000_000, 1_000_000_000_000, 40, 60, 250]);
-same('player counters and seats', [PLAYER_COUNTERS, COMMANDER_SEATS], [['poison', 'energy', 'experience'], ['1', '2', '3', '4']]);
+same('player counters and seats', [PLAYER_COUNTERS, COMMANDER_SEATS], [['poison', 'energy', 'experience', 'rad', 'ticket', 'speed', 'ring', 'monarch', 'initiative', 'blessing'], ['1', '2', '3', '4']]);
 
 // ---- counters ----
 {
@@ -258,7 +258,9 @@ same('player counters and seats', [PLAYER_COUNTERS, COMMANDER_SEATS], [['poison'
   check('removing the last of all of them takes pc away', !('pc' in changePlayerCounter(changePlayerCounter(changePlayerCounter(g, 'poison', -1), 'energy', -9), 'experience', -1)));
   same('the limit', changePlayerCounter(changePlayerCounter(game, 'energy', 99), 'energy', 99).pc.energy, 198);
   check('and it stops at the limit', (() => { let x = game; for (let n = 0; n < 3; n++) x = changePlayerCounter(x, 'energy', MAX_COUNT); return x.pc.energy === MAX_COUNT; })());
-  refused('an unknown player counter', () => changePlayerCounter(game, 'rad', 1), /counter a player can have/);
+  refused('an unknown player counter', () => changePlayerCounter(game, 'loyalty', 1), /counter a player can have/);
+  same('a mark is on or off: adding five monarchs is one, taking it off removes it', [changePlayerCounter(game, 'monarch', 5).pc, 'pc' in changePlayerCounter(changePlayerCounter(game, 'monarch', 1), 'monarch', -1)], [{ monarch: 1 }, false]);
+  same('the new counts add up like the others', changePlayerCounter(changePlayerCounter(game, 'rad', 3), 'rad', 2).pc, { rad: 5 });
   for (const bad of [0, 1.5, MAX_COUNT + 1, NaN, '1', null]) refused(`a player counter change of ${String(bad)}`, () => changePlayerCounter(game, 'poison', bad), /whole number/);
   check('life and the zones are untouched by counters', changePlayerCounter(game, 'poison', 3).life === game.life && changePlayerCounter(game, 'poison', 3).zones === game.zones);
 
@@ -299,7 +301,7 @@ same('player counters and seats', [PLAYER_COUNTERS, COMMANDER_SEATS], [['poison'
     const value = { ct: { l: 1 }, mp: 1, mt: 1, nt: 'x', faceDown: true, tok: true }[key];
     check(`checkGame notices ${key} on a card in the hand`, problemsOf(onCard({ [key]: value }, hand, 'hand')).length > 0, key);
   }
-  for (const [label, patch] of [['empty player counters', { pc: {} }], ['an unknown player counter', { pc: { rad: 1 } }], ['a zero player counter', { pc: { poison: 0 } }], ['a player counter over the limit', { pc: { poison: MAX_COUNT + 1 } }], ['player counters as a list', { pc: [1] }], ['empty commander damage', { cd: {} }], ['commander damage from seat 5', { cd: { 5: 1 } }], ['zero commander damage', { cd: { 1: 0 } }], ['text commander damage', { cd: { 1: '2' } }]]) {
+  for (const [label, patch] of [['empty player counters', { pc: {} }], ['an unknown player counter', { pc: { loyalty: 1 } }], ['a mark above 1', { pc: { monarch: 2 } }], ['a zero player counter', { pc: { poison: 0 } }], ['a player counter over the limit', { pc: { poison: MAX_COUNT + 1 } }], ['player counters as a list', { pc: [1] }], ['empty commander damage', { cd: {} }], ['commander damage from seat 5', { cd: { 5: 1 } }], ['zero commander damage', { cd: { 1: 0 } }], ['text commander damage', { cd: { 1: '2' } }]]) {
     check(`checkGame notices ${label}`, problemsOf({ ...structuredClone(good), ...patch }).length > 0, label);
   }
   check('and a game with good player counters is fine', problemsOf({ ...structuredClone(good), pc: { poison: 3 }, cd: { 2: 5 } }).length === 0);

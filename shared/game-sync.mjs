@@ -13,7 +13,7 @@
 // Everything read from the database is untrusted (another player's browser wrote their public branch), so readCards drops
 // any card that is not exactly this shape, and the picture ids must be Scryfall ids.
 import { validPass } from './turn-order.mjs';
-import { ZONES, MAX_LIFE, MAX_TURN, COUNTER_KINDS, MAX_COUNT, MAX_MODIFIER, MAX_NOTE, MAX_TOKEN_TEXT, PLAYER_COUNTERS, COMMANDER_SEATS, TOKEN_POWER_TOUGHNESS, TOKEN_COLORS } from './zones.mjs';
+import { ZONES, MAX_LIFE, MAX_TURN, COUNTER_KINDS, MAX_COUNT, MAX_MODIFIER, MAX_NOTE, MAX_TOKEN_TEXT, PLAYER_COUNTERS, PLAYER_FLAGS, COMMANDER_SEATS, TOKEN_POWER_TOUGHNESS, TOKEN_COLORS } from './zones.mjs';
 
 export const PUBLIC_ZONES = ['battlefield', 'graveyard', 'exile', 'command'];
 export const PRIVATE_ZONES = ['library', 'hand', 'sideboard'];
@@ -54,7 +54,7 @@ const validCounters = (value) => {
 };
 // A table of counts with only the allowed keys and valid whole numbers 1 to MAX_COUNT (anything else is dropped).
 const cleanCounts = (value, allowed) => Object.fromEntries(Object.entries(value && typeof value === 'object' && !Array.isArray(value) ? value : {})
-  .filter(([key, count]) => allowed.includes(key) && Number.isInteger(count) && count >= 1 && count <= MAX_COUNT));
+  .filter(([key, count]) => allowed.includes(key) && Number.isInteger(count) && count >= 1 && count <= (PLAYER_FLAGS.includes(key) ? 1 : MAX_COUNT)));
 
 // One stored card back to a game card, or null if it is not a card. lookup({ i, n }) gives { t, m, k } (what the card list
 // knows) or null; a card the list does not know still plays, it just has no type.
