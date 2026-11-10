@@ -5,7 +5,7 @@
 //
 // Costs this is built around (docs/scryfall.md, "Card list build"):
 //  - a rebuild downloads about 100 MB from Scryfall, so it happens at most once a week (MAX_AGE_MS) and never in a
-//    preview build or in the tests;
+//    preview build that already has a list, or in the tests;
 //  - when anything goes wrong, the last good list is reused for up to 30 days (MAX_STALE_MS), so a Scryfall outage
 //    cannot block a deploy; only a build with no usable list at all fails;
 //  - a list is written only after it passed its checks, whole and in one step, so a failed rebuild leaves the cache as it was.
@@ -37,13 +37,14 @@ const sleepFor = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 //   skip: ship the site without a list (SKIP_CARD_LIST=1, the emergency switch, or nothing cached and no downloading allowed)
 //   reuse: use the cached list as it is (recent, or downloading is not allowed here)
 //   rebuild: download and build a new one
-// Downloading is not allowed in a preview build (VERCEL_ENV=preview) or when CARD_LIST_NO_DOWNLOAD is set (the tests).
+// Downloading is never allowed when CARD_LIST_NO_DOWNLOAD is set (the tests). A preview build (VERCEL_ENV=preview) reuses any cached list, however old, and downloads only when it has
+// NOTHING cached, so a branch's first preview has a list to play with; the list is then cached and the later previews of that branch reuse it.
 export function decide({ cached, now, env }) {
   if (env.SKIP_CARD_LIST) return { action: 'skip', reason: 'SKIP_CARD_LIST is set' };
   const age = cached ? now - Date.parse(cached.meta.builtAt) : Infinity;
   const oldFormat = Boolean(cached) && cached.meta.format !== LIST_FORMAT;
   if (cached && !oldFormat && age >= 0 && age < MAX_AGE_MS) return { action: 'reuse', reason: 'the cached list is recent', age };
-  const noDownload = Boolean(env.CARD_LIST_NO_DOWNLOAD) || env.VERCEL_ENV === 'preview';
+  const noDownload = Boolean(env.CARD_LIST_NO_DOWNLOAD) || (env.VERCEL_ENV === 'preview' && Boolean(cached));
   if (noDownload) return cached ? { action: 'reuse', reason: 'downloading is not allowed here', age } : { action: 'skip', reason: 'downloading is not allowed here and nothing is cached' };
   return { action: 'rebuild', reason: !cached ? 'no usable cached list' : oldFormat ? 'the cached list is in an older format' : 'the cached list is old', age };
 }

@@ -98,7 +98,8 @@ try {
   check('no downloading and an old list: reuse it', decide({ cached: cachedAt(20), now: T0, env: { CARD_LIST_NO_DOWNLOAD: '1' } }).action === 'reuse');
   check('no downloading and nothing cached: skip', decide({ cached: null, now: T0, env: { CARD_LIST_NO_DOWNLOAD: '1' } }).action === 'skip');
   check('a preview build never downloads: old list reused', decide({ cached: cachedAt(20), now: T0, env: { VERCEL_ENV: 'preview' } }).action === 'reuse');
-  check('a preview build never downloads: nothing cached is a skip', decide({ cached: null, now: T0, env: { VERCEL_ENV: 'preview' } }).action === 'skip');
+  check('a preview build with nothing cached downloads once, so the preview has a list', decide({ cached: null, now: T0, env: { VERCEL_ENV: 'preview' } }).action === 'rebuild');
+  check('...unless downloading is forbidden outright (the tests)', decide({ cached: null, now: T0, env: { VERCEL_ENV: 'preview', CARD_LIST_NO_DOWNLOAD: '1' } }).action === 'skip');
   check('a production build may download', decide({ cached: null, now: T0, env: { VERCEL_ENV: 'production' } }).action === 'rebuild');
 
   // ---- 1. First build: one API request, two downloads, and nothing left over ----
@@ -365,8 +366,7 @@ try {
   result = await run(p, { env: { CARD_LIST_NO_DOWNLOAD: '1' } });
   check('the tests mode with nothing cached skips and makes no request', result.action === 'skip' && state.requests.length === 0);
   result = await run(p, { env: { VERCEL_ENV: 'preview' } });
-  check('a preview build with nothing cached skips and makes no request', result.action === 'skip' && state.requests.length === 0);
-  await run(p); // a real first list
+  check('a preview build with nothing cached builds the list (one download of both files) so the preview is usable', result.action === 'rebuilt' && state.requests.length > 0 && existsSync(p.publicFile), JSON.stringify({ action: result.action, requests: state.requests.length, file: existsSync(p.publicFile) }));
   state.requests = [];
   result = await run(p, { now: T0 + 40 * DAY_MS, env: { VERCEL_ENV: 'preview' } });
   check('a preview build reuses even a 40 day old list and makes no request', result.action === 'reuse' && state.requests.length === 0 && names(p).length === 6);

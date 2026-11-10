@@ -2524,6 +2524,24 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 121. A branch called development, and a card list on previews (2026-11-10)
+
+**What I asked for**
+- I wanted to push to a branch and see it on Vercel as a development test, not on the live site. I named the branch `development`, asked how to enable the Firebase settings for Vercel's preview environment, and said to go ahead with the card list on previews.
+
+**What changed** (`scripts/lib/card-list-build.mjs`, `scripts/test-card-list-build.mjs`)
+- A preview build (`VERCEL_ENV=preview`) used to never download anything and skipped the list when nothing was cached, so a first preview of a branch would have had no cards. Now it still reuses any cached list however old, but when it has NOTHING cached it builds one (one download of Scryfall's two bulk files, about 100 MB), and later previews of that branch reuse it. `CARD_LIST_NO_DOWNLOAD` still forbids every download (the tests).
+- The preview scenarios of the build test were changed to match (157 checks).
+
+**What I checked**
+- `scripts/test-card-list-build.mjs` against its stand-in Scryfall: a preview with nothing cached downloads once, a preview with an old list reuses it and makes no request, and the no-download switch still wins.
+- **Not checked:** a real preview build on Vercel (I cannot see my Vercel settings), whether Vercel keeps its build cache between a branch's previews, and whether Firebase anonymous sign-in works from a preview address.
+
+**Decisions**
+- The cost is one 100 MB download the first time a branch is previewed, if Vercel's cache is per branch. I accepted it because a preview without cards is not a useful test.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-10, entry 120) Claude's solo check clicked a fixed empty spot that stopped being empty once the graveyard stack moved there, and the failure first looked like a menu bug; a screenshot at the moment of the failure showed the open viewer.
 - (2026-11-10, entry 119) Claude let the random game test use every new player counter, which the published rules refuse; the full test run found it. It also left the mutation run's own time limit too short, so the run stopped with the rules file broken (restored by hand).
