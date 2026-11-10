@@ -8,7 +8,7 @@
 import { buildCardIndex, matchDeck } from '../../shared/card-match.mjs';
 import { parseDeckText } from '../../shared/deck-text.mjs';
 import { makePreview, buildSavedDeck, printingSetsNeeded, isLegendaryCreature, PRINTING_PROBLEM_WORDS } from '../../shared/deck-preview.mjs';
-import { groupDeck } from '../../shared/deck-view.mjs';
+import { groupDeck, SORTS, SORT_TITLES } from '../../shared/deck-view.mjs';
 import { commanderMenuItems, applyCommanderChoice, commanderChoiceMessage } from '../../shared/deck-commander.mjs';
 import { openCardMenu } from './card-menu.js';
 import { setPrintingInText } from '../../shared/deck-text-edit.mjs';
@@ -25,7 +25,8 @@ import { isValidCode } from '../../shared/table-code.mjs';
 
 const store = makeSafeStore();
 const PROBE_KEY = 'overloaded.storage-probe';
-const VIEW_KEY = 'overloaded.deckView'; // 'text' or 'images', remembered in this browser
+const VIEW_KEY = 'overloaded.deckView'; // 'text', 'images' or 'stacks', remembered in this browser
+const SORT_KEY = 'overloaded.deckSort'; // 'name', 'value' or 'color', remembered in this browser
 
 let root = null;
 const $ = (id) => root.querySelector(`#${id}`);
@@ -40,6 +41,7 @@ let library = emptyLibrary(); // the saved decks
 let libraryRead = { source: 'empty', skipped: 0 }; // what reading them found (so the page can say if some could not be read)
 let formatTouched = false; // the player chose the format, so it no longer follows the commander choice
 let view = 'text';
+let sort = 'name';
 let solo = true; // the saved decks have a "Play solo" button (not inside the lobby, where the table has its own deck)
 const printingLoader = makePrintingLoader();
 const printsLoader = makePrintsLoader(); // the printings of one card, fetched when its printing picker is opened
@@ -190,7 +192,14 @@ function build() {
   summary.id = 'summary';
   const toggle = make('div', 'view-toggle');
   toggle.id = 'view-toggle';
-  summaryRow.append(summary, toggle);
+  const sortSelect = select(SORTS.map((key) => [key, SORT_TITLES[key]]));
+  const sortLabel = make('label', 'deck-sort', 'Sort by');
+  sortLabel.htmlFor = 'deck-sort';
+  sortSelect.id = 'deck-sort';
+  sortSelect.name = 'deck-sort';
+  const controls = make('div', 'deck-controls');
+  controls.append(sortLabel, sortSelect, toggle);
+  summaryRow.append(summary, controls);
   const notices = make('ul', 'notices');
   notices.id = 'notices';
   const problems = make('div');
@@ -362,7 +371,7 @@ const isCommander = () => $('deck-format').value === 'commander';
 const commanderIds = () => (isCommander() && !$('commander-box').hidden ? [$('commander-1').value, $('commander-2').value].filter(Boolean) : []);
 
 function renderSections() {
-  renderGroups($('sections'), groupDeck(preview.lines, { commanderIds: commanderIds() }), { view, printingCell, menuFor: (line) => menuItemsFor(line).length > 0 });
+  renderGroups($('sections'), groupDeck(preview.lines, { commanderIds: commanderIds(), sort }), { view, printingCell, menuFor: (line) => menuItemsFor(line).length > 0 });
 }
 
 // ---- changing a card's printing: the window of printings (src/printing-picker.js), and the card's line in the text rewritten to name the one that was chosen ----
@@ -589,6 +598,10 @@ export function mountDeckImporter({ root: container, sampleId, onLibraryChange: 
   const savedView = store.get(VIEW_KEY);
   view = VIEWS.includes(savedView) ? savedView : 'text';
   viewToggle = mountViewToggle($('view-toggle'), { view, onChange: setView });
+  const savedSort = store.get(SORT_KEY);
+  sort = SORTS.includes(savedSort) ? savedSort : 'name';
+  $('deck-sort').value = sort;
+  $('deck-sort').addEventListener('change', () => { sort = SORTS.includes($('deck-sort').value) ? $('deck-sort').value : 'name'; store.set(SORT_KEY, sort); if (preview) renderSections(); });
 
   $('check').addEventListener('click', runCheck);
   $('retry').addEventListener('click', loadCards);

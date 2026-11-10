@@ -1,5 +1,5 @@
 // Tests for shared/deck-view.mjs: which type group a card is in, and how a deck's lines are grouped and ordered.
-import { categoryOf, groupDeck, CATEGORY_ORDER, GROUP_TITLES } from '../shared/deck-view.mjs';
+import { categoryOf, groupDeck, CATEGORY_ORDER, GROUP_TITLES, manaValue, colorOrder, SORTS, SORT_TITLES } from '../shared/deck-view.mjs';
 
 let checks = 0;
 const fail = (label, detail) => { console.log(`FAILED CHECK: ${label}: ${detail}`); process.exit(1); };
@@ -66,5 +66,22 @@ const deck = [
   const lines = [line('Valakut Awakening', 'Instant // Land'), line('Delver of Secrets', 'Creature ' + DASH + ' Human Wizard // Creature ' + DASH + ' Human Insect'), line('Treasure Map', 'Artifact // Land')];
   same('two-faced cards go by the front face', groupDeck(lines).map((g) => [g.key, g.lines[0].name]), [['creature', 'Delver of Secrets'], ['instant', 'Valakut Awakening'], ['artifact', 'Treasure Map']]);
 }
+
+// ---- sorting inside a group ----
+same('the sorts and their titles', [SORTS, SORTS.map((key) => SORT_TITLES[key])], [['name', 'value', 'color'], ['Name', 'Mana value', 'Color']]);
+same('mana value: numbers count, one for each colored, colorless, snow, hybrid and Phyrexian symbol, X is nothing, {2/W} is 2', [manaValue('{2}{G}{G}'), manaValue('{R}'), manaValue(''), manaValue(undefined), manaValue('{X}{R}{R}'), manaValue('{W/U}{W/U}'), manaValue('{2/W}{2/U}'), manaValue('{1}{G/P}'), manaValue('{C}{S}'), manaValue('{0}'), manaValue('{10}')], [4, 1, 0, 0, 2, 2, 4, 2, 2, 0, 10]);
+same('a card with two costs is counted by its first', [manaValue('{1}{R} // {3}{W}{W}'), manaValue(' // {3}')], [2, 3]);
+same('color order: white, blue, black, red, green, more than one color, colorless', [colorOrder('{W}')[0], colorOrder('{2}{U}')[0], colorOrder('{B}{B}')[0], colorOrder('{1}{R}')[0], colorOrder('{G}')[0], colorOrder('{R}{W}')[0], colorOrder('{3}')[0], colorOrder('')[0]], [0, 1, 2, 3, 4, 5, 6, 6]);
+same('a hybrid symbol has both its colors, a Phyrexian its color, a split card all its parts; two two-color cards still tell apart', [colorOrder('{W/U}'), colorOrder('{G/P}'), colorOrder('{R} // {W}'), colorOrder('{U}{R}'), colorOrder('{R}{U}'), colorOrder('{B}{G}')], [[5, 'WU'], [4, 'G'], [5, 'WR'], [5, 'UR'], [5, 'UR'], [5, 'BG']]);
+const spells = [
+  { n: 'Lightning Bolt', c: '{R}' }, { n: 'Counterspell', c: '{U}{U}' }, { n: 'Swords to Plowshares', c: '{W}' }, { n: 'Dark Ritual', c: '{B}' }, { n: 'Boros Charm', c: '{R}{W}' }, { n: 'Giant Growth', c: '{G}' }, { n: 'Sol Ring', c: '{1}' }, { n: 'Fireball', c: '{X}{R}' },
+].map(({ n, c }) => ({ key: n, section: 'main', qty: 1, status: 'matched', name: n, card: { i: 'id-' + n, n, t: 'Instant', m: c } }));
+const names = (sort) => groupDeck(spells, { sort })[0].lines.map((l) => l.name);
+same('by name (the default)', [names(), names('name')], [['Boros Charm', 'Counterspell', 'Dark Ritual', 'Fireball', 'Giant Growth', 'Lightning Bolt', 'Sol Ring', 'Swords to Plowshares'], ['Boros Charm', 'Counterspell', 'Dark Ritual', 'Fireball', 'Giant Growth', 'Lightning Bolt', 'Sol Ring', 'Swords to Plowshares']]);
+same('by mana value, the name settling ties', names('value'), ['Dark Ritual', 'Fireball', 'Giant Growth', 'Lightning Bolt', 'Sol Ring', 'Swords to Plowshares', 'Boros Charm', 'Counterspell']);
+same('by color: white, blue, black, red, green, two colors, colorless', names('color'), ['Swords to Plowshares', 'Counterspell', 'Dark Ritual', 'Fireball', 'Lightning Bolt', 'Giant Growth', 'Boros Charm', 'Sol Ring']);
+same('an unknown sort is the name', names('nonsense'), names('name'));
+same('the commander group keeps the order they were picked in, whatever the sort', groupDeck([{ ...spells[0], section: 'main' }, { ...spells[2], section: 'main' }], { commanderIds: ['id-Swords to Plowshares', 'id-Lightning Bolt'], sort: 'value' })[0].lines.map((l) => l.name), ['Swords to Plowshares', 'Lightning Bolt']);
+same('every sort keeps every card', SORTS.map((sort) => groupDeck(spells, { sort }).reduce((n, g) => n + g.count, 0)), [8, 8, 8]);
 
 console.log(`All ${checks} deck view checks passed.`);

@@ -793,7 +793,7 @@ try {
   await sleep(100);
   await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: rowAt.x - 6, y: rowAt.y }); await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: rowAt.x, y: rowAt.y }); await sleep(250);
   const hovered = await peek();
-  check('pointing at a printing shows its picture, in the normal size, and nothing was loaded for the other rows', !hovered.hidden && hovered.src === pictureUrl(SOL_RING_CMM_410_ID) && rowAt.id === SOL_RING_CMM_410_ID && pictureRequests.length === 1, JSON.stringify({ hovered, requests: pictureRequests.length }));
+  check('pointing at a printing shows its picture in the normal size (one request for a normal-size picture; the tiles themselves are small and lazy)', !hovered.hidden && hovered.src === pictureUrl(SOL_RING_CMM_410_ID) && rowAt.id === SOL_RING_CMM_410_ID && pictureRequests.filter((u) => u.includes('/normal/')).length === 1, JSON.stringify({ hovered, requests: pictureRequests }));
   await ev(`[...document.querySelectorAll('.picker-tile')].find((x) => /CMM 410/.test(x.textContent)).click()`);
   await sleep(300);
   const chosen = await ev(`({ closed: !document.querySelector('.picker'), text: document.getElementById('deck-text').value, status: document.getElementById('deck-status').textContent, row: (() => { const li = [...document.querySelectorAll('#sections .card-line')].find((l) => l.querySelector('.name').textContent === 'Sol Ring'); return li && { id: li.dataset.cardId, source: li.dataset.printing, printing: li.querySelector('.printing')?.textContent, qty: li.querySelector('.qty').textContent }; })(), name: document.getElementById('deck-name').value })`);
@@ -865,6 +865,28 @@ try {
   await browser.send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
   await sleep(400);
   await ev(`document.querySelector('[data-view="text"]').click()`);
+
+  // ---- sorting inside the groups, and no magnifying-glass cursor ----
+  await load(); await ev(`localStorage.removeItem('overloaded.deckSort')`); await deleteAllSaved(); await load();
+  await paste('1 Lightning Bolt\n1 Counterspell\n1 Swords to Plowshares\n1 Dark Ritual\n1 Boros Charm\n1 Giant Growth'); await press('check');
+  const instants = () => ev(`[...document.querySelectorAll('#sections [data-group="instant"] .name')].map((n) => n.textContent)`);
+  check('the sort choice is beside the view buttons, labelled, with Name, Mana value and Color, starting at Name (alphabetical)', (await ev(`[...document.getElementById('deck-sort').options].map((o) => o.textContent).join()`)) === 'Name,Mana value,Color' && (await ev(`document.querySelector('label[for="deck-sort"]').textContent`)) === 'Sort by' && (await ev(`document.getElementById('deck-sort').value`)) === 'name' && JSON.stringify(await instants()) === JSON.stringify(['Boros Charm', 'Counterspell', 'Dark Ritual', 'Giant Growth', 'Lightning Bolt', 'Swords to Plowshares']), JSON.stringify(await instants()));
+  await setField('deck-sort', 'value');
+  check('by mana value: the one-mana spells first (alphabetical among themselves), then the two-mana ones', JSON.stringify(await instants()) === JSON.stringify(['Dark Ritual', 'Giant Growth', 'Lightning Bolt', 'Swords to Plowshares', 'Boros Charm', 'Counterspell']), JSON.stringify(await instants()));
+  await setField('deck-sort', 'color');
+  check('by color: white, blue, black, red, green, then the two-color card', JSON.stringify(await instants()) === JSON.stringify(['Swords to Plowshares', 'Counterspell', 'Dark Ritual', 'Lightning Bolt', 'Giant Growth', 'Boros Charm']), JSON.stringify(await instants()));
+  await ev(`document.querySelector('[data-view="images"]').click()`); await sleep(300);
+  check('the sort applies to the picture view too, and is remembered across a reload', JSON.stringify(await ev(`[...document.querySelectorAll('#sections [data-group="instant"] .deck-tile .sr-only')].map((n) => n.textContent)`)) === JSON.stringify(['1 Swords to Plowshares', '1 Counterspell', '1 Dark Ritual', '1 Lightning Bolt', '1 Giant Growth', '1 Boros Charm']) && (await ev(`localStorage.getItem('overloaded.deckSort')`)) === 'color');
+  await ev(`document.querySelector('[data-view="text"]').click()`);
+  await load(); await paste('1 Lightning Bolt\n1 Counterspell\n1 Dark Ritual'); await press('check');
+  check('after a reload the chosen sort is still in use', (await ev(`document.getElementById('deck-sort').value`)) === 'color' && JSON.stringify(await instants()) === JSON.stringify(['Counterspell', 'Dark Ritual', 'Lightning Bolt']), JSON.stringify(await instants()));
+  await setField('deck-sort', 'name'); await ev(`localStorage.removeItem('overloaded.deckSort')`);
+  // the cursor stays an arrow over a card (no magnifying glass)
+  const cursors = await ev(`({ row: getComputedStyle(document.querySelector('#sections .card-line[data-card-id]')).cursor, name: getComputedStyle(document.querySelector('#sections .card-line .name')).cursor })`);
+  await ev(`document.querySelector('[data-view="images"]').click()`); await sleep(300);
+  const tileCursor = await ev(`getComputedStyle(document.querySelector('#sections .deck-tile[data-card-id]')).cursor`);
+  await ev(`document.querySelector('[data-view="text"]').click()`);
+  check('the cursor over a card (a line or a picture) is not a magnifying glass', ![cursors.row, cursors.name, tileCursor].some((c) => /zoom/.test(c)), JSON.stringify({ cursors, tileCursor }));
 
   // ---- limits and odd input ----
   await paste('201 Forest'); await press('check');

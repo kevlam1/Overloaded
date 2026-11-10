@@ -2715,6 +2715,25 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 131. Sorting the deck, and no magnifying glass (2026-11-10)
+
+**What I asked for**
+- Stop the cursor turning into a magnifying glass over the cards. Allow sorting by things like mana value, alphabetical and color.
+
+**What changed** (`shared/deck-view.mjs`, `frontend/src/deck-importer.js`, `style.css`)
+- **Cursor:** the two `cursor: zoom-in` rules (the text lines and the pictures) are gone; the cursor stays an arrow over a card.
+- **Sort by:** a labelled choice beside the view buttons: Name (the old way), Mana value and Color. It sorts the cards inside each type group, in the text, picture and stacks views, and is remembered in this browser. The commander group keeps the order you picked them in.
+  - **Mana value:** read from the cost: a number counts its value, a colored, colorless, snow, hybrid or Phyrexian symbol 1, {2/W} 2, X nothing; no cost (a land) is 0. A split or adventure card counts its first cost. Lowest first, the name settling ties.
+  - **Color:** white, blue, black, red, green, then more than one color (two-color cards sorted apart by which colors), then colorless and lands, then mana value and name. The color comes from the mana cost (every part of a split card), because the card list has no color field; so a card with no colored symbols in its cost (a land, or an artifact) counts as colorless.
+- Not built: a direction (high to low), sorting by price or rarity (the card list has neither), and grouping by color or mana value instead of by type; say if you want any of them.
+
+**What I checked**
+- `test-deck-view` is 67 (11 new: mana value of every kind of symbol, color order, split and hybrid cards, the three sorts, an unknown sort, the commander group). The deck page check is 270 (8 new: the control, each sort, in the picture view, remembered across a reload, and the cursor not being a zoom cursor).
+- One existing check of mine was timing-fragile: it counted every picture request after hovering a printing and now sees the lazily loaded tiles too; it counts only the normal-size request now.
+- **Not checked:** the sort control at phone width, light mode.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-10, entry 122) Claude's first deck page started a library it could not read at the box to paste into, hiding the message about it; the old check noticed.
 - (2026-11-10, entry 120) Claude's solo check clicked a fixed empty spot that stopped being empty once the graveyard stack moved there, and the failure first looked like a menu bug; a screenshot at the moment of the failure showed the open viewer.
