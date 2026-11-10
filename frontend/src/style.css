@@ -782,3 +782,9 @@ body .battlefield > .card.tapped[data-stack-ext="3"]::before { left: -3px; top: 
 .pip-colorless { background: #d6d2cf; } .pip-snow { background: #cfe9f6; } .pip-x, .pip-generic { background: #cbc2bf; } .pip-other { width: auto; padding: 0 0.3rem; border-radius: 0.6rem; background: #cbc2bf; }
 .cost-or { color: var(--muted); font-size: 0.75rem; }
 .pip-img { display: block; width: 1.3rem; height: 1.3rem; }
+
+/* A quieter deck manager: the count is plain small text, a problem count is marked, and the list message takes no room when it has nothing to say. */
+.deck-app .deck-summary p { color: var(--muted); font-size: 0.95rem; }
+.deck-app .deck-summary p.has-problems { color: var(--danger); }
+#list-state:empty { display: none; }
+.deck-app .deck-bar .secondary { min-height: 2.25rem; }

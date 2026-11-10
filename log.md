@@ -2597,6 +2597,28 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 125. Plainer wording on the deck page (2026-11-10)
+
+**What I asked for**
+- Remove weird or redundant text like "9 cards, all matched", and make the deck page look more normal and professional. Commit and push to the development branch.
+
+**What changed** (`frontend/src/deck-importer.js`, `style.css`)
+- The summary is only the count ("100 cards"); it says "5 cards · 4 need attention" (in the problem color) only when something does. "All matched" is the normal case and says nothing.
+- The card list message ("34,192 cards loaded. Cards newer than the list show as not found...") is gone once the list has loaded; it shows only while loading or when it failed, and the count and the weekly refresh moved into its tooltip.
+- The commander note is empty when your list marked the commander; when it was guessed it is one short line ("No commander is marked in your list, so the first legendary creature was picked.").
+- The problem lines are shorter ("Totally Fake Card" (2) was not found.), with the "may be spelled differently or newer than our card list" explanation in a tooltip.
+- The list screen's "Your decks" heading is for screen readers only (the page's own heading already says Decks); the paste box's "Decklist" label too (a placeholder shows the format); one short line says what to paste; "Bracket (optional)" and "Partner (optional)" lost the "(optional)" because their "Not set" and "No partner" choices say it.
+
+**What I checked**
+- The deck page check (224), the lobby page check (65), the live room check (26 of 26, with the manager inside a real table) and `npm run test:quick` (51 suites); screenshots of the paste screen and the deck.
+- **Not checked:** light mode, phone width. "More professional" beyond the wording is the visual pass I said I would leave for later.
+
+**Decisions**
+- I kept the notices from the parser (for example "2 lines have no number, so each was counted as 1 card") because they say something the player did not know.
+- Claude's own mistake: the textarea placeholder I added lost its line breaks when written through the shell, so the page failed to load until I rewrote it with the editor tool.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-10, entry 122) Claude's first deck page started a library it could not read at the box to paste into, hiding the message about it; the old check noticed.
 - (2026-11-10, entry 120) Claude's solo check clicked a fixed empty spot that stopped being empty once the graveyard stack moved there, and the failure first looked like a menu bug; a screenshot at the moment of the failure showed the open viewer.

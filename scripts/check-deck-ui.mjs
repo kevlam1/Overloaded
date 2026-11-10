@@ -88,7 +88,7 @@ try {
   check('there is a way back to the lobby', facts.back === '/');
   check('no inline styles and no inline scripts (the content policy forbids them)', facts.inlineStyles === 0 && facts.inlineScripts === 0);
   check('nothing is shown before a deck is checked: no deck, no saved decks (the page opens at the box to paste into)', (await $hidden('preview')) && (await $hidden('saved')) && !(await $hidden('paste')));
-  check('a card list message says how many cards were loaded', /[\d,]{5,} cards loaded/.test(await $text('list-state')), await $text('list-state'));
+  check('once the card list has loaded the page says nothing about it (a tooltip says how many cards it holds)', (await $text('list-state')) === '' && /[\d,]{5,} cards in the card list/.test(await ev(`document.getElementById('list-state').title`)), await ev(`document.getElementById('list-state').title`));
 
   // ---- an empty paste ----
   await press('check');
@@ -110,7 +110,7 @@ try {
       note: document.getElementById('commander-note').textContent,
       focus: document.activeElement?.id, saveDisabled: document.getElementById('save').disabled,
     }))()`);
-    check(`${label}: checked, 19 cards, all matched`, view.summary === '19 cards, all matched.' && view.problemsHidden && view.unmatched === 0, view.summary);
+    check(`${label}: checked, 19 cards, nothing to fix`, view.summary === '19 cards' && view.problemsHidden && view.unmatched === 0, view.summary);
     check(`${label}: sections ${expect.headings.join(' and ')}`, JSON.stringify(view.headings) === JSON.stringify(expect.headings), JSON.stringify(view.headings));
     check(`${label}: one line per card, 10 lines`, view.lines === 10, String(view.lines));
     check(`${label}: the guessed commander is Eowyn`, /^Éowyn, Lady of Rohan$/.test(view.commander), view.commander);
@@ -120,7 +120,7 @@ try {
     check(`${label}: it can be saved`, !view.saveDisabled);
   };
   await checkExport('Moxfield "Copy for Moxfield"', MOXFIELD_FOR_MOXFIELD, { headings: ['Creatures (6)', 'Instants (1)', 'Artifacts (1)', 'Lands (10)', 'Sideboard (1)'], mode: 'none' });
-  await checkExport('Moxfield plain text', MOXFIELD_PLAIN, { headings: ['Commander (1)', 'Creatures (5)', 'Instants (1)', 'Artifacts (1)', 'Lands (10)', 'Sideboard (1)'], mode: 'commander', noteWords: /after a blank line/ });
+  await checkExport('Moxfield plain text', MOXFIELD_PLAIN, { headings: ['Commander (1)', 'Creatures (5)', 'Instants (1)', 'Artifacts (1)', 'Lands (10)', 'Sideboard (1)'], mode: 'commander', noteWords: /after the blank line/ });
   await checkExport('Archidekt text', ARCHIDEKT, { headings: ['Creatures (6)', 'Instants (2)', 'Artifacts (1)', 'Lands (10)'], mode: 'none' });
 
   // ---- the format decides whether there is a commander: Commander shows the pickers (with a guess), Standard hides them ----
@@ -130,7 +130,7 @@ try {
   check('the format choice comes before the commander pickers on the page', await ev(`Boolean(document.getElementById('deck-format').compareDocumentPosition(document.getElementById('commander-box')) & Node.DOCUMENT_POSITION_FOLLOWING)`));
   check('a list that does not look like Commander starts as Standard, with the pickers hidden', (await ev(`document.getElementById('deck-format').value`)) === 'standard' && (await ev(`document.getElementById('commander-box').hidden`)));
   await setFormatInPage('commander');
-  check('choosing Commander shows the pickers and says plainly that no commander is marked and what was picked', !(await ev(`document.getElementById('commander-box').hidden`)) && /^No commander is marked in your list, so we picked the first legendary creature\. Change it if it is wrong\.$/.test(await $text('commander-note')), await $text('commander-note'));
+  check('choosing Commander shows the pickers and says plainly that no commander is marked and what was picked', !(await ev(`document.getElementById('commander-box').hidden`)) && /^No commander is marked in your list, so the first legendary creature was picked\.$/.test(await $text('commander-note')), await $text('commander-note'));
   const commanderGroups = await ev(`Array.from(document.getElementById('commander-1').querySelectorAll('optgroup')).map((g) => ({ label: g.label, names: Array.from(g.children).map((o) => o.textContent) }))`);
   const groupedNames = commanderGroups.flatMap((g) => g.names);
   check('the commander list has two groups, the likely commanders first and then every other card', commanderGroups.length === 2 && commanderGroups[0].label === 'Likely commanders' && commanderGroups[1].label === 'Other cards', JSON.stringify(commanderGroups.map((g) => g.label)));
@@ -143,7 +143,7 @@ try {
   // A list with no legendary creature: the guess is the first card, there is only one group, and the note says so.
   await load(); await paste('1 Sol Ring\n1 Island'); await press('check');
   await setFormatInPage('commander');
-  check('with no commander marked and no legendary creature the note says the first card was picked', /^No commander is marked in your list, so we picked the first card\. Change it if it is wrong\.$/.test(await $text('commander-note')), await $text('commander-note'));
+  check('with no commander marked and no legendary creature the note says the first card was picked', /^No commander is marked in your list, so the first card was picked\.$/.test(await $text('commander-note')), await $text('commander-note'));
   check('and with no likely commanders the list is one group of all the cards', JSON.stringify(await ev(`Array.from(document.getElementById('commander-1').querySelectorAll('optgroup')).map((g) => g.label)`)) === '["All cards"]');
 
   // ---- problems: not found, ambiguous, a "did you mean" ----
@@ -157,8 +157,8 @@ try {
     missingBoxHidden: document.getElementById('missing-box').hidden, label: document.getElementById('allow-missing-label').textContent,
   }))()`);
   check('three problems are listed, two with a choice to make', !problems.hidden && problems.items.length === 3 && problems.selects === 2, JSON.stringify(problems.items));
-  check('the not-found card says it may be newer than the list', problems.items.some((t) => /Totally Fake Card" \(2\) was not found/.test(t) && /newer than our card list/.test(t)));
-  check('the summary counts the cards that need attention (4 of 5)', /^5 cards, 4 need attention\.$/.test(problems.summary), problems.summary);
+  check('the not-found card says it may be newer than the list', problems.items.some((t) => /^"Totally Fake Card" \(2\) was not found\.$/.test(t)) && /newer than our card list/.test(await ev(`[...document.querySelectorAll('#problem-list li')].find((li) => /Totally Fake/.test(li.textContent)).title`)));
+  check('the summary counts the cards that need attention (4 of 5)', /^5 cards \u00b7 4 need attention$/.test(problems.summary), problems.summary);
   check('unmatched lines are marked in the list', problems.unmatched === 3, String(problems.unmatched));
   check('a way to save without them is offered, and says how many', !problems.missingBoxHidden && /3 lines/.test(problems.label), problems.label);
   await ev(`document.getElementById('deck-name').value = 'Problems deck'`);
@@ -404,12 +404,12 @@ try {
   await settled();
   const sampleText = await ev(`document.getElementById('deck-text').value`);
   check('the sample is put in the box with the Commander line on top', /^Commander\n1 Krenko, Mob Boss \(SLD\) 2407 \*F\*\n/.test(sampleText) && sampleText.split('\n').length === 86, sampleText.slice(0, 80));
-  check('it is checked like a pasted list: 100 cards, all matched', /^100 cards, all matched\.$/.test(await $text('summary')), await $text('summary'));
+  check('it is checked like a pasted list: 100 cards', /^100 cards$/.test(await $text('summary')), await $text('summary'));
   const sampleHeadings = await ev(`Array.from(document.querySelectorAll('#sections h3')).map((h) => h.textContent)`);
   check('as one commander and the other 99 cards by type (the groups add up to 100)', sampleHeadings.includes('Commander (1)') && sampleHeadings.includes('Lands (24)') && sampleHeadings.reduce((sum, h) => sum + Number(/\((\d+)\)$/.exec(h)[1]), 0) === 100, JSON.stringify(sampleHeadings));
   const sampleRows = await rowsOf();
   check('all 85 lines show the exact printing the list names (the printing files cover them)', sampleRows.length === 85 && sampleRows.every((row) => row.source === 'set'), `${sampleRows.length} rows; not exact: ${sampleRows.filter((row) => row.source !== 'set').map((row) => row.name).join(', ')}`);
-  check('the commander is Krenko, Mob Boss, marked by the list, and the format is Commander', !(await ev(`document.getElementById('commander-box').hidden`)) && (await ev(`document.getElementById('commander-1').selectedOptions[0].textContent`)) === 'Krenko, Mob Boss' && (await ev(`document.getElementById('deck-format').value`)) === 'commander' && /Your list marks this card as the commander/.test(await $text('commander-note')));
+  check('the commander is Krenko, Mob Boss, marked by the list, and the format is Commander', !(await ev(`document.getElementById('commander-box').hidden`)) && (await ev(`document.getElementById('commander-1').selectedOptions[0].textContent`)) === 'Krenko, Mob Boss' && (await ev(`document.getElementById('deck-format').value`)) === 'commander' && (await $text('commander-note')) === '');
   check('the deck name is filled in', (await ev(`document.getElementById('deck-name').value`)) === 'Krenko, Mob Boss (sample)');
   check('loading the sample saved nothing', (await savedCount()) === 0);
   await press('save');
@@ -419,7 +419,7 @@ try {
   await browser.goto(`${PAGE}?sample`);
   await ready();
   await settled();
-  check('a link with ?sample opens the page with the sample already in the box and checked', (await ev(`document.getElementById('deck-text').value`)) === sampleText && /^100 cards, all matched\.$/.test(await $text('summary')) && !(await $hidden('preview')), await $text('summary'));
+  check('a link with ?sample opens the page with the sample already in the box and checked', (await ev(`document.getElementById('deck-text').value`)) === sampleText && /^100 cards$/.test(await $text('summary')) && !(await $hidden('preview')), await $text('summary'));
   check('and it saved nothing', (await savedCount()) === 0);
   await browser.goto(`${PAGE}?sample=nothing-like-an-id`);
   await ready();
@@ -434,7 +434,7 @@ try {
   await load();
   await paste(`1 Ardyn Izunia\n1 Heart of the Mountain\n1 Kushala Daora's Fury\n1 Shadowbringers\n1 ${katakana}\n1 Sol Ring`); await press('check');
   const titled = await ev(`({ problems: !document.getElementById('problems').hidden, lines: Array.from(document.querySelectorAll('#sections .card-line')).map((li) => li.querySelector('.name').textContent), noted: document.querySelectorAll('#sections .typed-as').length, unmatched: document.querySelectorAll('#sections .card-line.unmatched').length })`);
-  check('the five titles are found: no problems, nothing unmatched', !titled.problems && titled.unmatched === 0 && /^6 cards, all matched\.$/.test(await $text('summary')), JSON.stringify(titled) + ' ' + (await $text('summary')));
+  check('the five titles are found: no problems, nothing unmatched', !titled.problems && titled.unmatched === 0 && /^6 cards$/.test(await $text('summary')), JSON.stringify(titled) + ' ' + (await $text('summary')));
   check('each is shown by its real name, with what was typed beside it', ['Varragoth, Bloodsky Sire (typed as "Ardyn Izunia")', 'Arcane Signet (typed as "Heart of the Mountain")', 'Snap (typed as "Kushala Daora\'s Fury")', "Dovin's Veto (typed as \"Shadowbringers\")", `Arcane Denial (typed as "${katakana}")`].every((text) => titled.lines.includes(text)), JSON.stringify(titled.lines));
   check('a card typed by its own name has no such note', titled.lines.includes('Sol Ring') && titled.noted === 5);
   await ev(`document.getElementById('deck-name').value = 'Titles'; document.getElementById('deck-name').dispatchEvent(new Event('input'))`);
@@ -607,7 +607,7 @@ try {
   const bare = await ev(`({ headings: Array.from(document.querySelectorAll('#sections h3')).map((h) => h.textContent), lines: Array.from(document.querySelectorAll('#sections .card-line')).map((li) => li.querySelector('.qty').textContent + ' ' + li.querySelector('.name').textContent), notices: Array.from(document.querySelectorAll('#notices li')).map((li) => li.textContent), problems: !document.getElementById('problems').hidden })`);
   check('a name with no number is one card, in the right section, and nothing needs attention', !bare.problems && bare.lines.includes('1 Thrasios, Triton Hero') && bare.lines.includes('2 Sol Ring') && bare.lines.includes('1 Annul') && bare.headings.includes('Sideboard (1)'), JSON.stringify(bare));
   check('the page says which lines were counted as 1, and that the heading line was skipped', bare.notices.some((n) => /Line 3 was skipped: "Lands \(36\)"/.test(n)) && bare.notices.some((n) => /^2 lines have no number, so each was counted as 1 card \(lines 1 and 5\)\.$/.test(n)), JSON.stringify(bare.notices));
-  check('the summary counts them', /^4 cards, all matched\.$/.test(await $text('summary')), await $text('summary'));
+  check('the summary counts them', /^4 cards$/.test(await $text('summary')), await $text('summary'));
 
   // ---- an export shaped like a real one: main deck (one card under another title), SIDEBOARD:, commander named last ----
   await load();
@@ -626,7 +626,7 @@ try {
   // ---- keyboard, clear ----
   await load(); await paste('1 Sol Ring');
   await ev(`document.getElementById('deck-text').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true, bubbles: true }))`);
-  check('Ctrl+Enter in the box checks the deck', !(await $hidden('preview')) && /^1 card, all matched\.$/.test(await $text('summary')), await $text('summary'));
+  check('Ctrl+Enter in the box checks the deck', !(await $hidden('preview')) && /^1 card$/.test(await $text('summary')), await $text('summary'));
   await ev(`document.getElementById('new-deck').click()`);
   check('New deck empties the box and hides the deck', (await ev(`document.getElementById('deck-text').value`)) === '' && (await $hidden('preview')) && !(await $hidden('paste')));
 
@@ -684,7 +684,7 @@ try {
   await ev(`document.getElementById('edit-list').click()`);
   check('Edit list goes to the box with the list still in it, and Cancel goes back to the deck', (await screenOf()) === 'paste' && (await ev(`document.getElementById('deck-text').value`)) === '1 Sol Ring\n1 Island' && !(await ev(`document.getElementById('cancel-paste').hidden`)));
   await ev(`document.getElementById('cancel-paste').click()`);
-  check('... Cancel returns to the deck, unchanged', (await screenOf()) === 'deck' && (await $text('summary')) === '2 cards, all matched.');
+  check('... Cancel returns to the deck, unchanged', (await screenOf()) === 'deck' && (await $text('summary')) === '2 cards');
   await showList();
   check('All decks goes to the list: the saved deck with Open, Play solo and Delete, and a New deck button', (await screenOf()) === 'list' && !(await $hidden('saved')) && /Screens/.test(await $text('saved-list')) && !(await ev(`document.getElementById('new-deck').hidden`)) && (await $hidden('preview')));
   await ev(`document.getElementById('new-deck').click()`);

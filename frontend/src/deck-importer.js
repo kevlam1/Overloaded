@@ -94,7 +94,7 @@ function build() {
   saved.id = 'saved';
   saved.setAttribute('aria-labelledby', 'saved-heading');
   const savedHead = make('div', 'screen-head');
-  const savedHeading = make('h2', '', 'Your decks');
+  const savedHeading = make('h2', 'sr-only', 'Your decks');
   savedHeading.id = 'saved-heading';
   savedHeading.tabIndex = -1;
   savedHead.append(savedHeading, button('new-deck', 'New deck'));
@@ -113,9 +113,10 @@ function build() {
   const pasteHeading = make('h2', '', 'Add a deck');
   pasteHeading.id = 'paste-heading';
   pasteHeading.tabIndex = -1;
-  const lede = make('p', 'hint', 'Paste a decklist from Moxfield, Archidekt or ManaBox. It is checked here in your browser and saved only in your browser.');
+  const lede = make('p', 'hint', 'Paste a list from Moxfield, Archidekt or ManaBox. It stays in this browser.');
   const textarea = make('textarea');
   textarea.rows = 12;
+  textarea.placeholder = ['1 Sol Ring', '1 Lightning Bolt', '...'].join(String.fromCharCode(10));
   textarea.spellcheck = false;
   textarea.setAttribute('autocomplete', 'off');
   textarea.setAttribute('autocapitalize', 'off');
@@ -132,7 +133,9 @@ function build() {
   const storageHint = make('p', 'hint', 'Your browser is not letting this page save anything, so a deck cannot be kept after you leave.');
   storageHint.id = 'storage-hint';
   storageHint.hidden = true;
-  paste.append(pasteHeading, lede, field('deck-text', 'Decklist', textarea), pasteActions, listState, retry, storageHint);
+  const textField = field('deck-text', 'Decklist', textarea);
+  textField.firstChild.className = 'sr-only';
+  paste.append(pasteHeading, lede, textField, pasteActions, listState, retry, storageHint);
 
   // screen 3: one checked deck
   const deck = make('section');
@@ -165,12 +168,12 @@ function build() {
 
   const formatSelect = select([['commander', 'Commander'], ['standard', 'Standard']]);
   const bracketSelect = select([['', 'Not set'], ['1', '1'], ['2', '2'], ['3', '3'], ['4', '4'], ['5', '5']]);
-  const bracketField = field('deck-bracket', 'Bracket (optional)', bracketSelect);
+  const bracketField = field('deck-bracket', 'Bracket', bracketSelect);
   bracketField.id = 'bracket-field';
   bracketField.title = 'How strong the deck is, for the table to see next to your commander.';
   const commanderBox = make('div', 'commander-box');
   commanderBox.id = 'commander-box';
-  commanderBox.append(field('commander-1', 'Commander', make('select')), field('commander-2', 'Partner (optional)', make('select')));
+  commanderBox.append(field('commander-1', 'Commander', make('select')), field('commander-2', 'Partner', make('select')));
   const settings = make('div', 'deck-settings');
   settings.append(field('deck-format', 'Format', formatSelect), bracketField, commanderBox);
   const commanderNote = make('p', 'hint');
@@ -215,10 +218,12 @@ async function loadCards() {
   $('sample').disabled = true;
   $('retry').hidden = true;
   $('list-state').textContent = 'Loading the card list...';
+  $('list-state').title = '';
   try {
     const cards = await loadCardList();
     index = buildCardIndex(cards);
-    $('list-state').textContent = `${cards.length.toLocaleString('en-US')} cards loaded. Cards newer than the list show as not found; the list is refreshed every week.`;
+    $('list-state').textContent = '';
+    $('list-state').title = `${cards.length.toLocaleString('en-US')} cards in the card list. Cards newer than the list show as not found; the list is refreshed every week.`;
     $('check').disabled = false;
     $('sample').disabled = false;
     if (pendingSample !== undefined) {
@@ -282,7 +287,8 @@ function refresh() {
 
 function renderPreview() {
   const { counts } = preview;
-  $('summary').textContent = counts.cards === 0 ? 'No cards were found in that.' : `${plural(counts.cards, 'card', 'cards')}${counts.problem === 0 ? ', all matched' : `, ${counts.problem} need attention`}.`;
+  $('summary').textContent = counts.cards === 0 ? 'No cards were found in that.' : `${plural(counts.cards, 'card', 'cards')}${counts.problem === 0 ? '' : ` · ${counts.problem} need attention`}`;
+  $('summary').classList.toggle('has-problems', counts.problem > 0);
   const notices = $('notices');
   notices.replaceChildren(...preview.notices.map((notice) => make('li', '', notice)));
   notices.hidden = preview.notices.length === 0;
@@ -312,16 +318,18 @@ function renderProblems() {
   const { not_found: missing, ambiguous, suggestion } = preview.problems;
   for (const line of ambiguous) {
     const item = make('li', 'problem');
-    item.append(make('span', '', `"${line.typed}" (${line.qty}) matches more than one card. `), choiceSelect(line, `Choose the card for ${line.typed}`));
+    item.append(make('span', '', `"${line.typed}" (${line.qty}) matches more than one card: `), choiceSelect(line, `Choose the card for ${line.typed}`));
     list.append(item);
   }
   for (const line of suggestion) {
     const item = make('li', 'problem');
-    item.append(make('span', '', `"${line.typed}" (${line.qty}) is not a card, but it is the back of another card. Did you mean: `), choiceSelect(line, `Choose the card for ${line.typed}`));
+    item.append(make('span', '', `"${line.typed}" (${line.qty}) is the back of another card. Did you mean: `), choiceSelect(line, `Choose the card for ${line.typed}`));
     list.append(item);
   }
   for (const line of missing) {
-    list.append(make('li', 'problem', `"${line.typed}" (${line.qty}) was not found. It may be spelled differently, or newer than our card list.`));
+    const item = make('li', 'problem', `"${line.typed}" (${line.qty}) was not found.`);
+    item.title = 'It may be spelled differently, or newer than our card list.';
+    list.append(item);
   }
   $('problems').hidden = list.children.length === 0;
 }
@@ -350,10 +358,10 @@ function renderSections() {
 }
 
 const CERTAINTY_NOTES = {
-  marked: 'Your list marks this card as the commander.',
-  unlabeled: 'This card came after a blank line, which is where Moxfield puts the commander. Please check it.',
-  legendary: 'No commander is marked in your list, so we picked the first legendary creature. Change it if it is wrong.',
-  first: 'No commander is marked in your list, so we picked the first card. Change it if it is wrong.',
+  marked: '',
+  unlabeled: 'Taken from after the blank line in your list. Check that it is right.',
+  legendary: 'No commander is marked in your list, so the first legendary creature was picked.',
+  first: 'No commander is marked in your list, so the first card was picked.',
 };
 
 function setFormat(value) {
