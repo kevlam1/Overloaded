@@ -2431,6 +2431,26 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 117. Small look changes: a dashed border on piles, no empty text, a dragged card leaves no ghost, a quieter highlight (2026-11-10)
+
+**What I asked for**
+- A dashed border around a pile; remove the text that says nothing is on the battlefield; while dragging cards I do not want to see where they were; make the selected card highlight lower key.
+
+**What changed** (`style.css`, `card-nodes.js`, `board-drag.js`, both pages)
+- A dashed border drawn around a pile (the top card and the copies fanned under it, following the fan: up and left, left, or up for tapped ones). It takes no clicks.
+- The "Nothing on the battlefield yet." text is gone (mine and the other players' boards).
+- A card being dragged is hidden where it was (it was dimmed), and for a whole pile every card of it is hidden.
+- A selected card has a thin accent line and a faint glow instead of a thick solid ring.
+
+**What I checked**
+- Three new solo checks plus a whole-pile one (the solo check is 417): the dashed border's style, size and reach, the thin highlight, the hidden dragged card (one card, and all six of a pile), and no text on an empty battlefield. `npm test` and the live check below. A screenshot showed the dashed border around a pile of six. No broken-copy runs for this look-only round.
+- **Not checked:** the quiet highlight in light mode and on the other players' boards.
+
+**Decisions**
+- The dashed border is always on for piles (not only on hover); say if you would rather see it only when you point at a pile.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-10, entry 116) Claude had Horizontal piles send a tapped card above the pile because it read "the tapped stack goes up" as part of that style; the style was only meant to change how a pile is drawn.
 - (2026-11-10, entry 115) Claude read "tapped cards go up" as moving the whole tapped stack above the pile in the Horizontal style only; what was meant was a tapped stack drawn straight up in both styles, and untapping to the left of it.
