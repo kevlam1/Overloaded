@@ -1,23 +1,29 @@
-// The deck importer: paste a decklist, see it matched against our card list, confirm the commander, and save it in this
-// browser. It is a module that two pages use: the /deck page and the lobby's own screen (where a player can import or change a deck
-// without leaving the table). Each page holds the importer's markup (the ids must match; scripts/test-importer-markup.mjs checks
-// that) and calls mountDeckImporter once. The thinking is in shared/ (the parser, the matcher and shared/deck-preview.mjs, all tested in Node); this file
-// only reads the form and draws the result. Everything typed or pasted is put into the page as text, never as markup.
+// The deck manager: your saved decks, pasting a decklist, and one checked deck laid out by card type (as text or as card pictures), with its name, format, bracket and
+// commander, saved in this browser. It is one component that two pages use: the /deck page and the lobby's own screen (where a player can import or change a deck without
+// leaving the table). It builds its own markup inside the element it is given, so the two pages cannot drift apart. The thinking is in shared/ (the parser, the matcher,
+// shared/deck-preview.mjs and shared/deck-view.mjs, all tested in Node); this file reads the form and draws the result. Everything typed or pasted is put into the page as
+// text, never as markup.
+//
+// Three screens, one at a time: "list" (the saved decks), "paste" (the box for a decklist) and "deck" (one checked deck).
 import { buildCardIndex, matchDeck } from '../../shared/card-match.mjs';
 import { parseDeckText } from '../../shared/deck-text.mjs';
 import { makePreview, buildSavedDeck, printingSetsNeeded, isLegendaryCreature, PRINTING_PROBLEM_WORDS } from '../../shared/deck-preview.mjs';
+import { groupDeck } from '../../shared/deck-view.mjs';
 import { LIBRARY_KEY, LEGACY_KEY, FORMAT_TITLES, emptyLibrary, readLibrary, serializeLibrary, addDeck, removeDeck, selectDeck } from '../../shared/deck-library.mjs';
 import { makeSafeStore } from './safe-store.js';
 import { loadCardList } from './card-list.js';
 import { makePrintingLoader } from './printings.js';
 import { sampleById } from '../../shared/sample-decks.mjs';
 import { setupCardPeek } from './card-peek.js';
+import { renderGroups, mountViewToggle, VIEWS } from './deck-groups.js';
 import { isValidCode } from '../../shared/table-code.mjs';
 
-const $ = (id) => document.getElementById(id);
 const store = makeSafeStore();
-// The saved decks live in this browser only (shared/deck-library.mjs: up to 20, one of them selected).
 const PROBE_KEY = 'overloaded.storage-probe';
+const VIEW_KEY = 'overloaded.deckView'; // 'text' or 'images', remembered in this browser
+
+let root = null;
+const $ = (id) => root.querySelector(`#${id}`);
 
 let index = null; // the card list, ready to match against
 let text = ''; // the text the preview on screen is for
@@ -28,14 +34,15 @@ let picksTouched = false;
 let library = emptyLibrary(); // the saved decks
 let libraryRead = { source: 'empty', skipped: 0 }; // what reading them found (so the page can say if some could not be read)
 let formatTouched = false; // the player chose the format, so it no longer follows the commander choice
+let view = 'text';
+let solo = true; // the saved decks have a "Play solo" button (not inside the lobby, where the table has its own deck)
 const printingLoader = makePrintingLoader();
 let printingFiles = new Map(); // the set files the pasted list names (see src/printings.js)
 let checkRun = 0; // a newer check makes an older one that is still waiting for printing files stop
-
-function say(message, isError = false) {
-  $(statusId).textContent = message;
-  $(statusId).classList.toggle('error', isError);
-}
+let viewToggle = null;
+let pendingSample; // undefined, or the id of a sample deck to put in the box once the card list has loaded ('' is the first one; a /deck?sample address asks for it)
+let onLibraryChange = () => {};
+let mounted = false;
 
 function make(tag, className, content) {
   const element = document.createElement(tag);
@@ -43,19 +50,166 @@ function make(tag, className, content) {
   if (content !== undefined) element.textContent = content;
   return element;
 }
+// A button, a field with its label, and the like: small helpers so the markup below reads as a list of what is on the page.
+function button(id, label, className = '', attrs = {}) {
+  const element = make('button', className, label);
+  element.type = 'button';
+  if (id) element.id = id;
+  for (const [name, value] of Object.entries(attrs)) element.setAttribute(name, value);
+  return element;
+}
+function field(id, label, control, className = 'field') {
+  const wrap = make('div', className);
+  const labelElement = make('label', '', label);
+  labelElement.htmlFor = id;
+  control.id = id;
+  control.name = id;
+  wrap.append(labelElement, control);
+  return wrap;
+}
+function select(options) {
+  const element = make('select');
+  for (const [value, label] of options) element.append(new Option(label, value));
+  return element;
+}
 
 const plural = (count, one, many) => `${count} ${count === 1 ? one : many}`;
 const totalCards = (deck) => deck.cards.reduce((sum, card) => sum + card.qty, 0);
 
-// ---- the card list ----
-// Set by mountDeckImporter. pendingSample: undefined, or the id of a sample deck to put in the box once the card list has loaded
-// ('' is the first one; a /deck?sample address asks for it). statusId: the element that shows messages. onLibraryChange: called
-// after the saved decks change, so a page that lists them can look again.
-let pendingSample;
-let statusId = 'status';
-let onLibraryChange = () => {};
-let mounted = false;
+function say(message, isError = false) {
+  $('deck-status').textContent = message;
+  $('deck-status').classList.toggle('error', isError);
+}
 
+// ---- the markup ----
+function build() {
+  root.classList.add('deck-app');
+  const status = make('p', 'status');
+  status.id = 'deck-status';
+  status.setAttribute('role', 'status');
+  status.setAttribute('aria-live', 'polite');
+
+  // screen 1: the saved decks
+  const saved = make('section');
+  saved.id = 'saved';
+  saved.setAttribute('aria-labelledby', 'saved-heading');
+  const savedHead = make('div', 'screen-head');
+  const savedHeading = make('h2', '', 'Your decks');
+  savedHeading.id = 'saved-heading';
+  savedHeading.tabIndex = -1;
+  savedHead.append(savedHeading, button('new-deck', 'New deck'));
+  const savedSummary = make('p');
+  savedSummary.id = 'saved-summary';
+  const savedList = make('ul', 'saved-list');
+  savedList.id = 'saved-list';
+  const savedEmpty = make('p', 'hint', 'No decks saved yet.');
+  savedEmpty.id = 'saved-empty';
+  saved.append(savedHead, savedSummary, savedList, savedEmpty);
+
+  // screen 2: pasting a list
+  const paste = make('section');
+  paste.id = 'paste';
+  paste.setAttribute('aria-labelledby', 'paste-heading');
+  const pasteHeading = make('h2', '', 'Add a deck');
+  pasteHeading.id = 'paste-heading';
+  pasteHeading.tabIndex = -1;
+  const lede = make('p', 'hint', 'Paste a decklist from Moxfield, Archidekt or ManaBox. It is checked here in your browser and saved only in your browser.');
+  const textarea = make('textarea');
+  textarea.rows = 12;
+  textarea.spellcheck = false;
+  textarea.setAttribute('autocomplete', 'off');
+  textarea.setAttribute('autocapitalize', 'off');
+  const pasteActions = make('div', 'actions');
+  const check = button('check', 'Check deck');
+  check.disabled = true;
+  const sample = button('sample', 'Try a sample deck', 'secondary');
+  sample.disabled = true;
+  pasteActions.append(check, sample, button('cancel-paste', 'Cancel', 'secondary'));
+  const listState = make('p', 'hint', 'Loading the card list...');
+  listState.id = 'list-state';
+  const retry = button('retry', 'Try again', 'secondary');
+  retry.hidden = true;
+  const storageHint = make('p', 'hint', 'Your browser is not letting this page save anything, so a deck cannot be kept after you leave.');
+  storageHint.id = 'storage-hint';
+  storageHint.hidden = true;
+  paste.append(pasteHeading, lede, field('deck-text', 'Decklist', textarea), pasteActions, listState, retry, storageHint);
+
+  // screen 3: one checked deck
+  const deck = make('section');
+  deck.id = 'preview';
+  deck.setAttribute('aria-labelledby', 'preview-heading');
+  const deckHeading = make('h2', 'sr-only', 'Your deck');
+  deckHeading.id = 'preview-heading';
+  deckHeading.tabIndex = -1;
+  const bar = make('div', 'deck-bar');
+  bar.append(button('back-to-decks', 'All decks', 'secondary'), button('edit-list', 'Edit list', 'secondary'));
+  const nameInput = make('input');
+  nameInput.type = 'text';
+  nameInput.maxLength = 60;
+  nameInput.autocomplete = 'off';
+  nameInput.spellcheck = false;
+  const missing = make('div', 'choice');
+  missing.id = 'missing-box';
+  missing.hidden = true;
+  const allow = make('input');
+  allow.type = 'checkbox';
+  allow.id = 'allow-missing';
+  const allowLabel = make('label');
+  allowLabel.htmlFor = 'allow-missing';
+  allowLabel.id = 'allow-missing-label';
+  missing.append(allow, allowLabel);
+  const head = make('div', 'deck-head');
+  const saveBox = make('div', 'deck-save');
+  saveBox.append(missing, button('save', 'Save deck'));
+  head.append(field('deck-name', 'Deck name', nameInput, 'field deck-name-field'), saveBox);
+
+  const formatSelect = select([['commander', 'Commander'], ['standard', 'Standard']]);
+  const bracketSelect = select([['', 'Not set'], ['1', '1'], ['2', '2'], ['3', '3'], ['4', '4'], ['5', '5']]);
+  const bracketField = field('deck-bracket', 'Bracket (optional)', bracketSelect);
+  bracketField.id = 'bracket-field';
+  bracketField.title = 'How strong the deck is, for the table to see next to your commander.';
+  const commanderBox = make('div', 'commander-box');
+  commanderBox.id = 'commander-box';
+  commanderBox.append(field('commander-1', 'Commander', make('select')), field('commander-2', 'Partner (optional)', make('select')));
+  const settings = make('div', 'deck-settings');
+  settings.append(field('deck-format', 'Format', formatSelect), bracketField, commanderBox);
+  const commanderNote = make('p', 'hint');
+  commanderNote.id = 'commander-note';
+
+  const summaryRow = make('div', 'deck-summary');
+  const summary = make('p');
+  summary.id = 'summary';
+  const toggle = make('div', 'view-toggle');
+  toggle.id = 'view-toggle';
+  summaryRow.append(summary, toggle);
+  const notices = make('ul', 'notices');
+  notices.id = 'notices';
+  const problems = make('div');
+  problems.id = 'problems';
+  problems.hidden = true;
+  const problemList = make('ul', 'problems');
+  problemList.id = 'problem-list';
+  problems.append(make('h3', '', 'Needs attention'), problemList);
+  const sections = make('div', 'deck-sections');
+  sections.id = 'sections';
+  deck.append(deckHeading, bar, head, settings, commanderNote, summaryRow, notices, problems, sections);
+
+  root.replaceChildren(status, saved, paste, deck);
+}
+
+// Shows one screen. Moving to the deck puts the keyboard focus on its heading, and to the other two on theirs, so a screen reader says where it is.
+function showScreen(name) {
+  $('saved').hidden = name !== 'list';
+  $('paste').hidden = name !== 'paste';
+  $('preview').hidden = name !== 'deck' || !preview;
+  root.dataset.screen = name;
+  if (name === 'list') $('saved-heading').focus();
+  else if (name === 'paste') $('deck-text').focus();
+  else if (name === 'deck') $('preview-heading').focus();
+  $('cancel-paste').hidden = !(preview || library.decks.length > 0 || libraryRead.source === 'damaged');
+}
+
+// ---- the card list ----
 async function loadCards() {
   $('check').disabled = true;
   $('sample').disabled = true;
@@ -79,8 +233,8 @@ async function loadCards() {
   }
 }
 
-// Puts a sample deck (shared/sample-decks.mjs) in the paste box with its name, checks it like any pasted list, and offers its
-// format. Nothing is saved: the player looks at it and saves it if they like.
+// Puts a sample deck (shared/sample-decks.mjs) in the paste box with its name, checks it like any pasted list, and offers its format. Nothing is saved: the player looks at it and
+// saves it if they like.
 async function useSample(id) {
   if (!index) return;
   const sample = sampleById(id);
@@ -92,15 +246,15 @@ async function useSample(id) {
 }
 
 // ---- checking a pasted list ----
-// Only a list that names sets and numbers waits for anything: it fetches the printing files of those sets (our own static
-// files, one per set, no request to Scryfall). A list without them is checked straight away, as before.
+// Only a list that names sets and numbers waits for anything: it fetches the printing files of those sets (our own static files, one per set, no request to Scryfall). A list
+// without them is checked straight away.
 async function runCheck() {
   if (!index) return;
   const pasted = $('deck-text').value;
   if (pasted !== text) { choices = {}; picksTouched = false; formatTouched = false; $('deck-bracket').value = ''; }
   text = pasted;
   const run = ++checkRun;
-  if (!text.trim()) { say('Paste a decklist first.', true); $('preview').hidden = true; preview = null; return; }
+  if (!text.trim()) { say('Paste a decklist first.', true); return; }
   const parsed = parseDeckText(text);
   const sets = printingSetsNeeded(matchDeck(index, parsed.entries).results);
   if (sets.length) {
@@ -114,10 +268,9 @@ async function runCheck() {
   } else {
     printingFiles = new Map();
   }
+  say('');
   refresh();
-  const { counts } = preview;
-  say(counts.problem === 0 ? `Checked: ${plural(counts.cards, 'card', 'cards')}, all matched.` : `Checked: ${plural(counts.cards, 'card', 'cards')}, ${counts.problem} need attention.`);
-  $('preview-heading').focus();
+  showScreen('deck');
 }
 
 // Works the preview out again from the text it is for (so choosing a card does not depend on what is now in the box).
@@ -128,32 +281,29 @@ function refresh() {
 }
 
 function renderPreview() {
-  $('preview').hidden = false;
   const { counts } = preview;
-  $('summary').textContent = counts.cards === 0 ? 'No cards were found in that.' : `${plural(counts.cards, 'card', 'cards')} on ${plural(counts.unique, 'line', 'lines')}. ${counts.problem === 0 ? 'Every card was matched.' : `${plural(counts.problem, 'card needs', 'cards need')} attention.`}`;
-
+  $('summary').textContent = counts.cards === 0 ? 'No cards were found in that.' : `${plural(counts.cards, 'card', 'cards')}${counts.problem === 0 ? ', all matched' : `, ${counts.problem} need attention`}.`;
   const notices = $('notices');
   notices.replaceChildren(...preview.notices.map((notice) => make('li', '', notice)));
   notices.hidden = preview.notices.length === 0;
-
   renderProblems();
-  renderSections();
   renderCommander();
+  renderSections();
   renderSaveBox();
 }
 
 function choiceSelect(line, label) {
-  const select = make('select');
-  select.setAttribute('aria-label', label);
-  select.append(new Option('Choose a card...', ''));
-  for (const candidate of line.candidates) select.append(new Option(`${candidate.n} (${candidate.t})`, candidate.i));
-  select.addEventListener('change', () => {
-    if (!select.value) return;
-    choices[line.typedKey] = select.value;
+  const element = make('select');
+  element.setAttribute('aria-label', label);
+  element.append(new Option('Choose a card...', ''));
+  for (const candidate of line.candidates) element.append(new Option(`${candidate.n} (${candidate.t})`, candidate.i));
+  element.addEventListener('change', () => {
+    if (!element.value) return;
+    choices[line.typedKey] = element.value;
     refresh();
     say(`Chose ${preview.lines.find((l) => l.typedKey === line.typedKey)?.name ?? 'the card'}.`);
   });
-  return select;
+  return element;
 }
 
 function renderProblems() {
@@ -176,8 +326,8 @@ function renderProblems() {
   $('problems').hidden = list.children.length === 0;
 }
 
-// The column that says which printing a row shows: the set and number as typed (SLD 916), with "(not found)" or "(not loaded)"
-// after one that could not be used, and its words as the tooltip. A row found by a title says "title" when no set was typed.
+// The small element that says which printing a text row shows: the set and number as typed (SLD 916), with "(not found)" or "(not loaded)" after one that could not be used, and its
+// words as the tooltip. A row found by a title says "title" when no set was typed. Empty (and so left out of the row) for a card with nothing typed about its printing.
 function printingCell(line) {
   const problems = new Map(line.printingProblems.map((item) => [item.typed, item.problem]));
   const parts = line.printings.map((typed) => (problems.has(typed) ? `${typed} (${problems.get(typed) === 'not_loaded' ? 'not loaded' : 'not found'})` : typed));
@@ -191,33 +341,12 @@ function printingCell(line) {
   return cell;
 }
 
+// The commander ids that count right now: the two pickers in a Commander deck, none otherwise.
+const isCommander = () => $('deck-format').value === 'commander';
+const commanderIds = () => (isCommander() && !$('commander-box').hidden ? [$('commander-1').value, $('commander-2').value].filter(Boolean) : []);
+
 function renderSections() {
-  const container = $('sections');
-  container.replaceChildren();
-  for (const section of preview.sections) {
-    const heading = make('h3', '', `${section.title}: ${section.count}`);
-    const list = make('ul', 'deck-list');
-    for (const line of section.lines) {
-      const item = make('li', line.status === 'matched' ? 'card-line' : 'card-line unmatched');
-      const name = make('span', 'name', line.name);
-      if (line.viaTitle) name.append(make('span', 'typed-as', ` (typed as "${line.viaTitle}")`)); // a card found by another title it was printed under
-      if (line.card) {
-        // Hovering the row (or focusing the name with the keyboard) shows the card's picture; see src/card-peek.js. The picture
-        // is the printing the line named, or the printing of the title that was typed, or else the card's default one.
-        item.dataset.cardId = line.printingId ?? line.card.i;
-        item.dataset.printing = line.printingSource ?? 'default';
-        item.dataset.cardName = line.name;
-        if (line.card.b === 1) item.dataset.twoSided = '1'; // a card with a back face: the picture box shows both faces
-        name.tabIndex = 0;
-      }
-      item.append(make('span', 'qty', String(line.qty)), name);
-      item.append(printingCell(line));
-      if (line.card) item.append(make('span', 'type', line.card.t), make('span', 'cost', line.card.m));
-      else item.append(make('span', 'type', 'not matched'));
-      list.append(item);
-    }
-    container.append(heading, list);
-  }
+  renderGroups($('sections'), groupDeck(preview.lines, { commanderIds: commanderIds() }), { view, printingCell });
 }
 
 const CERTAINTY_NOTES = {
@@ -227,13 +356,11 @@ const CERTAINTY_NOTES = {
   first: 'No commander is marked in your list, so we picked the first card. Change it if it is wrong.',
 };
 
-// Commander or not is the format choice: Commander shows the commander pickers, Standard hides them and the deck has no commander.
-const isCommander = () => $('deck-format').value === 'commander';
-
 function setFormat(value) {
   $('deck-format').value = value;
   formatTouched = true; // the player (or a loaded deck) chose it, so it no longer follows the guess
   renderCommander();
+  renderSections();
 }
 
 function renderCommander() {
@@ -275,7 +402,7 @@ function renderSaveBox() {
   if (unmatchedLines === 0) $('allow-missing').checked = false;
   $('allow-missing-label').textContent = `Save without the ${plural(unmatchedLines, 'line', 'lines')} that ${unmatchedLines === 1 ? 'was' : 'were'} not matched`;
   $('save').disabled = !preview.canSave;
-  $('save-note').hidden = library.decks.length === 0;
+  $('save').title = library.decks.length ? 'Saving a deck with the same name replaces that deck. You can keep up to 20 decks.' : '';
 }
 
 // ---- the saved decks ----
@@ -302,42 +429,48 @@ function commit(next, message) {
     return false;
   }
   renderSaved();
+  if (preview) renderSaveBox(); // its tooltip depends on whether anything is saved
   say(message);
   onLibraryChange(library);
   return true;
 }
 
-function deckSummary(entry) {
+// One saved deck as two lines: its name, and what it is (format, bracket, size, commander, when it was saved).
+function deckMeta(entry) {
   const { deck } = entry;
   const commanders = deck.cards.filter((card) => card.section === 'commander').map((card) => card.n);
-  return `${deck.name} (${FORMAT_TITLES[entry.format]}${entry.bracket ? `, bracket ${entry.bracket}` : ''}): ${plural(totalCards(deck), 'card', 'cards')}${commanders.length ? `, commander ${commanders.join(' and ')}` : ''}. Saved ${new Date(deck.savedAt).toLocaleDateString()}.${deck.skipped ? ` ${plural(deck.skipped, 'line was', 'lines were')} left out because they were not matched.` : ''}`;
+  const parts = [FORMAT_TITLES[entry.format] + (entry.bracket ? `, bracket ${entry.bracket}` : ''), plural(totalCards(deck), 'card', 'cards')];
+  if (commanders.length) parts.push(commanders.join(' and '));
+  parts.push(`saved ${new Date(deck.savedAt).toLocaleDateString()}`);
+  if (deck.skipped) parts.push(`${plural(deck.skipped, 'line', 'lines')} left out (not matched)`);
+  return parts.join(' · ');
 }
 
 function renderSaved() {
   const problem = libraryRead.source === 'damaged'
     ? 'Your saved decks could not be read, so they were ignored. Saving a deck starts a new list.'
     : libraryRead.skipped ? `${plural(libraryRead.skipped, 'saved deck', 'saved decks')} could not be read and ${libraryRead.skipped === 1 ? 'was' : 'were'} left out.` : '';
-  $('saved').hidden = library.decks.length === 0 && !problem;
   $('saved-summary').textContent = problem;
   $('saved-summary').hidden = !problem;
+  $('saved-empty').hidden = library.decks.length > 0;
   $('saved-list').replaceChildren(...library.decks.map((entry) => {
     const item = make('li', 'saved-deck');
     item.dataset.deckId = entry.id;
-    const selected = entry.id === library.selected;
-    item.append(make('span', 'saved-text', `${deckSummary(entry)}${selected ? ' Selected for the solo table.' : ''}`));
+    const text = make('span', 'saved-text');
+    const name = make('strong', 'saved-name', entry.deck.name);
+    if (solo && entry.id === library.selected) name.append(make('span', 'solo-tag', ' solo deck'));
+    text.append(name, make('span', 'saved-meta', deckMeta(entry)));
     const actions = make('span', 'saved-actions');
-    const button = (action, label, className) => {
-      const element = make('button', className, label);
-      element.type = 'button';
-      element.dataset.action = action;
+    const action = (kind, label, className) => {
+      const element = button('', label, className);
+      element.dataset.action = kind;
       element.setAttribute('aria-label', `${label}: ${entry.deck.name}`);
       return element;
     };
-    actions.append(button('load', 'Load it into the box below'), ...(selected ? [] : [button('select', 'Use for the solo table', 'secondary')]), button('delete', 'Delete it', 'secondary'));
-    item.append(actions);
+    actions.append(action('load', 'Open'), ...(solo ? [action('play', 'Play solo', 'secondary')] : []), action('delete', 'Delete', 'secondary'));
+    item.append(text, actions);
     return item;
   }));
-  $('save-note').hidden = library.decks.length === 0;
 }
 
 async function loadSaved(id) {
@@ -350,14 +483,13 @@ async function loadSaved(id) {
   picks = [deck.commander[0] ?? '', deck.commander[1] ?? ''];
   picksTouched = true;
   $('deck-name').value = deck.name;
-  setFormat(entry.format);
   $('deck-bracket').value = entry.bracket ? String(entry.bracket) : '';
-  say(`Loaded "${deck.name}".`);
+  setFormat(entry.format);
 }
 
 function save() {
   if (!preview) return;
-  const ids = isCommander() ? [$('commander-1').value, $('commander-2').value].filter(Boolean) : [];
+  const ids = commanderIds();
   const result = buildSavedDeck(preview, { name: $('deck-name').value, text, commanderIds: ids, allowMissing: $('allow-missing').checked });
   if (!result.ok) { say(result.error, true); return; }
   const bracket = isCommander() && $('deck-bracket').value ? Number($('deck-bracket').value) : null; // brackets are a Commander idea
@@ -366,45 +498,56 @@ function save() {
   commit(added.library, `${added.replaced ? 'Replaced' : 'Saved'} "${result.deck.name}": ${plural(totalCards(result.deck), 'card', 'cards')}.`);
 }
 
+function setView(next) {
+  if (!VIEWS.includes(next) || next === view) return;
+  view = next;
+  store.set(VIEW_KEY, view);
+  viewToggle.set(view);
+  if (preview) renderSections();
+}
+
 // ---- starting ----
-// Options: statusId (the element that shows messages, "status" on the deck page), sampleId (undefined, or the sample deck a
-// /deck?sample address asks for: '' is the first), onLibraryChange (called after the saved decks change), backLink (point the
-// page's #back link at the table this browser is at). Call it once; a second call does nothing.
-export function mountDeckImporter({ statusId: messageId = 'status', sampleId, onLibraryChange: onChange = () => {}, backLink = true } = {}) {
-  if (mounted) return;
+// root: the element to build the manager in. Options: sampleId (undefined, or the sample deck a /deck?sample address asks for: '' is the first), onLibraryChange (called after
+// the saved decks change, so a page that lists them can look again), backLink (point the page's #back link at the table this browser is at), play (the saved decks get a
+// "Play solo" button; not inside the lobby). Call it once; a second call does nothing.
+export function mountDeckImporter({ root: container, sampleId, onLibraryChange: onChange = () => {}, backLink = true, play = true } = {}) {
+  if (mounted || !container) return;
   mounted = true;
-  statusId = messageId;
+  root = container;
+  solo = play;
   pendingSample = sampleId;
   onLibraryChange = onChange;
+  build();
   // If you are at a table (the lobby remembers the last one in this browser), "Back to the lobby" goes to that table's address, not the start page.
   const lastTable = store.get('overloaded.lastTable');
-  if (backLink && $('back') && typeof lastTable === 'string' && isValidCode(lastTable)) $('back').href = `/lobby/${lastTable}`;
+  const back = document.getElementById('back');
+  if (backLink && back && typeof lastTable === 'string' && isValidCode(lastTable)) back.href = `/lobby/${lastTable}`;
+
+  const savedView = store.get(VIEW_KEY);
+  view = VIEWS.includes(savedView) ? savedView : 'text';
+  viewToggle = mountViewToggle($('view-toggle'), { view, onChange: setView });
 
   $('check').addEventListener('click', runCheck);
   $('retry').addEventListener('click', loadCards);
   $('sample').addEventListener('click', () => useSample());
-  $('clear').addEventListener('click', () => {
-    $('deck-text').value = '';
-    text = ''; choices = {}; preview = null; picksTouched = false; formatTouched = false; $('deck-bracket').value = '';
-    checkRun++; // a check still waiting for printing files must not bring the preview back
-    $('preview').hidden = true;
-    say('');
-    $('deck-text').focus();
-  });
+  $('new-deck').addEventListener('click', () => { $('deck-text').value = ''; text = ''; preview = null; choices = {}; picksTouched = false; formatTouched = false; $('deck-bracket').value = ''; $('deck-name').value = ''; checkRun++; say(''); showScreen('paste'); });
+  $('cancel-paste').addEventListener('click', () => { say(''); showScreen(preview ? 'deck' : 'list'); });
+  $('back-to-decks').addEventListener('click', () => { say(''); showScreen('list'); });
+  $('edit-list').addEventListener('click', () => { say(''); showScreen('paste'); });
   $('deck-text').addEventListener('keydown', (event) => { if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) runCheck(); });
-  $('commander-1').addEventListener('change', () => { picks[0] = $('commander-1').value; picksTouched = true; });
-  $('commander-2').addEventListener('change', () => { picks[1] = $('commander-2').value; picksTouched = true; });
+  $('commander-1').addEventListener('change', () => { picks[0] = $('commander-1').value; picksTouched = true; renderSections(); });
+  $('commander-2').addEventListener('change', () => { picks[1] = $('commander-2').value; picksTouched = true; renderSections(); });
   $('save').addEventListener('click', save);
-  $('deck-format').addEventListener('change', () => { formatTouched = true; renderCommander(); });
+  $('deck-format').addEventListener('change', () => { formatTouched = true; renderCommander(); renderSections(); });
   // The buttons of each saved deck, found by delegation so the list can be drawn again without wiring anything.
   $('saved-list').addEventListener('click', (event) => {
-    const button = event.target instanceof Element ? event.target.closest('button[data-action]') : null;
-    const id = button?.closest('[data-deck-id]')?.dataset.deckId;
+    const clicked = event.target instanceof Element ? event.target.closest('button[data-action]') : null;
+    const id = clicked?.closest('[data-deck-id]')?.dataset.deckId;
     const entry = library.decks.find((candidate) => candidate.id === id);
-    if (!button || !entry) return;
-    if (button.dataset.action === 'load') loadSaved(id);
-    else if (button.dataset.action === 'select') commit(selectDeck(library, id), `"${entry.deck.name}" is now the deck for the solo table.`);
-    else if (button.dataset.action === 'delete') commit(removeDeck(library, id), `Deleted "${entry.deck.name}".`);
+    if (!clicked || !entry) return;
+    if (clicked.dataset.action === 'load') loadSaved(id);
+    else if (clicked.dataset.action === 'play') { if (commit(selectDeck(library, id), `"${entry.deck.name}" is now the deck for the solo table.`)) location.assign('/solo'); }
+    else if (clicked.dataset.action === 'delete') commit(removeDeck(library, id), `Deleted "${entry.deck.name}".`);
   });
 
   // Can this browser keep anything? If not, the page still works; it just cannot remember a deck.
@@ -413,6 +556,9 @@ export function mountDeckImporter({ statusId: messageId = 'status', sampleId, on
   $('storage-hint').hidden = canStore;
   readSavedLibrary();
   renderSaved();
-  setupCardPeek({ root: $('sections'), peek: $('card-peek'), image: $('card-peek-image'), note: $('card-peek-note') });
+  setupCardPeek({ root: $('sections'), peek: document.getElementById('card-peek'), image: document.getElementById('card-peek-image'), note: document.getElementById('card-peek-note') });
+  // With saved decks (or a message about decks that could not be read) the page starts at the list; with none it starts at the box to paste into.
+  const somethingToShow = library.decks.length > 0 || libraryRead.source === 'damaged' || libraryRead.skipped > 0;
+  showScreen(somethingToShow && pendingSample === undefined ? 'list' : 'paste');
   loadCards();
 }

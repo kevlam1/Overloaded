@@ -90,100 +90,13 @@
         <div class="actions">
           <button id="open-importer" type="button" class="secondary" aria-expanded="false" aria-controls="deck-importer">Import or change a deck</button>
         </div>
-        <section id="deck-importer" aria-labelledby="importer-heading" hidden>
-          <h3 id="importer-heading">Import or change a deck</h3>
-          <p id="importer-status" class="status" role="status" aria-live="polite"></p>
-          <section id="saved" aria-labelledby="saved-heading" hidden>
-            <h3 id="saved-heading">Your saved decks</h3>
-            <p id="saved-summary"></p>
-            <ul id="saved-list" class="saved-list"></ul>
-            <div class="actions">
-              <a class="button-link" href="/solo">Play the selected deck at the solo table</a>
-            </div>
-          </section>
-
-          <section aria-labelledby="paste-heading">
-            <h3 id="paste-heading">Paste your list</h3>
-            <div class="field">
-              <label for="deck-text">Decklist</label>
-              <textarea id="deck-text" name="deck-text" rows="12" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
-            </div>
-            <div class="actions">
-              <button id="check" type="button" disabled>Check deck</button>
-              <button id="clear" type="button" class="secondary">Clear</button>
-              <button id="sample" type="button" class="secondary" disabled>Try a sample deck</button>
-            </div>
-            <p id="list-state" class="hint">Loading the card list...</p>
-            <button id="retry" type="button" class="secondary" hidden>Try again</button>
-            <p id="storage-hint" class="hint" hidden>Your browser is not letting this page save anything, so a deck cannot be kept after you leave.</p>
-          </section>
-
-          <section id="preview" aria-labelledby="preview-heading" hidden>
-            <h3 id="preview-heading" tabindex="-1">Your deck</h3>
-            <p id="summary"></p>
-            <ul id="notices" class="notices"></ul>
-
-            <div id="problems" hidden>
-              <h4>Needs attention</h4>
-              <ul id="problem-list" class="problems"></ul>
-            </div>
-
-            <div id="sections"></div>
-
-            <div class="field format-field">
-              <label for="deck-format">Format</label>
-              <select id="deck-format" name="deck-format">
-                <option value="commander">Commander</option>
-                <option value="standard">Standard</option>
-              </select>
-            </div>
-
-            <div class="field" id="bracket-field">
-              <label for="deck-bracket">Bracket (optional)</label>
-              <select id="deck-bracket" name="deck-bracket">
-                <option value="">Not set</option>
-                <option value="1">1</option>
-                <option value="2">2</option>
-                <option value="3">3</option>
-                <option value="4">4</option>
-                <option value="5">5</option>
-              </select>
-              <p class="hint">How strong the deck is, for the table to see next to your commander.</p>
-            </div>
-
-            <fieldset id="commander-box">
-              <legend>Commander</legend>
-              <div class="field">
-                <label for="commander-1">Commander</label>
-                <select id="commander-1" name="commander-1"></select>
-              </div>
-              <div class="field">
-                <label for="commander-2">Partner or second commander (optional)</label>
-                <select id="commander-2" name="commander-2"></select>
-              </div>
-              <p id="commander-note" class="hint"></p>
-            </fieldset>
-
-            <div id="save-box">
-              <div class="field">
-                <label for="deck-name">Deck name</label>
-                <input id="deck-name" name="deck-name" type="text" maxlength="60" autocomplete="off" spellcheck="false">
-              </div>
-              <div class="choice" id="missing-box" hidden>
-                <input id="allow-missing" type="checkbox">
-                <label for="allow-missing" id="allow-missing-label">Save without the lines that were not matched</label>
-              </div>
-              <div class="actions">
-                <button id="save" type="button">Save deck</button>
-              </div>
-              <p id="save-note" class="hint" hidden>Saving a deck with the same name replaces that deck. You can keep up to 20 decks.</p>
-            </div>
-          </section>
+        <section id="deck-importer" aria-label="Your decks" hidden>
+          <div id="deck-app"></div>
+        </section>
         <div id="card-peek" class="card-peek" hidden aria-hidden="true">
           <img id="card-peek-image" alt="" width="488" height="680" decoding="async" referrerpolicy="no-referrer">
           <p id="card-peek-note" class="card-peek-note"></p>
         </div>
-        </section>
         <div class="actions">
           <button id="ready" type="button">Ready</button>
         </div>

@@ -164,9 +164,9 @@ h3 { margin: 1rem 0 0.4rem; font-size: 1rem; }
 .problem { margin: 0 0 0.5rem; }
 .problem select { width: auto; max-width: 100%; margin-top: 0.25rem; }
 .deck-list { list-style: none; margin: 0; padding: 0; }
-.card-line { display: grid; grid-template-columns: 2.5rem minmax(0, 1fr) 9rem minmax(0, 1.2fr) 8.5rem; gap: 0.5rem; padding: 0.2rem 0; border-bottom: 1px solid var(--line); font-size: 0.9rem; }
+.card-line { display: grid; grid-template-columns: 2.5rem minmax(0, 1fr) auto auto; gap: 0.5rem; align-items: baseline; padding: 0.2rem 0; border-bottom: 1px solid var(--line); font-size: 0.9rem; }
 .card-line .qty { color: var(--muted); text-align: right; }
-.card-line .type, .card-line .cost, .card-line .printing { color: var(--muted); overflow-wrap: anywhere; }
+.card-line .cost, .card-line .printing { color: var(--muted); overflow-wrap: anywhere; }
 .card-line .cost { text-align: right; }
 .card-line.unmatched .name { color: var(--danger); }
 .card-line .typed-as { color: var(--muted); }
@@ -183,7 +183,7 @@ h3 { margin: 1rem 0 0.4rem; font-size: 1rem; }
 /* A card with a back face: both faces side by side, the note under both (src/card-peek.js adds the second picture). */
 .card-peek.two-faced:not([hidden]) { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; width: 34.4rem; max-width: calc(100vw - 1rem); }
 .card-peek.two-faced .card-peek-note { grid-column: 1 / -1; margin-top: 0; }
-@media (max-width: 36rem) { .card-line { grid-template-columns: 2rem minmax(0, 1fr); } .card-line .printing, .card-line .type, .card-line .cost { grid-column: 2; } .card-line .printing:empty { display: none; } }
+@media (max-width: 36rem) { .card-line { grid-template-columns: 2rem minmax(0, 1fr); } .card-line .printing, .card-line .cost { grid-column: 2; } }
 
 /* The solo table: a wide page, cards as pictures, a tapped card turned sideways, and the controls around them. */
 main.table { max-width: 80rem; }
@@ -304,7 +304,9 @@ main.table { max-width: 80rem; }
 .saved-list { list-style: none; margin: 0 0 1rem; padding: 0; }
 .saved-deck { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; padding: 0.6rem 0; border-bottom: 1px solid var(--line); }
 .saved-deck:last-child { border-bottom: 0; }
-.saved-text { flex: 1 1 22rem; }
+.saved-text { display: flex; flex-direction: column; gap: 0.15rem; flex: 1 1 22rem; }
+.saved-meta { color: var(--muted); font-size: 0.85rem; }
+.solo-tag { margin-left: 0.5rem; padding: 0 0.4rem; border: 1px solid var(--accent); border-radius: 0.6rem; color: var(--accent); font-size: 0.7rem; font-weight: 600; }
 .saved-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 
 /* Other players' boards on the table page: smaller cards you can look at but not move. */
@@ -325,8 +327,6 @@ dialog { max-width: 28rem; width: calc(100% - 2rem); padding: 1rem; border: 1px 
 dialog::backdrop { background: rgba(0, 0, 0, 0.55); }
 dialog h2 { margin-top: 0; }
 
-/* The Format choice on the deck page sits right under the list of cards, so it gets some room above it. */
-.format-field { margin-top: 1.25rem; }
 .card-menu { position: fixed; z-index: 40; width: max-content; min-width: 13rem; max-width: 18rem; max-height: calc(100vh - 16px); overflow-y: auto; padding: 0 0 0.25rem; background: var(--card); color: var(--text); border: 1px solid var(--line); border-radius: 0.6rem; box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.35); font-size: 0.95rem; }
 .card-menu-title { padding: 0.5rem 0.8rem; border-bottom: 1px solid var(--line); font-weight: 700; overflow-wrap: anywhere; }
 .card-menu .card-menu-item, .card-menu .card-menu-amount { display: flex; align-items: center; justify-content: space-between; min-height: 2.25rem; margin: 0; border: 0; border-radius: 0; background: transparent; color: inherit; font: inherit; font-weight: 400; text-align: left; cursor: pointer; }
@@ -731,3 +731,40 @@ body .battlefield > .card.tapped[data-stack-ext="3"]::before { left: -3px; top: 
 .cmd-slot .tax-button { min-width: 1.6rem; min-height: 0; padding: 0 0.4rem; line-height: 1.4; }
 .cmd-slot .tax-words { min-width: 3.4rem; font-size: 0.8rem; font-variant-numeric: tabular-nums; text-align: center; }
 .settings-row { margin-bottom: 0.5rem; }
+
+/* The deck manager (frontend/src/deck-importer.js): three screens, one at a time. */
+.deck-app .screen-head, .deck-app .deck-bar, .deck-app .deck-summary { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem 1rem; }
+.deck-app .screen-head h2 { margin: 0; }
+.deck-app .deck-bar { justify-content: flex-start; margin-bottom: 0.75rem; }
+.deck-app .deck-head { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.5rem 1rem; margin-bottom: 0.5rem; }
+.deck-app .deck-name-field { flex: 1 1 18rem; margin-bottom: 0; }
+.deck-app .deck-save { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; }
+.deck-app .deck-save .choice { margin: 0; }
+.deck-app .deck-settings { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0 1rem; }
+.deck-app .deck-settings .field, .deck-app .commander-box .field { margin-bottom: 0.5rem; }
+.deck-app .commander-box { display: flex; flex-wrap: wrap; gap: 0 1rem; }
+.deck-app .commander-box[hidden], .deck-app .deck-settings [hidden] { display: none; }
+.deck-app .deck-summary { margin: 0.5rem 0; }
+.deck-app .deck-summary p { margin: 0; }
+.deck-app .deck-sections { margin-top: 0.5rem; }
+.deck-group h3 { margin: 1.1rem 0 0.4rem; padding-bottom: 0.2rem; border-bottom: 1px solid var(--line); }
+.view-toggle { display: inline-flex; border: 1px solid var(--line); border-radius: 0.5rem; overflow: hidden; }
+.view-button { display: inline-flex; align-items: center; justify-content: center; min-width: 2.5rem; min-height: 2.25rem; padding: 0 0.6rem; border: 0; border-radius: 0; background: transparent; color: var(--text); }
+.view-button + .view-button { border-left: 1px solid var(--line); }
+.view-button[aria-pressed="true"] { background: var(--accent); color: var(--accent-text); }
+/* the picture view: the cards as a wrapping grid of pictures; a count sits on a card that has more than one copy */
+.deck-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr)); gap: 0.6rem; margin: 0; padding: 0; list-style: none; }
+.deck-tile { position: relative; }
+.deck-tile[data-card-id] { cursor: zoom-in; }
+.deck-tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.deck-tile .tile-picture { display: block; aspect-ratio: 488 / 680; border: 1px solid var(--line); border-radius: 0.5rem; background: var(--card); overflow: hidden; }
+.deck-tile .tile-picture img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.deck-tile .tile-picture.noimage { display: flex; align-items: center; justify-content: center; padding: 0.4rem; font-size: 0.8rem; text-align: center; overflow-wrap: anywhere; }
+.deck-tile.unmatched .tile-picture { border-style: dashed; border-color: var(--danger); color: var(--danger); }
+.deck-tile .tile-qty { position: absolute; right: 0.3rem; bottom: 0.3rem; padding: 0 0.4rem; border-radius: 0.8rem; background: var(--accent); color: var(--accent-text); font-size: 0.8rem; font-weight: 700; line-height: 1.4rem; }
+.deck-app section { margin: 0; padding: 0; border: 0; background: none; box-shadow: none; }
+.deck-app .deck-settings select, .deck-app .commander-box select { width: auto; min-width: 11rem; max-width: 100%; }
+.deck-app .deck-settings .field, .deck-app .commander-box .field { flex: 0 1 auto; }
+.deck-app .deck-settings { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); }
+.deck-app .commander-box { display: contents; }
+.deck-app .deck-settings select { width: 100%; }

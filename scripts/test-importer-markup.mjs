@@ -1,6 +1,6 @@
-// The deck importer (frontend/src/deck-importer.js) is used by two pages that each hold its markup: the /deck page and the lobby's
-// table screen. This checks that every element id the importer reaches for exists on both, so a change to one page cannot quietly
-// break the other. (The lobby's message line is #importer-status, passed to the importer as statusId; the deck page's is #status.)
+// The deck manager (frontend/src/deck-importer.js) is used by two pages, the /deck page and the lobby's table screen. It builds its own markup inside the element it is given, so the two
+// pages cannot drift apart. This checks the parts that are still written by hand: each page has the element to build in and the card picture box, no id the manager creates is also an id
+// on either page (two elements with one id would break both), and every id the manager looks up is one it creates.
 import { readFileSync } from 'node:fs';
 
 let checks = 0;
@@ -8,45 +8,34 @@ const fail = (label, detail) => { console.log(`FAILED CHECK: ${label}: ${detail}
 const check = (label, condition, detail = '') => { checks++; if (!condition) fail(label, detail); };
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const idsIn = (html) => new Set([...html.matchAll(/\bid="([^"]+)"/g)].map((m) => m[1]));
+const idsIn = (html) => [...html.matchAll(/\bid="([^"]+)"/g)].map((m) => m[1]);
 
 const importer = read('frontend/src/deck-importer.js');
 const deckPage = read('frontend/pages/deck/index.html');
 const lobbyPage = read('frontend/pages/lobby/index.html');
-
-// the ids the importer looks up by name: $('name') (the message line is looked up through statusId, so it is added by hand)
-const used = new Set([...importer.matchAll(/\$\('([a-z0-9-]+)'\)/g)].map((m) => m[1]));
-check('the importer uses a believable number of ids (so the pattern above really read them)', used.size > 25, String(used.size));
-check('the importer reads its pile and peek elements too (a literal id the pattern would miss is on the page)', ['sections', 'card-peek', 'card-peek-image', 'card-peek-note'].every((id) => used.has(id)));
-
-// the lobby's copy lives in the panel from #deck-importer to the Ready button
-const start = lobbyPage.indexOf('id="deck-importer"');
-const end = lobbyPage.indexOf('id="ready"');
-check('the lobby has the importer panel before the Ready button', start > 0 && end > start);
-const lobbyPanelIds = idsIn(lobbyPage.slice(start, end));
 const deckIds = idsIn(deckPage);
+const lobbyIds = idsIn(lobbyPage);
 
-const needsEverywhere = [...used].filter((id) => id !== 'back'); // the back link exists on the deck page only (backLink: false in the lobby)
-for (const id of needsEverywhere) {
-  check(`the deck page has #${id}`, deckIds.has(id));
-  check(`the lobby's importer panel has #${id}`, lobbyPanelIds.has(id) || (id === 'status' && lobbyPanelIds.has('importer-status')), id);
+// the ids the manager creates: button('id', ...), field('id', ...), and element.id = 'id'
+const created = new Set([...importer.matchAll(/\b(?:button|field)\('([a-z0-9-]+)'/g)].map((m) => m[1]).concat([...importer.matchAll(/\.id = '([a-z0-9-]+)'/g)].map((m) => m[1])));
+check('the manager creates a believable number of ids (so the patterns above really read them)', created.size > 30, String(created.size));
+
+// the ids it looks up by name: $('name')
+const used = new Set([...importer.matchAll(/\$\('([a-z0-9-]+)'\)/g)].map((m) => m[1]));
+check('the manager looks up a believable number of ids', used.size > 25, String(used.size));
+for (const id of used) check(`#${id}, which the manager looks up, is one it creates`, created.has(id), id);
+
+for (const [name, ids] of [['deck page', deckIds], ['lobby page', lobbyIds]]) {
+  check(`the ${name} has the element the manager builds in, #deck-app`, ids.includes('deck-app'));
+  check(`the ${name} has the card picture box`, ['card-peek', 'card-peek-image', 'card-peek-note'].every((id) => ids.includes(id)));
+  check(`no id appears twice on the ${name}`, ids.filter((id, i) => ids.indexOf(id) !== i).length === 0, ids.filter((id, i) => ids.indexOf(id) !== i).join(', '));
+  const clashes = [...created].filter((id) => ids.includes(id));
+  check(`no id the manager creates is also written by hand on the ${name}`, clashes.length === 0, clashes.join(', '));
 }
-check('the deck page has its #back link', deckIds.has('back'));
-check('the lobby panel has its own message line, #importer-status', lobbyPanelIds.has('importer-status'));
-check('the importer takes the message line id as an option (so the lobby can pass its own)', /statusId: messageId = 'status'/.test(importer));
-check('the lobby passes it', /statusId: 'importer-status'/.test(read('frontend/pages/lobby/lobby.js')));
-
-// no id twice on the lobby page (the importer panel must not clash with the lobby's own elements)
-const all = [...lobbyPage.matchAll(/\bid="([^"]+)"/g)].map((m) => m[1]);
-const dupes = all.filter((id, i) => all.indexOf(id) !== i);
-check('no id appears twice on the lobby page', dupes.length === 0, dupes.join(', '));
-const allDeck = [...deckPage.matchAll(/\bid="([^"]+)"/g)].map((m) => m[1]);
-check('no id appears twice on the deck page', allDeck.filter((id, i) => allDeck.indexOf(id) !== i).length === 0);
-
-// the same elements in the same order is not required, but the controls a person uses must be real buttons or inputs in both
-for (const id of ['check', 'clear', 'sample', 'save', 'retry']) {
-  check(`#${id} is a button in both pages`, new RegExp(`<button id="${id}"`).test(deckPage) && new RegExp(`<button id="${id}"`).test(lobbyPage));
-}
-check('#deck-text is a textarea in both pages', /<textarea id="deck-text"/.test(deckPage) && /<textarea id="deck-text"/.test(lobbyPage));
+check('the deck page has its #back link and the importer is told about it', deckIds.includes('back') && /document\.getElementById\('back'\)/.test(importer));
+check('the lobby panel that holds the manager is #deck-importer, hidden until opened', /<section id="deck-importer"[^>]*hidden>\s*<div id="deck-app"><\/div>/.test(lobbyPage));
+check('the lobby mounts it without the Play solo button (the table has its own deck)', /mountDeckImporter\(\{ root: \$\('deck-app'\), backLink: false, play: false,/.test(read('frontend/pages/lobby/lobby.js')));
+check('the deck page mounts it into #deck-app', /mountDeckImporter\(\{ root: document\.getElementById\('deck-app'\)/.test(read('frontend/pages/deck/deck.js')));
+check('the old copies of the markup are gone from both pages (no #deck-text, #sections or #saved-list written by hand)', !/id="(deck-text|sections|saved-list|commander-1)"/.test(deckPage + lobbyPage));
 
 console.log(`All ${checks} importer markup checks passed.`);

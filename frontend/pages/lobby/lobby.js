@@ -310,7 +310,7 @@ async function openImporter() {
   if (!importerMounted) {
     importerMounted = true;
     const { mountDeckImporter } = await import('../../src/deck-importer.js');
-    mountDeckImporter({ statusId: 'importer-status', backLink: false, onLibraryChange: () => refreshDeckPicker() });
+    mountDeckImporter({ root: $('deck-app'), backLink: false, play: false, onLibraryChange: () => refreshDeckPicker() });
   }
   panel.scrollIntoView({ block: 'nearest' });
 }

@@ -1,0 +1,125 @@
+// Draws a checked deck, group by group (shared/deck-view.mjs decides the groups), either as a text list or as card pictures, and the two buttons that choose between them.
+// Everything typed or pasted (a card name, a title the player typed) goes in as text, never as markup. Both views put the data the card picture box needs on every card
+// (data-card-id and friends, see src/card-peek.js), so pointing at a line or at a picture shows the big picture.
+import { imageUrl } from '../../shared/card-image.mjs';
+
+export const VIEWS = ['text', 'images'];
+
+function make(tag, className, content) {
+  const element = document.createElement(tag);
+  if (className) element.className = className;
+  if (content !== undefined) element.textContent = content;
+  return element;
+}
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+// The two icons of the view buttons: three lines (the text list) and a card-shaped rectangle (the pictures). Width, height and fill are set on the element itself.
+function icon(kind) {
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('width', '18');
+  svg.setAttribute('height', '18');
+  svg.setAttribute('fill', 'currentColor');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('focusable', 'false');
+  const shapes = kind === 'text'
+    ? [[3, 5, 18, 2.5], [3, 10.75, 18, 2.5], [3, 16.5, 18, 2.5]] // three lines
+    : [[6, 2, 12, 20]]; // a card: a tall rectangle
+  for (const [x, y, width, height] of shapes) {
+    const rect = document.createElementNS(SVG_NS, 'rect');
+    rect.setAttribute('x', String(x));
+    rect.setAttribute('y', String(y));
+    rect.setAttribute('width', String(width));
+    rect.setAttribute('height', String(height));
+    rect.setAttribute('rx', kind === 'text' ? '1' : '2');
+    rect.setAttribute('fill', kind === 'text' ? 'currentColor' : 'none');
+    if (kind !== 'text') { rect.setAttribute('stroke', 'currentColor'); rect.setAttribute('stroke-width', '2'); }
+    svg.append(rect);
+  }
+  return svg;
+}
+
+// The two buttons that choose the view. Returns { element, set(view) }. onChange(view) is called when a button is pressed.
+export function mountViewToggle(container, { view, onChange }) {
+  container.replaceChildren();
+  container.setAttribute('role', 'group');
+  container.setAttribute('aria-label', 'How to show the deck');
+  const buttons = new Map();
+  for (const [name, label] of [['text', 'Text list'], ['images', 'Card pictures']]) {
+    const button = make('button', 'view-button');
+    button.type = 'button';
+    button.dataset.view = name;
+    button.title = label;
+    button.setAttribute('aria-label', label);
+    button.append(icon(name === 'text' ? 'text' : 'images'));
+    button.addEventListener('click', () => onChange(name));
+    buttons.set(name, button);
+    container.append(button);
+  }
+  function set(next) { for (const [name, button] of buttons) button.setAttribute('aria-pressed', String(name === next)); }
+  set(view);
+  return { set };
+}
+
+// The picture box looks these up on whatever is pointed at: which card, which printing, whether it has a back face.
+function describeCard(element, line) {
+  if (!line.card) return;
+  element.dataset.cardId = line.printingId ?? line.card.i;
+  element.dataset.printing = line.printingSource ?? 'default';
+  element.dataset.cardName = line.name;
+  if (line.card.b === 1) element.dataset.twoSided = '1'; // a card with a back face: the picture box shows both faces
+}
+
+function textRow(line, printingCell) {
+  const item = make('li', line.status === 'matched' ? 'card-line' : 'card-line unmatched');
+  const name = make('span', 'name', line.name);
+  if (line.viaTitle) name.append(make('span', 'typed-as', ` (typed as "${line.viaTitle}")`)); // a card found by another title it was printed under
+  describeCard(item, line);
+  if (line.card) { name.tabIndex = 0; name.title = line.card.t; }
+  item.append(make('span', 'qty', String(line.qty)), name);
+  const printing = printingCell(line);
+  if (printing.textContent) item.append(printing);
+  item.append(make('span', 'cost', line.card ? line.card.m : 'not matched'));
+  return item;
+}
+
+function tile(line) {
+  const item = make('li', line.status === 'matched' ? 'deck-tile' : 'deck-tile unmatched');
+  item.append(make('span', 'sr-only', `${line.qty} ${line.name}`));
+  const picture = make('span', 'tile-picture');
+  picture.setAttribute('aria-hidden', 'true');
+  const fallback = () => { picture.replaceChildren(make('span', 'tile-name', line.name)); picture.classList.add('noimage'); };
+  const url = line.card ? imageUrl(line.printingId ?? line.card.i, 'small') : null;
+  if (url) {
+    describeCard(item, line);
+    item.tabIndex = 0;
+    const image = new Image();
+    image.alt = '';
+    image.loading = 'lazy'; // only the pictures that scroll into view are fetched
+    image.decoding = 'async';
+    image.draggable = false;
+    image.addEventListener('error', fallback);
+    image.src = url;
+    picture.append(image);
+  } else {
+    fallback();
+  }
+  item.append(picture);
+  if (line.qty > 1) { const count = make('span', 'tile-qty', `x${line.qty}`); count.setAttribute('aria-hidden', 'true'); item.append(count); }
+  return item;
+}
+
+// groups: from groupDeck(). view: 'text' or 'images'. printingCell(line): the small element that says which printing a text row shows (the importer builds it).
+export function renderGroups(container, groups, { view, printingCell }) {
+  container.replaceChildren();
+  container.dataset.view = view;
+  for (const group of groups) {
+    const section = make('section', 'deck-group');
+    section.dataset.group = group.key;
+    section.append(make('h3', '', `${group.title} (${group.count})`));
+    const list = make('ul', view === 'images' ? 'deck-tiles' : 'deck-list');
+    list.append(...group.lines.map((line) => (view === 'images' ? tile(line) : textRow(line, printingCell))));
+    section.append(list);
+    container.append(section);
+  }
+}
