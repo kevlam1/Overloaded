@@ -768,3 +768,16 @@ body .battlefield > .card.tapped[data-stack-ext="3"]::before { left: -3px; top: 
 .deck-app .deck-settings { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); }
 .deck-app .commander-box { display: contents; }
 .deck-app .deck-settings select { width: 100%; }
+
+/* Mana costs as round symbols (frontend/src/mana-pips.js): a circle in the color, with its letter or number. Made for this site; not any publisher's symbols. */
+.card-line .cost { display: inline-flex; align-items: center; justify-content: flex-end; gap: 0.35rem; }
+.cost .pips { display: inline-flex; gap: 0.12rem; }
+.pip { --c1: #cbc2bf; --c2: #cbc2bf; display: inline-flex; align-items: center; justify-content: center; width: 1.25rem; height: 1.25rem; border: 1px solid rgba(0, 0, 0, 0.45); border-radius: 50%; background: var(--c1); color: #111; font-size: 0.7rem; font-weight: 700; line-height: 1; }
+.pip.p1-W { --c1: #f4f2c8; } .pip.p1-U { --c1: #aad2ee; } .pip.p1-B { --c1: #b9aeb0; } .pip.p1-R { --c1: #ef9f84; } .pip.p1-G { --c1: #a9d2b0; }
+.pip.p2-W { --c2: #f4f2c8; } .pip.p2-U { --c2: #aad2ee; } .pip.p2-B { --c2: #b9aeb0; } .pip.p2-R { --c2: #ef9f84; } .pip.p2-G { --c2: #a9d2b0; }
+.pip-hybrid { background: linear-gradient(135deg, var(--c1) 50%, var(--c2) 50%); }
+.pip-hybrid[class*="p1-"]:not([class*="p2-"]) { background: linear-gradient(135deg, #cbc2bf 50%, var(--c1) 50%); } /* {2/W}: generic on one half, the color on the other */
+.pip-phyrexian { background: var(--c1); }
+.pip-phyrexian.p2-W, .pip-phyrexian.p2-U, .pip-phyrexian.p2-B, .pip-phyrexian.p2-R, .pip-phyrexian.p2-G { background: linear-gradient(135deg, var(--c1) 50%, var(--c2) 50%); }
+.pip-colorless { background: #d6d2cf; } .pip-snow { background: #cfe9f6; } .pip-x, .pip-generic { background: #cbc2bf; } .pip-other { width: auto; padding: 0 0.3rem; border-radius: 0.6rem; background: #cbc2bf; }
+.cost-or { color: var(--muted); font-size: 0.75rem; }

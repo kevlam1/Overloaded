@@ -2,6 +2,7 @@
 // Everything typed or pasted (a card name, a title the player typed) goes in as text, never as markup. Both views put the data the card picture box needs on every card
 // (data-card-id and friends, see src/card-peek.js), so pointing at a line or at a picture shows the big picture.
 import { imageUrl } from '../../shared/card-image.mjs';
+import { manaNode } from './mana-pips.js';
 
 export const VIEWS = ['text', 'images'];
 
@@ -79,7 +80,7 @@ function textRow(line, printingCell) {
   item.append(make('span', 'qty', String(line.qty)), name);
   const printing = printingCell(line);
   if (printing.textContent) item.append(printing);
-  item.append(make('span', 'cost', line.card ? line.card.m : 'not matched'));
+  item.append(line.card ? manaNode(line.card.m) : make('span', 'cost', 'not matched'));
   return item;
 }
 

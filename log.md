@@ -2566,6 +2566,21 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 123. Mana costs as symbols (2026-11-10)
+
+**What I asked for**
+- Show mana costs as mana symbols (and colorless) like the deck-building sites, instead of the text {2}{G}{G}. Not a long test. Commit, then push to the development branch.
+
+**What changed** (`shared/mana-cost.mjs`, `frontend/src/mana-pips.js`, `deck-groups.js`, `style.css`)
+- A cost is read into symbols (colors W U B R G, colorless C, numbers, X, snow, hybrid, two-for-one hybrid, Phyrexian; a card with two costs shows both with // between) and drawn as small round pips: a circle in the color with its letter or number, a split circle for a hybrid, a phi for a Phyrexian symbol. The cost carries its written form in `data-cost` and its words in an aria-label ("2 generic mana, green mana"); a symbol the reader does not know is shown as written.
+- They are plain shapes I made for this site, not Wizards' symbols or an icon library, so there is no new dependency, no new picture host in the content policy and no licence to check. The real glyphs (the sun, the drop, the skull, the flame, the tree) would need an icon font; say if you want me to look at one.
+
+**What I checked**
+- `scripts/test-mana-cost.mjs` (13 checks: every kind of symbol, bad input, two costs, the words). One check added to the deck page check (223 now): a red pip and a generic pip with their words. `npm run test:quick` (51 suites) and the deck page check pass; a screenshot of 14 cards with all the kinds of cost.
+- **Not checked:** the other pages (only the deck list shows costs), light mode, phone width.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-10, entry 122) Claude's first deck page started a library it could not read at the box to paste into, hiding the message about it; the old check noticed.
 - (2026-11-10, entry 120) Claude's solo check clicked a fixed empty spot that stopped being empty once the graveyard stack moved there, and the failure first looked like a menu bug; a screenshot at the moment of the failure showed the open viewer.
