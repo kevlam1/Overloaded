@@ -245,18 +245,18 @@ try {
   record("Bob's page shows Alice's board live: life 35, one card on her battlefield, two in her command zone", Boolean(bobSeesAliceBoard) && bobSeesAliceBoard.inCommandZone === 2, JSON.stringify(bobSeesAliceBoard ?? await panelOf(bob, 'Alice')));
   record("...and how many cards she holds, but not which: hand 7 and library 22", /Hand: 7 cards. Library: 22 cards./.test(bobSeesAliceBoard?.stats ?? ''), bobSeesAliceBoard?.stats);
   record("...and only her public cards are on his page (the battlefield and the command zone: 3 cards), all of them read-only", bobSeesAliceBoard?.allCards === 3 && bobSeesAliceBoard.allReadOnly === true, JSON.stringify(bobSeesAliceBoard));
-  record("...and her battlefield card is on the cell she stored (column 0, row 24: a land goes to the bottom-left block of the 96 by 32 grid)", JSON.stringify(bobSeesAliceBoard?.cells) === JSON.stringify(['0,24']), JSON.stringify(bobSeesAliceBoard?.cells));
+  record("...and her battlefield card is on the cell she stored (column 0, row 33: a land goes to the bottom-left block of the 96 by 44 grid)", JSON.stringify(bobSeesAliceBoard?.cells) === JSON.stringify(['0,33']), JSON.stringify(bobSeesAliceBoard?.cells));
   // Alice drags her card on the grid with the real mouse; the move is saved as one small write and Bob sees the new cell
   {
-    const geo = await alice.eval(`(() => { const b = document.getElementById('battlefield').getBoundingClientRect(); const c = document.querySelector('#battlefield .card').getBoundingClientRect(); return { cw: b.width / 96, ch: b.height / 32, x: c.x + c.width / 2, y: c.y + c.height / 2 }; })()`);
-    const to = { x: geo.x + 16 * geo.cw, y: geo.y - 8 * geo.ch };
+    const geo = await alice.eval(`(() => { const b = document.getElementById('battlefield').getBoundingClientRect(); const c = document.querySelector('#battlefield .card').getBoundingClientRect(); return { cw: b.width / 96, ch: b.height / 44, x: c.x + c.width / 2, y: c.y + c.height / 2 }; })()`);
+    const to = { x: geo.x + 16 * geo.cw, y: geo.y - 11 * geo.ch };
     const mouse = (page, type, p, buttons) => page.send('Input.dispatchMouseEvent', { type, x: p.x, y: p.y, button: type === 'mouseMoved' ? 'none' : 'left', buttons, clickCount: 1 });
     await mouse(alice, 'mouseMoved', geo, 0); await mouse(alice, 'mousePressed', geo, 1);
     for (let step = 1; step <= 8; step++) await mouse(alice, 'mouseMoved', { x: geo.x + (to.x - geo.x) * step / 8, y: geo.y + (to.y - geo.y) * step / 8 }, 1);
     await mouse(alice, 'mouseReleased', to, 0);
-    const moved = await waitFor(async () => { const p = await panelOf(bob, 'Alice'); return p && JSON.stringify(p.cells) === JSON.stringify(['16,16']) ? p : null; }, 20000, 250);
+    const moved = await waitFor(async () => { const p = await panelOf(bob, 'Alice'); return p && JSON.stringify(p.cells) === JSON.stringify(['16,22']) ? p : null; }, 20000, 250);
     record("Alice drags her card with the mouse (8 cells right, 4 up) and Bob's page shows it on the new cell, without a refresh", Boolean(moved), JSON.stringify((await panelOf(bob, 'Alice'))?.cells));
-    record('...and the database holds the new cell on the public card that Bob can read', Boolean(await waitFor(async () => { const r = await rest('GET', pathOf('public/battlefield'), cleanup.bob.token); const card = r.json ? Object.values(r.json)[0] : null; return card && card.px === 16 && card.py === 16 ? true : null; }, 15000, 250)));
+    record('...and the database holds the new cell on the public card that Bob can read', Boolean(await waitFor(async () => { const r = await rest('GET', pathOf('public/battlefield'), cleanup.bob.token); const card = r.json ? Object.values(r.json)[0] : null; return card && card.px === 16 && card.py === 22 ? true : null; }, 15000, 250)));
   }
   record("...with her name and seat as a heading", /^Seat 1: Alice/.test(bobSeesAliceBoard?.heading ?? ''));
   const aliceSeesBobBoard = await waitFor(async () => { const p = await panelOf(alice, 'Bob'); return p && p.life === '40' && p.inCommandZone === 1 ? p : null; }, 30000, 250);
@@ -365,9 +365,10 @@ try {
   record("...and Bob's page shows Alice's card tapped, without a refresh", Boolean(await waitFor(async () => (await bob.eval(`Array.from(document.querySelectorAll('#opponent-list .opponent')).some((p) => p.querySelector('h3').textContent.includes('Alice') && p.querySelector('.card.tapped'))`)) ? true : null, 20000, 250)));
   const bobMenuTry = await bob.eval(`(() => { const card = document.querySelector('#opponent-list .opponent .card'); if (!card) return null; const e = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 50, clientY: 50 }); card.dispatchEvent(e); return { prevented: e.defaultPrevented, menus: document.querySelectorAll('.card-menu').length }; })()`);
   record("a right click on Alice's card in Bob's browser opens no menu and is left to the browser", bobMenuTry && bobMenuTry.menus === 0 && bobMenuTry.prevented === false, JSON.stringify(bobMenuTry));
-  await alice.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: cardAt.x + 1, y: cardAt.y });
-  await alice.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: cardAt.x + 1, y: cardAt.y, button: 'right', buttons: 2, clickCount: 1 });
-  await alice.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: cardAt.x + 1, y: cardAt.y, button: 'right', buttons: 0, clickCount: 1 });
+  const tappedAt = await alice.eval(`(() => { const card = document.querySelector('#battlefield .card'); const r = card.getBoundingClientRect(); for (let fy = 0.1; fy < 1; fy += 0.1) for (let fx = 0.9; fx > 0; fx -= 0.1) { const x = r.x + r.width * fx; const y = r.y + r.height * fy; const e = document.elementFromPoint(x, y); if (e && e.closest('.card') === card && !e.closest('[data-mark], [data-badge]')) return { x, y }; } return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`); // a tapped card is a small landscape box now: aim at a spot that is the card itself, not a counter or a badge
+  await alice.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: tappedAt.x, y: tappedAt.y });
+  await alice.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: tappedAt.x, y: tappedAt.y, button: 'right', buttons: 2, clickCount: 1 });
+  await alice.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: tappedAt.x, y: tappedAt.y, button: 'right', buttons: 0, clickCount: 1 });
   await sleep(150);
   record('the menu then offers Untap, and choosing it untaps the card in the database', (await menuOf(alice))?.items[1] === 'Untap' && (await clickMenuText(alice, 'Untap'), Boolean(await waitFor(async () => (await tappedInDb()) === false ? true : null, 15000, 250))));
 

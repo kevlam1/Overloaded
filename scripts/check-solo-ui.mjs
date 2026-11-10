@@ -142,7 +142,7 @@ try {
   await clickAction('Tap');
   const tapped = await ev(`(() => { const c = document.querySelector('#battlefield .card[data-kind="land"]'); const face = c.querySelector('.face'); const m = getComputedStyle(face).transform; const r = c.getBoundingClientRect(); const f = face.getBoundingClientRect(); return { tapped: c.classList.contains('tapped'), label: c.getAttribute('aria-label'), transform: m, boxW: Math.round(r.width), boxH: Math.round(r.height), faceW: Math.round(f.width), faceH: Math.round(f.height) }; })()`);
   check('tapping turns the card sideways and says it is tapped', tapped.tapped && /, tapped$/.test(tapped.label) && /matrix\(0(\.\d+)?(e-\d+)?, 1, -1, 0(\.\d+)?(e-\d+)?/.test(tapped.transform), JSON.stringify(tapped));
-  check('a tapped card makes room for itself (its box is as wide as it is tall, so it does not overlap its neighbour)', Math.abs(tapped.boxW - tapped.boxH) <= 2 && Math.abs(tapped.faceW - tapped.boxW) <= 3, JSON.stringify(tapped));
+  check('a tapped card on the battlefield is a landscape box exactly as big as the turned card (no square box around it)', Math.abs(tapped.boxW - tapped.boxH * 1.4015) <= 3 && Math.abs(tapped.faceW - tapped.boxW) <= 3 && Math.abs(tapped.faceH - tapped.boxH) <= 3, JSON.stringify(tapped));
   check('the action now says Untap, and the status says Tapped', (await actionLabels())[0] === 'Untap' && (await $text('status')) === `Tapped ${landName}.`);
   await clickAction('Untap');
   check('untapping turns it back', (await count('#battlefield .card[data-kind="land"].tapped')) === 0 && (await $text('status')) === `Untapped ${landName}.`);
@@ -1175,11 +1175,11 @@ try {
   await clickAction('To battlefield');
   check('...and is not held back when it returns', (await count(`${cardAt('Sol Ring')} .badge-lock`)) === 0);
 
-  // ---- drag and drop on the fine battlefield grid (96 by 32 cells, a card is 8 by 8), Alt+arrow keys and Auto-arrange (real mouse and keyboard input; a 7-card deck, so everything is in the hand) ----
+  // ---- drag and drop on the fine battlefield grid (96 by 44 square cells, a card is 8 wide and 11 tall), Alt+arrow keys and Auto-arrange (real mouse and keyboard input; a 7-card deck, so everything is in the hand) ----
   await open(MARKS_DECK);
   const boardRect = () => ev(`(() => { const r = document.getElementById('battlefield').getBoundingClientRect(); return { left: r.left, top: r.top, width: r.width, height: r.height }; })()`);
-  // the point where the middle of a card dropped from the hand starts on cell (col, row): the card's top-left cell is four cells left and up of the middle
-  const cellCenter = async (col, row) => { const r = await boardRect(); return { x: r.left + (col + 4.5) * r.width / 96, y: r.top + (row + 4.5) * r.height / 32 }; };
+  // the point where the middle of a card dropped from the hand starts on cell (col, row): the card's top-left cell is four cells left and five up of the middle
+  const cellCenter = async (col, row) => { const r = await boardRect(); return { x: r.left + (col + 4.5) * r.width / 96, y: r.top + (row + 5.5) * r.height / 44 }; };
   const centerOfSelector = (selector) => ev(`(() => { const r = document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`);
   const handCardPoint = async (name) => centerOfSelector(`#hand .card:nth-child(${(await handNames()).findIndex((x) => x.startsWith(name)) + 1})`);
   const mouseAt = (type, p, buttons) => browser.send('Input.dispatchMouseEvent', { type, x: p.x, y: p.y, button: type === 'mouseMoved' ? 'none' : 'left', buttons, clickCount: 1 });
@@ -1194,7 +1194,7 @@ try {
   // a card already on the battlefield moves by as many cells as the pointer travels
   const dragBy = async (name, cols, rows) => {
     const r = await boardRect(); const from = await centerOfSelector(cardAt(name));
-    await dragTo(from, { x: from.x + cols * r.width / 96, y: from.y + rows * r.height / 32 });
+    await dragTo(from, { x: from.x + cols * r.width / 96, y: from.y + rows * r.height / 44 });
   };
   const cellOfCard = (name) => ev(`(() => { const c = document.querySelector(${JSON.stringify(cardAt(name))}); return c ? c.dataset.col + ',' + c.dataset.row : null; })()`);
   const onTopName = () => ev(`(() => { const cs = document.querySelectorAll('#battlefield .card'); return cs.length ? cs[cs.length - 1].getAttribute('aria-label').split(',')[0] : null; })()`);
@@ -1215,8 +1215,8 @@ try {
 
   let overOutline = null;
   { const r = await boardRect(); const from = await centerOfSelector(cardAt('Forest'));
-    await dragTo(from, { x: from.x + 20 * r.width / 96, y: from.y + 8 * r.height / 32 }, { release: false, during: async () => { overOutline = await ev(`document.querySelector('.cell-highlight')?.className ?? null`); } });
-    await mouseAt('mouseReleased', { x: from.x + 20 * r.width / 96, y: from.y + 8 * r.height / 32 }, 0); await sleep(80); }
+    await dragTo(from, { x: from.x + 20 * r.width / 96, y: from.y + 8 * r.height / 44 }, { release: false, during: async () => { overOutline = await ev(`document.querySelector('.cell-highlight')?.className ?? null`); } });
+    await mouseAt('mouseReleased', { x: from.x + 20 * r.width / 96, y: from.y + 8 * r.height / 44 }, 0); await sleep(80); }
   check('a card dropped exactly on another card does not swap: both are on the same cell and the dropped one is on top', (await cellOfCard('Forest')) === '60,16' && (await cellOfCard('Sol Ring')) === '60,16' && (await onTopName()) === 'Forest' && /^Moved Forest\./.test(await $text('status')) && overOutline === 'cell-highlight', `${await cellOfCard('Forest')} ${await cellOfCard('Sol Ring')} ${await onTopName()} | ${await $text('status')} | ${overOutline}`);
 
   // the picture that follows the pointer is the card itself, at the size it has on the table
@@ -1230,17 +1230,17 @@ try {
     await dragTo(handBefore, await cellCenter(80, 4), { release: false, during: async () => { sizes = await ev(`(() => { const g = document.querySelector('.drag-ghost').getBoundingClientRect(); const c = Array.from(document.querySelectorAll('#hand .card'))[0].getBoundingClientRect(); return { ghost: [g.width, g.height], card: [c.width, c.height] }; })()`); } });
     await key('Escape', 'Escape', 27); await mouseAt('mouseReleased', await cellCenter(80, 4), 0); await sleep(80);
     check('a card picked up from the hand keeps its size too', sizes && Math.abs(sizes.ghost[0] - sizes.card[0]) < 1.5 && Math.abs(sizes.ghost[1] - sizes.card[1]) < 1.5, JSON.stringify(sizes)); }
-  await dragBy('Forest', -60, 8);
-  check('the card on top can be taken off again, and the one under it stays', (await cellOfCard('Forest')) === '0,24' && (await cellOfCard('Sol Ring')) === '60,16');
+  await dragBy('Forest', -60, 17);
+  check('the card on top can be taken off again, and the one under it stays', (await cellOfCard('Forest')) === '0,33' && (await cellOfCard('Sol Ring')) === '60,16');
 
   // a tiny movement is still a click: it selects the card and does not move it
   await dragTo(await centerOfSelector(cardAt('Forest')), { ...(await centerOfSelector(cardAt('Forest'))), x: (await centerOfSelector(cardAt('Forest'))).x + 2 });
-  check('moving only 2 pixels is a click: the card is selected and stays where it was', (await cellOfCard('Forest')) === '0,24' && /^Forest/.test(await $text('selected-line')), `${await cellOfCard('Forest')} | ${await $text('selected-line')}`);
+  check('moving only 2 pixels is a click: the card is selected and stays where it was', (await cellOfCard('Forest')) === '0,33' && /^Forest/.test(await $text('selected-line')), `${await cellOfCard('Forest')} | ${await $text('selected-line')}`);
   await clickAction('Deselect');
 
   // a drag of a few pixels that ends on the card it started on is not a click either (the click that follows is swallowed), and the card does not shift a cell
   { const here = await centerOfSelector(cardAt('Forest')); await dragTo(here, { x: here.x + 40, y: here.y }, { release: false }); await mouseAt('mouseMoved', here, 1); await mouseAt('mouseReleased', here, 0); await sleep(80);
-    check('a drag that goes out and comes back to the same card leaves it on its cell and does not select it', (await cellOfCard('Forest')) === '0,24' && /^Click a card/.test(await $text('selected-line')) && await dragStateGone(), `${await cellOfCard('Forest')} | ${await $text('selected-line')}`); }
+    check('a drag that goes out and comes back to the same card leaves it on its cell and does not select it', (await cellOfCard('Forest')) === '0,33' && /^Click a card/.test(await $text('selected-line')) && await dragStateGone(), `${await cellOfCard('Forest')} | ${await $text('selected-line')}`); }
   // a press with Shift held is a marks click (10 at a time), not the start of a drag
   { const here = await centerOfSelector(cardAt('Forest')); const away = await cellCenter(16, 4);
     await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: here.x, y: here.y });
@@ -1248,7 +1248,7 @@ try {
     for (let step = 1; step <= 6; step++) await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: here.x + (away.x - here.x) * step / 6, y: here.y + (away.y - here.y) * step / 6, buttons: 1, modifiers: 8 });
     const shiftGhost = await count('.drag-ghost');
     await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: away.x, y: away.y, button: 'left', buttons: 0, clickCount: 1, modifiers: 8 }); await sleep(80);
-    check('pressing with Shift held and moving does not drag the card', shiftGhost === 0 && (await cellOfCard('Forest')) === '0,24', `${shiftGhost} ${await cellOfCard('Forest')}`);
+    check('pressing with Shift held and moving does not drag the card', shiftGhost === 0 && (await cellOfCard('Forest')) === '0,33', `${shiftGhost} ${await cellOfCard('Forest')}`);
     await clickAction('Deselect'); }
   // the outline is only shown over the battlefield
   { let over = null;
@@ -1259,10 +1259,10 @@ try {
   await dragTo(await centerOfSelector(cardAt('Forest')), await cellCenter(6, 4), { release: false });
   await key('Escape', 'Escape', 27);
   await mouseAt('mouseReleased', await cellCenter(6, 4), 0); await sleep(80);
-  check('Escape during a drag cancels it: the card stays, the picture and the outline are gone', (await cellOfCard('Forest')) === '0,24' && await dragStateGone());
+  check('Escape during a drag cancels it: the card stays, the picture and the outline are gone', (await cellOfCard('Forest')) === '0,33' && await dragStateGone());
   const handSpot = await centerOfSelector('#hand .card');
   await dragTo(await centerOfSelector(cardAt('Forest')), handSpot);
-  check('letting go outside the battlefield does nothing', (await cellOfCard('Forest')) === '0,24' && await dragStateGone());
+  check('letting go outside the battlefield does nothing', (await cellOfCard('Forest')) === '0,33' && await dragStateGone());
 
   // a press on a badge is the badge's, not the start of a drag
   await dragTo(await handCardPoint('Llanowar Elves'), await cellCenter(24, 0));
@@ -1290,18 +1290,70 @@ try {
   const altKey = async (name, vk) => { await browser.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: name, code: name, windowsVirtualKeyCode: vk, modifiers: 1 }); await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: name, code: name, windowsVirtualKeyCode: vk, modifiers: 1 }); await sleep(80); };
   await clickCard(cardAt('Forest')); await ev(`document.activeElement && document.activeElement.blur()`);
   await altKey('ArrowRight', 39);
-  check('Alt and the right arrow move the selected card one cell right', (await cellOfCard('Forest')) === '1,24' && /^Moved Forest\./.test(await $text('status')), `${await cellOfCard('Forest')} | ${await $text('status')}`);
+  check('Alt and the right arrow move the selected card one cell right', (await cellOfCard('Forest')) === '1,33' && /^Moved Forest\./.test(await $text('status')), `${await cellOfCard('Forest')} | ${await $text('status')}`);
   await altKey('ArrowLeft', 37); await altKey('ArrowLeft', 37);
-  check('...and at the edge of the battlefield it says so and stays', (await cellOfCard('Forest')) === '0,24' && /edge of the battlefield/.test(await $text('status')), `${await cellOfCard('Forest')} | ${await $text('status')}`);
+  check('...and at the edge of the battlefield it says so and stays', (await cellOfCard('Forest')) === '0,33' && /edge of the battlefield/.test(await $text('status')), `${await cellOfCard('Forest')} | ${await $text('status')}`);
   await altKey('ArrowUp', 38);
-  check('Alt and the up arrow move it one row up', (await cellOfCard('Forest')) === '0,23');
+  check('Alt and the up arrow move it one row up', (await cellOfCard('Forest')) === '0,32');
   await clickAction('Deselect');
 
   // Auto-arrange: lands along the bottom from the left, everything else along the top from the left, a card apart
   await press('arrange');
   const arranged = await ev(`Array.from(document.querySelectorAll('#battlefield .card')).map((c) => c.getAttribute('aria-label').split(',')[0] + '@' + c.dataset.col + ',' + c.dataset.row + ':' + c.dataset.kind).sort()`);
-  check('Auto-arrange puts the land at the bottom-left and the others along the top from the left (by name), a card apart, and says so', JSON.stringify(arranged) === JSON.stringify(['Forest@0,24:land', 'Llanowar Elves@0,0:other', 'Sol Ring@8,0:other']) && /^Tidied the battlefield/.test(await $text('status')), JSON.stringify(arranged));
-  check('the battlefield is one grid that does not scroll the page, and after tidying no card covers another', await ev(`(() => { const cs = Array.from(document.querySelectorAll('#battlefield .card')).map((c) => [Number(c.dataset.col), Number(c.dataset.row)]); const clash = cs.some((a, i) => cs.some((b, j) => i !== j && Math.abs(a[0] - b[0]) < 8 && Math.abs(a[1] - b[1]) < 8)); return !clash && document.documentElement.scrollHeight <= innerHeight + 1; })()`));
+  check('Auto-arrange puts the land at the bottom-left and the others along the top from the left (by name), a card apart, and says so', JSON.stringify(arranged) === JSON.stringify(['Forest@0,33:land', 'Llanowar Elves@0,0:other', 'Sol Ring@8,0:other']) && /^Tidied the battlefield/.test(await $text('status')), JSON.stringify(arranged));
+  check('the battlefield is one grid that does not scroll the page, and after tidying no card covers another', await ev(`(() => { const cs = Array.from(document.querySelectorAll('#battlefield .card')).map((c) => [Number(c.dataset.col), Number(c.dataset.row)]); const clash = cs.some((a, i) => cs.some((b, j) => i !== j && Math.abs(a[0] - b[0]) < 8 && Math.abs(a[1] - b[1]) < 11)); return !clash && document.documentElement.scrollHeight <= innerHeight + 1; })()`));
+
+  // ---- stacks: same-name cards on one cell are drawn as a pile with a count (real mouse input; the Solo test deck is half Forests) ----
+  await open();
+  for (let n = 0; n < 40 && (await names('#hand .card')).filter((x) => x.startsWith('Forest')).length < 6; n++) await press('draw');
+  for (let n = 0; n < 6; n++) { await clickCard('#hand .card', (await handNames()).findIndex((x) => x.startsWith('Forest'))); await clickAction('To battlefield'); }
+  await clickAction('Deselect');
+  const forestState = () => ev(`(() => { const cs = Array.from(document.querySelectorAll('#battlefield .card')).filter((c) => c.getAttribute('aria-label').startsWith('Forest')); const visible = cs.filter((c) => getComputedStyle(c).display !== 'none'); const top = cs.find((c) => c.dataset.stackDepth === '0'); return { all: cs.length, visible: visible.length, cells: [...new Set(cs.map((c) => c.dataset.col + ',' + c.dataset.row))], badge: top && top.querySelector('.stack-count') ? top.querySelector('.stack-count').textContent : null, badges: document.querySelectorAll('#battlefield .stack-count').length, depths: cs.map((c) => c.dataset.stackDepth).join(), topLabel: top ? top.getAttribute('aria-label') : null, shifted: cs.filter((c) => c.dataset.stackDepth === '1' || c.dataset.stackDepth === '2' || c.dataset.stackDepth === '3').every((c) => getComputedStyle(c).translate !== 'none'), hiddenFlag: cs.filter((c) => c.dataset.stackHidden === '1').length }; })()`);
+  let pile = await forestState();
+  check('six Forests played one after another are one pile on the first land block', pile.all === 6 && pile.cells.length === 1 && pile.cells[0] === '0,33', JSON.stringify(pile));
+  check('the pile shows 4 copies, the other 2 are hidden', pile.visible === 4 && pile.hiddenFlag === 2, JSON.stringify(pile));
+  check('the top card says "6x" and nothing else carries a count', pile.badge === '6x' && pile.badges === 1, JSON.stringify(pile));
+  check('the copies under the top one are shifted so the pile can be seen', pile.shifted === true && pile.depths.split(',').sort().join() === '0,1,2,3,4,5', JSON.stringify(pile));
+  check('a screen reader is told it is the top of a stack of 6', /top of a stack of 6/.test(pile.topLabel ?? ''), String(pile.topLabel));
+
+  if (process.argv.includes('--screenshot')) await browser.screenshot('scratch-solo-stack.png');
+  // a plain drag takes ONE card off the top of the pile
+  { const from = await centerOfSelector('#battlefield .card[data-stack-depth="0"]'); const r = await boardRect();
+    await dragTo(from, { x: from.x + 24 * r.width / 96, y: from.y - 8 * r.height / 44 }); }
+  pile = await forestState();
+  check('dragging the top card takes one off the pile: the pile says 5x and the card is on its own cell', pile.badge === '5x' && pile.cells.length === 2 && pile.all === 6, JSON.stringify(pile));
+  check('...the card that was taken is on its own and has no count', (await ev(`(() => { const lone = Array.from(document.querySelectorAll('#battlefield .card')).filter((c) => c.getAttribute('aria-label').startsWith('Forest') && c.dataset.stackSize === undefined); return lone.length === 1 && !lone[0].querySelector('.stack-count'); })()`)));
+
+  // dropped within 6 cells of the pile it came from... it is taken a short way off and does not snap back
+  { const lone = await ev(`(() => { const c = Array.from(document.querySelectorAll('#battlefield .card')).find((x) => x.getAttribute('aria-label').startsWith('Forest') && x.dataset.stackSize === undefined); return { col: Number(c.dataset.col), row: Number(c.dataset.row) }; })()`);
+    check('the Forest taken off is where it was dropped', lone.col === 24 && lone.row === 25, JSON.stringify(lone)); }
+
+  // dropped close to the pile it joins it again (within 3 cells)
+  { const r = await boardRect(); const from = await centerOfSelector('#battlefield .card:not([data-stack-size])[aria-label^="Forest"]');
+    await dragTo(from, { x: from.x - 22 * r.width / 96, y: from.y + 6 * r.height / 44 }); } // to about (2, 31): 2 cells from the pile at (0, 33)
+  pile = await forestState();
+  check('a Forest dropped within 6 cells of the pile joins it: the pile is 6x again', pile.badge === '6x' && pile.cells.length === 1 && pile.cells[0] === '0,33', JSON.stringify(pile));
+
+  // a pile stays a pile when the battlefield is tidied
+  await press('arrange');
+  pile = await forestState();
+  check('Auto-arrange keeps the six Forests in one pile at the first land block', pile.cells.length === 1 && pile.cells[0] === '0,33' && pile.badge === '6x', JSON.stringify(pile));
+
+  // tapping a card takes it out of the pile and puts it beside it, as its own stack; untapping sends it back
+  await clickCard('#battlefield .card[data-stack-depth="0"]'); await clickAction('Tap');
+  { const tappedCell = await ev(`(() => { const c = document.querySelector('#battlefield .card.tapped'); return c ? c.dataset.col + ',' + c.dataset.row : null; })()`);
+    pile = await forestState();
+    check('a Forest tapped out of the pile of six steps to the block on its right and the pile is 5x', tappedCell === '8,33' && pile.badge === '5x' && pile.cells.includes('0,33'), JSON.stringify({ tappedCell, pile })); }
+  await clickAction('Untap');
+  pile = await forestState();
+  check('untapping it sends it back onto the pile: 6x again', pile.badge === '6x' && pile.cells.length === 1 && pile.cells[0] === '0,33', JSON.stringify(pile));
+  await clickAction('Deselect');
+
+  // a mark makes a card different: it leaves the pile's count
+  await clickCard('#battlefield .card[data-stack-depth="0"]'); await clickAction('Summoning sick');
+  pile = await forestState();
+  check('marking the top Forest summoning sick makes it a different stack: the other five are 5x, this one is alone', pile.badge === '5x' && pile.all === 6, JSON.stringify(pile));
+  await clickAction('Deselect');
 
   // ---- storage blocked ----
   await browser.send('Page.addScriptToEvaluateOnNewDocument', { source: `Object.defineProperty(window, 'localStorage', { get() { throw new DOMException('blocked', 'SecurityError'); } });` });

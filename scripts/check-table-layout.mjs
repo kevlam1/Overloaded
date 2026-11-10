@@ -21,8 +21,8 @@ const FILL = (opponents) => `(() => {
   const make = (tag, className, text) => { const e = document.createElement(tag); if (className) e.className = className; if (text !== undefined) e.textContent = text; return e; };
   const card = (n, tapped) => { const b = make('button', 'card' + (tapped ? ' tapped' : '')); b.type = 'button'; const face = make('span', 'face'); face.append(make('span', 'fallback', 'Card ' + n)); b.append(face); const badges = make('span', 'badges'); badges.append(make('span', 'badge badge-sick', 'SICK')); b.append(badges); const marks = make('span', 'marks'); const chips = make('span', 'chips'); chips.append(make('span', 'chip', '+1/+1 3')); marks.append(chips, make('span', 'change', '+2/+0')); b.append(marks); return b; };
   const fill = (row, count, tappedEvery) => { for (let i = 0; i < count; i++) row.append(card(i, tappedEvery && i % tappedEvery === 0)); };
-  // a battlefield is a 96 by 32 grid of eighth-card cells, a card 8 by 8 (shared/board-grid.mjs): lands fill the bottom row of blocks from the left, the rest the top rows from the left (the busiest board that is likely: 12 lands and 20 other cards)
-  const board = (grid, lands, others, tappedEvery) => { grid.replaceChildren(); const put = (n, col, row, kind) => { const b = card(n, tappedEvery && n % tappedEvery === 0); b.dataset.col = String(col); b.dataset.row = String(row); b.dataset.kind = kind; grid.append(b); }; for (let i = 0; i < lands; i++) put(i, (i % 12) * 8, 24 - 8 * Math.floor(i / 12), 'land'); for (let i = 0; i < others; i++) put(100 + i, (i % 12) * 8, 8 * Math.floor(i / 12), 'other'); };
+  // a battlefield is a 96 by 44 grid of square cells, a card 8 by 11 (shared/board-grid.mjs): lands fill the bottom row of blocks from the left, the rest the top rows from the left (the busiest board that is likely: 12 lands and 20 other cards)
+  const board = (grid, lands, others, tappedEvery) => { grid.replaceChildren(); const put = (n, col, row, kind) => { const b = card(n, tappedEvery && n % tappedEvery === 0); b.dataset.col = String(col); b.dataset.row = String(row); b.dataset.kind = kind; grid.append(b); }; for (let i = 0; i < lands; i++) put(i, (i % 12) * 8, 33 - 11 * Math.floor(i / 12), 'land'); for (let i = 0; i < others; i++) put(100 + i, (i % 12) * 8, 11 * Math.floor(i / 12), 'other'); };
   document.body.classList.add('playing');
   document.getElementById('game').hidden = false;
   document.getElementById('opponents').hidden = false;
@@ -62,7 +62,7 @@ const FILL = (opponents) => `(() => {
 
 const RECTS = `(() => {
   const r = (el) => { if (!el) return null; const b = el.getBoundingClientRect(); return { left: b.left, top: b.top, right: b.right, bottom: b.bottom, width: b.width, height: b.height }; };
-  const cards = (sel) => [...document.querySelectorAll(sel)].map((c) => c.getBoundingClientRect().height);
+  const cards = (sel) => [...document.querySelectorAll(sel)].map((c) => { const b = c.getBoundingClientRect(); return Math.max(b.width, b.height); }); // a tapped card is a landscape box: its long side is the card's height
   return {
     win: { w: innerWidth, h: innerHeight },
     scroll: { docH: document.documentElement.scrollHeight, docW: document.documentElement.scrollWidth, bodyH: document.body.scrollHeight },
