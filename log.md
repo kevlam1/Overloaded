@@ -2316,7 +2316,56 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 112. Stacks, step 2: piles with a count, snapping, tidying (2026-11-09)
+
+**What I asked for**
+- Step 2 of the plan from entry 111: same-name cards on the same spot are drawn as a pile with a count ("8x") and up to four visible copies; lands arriving join their pile; a plain drag takes one card off the top. Cards in a different state (tapped, summoning sick, counters, a power or toughness change, a note, face down, turned over, doesn't untap, being a token) do not join a pile. The tapped split and Shift or corner-handle moves of a whole stack are step 3.
+
+**What changed**
+- New `shared/stacks.mjs` (plain logic): `stackKey` (name plus every state mark, so "none" always looks the same), `stackInfo` (pile size and depth of every card on its cell), `stackCellFor` (the pile a new card joins), `snapToStack` (a card dropped within 3 cells of a pile it could join goes onto it, except the pile it is being taken from, so a short drag leaves its pile).
+- Piles are NOT stored: they are cards with the same cell and state, so every card is still its own record and nothing in the database changed.
+- `shared/zones.mjs`: a card, token or copy that arrives on the battlefield joins the pile it matches (else the first free block); drops and moves snap to a nearby pile; the "goes on top" decision is made where the card really lands; Auto-arrange keeps a pile on one block (`arrangeAll` takes a key).
+- `frontend/src/card-nodes.js` and `style.css`: the top card carries a count badge, copies under it are shifted up and left, copies from the fifth down are hidden, and a screen reader hears "top of a stack of N".
+
+**What I checked**
+- New `scripts/test-stacks.mjs` (62 checks, including three random games of 1,500 operations in which every card keeps a cell, stack sizes and depths stay consistent and no card is lost); the older logic tests were updated where same-name cards now stack (a copy of a token, six Goblins, crowded boards now use different names). The solo check is 381 checks: six Forests played become one pile on the first land block with a "6x" badge, 4 copies visible and 2 hidden, a drag takes one off (5x and a lone card), a drop within 3 cells joins it again, Auto-arrange keeps it, and marking the top card summoning sick takes it out of the count. `npm test` passes all 51 suites and the live two-browser check passes 167 of 167.
+- Broken copies: 19 of 19 of `shared/stacks.mjs`, 6 of 6 of the zone wiring (after the first run showed 4 "survivors" because I had left the new test suite out of that run, and a real gap in the "snap, then decide on top" case got a test), 6 of 6 of the card-node code.
+- Screenshot looked at: a pile of six Forests with the badge at the bottom-left of the board.
+- **Not checked:** the pile drawn on another player's board in a real game (it uses the same code; the two-browser check has only one land), a pile whose copies hang off the board's left edge or top (they are drawn up and to the left, so at the very edge the lower copies are cut off), tapped cards (they stay on the pile's cell as their own stack until step 3 moves them beside it).
+
+**Decisions**
+- The snap radius is 3 cells (less than half a card, so a deliberate nearby drop snaps and a deliberate gap does not). Say if it feels too sticky or not sticky enough.
+- Mistakes of Claude: it first ran the zone broken copies without the new test file, so four real gaps looked caught; one test it wrote used the wrong list order and failed for the right reason; the first pile test checked the wrong card's position.
+
+---
+
+## 113. Square cells, the tapped split, wider snap, looser piles (2026-11-09)
+
+**What I asked for**
+- The tapped card looked atrocious and still needed changing, the area where cards group together should be bigger, the stacked cards should be spread a tiny bit more, and the grid should be more cubes than rectangles.
+
+**What changed**
+- **Square cells:** the grid is now 96 columns by 44 rows and a card is 8 wide and 11 tall, so a cell is square (before, a cell was an eighth of a card in each direction, which made rectangles). The board is drawn 96:44 and the debug lines follow it.
+- **Tapped card:** a tapped card on the battlefield is now a landscape box exactly as big as the turned card, with no grey square around it (the screenshot showed a square button with the card turned inside it). **Tapping a card out of a pile moves it to the block on the pile's right** (left, below or above if that is covered) as its own stack, a second tapped copy joins that tapped pile, and untapping sends it back onto the untapped pile if one is within a card of it; Untap all does the same for every tapped card; a card alone on its cell, or far from a pile of its name, stays where it is (`regroupAfterTap` in `shared/zones.mjs`, `nearbyFreeBlock` in `shared/board-grid.mjs`).
+- **Bigger snap area:** a dropped card now joins a pile it could stack with within 6 cells (it was 3, three quarters of a card wide now).
+- **Piles spread more:** each copy under the top one is shifted by 0.11 of a card (it was a fixed 0.3 rem), and the board has room on its left so a pile at the edge is not cut off.
+
+**What I checked**
+- `test-board-grid` 130, `test-stacks` 84 (with the tap and untap cases and three random games), `test-board-play` 115; the solo check 383 (a pile of six Forests: tapping the top one steps it to the right as its own card and the pile is 5x, untapping puts it back to 6x), the layout check 365 (card sizes now measure a tapped card's long side) and the live check 167. `npm test` passes all 51 suites.
+- Broken copies of the new tap code: 12 of 12 after two rounds (the first run left 6 gaps: the row distance, a pile mate of another name, the same-state shortcut, settling an older game, the untouched-game shortcut and the list order; each got a test), and 5 of 5 of `nearbyFreeBlock` (one guard was equivalent and was removed).
+- Screenshots looked at: the tapped cards now sit as proper landscape cards beside their piles, with the count badge on the top card of each pile.
+- **Not checked:** another player's board with piles and tapped cards in a real game, a pile at the top edge (its copies go up into the heading area), phones.
+
+**Decisions**
+- 6 cells and 0.11 of a card are my numbers for "a bigger area" and "a tiny bit more"; say if either is off.
+- The tapped card is now its own stack on its own block, so a row of tapped lands takes more room than before. Auto-arrange puts tapped copies beside their untapped pile too.
+- Mistakes of Claude: the first tapped design left a tapped copy drawn over its pile (I called it step 3 and left it, and it was the ugliest part); the first layout check numbers broke because a tapped card is shorter than it is wide now; the first live check aimed at a spot that a counter covers on the small tapped card.
+
+---
+
 ## Where AI misread me, or I had to correct course
+- (2026-11-09, entry 113) Claude shipped the pile (entry 112) with tapped cards drawn over it and called that step 3; the tapped card UI was the thing I complained about. It also made grid cells rectangles (an eighth of a card both ways) when I wanted cubes.
+- (2026-11-09, entry 112) Claude ran its first broken copies of the stack wiring without the new test file, so four real gaps looked caught; it was found by reading the list of results, not by a test.
 - (2026-11-09, entry 111) Claude's first drag and drop (entry 110) was not what I meant (a fixed grid with swaps and refusals instead of a loose, snapping board with overlap and stacks); it also drew the new board stretched so cards filled only 60% of their blocks, let the drag picture hide the outline, and rewrote the whole battlefield when a card was lifted from underneath, which it found only when I asked and it measured.
 - (2026-11-06, entry 110) Claude's first drag check swiped from the left edge of the page, which Chrome reads as Back, so the page left and the check looked flaky; one test line became a comment by accident and still passed (found by counting the checks); and the first run of broken copies showed five spots the tests did not cover (the click after a drag, Shift, the hidden outline, a half cell, an in-board point that is not a number).
 - (2026-11-06, entry 104) Claude guessed at the cause of my slider looking different, shipped a guess (an accent colour) that changed nothing, and had added a sound on every slider adjustment that I never asked for.
