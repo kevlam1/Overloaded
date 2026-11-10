@@ -681,6 +681,7 @@ try {
   check('and the status says what happened', /power up by 1/.test(await $text('status')));
   await mouse('#battlefield .card[data-kind="other"] .ptbox .toughness');
   check('a click on the toughness number raises toughness: 2 and 2', JSON.stringify([(await box()).power, (await box()).toughness]) === '["2","2"]');
+  check('the power and toughness box has a slash between the two numbers (not a gap)', (await ev(`document.querySelector('#battlefield .card[data-kind="other"] .ptbox .both').textContent`)) === '/');
   await mouse('#battlefield .card[data-kind="other"] .ptbox .both');
   check('a click on the line between raises both: 3 and 3', JSON.stringify([(await box()).power, (await box()).toughness]) === '["3","3"]', JSON.stringify(await box()));
   check('the floating text for that is +1/+1', (await toastOf())?.text === '+1/+1');
@@ -1174,10 +1175,11 @@ try {
   await clickAction('To battlefield');
   check('...and is not held back when it returns', (await count(`${cardAt('Sol Ring')} .badge-lock`)) === 0);
 
-  // ---- drag and drop on the battlefield grid, Alt+arrow keys and Auto-arrange (real mouse and keyboard input; a 7-card deck, so everything is in the hand) ----
+  // ---- drag and drop on the fine battlefield grid (96 by 32 cells, a card is 8 by 8), Alt+arrow keys and Auto-arrange (real mouse and keyboard input; a 7-card deck, so everything is in the hand) ----
   await open(MARKS_DECK);
   const boardRect = () => ev(`(() => { const r = document.getElementById('battlefield').getBoundingClientRect(); return { left: r.left, top: r.top, width: r.width, height: r.height }; })()`);
-  const cellCenter = async (col, row) => { const r = await boardRect(); return { x: r.left + (col + 0.5) * r.width / 12, y: r.top + (row + 0.5) * r.height / 4 }; };
+  // the point where the middle of a card dropped from the hand starts on cell (col, row): the card's top-left cell is four cells left and up of the middle
+  const cellCenter = async (col, row) => { const r = await boardRect(); return { x: r.left + (col + 4.5) * r.width / 96, y: r.top + (row + 4.5) * r.height / 32 }; };
   const centerOfSelector = (selector) => ev(`(() => { const r = document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`);
   const handCardPoint = async (name) => centerOfSelector(`#hand .card:nth-child(${(await handNames()).findIndex((x) => x.startsWith(name)) + 1})`);
   const mouseAt = (type, p, buttons) => browser.send('Input.dispatchMouseEvent', { type, x: p.x, y: p.y, button: type === 'mouseMoved' ? 'none' : 'left', buttons, clickCount: 1 });
@@ -1189,100 +1191,117 @@ try {
     if (during) await during();
     if (release) { await mouseAt('mouseReleased', to, 0); await sleep(80); }
   };
+  // a card already on the battlefield moves by as many cells as the pointer travels
+  const dragBy = async (name, cols, rows) => {
+    const r = await boardRect(); const from = await centerOfSelector(cardAt(name));
+    await dragTo(from, { x: from.x + cols * r.width / 96, y: from.y + rows * r.height / 32 });
+  };
   const cellOfCard = (name) => ev(`(() => { const c = document.querySelector(${JSON.stringify(cardAt(name))}); return c ? c.dataset.col + ',' + c.dataset.row : null; })()`);
+  const onTopName = () => ev(`(() => { const cs = document.querySelectorAll('#battlefield .card'); return cs.length ? cs[cs.length - 1].getAttribute('aria-label').split(',')[0] : null; })()`);
   const dragStateGone = async () => (await count('.drag-ghost')) === 0 && (await count('.cell-highlight')) === 0 && (await ev(`!document.body.classList.contains('dragging-card')`)) && (await count('#hand .card.dragging, #battlefield .card.dragging')) === 0;
 
-  await dragTo(await handCardPoint('Forest'), await cellCenter(5, 1));
-  check('dragging a card from the hand to an empty cell plays it there, and says so', (await cellOfCard('Forest')) === '5,1' && !(await handNames()).includes('Forest') && (await $text('status')) === 'Played Forest.', `${await cellOfCard('Forest')} | ${await $text('status')}`);
+  await dragTo(await handCardPoint('Forest'), await cellCenter(40, 8));
+  check('dragging a card from the hand onto the battlefield plays it where it was dropped, and says so', (await cellOfCard('Forest')) === '40,8' && !(await handNames()).includes('Forest') && (await $text('status')) === 'Played Forest.', `${await cellOfCard('Forest')} | ${await $text('status')}`);
   check('...the picture and the outline are gone afterwards, and the drag did not select the card', await dragStateGone() && /^Click a card/.test(await $text('selected-line')), await $text('selected-line'));
 
   let outline = null;
-  await dragTo(await handCardPoint('Sol Ring'), await cellCenter(5, 1), { release: false, during: async () => { outline = await ev(`(() => { const h = document.querySelector('.cell-highlight'); return h && !h.hidden ? { cls: h.className, col: h.dataset.col, row: h.dataset.row, ghost: document.querySelectorAll('.drag-ghost').length } : null; })()`); } });
-  check('while a hand card is over a taken cell the cell is outlined as taken, and a picture follows the pointer', outline && /taken/.test(outline.cls) && outline.col === '5' && outline.row === '1' && outline.ghost === 1, JSON.stringify(outline));
-  await mouseAt('mouseReleased', await cellCenter(5, 1), 0); await sleep(80);
-  check('dropping it there is refused in words, and nothing moves', (await handNames()).includes('Sol Ring') && (await cellOfCard('Forest')) === '5,1' && /That space is taken\./.test(await $text('status')) && await dragStateGone(), await $text('status'));
+  await dragTo(await handCardPoint('Sol Ring'), await cellCenter(44, 10), { release: false, during: async () => { outline = await ev(`(() => { const h = document.querySelector('.cell-highlight'); return h && !h.hidden ? { cls: h.className, col: h.dataset.col, row: h.dataset.row, ghost: document.querySelectorAll('.drag-ghost').length } : null; })()`); } });
+  check('while a card is held over a spot that overlaps another card it is outlined like any spot (nothing is refused), and a picture follows the pointer', outline && outline.cls === 'cell-highlight' && outline.col === '44' && outline.row === '10' && outline.ghost === 1, JSON.stringify(outline));
+  await mouseAt('mouseReleased', await cellCenter(44, 10), 0); await sleep(80);
+  check('dropping it there plays it on top: both cards stay, overlapping', (await cellOfCard('Forest')) === '40,8' && (await cellOfCard('Sol Ring')) === '44,10' && (await $text('status')) === 'Played Sol Ring.' && (await onTopName()) === 'Sol Ring' && await dragStateGone(), `${await cellOfCard('Forest')} ${await cellOfCard('Sol Ring')} | ${await $text('status')}`);
 
-  await dragTo(await handCardPoint('Sol Ring'), await cellCenter(6, 1));
-  check('a hand card dropped on the next empty cell goes there', (await cellOfCard('Sol Ring')) === '6,1');
+  await dragBy('Sol Ring', 16, 6);
+  check('a battlefield card moves by as many cells as the pointer travelled, and says so', (await cellOfCard('Sol Ring')) === '60,16' && (await cellOfCard('Forest')) === '40,8' && /^Moved Sol Ring\./.test(await $text('status')), `${await cellOfCard('Sol Ring')} ${await cellOfCard('Forest')} | ${await $text('status')}`);
 
-  let swapOutline = null;
-  await dragTo(await centerOfSelector(cardAt('Forest')), await cellCenter(6, 1), { release: false, during: async () => { swapOutline = await ev(`document.querySelector('.cell-highlight')?.className ?? null`); } });
-  check('a battlefield card over another card is outlined as a swap', /swap/.test(swapOutline ?? ''), swapOutline);
-  await mouseAt('mouseReleased', await cellCenter(6, 1), 0); await sleep(80);
-  check('dropping it swaps the two cards, and says so', (await cellOfCard('Forest')) === '6,1' && (await cellOfCard('Sol Ring')) === '5,1' && /^Swapped Forest with Sol Ring\./.test(await $text('status')), `${await cellOfCard('Forest')} ${await cellOfCard('Sol Ring')} | ${await $text('status')}`);
+  let overOutline = null;
+  { const r = await boardRect(); const from = await centerOfSelector(cardAt('Forest'));
+    await dragTo(from, { x: from.x + 20 * r.width / 96, y: from.y + 8 * r.height / 32 }, { release: false, during: async () => { overOutline = await ev(`document.querySelector('.cell-highlight')?.className ?? null`); } });
+    await mouseAt('mouseReleased', { x: from.x + 20 * r.width / 96, y: from.y + 8 * r.height / 32 }, 0); await sleep(80); }
+  check('a card dropped exactly on another card does not swap: both are on the same cell and the dropped one is on top', (await cellOfCard('Forest')) === '60,16' && (await cellOfCard('Sol Ring')) === '60,16' && (await onTopName()) === 'Forest' && /^Moved Forest\./.test(await $text('status')) && overOutline === 'cell-highlight', `${await cellOfCard('Forest')} ${await cellOfCard('Sol Ring')} ${await onTopName()} | ${await $text('status')} | ${overOutline}`);
 
-  await dragTo(await centerOfSelector(cardAt('Forest')), await cellCenter(0, 3));
-  check('a battlefield card dropped on an empty cell moves there, and the card it left is free again', (await cellOfCard('Forest')) === '0,3' && (await cellOfCard('Sol Ring')) === '5,1' && /^Moved Forest\./.test(await $text('status')));
+  // the picture that follows the pointer is the card itself, at the size it has on the table
+  { const box = await ev(`(() => { const c = document.querySelector(${JSON.stringify(cardAt('Forest'))}).getBoundingClientRect(); return { x: c.x, y: c.y, w: c.width, h: c.height }; })()`); const from = { x: box.x + box.w * 0.2, y: box.y + box.h * 0.2 }; let sizes = null; // taken near its top-left corner
+    await dragTo(from, { x: from.x + 30, y: from.y }, { release: false, during: async () => { sizes = await ev(`(() => { const g = document.querySelector('.drag-ghost').getBoundingClientRect(); const c = document.querySelector(${JSON.stringify(cardAt('Forest'))}).getBoundingClientRect(); return { ghost: [g.width, g.height], card: [c.width, c.height], held: [(${from.x + 30} - g.left) / g.width, (${from.y} - g.top) / g.height] }; })()`); } });
+    await key('Escape', 'Escape', 27); await mouseAt('mouseReleased', { x: from.x + 30, y: from.y }, 0); await sleep(80);
+    check('a card picked up on the battlefield keeps its size: the picture is as big as the card', sizes && Math.abs(sizes.ghost[0] - sizes.card[0]) < 1.5 && Math.abs(sizes.ghost[1] - sizes.card[1]) < 1.5, JSON.stringify(sizes));
+    check('...and it is held where it was taken (near its corner), not by its middle', sizes && Math.abs(sizes.held[0] - 0.2) < 0.05 && Math.abs(sizes.held[1] - 0.2) < 0.05, JSON.stringify(sizes?.held));
+    check('...and Escape put everything back', (await cellOfCard('Forest')) === '60,16' && await dragStateGone()); }
+  { let sizes = null; const handBefore = await handCardPoint('Lightning Bolt');
+    await dragTo(handBefore, await cellCenter(80, 4), { release: false, during: async () => { sizes = await ev(`(() => { const g = document.querySelector('.drag-ghost').getBoundingClientRect(); const c = Array.from(document.querySelectorAll('#hand .card'))[0].getBoundingClientRect(); return { ghost: [g.width, g.height], card: [c.width, c.height] }; })()`); } });
+    await key('Escape', 'Escape', 27); await mouseAt('mouseReleased', await cellCenter(80, 4), 0); await sleep(80);
+    check('a card picked up from the hand keeps its size too', sizes && Math.abs(sizes.ghost[0] - sizes.card[0]) < 1.5 && Math.abs(sizes.ghost[1] - sizes.card[1]) < 1.5, JSON.stringify(sizes)); }
+  await dragBy('Forest', -60, 8);
+  check('the card on top can be taken off again, and the one under it stays', (await cellOfCard('Forest')) === '0,24' && (await cellOfCard('Sol Ring')) === '60,16');
 
   // a tiny movement is still a click: it selects the card and does not move it
   await dragTo(await centerOfSelector(cardAt('Forest')), { ...(await centerOfSelector(cardAt('Forest'))), x: (await centerOfSelector(cardAt('Forest'))).x + 2 });
-  check('moving only 2 pixels is a click: the card is selected and stays where it was', (await cellOfCard('Forest')) === '0,3' && /^Forest/.test(await $text('selected-line')), `${await cellOfCard('Forest')} | ${await $text('selected-line')}`);
+  check('moving only 2 pixels is a click: the card is selected and stays where it was', (await cellOfCard('Forest')) === '0,24' && /^Forest/.test(await $text('selected-line')), `${await cellOfCard('Forest')} | ${await $text('selected-line')}`);
   await clickAction('Deselect');
 
-  // a drag that ends on the card it started on is not a click either (the click that follows is swallowed)
-  { const here = await centerOfSelector(cardAt('Forest')); await dragTo(here, { x: here.x + 10, y: here.y });
-    check('a drag of 10 pixels that ends on the same card leaves it where it was and does not select it', (await cellOfCard('Forest')) === '0,3' && /^Click a card/.test(await $text('selected-line')) && await dragStateGone(), `${await cellOfCard('Forest')} | ${await $text('selected-line')}`); }
+  // a drag of a few pixels that ends on the card it started on is not a click either (the click that follows is swallowed), and the card does not shift a cell
+  { const here = await centerOfSelector(cardAt('Forest')); await dragTo(here, { x: here.x + 40, y: here.y }, { release: false }); await mouseAt('mouseMoved', here, 1); await mouseAt('mouseReleased', here, 0); await sleep(80);
+    check('a drag that goes out and comes back to the same card leaves it on its cell and does not select it', (await cellOfCard('Forest')) === '0,24' && /^Click a card/.test(await $text('selected-line')) && await dragStateGone(), `${await cellOfCard('Forest')} | ${await $text('selected-line')}`); }
   // a press with Shift held is a marks click (10 at a time), not the start of a drag
-  { const here = await centerOfSelector(cardAt('Forest')); const away = await cellCenter(8, 2);
+  { const here = await centerOfSelector(cardAt('Forest')); const away = await cellCenter(16, 4);
     await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: here.x, y: here.y });
     await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: here.x, y: here.y, button: 'left', buttons: 1, clickCount: 1, modifiers: 8 });
     for (let step = 1; step <= 6; step++) await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: here.x + (away.x - here.x) * step / 6, y: here.y + (away.y - here.y) * step / 6, buttons: 1, modifiers: 8 });
     const shiftGhost = await count('.drag-ghost');
     await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: away.x, y: away.y, button: 'left', buttons: 0, clickCount: 1, modifiers: 8 }); await sleep(80);
-    check('pressing with Shift held and moving does not drag the card', shiftGhost === 0 && (await cellOfCard('Forest')) === '0,3', `${shiftGhost} ${await cellOfCard('Forest')}`);
+    check('pressing with Shift held and moving does not drag the card', shiftGhost === 0 && (await cellOfCard('Forest')) === '0,24', `${shiftGhost} ${await cellOfCard('Forest')}`);
     await clickAction('Deselect'); }
-  // the outline is only shown over a cell of the battlefield
+  // the outline is only shown over the battlefield
   { let over = null;
     await dragTo(await centerOfSelector(cardAt('Forest')), await centerOfSelector('#hand .card'), { release: false, during: async () => { over = await ev(`(() => { const h = document.querySelector('.cell-highlight'); return h ? h.hidden : 'none'; })()`); } });
     await mouseAt('mouseReleased', await centerOfSelector('#hand .card'), 0); await sleep(80);
     check('while a card is held over the hand the outline on the battlefield is hidden', over === true, String(over)); }
   // Escape cancels a drag; so does letting go outside the battlefield
-  await dragTo(await centerOfSelector(cardAt('Forest')), await cellCenter(3, 2), { release: false });
+  await dragTo(await centerOfSelector(cardAt('Forest')), await cellCenter(6, 4), { release: false });
   await key('Escape', 'Escape', 27);
-  await mouseAt('mouseReleased', await cellCenter(3, 2), 0); await sleep(80);
-  check('Escape during a drag cancels it: the card stays, the picture and the outline are gone', (await cellOfCard('Forest')) === '0,3' && await dragStateGone());
+  await mouseAt('mouseReleased', await cellCenter(6, 4), 0); await sleep(80);
+  check('Escape during a drag cancels it: the card stays, the picture and the outline are gone', (await cellOfCard('Forest')) === '0,24' && await dragStateGone());
   const handSpot = await centerOfSelector('#hand .card');
   await dragTo(await centerOfSelector(cardAt('Forest')), handSpot);
-  check('letting go outside the battlefield does nothing', (await cellOfCard('Forest')) === '0,3' && await dragStateGone());
+  check('letting go outside the battlefield does nothing', (await cellOfCard('Forest')) === '0,24' && await dragStateGone());
 
   // a press on a badge is the badge's, not the start of a drag
-  await dragTo(await handCardPoint('Llanowar Elves'), await cellCenter(3, 0));
+  await dragTo(await handCardPoint('Llanowar Elves'), await cellCenter(24, 0));
   const sickOn = `${cardAt('Llanowar Elves')} .badge-sick`;
-  check('a creature played by dragging comes in summoning sick like any other way', (await cellOfCard('Llanowar Elves')) === '3,0' && (await count(sickOn)) === 1);
-  await dragTo(await centerOfSelector(sickOn), await cellCenter(4, 0));
-  check('pressing on the SICK badge and moving does not drag the card', (await cellOfCard('Llanowar Elves')) === '3,0' && await dragStateGone());
+  check('a creature played by dragging comes in summoning sick like any other way', (await cellOfCard('Llanowar Elves')) === '24,0' && (await count(sickOn)) === 1, await cellOfCard('Llanowar Elves'));
+  await dragTo(await centerOfSelector(sickOn), await cellCenter(36, 0));
+  check('pressing on the SICK badge and moving does not drag the card', (await cellOfCard('Llanowar Elves')) === '24,0' && await dragStateGone());
 
   // another mouse button, or a modifier key, is not a drag
   await mouseAt('mouseMoved', await centerOfSelector(cardAt('Forest')), 0);
   await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: (await centerOfSelector(cardAt('Forest'))).x, y: (await centerOfSelector(cardAt('Forest'))).y, button: 'right', buttons: 2, clickCount: 1 });
-  await mouseAt('mouseMoved', await cellCenter(7, 2), 2);
+  await mouseAt('mouseMoved', await cellCenter(14, 4), 2);
   check('a right-button press does not start a drag', (await count('.drag-ghost')) === 0);
-  await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: (await cellCenter(7, 2)).x, y: (await cellCenter(7, 2)).y, button: 'right', buttons: 0, clickCount: 1 });
+  await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: (await cellCenter(14, 4)).x, y: (await cellCenter(14, 4)).y, button: 'right', buttons: 0, clickCount: 1 });
   await key('Escape', 'Escape', 27); await sleep(60);
 
   // a finger is not a drag either (touch is on hold; a finger is for scrolling)
-  const fingerFrom = await centerOfSelector(cardAt('Sol Ring')); const fingerTo = await cellCenter(5, 0); // straight up from a card in the middle: a sideways swipe from the left edge is the browser's own Back gesture and left the page
+  const fingerFrom = await centerOfSelector(cardAt('Sol Ring')); const fingerTo = { x: fingerFrom.x, y: fingerFrom.y - 60 }; // straight up: a sideways swipe from the left edge is the browser's own Back gesture and left the page
   await browser.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: fingerFrom.x, y: fingerFrom.y }] });
   for (let step = 1; step <= 6; step++) await browser.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: fingerFrom.x + (fingerTo.x - fingerFrom.x) * step / 6, y: fingerFrom.y + (fingerTo.y - fingerFrom.y) * step / 6 }] });
   const fingerGhost = await count('.drag-ghost');
   await browser.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await sleep(80);
-  check('a touch that moves across the battlefield does not drag a card', fingerGhost === 0 && (await cellOfCard('Sol Ring')) === '5,1' && await dragStateGone(), `${fingerGhost} ${await cellOfCard('Sol Ring')}`);
-  // Alt and an arrow key move the selected card one cell (and swap with the card there), without a mouse
+  check('a touch that moves across the battlefield does not drag a card', fingerGhost === 0 && (await cellOfCard('Sol Ring')) === '60,16' && await dragStateGone(), `${fingerGhost} ${await cellOfCard('Sol Ring')}`);
+  // Alt and an arrow key move the selected card one cell (a quarter card), without a mouse
   const altKey = async (name, vk) => { await browser.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: name, code: name, windowsVirtualKeyCode: vk, modifiers: 1 }); await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: name, code: name, windowsVirtualKeyCode: vk, modifiers: 1 }); await sleep(80); };
   await clickCard(cardAt('Forest')); await ev(`document.activeElement && document.activeElement.blur()`);
   await altKey('ArrowRight', 39);
-  check('Alt and the right arrow move the selected card one cell right', (await cellOfCard('Forest')) === '1,3' && /^Moved Forest\./.test(await $text('status')), `${await cellOfCard('Forest')} | ${await $text('status')}`);
+  check('Alt and the right arrow move the selected card one cell right', (await cellOfCard('Forest')) === '1,24' && /^Moved Forest\./.test(await $text('status')), `${await cellOfCard('Forest')} | ${await $text('status')}`);
   await altKey('ArrowLeft', 37); await altKey('ArrowLeft', 37);
-  check('...and at the edge of the battlefield it says so and stays', (await cellOfCard('Forest')) === '0,3' && /edge of the battlefield/.test(await $text('status')), `${await cellOfCard('Forest')} | ${await $text('status')}`);
+  check('...and at the edge of the battlefield it says so and stays', (await cellOfCard('Forest')) === '0,24' && /edge of the battlefield/.test(await $text('status')), `${await cellOfCard('Forest')} | ${await $text('status')}`);
   await altKey('ArrowUp', 38);
-  check('Alt and the up arrow move it one row up', (await cellOfCard('Forest')) === '0,2');
+  check('Alt and the up arrow move it one row up', (await cellOfCard('Forest')) === '0,23');
   await clickAction('Deselect');
 
-  // Auto-arrange: lands along the bottom from the left, everything else along the top from the left
+  // Auto-arrange: lands along the bottom from the left, everything else along the top from the left, a card apart
   await press('arrange');
   const arranged = await ev(`Array.from(document.querySelectorAll('#battlefield .card')).map((c) => c.getAttribute('aria-label').split(',')[0] + '@' + c.dataset.col + ',' + c.dataset.row + ':' + c.dataset.kind).sort()`);
-  check('Auto-arrange puts the land at the bottom-left and the others along the top from the left (by name), and says so', JSON.stringify(arranged) === JSON.stringify(['Forest@0,3:land', 'Llanowar Elves@0,0:other', 'Sol Ring@1,0:other']) && /^Tidied the battlefield/.test(await $text('status')), JSON.stringify(arranged));
-  check('the battlefield is one grid that does not scroll the page, and every card sits on its own cell', await ev(`(() => { const b = document.getElementById('battlefield'); const cells = Array.from(b.querySelectorAll('.card')).map((c) => c.dataset.col + ',' + c.dataset.row); return new Set(cells).size === cells.length && document.documentElement.scrollHeight <= innerHeight + 1; })()`));
+  check('Auto-arrange puts the land at the bottom-left and the others along the top from the left (by name), a card apart, and says so', JSON.stringify(arranged) === JSON.stringify(['Forest@0,24:land', 'Llanowar Elves@0,0:other', 'Sol Ring@8,0:other']) && /^Tidied the battlefield/.test(await $text('status')), JSON.stringify(arranged));
+  check('the battlefield is one grid that does not scroll the page, and after tidying no card covers another', await ev(`(() => { const cs = Array.from(document.querySelectorAll('#battlefield .card')).map((c) => [Number(c.dataset.col), Number(c.dataset.row)]); const clash = cs.some((a, i) => cs.some((b, j) => i !== j && Math.abs(a[0] - b[0]) < 8 && Math.abs(a[1] - b[1]) < 8)); return !clash && document.documentElement.scrollHeight <= innerHeight + 1; })()`));
 
   // ---- storage blocked ----
   await browser.send('Page.addScriptToEvaluateOnNewDocument', { source: `Object.defineProperty(window, 'localStorage', { get() { throw new DOMException('blocked', 'SecurityError'); } });` });

@@ -245,7 +245,19 @@ try {
   record("Bob's page shows Alice's board live: life 35, one card on her battlefield, two in her command zone", Boolean(bobSeesAliceBoard) && bobSeesAliceBoard.inCommandZone === 2, JSON.stringify(bobSeesAliceBoard ?? await panelOf(bob, 'Alice')));
   record("...and how many cards she holds, but not which: hand 7 and library 22", /Hand: 7 cards. Library: 22 cards./.test(bobSeesAliceBoard?.stats ?? ''), bobSeesAliceBoard?.stats);
   record("...and only her public cards are on his page (the battlefield and the command zone: 3 cards), all of them read-only", bobSeesAliceBoard?.allCards === 3 && bobSeesAliceBoard.allReadOnly === true, JSON.stringify(bobSeesAliceBoard));
-  record("...and her battlefield card is on the cell she stored (column 0, row 3: a land goes to the bottom-left)", JSON.stringify(bobSeesAliceBoard?.cells) === JSON.stringify(['0,3']), JSON.stringify(bobSeesAliceBoard?.cells));
+  record("...and her battlefield card is on the cell she stored (column 0, row 24: a land goes to the bottom-left block of the 96 by 32 grid)", JSON.stringify(bobSeesAliceBoard?.cells) === JSON.stringify(['0,24']), JSON.stringify(bobSeesAliceBoard?.cells));
+  // Alice drags her card on the grid with the real mouse; the move is saved as one small write and Bob sees the new cell
+  {
+    const geo = await alice.eval(`(() => { const b = document.getElementById('battlefield').getBoundingClientRect(); const c = document.querySelector('#battlefield .card').getBoundingClientRect(); return { cw: b.width / 96, ch: b.height / 32, x: c.x + c.width / 2, y: c.y + c.height / 2 }; })()`);
+    const to = { x: geo.x + 16 * geo.cw, y: geo.y - 8 * geo.ch };
+    const mouse = (page, type, p, buttons) => page.send('Input.dispatchMouseEvent', { type, x: p.x, y: p.y, button: type === 'mouseMoved' ? 'none' : 'left', buttons, clickCount: 1 });
+    await mouse(alice, 'mouseMoved', geo, 0); await mouse(alice, 'mousePressed', geo, 1);
+    for (let step = 1; step <= 8; step++) await mouse(alice, 'mouseMoved', { x: geo.x + (to.x - geo.x) * step / 8, y: geo.y + (to.y - geo.y) * step / 8 }, 1);
+    await mouse(alice, 'mouseReleased', to, 0);
+    const moved = await waitFor(async () => { const p = await panelOf(bob, 'Alice'); return p && JSON.stringify(p.cells) === JSON.stringify(['16,16']) ? p : null; }, 20000, 250);
+    record("Alice drags her card with the mouse (8 cells right, 4 up) and Bob's page shows it on the new cell, without a refresh", Boolean(moved), JSON.stringify((await panelOf(bob, 'Alice'))?.cells));
+    record('...and the database holds the new cell on the public card that Bob can read', Boolean(await waitFor(async () => { const r = await rest('GET', pathOf('public/battlefield'), cleanup.bob.token); const card = r.json ? Object.values(r.json)[0] : null; return card && card.px === 16 && card.py === 16 ? true : null; }, 15000, 250)));
+  }
   record("...with her name and seat as a heading", /^Seat 1: Alice/.test(bobSeesAliceBoard?.heading ?? ''));
   const aliceSeesBobBoard = await waitFor(async () => { const p = await panelOf(alice, 'Bob'); return p && p.life === '40' && p.inCommandZone === 1 ? p : null; }, 30000, 250);
   record("Alice's page shows Bob's board too: life 40, his commander in the command zone, hand 7", Boolean(aliceSeesBobBoard) && /Hand: 7 cards/.test(aliceSeesBobBoard.stats), JSON.stringify(aliceSeesBobBoard ?? await panelOf(alice, 'Bob')));
