@@ -256,7 +256,7 @@ main.table { max-width: 80rem; }
 .card .marks .change { margin-left: auto; border-color: var(--accent); }
 .card .marks .ptbox { display: inline-flex; margin-left: auto; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 0.4rem; background: rgba(20, 20, 26, 0.9); color: #fff; font-size: 0.95rem; font-weight: 700; line-height: 1.5rem; white-space: nowrap; }
 .card .marks .ptbox .pt { min-width: 1.35rem; padding: 0 0.25rem; text-align: center; }
-.card .marks .ptbox .pt.both { min-width: 0; width: 0.6rem; padding: 0; background: rgba(255, 255, 255, 0.18); }
+.card .marks .ptbox .pt.both { min-width: 0; padding: 0; }
 .card .marks .ptbox .pt.up { background: rgba(30, 140, 70, 0.96); }
 .card .marks .ptbox .pt.down { background: rgba(170, 40, 30, 0.96); }
 .card .marks .ptbox.idle { visibility: hidden; }
@@ -475,56 +475,146 @@ body.playing .side-panels button, body.playing .players-section button { min-hei
 body.playing .side-panels .stepper-name, body.playing .side-panels .stepper-count { font-size: 0.85rem; }
 body.playing .counters-block { gap: 0.15rem 0.6rem; }
 
-/* ---- The battlefield grid (Phase B, docs/layout.md): 12 columns by 4 rows, the same for every player. A card sits on the cell its data-col and data-row say (plain rules, no inline
-   style); the cell is as wide as the board is wide over 12 and as high as it is high over 4, and a card is as big as the smaller side of its cell so a tapped card (turned on its side)
-   still fits. ---- */
-.battlefield { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); grid-template-rows: repeat(4, minmax(0, 1fr)); min-height: 6rem; }
+/* ---- The battlefield grid (Phase B, docs/layout.md; a fine grid since 2026-11-09): 96 columns by 32 rows, the same for every player. A card covers 8 by 8 cells (an eighth of a card is one step) and starts
+   on the cell its data-col and data-row say (plain rules, no inline style); cards may overlap and the later card in the page is drawn on top. A card is as big as the smaller side of its 12 by 4
+   block so a tapped card (turned on its side) still fits. ---- */
+.battlefield { display: grid; grid-template-columns: repeat(96, minmax(0, 1fr)); grid-template-rows: repeat(32, minmax(0, 1fr)); min-height: 6rem; }
+.battlefield > .card, .battlefield > .cell-highlight { grid-column-end: span 8; grid-row-end: span 8; }
 .battlefield:empty::before { content: attr(data-empty); grid-column: 1 / -1; grid-row: 1 / -1; align-self: center; justify-self: center; color: var(--muted); font-size: 0.75rem; }
-.battlefield > .card[data-col="0"] { grid-column: 1; }
-.battlefield > .card[data-col="1"] { grid-column: 2; }
-.battlefield > .card[data-col="2"] { grid-column: 3; }
-.battlefield > .card[data-col="3"] { grid-column: 4; }
-.battlefield > .card[data-col="4"] { grid-column: 5; }
-.battlefield > .card[data-col="5"] { grid-column: 6; }
-.battlefield > .card[data-col="6"] { grid-column: 7; }
-.battlefield > .card[data-col="7"] { grid-column: 8; }
-.battlefield > .card[data-col="8"] { grid-column: 9; }
-.battlefield > .card[data-col="9"] { grid-column: 10; }
-.battlefield > .card[data-col="10"] { grid-column: 11; }
-.battlefield > .card[data-col="11"] { grid-column: 12; }
-.battlefield > .card[data-row="0"] { grid-row: 1; }
-.battlefield > .card[data-row="1"] { grid-row: 2; }
-.battlefield > .card[data-row="2"] { grid-row: 3; }
-.battlefield > .card[data-row="3"] { grid-row: 4; }
-body.playing .battlefield { flex: 1 1 0; min-height: 0; container-type: size; }
-body.playing .battlefield > .card { justify-self: center; align-self: center; height: calc(min(100cqh / 4, 100cqw / 12) - 3px); width: calc((min(100cqh / 4, 100cqw / 12) - 3px) / 1.4015); }
-body.playing .battlefield > .card.tapped { width: calc(min(100cqh / 4, 100cqw / 12) - 3px); }
+/* the board has the shape of 12 by 4 cards (48 : 22.424 is 12 card widths by 4 card heights), so a block of 8 by 8 cells is exactly one card; it takes the height it is given and is as wide as that makes it (never wider than its box) */
+.battlefield > .card[data-col="0"], .battlefield > .cell-highlight[data-col="0"] { grid-column-start: 1; }
+.battlefield > .card[data-col="1"], .battlefield > .cell-highlight[data-col="1"] { grid-column-start: 2; }
+.battlefield > .card[data-col="2"], .battlefield > .cell-highlight[data-col="2"] { grid-column-start: 3; }
+.battlefield > .card[data-col="3"], .battlefield > .cell-highlight[data-col="3"] { grid-column-start: 4; }
+.battlefield > .card[data-col="4"], .battlefield > .cell-highlight[data-col="4"] { grid-column-start: 5; }
+.battlefield > .card[data-col="5"], .battlefield > .cell-highlight[data-col="5"] { grid-column-start: 6; }
+.battlefield > .card[data-col="6"], .battlefield > .cell-highlight[data-col="6"] { grid-column-start: 7; }
+.battlefield > .card[data-col="7"], .battlefield > .cell-highlight[data-col="7"] { grid-column-start: 8; }
+.battlefield > .card[data-col="8"], .battlefield > .cell-highlight[data-col="8"] { grid-column-start: 9; }
+.battlefield > .card[data-col="9"], .battlefield > .cell-highlight[data-col="9"] { grid-column-start: 10; }
+.battlefield > .card[data-col="10"], .battlefield > .cell-highlight[data-col="10"] { grid-column-start: 11; }
+.battlefield > .card[data-col="11"], .battlefield > .cell-highlight[data-col="11"] { grid-column-start: 12; }
+.battlefield > .card[data-col="12"], .battlefield > .cell-highlight[data-col="12"] { grid-column-start: 13; }
+.battlefield > .card[data-col="13"], .battlefield > .cell-highlight[data-col="13"] { grid-column-start: 14; }
+.battlefield > .card[data-col="14"], .battlefield > .cell-highlight[data-col="14"] { grid-column-start: 15; }
+.battlefield > .card[data-col="15"], .battlefield > .cell-highlight[data-col="15"] { grid-column-start: 16; }
+.battlefield > .card[data-col="16"], .battlefield > .cell-highlight[data-col="16"] { grid-column-start: 17; }
+.battlefield > .card[data-col="17"], .battlefield > .cell-highlight[data-col="17"] { grid-column-start: 18; }
+.battlefield > .card[data-col="18"], .battlefield > .cell-highlight[data-col="18"] { grid-column-start: 19; }
+.battlefield > .card[data-col="19"], .battlefield > .cell-highlight[data-col="19"] { grid-column-start: 20; }
+.battlefield > .card[data-col="20"], .battlefield > .cell-highlight[data-col="20"] { grid-column-start: 21; }
+.battlefield > .card[data-col="21"], .battlefield > .cell-highlight[data-col="21"] { grid-column-start: 22; }
+.battlefield > .card[data-col="22"], .battlefield > .cell-highlight[data-col="22"] { grid-column-start: 23; }
+.battlefield > .card[data-col="23"], .battlefield > .cell-highlight[data-col="23"] { grid-column-start: 24; }
+.battlefield > .card[data-col="24"], .battlefield > .cell-highlight[data-col="24"] { grid-column-start: 25; }
+.battlefield > .card[data-col="25"], .battlefield > .cell-highlight[data-col="25"] { grid-column-start: 26; }
+.battlefield > .card[data-col="26"], .battlefield > .cell-highlight[data-col="26"] { grid-column-start: 27; }
+.battlefield > .card[data-col="27"], .battlefield > .cell-highlight[data-col="27"] { grid-column-start: 28; }
+.battlefield > .card[data-col="28"], .battlefield > .cell-highlight[data-col="28"] { grid-column-start: 29; }
+.battlefield > .card[data-col="29"], .battlefield > .cell-highlight[data-col="29"] { grid-column-start: 30; }
+.battlefield > .card[data-col="30"], .battlefield > .cell-highlight[data-col="30"] { grid-column-start: 31; }
+.battlefield > .card[data-col="31"], .battlefield > .cell-highlight[data-col="31"] { grid-column-start: 32; }
+.battlefield > .card[data-col="32"], .battlefield > .cell-highlight[data-col="32"] { grid-column-start: 33; }
+.battlefield > .card[data-col="33"], .battlefield > .cell-highlight[data-col="33"] { grid-column-start: 34; }
+.battlefield > .card[data-col="34"], .battlefield > .cell-highlight[data-col="34"] { grid-column-start: 35; }
+.battlefield > .card[data-col="35"], .battlefield > .cell-highlight[data-col="35"] { grid-column-start: 36; }
+.battlefield > .card[data-col="36"], .battlefield > .cell-highlight[data-col="36"] { grid-column-start: 37; }
+.battlefield > .card[data-col="37"], .battlefield > .cell-highlight[data-col="37"] { grid-column-start: 38; }
+.battlefield > .card[data-col="38"], .battlefield > .cell-highlight[data-col="38"] { grid-column-start: 39; }
+.battlefield > .card[data-col="39"], .battlefield > .cell-highlight[data-col="39"] { grid-column-start: 40; }
+.battlefield > .card[data-col="40"], .battlefield > .cell-highlight[data-col="40"] { grid-column-start: 41; }
+.battlefield > .card[data-col="41"], .battlefield > .cell-highlight[data-col="41"] { grid-column-start: 42; }
+.battlefield > .card[data-col="42"], .battlefield > .cell-highlight[data-col="42"] { grid-column-start: 43; }
+.battlefield > .card[data-col="43"], .battlefield > .cell-highlight[data-col="43"] { grid-column-start: 44; }
+.battlefield > .card[data-col="44"], .battlefield > .cell-highlight[data-col="44"] { grid-column-start: 45; }
+.battlefield > .card[data-col="45"], .battlefield > .cell-highlight[data-col="45"] { grid-column-start: 46; }
+.battlefield > .card[data-col="46"], .battlefield > .cell-highlight[data-col="46"] { grid-column-start: 47; }
+.battlefield > .card[data-col="47"], .battlefield > .cell-highlight[data-col="47"] { grid-column-start: 48; }
+.battlefield > .card[data-col="48"], .battlefield > .cell-highlight[data-col="48"] { grid-column-start: 49; }
+.battlefield > .card[data-col="49"], .battlefield > .cell-highlight[data-col="49"] { grid-column-start: 50; }
+.battlefield > .card[data-col="50"], .battlefield > .cell-highlight[data-col="50"] { grid-column-start: 51; }
+.battlefield > .card[data-col="51"], .battlefield > .cell-highlight[data-col="51"] { grid-column-start: 52; }
+.battlefield > .card[data-col="52"], .battlefield > .cell-highlight[data-col="52"] { grid-column-start: 53; }
+.battlefield > .card[data-col="53"], .battlefield > .cell-highlight[data-col="53"] { grid-column-start: 54; }
+.battlefield > .card[data-col="54"], .battlefield > .cell-highlight[data-col="54"] { grid-column-start: 55; }
+.battlefield > .card[data-col="55"], .battlefield > .cell-highlight[data-col="55"] { grid-column-start: 56; }
+.battlefield > .card[data-col="56"], .battlefield > .cell-highlight[data-col="56"] { grid-column-start: 57; }
+.battlefield > .card[data-col="57"], .battlefield > .cell-highlight[data-col="57"] { grid-column-start: 58; }
+.battlefield > .card[data-col="58"], .battlefield > .cell-highlight[data-col="58"] { grid-column-start: 59; }
+.battlefield > .card[data-col="59"], .battlefield > .cell-highlight[data-col="59"] { grid-column-start: 60; }
+.battlefield > .card[data-col="60"], .battlefield > .cell-highlight[data-col="60"] { grid-column-start: 61; }
+.battlefield > .card[data-col="61"], .battlefield > .cell-highlight[data-col="61"] { grid-column-start: 62; }
+.battlefield > .card[data-col="62"], .battlefield > .cell-highlight[data-col="62"] { grid-column-start: 63; }
+.battlefield > .card[data-col="63"], .battlefield > .cell-highlight[data-col="63"] { grid-column-start: 64; }
+.battlefield > .card[data-col="64"], .battlefield > .cell-highlight[data-col="64"] { grid-column-start: 65; }
+.battlefield > .card[data-col="65"], .battlefield > .cell-highlight[data-col="65"] { grid-column-start: 66; }
+.battlefield > .card[data-col="66"], .battlefield > .cell-highlight[data-col="66"] { grid-column-start: 67; }
+.battlefield > .card[data-col="67"], .battlefield > .cell-highlight[data-col="67"] { grid-column-start: 68; }
+.battlefield > .card[data-col="68"], .battlefield > .cell-highlight[data-col="68"] { grid-column-start: 69; }
+.battlefield > .card[data-col="69"], .battlefield > .cell-highlight[data-col="69"] { grid-column-start: 70; }
+.battlefield > .card[data-col="70"], .battlefield > .cell-highlight[data-col="70"] { grid-column-start: 71; }
+.battlefield > .card[data-col="71"], .battlefield > .cell-highlight[data-col="71"] { grid-column-start: 72; }
+.battlefield > .card[data-col="72"], .battlefield > .cell-highlight[data-col="72"] { grid-column-start: 73; }
+.battlefield > .card[data-col="73"], .battlefield > .cell-highlight[data-col="73"] { grid-column-start: 74; }
+.battlefield > .card[data-col="74"], .battlefield > .cell-highlight[data-col="74"] { grid-column-start: 75; }
+.battlefield > .card[data-col="75"], .battlefield > .cell-highlight[data-col="75"] { grid-column-start: 76; }
+.battlefield > .card[data-col="76"], .battlefield > .cell-highlight[data-col="76"] { grid-column-start: 77; }
+.battlefield > .card[data-col="77"], .battlefield > .cell-highlight[data-col="77"] { grid-column-start: 78; }
+.battlefield > .card[data-col="78"], .battlefield > .cell-highlight[data-col="78"] { grid-column-start: 79; }
+.battlefield > .card[data-col="79"], .battlefield > .cell-highlight[data-col="79"] { grid-column-start: 80; }
+.battlefield > .card[data-col="80"], .battlefield > .cell-highlight[data-col="80"] { grid-column-start: 81; }
+.battlefield > .card[data-col="81"], .battlefield > .cell-highlight[data-col="81"] { grid-column-start: 82; }
+.battlefield > .card[data-col="82"], .battlefield > .cell-highlight[data-col="82"] { grid-column-start: 83; }
+.battlefield > .card[data-col="83"], .battlefield > .cell-highlight[data-col="83"] { grid-column-start: 84; }
+.battlefield > .card[data-col="84"], .battlefield > .cell-highlight[data-col="84"] { grid-column-start: 85; }
+.battlefield > .card[data-col="85"], .battlefield > .cell-highlight[data-col="85"] { grid-column-start: 86; }
+.battlefield > .card[data-col="86"], .battlefield > .cell-highlight[data-col="86"] { grid-column-start: 87; }
+.battlefield > .card[data-col="87"], .battlefield > .cell-highlight[data-col="87"] { grid-column-start: 88; }
+.battlefield > .card[data-col="88"], .battlefield > .cell-highlight[data-col="88"] { grid-column-start: 89; }
+.battlefield > .card[data-row="0"], .battlefield > .cell-highlight[data-row="0"] { grid-row-start: 1; }
+.battlefield > .card[data-row="1"], .battlefield > .cell-highlight[data-row="1"] { grid-row-start: 2; }
+.battlefield > .card[data-row="2"], .battlefield > .cell-highlight[data-row="2"] { grid-row-start: 3; }
+.battlefield > .card[data-row="3"], .battlefield > .cell-highlight[data-row="3"] { grid-row-start: 4; }
+.battlefield > .card[data-row="4"], .battlefield > .cell-highlight[data-row="4"] { grid-row-start: 5; }
+.battlefield > .card[data-row="5"], .battlefield > .cell-highlight[data-row="5"] { grid-row-start: 6; }
+.battlefield > .card[data-row="6"], .battlefield > .cell-highlight[data-row="6"] { grid-row-start: 7; }
+.battlefield > .card[data-row="7"], .battlefield > .cell-highlight[data-row="7"] { grid-row-start: 8; }
+.battlefield > .card[data-row="8"], .battlefield > .cell-highlight[data-row="8"] { grid-row-start: 9; }
+.battlefield > .card[data-row="9"], .battlefield > .cell-highlight[data-row="9"] { grid-row-start: 10; }
+.battlefield > .card[data-row="10"], .battlefield > .cell-highlight[data-row="10"] { grid-row-start: 11; }
+.battlefield > .card[data-row="11"], .battlefield > .cell-highlight[data-row="11"] { grid-row-start: 12; }
+.battlefield > .card[data-row="12"], .battlefield > .cell-highlight[data-row="12"] { grid-row-start: 13; }
+.battlefield > .card[data-row="13"], .battlefield > .cell-highlight[data-row="13"] { grid-row-start: 14; }
+.battlefield > .card[data-row="14"], .battlefield > .cell-highlight[data-row="14"] { grid-row-start: 15; }
+.battlefield > .card[data-row="15"], .battlefield > .cell-highlight[data-row="15"] { grid-row-start: 16; }
+.battlefield > .card[data-row="16"], .battlefield > .cell-highlight[data-row="16"] { grid-row-start: 17; }
+.battlefield > .card[data-row="17"], .battlefield > .cell-highlight[data-row="17"] { grid-row-start: 18; }
+.battlefield > .card[data-row="18"], .battlefield > .cell-highlight[data-row="18"] { grid-row-start: 19; }
+.battlefield > .card[data-row="19"], .battlefield > .cell-highlight[data-row="19"] { grid-row-start: 20; }
+.battlefield > .card[data-row="20"], .battlefield > .cell-highlight[data-row="20"] { grid-row-start: 21; }
+.battlefield > .card[data-row="21"], .battlefield > .cell-highlight[data-row="21"] { grid-row-start: 22; }
+.battlefield > .card[data-row="22"], .battlefield > .cell-highlight[data-row="22"] { grid-row-start: 23; }
+.battlefield > .card[data-row="23"], .battlefield > .cell-highlight[data-row="23"] { grid-row-start: 24; }
+.battlefield > .card[data-row="24"], .battlefield > .cell-highlight[data-row="24"] { grid-row-start: 25; }
+body.playing .battlefield { flex: 1 1 0; min-height: 0; container-type: size; align-self: flex-start; aspect-ratio: 48 / 22.424; max-width: 100%; }
+/* debugging: the snap grid drawn on the board. A thin line at every cell (an eighth of a card, the step a card snaps to) and a stronger line at every card (8 cells), so what is stored matches what is seen */
+body.playing .battlefield { background-image: linear-gradient(to right, rgba(255, 255, 255, 0.22) 1px, transparent 1px), linear-gradient(to bottom, rgba(255, 255, 255, 0.22) 1px, transparent 1px), linear-gradient(to right, rgba(255, 255, 255, 0.07) 1px, transparent 1px), linear-gradient(to bottom, rgba(255, 255, 255, 0.07) 1px, transparent 1px); background-size: calc(100% / 12) calc(100% / 4), calc(100% / 12) calc(100% / 4), calc(100% / 96) calc(100% / 32), calc(100% / 96) calc(100% / 32); }
+/* your own board: the section is a size container, so the grid is never taller than its width allows (12 by 4 cards), whatever the window is shaped like */
+body.playing .board.mine { container-type: size; }
+body.playing .board.mine > .battlefield { max-height: calc(100cqw / 2.143); }
+/* another player's board sits in a grid area instead of a column: it takes the height of the area and is as wide as the card shape makes it */
+body.playing .opponent .battlefield { flex: none; height: 100%; align-self: start; }
+body.playing .battlefield > .card { justify-self: center; align-self: center; height: calc(min(100cqh / 4, 100cqw / 12 * 1.4015) - 3px); width: calc((min(100cqh / 4, 100cqw / 12 * 1.4015) - 3px) / 1.4015); }
+body.playing .battlefield > .card.tapped { width: calc(min(100cqh / 4, 100cqw / 12 * 1.4015) - 3px); }
 body.playing .battlefield > .card .face { width: 100%; height: 100%; }
-body.playing .battlefield > .card.tapped .face { width: calc((min(100cqh / 4, 100cqw / 12) - 3px) / 1.4015); height: calc(min(100cqh / 4, 100cqw / 12) - 3px); }
+body.playing .battlefield > .card.tapped .face { width: calc((min(100cqh / 4, 100cqw / 12 * 1.4015) - 3px) / 1.4015); height: calc(min(100cqh / 4, 100cqw / 12 * 1.4015) - 3px); }
 body.playing .battlefield > .card.tapped .badges { top: 0.2rem; }
 
-/* dragging a card on the battlefield grid (src/board-drag.js): the card follows the pointer, the cell under it is outlined (dashed for a swap, red where a card from the hand cannot go) */
+/* dragging a card on the battlefield grid (src/board-drag.js): the card follows the pointer, the 8 by 8 cells it would start on are outlined */
 .battlefield { position: relative; }
 .battlefield > .cell-highlight { z-index: 2; margin: 1px; border: 2px solid var(--accent); border-radius: 0.3rem; background: color-mix(in srgb, var(--accent) 22%, transparent); pointer-events: none; }
-.battlefield > .cell-highlight.swap { border-style: dashed; }
-.battlefield > .cell-highlight.taken { border-color: var(--danger); background: color-mix(in srgb, var(--danger) 22%, transparent); }
-.battlefield > .cell-highlight[data-col="0"] { grid-column: 1; }
-.battlefield > .cell-highlight[data-col="1"] { grid-column: 2; }
-.battlefield > .cell-highlight[data-col="2"] { grid-column: 3; }
-.battlefield > .cell-highlight[data-col="3"] { grid-column: 4; }
-.battlefield > .cell-highlight[data-col="4"] { grid-column: 5; }
-.battlefield > .cell-highlight[data-col="5"] { grid-column: 6; }
-.battlefield > .cell-highlight[data-col="6"] { grid-column: 7; }
-.battlefield > .cell-highlight[data-col="7"] { grid-column: 8; }
-.battlefield > .cell-highlight[data-col="8"] { grid-column: 9; }
-.battlefield > .cell-highlight[data-col="9"] { grid-column: 10; }
-.battlefield > .cell-highlight[data-col="10"] { grid-column: 11; }
-.battlefield > .cell-highlight[data-col="11"] { grid-column: 12; }
-.battlefield > .cell-highlight[data-row="0"] { grid-row: 1; }
-.battlefield > .cell-highlight[data-row="1"] { grid-row: 2; }
-.battlefield > .cell-highlight[data-row="2"] { grid-row: 3; }
-.battlefield > .cell-highlight[data-row="3"] { grid-row: 4; }
-.drag-ghost { position: fixed; left: 0; top: 0; z-index: 50; overflow: hidden; border-radius: 0.3rem; background: var(--line); box-shadow: 0 0.4rem 1rem rgba(0, 0, 0, 0.5); opacity: 0.92; pointer-events: none; font-size: 0.6rem; }
+.drag-ghost.tapped { rotate: 90deg; }
+.drag-ghost { position: fixed; left: 0; top: 0; z-index: 50; overflow: hidden; border-radius: 0.3rem; background: var(--line); box-shadow: 0 0.4rem 1rem rgba(0, 0, 0, 0.5); opacity: 0.6; pointer-events: none; font-size: 0.6rem; }
 .drag-ghost img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .card.dragging { opacity: 0.35; }
 body.dragging-card { cursor: grabbing; user-select: none; }

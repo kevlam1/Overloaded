@@ -55,7 +55,7 @@ function updateMarks(button, card, interactive, printed, onBattlefield) {
     const ptbox = make('span', parts ? 'ptbox' : 'ptbox idle');
     ptbox.append(
       piece(`pt power${shiftClass(stats.shift.power)}`, shortNumber(stats.power), 'power'),
-      piece('pt both', '', 'both'),
+      piece('pt both', '/', 'both'),
       piece(`pt toughness${shiftClass(stats.shift.toughness)}`, shortNumber(stats.toughness), 'toughness'),
     );
     nodes.push(ptbox);

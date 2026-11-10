@@ -2,7 +2,7 @@
 // your own battlefield; the cell under the pointer is outlined while you drag, and the page decides what the drop does (onDrop). Mouse and pen only: a phone has no hover and its
 // touch version is on hold. A drag starts only after the pointer has moved a few pixels, so an ordinary click still selects a card, and a press on a counter or a badge is theirs.
 // Escape, a menu, the window losing focus or letting go outside the board cancels it. This module changes nothing in the game: it reports { uid, from, col, row }.
-import { cellAtPoint } from '../../shared/board-grid.mjs';
+import { anchorAtPoint, cellAtPoint, shiftedAnchor } from '../../shared/board-grid.mjs';
 
 export const DRAG_DISTANCE_PX = 6;
 
@@ -39,9 +39,13 @@ export function mountBoardDrag({ doc = document, board, onDrop, isEnabled = () =
     ghost.className = 'drag-ghost';
     const picture = press.button.querySelector('img');
     if (picture && !press.button.classList.contains('noimage')) { const copy = picture.cloneNode(); copy.removeAttribute('loading'); ghost.append(copy); } else ghost.textContent = press.button.getAttribute('aria-label') ?? '';
-    const width = Math.min(rect.width, 84);
+    // the picture is the card at its own size on screen (a tapped card is turned back to portrait and then turned on its side again)
+    const tapped = press.button.classList.contains('tapped');
+    const height = rect.height;
+    const width = tapped ? height / 1.4015 : rect.width;
+    if (tapped) ghost.classList.add('tapped');
     ghost.style.width = `${width}px`;
-    ghost.style.height = `${Math.round(width * 1.4015)}px`;
+    ghost.style.height = `${height}px`;
     doc.body.append(ghost);
     const highlight = doc.createElement('div');
     highlight.className = 'cell-highlight';
@@ -49,23 +53,23 @@ export function mountBoardDrag({ doc = document, board, onDrop, isEnabled = () =
     boardElement.append(highlight);
     press.button.classList.add('dragging');
     doc.body.classList.add('dragging-card');
-    drag = { button: press.button, uid: press.uid, from: press.from, ghost, highlight, cell: null, width };
+    const grab = { x: Math.min(1, Math.max(0, (press.x - rect.left) / (rect.width || 1))), y: Math.min(1, Math.max(0, (press.y - rect.top) / (rect.height || 1))) }; // where on the card it was taken, as fractions
+    drag = { button: press.button, uid: press.uid, from: press.from, ghost, highlight, cell: null, width, height, grab, startX: press.x, startY: press.y, start: press.start };
     press = null;
   };
 
   const update = (event) => {
     const x = event.clientX; const y = event.clientY;
-    drag.ghost.style.transform = `translate(${Math.round(x - drag.width / 2)}px, ${Math.round(y - (drag.width * 1.4015) / 2)}px)`;
+    drag.ghost.style.transform = `translate(${Math.round(x - drag.width * drag.grab.x)}px, ${Math.round(y - drag.height * drag.grab.y)}px)`; // the card is held where it was taken
     const boardElement = board();
-    const cell = boardElement ? cellAtPoint(boardElement.getBoundingClientRect(), x, y) : null;
+    const rect = boardElement ? boardElement.getBoundingClientRect() : null;
+    // a card from the battlefield moves by as many cells as the pointer has moved; a card from the hand is put with the pointer in the middle of it. Outside the board there is no place.
+    const cell = !rect || !cellAtPoint(rect, x, y) ? null : drag.start ? shiftedAnchor(rect, drag.start, x - drag.startX, y - drag.startY) : anchorAtPoint(rect, x, y);
     drag.cell = cell;
     if (!cell) { drag.highlight.hidden = true; return; }
-    const holder = [...boardElement.children].find((child) => child.classList?.contains('card') && child.dataset.col === String(cell.col) && child.dataset.row === String(cell.row)) ?? null;
     drag.highlight.dataset.col = String(cell.col);
     drag.highlight.dataset.row = String(cell.row);
-    // an empty cell, or the card's own, is fine; a card on the battlefield dropped on another card swaps places with it; a card from the hand cannot take a cell that is taken
-    drag.highlight.className = `cell-highlight${holder && holder !== drag.button ? (drag.from === 'hand' ? ' taken' : ' swap') : ''}`;
-    drag.highlight.hidden = false;
+    drag.highlight.hidden = false; // anywhere on the board is fine: cards may overlap, nothing is refused
   };
 
   const swallowClick = () => {
@@ -79,7 +83,8 @@ export function mountBoardDrag({ doc = document, board, onDrop, isEnabled = () =
     if (event.shiftKey || event.altKey || event.ctrlKey || event.metaKey) return; // a modified click is something else (a marks step, a menu key)
     if (event.target.closest?.('[data-mark], [data-badge]')) return;
     const source = sourceOf(event.target);
-    press = source ? { ...source, x: event.clientX, y: event.clientY } : null;
+    const own = source?.from === 'battlefield' ? { col: Number(source.button.dataset.col), row: Number(source.button.dataset.row) } : null;
+    press = source ? { ...source, x: event.clientX, y: event.clientY, start: own && Number.isInteger(own.col) && Number.isInteger(own.row) ? own : null } : null;
   };
   const onMove = (event) => {
     if (press && !drag && Math.hypot(event.clientX - press.x, event.clientY - press.y) > DRAG_DISTANCE_PX) startDrag(event);
