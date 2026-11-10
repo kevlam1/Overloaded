@@ -22,7 +22,7 @@
 // pc (poison, energy, experience) and cd (commander damage by seat). docs/tokens-counters.md explains them.
 
 import { scrubText } from './player-name.mjs';
-import { validCell, cellOf, cellOrder, firstEmptyCell, placeAll, arrangeAll, overlaps, nearbyFreeBlock, CARD_COLS, CARD_ROWS } from './board-grid.mjs';
+import { validCell, cellOf, cellOrder, firstEmptyCell, placeAll, arrangeAll, overlaps, nearbyFreeBlock, CARD_COLS, CARD_ROWS, TAP_GAP } from './board-grid.mjs';
 import { stackKey, stackCellFor, snapToStack } from './stacks.mjs';
 
 const SCRYFALL_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -202,25 +202,46 @@ export function mulligan(game, { random = secureRandom, handSize = HAND_SIZE } =
 //    that pile (nearbyFreeBlock), so the tapped copies sit next to the untapped ones instead of under them. A card alone on its cell with no tapped pile next to it stays where it is.
 //  - Untapped: it goes back to the pile of untapped copies of its name if one is within a card of it. (A pile farther away is not joined: a card does not jump across the board.)
 // The card goes to the end of the list (drawn on top) when it lands on a card that is later in the list; otherwise it keeps its place, so one card is one small write.
-function regroupAfterTap(list, index, before) {
+function regroupAfterTap(list, index, before, stepOut = tapStepOut) {
   const card = list[index];
   const here = cellOf(card);
   if (!here) return list;
   const others = list.filter((c, i) => i !== index);
   let to = null;
   const pile = stackCellFor(others, card);
-  const close = pile && Math.abs(pile.col - here.col) <= CARD_COLS && Math.abs(pile.row - here.row) <= CARD_ROWS; // within a card of it, in both directions
+  const close = pile && Math.abs(pile.col - here.col) <= CARD_COLS + TAP_GAP && Math.abs(pile.row - here.row) <= CARD_ROWS; // within a card of it (and the gap a tapped card steps out by)
+  const oldKey = stackKey(before);
+  const mates = others.some((c) => stackKey(c) === oldKey && c.px === here.col && c.py === here.row);
   if (close) to = pile;
   else if (card.tapped) {
-    const oldKey = stackKey(before);
-    const mates = others.some((c) => stackKey(c) === oldKey && c.px === here.col && c.py === here.row);
-    if (mates) to = nearbyFreeBlock(others, here);
+    if (mates) to = nearbyFreeBlock(others, here, stepOut);
+  } else if (mates) {
+    // Untapped out of a stack of tapped cards with no untapped pile beside it: it appears on the OTHER side of the stack from where tapped cards step out (on the left, or below when they go up).
+    // If the left is off the board but there is room on the right, the stack is scooched over to the right by that much and the card takes the place the stack was in.
+    const opposite = stepOut === 'up' ? 'down' : 'left';
+    to = nearbyFreeBlock(others, here, opposite);
+    const leftOff = !validCell(here.col - CARD_COLS - TAP_GAP, here.row);
+    if (opposite === 'left' && leftOff) {
+      const shifted = { col: here.col + CARD_COLS + TAP_GAP, row: here.row };
+      const stack = others.filter((c) => stackKey(c) === oldKey && c.px === here.col && c.py === here.row);
+      const rest = others.filter((c) => !stack.includes(c));
+      if (validCell(shifted.col, shifted.row) && !rest.some((c) => overlaps(shifted, { col: c.px, row: c.py }))) {
+        const moved = new Set(stack.map((c) => c.uid));
+        return list.map((c) => (moved.has(c.uid) ? { ...c, px: shifted.col } : c)); // the card itself stays on the cell the stack was on
+      }
+    }
   }
   if (!to || (to.col === here.col && to.row === here.row)) return list;
   const moved = { ...card, px: to.col, py: to.row };
   const coversALaterCard = list.slice(index + 1).some((c) => overlaps(to, { col: c.px, row: c.py }));
   return coversALaterCard ? [...list.filter((c, i) => i !== index), moved] : list.map((c, i) => (i === index ? moved : c));
 }
+
+// Where a tapped card steps out of its pile: 'right' (beside it, the first pile style) or 'up' (on top of it, a whole card higher, the horizontal pile style). A page sets it from the "Piles" choice
+// (frontend/src/pile-style.js); it only decides where a card goes, never anything else.
+let tapStepOut = 'right';
+export function setTapStepOut(direction) { tapStepOut = direction === 'up' ? 'up' : 'right'; }
+export const getTapStepOut = () => tapStepOut;
 
 export function setTapped(game, uid, tapped) {
   const { zone, at } = locate(game, uid);
@@ -237,10 +258,15 @@ export function setTapped(game, uid, tapped) {
 export function untapAll(game) {
   const untapped = game.zones.battlefield.filter((card) => card.tapped && !card.noUntap).map((card) => card.uid);
   if (!untapped.length) return game;
-  const changed = game.zones.battlefield.map((card) => (card.tapped && !card.noUntap ? { ...card, tapped: false } : card));
-  const settled = settleBoard({ ...game, zones: { ...game.zones, battlefield: changed } });
+  // One card at a time, so each card finds the pile of UNTAPPED copies of its name (the others are still tapped, a different stack) and rejoins it if one is next to it.
+  let settled = settleBoard(game);
   let list = settled.zones.battlefield;
-  for (const uid of untapped) { const index = list.findIndex((card) => card.uid === uid); list = regroupAfterTap(list, index, { ...list[index], tapped: true }); } // each one rejoins the untapped pile of its name
+  for (const uid of untapped) {
+    const index = list.findIndex((card) => card.uid === uid);
+    const before = list[index];
+    list = list.map((card, i) => (i === index ? { ...card, tapped: false } : card));
+    list = regroupAfterTap(list, index, before);
+  }
   return { ...settled, zones: { ...settled.zones, battlefield: list } };
 }
 // How many cards the untap step would leave tapped (tapped and marked "doesn't untap").
@@ -470,6 +496,27 @@ export function placeCard(game, uid, col, row) {
   const coversALaterCard = list.slice(index + 1).some((c) => overlaps(at, { col: c.px, row: c.py }));
   const battlefield = coversALaterCard ? [...list.filter((c) => c.uid !== uid), moved] : list.map((c) => (c.uid === uid ? moved : c));
   return { game: { ...settled, zones: { ...settled.zones, battlefield } }, swapped: null };
+}
+
+// Moves a whole pile: every card on the cell of this card with the same name and state (shared/stacks.mjs) goes to the new cell together, in the order they were (the top card stays the top
+// card). Like placeCard it snaps onto a pile of the same kind that is close (not the pile it is leaving), and the cards go to the end of the list (drawn on top) only if they land on a card
+// that comes after them. A card with no pile mates is a pile of one, so this then moves just that card. Returns { game, moved } where moved is how many cards moved.
+export function placeStack(game, uid, col, row) {
+  if (!validCell(col, row)) throw new Error('That is not a space on the battlefield.');
+  const settled = settleBoard(game);
+  const { card } = onBattlefield(settled, uid, 'a place on the grid');
+  const here = cellOf(card);
+  const key = stackKey(card);
+  const list = settled.zones.battlefield;
+  const group = list.filter((c) => c.px === here.col && c.py === here.row && stackKey(c) === key);
+  if (here.col === col && here.row === row) return { game: settled, moved: group.length };
+  const members = new Set(group.map((c) => c.uid));
+  const at = snapToStack(list, card, { col, row }, undefined, here); // the pile it is leaving does not pull it back, and its other cards are on that cell
+  const firstIndex = list.findIndex((c) => members.has(c.uid));
+  const coversALaterCard = list.some((c, i) => i > firstIndex && !members.has(c.uid) && overlaps(at, { col: c.px, row: c.py }));
+  const movedCards = group.map((c) => ({ ...c, px: at.col, py: at.row }));
+  const battlefield = coversALaterCard ? [...list.filter((c) => !members.has(c.uid)), ...movedCards] : list.map((c) => (members.has(c.uid) ? movedCards.find((m) => m.uid === c.uid) : c));
+  return { game: { ...settled, zones: { ...settled.zones, battlefield } }, moved: group.length };
 }
 
 // Tidies the battlefield: every card placed again, lands from the bottom-left and the rest from the top-left, cards of the same name side by side.

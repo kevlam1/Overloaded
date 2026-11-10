@@ -7,12 +7,13 @@
 // card never moves because another one was placed. A card with no position (an older game, or a damaged value) is given one when the board is drawn or the game is loaded: the
 // first free block, lands from the bottom-left and every other card from the top-left, which keeps a loose order without two labelled sections. If every block is taken the card
 // goes on top of the last one tried: nothing is refused.
-export const BOARD_COLS = 96;
+export const BOARD_COLS = 112; // 14 cards across (it was 12: Kevin, 2026-11-10, "lots of the battlefield seems to be empty space")
 export const BOARD_ROWS = 44;
 export const CARD_COLS = 8;
 export const CARD_ROWS = 11; // a card is 8 cells wide and 11 tall, so a cell is square (a card is 5 by 7)
 export const MAX_COL = BOARD_COLS - CARD_COLS; // the last column a card can start in
 export const MAX_ROW = BOARD_ROWS - CARD_ROWS; // the last row a card can start in
+export const TAP_GAP = 2; // a tapped card steps out of its pile to a place this many cells further than a whole card (Kevin, 2026-11-09: one more cell to the right)
 export const BOARD_CAPACITY = (BOARD_COLS / CARD_COLS) * (BOARD_ROWS / CARD_ROWS); // 48 blocks (12 by 4): how many cards fit side by side without overlapping
 
 const whole = (value) => Number.isInteger(value);
@@ -128,11 +129,15 @@ export function shiftedAnchor(rect, start, dx, dy) {
   return { col: Math.min(MAX_COL, Math.max(0, col)), row: Math.min(MAX_ROW, Math.max(0, row)) };
 }
 
-// A free place next to a card at `cell`, for a card that has to step out of a pile: the block to its right, else to its left, else below, else above (each a whole card away), the first
+// A free place next to a card at `cell`, for a card that has to step out of a pile: the block to its right (a whole card and TAP_GAP cells away), else to its left, else below, else above (a whole card away); with prefer 'up' the block above comes first, with 'left' the one to the left, with 'down' the one below. The first
 // that is on the board and that no card in `cards` covers. Null when there is none. (The pile at `cell` itself never covers a block a whole card away, so it needs no special case.)
-export function nearbyFreeBlock(cards, cell) {
+export function nearbyFreeBlock(cards, cell, prefer = 'right') {
   const placed = cards.map(cellOf).filter(Boolean);
-  const candidates = [{ col: cell.col + CARD_COLS, row: cell.row }, { col: cell.col - CARD_COLS, row: cell.row }, { col: cell.col, row: cell.row + CARD_ROWS }, { col: cell.col, row: cell.row - CARD_ROWS }];
+  const right = { col: cell.col + CARD_COLS + TAP_GAP, row: cell.row };
+  const left = { col: cell.col - CARD_COLS - TAP_GAP, row: cell.row };
+  const below = { col: cell.col, row: cell.row + CARD_ROWS };
+  const above = { col: cell.col, row: cell.row - CARD_ROWS };
+  const candidates = prefer === 'up' ? [above, right, left, below] : prefer === 'left' ? [left, right, below, above] : prefer === 'down' ? [below, above, right, left] : [right, left, below, above]; // 'up': the tapped copies go on top of the pile, a whole card higher (the horizontal pile style)
   return candidates.find((c) => validCell(c.col, c.row) && !placed.some((p) => overlaps(c, p))) ?? null;
 }
 

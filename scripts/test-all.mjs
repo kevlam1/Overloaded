@@ -43,6 +43,7 @@ const suites = [
   { name: 'the battlefield grid: cells, order, settling, tidying', cmd: node, args: ['scripts/test-board-grid.mjs'] },
   { name: 'playing cards on the grid: drops, overlaps, tidying, writes', cmd: node, args: ['scripts/test-board-play.mjs'] },
   { name: 'stacks: what makes a pile, where new cards go, the snap, tidying', cmd: node, args: ['scripts/test-stacks.mjs'] },
+  { name: 'how piles are drawn: the saved choice', cmd: node, args: ['scripts/test-pile-style.mjs'] },
   { name: 'the card hover preview: which picture, where the box goes', cmd: node, args: ['scripts/test-card-hover.mjs'] },
   { name: 'counters, modifier, tokens, player counters', cmd: node, args: ['scripts/test-counters.mjs'] },
   { name: 'counters and tokens: how they are stored and read back', cmd: node, args: ['scripts/test-sync-counters.mjs'] },

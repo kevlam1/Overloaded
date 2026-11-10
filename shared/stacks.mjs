@@ -5,7 +5,7 @@
 // "The same state" means the same name and the same tapped, summoning-sick and doesn't-untap marks, counters, power and toughness change, note, face-down and turned-over state, so a
 // land that has become a creature, a card with a counter, or a tapped copy does not join the untapped plain ones (Kevin: "stuff to differentiate"). The picture (printing) is not part
 // of it: the pile shows the top card.
-import { cellOf } from './board-grid.mjs';
+import { cellOf, CARD_COLS, CARD_ROWS } from './board-grid.mjs';
 
 export const STACK_VISIBLE = 4; // how many copies of a pile are drawn
 export const SNAP_RADIUS = 6; // a card dropped within this many cells of a card it could stack with goes onto it (three quarters of a card wide)
@@ -54,10 +54,13 @@ export function stackCellFor(cards, candidate) {
   return null;
 }
 
-// Where a card dropped on `cell` really goes: onto the nearest card it could stack with that is within SNAP_RADIUS cells (both ways), else where it was dropped. `leaving` (optional)
+// Where a card dropped on `cell` really goes: onto the nearest card it could stack with that is within SNAP_RADIUS cells (both ways; a tapped card is turned on its side, so its area is
+// wider than tall in the same proportion as the card: 8 cells across and 4 up and down), else where it was dropped. `leaving` (optional)
 // is the cell the card is being taken from: the cards still there are its old pile, which it must be able to leave by a short drag, so they do not attract it.
 export function snapToStack(cards, candidate, cell, radius = SNAP_RADIUS, leaving = null) {
   const key = stackKey(candidate);
+  const reachX = candidate.tapped ? Math.round((radius * CARD_ROWS) / CARD_COLS) : radius; // a tapped card is a landscape card: 11 across and 8 up and down for a card that is 8 by 11
+  const reachY = candidate.tapped ? Math.round((radius * CARD_COLS) / CARD_ROWS) : radius;
   let best = null;
   let bestDistance = Infinity;
   for (const other of cards) {
@@ -65,8 +68,10 @@ export function snapToStack(cards, candidate, cell, radius = SNAP_RADIUS, leavin
     const at = cellOf(other);
     if (!at || stackKey(other) !== key) continue;
     if (leaving && at.col === leaving.col && at.row === leaving.row) continue;
-    const distance = Math.max(Math.abs(at.col - cell.col), Math.abs(at.row - cell.row));
-    if (distance <= radius && distance < bestDistance) { best = at; bestDistance = distance; }
+    const across = Math.abs(at.col - cell.col);
+    const down = Math.abs(at.row - cell.row);
+    const distance = Math.max(reachX ? across / reachX : Infinity, reachY ? down / reachY : Infinity); // how far out of its area the card is: 1 or less is inside
+    if (across <= reachX && down <= reachY && distance < bestDistance) { best = at; bestDistance = distance; }
   }
   return best ?? cell;
 }
