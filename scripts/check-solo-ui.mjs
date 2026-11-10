@@ -102,7 +102,7 @@ try {
   check('the library holds the other 53 cards and the sideboard is empty', (await pileCount('library')) === 'Library: 53' && (await pileCount('sideboard')) === 'Sideboard: 0');
   check('the graveyard and exile are empty and the battlefield has nothing on it', (await pileCount('graveyard')) === 'Graveyard: 0' && (await pileCount('exile')) === 'Exile: 0' && (await count('#battlefield .card[data-kind="land"]')) + (await count('#battlefield .card[data-kind="other"]')) === 0);
   check('the status says what was dealt', /Dealt 7 cards\. Your commander is in the command zone\. Life is 40\./.test(await $text('status')), await $text('status'));
-  check('the empty battlefield says it is empty', (await ev(`document.getElementById('battlefield').dataset.empty`)) === 'Nothing on the battlefield yet.');
+  check('an empty battlefield shows no text', (await ev(`getComputedStyle(document.getElementById('battlefield'), '::before').content`)) === 'none' && (await ev(`document.getElementById('battlefield').textContent.trim()`)) === '');
   await sleep(500);
   check('pictures are requested from Scryfall\'s picture server only, in the small size, and each once', asked.length > 0 && asked.length <= 8 && new Set(asked).size === asked.length && asked.every((u) => /^https:\/\/cards\.scryfall\.io\/small\/front\/[0-9a-f]\/[0-9a-f]\/[0-9a-f-]{36}\.jpg$/.test(u)), `${asked.length}: ${asked[0]}`);
   const picture = await ev(`(() => { const i = document.querySelector('#hand .card img'); return { alt: i.alt, w: i.naturalWidth, h: i.naturalHeight, referrer: i.referrerPolicy, lazy: i.loading }; })()`);
@@ -1335,9 +1335,11 @@ try {
   if (process.argv.includes('--screenshot')) await browser.screenshot('scratch-solo-stack.png');
   // moving a whole pile: Shift and drag any card of it, or take the corner handle; a plain drag still takes one card
   { const r = await boardRect(); const topCard = '#battlefield .card[data-stack-depth="0"]';
-    const shiftDrag = async (from, to, modifiers) => { await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: from.x, y: from.y }); await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: from.x, y: from.y, button: 'left', buttons: 1, clickCount: 1, modifiers }); for (let n = 1; n <= 8; n++) await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: from.x + (to.x - from.x) * n / 8, y: from.y + (to.y - from.y) * n / 8, buttons: 1, modifiers }); await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: to.x, y: to.y, button: 'left', buttons: 0, clickCount: 1, modifiers }); await sleep(100); };
+    const shiftDrag = async (from, to, modifiers, during = null) => { await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: from.x, y: from.y }); await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: from.x, y: from.y, button: 'left', buttons: 1, clickCount: 1, modifiers }); for (let n = 1; n <= 8; n++) await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: from.x + (to.x - from.x) * n / 8, y: from.y + (to.y - from.y) * n / 8, buttons: 1, modifiers }); if (during) await during(); await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: to.x, y: to.y, button: 'left', buttons: 0, clickCount: 1, modifiers }); await sleep(100); };
     const from = await centerOfSelector(topCard);
-    await shiftDrag(from, { x: from.x + 30 * r.width / 112, y: from.y - 11 * r.height / 44 }, 8);
+    let carried = null;
+    await shiftDrag(from, { x: from.x + 30 * r.width / 112, y: from.y - 11 * r.height / 44 }, 8, async () => { carried = await ev(`(() => ({ hidden: document.querySelectorAll('#battlefield .card.dragging').length, visible: Array.from(document.querySelectorAll('#battlefield .card')).filter((c) => getComputedStyle(c).visibility !== 'hidden' && getComputedStyle(c).display !== 'none').length }))()`); });
+    check('while a whole pile is carried every card of it is hidden at the old place (not only the one that was pressed)', carried && carried.hidden === 6 && carried.visible === 0, JSON.stringify(carried));
     pile = await forestState();
     check('Shift and drag on a pile moves the whole pile: all six Forests on the new cell, still 6x', pile.cells.length === 1 && pile.cells[0] === '30,22' && pile.badge === '6x' && /^Moved the pile of 6 Forest./.test(await $text('status')), JSON.stringify({ pile, status: await $text('status') }));
     check('...and the pile has a handle at its corner on the top card only', (await count('#battlefield .stack-handle')) === 1 && (await count(topCard + ' .stack-handle')) === 1);
@@ -1352,6 +1354,19 @@ try {
     await press('arrange'); await sleep(60);
     check('(Auto-arrange puts the six together again)', (await forestState()).badge === '6x'); }
 
+  // the dashed border around a pile, a card being dragged is not shown where it was, and the highlight of a selected card is thin
+  { const border = await ev(`(() => { const c = document.querySelector('#battlefield .card[data-stack-depth="0"]'); const cs = getComputedStyle(c, '::before'); return { ext: c.dataset.stackExt, style: cs.borderTopStyle, width: cs.borderTopWidth, top: cs.top, left: cs.left, event: cs.pointerEvents }; })()`);
+    check('a pile has a dashed border around it that reaches up and left over the copies under the top card and takes no clicks', border.ext === '3' && border.style === 'dashed' && border.width === '1px' && parseFloat(border.top) < -3 && parseFloat(border.left) < -3 && border.event === 'none', JSON.stringify(border));
+    await clickCard('#battlefield .card[data-stack-depth="0"]');
+    const sel = await ev(`(() => { const cs = getComputedStyle(document.querySelector('#battlefield .card.selected')); return { shadow: cs.boxShadow, border: cs.borderTopColor }; })()`);
+    check('the highlight of the selected card is a thin line and a faint glow (not a thick solid ring)', !/ 3px/.test(sel.shadow) && / 1px/.test(sel.shadow) && sel.border === 'rgba(0, 0, 0, 0)', JSON.stringify(sel));
+    await clickAction('Deselect');
+    const r2 = await boardRect(); const top = await centerOfSelector('#battlefield .card[data-stack-depth="0"]');
+    let seen = null;
+    await dragTo(top, { x: top.x + 12 * r2.width / 112, y: top.y - 11 * r2.height / 44 }, { release: false, during: async () => { seen = await ev(`(() => { const c = document.querySelector('#battlefield .card.dragging'); return c ? { hidden: getComputedStyle(c).visibility, count: document.querySelectorAll('#battlefield .card.dragging').length } : null; })()`); } });
+    await key('Escape', 'Escape', 27); await mouseAt('mouseReleased', { x: top.x + 12 * r2.width / 112, y: top.y - 11 * r2.height / 44 }, 0); await sleep(80);
+    check('while a card is dragged the card is not shown where it was (hidden, not dimmed)', seen && seen.hidden === 'hidden' && seen.count === 1, JSON.stringify(seen));
+    const holder = await ev(`(() => { const r = document.getElementById('battlefield').getBoundingClientRect(); return { x: r.left, y: r.top }; })()`); void holder; }
   // the "Piles" choice: horizontal puts the copies under the top card straight to its left, diagonal up and to the left
   const pileShift = () => ev(`(() => { const c = document.querySelector('#battlefield .card[data-stack-depth="1"]'); return c ? getComputedStyle(c).translate : null; })()`);
   const diagonalShift = await pileShift();
