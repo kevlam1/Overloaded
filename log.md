@@ -2287,7 +2287,37 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 111. The battlefield becomes a fine snap grid with overlap (step 1) (2026-11-09)
+
+**What I asked for**
+- The drag and drop was not what I meant. I wanted a loose, table-like board: drop a card anywhere and it snaps to a fine grid, cards can overlap, nothing swaps and nothing is refused. Same-name cards (lands, tokens) should stack, with up to four copies visible, a count like "8x", a plain drag taking one card off the stack and Shift or a corner handle moving the whole stack. Tapped and untapped copies are separate stacks, and cards in a different state (summoning sick, counters, and so on) do not join a stack. Lands still start at the bottom.
+- Claude planned it in three steps (1: the fine grid, free drop and overlap; 2: stack drawing and the count; 3: taking one off a stack, moving a whole stack, the tapped split) and I said to start. This entry is step 1 and the first round of tuning. Stacks are NOT built yet.
+- Tuning I asked for afterwards: the picture of a card I pick up must be the card at its real size (it was shrinking), I did not want the card rewritten on every drop, the power and toughness box should show a slash instead of a gap, and the battlefield should show grid lines that match the snap spacing, for debugging.
+
+**What changed**
+- `shared/board-grid.mjs`: the grid is 48 columns by 16 rows, a card is 4 by 4 cells (a quarter-card step). A card stores the cell of its top-left corner (`px` 0 to 44, `py` 0 to 12). No database rules change (the published rules already allow 0 to 4000). New `anchorAtPoint`, `shiftedAnchor` (a card moves by the distance the pointer travelled, so the spot I grabbed stays under the pointer) and `overlaps`.
+- `shared/zones.mjs`: no swap, no refusal. `placeCard` moves a card; a full board no longer refuses a card (extra cards go on the last block). A card goes to the end of the battlefield list (drawn on top) only when it lands on a card that comes after it.
+- `shared/game-sync.mjs`: a zone with the same number of cards is written one place at a time when at most four places changed, otherwise as the whole zone.
+- `frontend/src/board-drag.js` and `style.css`: the picture that follows the pointer is the card at its own size, held where I grabbed it, and see-through so the outline shows; the board has the shape of 12 by 4 cards so a block is exactly one card; faint grid lines at every cell and stronger ones at every card; the power and toughness box shows a `/`.
+
+- Later the same day I asked for the grid distances to be halved. Claude read that as half-size cells (96 columns by 32 rows, a card 8 by 8 cells, a step of an eighth of a card) with a card the same size on screen; the board shape and the card size did not change, only the snap spacing and the debug lines. Everything that hard-coded cells (the grid, play and counter tests, the layout and solo checks, the live check) was scaled, and a same-card drag test had to change because 7 pixels is now about a whole cell.
+
+**What I checked**
+- Node suites: `test-board-grid` 119, `test-board-play` 112 (five random games of 2,500 operations), and the older suites updated where cards may now overlap. `npm test` passed all 50 suites. The solo check is now 370 checks with real mouse, finger and Alt-key input, and the live two-browser check 167: Alice drags a card with the real mouse and Bob's page and the database both show the new cell.
+- I measured what a drop writes with 30 cards on the board: dragging the top card is one piece of 182 bytes, but lifting a card from underneath rewrote the whole battlefield (4.7 KB), so I changed `placeCard` to reorder the list only when the card lands on a later card. A plain drag writes nothing; only the drop saves.
+- Broken copies: 11 of 11 of the new grid code, 7 of 7 of `placeCard` and the cell fallback (one survivor, the "later cards only" test, got a three-card test), 3 of 3 of the write code, and 5 of 5 of the new drag code after one survivor (held where grabbed) got a test.
+- Screenshots looked at: the board is now card-shaped (978 x 456 at 1280x1000) with cards exactly filling their blocks and grid lines at the cell and card spacing, a drag in progress with the see-through picture, and the four-player layout.
+- **Not checked:** stacks (not built), a real four-player game, phones, a tapped card dragged in the browser (the tapped ghost is turned on its side in CSS; not seen), the opponent boards when their panel is narrow (their board takes the panel's height and may be a little off the card shape).
+
+**Decisions**
+- 48 x 16 and "overlap, never refuse" follow my answers. Old test games keep their small coordinates (they cluster at the top-left until Auto-arrange); there are no real saved games to migrate.
+- The grid lines are always on for now (debugging). Alt and an arrow key still move a card by one cell.
+- Mistakes of Claude: it first drew the board stretched to the window, so a card only filled about 60% of its block and "overlap" looked wrong on screen (found by looking at a screenshot); the drag picture hid the outline; a first write change rewrote the whole battlefield when a card was lifted from underneath, which I only found by measuring after you asked; the card-size and layout checks needed new numbers.
+
+---
+
 ## Where AI misread me, or I had to correct course
+- (2026-11-09, entry 111) Claude's first drag and drop (entry 110) was not what I meant (a fixed grid with swaps and refusals instead of a loose, snapping board with overlap and stacks); it also drew the new board stretched so cards filled only 60% of their blocks, let the drag picture hide the outline, and rewrote the whole battlefield when a card was lifted from underneath, which it found only when I asked and it measured.
 - (2026-11-06, entry 110) Claude's first drag check swiped from the left edge of the page, which Chrome reads as Back, so the page left and the check looked flaky; one test line became a comment by accident and still passed (found by counting the checks); and the first run of broken copies showed five spots the tests did not cover (the click after a drag, Shift, the hidden outline, a half cell, an in-board point that is not a number).
 - (2026-11-06, entry 104) Claude guessed at the cause of my slider looking different, shipped a guess (an accent colour) that changed nothing, and had added a sound on every slider adjustment that I never asked for.
 - (2026-11-06, entry 101) Claude's first broken copy of the volume parsing had broken syntax, so it looked caught but proved nothing, and a test of the slider sample could not tell the sample from the previous sound. Both were found by reading the run, not by the tests.
