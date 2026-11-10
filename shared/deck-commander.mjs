@@ -11,9 +11,9 @@ export function commanderMenuItems(line, picks, { commanderFormat }) {
   if (!commanderFormat || !line || line.status !== 'matched' || !line.card || !PICKABLE_SECTIONS.includes(line.section)) return [];
   const id = line.card.i;
   const [first, second] = [picks?.[0] ?? '', picks?.[1] ?? ''];
-  if (id === first) return [{ id: 'unpick', label: 'Not the commander' }];
-  if (id === second) return [{ id: 'unpick', label: 'Not the partner' }, { id: 'commander', label: 'Make commander instead' }];
-  return [{ id: 'commander', label: first ? 'Make commander (replaces the current one)' : 'Make commander' }, { id: 'partner', label: second ? 'Make partner (replaces the current one)' : 'Make partner' }];
+  if (id === first) return [{ id: 'unpick', label: 'Remove as commander' }];
+  if (id === second) return [{ id: 'commander', label: 'Make commander' }, { id: 'unpick', label: 'Remove as partner' }];
+  return [{ id: 'commander', label: 'Make commander' }, { id: 'partner', label: 'Make partner' }];
 }
 
 // What the picks are after a choice. action: 'commander', 'partner' or 'unpick'. A partner with no commander becomes the commander.

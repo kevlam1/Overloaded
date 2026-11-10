@@ -5,17 +5,17 @@
 //   Not matched   lines the card list could not match (they stay visible so the counts add up)
 //   Commander     the picked commander and partner (Commander format only)
 //   Companion     the companion line of an import
-//   Creatures, Planeswalkers, Battles, Instants, Sorceries, Artifacts, Enchantments, Lands, Other   the main deck by type
+//   Planeswalkers, Creatures, Battles, Instants, Sorceries, Artifacts, Enchantments, Lands, Other   the main deck by type
 //   Sideboard
 //   Maybeboard (not counted)
-// A card with more than one type goes in the first of these that its front face has: Land, then Creature, Planeswalker, Battle, Instant, Sorcery, Artifact, Enchantment
-// (so an Artifact Creature is a creature, an Artifact Land is a land, and a Kindred Instant is an instant). Inside a group the cards are sorted by name.
+// A card with more than one type goes in the first of these that its front face has: Land, then Planeswalker, Creature, Battle, Instant, Sorcery, Artifact, Enchantment
+// (so an Artifact Creature is a creature, an Artifact Land is a land, a Kindred Instant is an instant, and a creature that is also a planeswalker is a planeswalker). Inside a group the cards are sorted by name.
 
 const EM_DASH = ' ' + String.fromCharCode(0x2014) + ' ';
 
 // The order the types are looked for in a card (first match wins), and the order the groups are shown in.
-const PRIORITY = ['land', 'creature', 'planeswalker', 'battle', 'instant', 'sorcery', 'artifact', 'enchantment'];
-export const CATEGORY_ORDER = ['creature', 'planeswalker', 'battle', 'instant', 'sorcery', 'artifact', 'enchantment', 'land', 'other'];
+const PRIORITY = ['land', 'planeswalker', 'creature', 'battle', 'instant', 'sorcery', 'artifact', 'enchantment'];
+export const CATEGORY_ORDER = ['planeswalker', 'creature', 'battle', 'instant', 'sorcery', 'artifact', 'enchantment', 'land', 'other'];
 export const CATEGORY_TITLES = { creature: 'Creatures', planeswalker: 'Planeswalkers', battle: 'Battles', instant: 'Instants', sorcery: 'Sorceries', artifact: 'Artifacts', enchantment: 'Enchantments', land: 'Lands', other: 'Other' };
 export const GROUP_TITLES = { unmatched: 'Not matched', commander: 'Commander', companion: 'Companion', sideboard: 'Sideboard', maybeboard: 'Maybeboard (not counted)', ...CATEGORY_TITLES };
 

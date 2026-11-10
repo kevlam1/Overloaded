@@ -10,7 +10,6 @@ const ROW_GAP = 12; // pixels between a row and the picture beside it
 const DOCK_MIN_WIDTH = 900; // a window at least this wide has room for the picture beside the list
 // What the note says about the picture, from the row's data-printing: the printing the list named by set and number, the printing
 // that carries a title the player typed, or (nothing known) the card's default printing.
-const PRINTING_NOTES = { set: 'the printing you named', title: 'the printing that carries the title you typed', default: "the card's default printing" };
 
 // root: the element that holds the rows. Each row has data-card-id (a Scryfall id) and data-card-name. peek: the box to show,
 // image: its <img>, note: the text under the picture. Returns { hide }.
@@ -76,7 +75,7 @@ export function setupCardPeek({ root, peek, image, note, win = window }) {
         image.hidden = false;
         if (image.getAttribute('src') !== url) image.setAttribute('src', url);
         image.alt = name;
-        note.textContent = `${name}: ${PRINTING_NOTES[row.dataset.printing] ?? PRINTING_NOTES.default}${backUrl && !failed.has(backUrl) ? ', front and back' : ''}`;
+        note.textContent = ''; // nothing is written under a picture that loaded; the box says something only when a picture is missing
       }
     }
     peek.hidden = false;
@@ -94,7 +93,6 @@ export function setupCardPeek({ root, peek, image, note, win = window }) {
     // A back picture that is not there: show the front alone (and do not ask again), instead of a broken image.
     failed.add(backImage.getAttribute('src'));
     showBack(null, '');
-    note.textContent = note.textContent.replace(', front and back', '');
     if (current && !peek.hidden) place(last.x, last.y);
   });
   image.addEventListener('error', () => {

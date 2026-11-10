@@ -131,7 +131,8 @@ textarea {
   font: 0.9rem/1.4 ui-monospace, Menlo, Consolas, monospace;
   resize: vertical;
 }
-textarea:focus-visible, a:focus-visible, h2:focus-visible, h3:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+a:focus-visible, h2:focus-visible, h3:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+textarea:focus, textarea:focus-visible { outline: none; border-color: var(--muted); box-shadow: 0 0 0 1px var(--muted); } /* a quiet grey edge instead of the blue ring */
 a { color: var(--accent); }
 .back { margin: 0 0 0.75rem; font-size: 0.9rem; }
 .actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem; }
@@ -177,9 +178,10 @@ h3 { margin: 1rem 0 0.4rem; font-size: 1rem; }
 /* The card picture that follows the pointer over a deck list (src/card-peek.js). It never takes the pointer itself. */
 .card-peek { position: fixed; z-index: 50; width: 17rem; padding: 0.4rem; background: var(--card); border: 1px solid var(--line); border-radius: 0.5rem; box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.35); pointer-events: none; }
 .card-peek[hidden] { display: none; }
-.card-peek img { display: block; width: 100%; height: auto; }
+.card-peek img { display: block; width: 100%; height: auto; border-radius: 4.8% / 3.4%; } /* a card picture's corners are white outside the rounded card */
 .card-peek img[hidden] { display: none; }
 .card-peek-note { margin: 0.35rem 0 0; font-size: 0.8rem; color: var(--muted); overflow-wrap: anywhere; }
+.card-peek-note:empty { display: none; }
 /* A card with a back face: both faces side by side, the note under both (src/card-peek.js adds the second picture). */
 .card-peek.two-faced:not([hidden]) { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; width: 34.4rem; max-width: calc(100vw - 1rem); }
 .card-peek.two-faced .card-peek-note { grid-column: 1 / -1; margin-top: 0; }
@@ -753,11 +755,14 @@ body .battlefield > .card.tapped[data-stack-ext="3"]::before { left: -3px; top: 
 .view-button + .view-button { border-left: 1px solid var(--line); }
 .view-button[aria-pressed="true"] { background: var(--accent); color: var(--accent-text); }
 /* the picture view: the cards as a wrapping grid of pictures; a count sits on a card that has more than one copy */
-.deck-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr)); gap: 0.6rem; margin: 0; padding: 0; list-style: none; }
+.deck-tiles { display: grid; grid-template-columns: repeat(8, minmax(0, 10rem)); gap: 0.75rem; margin: 0; padding: 0; list-style: none; }
+@media (max-width: 1100px) { .deck-tiles { grid-template-columns: repeat(6, minmax(0, 10rem)); } }
+@media (max-width: 800px) { .deck-tiles { grid-template-columns: repeat(4, minmax(0, 10rem)); } }
+@media (max-width: 520px) { .deck-tiles { grid-template-columns: repeat(3, minmax(0, 10rem)); } }
 .deck-tile { position: relative; }
 .deck-tile[data-card-id] { cursor: zoom-in; }
 .deck-tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.deck-tile .tile-picture { display: block; aspect-ratio: 488 / 680; border: 1px solid var(--line); border-radius: 0.5rem; background: var(--card); overflow: hidden; }
+.deck-tile .tile-picture { display: block; aspect-ratio: 488 / 680; border: 1px solid var(--line); border-radius: 4.8% / 3.4%; background: var(--card); overflow: hidden; }
 .deck-tile .tile-picture img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .deck-tile .tile-picture.noimage { display: flex; align-items: center; justify-content: center; padding: 0.4rem; font-size: 0.8rem; text-align: center; overflow-wrap: anywhere; }
 .deck-tile.unmatched .tile-picture { border-style: dashed; border-color: var(--danger); color: var(--danger); }
@@ -827,9 +832,22 @@ main.wide:has(.deck-app[data-screen="deck"]) { max-width: 100rem; }
 .picker-tile { display: flex; flex-direction: column; gap: 0.3rem; width: 100%; min-height: 0; padding: 0.25rem; border: 2px solid transparent; border-radius: 0.6rem; background: transparent; color: var(--text); font-weight: 400; text-align: left; cursor: pointer; }
 .picker-tile:hover, .picker-tile:focus-visible { background: color-mix(in srgb, var(--accent) 12%, transparent); }
 .picker-tile[aria-current="true"] { border-color: var(--accent); }
-.picker-tile .tile-art { position: relative; display: block; aspect-ratio: 488 / 680; border: 1px solid var(--line); border-radius: 0.5rem; background: var(--card); overflow: hidden; }
+.picker-tile .tile-art { position: relative; display: block; aspect-ratio: 488 / 680; border: 1px solid var(--line); border-radius: 4.8% / 3.4%; background: var(--card); overflow: hidden; }
 .picker-tile .tile-art img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .picker-tile .tile-art.noimage { display: flex; align-items: center; justify-content: center; padding: 0.4rem; font-size: 0.8rem; text-align: center; overflow-wrap: anywhere; }
 .picker-tile .tile-default { position: absolute; left: 0.3rem; top: 0.3rem; padding: 0 0.4rem; border-radius: 0.7rem; background: var(--accent); color: var(--accent-text); font-size: 0.7rem; font-weight: 700; line-height: 1.3rem; }
 .picker-tile .tile-caption { display: flex; flex-direction: column; font-size: 0.78rem; line-height: 1.25; }
 .picker-tile .tile-caption span { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* The stacks view: each group is a column of overlapping cards, each one showing only its top strip (the name) and the last one in full; the card under the pointer comes to the front. */
+.deck-app .deck-sections[data-view="stacks"] { display: grid; grid-template-columns: repeat(8, minmax(0, 10rem)); gap: 1.25rem 0.75rem; align-items: start; }
+@media (max-width: 1100px) { .deck-app .deck-sections[data-view="stacks"] { grid-template-columns: repeat(6, minmax(0, 10rem)); } }
+@media (max-width: 800px) { .deck-app .deck-sections[data-view="stacks"] { grid-template-columns: repeat(4, minmax(0, 10rem)); } }
+@media (max-width: 520px) { .deck-app .deck-sections[data-view="stacks"] { grid-template-columns: repeat(3, minmax(0, 10rem)); } }
+.deck-stack { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; container-type: inline-size; }
+.deck-stack .deck-tile { position: relative; }
+.deck-stack .deck-tile + .deck-tile { margin-top: calc(1.5rem - 139.34cqw); } /* a card is 139.34% as high as it is wide: pull each one up over the one before, leaving a strip of 1.5 rem */
+.deck-stack .deck-tile:hover, .deck-stack .deck-tile:focus-within { z-index: 3; }
+.deck-stack .tile-picture { box-shadow: 0 -1px 4px rgba(0, 0, 0, 0.45); }
+.deck-stack .tile-qty { top: 0.2rem; right: 1.9rem; bottom: auto; }
+.deck-stack .row-menu { top: 0.1rem; right: 0.15rem; width: 1.5rem; height: 1.5rem; }

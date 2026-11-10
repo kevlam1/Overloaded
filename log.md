@@ -2677,6 +2677,29 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 129. A round of small fixes to the deck page and a stacks view (2026-11-10)
+
+**What I asked for**
+- No blue highlight when I click into the paste box; no caption under the hovered card ("X: the printing you named"); the right-click menu worded less stiffly; the card-pictures icon changed to four cards and a new view with three or four cards cascading, in vertical stacks; rounded corners on the hovered card picture (white shows at the corners of black-border cards); planeswalkers above creatures; the picture view eight columns instead of twelve.
+
+**What changed** (`style.css`, `card-peek.js`, `deck-groups.js`, `shared/deck-view.mjs`, `shared/deck-commander.mjs`)
+- **Paste box:** no outline and no blue; a quiet grey edge when it has the focus (the keyboard focus on buttons, links and the other fields is unchanged).
+- **Hover picture:** nothing is written under it any more; the note stays only for a picture that cannot be loaded. Its corners are rounded to a card's (4.8% by 3.4%), and so are the pictures in the picture view and in the printing window.
+- **Menu words:** "Make commander", "Make partner", "Remove as commander", "Remove as partner" (the old "(replaces the current one)" and "instead" are gone; making a card the commander still replaces the old one and the old one goes back to its type group). "Change printing..." stays.
+- **Views:** three buttons now: the three-line list, four cards in a 2 by 2 for the pictures, and three cards cascading for the new "Stacks" view. In Stacks each group is a column of overlapping cards: a strip of 1.5 rem with the name of each shows and the last card is in full; the card under the pointer comes to the front and the big picture shows. The choice is remembered like the other two.
+- **Eight columns:** the picture view and the stacks are eight to a row on a wide window (six, four and three on narrower ones), each no wider than 10 rem so the small pictures stay sharp.
+- **Planeswalkers above creatures:** the Planeswalkers group is shown above Creatures, and a card that is both (a planeswalker creature) is a planeswalker. My reading of "higher priority": both the order of the groups and which group such a card is in.
+
+**What I checked**
+- `test-deck-view` (56) and `test-deck-commander` (22) updated; the deck page check is 262 (5 new: the quiet paste box, planeswalkers above creatures, eight to a row with rounded pictures, stacks overlapping with a strip of about 24 px and remembered, a stacked card coming to the front). Screenshots at 1920x1080 of the pictures and of the stacks with the hovered picture.
+- **Not checked:** phone width for the stacks, light mode, a very long stack (the creatures stack is about 29 cards tall in my sample).
+
+**Decisions**
+- "12 columns" I read as the picture view (it had as many as 12 to a row at 1920). If you meant the text columns, tell me.
+- Claude's own mistake: my check of the quiet paste box failed at first because the headless page was not counted as focused, so `:focus` never applied; it now turns on focus emulation first.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-10, entry 122) Claude's first deck page started a library it could not read at the box to paste into, hiding the message about it; the old check noticed.
 - (2026-11-10, entry 120) Claude's solo check clicked a fixed empty spot that stopped being empty once the graveyard stack moved there, and the failure first looked like a menu bug; a screenshot at the moment of the failure showed the open viewer.

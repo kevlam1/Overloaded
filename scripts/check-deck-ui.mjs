@@ -447,7 +447,7 @@ try {
   // The checks below scroll rows to the top and the bottom of the window, which needs a page taller than the window. The page under
   // the list got shorter (no radio buttons), so a spacer above the list keeps these checks about the picture box and not about the page height.
   await ev(`(() => { const spacer = document.createElement('div'); spacer.id = 'test-spacer'; spacer.style.height = '1500px'; document.body.prepend(spacer); const after = spacer.cloneNode(); after.id = 'test-spacer-after'; document.body.append(after); })()`);
-  const peek = () => ev(`(() => { const p = document.getElementById('card-peek'); const i = document.getElementById('card-peek-image'); const r = p.getBoundingClientRect(); return { hidden: p.hidden, src: i.getAttribute('src'), imageHidden: i.hidden, note: document.getElementById('card-peek-note').textContent, left: r.left, right: r.right, top: r.top, bottom: r.bottom, w: innerWidth, h: innerHeight, pointerEvents: getComputedStyle(p).pointerEvents }; })()`);
+  const peek = () => ev(`(() => { const p = document.getElementById('card-peek'); const i = document.getElementById('card-peek-image'); const r = p.getBoundingClientRect(); return { hidden: p.hidden, src: i.getAttribute('src'), imageHidden: i.hidden, note: document.getElementById('card-peek-note').textContent, left: r.left, right: r.right, top: r.top, bottom: r.bottom, w: innerWidth, h: innerHeight, pointerEvents: getComputedStyle(p).pointerEvents, radius: getComputedStyle(i).borderTopLeftRadius }; })()`);
   // Scrolls the row into the middle and waits two frames, so the scroll event (which hides the box) has come BEFORE the pointer moves.
   const rowFacts = (index, block = 'center') => ev(`new Promise((resolve) => { const row = document.querySelectorAll('#sections .card-line')[${index}]; row.scrollIntoView({ block: ${JSON.stringify(block)} }); requestAnimationFrame(() => requestAnimationFrame(() => resolve({ id: row.dataset.cardId ?? null, name: row.dataset.cardName ?? null }))); })`);
   const nameBox = (index) => ev(`(() => { const r = document.querySelectorAll('#sections .card-line')[${index}].querySelector('.name').getBoundingClientRect(); return { x: Math.round(r.left + 10), y: Math.round(r.top + r.height / 2) }; })()`);
@@ -461,7 +461,7 @@ try {
   const at1 = await hover(4);
   const shown1 = await peek();
   check('hovering the second card (Arcane Signet, typed as "Heart of the Mountain") shows its normal-size picture, of the printing that carries that title (SLD 916), not the default one', !shown1.hidden && shown1.src === pictureUrl(row1.id) && row1.id === SIGNET_SLD_916 && !shown1.imageHidden && row1.name === 'Arcane Signet', JSON.stringify({ row1, shown1 }));
-  check('the box says whose picture it is and which printing', /Arcane Signet/.test(shown1.note) && /the printing that carries the title you typed/.test(shown1.note) && !/default printing/.test(shown1.note), shown1.note);
+  check('nothing is written under a picture that loaded (no caption), and the corners of the picture are rounded', shown1.note === '' && shown1.radius !== '0px' && shown1.radius !== '', JSON.stringify({ note: shown1.note, radius: shown1.radius }));
   const textEnd = await ev(`(() => { const range = document.createRange(); range.selectNodeContents(document.querySelectorAll('#sections .card-line')[4].querySelector('.name')); return range.getBoundingClientRect().right; })()`);
   check('it is inside the window and never takes the pointer', shown1.left >= 0 && shown1.right <= shown1.w && shown1.top >= 0 && shown1.bottom <= shown1.h && shown1.pointerEvents === 'none', JSON.stringify({ at1, shown1 }));
   const rowBox = await ev(`(() => { const r = document.querySelectorAll('#sections .card-line')[4].getBoundingClientRect(); return { left: r.left, right: r.right }; })()`);
@@ -470,7 +470,7 @@ try {
   const row4 = await rowFacts(1);
   await hover(1);
   const shown4 = await peek();
-  check('a card imported by another title (the Japanese one) shows its card\'s picture too, and the box is visible', !shown4.hidden && shown4.src === pictureUrl(row4.id) && /Arcane Denial/.test(shown4.note) && row4.id !== row1.id, JSON.stringify({ row4, shown4 }));
+  check('a card imported by another title (the Japanese one) shows its card\'s picture too, and the box is visible', !shown4.hidden && shown4.src === pictureUrl(row4.id) && row4.id !== row1.id, JSON.stringify({ row4, shown4 }));
   // Moving between the columns of one row must not hide and show the box again (a flicker): count every change of its hidden state.
   await ev(`window.__peekChanges = 0; new MutationObserver((records) => { window.__peekChanges += records.length; }).observe(document.getElementById('card-peek'), { attributes: true, attributeFilter: ['hidden'] })`);
   const typeBox = await ev(`(() => { const r = document.querySelectorAll('#sections .card-line')[1].querySelector('.cost').getBoundingClientRect(); return { x: Math.round(r.left + 4), y: Math.round(r.top + 4) }; })()`);
@@ -576,7 +576,7 @@ try {
   await hover(valakutRow);
   const twoShown = await both();
   check('hovering it shows the front AND the back of the same printing, side by side, in one box', !twoShown.hidden && twoShown.two && twoShown.front === pictureUrl(twoRows[valakutRow].id) && twoShown.back === backUrl(twoRows[valakutRow].id) && !twoShown.frontHidden && !twoShown.backHidden && twoShown.frontBox.right <= twoShown.backBox.left + 1 && Math.abs(twoShown.frontBox.width - twoShown.backBox.width) < 2, JSON.stringify(twoShown));
-  check('the two-faced box is inside the window and its note says front and back', twoShown.left >= 0 && twoShown.right <= twoShown.w && twoShown.top >= 0 && twoShown.bottom <= twoShown.h && /front and back/.test(twoShown.note), JSON.stringify({ l: twoShown.left, r: twoShown.right, w: twoShown.w, note: twoShown.note }));
+  check('the two-faced box is inside the window and has no caption', twoShown.left >= 0 && twoShown.right <= twoShown.w && twoShown.top >= 0 && twoShown.bottom <= twoShown.h && twoShown.note === '', JSON.stringify({ l: twoShown.left, r: twoShown.right, w: twoShown.w, note: twoShown.note }));
   check('each picture was asked for once, in the normal size', pictureRequests.filter((u) => u === pictureUrl(twoRows[valakutRow].id)).length === 1 && pictureRequests.filter((u) => u === backUrl(twoRows[valakutRow].id)).length === 1 && pictureRequests.length === 2, JSON.stringify(pictureRequests));
   await away();
   await hover(solRow);
@@ -634,9 +634,9 @@ try {
   // ---- the deck by card type, as a text list or as card pictures; the three screens ----
   await load(); await ev(`localStorage.removeItem('overloaded.deckView')`); await deleteAllSaved(); await load();
   await paste(MOXFIELD_PLAIN); await press('check');
-  const toggle = () => ev(`(() => { const group = document.getElementById('view-toggle'); return { role: group.getAttribute('role'), label: group.getAttribute('aria-label'), buttons: [...group.querySelectorAll('button')].map((b) => ({ view: b.dataset.view, label: b.getAttribute('aria-label'), pressed: b.getAttribute('aria-pressed'), svg: [...b.querySelectorAll('svg')].map((v) => ({ w: v.getAttribute('width'), h: v.getAttribute('height'), fill: v.getAttribute('fill'), shapes: v.querySelectorAll('rect').length })) })) }; })()`);
+  const toggle = () => ev(`(() => { const group = document.getElementById('view-toggle'); return { role: group.getAttribute('role'), label: group.getAttribute('aria-label'), buttons: [...group.querySelectorAll('button')].map((b) => ({ view: b.dataset.view, label: b.getAttribute('aria-label'), pressed: b.getAttribute('aria-pressed'), svg: [...b.querySelectorAll('svg')].map((v) => ({ w: v.getAttribute('width'), h: v.getAttribute('height'), fill: v.getAttribute('fill'), shapes: v.querySelectorAll('rect, path').length })) })) }; })()`);
   const t0 = await toggle();
-  check('two view buttons in a labelled group: text (pressed, three lines) and card pictures (one card-shaped rectangle), each icon with its width, height and fill set', t0.role === 'group' && t0.buttons.length === 2 && t0.buttons[0].view === 'text' && t0.buttons[0].pressed === 'true' && t0.buttons[0].label === 'Text list' && t0.buttons[0].svg[0].shapes === 3 && t0.buttons[1].view === 'images' && t0.buttons[1].pressed === 'false' && t0.buttons[1].label === 'Card pictures' && t0.buttons[1].svg[0].shapes === 1 && t0.buttons.every((b) => b.svg.length === 1 && b.svg[0].w === '18' && b.svg[0].h === '18' && b.svg[0].fill === 'currentColor'), JSON.stringify(t0));
+  check('three view buttons in a labelled group: text (pressed, three lines), card pictures (four cards, 2 by 2) and stacks (three cards cascading), each icon with its width, height and fill set', t0.role === 'group' && t0.buttons.length === 3 && t0.buttons[0].view === 'text' && t0.buttons[0].pressed === 'true' && t0.buttons[0].label === 'Text list' && t0.buttons[0].svg[0].shapes === 3 && t0.buttons[1].view === 'images' && t0.buttons[1].pressed === 'false' && t0.buttons[1].label === 'Card pictures' && t0.buttons[1].svg[0].shapes === 4 && t0.buttons[2].view === 'stacks' && t0.buttons[2].label === 'Stacks' && t0.buttons[2].svg[0].shapes === 5 && t0.buttons.every((b) => b.svg.length === 1 && b.svg[0].w === '18' && b.svg[0].h === '18' && b.svg[0].fill === 'currentColor'), JSON.stringify(t0));
   const groupsNow = () => ev(`[...document.querySelectorAll('#sections .deck-group')].map((g) => ({ key: g.dataset.group, heading: g.querySelector('h3').textContent, names: [...g.querySelectorAll('.name, .sr-only')].map((n) => n.textContent) }))`);
   const g0 = await groupsNow();
   check('the text view is the start: groups by type, the commander first and the sideboard last, none empty', (await ev(`document.querySelectorAll('#sections .deck-list').length > 0 && document.querySelectorAll('#sections .deck-tiles').length === 0`)) && JSON.stringify(g0.map((g) => g.key)) === '["commander","creature","instant","artifact","land","sideboard"]' && g0[0].names.join() === 'Éowyn, Lady of Rohan', JSON.stringify(g0.map((g) => g.heading)));
@@ -645,7 +645,7 @@ try {
   await ev(`document.querySelector('[data-view="images"]').click()`);
   await sleep(300);
   const tiles = await ev(`({ lists: document.querySelectorAll('#sections .deck-list').length, tiles: document.querySelectorAll('#sections .deck-tile').length, grids: document.querySelectorAll('#sections .deck-tiles').length, headings: [...document.querySelectorAll('#sections h3')].map((h) => h.textContent), pressed: [...document.querySelectorAll('#view-toggle button')].map((b) => b.getAttribute('aria-pressed')).join(), lazy: [...document.querySelectorAll('#sections .deck-tile img')].every((i) => i.loading === 'lazy' && i.alt === ''), ids: [...document.querySelectorAll('#sections .deck-tile')].every((t) => /^[0-9a-f-]{36}$/.test(t.dataset.cardId)), badges: [...document.querySelectorAll('#sections .tile-qty')].map((b) => b.textContent), saved: localStorage.getItem('overloaded.deckView'), spoken: [...document.querySelectorAll('#sections .deck-tile .sr-only')].map((n) => n.textContent) })`);
-  check('the picture button shows one tile per line instead of the list, with the same headings, and is remembered in this browser', tiles.lists === 0 && tiles.tiles === 10 && tiles.grids === g0.length && JSON.stringify(tiles.headings) === JSON.stringify(g0.map((g) => g.heading)) && tiles.pressed === 'false,true' && tiles.saved === 'images', JSON.stringify(tiles));
+  check('the picture button shows one tile per line instead of the list, with the same headings, and is remembered in this browser', tiles.lists === 0 && tiles.tiles === 10 && tiles.grids === g0.length && JSON.stringify(tiles.headings) === JSON.stringify(g0.map((g) => g.heading)) && tiles.pressed === 'false,true,false' && tiles.saved === 'images', JSON.stringify(tiles));
   check('each tile has its card id (for the big picture), a lazy picture with no alt text (a spoken line carries the count and name), and a count on a card with copies', tiles.lazy && tiles.ids && tiles.badges.length > 0 && tiles.badges.every((b) => /^x\d+$/.test(b)) && tiles.badges.includes('x10') && tiles.spoken.includes('10 Forest') && tiles.spoken.includes('1 Éowyn, Lady of Rohan'), JSON.stringify(tiles));
   await waitFor(async () => (await ev(`[...document.querySelectorAll('#sections .deck-tile img')].every((i) => i.complete && i.naturalWidth > 0)`)) || null, 5000, 50).catch(() => null);
   check('the tile pictures are the small size, and the card-picture box (the big one) is still on hover', pictureRequests.length >= 10 && pictureRequests.every((u) => /^https:\/\/cards\.scryfall\.io\/(small|normal)\/front\//.test(u)) && pictureRequests.some((u) => u.includes('/small/')), JSON.stringify(pictureRequests.slice(0, 3)));
@@ -720,19 +720,19 @@ try {
   check('every card has a "..." button with its own label (and the commander too)', (await ev(`document.querySelectorAll('#sections .card-line .row-menu').length`)) === 85 && (await ev(`document.querySelector('#sections .row-menu').getAttribute('aria-label')`)) === 'Options for Krenko, Mob Boss');
   await rightClick('Goblin Chieftain');
   const m1 = await lineMenu();
-  check('a right-click on a card in a Commander deck offers to make it the commander (replacing the current one) or the partner', m1 && m1.title === 'Goblin Chieftain' && JSON.stringify(m1.items) === JSON.stringify(['Change printing...', 'Make commander (replaces the current one)', 'Make partner']), JSON.stringify(m1));
+  check('a right-click on a card in a Commander deck offers to make it the commander or the partner', m1 && m1.title === 'Goblin Chieftain' && JSON.stringify(m1.items) === JSON.stringify(['Change printing...', 'Make commander', 'Make partner']), JSON.stringify(m1));
   await pickMenu('Make partner');
   let cmd = await commanders();
   check('Make partner puts it in the Commander group beside Krenko and in the Partner picker, and says so', JSON.stringify(cmd) === JSON.stringify({ group: ['Krenko, Mob Boss', 'Goblin Chieftain'], first: 'Krenko, Mob Boss', second: 'Goblin Chieftain' }) && /^Goblin Chieftain is now the partner\.$/.test(await $text('deck-status')) && !(await lineMenu()), JSON.stringify(cmd));
   check('and it is out of the Creatures group (28 left)', (await ev(`document.querySelector('#sections [data-group="creature"] h3').textContent`)) === 'Creatures (28)');
   await rightClick('Goblin Chieftain');
   const m2 = await lineMenu();
-  check('the partner can be taken out or made the commander', m2 && JSON.stringify(m2.items) === JSON.stringify(['Change printing...', 'Not the partner', 'Make commander instead']), JSON.stringify(m2));
-  await pickMenu('Make commander instead');
+  check('the partner can be made the commander or removed', m2 && JSON.stringify(m2.items) === JSON.stringify(['Change printing...', 'Make commander', 'Remove as partner']), JSON.stringify(m2));
+  await pickMenu('Make commander');
   cmd = await commanders();
   check('making the partner the commander swaps the two', JSON.stringify(cmd) === JSON.stringify({ group: ['Goblin Chieftain', 'Krenko, Mob Boss'], first: 'Goblin Chieftain', second: 'Krenko, Mob Boss' }), JSON.stringify(cmd));
   await rightClick('Combat Celebrant');
-  await pickMenu('Make commander (replaces the current one)');
+  await pickMenu('Make commander');
   cmd = await commanders();
   check('making another card the commander replaces the commander only; the old commander goes back to its type group', JSON.stringify(cmd) === JSON.stringify({ group: ['Combat Celebrant', 'Krenko, Mob Boss'], first: 'Combat Celebrant', second: 'Krenko, Mob Boss' }) && (await ev(`[...document.querySelectorAll('#sections [data-group="creature"] .name')].some((n) => n.textContent === 'Goblin Chieftain')`)), JSON.stringify(cmd));
   // the "..." button opens the same menu
@@ -740,8 +740,8 @@ try {
   const buttonAt = await ev(`(() => { const b = [...document.querySelectorAll('#sections .card-line')].find((l) => l.querySelector('.name').textContent === 'Combat Celebrant').querySelector('.row-menu'); const r = b.getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) }; })()`);
   await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: buttonAt.x, y: buttonAt.y }); await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: buttonAt.x, y: buttonAt.y, button: 'left', buttons: 1, clickCount: 1 }); await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: buttonAt.x, y: buttonAt.y, button: 'left', buttons: 0, clickCount: 1 }); await sleep(150);
   const m3 = await lineMenu();
-  check('the "..." button opens the card\'s menu: for the commander, "Not the commander" after "Change printing..."', m3 && m3.title === 'Combat Celebrant' && JSON.stringify(m3.items) === JSON.stringify(['Change printing...', 'Not the commander']), JSON.stringify(m3));
-  await pickMenu('Not the commander');
+  check('the "..." button opens the card\'s menu: for the commander, "Remove as commander" after "Change printing..."', m3 && m3.title === 'Combat Celebrant' && JSON.stringify(m3.items) === JSON.stringify(['Change printing...', 'Remove as commander']), JSON.stringify(m3));
+  await pickMenu('Remove as commander');
   cmd = await commanders();
   check('taking the commander out lets the partner step up', JSON.stringify(cmd) === JSON.stringify({ group: ['Krenko, Mob Boss'], first: 'Krenko, Mob Boss', second: 'No partner' }), JSON.stringify(cmd));
   await rightClick('Goblin Chieftain'); await escapeKey();
@@ -832,6 +832,29 @@ try {
   await waitFor(async () => (await ev(`document.querySelectorAll('.picker-tile').length`)) > 10 || null, 8000, 50).catch(() => null);
   check('with the network back the next try loads them (a failure is not remembered)', (await ev(`document.querySelectorAll('.picker-tile').length`)) > 10);
   await escapeKey();
+
+  // ---- planeswalkers above creatures, eight pictures to a row, the stacks view, a quiet paste box ----
+  await load(); await deleteAllSaved(); await load();
+  await browser.send('Emulation.setFocusEmulationEnabled', { enabled: true }); // the page counts as focused, so :focus applies to a box focused by script
+  const focusFacts = await ev(`(() => { const t = document.getElementById('deck-text'); t.focus(); const c = getComputedStyle(t); const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim(); return { outline: c.outlineStyle, shadow: c.boxShadow, border: c.borderTopColor, accent, usesAccent: [c.outlineColor, c.boxShadow, c.borderTopColor].some((v) => accent && v.includes(accent)) }; })()`);
+  check('clicking into the paste box shows no blue ring: no outline, a quiet grey edge', focusFacts.outline === 'none' && focusFacts.shadow !== 'none' && !/rgb\(1[0-9][0-9], 1[0-9][0-9], 2[0-9][0-9]\)/.test(focusFacts.shadow), JSON.stringify(focusFacts));
+  await ev(`document.getElementById('sample').click()`); await settled();
+  const order = await ev(`[...document.querySelectorAll('#sections .deck-group')].map((g) => g.dataset.group).join()`);
+  check('the planeswalkers group is above the creatures group', /commander,planeswalker,creature,/.test(order), order);
+  await ev(`document.querySelector('[data-view="images"]').click()`); await sleep(400);
+  const eight = await ev(`(() => { const grid = [...document.querySelectorAll('#sections .deck-tiles')].find((g) => g.children.length >= 16); const lefts = [...grid.children].map((li) => Math.round(li.getBoundingClientRect().left)); const radius = getComputedStyle(grid.querySelector('.tile-picture')).borderTopLeftRadius; return { columns: new Set(lefts).size, radius, width: Math.round(grid.children[0].getBoundingClientRect().width) }; })()`);
+  check('the picture view is eight to a row (at 1280 wide), each picture with rounded corners', eight.columns === 8 && eight.radius !== '0px' && eight.width <= 160, JSON.stringify(eight));
+  await ev(`document.querySelector('[data-view="stacks"]').click()`); await sleep(600);
+  const stacks = await ev(`(() => { const box = document.getElementById('sections'); const groups = [...box.querySelectorAll('.deck-group')]; const lefts = new Set(groups.map((g) => Math.round(g.getBoundingClientRect().left))); const stack = [...box.querySelectorAll('.deck-stack')].find((u) => u.children.length >= 10); const tiles = [...stack.children].map((li) => li.getBoundingClientRect()); const firstOverlaps = tiles[1].top < tiles[0].bottom - 20; const strip = Math.round(tiles[1].top - tiles[0].top); const lastFull = tiles.at(-1).height > 100; return { pressed: [...document.querySelectorAll('#view-toggle button')].map((b) => b.getAttribute('aria-pressed')).join(), stored: localStorage.getItem('overloaded.deckView'), columns: lefts.size, firstOverlaps, strip, lastFull, tiles: tiles.length, lists: box.querySelectorAll('.deck-list, .deck-tiles').length }; })()`);
+  check('the stacks view puts each group in its own column with the cards overlapping (a strip of about 24 px of each shows, the last one in full), and is remembered', stacks.pressed === 'false,false,true' && stacks.stored === 'stacks' && stacks.columns >= 6 && stacks.firstOverlaps && stacks.strip >= 18 && stacks.strip <= 30 && stacks.lastFull && stacks.lists === 0, JSON.stringify(stacks));
+  const lift = await ev(`(() => { const stack = [...document.querySelectorAll('#sections .deck-stack')].find((u) => u.children.length >= 10); const li = stack.children[3]; const before = getComputedStyle(li).zIndex; li.dispatchEvent(new MouseEvent('mouseover', { bubbles: true })); const r = li.getBoundingClientRect(); return { z: before, top: Math.round(r.top) }; })()`);
+  const hoverTile = await ev(`(() => { const stack = [...document.querySelectorAll('#sections .deck-stack')].find((u) => u.children.length >= 10); const li = stack.children[3]; li.scrollIntoView({ block: 'center' }); const r = li.getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + 12) }; })()`);
+  await sleep(200);
+  await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: hoverTile.x - 3, y: hoverTile.y }); await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: hoverTile.x, y: hoverTile.y }); await sleep(250);
+  const raised = await ev(`(() => { const stack = [...document.querySelectorAll('#sections .deck-stack')].find((u) => u.children.length >= 10); return getComputedStyle(stack.children[3]).zIndex; })()`);
+  check('pointing at a card in a stack brings it in front of the cards below it (z-index 3) and shows its picture', raised === '3' && !(await peek()).hidden, JSON.stringify({ raised, lift }));
+  await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 3, y: 3 }); await sleep(150);
+  await ev(`document.querySelector('[data-view="text"]').click()`);
 
   // ---- limits and odd input ----
   await paste('201 Forest'); await press('check');

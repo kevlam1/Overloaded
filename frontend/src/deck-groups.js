@@ -4,7 +4,7 @@
 import { imageUrl } from '../../shared/card-image.mjs';
 import { manaNode } from './mana-pips.js';
 
-export const VIEWS = ['text', 'images'];
+export const VIEWS = ['text', 'images', 'stacks'];
 
 function make(tag, className, content) {
   const element = document.createElement(tag);
@@ -14,7 +14,8 @@ function make(tag, className, content) {
 }
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
-// The two icons of the view buttons: three lines (the text list) and a card-shaped rectangle (the pictures). Width, height and fill are set on the element itself.
+// The icons of the view buttons: three lines (the text list), four cards side by side (the pictures) and three cards overlapping one below the other, each a little lower and to the right
+// (the stacks). Width, height and fill are set on the element itself.
 function icon(kind) {
   const svg = document.createElementNS(SVG_NS, 'svg');
   svg.setAttribute('viewBox', '0 0 24 24');
@@ -23,19 +24,25 @@ function icon(kind) {
   svg.setAttribute('fill', 'currentColor');
   svg.setAttribute('aria-hidden', 'true');
   svg.setAttribute('focusable', 'false');
-  const shapes = kind === 'text'
-    ? [[3, 5, 18, 2.5], [3, 10.75, 18, 2.5], [3, 16.5, 18, 2.5]] // three lines
-    : [[6, 2, 12, 20]]; // a card: a tall rectangle
-  for (const [x, y, width, height] of shapes) {
-    const rect = document.createElementNS(SVG_NS, 'rect');
-    rect.setAttribute('x', String(x));
-    rect.setAttribute('y', String(y));
-    rect.setAttribute('width', String(width));
-    rect.setAttribute('height', String(height));
-    rect.setAttribute('rx', kind === 'text' ? '1' : '2');
-    rect.setAttribute('fill', kind === 'text' ? 'currentColor' : 'none');
-    if (kind !== 'text') { rect.setAttribute('stroke', 'currentColor'); rect.setAttribute('stroke-width', '2'); }
-    svg.append(rect);
+  if (kind === 'text') {
+    for (const [x, y, width, height] of [[3, 5, 18, 2.5], [3, 10.75, 18, 2.5], [3, 16.5, 18, 2.5]]) { // three lines
+      const rect = document.createElementNS(SVG_NS, 'rect');
+      for (const [name, value] of [['x', x], ['y', y], ['width', width], ['height', height], ['rx', 1], ['fill', 'currentColor']]) rect.setAttribute(name, String(value));
+      svg.append(rect);
+    }
+  } else if (kind === 'images') {
+    for (const [x, y] of [[3, 2], [13, 2], [3, 12.5], [13, 12.5]]) { // four cards, two by two
+      const rect = document.createElementNS(SVG_NS, 'rect');
+      for (const [name, value] of [['x', x], ['y', y], ['width', 8], ['height', 9.5], ['rx', 1.5], ['fill', 'none'], ['stroke', 'currentColor'], ['stroke-width', 1.8]]) rect.setAttribute(name, String(value));
+      svg.append(rect);
+    }
+  } else {
+    // three cards cascading down and to the right; only the edges that show are drawn, so the cards read as lying on top of each other
+    for (const d of ['M2 15V2h9v3', 'M2 15h5', 'M7 18V5h9v3', 'M7 18h5', 'M12 8h9v13h-9z']) {
+      const path = document.createElementNS(SVG_NS, 'path');
+      for (const [name, value] of [['d', d], ['fill', 'none'], ['stroke', 'currentColor'], ['stroke-width', 1.8], ['stroke-linejoin', 'round'], ['stroke-linecap', 'round']]) path.setAttribute(name, String(value));
+      svg.append(path);
+    }
   }
   return svg;
 }
@@ -46,13 +53,13 @@ export function mountViewToggle(container, { view, onChange }) {
   container.setAttribute('role', 'group');
   container.setAttribute('aria-label', 'How to show the deck');
   const buttons = new Map();
-  for (const [name, label] of [['text', 'Text list'], ['images', 'Card pictures']]) {
+  for (const [name, label] of [['text', 'Text list'], ['images', 'Card pictures'], ['stacks', 'Stacks']]) {
     const button = make('button', 'view-button');
     button.type = 'button';
     button.dataset.view = name;
     button.title = label;
     button.setAttribute('aria-label', label);
-    button.append(icon(name === 'text' ? 'text' : 'images'));
+    button.append(icon(name));
     button.addEventListener('click', () => onChange(name));
     buttons.set(name, button);
     container.append(button);
@@ -133,8 +140,8 @@ export function renderGroups(container, groups, { view, printingCell, menuFor = 
     const section = make('section', 'deck-group');
     section.dataset.group = group.key;
     section.append(make('h3', '', `${group.title} (${group.count})`));
-    const list = make('ul', view === 'images' ? 'deck-tiles' : 'deck-list');
-    list.append(...group.lines.map((line) => (view === 'images' ? tile(line, menuFor(line)) : textRow(line, printingCell, menuFor(line)))));
+    const list = make('ul', view === 'images' ? 'deck-tiles' : view === 'stacks' ? 'deck-stack' : 'deck-list');
+    list.append(...group.lines.map((line) => (view === 'text' ? textRow(line, printingCell, menuFor(line)) : tile(line, menuFor(line)))));
     section.append(list);
     container.append(section);
   }

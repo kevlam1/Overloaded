@@ -13,14 +13,14 @@ for (const [type, expected] of [
   ['Land', 'land'], ['Basic Land ' + DASH + ' Forest', 'land'], ['Artifact Land', 'land'], ['Land Creature ' + DASH + ' Forest Dryad', 'land'], ['Legendary Land', 'land'],
   ['Instant', 'instant'], ['Kindred Instant ' + DASH + ' Goblin', 'instant'], ['Sorcery', 'sorcery'], ['Tribal Sorcery ' + DASH + ' Elf', 'sorcery'],
   ['Artifact', 'artifact'], ['Legendary Artifact ' + DASH + ' Equipment', 'artifact'], ['Artifact ' + DASH + ' Vehicle', 'artifact'], ['Enchantment', 'enchantment'], ['Enchantment ' + DASH + ' Aura', 'enchantment'], ['Legendary Enchantment Artifact', 'artifact'],
-  ['Legendary Planeswalker ' + DASH + ' Jace', 'planeswalker'], ['Battle ' + DASH + ' Siege', 'battle'],
+  ['Legendary Planeswalker ' + DASH + ' Jace', 'planeswalker'], ['Battle ' + DASH + ' Siege', 'battle'], ['Legendary Creature Planeswalker', 'planeswalker'], ['Planeswalker Creature ' + DASH + ' Human', 'planeswalker'], ['Artifact Planeswalker', 'planeswalker'],
   ['Creature ' + DASH + ' Human // Land', 'creature'], ['Land // Creature ' + DASH + ' Elf', 'land'], ['Instant // Sorcery', 'instant'],
   ['Dungeon', 'other'], ['Conspiracy', 'other'], ['', 'other'], [undefined, 'other'], [null, 'other'], [42, 'other'],
   ['Creature - Elf Druid', 'creature'], ['Basic Land - Island', 'land'],
 ]) same(`${JSON.stringify(type)} is ${expected}`, categoryOf(type), expected);
 check('a subtype that is also a type word does not count (the dash ends the types): "Creature - Land Shark"', categoryOf('Creature ' + DASH + ' Land Shark') === 'creature' && categoryOf('Instant ' + DASH + ' Arcane Creature') === 'instant');
-same('the order the groups are shown in', CATEGORY_ORDER, ['creature', 'planeswalker', 'battle', 'instant', 'sorcery', 'artifact', 'enchantment', 'land', 'other']);
-same('every category has a title', CATEGORY_ORDER.map((key) => GROUP_TITLES[key]), ['Creatures', 'Planeswalkers', 'Battles', 'Instants', 'Sorceries', 'Artifacts', 'Enchantments', 'Lands', 'Other']);
+same('the order the groups are shown in: planeswalkers above creatures', CATEGORY_ORDER, ['planeswalker', 'creature', 'battle', 'instant', 'sorcery', 'artifact', 'enchantment', 'land', 'other']);
+same('every category has a title', CATEGORY_ORDER.map((key) => GROUP_TITLES[key]), ['Planeswalkers', 'Creatures', 'Battles', 'Instants', 'Sorceries', 'Artifacts', 'Enchantments', 'Lands', 'Other']);
 
 // ---- grouping a deck ----
 let uid = 0;
@@ -35,10 +35,10 @@ const deck = [
 ];
 {
   const groups = groupDeck(deck, { commanderIds: ['id-Krenko, Mob Boss'] });
-  same('the groups come in the order: not matched, commander, companion, the types, sideboard, maybeboard', groups.map((g) => g.key), ['unmatched', 'commander', 'companion', 'creature', 'planeswalker', 'instant', 'sorcery', 'artifact', 'enchantment', 'land', 'sideboard', 'maybeboard']);
-  same('each group has a title and a count of copies', groups.map((g) => [g.title, g.count]), [['Not matched', 1], ['Commander', 1], ['Companion', 1], ['Creatures', 2], ['Planeswalkers', 1], ['Instants', 2], ['Sorceries', 1], ['Artifacts', 2], ['Enchantments', 1], ['Lands', 15], ['Sideboard', 2], ['Maybeboard (not counted)', 1]]);
+  same('the groups come in the order: not matched, commander, companion, the types, sideboard, maybeboard', groups.map((g) => g.key), ['unmatched', 'commander', 'companion', 'planeswalker', 'creature', 'instant', 'sorcery', 'artifact', 'enchantment', 'land', 'sideboard', 'maybeboard']);
+  same('each group has a title and a count of copies', groups.map((g) => [g.title, g.count]), [['Not matched', 1], ['Commander', 1], ['Companion', 1], ['Planeswalkers', 1], ['Creatures', 2], ['Instants', 2], ['Sorceries', 1], ['Artifacts', 2], ['Enchantments', 1], ['Lands', 15], ['Sideboard', 2], ['Maybeboard (not counted)', 1]]);
   same('the commander is the picked card, taken from its line', groups[1].lines.map((l) => l.name), ['Krenko, Mob Boss']);
-  same('inside a group the cards are sorted by name', [groups[3].lines.map((l) => l.name), groups[5].lines.map((l) => l.name), groups[9].lines.map((l) => l.name)], [['Birds of Paradise', 'Llanowar Elves'], ['Counterspell', 'Lightning Bolt'], ['Forest', 'Island']]);
+  same('inside a group the cards are sorted by name', [groups[4].lines.map((l) => l.name), groups[5].lines.map((l) => l.name), groups[9].lines.map((l) => l.name)], [['Birds of Paradise', 'Llanowar Elves'], ['Counterspell', 'Lightning Bolt'], ['Forest', 'Island']]);
   same('a line after a blank line (unlabeled) is part of the main deck, in its type group', groups[7].lines.map((l) => l.name), ['Skullclamp', 'Sol Ring']);
   same('the sideboard and the maybeboard keep their cards out of the type groups', [groups[10].lines.map((l) => l.name), groups[11].lines.map((l) => l.name), groups.slice(3, 10).flatMap((g) => g.lines).some((l) => l.name === 'Annul' || l.name === 'Arcum Dagsson')], [['Annul'], ['Arcum Dagsson'], false]);
   same('every copy is somewhere: the groups hold as many copies as the lines', groups.reduce((sum, g) => sum + g.count, 0), deck.reduce((sum, l) => sum + l.qty, 0));

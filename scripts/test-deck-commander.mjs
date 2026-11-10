@@ -11,10 +11,9 @@ const C = { commanderFormat: true };
 
 same('the sections a commander can come from', PICKABLE_SECTIONS, ['main', 'commander', 'unlabeled']);
 same('a card in a Commander deck with no commander yet: make commander or partner', ids(commanderMenuItems(line('a'), ['', ''], C)), ['commander', 'partner']);
-same('with a commander already, the words say the choice replaces it', commanderMenuItems(line('b'), ['a', ''], C).map((i) => i.label), ['Make commander (replaces the current one)', 'Make partner']);
-same('with both places taken, both replace', commanderMenuItems(line('c'), ['a', 'b'], C).map((i) => i.label), ['Make commander (replaces the current one)', 'Make partner (replaces the current one)']);
-same('the commander itself can only be un-picked', [ids(commanderMenuItems(line('a'), ['a', ''], C)), ids(commanderMenuItems(line('a'), ['a', 'b'], C))], [['unpick'], ['unpick']]);
-same('the partner can be un-picked or made the commander', ids(commanderMenuItems(line('b'), ['a', 'b'], C)), ['unpick', 'commander']);
+same('the words are plain, and the same whether or not a place is taken (the choice replaces what was there)', [commanderMenuItems(line('b'), ['a', ''], C).map((i) => i.label), commanderMenuItems(line('c'), ['a', 'b'], C).map((i) => i.label)], [['Make commander', 'Make partner'], ['Make commander', 'Make partner']]);
+same('the commander itself can only be removed', [commanderMenuItems(line('a'), ['a', ''], C).map((i) => i.label), ids(commanderMenuItems(line('a'), ['a', 'b'], C))], [['Remove as commander'], ['unpick']]);
+same('the partner can be made the commander or removed', commanderMenuItems(line('b'), ['a', 'b'], C).map((i) => i.label), ['Make commander', 'Remove as partner']);
 same('nothing is offered in Standard, for a sideboard, companion or maybeboard card, or an unmatched line', [ids(commanderMenuItems(line('a'), ['', ''], { commanderFormat: false })), ids(commanderMenuItems(line('a', 'sideboard'), ['', ''], C)), ids(commanderMenuItems(line('a', 'companion'), ['', ''], C)), ids(commanderMenuItems(line('a', 'maybeboard'), ['', ''], C)), ids(commanderMenuItems(line('a', 'main', 'not_found'), ['', ''], C))], [[], [], [], [], []]);
 same('a card after a blank line (unlabeled) can be picked', ids(commanderMenuItems(line('a', 'unlabeled'), ['', ''], C)), ['commander', 'partner']);
 same('bad input gives no menu', [commanderMenuItems(null, ['', ''], C), commanderMenuItems(undefined, undefined, C), commanderMenuItems({}, ['', ''], C)], [[], [], []]);
