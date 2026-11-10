@@ -2500,7 +2500,32 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 120. Piles as stacks of cards, the command zone with two outlined slots and a commander tax, the sideboard in Settings (2026-11-10)
+
+**What I asked for**
+- Step 2 of my reorganization: a library stack of cards instead of text saying "Library: 53", the same for graveyard and exile, the two commander zones prominent with their own dotted outlines and a commander tax counter, and the sideboard in Settings. Steps 1 (player counters) was entry 119; step 3 (the screen layout, the selected-card corner, the disclaimer in Settings) is next.
+
+**What changed** (`frontend/src/pile-stack.js`, `frontend/src/command-zone.js`, `shared/commander-zone.mjs`, `shared/zones.mjs`, `shared/game-sync.mjs`, both pages, `style.css`, `settings-menu.js`)
+- **Stacks:** the library, graveyard and exile are each a stack of card shapes with the number on it and the name under it. The library shows a plain card back drawn in CSS (its top card is hidden); the graveyard and exile show their newest card's picture, or its name if the picture cannot load. A click opens the viewer, a right-click opens the pile's menu, as before. The only text inside the button is a line for a screen reader.
+- **Command zone:** two slots, each with a dotted outline. The commander sits in its slot while it is in the command zone; the slot stays, empty and marked, while the commander is out, and a tax counter sits under it: "Tax +0" with - and + (each + is one cast, +2 more to cast it again). It is a counter you move by hand; nothing counts casts for you. A deck with no commander has no command zone on show.
+- **Sideboard:** its button is the first line of the Settings menu and opens the same viewer.
+- **Game data:** a game now keeps `cmd` (who the commanders are) and `tax` (casts, by commander). The table page does not save them yet: the published rules do not accept them, so **the live table does not show the tax** (`COMMANDER_TAX_PUBLISHED` in `shared/commander-zone.mjs` is the one switch) and a game read back works out the commanders from the command zone.
+- The old "Piles" heading, the pile buttons and their rules in the style sheet are gone.
+
+**What I checked**
+- Unit: `scripts/test-commander-zone.mjs` (41 checks, including a 1,000-step random walk), plus the existing suites; `npm test` passes (55 suites).
+- Browser: solo check 430 (16 new: the stack facts, a picture on top of the graveyard, the sideboard from Settings, two outlined slots, the tax up and down, the tax staying with a cast commander, a new game starting at +0, no command zone without a commander), layout check 365, live check 170 of 170 (one new: stacks, slots, no tax, the sideboard in Settings). Screenshots at 1366x768 of the stacks and the command zone.
+- **Not checked:** phone width, light mode, a real four-player game, the look with a partner commander (my screenshot deck had only one commander).
+- **The rules mutation run is finished:** 417 broken copies, 395 killed, 22 documented as redundant, 0 survived (the second half, 36 copies, ran on its own after the first run hit its time limit).
+
+**Decisions**
+- The tax is a plain counter you move yourself, like paper. I did not make a move out of the command zone count a cast, because a commander goes back and forth for other reasons; say if you want it automatic.
+- Claude's own mistakes: a solo check clicked a fixed spot (1100, 60) to close a menu, which is now the graveyard stack, so it opened a viewer and the next test failed (it took a screenshot to see it; the click spot moved). Two round-trip tests failed because a saved game cannot hold the commanders and the tax yet; they now ignore those two fields.
+
+---
+
 ## Where AI misread me, or I had to correct course
+- (2026-11-10, entry 120) Claude's solo check clicked a fixed empty spot that stopped being empty once the graveyard stack moved there, and the failure first looked like a menu bug; a screenshot at the moment of the failure showed the open viewer.
 - (2026-11-10, entry 119) Claude let the random game test use every new player counter, which the published rules refuse; the full test run found it. It also left the mutation run's own time limit too short, so the run stopped with the rules file broken (restored by hand).
 - (2026-11-10, entry 118) Claude's first library search matched the letters in order against the type line as well, so searching "ft" found every artifact; the letters rule now applies to names only.
 - (2026-11-10, entry 116) Claude had Horizontal piles send a tapped card above the pile because it read "the tapped stack goes up" as part of that style; the style was only meant to change how a pile is drawn.
