@@ -5,10 +5,11 @@
 import { createServer } from 'node:http';
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, existsSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { decide, ensureCardList, getBulkInfo, downloadFile, loadCached, DAY_MS, MAX_AGE_MS, MAX_STALE_MS, HEADERS, LIST_FORMAT } from './lib/card-list-build.mjs';
 import { printingValue } from '../shared/printings.mjs';
+import { shardOf, printingsOf } from '../shared/card-prints.mjs';
 
 let checks = 0;
 function check(label, condition, detail = '') {
@@ -27,7 +28,7 @@ const gz = (rows) => gzipSync(Buffer.from(rows.map((r) => JSON.stringify(r)).joi
 // printing in set "tst" (collector number 1, 2, ...), and Alpha has a second in set "con" (a name Windows cannot use as a
 // file name), so a list of 6 cards has 7 printings in 2 sets. withPrintings false gives printings with no set or number.
 function data(names, withPrintings = true) {
-  const printing = (n, i) => ({ oracle_id: `o-${n}`, name: n, digital: false, layout: 'normal', set_type: 'expansion', ...(withPrintings ? { set: 'tst', collector_number: String(i + 1), id: uuid(1000 + i) } : {}) });
+  const printing = (n, i) => ({ oracle_id: `o-${n}`, name: n, digital: false, layout: 'normal', set_type: 'expansion', ...(withPrintings ? { set: 'tst', set_name: 'Test Set', released_at: '2020-01-01', lang: 'en', image_status: 'highres_scan', collector_number: String(i + 1), id: uuid(1000 + i) } : {}) });
   return {
     oracle: gz([...names.map((n, i) => rec(n, i + 1)), rec('Goblin', 900, { layout: 'token' }), rec('Alchemy Only', 901)]),
     deflt: gz([...names.map(printing), ...(withPrintings ? [{ ...printing('Alpha', 0), set: 'con', collector_number: '1', id: uuid(2000) }] : []), { oracle_id: 'o-Alchemy Only', digital: true }]),
@@ -37,6 +38,7 @@ const NAMES_A = ['Alpha', 'Bravo', 'Charlie', 'Delta', 'Echo', 'Foxtrot'];
 const NAMES_B = [...NAMES_A, 'Golf']; // a week later one card is new
 const validateOptions = { minCards: 3, mustHave: [] };
 const printingOptions = { minPrintings: 3, minSets: 1 };
+const printsOptions = { minCards: 1, minRows: 1 };
 
 // ---- the stand-in Scryfall ----
 const state = { oracle: null, deflt: null, apiStatus: 200, fileStatus: 200, sizeLie: 0, cutOffDefault: false, failDefaultOnce: false, hang: false, hangFiles: false, requests: [], bulkBody: null };
@@ -72,18 +74,18 @@ let n = 0;
 const fresh = () => { const dir = join(root, `case${++n}`); return { cacheDir: join(dir, 'cache'), publicFile: join(dir, 'public', 'data', 'cards.json') }; };
 const T0 = Date.UTC(2026, 9, 29, 12, 0, 0);
 const logs = []; const warns = [];
-const run = (paths, over = {}) => ensureCardList({ ...paths, now: T0, env: {}, apiUrl: API, validateOptions, printingOptions, retryDelayMs: 0, timeouts: { apiMs: 3000, fileMs: 3000 }, log: (m) => logs.push(m), warn: (m) => warns.push(m), ...over });
+const run = (paths, over = {}) => ensureCardList({ ...paths, now: T0, env: {}, apiUrl: API, validateOptions, printingOptions, printsOptions, retryDelayMs: 0, timeouts: { apiMs: 3000, fileMs: 3000 }, log: (m) => logs.push(m), warn: (m) => warns.push(m), ...over });
 const names = (paths) => JSON.parse(readFileSync(paths.publicFile, 'utf8')).map((e) => e.n);
 const cacheBytes = (paths) => readFileSync(join(paths.cacheDir, 'cards.json'));
 const setsDir = (paths) => join(paths.publicFile, '..', 'printings');
 const setFiles = (paths) => (existsSync(setsDir(paths)) ? readdirSync(setsDir(paths)).sort() : []);
-const CACHE_FILES = 'cards.json,cards.meta.json,printings.json';
+const CACHE_FILES = 'cards.json,cards.meta.json,printings.json,prints.json';
 
 try {
   // ---- decide: the rule, with its boundaries ----
   const cachedAt = (daysAgo, format = LIST_FORMAT) => ({ meta: { builtAt: new Date(T0 - daysAgo * DAY_MS).toISOString(), format } });
   check('7 days is the reuse limit', MAX_AGE_MS === 7 * DAY_MS && MAX_STALE_MS === 30 * DAY_MS);
-  check('the list format is 6 (3 had the printing of each title and the per-set printing files; 4 added the printed power and toughness; 5 added b and bpt, a back face to turn over; 6 adds md, a modal card)', LIST_FORMAT === 6);
+  check('the list format is 7 (3 had the printing of each title and the per-set printing files; 4 added the printed power and toughness; 5 added b and bpt, a back face to turn over; 6 added md, a modal card; 7 adds the printings grouped by card)', LIST_FORMAT === 7);
   check('a 1 day old list is reused', decide({ cached: cachedAt(1), now: T0, env: {} }).action === 'reuse');
   check('a list one millisecond under 7 days is reused', decide({ cached: { meta: { builtAt: new Date(T0 - MAX_AGE_MS + 1).toISOString(), format: LIST_FORMAT } }, now: T0, env: {} }).action === 'reuse');
   check('a recent list in an older format is rebuilt, not reused', decide({ cached: cachedAt(1, 1), now: T0, env: {} }).action === 'rebuild' && /older format/.test(decide({ cached: cachedAt(1, 1), now: T0, env: {} }).reason));
@@ -258,23 +260,23 @@ try {
   await run(p);
   const damaged = Buffer.from(cacheBytes(p)); damaged[10] = damaged[10] ^ 1;
   writeFileSync(join(p.cacheDir, 'cards.json'), damaged);
-  check('a list that no longer matches its record is not loaded', (await loadCached(p.cacheDir, validateOptions, printingOptions)) === null);
+  check('a list that no longer matches its record is not loaded', (await loadCached(p.cacheDir, validateOptions, printingOptions, printsOptions)) === null);
   state.requests = [];
   result = await run(p, { now: T0 + DAY_MS });
   check('so a damaged cache is rebuilt, not reused', result.action === 'rebuilt' && state.requests.length === 3);
   rmSync(join(p.cacheDir, 'cards.meta.json'));
-  check('a list with no record is not loaded', (await loadCached(p.cacheDir, validateOptions, printingOptions)) === null);
+  check('a list with no record is not loaded', (await loadCached(p.cacheDir, validateOptions, printingOptions, printsOptions)) === null);
   writeFileSync(join(p.cacheDir, 'cards.meta.json'), '{ not json');
-  check('a record that is not JSON is not loaded', (await loadCached(p.cacheDir, validateOptions, printingOptions)) === null);
+  check('a record that is not JSON is not loaded', (await loadCached(p.cacheDir, validateOptions, printingOptions, printsOptions)) === null);
   const realSha = (await import('node:crypto')).createHash('sha256').update(cacheBytes(p)).digest('hex');
   writeFileSync(join(p.cacheDir, 'cards.meta.json'), JSON.stringify({ builtAt: 'yesterday-ish', sha256: realSha }));
-  check('a record with a bad date is not loaded, even though its checksum is right', (await loadCached(p.cacheDir, validateOptions, printingOptions)) === null);
+  check('a record with a bad date is not loaded, even though its checksum is right', (await loadCached(p.cacheDir, validateOptions, printingOptions, printsOptions)) === null);
   writeFileSync(join(p.cacheDir, 'cards.meta.json'), JSON.stringify({ builtAt: 1793000000000, sha256: realSha }));
-  check('a record whose date is a number, not text, is not loaded', (await loadCached(p.cacheDir, validateOptions, printingOptions)) === null);
+  check('a record whose date is a number, not text, is not loaded', (await loadCached(p.cacheDir, validateOptions, printingOptions, printsOptions)) === null);
   writeFileSync(join(p.cacheDir, 'cards.meta.json'), JSON.stringify({ sha256: realSha }));
-  check('a record with no date is not loaded', (await loadCached(p.cacheDir, validateOptions, printingOptions)) === null);
+  check('a record with no date is not loaded', (await loadCached(p.cacheDir, validateOptions, printingOptions, printsOptions)) === null);
   await run(p, { now: T0 + 2 * DAY_MS });
-  check('a cached list that fails stricter checks is not loaded', (await loadCached(p.cacheDir, { minCards: 100, mustHave: [] }, printingOptions)) === null && (await loadCached(p.cacheDir, validateOptions, printingOptions)) !== null);
+  check('a cached list that fails stricter checks is not loaded', (await loadCached(p.cacheDir, { minCards: 100, mustHave: [] }, printingOptions, printsOptions)) === null && (await loadCached(p.cacheDir, validateOptions, printingOptions, printsOptions)) !== null);
   check('a cache folder that does not exist is simply empty', (await loadCached(join(root, 'nowhere'), validateOptions, printingOptions)) === null);
 
   // ---- 8b. The printings in the cache are checked like the list ----
@@ -283,26 +285,26 @@ try {
   await run(p);
   const printingsPath = join(p.cacheDir, 'printings.json');
   const goodPrintings = readFileSync(printingsPath);
-  check('a good cache loads, with its printings', (await loadCached(p.cacheDir, validateOptions, printingOptions))?.printingBytes?.length === goodPrintings.length);
+  check('a good cache loads, with its printings', (await loadCached(p.cacheDir, validateOptions, printingOptions, printsOptions))?.printingBytes?.length === goodPrintings.length);
   // A change that leaves the file valid JSON with valid printings (one id swapped for another): only the record's checksum can see it.
   const tampered = Buffer.from(goodPrintings.toString('utf8').replace(uuid(1000), () => uuid(1999)));
   check('the tampered file really is different and still passes the content checks', tampered.length === goodPrintings.length && Buffer.compare(tampered, goodPrintings) !== 0 && !JSON.stringify(JSON.parse(tampered.toString('utf8'))).includes(uuid(1000)));
   writeFileSync(printingsPath, tampered);
-  check('printings that are valid but are not what the record vouches for are not loaded (the checksum, not the content, says so)', (await loadCached(p.cacheDir, validateOptions, printingOptions)) === null);
+  check('printings that are valid but are not what the record vouches for are not loaded (the checksum, not the content, says so)', (await loadCached(p.cacheDir, validateOptions, printingOptions, printsOptions)) === null);
   writeFileSync(printingsPath, goodPrintings);
-  check('and the untouched file loads again', (await loadCached(p.cacheDir, validateOptions, printingOptions)) !== null);
+  check('and the untouched file loads again', (await loadCached(p.cacheDir, validateOptions, printingOptions, printsOptions)) !== null);
   const damagedPrintings = Buffer.from(goodPrintings); damagedPrintings[5] = damagedPrintings[5] ^ 1;
   writeFileSync(printingsPath, damagedPrintings);
-  check('printings that no longer match the record are not loaded', (await loadCached(p.cacheDir, validateOptions, printingOptions)) === null);
+  check('printings that no longer match the record are not loaded', (await loadCached(p.cacheDir, validateOptions, printingOptions, printsOptions)) === null);
   state.requests = [];
   result = await run(p, { now: T0 + DAY_MS });
   check('so a damaged printings file is rebuilt, at the cost of 3 requests', result.action === 'rebuilt' && state.requests.length === 3 && Buffer.compare(readFileSync(printingsPath), goodPrintings) === 0);
   rmSync(printingsPath);
-  check('a cache with no printings file is not loaded', (await loadCached(p.cacheDir, validateOptions, printingOptions)) === null);
+  check('a cache with no printings file is not loaded', (await loadCached(p.cacheDir, validateOptions, printingOptions, printsOptions)) === null);
   state.requests = [];
   result = await run(p, { now: T0 + 2 * DAY_MS });
   check('and is rebuilt', result.action === 'rebuilt' && existsSync(printingsPath) && state.requests.length === 3);
-  check('printings that fail stricter checks are not loaded', (await loadCached(p.cacheDir, validateOptions, { minPrintings: 100, minSets: 1 })) === null && (await loadCached(p.cacheDir, validateOptions, printingOptions)) !== null);
+  check('printings that fail stricter checks are not loaded', (await loadCached(p.cacheDir, validateOptions, { minPrintings: 100, minSets: 1 }, printsOptions)) === null && (await loadCached(p.cacheDir, validateOptions, printingOptions, printsOptions)) !== null);
   {
     // A record that vouches for printings that are not valid, even with a matching checksum: not loaded.
     const metaPath = join(p.cacheDir, 'cards.meta.json');
@@ -321,7 +323,7 @@ try {
   olderMeta.format = 2; delete olderMeta.printingsSha256; delete olderMeta.printingCount; delete olderMeta.printingSets; delete olderMeta.printingsBytes;
   writeFileSync(join(p.cacheDir, 'cards.meta.json'), JSON.stringify(olderMeta, null, 2));
   rmSync(join(p.cacheDir, 'printings.json'));
-  const older = await loadCached(p.cacheDir, validateOptions, printingOptions);
+  const older = await loadCached(p.cacheDir, validateOptions, printingOptions, printsOptions);
   check('a format 2 list still loads, with no printings', older !== null && older.printingBytes === null && older.count === 6);
   state.requests = [];
   mkdirSync(setsDir(p), { recursive: true }); writeFileSync(join(setsDir(p), 'set-stale.json'), '{}'); // left from an earlier build
@@ -353,9 +355,27 @@ try {
   check('the old list and printings are kept, and the failure is said', result.action === 'stale-fallback' && warns.some((w) => /printings failed their checks/.test(w)) && Buffer.compare(cacheBytes(p), keepList) === 0 && Buffer.compare(readFileSync(join(p.cacheDir, 'printings.json')), keepPrintings) === 0 && Buffer.compare(readFileSync(join(p.cacheDir, 'cards.meta.json')), keepMeta) === 0);
   check('and the site still gets the printing files', setFiles(p).join() === 'set-con.json,set-tst.json');
   reset(NAMES_A);
-  state.deflt = gz([...NAMES_A.map((n, i) => ({ oracle_id: `o-${n}`, name: n, digital: false, set: 'tst', collector_number: String(i + 1), id: uuid(1000 + i) }))].slice(0, 3)); // half the printings, all the cards
+  state.deflt = gz([...NAMES_A.map((n, i) => ({ oracle_id: `o-${n}`, name: n, digital: false, set: 'tst', set_name: 'Test Set', released_at: '2020-01-01', lang: 'en', image_status: 'highres_scan', collector_number: String(i + 1), id: uuid(1000 + i) }))].slice(0, 3)); // half the printings, all the cards
   result = await run(p, { now: T0 + 8 * DAY_MS });
   check('printings far fewer than the last good build are refused (a shrink of more than 5%)', result.action === 'stale-fallback' && warns.some((w) => /printings is more than 5% fewer/.test(w)));
+
+  // ---- 8e. The printings grouped by card (shared/card-prints.mjs): the files the deck page reads to change a card's art ----
+  reset();
+  p = fresh();
+  result = await run(p);
+  const printsFolder = join(dirname(p.publicFile), 'prints');
+  const shardNames = readdirSync(printsFolder).filter((name) => name !== 'sets.json');
+  check('a rebuild publishes the printings by card: a file for each two-character shard that has a card, and the sets file', shardNames.length >= 1 && shardNames.length <= 6 && shardNames.every((name) => /^[0-9a-f]{2}\.json$/.test(name)) && existsSync(join(printsFolder, 'sets.json')), shardNames.join());
+  const published = (name) => printingsOf(JSON.parse(readFileSync(join(printsFolder, `${shardOf(name)}.json`), 'utf8')), name);
+  check('every card is in the file its name picks, with its printing (set, number, id)', NAMES_A.every((name, i) => published(name).some((row) => row.set === 'tst' && row.number === String(i + 1) && row.id === uuid(1000 + i))), JSON.stringify(published('Alpha')));
+  check('the sets file names the set and its date', JSON.parse(readFileSync(join(printsFolder, 'sets.json'), 'utf8')).tst?.join() === 'Test Set,2020-01-01');
+  check('the cache keeps the whole thing in one file with a checksum in the record', existsSync(join(p.cacheDir, 'prints.json')) && JSON.parse(readFileSync(join(p.cacheDir, 'cards.meta.json'), 'utf8')).printsRows >= 6 && /^[0-9a-f]{64}$/.test(JSON.parse(readFileSync(join(p.cacheDir, 'cards.meta.json'), 'utf8')).printsSha256));
+  rmSync(printsFolder, { recursive: true, force: true });
+  state.requests = [];
+  result = await run(p, { now: T0 + 2 * DAY_MS });
+  check('a reuse publishes them again from the cache with no request', result.action === 'reuse' && state.requests.length === 0 && published('Echo').length === 1);
+  writeFileSync(join(p.cacheDir, 'prints.json'), readFileSync(join(p.cacheDir, 'prints.json'), 'utf8').replace('Alpha', 'Alpho'));
+  check('a damaged printings-by-card file (the checksum no longer fits) means the cache is not loaded', (await loadCached(p.cacheDir, validateOptions, printingOptions, printsOptions)) === null);
 
   // ---- 9. Where downloading is not allowed ----
   reset();

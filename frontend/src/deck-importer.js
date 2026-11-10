@@ -11,6 +11,9 @@ import { makePreview, buildSavedDeck, printingSetsNeeded, isLegendaryCreature, P
 import { groupDeck } from '../../shared/deck-view.mjs';
 import { commanderMenuItems, applyCommanderChoice, commanderChoiceMessage } from '../../shared/deck-commander.mjs';
 import { openCardMenu } from './card-menu.js';
+import { setPrintingInText } from '../../shared/deck-text-edit.mjs';
+import { makePrintsLoader } from './card-prints.js';
+import { openPrintingPicker } from './printing-picker.js';
 import { LIBRARY_KEY, LEGACY_KEY, FORMAT_TITLES, emptyLibrary, readLibrary, serializeLibrary, addDeck, removeDeck, selectDeck } from '../../shared/deck-library.mjs';
 import { makeSafeStore } from './safe-store.js';
 import { loadCardList } from './card-list.js';
@@ -39,6 +42,7 @@ let formatTouched = false; // the player chose the format, so it no longer follo
 let view = 'text';
 let solo = true; // the saved decks have a "Play solo" button (not inside the lobby, where the table has its own deck)
 const printingLoader = makePrintingLoader();
+const printsLoader = makePrintsLoader(); // the printings of one card, fetched when its printing picker is opened
 let printingFiles = new Map(); // the set files the pasted list names (see src/printings.js)
 let checkRun = 0; // a newer check makes an older one that is still waiting for printing files stop
 let viewToggle = null;
@@ -361,11 +365,31 @@ function renderSections() {
   renderGroups($('sections'), groupDeck(preview.lines, { commanderIds: commanderIds() }), { view, printingCell, menuFor: (line) => menuItemsFor(line).length > 0 });
 }
 
+// ---- changing a card's printing: the window of printings (src/printing-picker.js), and the card's line in the text rewritten to name the one that was chosen ----
+function openPicker(line, returnFocus) {
+  openPrintingPicker({ root, name: line.name, defaultId: line.card.i, currentId: line.printingSource === 'set' || line.printingSource === 'title' ? line.printingId : null, loader: printsLoader, returnFocus, onPick: (row) => applyPrinting(line, row) });
+}
+async function applyPrinting(line, row) {
+  const edited = setPrintingInText(text, line.sourceLines, line.name, row ? { set: row.set, number: row.number } : null);
+  if (edited.changed === 0) { say(`${line.name} already uses that printing.`); return; }
+  const run = ++checkRun;
+  // The preview finds a printing in its set's file, so that file is fetched first (our own static file; a set already loaded is not fetched again).
+  const wanted = row ? [row.set] : [];
+  const loaded = wanted.length ? await printingLoader.load(wanted) : new Map();
+  if (run !== checkRun) return; // another check or change came in while it loaded
+  text = edited.text;
+  $('deck-text').value = text;
+  printingFiles = new Map([...printingFiles, ...loaded]);
+  refresh(); // the same cards, with the new printing; the name, format, bracket and commander stay as they were
+  say(row ? `${line.name}: ${row.set.toUpperCase()} ${row.number}.` : `${line.name}: default printing.`);
+}
+
 // ---- a card's menu: the "..." button on a card, or a right-click on it ----
 // What it offers is in shared/deck-commander.mjs (making a card the commander or the partner, or taking it out; the card that was replaced goes back to its type group).
 const currentPicks = () => (isCommander() && !$('commander-box').hidden ? [$('commander-1').value, $('commander-2').value] : ['', '']);
 function menuItemsFor(line) {
-  return commanderMenuItems(line, currentPicks(), { commanderFormat: isCommander() && !$('commander-box').hidden });
+  if (!line || line.status !== 'matched' || !line.card) return [];
+  return [{ id: 'printing', label: 'Change printing...' }, ...commanderMenuItems(line, currentPicks(), { commanderFormat: isCommander() && !$('commander-box').hidden })];
 }
 function lineOf(element) {
   const ref = element instanceof Element ? element.closest('[data-ref]')?.dataset.ref : null;
@@ -379,6 +403,7 @@ function openLineMenu(line, x, y, returnFocus) {
   const items = menuItemsFor(line);
   if (!items.length) return;
   openCardMenu({ title: line.name, items, x, y, returnFocus, onPick: (action) => {
+    if (action === 'printing') { openPicker(line, returnFocus); return; }
     picks = applyCommanderChoice(currentPicks(), action, line.card.i);
     picksTouched = true;
     renderCommander();
@@ -609,7 +634,7 @@ export function mountDeckImporter({ root: container, sampleId, onLibraryChange: 
   $('storage-hint').hidden = canStore;
   readSavedLibrary();
   renderSaved();
-  setupCardPeek({ root: $('sections'), peek: document.getElementById('card-peek'), image: document.getElementById('card-peek-image'), note: document.getElementById('card-peek-note') });
+  setupCardPeek({ root, peek: document.getElementById('card-peek'), image: document.getElementById('card-peek-image'), note: document.getElementById('card-peek-note') });
   // With saved decks (or a message about decks that could not be read) the page starts at the list; with none it starts at the box to paste into.
   const somethingToShow = library.decks.length > 0 || libraryRead.source === 'damaged' || libraryRead.skipped > 0;
   showScreen(somethingToShow && pendingSample === undefined ? 'list' : 'paste');

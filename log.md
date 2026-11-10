@@ -2636,6 +2636,27 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 127. Changing a card's printing, from our own data files (2026-11-10)
+
+**What I asked for**
+- Option A for changing a card's printing (printings grouped by card in the build, no Scryfall request when a player uses it), keeping cost low without hurting performance. Also: is 1280 wide the limit for checking, or can it be 1920 by 1080?
+
+**What changed** (`shared/card-prints.mjs`, `shared/deck-text-edit.mjs`, `scripts/lib/card-list.mjs`, `scripts/lib/card-list-build.mjs`, `frontend/src/card-prints.js`, `printing-picker.js`, `deck-importer.js`, `style.css`)
+- **The data (the card list build):** while it reads Scryfall's printings file it also keeps, for each card, every paper printing with a real picture (not `placeholder` or `missing`; English, or all languages for a card with no English printing), newest first, then by set and number. It writes them as 256 small files under `/data/prints/XX.json` (a card's file is picked by the first two characters of its key) plus `/data/prints/sets.json` (each set's name and date). The cache keeps them in one `prints.json` with a checksum, so a reuse publishes them again with no request. The list format is 7, so a cached list in format 6 is rebuilt once (one 100 MB download), as for every earlier format change. A rebuild refuses data with bad rows, too few cards or rows, or more than 5% fewer than the last good build.
+- **Measured on the real files (Oct 26 data):** 33,923 cards, 100,502 printings in 256 files: 5.8 MB raw, 3.07 MB compressed in all on the server (it is not downloaded together). A player who opens one card's printings downloads that card's file (median 12 KB, largest 31 KB compressed) and the sets file (8 KB): about 20 KB, once per visit, and no request to Scryfall. A picture is loaded only for the row being pointed at (normal size), and none for the other rows. Sol Ring has 133 printings.
+- **The window:** "Change printing..." is the first item in every matched card's menu (also in Standard, the sideboard and the picture view). It lists the printings (set name, set code and number, year), with a filter box, the printing in use marked, and Default printing at the top; pointing at a row shows its picture in the same picture box as the deck list. Choosing one rewrites the card's line in the pasted list to "2 Sol Ring (CMM) 410" (the quantity and any foil mark stay, every text line the card came from is rewritten), so the choice is just text the player could have typed, is what is saved, and comes back when the deck is opened. The name, format, bracket and commander stay as they were.
+- **Layout:** the deck page can be wider on a big window (100 rem, four columns at 1920); the picture box is above the new window.
+
+**What I checked**
+- New unit suites: `test-card-prints.mjs` (17), `test-deck-text-edit.mjs` (14). The card list build test is 163 (6 new: the files, the sets file, a reuse publishing them again with no request, a damaged file not loaded). The deck page check is 249 (11 new: the window, its two small fetches and no more on a second open, the filter, hovering, choosing, keeping the 2 copies, Default, saving keeping the art, files blocked, then back). The deploy check is 70 (14 new once the cache holds the files: they are served as JSON, a missing file is a 404, and each file equals the cache). `npm test` quick suites 54; the lobby (65) and live room (26) checks pass. Screenshots at 1920x1080 with real pictures.
+- **Not checked:** the real Vercel build of the new data (the first build on a branch downloads Scryfall's files, about 100 MB, then caches; I ran the deploy check against a local cache seeded from the files I built here), phone width, light mode.
+
+**Decisions**
+- Screen size: my checks run in a headless browser that can be any size; 1280 and 1400 were just my choice for desktop. I took screenshots at 1920x1080 for this entry.
+- Claude's own mistakes: my first idea was to group printings by the 4-character card key already in the per-set files, which would have mixed up about half the cards (the key is 16 bits and 34,000 names collide); the grouping is by exact name now. The deploy check would not have run the new checks at all on this machine (its cache was in the old format); I seeded a copy of the cache to run them and put the old one back.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-10, entry 122) Claude's first deck page started a library it could not read at the box to paste into, hiding the message about it; the old check noticed.
 - (2026-11-10, entry 120) Claude's solo check clicked a fixed empty spot that stopped being empty once the graveyard stack moved there, and the failure first looked like a menu bug; a screenshot at the moment of the failure showed the open viewer.

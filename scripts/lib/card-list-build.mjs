@@ -16,7 +16,8 @@ import { dirname, join } from 'node:path';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { setFileName } from '../../shared/printings.mjs';
-import { buildFromFiles, countPrintings, serializeList, serializePrintings, validateList, validatePrintings } from './card-list.mjs';
+import { shardFileName, splitPrints, validatePrints, countPrints, SETS_FILE } from '../../shared/card-prints.mjs';
+import { buildFromFiles, countPrintings, serializeList, serializePrintings, serializePrints, validateList, validatePrintings } from './card-list.mjs';
 
 export const DAY_MS = 24 * 60 * 60 * 1000;
 export const MAX_AGE_MS = 7 * DAY_MS; // a list younger than this is reused without asking Scryfall anything
@@ -24,8 +25,9 @@ export const MAX_STALE_MS = 30 * DAY_MS; // a failed rebuild falls back to a lis
 // The shape of the list this code builds. Raise it whenever the list gets new content (2 added each card's alternate titles,
 // `f`; 3 added the printing of each title, `fp`, and the per-set printing files; 4 added the printed power and toughness,
 // `pt`; 5 added `b` and `bpt`, a back face to turn over and its power and toughness), so a cached list in an older shape
-// is rebuilt once instead of being reused for up to a week. 6 added `md`, a modal card (playable as either face).
-export const LIST_FORMAT = 6;
+// is rebuilt once instead of being reused for up to a week. 6 added `md`, a modal card (playable as either face). 7 added the printings grouped by card (prints.json in the cache, the files
+// under /data/prints/ on the site: shared/card-prints.mjs), which the deck page reads to let a player change a card's art.
+export const LIST_FORMAT = 7;
 export const BULK_DATA_URL = 'https://api.scryfall.com/bulk-data';
 // Scryfall's rules (docs/scryfall.md): every request names the app and says what it accepts.
 export const HEADERS = { 'User-Agent': 'Overloaded/0.1 (+https://github.com/kevlam1/Overloaded)', Accept: 'application/json' };
@@ -54,7 +56,7 @@ const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
 // The cached list and its record, if both are there, agree with each other and still pass the checks. A list in format 3 or
 // later also needs its printings (printings.json, vouched for by the record); a list in an older format has none, and is
 // still returned, so a build that may not download can keep using it (printingBytes is null).
-export async function loadCached(cacheDir, validateOptions = {}, printingOptions = {}) {
+export async function loadCached(cacheDir, validateOptions = {}, printingOptions = {}, printsOptions = {}) {
   try {
     const meta = JSON.parse(await readFile(join(cacheDir, 'cards.meta.json'), 'utf8'));
     const bytes = await readFile(join(cacheDir, 'cards.json'));
@@ -67,7 +69,13 @@ export async function loadCached(cacheDir, validateOptions = {}, printingOptions
       if (meta.printingsSha256 !== sha256(printingBytes)) return null;
       if (validatePrintings(JSON.parse(printingBytes.toString('utf8')), printingOptions).length) return null;
     }
-    return { meta, bytes, count: list.length, printingBytes };
+    let printsBytes = null;
+    if (meta.format >= 7) {
+      printsBytes = await readFile(join(cacheDir, 'prints.json'));
+      if (meta.printsSha256 !== sha256(printsBytes)) return null;
+      if (validatePrints(JSON.parse(printsBytes.toString('utf8')), printsOptions).length) return null;
+    }
+    return { meta, bytes, count: list.length, printingBytes, printsBytes };
   } catch {
     return null;
   }
@@ -122,7 +130,7 @@ async function writeWhole(path, bytes) {
 // something else might have changed. The set files are written into a new folder that then replaces the old one, so a
 // stopped build never leaves a half-written folder, and no file of an earlier build is left behind. A list with no
 // printings (an older format) leaves no printings folder at all.
-export async function publish(publicFile, bytes, printingBytes = null) {
+export async function publish(publicFile, bytes, printingBytes = null, printsBytes = null) {
   await mkdir(dirname(publicFile), { recursive: true });
   await writeWhole(publicFile, bytes);
   const folder = join(dirname(publicFile), 'printings');
@@ -135,10 +143,22 @@ export async function publish(publicFile, bytes, printingBytes = null) {
   }
   await rm(folder, { recursive: true, force: true });
   if (printingBytes) await rename(fresh, folder);
+  // The printings grouped by card (data/prints/XX.json, 256 files by the first two characters of a card's key, and sets.json), the same way. A list in an older format has none.
+  const printsFolder = join(dirname(publicFile), 'prints');
+  const printsFresh = `${printsFolder}.new`;
+  await rm(printsFresh, { recursive: true, force: true });
+  if (printsBytes) {
+    await mkdir(printsFresh, { recursive: true });
+    const { shards, sets } = splitPrints(JSON.parse(printsBytes.toString('utf8')));
+    for (const shard of Object.keys(shards)) await writeFile(join(printsFresh, shardFileName(shard)), JSON.stringify(shards[shard]));
+    await writeFile(join(printsFresh, SETS_FILE), JSON.stringify(sets));
+  }
+  await rm(printsFolder, { recursive: true, force: true });
+  if (printsBytes) await rename(printsFresh, printsFolder);
 }
 
 // One try at a full rebuild. Throws, leaving the cache untouched, if anything is wrong.
-async function rebuildOnce({ cacheDir, now, fetchImpl, apiUrl, validateOptions, printingOptions, previousCount, previousPrintings, timeouts, log }) {
+async function rebuildOnce({ cacheDir, now, fetchImpl, apiUrl, validateOptions, printingOptions, printsOptions, previousCount, previousPrintings, previousPrints, timeouts, log }) {
   const info = await getBulkInfo(fetchImpl, apiUrl, timeouts.apiMs);
   const work = join(cacheDir, `downloads-${process.pid}`);
   await mkdir(work, { recursive: true });
@@ -147,20 +167,24 @@ async function rebuildOnce({ cacheDir, now, fetchImpl, apiUrl, validateOptions, 
     const defaultFile = join(work, 'default_cards.jsonl.gz');
     const bytesDownloaded = (await downloadFile(fetchImpl, info.oracle.url, oracleFile, info.oracle.size, timeouts.fileMs)) + (await downloadFile(fetchImpl, info.default.url, defaultFile, info.default.size, timeouts.fileMs));
     log(`card list: downloaded ${(bytesDownloaded / 1048576).toFixed(1)} MB from Scryfall (oracle file ${info.oracle.updatedAt}, printings file ${info.default.updatedAt})`);
-    const { list, counts, printingFiles } = await buildFromFiles(oracleFile, defaultFile);
+    const { list, counts, printingFiles, prints } = await buildFromFiles(oracleFile, defaultFile);
     const problems = validateList(list, { ...validateOptions, previousCount });
     if (problems.length) throw new Error(`the new list failed its checks: ${problems.join('; ')}`);
     const printingProblems = validatePrintings(printingFiles, { ...printingOptions, previousCount: previousPrintings });
     if (printingProblems.length) throw new Error(`the new printings failed their checks: ${printingProblems.join('; ')}`);
+    const printsProblems = validatePrints(prints, { ...printsOptions, previousRows: previousPrints });
+    if (printsProblems.length) throw new Error(`the new printings by card failed their checks: ${printsProblems.join('; ')}`);
     const bytes = Buffer.from(serializeList(list));
     const printingBytes = Buffer.from(serializePrintings(printingFiles));
+    const printsBytes = Buffer.from(serializePrints(prints));
     await mkdir(cacheDir, { recursive: true });
     await writeWhole(join(cacheDir, 'printings.json'), printingBytes); // the files first, then the record that vouches for them
+    await writeWhole(join(cacheDir, 'prints.json'), printsBytes);
     await writeWhole(join(cacheDir, 'cards.json'), bytes);
     const { sets, printings } = countPrintings(printingFiles);
-    const meta = { builtAt: new Date(now).toISOString(), format: LIST_FORMAT, count: list.length, bytes: bytes.length, sha256: sha256(bytes), printingSets: sets, printingCount: printings, printingsBytes: printingBytes.length, printingsSha256: sha256(printingBytes), oracleUpdatedAt: info.oracle.updatedAt, defaultUpdatedAt: info.default.updatedAt, counts };
+    const meta = { builtAt: new Date(now).toISOString(), format: LIST_FORMAT, count: list.length, bytes: bytes.length, sha256: sha256(bytes), printingSets: sets, printingCount: printings, printingsBytes: printingBytes.length, printingsSha256: sha256(printingBytes), printsCards: countPrints(prints).cards, printsRows: countPrints(prints).rows, printsBytes: printsBytes.length, printsSha256: sha256(printsBytes), oracleUpdatedAt: info.oracle.updatedAt, defaultUpdatedAt: info.default.updatedAt, counts };
     await writeWhole(join(cacheDir, 'cards.meta.json'), Buffer.from(JSON.stringify(meta, null, 2)));
-    return { meta, bytes, printingBytes, bytesDownloaded };
+    return { meta, bytes, printingBytes, printsBytes, bytesDownloaded };
   } finally {
     await rm(work, { recursive: true, force: true }); // the bulk files are not kept: the list is all that is reused
   }
@@ -169,8 +193,8 @@ async function rebuildOnce({ cacheDir, now, fetchImpl, apiUrl, validateOptions, 
 // The whole job. Returns { action, count, ... } or throws if the site would have no list and should not be built.
 //   cacheDir: where the list and its record are kept between builds (.vercel/cache/... on Vercel)
 //   publicFile: where the site's build picks the list up (frontend/public/data/cards.json, copied into dist/)
-export async function ensureCardList({ cacheDir, publicFile, now = Date.now(), env = process.env, fetchImpl = fetch, apiUrl = BULK_DATA_URL, validateOptions = {}, printingOptions = {}, attempts = 2, retryDelayMs = 2000, sleep = sleepFor, timeouts = {}, log = console.log, warn = console.warn }) {
-  const cached = await loadCached(cacheDir, validateOptions, printingOptions);
+export async function ensureCardList({ cacheDir, publicFile, now = Date.now(), env = process.env, fetchImpl = fetch, apiUrl = BULK_DATA_URL, validateOptions = {}, printingOptions = {}, printsOptions = {}, attempts = 2, retryDelayMs = 2000, sleep = sleepFor, timeouts = {}, log = console.log, warn = console.warn }) {
+  const cached = await loadCached(cacheDir, validateOptions, printingOptions, printsOptions);
   const decision = decide({ cached, now, env });
   const days = (ms) => (ms / DAY_MS).toFixed(1);
 
@@ -179,7 +203,7 @@ export async function ensureCardList({ cacheDir, publicFile, now = Date.now(), e
     return { action: 'skip', reason: decision.reason, count: 0, meta: null };
   }
   if (decision.action === 'reuse') {
-    await publish(publicFile, cached.bytes, cached.printingBytes);
+    await publish(publicFile, cached.bytes, cached.printingBytes, cached.printsBytes);
     log(`card list: reused the cached list of ${cached.count} cards, ${days(decision.age)} days old (${decision.reason}); no requests made${cached.printingBytes ? '' : ' (this list has no printing files: it is in an older format)'}`);
     return { action: 'reuse', reason: decision.reason, count: cached.count, ageDays: decision.age / DAY_MS, meta: cached.meta };
   }
@@ -187,8 +211,8 @@ export async function ensureCardList({ cacheDir, publicFile, now = Date.now(), e
   let lastError = null;
   for (let attempt = 1; attempt <= attempts; attempt++) {
     try {
-      const { meta, bytes, printingBytes, bytesDownloaded } = await rebuildOnce({ cacheDir, now, fetchImpl, apiUrl, validateOptions, printingOptions, previousCount: cached ? cached.meta.count : null, previousPrintings: cached?.meta.printingCount ?? null, timeouts, log });
-      await publish(publicFile, bytes, printingBytes);
+      const { meta, bytes, printingBytes, printsBytes, bytesDownloaded } = await rebuildOnce({ cacheDir, now, fetchImpl, apiUrl, validateOptions, printingOptions, printsOptions, previousPrints: cached?.meta.printsRows ?? null, previousCount: cached ? cached.meta.count : null, previousPrintings: cached?.meta.printingCount ?? null, timeouts, log });
+      await publish(publicFile, bytes, printingBytes, printsBytes);
       log(`card list: built ${meta.count} cards (${(meta.bytes / 1048576).toFixed(2)} MB) and ${meta.printingCount} printings in ${meta.printingSets} sets (${(meta.printingsBytes / 1048576).toFixed(2)} MB)`);
       return { action: 'rebuilt', reason: decision.reason, count: meta.count, bytesDownloaded, meta };
     } catch (error) {
@@ -199,7 +223,7 @@ export async function ensureCardList({ cacheDir, publicFile, now = Date.now(), e
   }
   // Rebuilding failed. The last good list, if it is not too old, is better than failing the whole deploy.
   if (cached && decision.age <= MAX_STALE_MS) {
-    await publish(publicFile, cached.bytes, cached.printingBytes);
+    await publish(publicFile, cached.bytes, cached.printingBytes, cached.printsBytes);
     warn(`card list: WARNING using the OLD list of ${cached.count} cards, ${days(decision.age)} days old, because rebuilding failed (${lastError.message})`);
     return { action: 'stale-fallback', reason: decision.reason, count: cached.count, ageDays: decision.age / DAY_MS, error: lastError.message, meta: cached.meta };
   }

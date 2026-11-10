@@ -50,6 +50,8 @@ const suites = [
   { name: 'the deck view: type groups, commanders, sorting', cmd: node, args: ['scripts/test-deck-view.mjs'] },
   { name: 'mana costs: reading the symbols', cmd: node, args: ['scripts/test-mana-cost.mjs'] },
   { name: 'the deck view: choosing the commander from a card', cmd: node, args: ['scripts/test-deck-commander.mjs'] },
+  { name: 'printings grouped by card: files, reading, build checks', cmd: node, args: ['scripts/test-card-prints.mjs'] },
+  { name: 'changing a card printing in the pasted text', cmd: node, args: ['scripts/test-deck-text-edit.mjs'] },
   { name: 'the card hover preview: which picture, where the box goes', cmd: node, args: ['scripts/test-card-hover.mjs'] },
   { name: 'counters, modifier, tokens, player counters', cmd: node, args: ['scripts/test-counters.mjs'] },
   { name: 'counters and tokens: how they are stored and read back', cmd: node, args: ['scripts/test-sync-counters.mjs'] },

@@ -19,7 +19,8 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { brotliCompressSync, gzipSync } from 'node:zlib';
-import { buildFromFiles, countPrintings, serializeList, serializePrintings, validateList, validatePrintings } from './lib/card-list.mjs';
+import { buildFromFiles, countPrintings, serializeList, serializePrintings, serializePrints, validateList, validatePrintings } from './lib/card-list.mjs';
+import { validatePrints, countPrints } from '../shared/card-prints.mjs';
 import { ensureCardList, publish } from './lib/card-list-build.mjs';
 
 const root = join(import.meta.dirname, '..');
@@ -38,8 +39,8 @@ async function fromFiles() {
   let previousCount = null;
   if (existsSync(outPath)) { try { previousCount = JSON.parse(readFileSync(outPath, 'utf8')).length; } catch { /* an unreadable old file is not a reason to refuse a new list */ } }
   const started = performance.now();
-  const { list, counts, printingFiles } = await buildFromFiles(oraclePath, defaultPath);
-  const problems = [...validateList(list, { previousCount }), ...validatePrintings(printingFiles)];
+  const { list, counts, printingFiles, prints } = await buildFromFiles(oraclePath, defaultPath);
+  const problems = [...validateList(list, { previousCount }), ...validatePrintings(printingFiles), ...validatePrints(prints)];
   console.log(`Read ${counts.printings} printings and ${counts.oracleRecords} card records in ${((performance.now() - started) / 1000).toFixed(1)} s`);
   console.log(`  not for decks (art cards, vanguards, planes, schemes, tokens, emblems, collectibles): ${counts.notCandidates}`);
   console.log(`  online-only (every printing digital): ${counts.onlineOnly}`);
@@ -63,12 +64,17 @@ async function fromFiles() {
   writeFileSync(`${printingsPath}.tmp`, printingBytes);
   renameSync(`${printingsPath}.tmp`, printingsPath);
   console.log(`Wrote ${printingsPath}: ${mb(printingBytes.length)} MB, ${mb(gzipSync(printingBytes).length)} MB gzipped (${countPrintings(printingFiles).sets} sets)`);
+  const printsBytes = Buffer.from(serializePrints(prints));
+  const printsPath = join(dirname(outPath), 'prints.json');
+  writeFileSync(`${printsPath}.tmp`, printsBytes);
+  renameSync(`${printsPath}.tmp`, printsPath);
+  console.log(`Wrote ${printsPath}: ${mb(printsBytes.length)} MB, ${mb(gzipSync(printsBytes).length)} MB gzipped (${countPrints(prints).cards} cards, ${countPrints(prints).rows} printings by card)`);
   if (args.includes('--site')) {
     // Also put them where the site picks them up (the same step the real build uses), so the pages can be run and checked
     // here without downloading anything. The bytes are the ones that were just checked and written.
     const publicFile = join(root, 'frontend', 'public', 'data', 'cards.json');
-    await publish(publicFile, bytes, printingBytes);
-    console.log(`Published the list and ${countPrintings(printingFiles).sets} printing files to ${dirname(publicFile)}`);
+    await publish(publicFile, bytes, printingBytes, printsBytes);
+    console.log(`Published the list, ${countPrintings(printingFiles).sets} printing files and the printings by card to ${dirname(publicFile)}`);
   }
 }
 

@@ -9,6 +9,7 @@
 // Not covered: the long-polling fallback Firebase uses when WebSockets are blocked, and Vercel itself (confirm the
 // real headers on the deployed site with a plain GET after a deploy).
 // Run from the repo root:  node --env-file=.env scripts/check-deploy-config.mjs
+import { shardOf, printingsOf, splitPrints } from '../shared/card-prints.mjs';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync, readdirSync, mkdtempSync, cpSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -171,6 +172,29 @@ if (LIVE || existsSync(cachedList)) {
     }
   } else {
     console.log('(printing file checks skipped: the cached list has no printings, so it is in an older format; the next card list build makes them)');
+  }
+
+  // The printings grouped by card (/data/prints/XX.json and sets.json, shared/card-prints.mjs): the files the deck page reads to change a card's art.
+  const cachedPrints = join(cacheDir, 'prints.json');
+  if (LIVE || existsSync(cachedPrints)) {
+    const setsFile = await get('/data/prints/sets.json');
+    let setsJson = null; try { setsJson = JSON.parse(setsFile.body); } catch { /* reported below */ }
+    check('the sets file is served as JSON, not as the lobby page, and knows Commander Masters', setsFile.status === 200 && /json/.test(setsFile.type) && setsJson?.cmm?.[0] === 'Commander Masters', `${setsFile.status} ${setsFile.type}`);
+    const shardFile = await get(`/data/prints/${shardOf('Sol Ring')}.json`);
+    let shardJson = null; try { shardJson = JSON.parse(shardFile.body); } catch { /* reported below */ }
+    check('the file that holds Sol Ring is served as JSON and lists more than 50 printings, one of them Commander Masters 410', shardFile.status === 200 && /json/.test(shardFile.type) && printingsOf(shardJson, 'Sol Ring').length > 50 && printingsOf(shardJson, 'Sol Ring').some((row) => row.set === 'cmm' && row.number === '410'), `${shardFile.status} ${shardFile.type}`);
+    const noShard = await get('/data/prints/zz.json');
+    check('a file that does not exist is a 404, not a page', noShard.status === 404 && !/<html/i.test(noShard.body), `${noShard.status} ${noShard.type}`);
+    check('the printings by card carry the security headers too', (await fetch(ORIGIN + '/data/prints/sets.json')).headers.get('x-content-type-options') === 'nosniff');
+    if (!LIVE) {
+      const cached = JSON.parse(readFileSync(cachedPrints, 'utf8'));
+      const { shards } = splitPrints(cached);
+      const built = readdirSync(join('dist', 'data', 'prints')).filter((name) => name !== 'sets.json').sort().join();
+      check('every file of the cache is in the built site, and nothing else is', built === Object.keys(shards).sort().map((name) => `${name}.json`).join(), `${built.split(',').length} files`);
+      check('and each file is exactly its cards from the cache', Object.keys(shards).every((name) => readFileSync(join('dist', 'data', 'prints', `${name}.json`), 'utf8') === JSON.stringify(shards[name])) && readFileSync(join('dist', 'data', 'prints', 'sets.json'), 'utf8') === JSON.stringify(cached.sets));
+    }
+  } else {
+    console.log('(printings-by-card checks skipped: the cached list has none; the next card list build makes them)');
   }
 } else {
   console.log('(card list checks skipped: no list is cached here; run `npm run cards` to download one)');

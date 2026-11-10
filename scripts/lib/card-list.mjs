@@ -7,6 +7,7 @@ import { createReadStream } from 'node:fs';
 import { createGunzip } from 'node:zlib';
 import { createInterface } from 'node:readline';
 import { printingValue, readPrintingValue, SET_CODE } from '../../shared/printings.mjs';
+import { readRow } from '../../shared/card-prints.mjs';
 
 const byCodeUnits = (a, b) => (a < b ? -1 : a > b ? 1 : 0); // code units, not locale
 
@@ -74,7 +75,7 @@ export function toEntry(record, alternateNames = [], alternateIds = []) {
 // sets have none), and a card with no printings at all is NOT online-only: the printings file may simply be older than the
 // card file, and dropping a paper card is worse than keeping an online one.
 export class PrintingSummary {
-  constructor() { this.seen = new Set(); this.nonDigital = new Set(); this.alternate = new Map(); this.records = []; }
+  constructor() { this.seen = new Set(); this.nonDigital = new Set(); this.alternate = new Map(); this.records = []; this.picks = []; this.setNames = new Map(); }
   add(printing) {
     const id = oracleIdOf(printing);
     if (!id) return;
@@ -89,6 +90,12 @@ export class PrintingSummary {
     }
     if (printing.digital) return;
     this.nonDigital.add(id);
+    // The printings a player can choose between for a card (shared/card-prints.mjs): paper ones with a real picture. Which language and in what order is decided in cardPrints().
+    if (typeof printing.set === 'string' && typeof printing.collector_number === 'string' && typeof printing.id === 'string' && typeof printing.released_at === 'string' && printing.image_status !== 'placeholder' && printing.image_status !== 'missing') {
+      this.picks.push([id, printing.set, printing.collector_number, printing.id, printing.released_at, printing.lang === 'en']);
+      const known = this.setNames.get(printing.set);
+      if (typeof printing.set_name === 'string' && printing.set_name && (!known || printing.released_at < known[1])) this.setNames.set(printing.set, [printing.set_name, printing.released_at]);
+    }
     // `name` is always the card's real name, in English, even on a printing in another language; the title printed on the
     // card, when it differs, is `flavor_name` (on the record, or on each face of a double-faced card).
     for (const title of [printing.flavor_name, ...(printing.card_faces ?? []).map((face) => face.flavor_name)]) {
@@ -123,6 +130,37 @@ export class PrintingSummary {
     }
     return files;
   }
+  // Every printing of each card in the list, for choosing the art: { sets: { code: [name, first release] }, cards: { name: [[set, number, id], ...] } }. A card's printings are paper ones with a real picture, newest first,
+  // then by set code and number; English ones, or all of them for a card with no English printing. Names and sets are in code-unit order so the same data is always the same bytes. `names` maps an oracle id to the card's name.
+  cardPrints(names) {
+    const byCard = new Map();
+    for (const [oracleId, set, number, id, released, english] of this.picks) {
+      const name = names.get(oracleId);
+      if (name === undefined) continue;
+      if (!byCard.has(name)) byCard.set(name, []);
+      byCard.get(name).push({ set, number, id, released, english });
+    }
+    const cards = {};
+    const used = new Set();
+    for (const name of [...byCard.keys()].sort(byCodeUnits)) {
+      let list = byCard.get(name);
+      if (list.some((printing) => printing.english)) list = list.filter((printing) => printing.english);
+      list.sort((a, b) => byCodeUnits(b.released, a.released) || byCodeUnits(a.set, b.set) || byCodeUnits(a.number, b.number) || byCodeUnits(a.id, b.id));
+      const rows = [];
+      const seenIds = new Set();
+      for (const printing of list) {
+        const row = [printing.set, printing.number, printing.id];
+        if (seenIds.has(printing.id) || !readRow(row)) continue;
+        seenIds.add(printing.id);
+        rows.push(row);
+        used.add(printing.set);
+      }
+      if (rows.length) cards[name] = rows;
+    }
+    const sets = {};
+    for (const code of [...used].sort(byCodeUnits)) if (this.setNames.has(code)) sets[code] = this.setNames.get(code);
+    return { sets, cards };
+  }
 }
 
 const byNameThenId = (a, b) => (a.n < b.n ? -1 : a.n > b.n ? 1 : a.i < b.i ? -1 : a.i > b.i ? 1 : 0); // code units, not locale
@@ -140,6 +178,7 @@ export function buildList(oracleRecords, printings) {
 // The exact bytes served. No spaces, so the same list is always the same bytes (and gets the same ETag).
 export const serializeList = (list) => JSON.stringify(list);
 export const serializePrintings = (files) => JSON.stringify(files);
+export const serializePrints = (prints) => JSON.stringify(prints);
 
 // A build that finds far fewer printings than this (there were 109,475 on 2026-10-29) means Scryfall changed something.
 export const MIN_PRINTINGS = 80000;
@@ -245,5 +284,7 @@ export async function buildFromFiles(oraclePath, defaultPath) {
   counts.withAlternateNames = list.filter((entry) => entry.f).length;
   const printingFiles = printings.printingFiles(names);
   Object.assign(counts, { printingSets: Object.keys(printingFiles).length, printingsKept: countPrintings(printingFiles).printings });
-  return { list, counts, printingFiles };
+  const prints = printings.cardPrints(names);
+  Object.assign(counts, { printsCards: Object.keys(prints.cards).length, printsRows: Object.values(prints.cards).reduce((sum, rows) => sum + rows.length, 0) });
+  return { list, counts, printingFiles, prints };
 }

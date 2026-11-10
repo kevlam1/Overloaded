@@ -314,7 +314,7 @@ try {
   ]);
   const { list, counts } = await buildFromFiles(oracleFile, defaultFile);
   same('files in, the same list as from memory', list, built);
-  same('the counts describe every step', counts, { printings: 6, oracleRecords: 9, notCandidates: 3, onlineOnly: 1, noPrintingsKept: 1, kept: 5, withAlternateNames: 0, printingSets: 0, printingsKept: 0 });
+  same('the counts describe every step', counts, { printings: 6, oracleRecords: 9, notCandidates: 3, onlineOnly: 1, noPrintingsKept: 1, kept: 5, withAlternateNames: 0, printingSets: 0, printingsKept: 0, printsCards: 0, printsRows: 0 });
 
   // The same files with two printings that carry another title, one of them in Japanese: read from files, they reach the list.
   const titledFile = gz('titled.jsonl.gz', [

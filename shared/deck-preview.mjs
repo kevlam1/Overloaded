@@ -159,6 +159,7 @@ export function makePreview(parsed, matched, choices = {}, printingFiles = null)
     const existing = groups.get(key);
     if (existing) {
       existing.qty += entry.qty;
+      existing.sourceLines.push(entry.line);
       if (printing && !existing.printings.includes(printing)) existing.printings.push(printing);
       if (resolved.problem) existing.printingProblems.push({ typed: printing, problem: resolved.problem });
       return;
@@ -167,7 +168,7 @@ export function makePreview(parsed, matched, choices = {}, printingFiles = null)
     // printingId: the printing whose picture to show (null: the card's default one); printingSource: 'set' (the typed set and
     // number), 'title' (the printing that carries the title that was typed) or null; printingProblems: typed set and numbers
     // that could not be found, each with why (see resolvePrinting)
-    groups.set(key, { key, section: entry.section, qty: entry.qty, status, card: card ?? null, candidates: card ? [] : result.candidates, typed: entry.name, typedKey, name: card ? card.n : entry.name, viaTitle, printings: printing ? [printing] : [], printingId: resolved.id, printingSource: resolved.source, printingProblems: resolved.problem ? [{ typed: printing, problem: resolved.problem }] : [], firstLine: entry.line, order });
+    groups.set(key, { key, section: entry.section, qty: entry.qty, status, card: card ?? null, candidates: card ? [] : result.candidates, typed: entry.name, typedKey, name: card ? card.n : entry.name, viaTitle, printings: printing ? [printing] : [], printingId: resolved.id, printingSource: resolved.source, printingProblems: resolved.problem ? [{ typed: printing, problem: resolved.problem }] : [], firstLine: entry.line, sourceLines: [entry.line], order });
   });
   const lines = [...groups.values()];
 
