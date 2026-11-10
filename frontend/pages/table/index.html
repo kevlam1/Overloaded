@@ -29,8 +29,6 @@
           <button id="end-match" type="button" class="secondary" hidden>End the match</button>
           <button id="leave" type="button" class="secondary">Leave the table</button>
         </div>
-        <div id="sound-settings"></div>
-          <div id="pile-style-settings"></div>
         <p id="save-state" class="hint" role="status" aria-live="polite"></p>
         <p class="hint extra">Play is casual: conceding is a sign to the table, it does not stop you from looking. Only the host can end the match for everyone. If you leave during a match your seat is kept for you until it ends.</p>
       </section>
@@ -68,8 +66,8 @@
             <button id="take-back" type="button" class="secondary" hidden>Take back the pass</button>
             <button id="untap-all" type="button" class="secondary">Untap all</button>
             <button id="arrange" type="button" class="secondary">Auto-arrange</button>
-            <button id="shuffle" type="button" class="secondary">Shuffle library</button>
             <button id="mulligan" type="button" class="secondary">Mulligan</button>
+            <button id="settings-button" type="button" class="secondary" aria-haspopup="dialog" aria-expanded="false" aria-controls="settings-menu">Settings</button>
           </div>
         </section>
 
@@ -94,12 +92,7 @@
             </div>
           </section>
 
-          <section id="selected" class="selected-panel" aria-labelledby="selected-heading">
-            <h2 id="selected-heading">Selected card</h2>
-            <p id="selected-line" class="hint">Click a card to move it, tap it or look at it.</p>
-            <div id="selected-actions" class="actions" role="group" aria-label="What to do with the selected card"></div>
-            <div id="marks" class="marks-panel" hidden></div>
-          </section>
+          <p id="selected-line" class="sr-only" aria-live="polite">Click a card to select it; right-click it for what you can do.</p>
 
           <section id="piles-section" class="piles-section" aria-labelledby="piles-heading">
             <h2 id="piles-heading">Your piles</h2>
@@ -115,14 +108,26 @@
                 <button id="pile-sideboard" type="button" class="secondary" data-zone="sideboard" aria-pressed="false">Sideboard: 0</button>
               </div>
             </div>
-            <div id="viewer" class="viewer" hidden>
-              <h3 id="viewer-title"></h3>
-              <p id="viewer-note" class="hint"></p>
-              <ul id="viewer-list" class="pile-list"></ul>
-            </div>
-          </section>
+                      </section>
         </aside>
       </div>
+    <div id="viewer" class="viewer-overlay" hidden>
+      <div class="viewer-window" role="dialog" aria-modal="true" aria-labelledby="viewer-title">
+        <div class="viewer-head">
+          <h2 id="viewer-title"></h2>
+          <input id="viewer-search" type="search" placeholder="Search by name, letters in order, or type" autocomplete="off" aria-label="Search this pile by name, by letters that appear in the name in order, or by type">
+          <button id="viewer-close" type="button" class="secondary">Close</button>
+        </div>
+        <p id="viewer-note" class="hint"></p>
+        <div id="viewer-list" class="viewer-grid"></div>
+      </div>
+    </div>
+    <div id="settings-menu" class="settings-menu" role="dialog" aria-label="Settings" hidden>
+      <h2>Settings</h2>
+      <div id="sound-settings"></div>
+      <div id="pile-style-settings"></div>
+    </div>
+    <div id="marks" class="marks-panel marks-popover" role="dialog" aria-label="Counters and power and toughness" hidden></div>
     </main>
 
     <footer>

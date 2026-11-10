@@ -49,8 +49,6 @@ const FILL = (opponents) => `(() => {
   board(document.getElementById('battlefield'), 12, 20, 5);
   fill(document.getElementById('hand'), 10, 0); document.getElementById('hand-count').textContent = '10';
   fill(document.getElementById('command'), 2, 0);
-  const actions = document.getElementById('selected-actions');
-  for (const label of ['Tap', 'Modify', "Doesn't untap", 'Summoning sick', 'Create copy', 'Ping card', 'To hand', 'To graveyard', 'To exile', 'To command zone', 'To sideboard', 'Top of library', 'Bottom of library', 'Deselect']) { const b = make('button', 'secondary', label); b.type = 'button'; actions.append(b); }
   document.getElementById('selected-line').textContent = 'Llanowar Elves: Creature - Elf Druid, in the battlefield. Counters: +1/+1 3. Change: +2/+0. Now 6/4.';
   document.getElementById('turn-banner').hidden = false; document.getElementById('turn-banner').textContent = 'It is your turn (turn 3).';
   document.getElementById('status').textContent = 'Back at your game.';

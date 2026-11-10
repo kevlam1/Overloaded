@@ -5,6 +5,9 @@
 import { makeSafeStore } from '../../src/safe-store.js';
 import { play, mountSoundSettings } from '../../src/sound.js';
 import { mountPileStyle } from '../../src/pile-style.js';
+import { mountPileViewer } from '../../src/pile-viewer.js';
+import { mountSettingsMenu } from '../../src/settings-menu.js';
+import { pileMenuItems, pileAction } from '../../../shared/pile-menu.mjs';
 import { mountCardHover } from '../../src/card-hover.js';
 import { mountBoardDrag } from '../../src/board-drag.js';
 import { stepFrom } from '../../../shared/board-grid.mjs';
@@ -30,6 +33,7 @@ let game = null;
 let selected = null; // the uid of the selected card
 let modifyOpen = false; // the counters and power/toughness panel is shown (from Modify, in the card menu or the selected-card buttons)
 let viewing = null; // the pile being looked at: 'library', 'graveyard', 'exile' or 'sideboard'
+let viewTop = null; // when only the top few cards of the library are being looked at: how many
 
 const ZONE_WORDS = { library: 'your library', hand: 'your hand', battlefield: 'the battlefield', graveyard: 'your graveyard', exile: 'exile', command: 'the command zone', sideboard: 'your sideboard' };
 const plural = (count, one, many) => `${count} ${count === 1 ? one : many}`;
@@ -97,68 +101,51 @@ function render() {
 }
 
 function renderViewer() {
-  $('viewer').hidden = viewing === null;
-  if (!viewing) return;
-  const cards = game.zones[viewing];
-  $('viewer-title').textContent = `${ZONE_WORDS[viewing][0].toUpperCase()}${ZONE_WORDS[viewing].slice(1)}: ${plural(cards.length, 'card', 'cards')}`;
-  $('viewer-note').textContent = viewing === 'library' ? 'The top card is first. Looking at your library is allowed here; it is your table.' : viewing === 'graveyard' ? 'The newest card is first.' : '';
-  const list = $('viewer-list');
-  list.replaceChildren(...cards.map((card, index) => {
-    const item = make('li');
-    const button = make('button', card.uid === selected ? 'pile-card selected' : 'pile-card');
-    button.type = 'button';
-    button.append(make('span', 'pos', String(index + 1)), make('span', 'name', card.n), make('span', 'type', card.t));
-    button.addEventListener('click', () => select(card.uid));
-    item.append(button);
-    return item;
-  }));
+  if (!viewing) { viewer.hide(); return; }
+  const all = game.zones[viewing];
+  const cards = viewTop ? all.slice(0, viewTop) : all;
+  const label = `${ZONE_WORDS[viewing][0].toUpperCase()}${ZONE_WORDS[viewing].slice(1)}`;
+  viewer.show({
+    label,
+    cards,
+    depth: viewing === 'library',
+    total: all.length,
+    noteText: viewing === 'library' ? 'The top card is first. Right-click a card to move it; right-click the library itself to shuffle, draw or mill.' : viewing === 'graveyard' ? 'The newest card is first. Right-click a card to move it.' : 'Right-click a card to move it.',
+  });
 }
 
 function renderSelected() {
   const found = selected ? findCard(selected) : null;
   if (!found) {
     selected = null;
-    $('selected-line').textContent = 'Click a card to move it, tap it or look at it.';
-    $('selected-actions').replaceChildren();
-    $('marks').hidden = true;
-    modifyOpen = false;
+    $('selected-line').textContent = 'Click a card to select it; right-click it for what you can do.';
+    closeModify();
     return;
   }
   const { card, zone } = found;
   const marks = marksSentence(card, printedOf(card, lookup));
+  // The details of the selected card are for a screen reader (this line is not drawn); the picture on hover is how they are seen, and everything you can do with the card is in its right-click menu.
   $('selected-line').textContent = `${card.n}${card.t ? `: ${card.t}` : ''}, in ${ZONE_WORDS[zone]}${card.turned && !card.tok ? ' (turned over)' : ''}${card.tapped ? ' (tapped)' : ''}.${marks ? ` ${marks}` : ''}`;
-  $('marks').hidden = zone !== 'battlefield' || !modifyOpen; // counters and the power/toughness change belong to a card on the battlefield, and show after Modify
-  const actions = [];
-  const act = (label, run, message, secondary = true) => actions.push({ label, run, message, secondary, deselect: false });
-  if (zone === 'battlefield') act(card.tapped ? 'Untap' : 'Tap', () => { const next = setTapped(game, card.uid, !card.tapped); play('tap'); return next; }, `${card.tapped ? 'Untapped' : 'Tapped'} ${card.n}.`, false);
-  if (zone === 'battlefield' && card.b === 1) act(turnLabel(card), () => turnOver(game, card.uid), turnMessage(card));
-  if (zone === 'battlefield') actions.push({ label: 'Modify', secondary: true, modify: true });
-  if (zone === 'battlefield') for (const id of ['nountap', 'sick']) { const mark = menuAction(id, card); act(id === 'nountap' ? noUntapLabel(card) : sickLabel(card), () => mark.run(game), mark.message); }
-  if (zone === 'battlefield') { const copy = menuAction('copy', card, 1, { printed: printedOf(card, lookup) }); act('Create copy', () => copy.run(game), copy.message); }
-  if (card.md === 1 && card.b === 1 && PLAY_BACK_ZONES.includes(zone)) { const play = menuAction('playback', card); act(playBackLabel(card), () => play.run(game), play.message); }
-  for (const [to, label] of [['hand', 'To hand'], ['battlefield', 'To battlefield'], ['graveyard', 'To graveyard'], ['exile', 'To exile'], ['command', 'To command zone'], ['sideboard', 'To sideboard']]) {
-    if (to !== zone) act(label, () => moveCard(game, card.uid, to), `Moved ${card.n} to ${ZONE_WORDS[to]}.`);
-  }
-  act('Top of library', () => moveCard(game, card.uid, 'library', { position: 'top' }), `Put ${card.n} on top of your library.`);
-  act('Bottom of library', () => moveCard(game, card.uid, 'library', { position: 'bottom' }), `Put ${card.n} on the bottom of your library.`);
-  actions.push({ label: 'Deselect', secondary: true, deselect: true });
-  $('selected-actions').replaceChildren(...actions.map((action) => {
-    const button = make('button', action.secondary ? 'secondary' : '', action.label);
-    button.type = 'button';
-    if (action.modify) button.setAttribute('aria-expanded', String(modifyOpen));
-    button.addEventListener('click', () => {
-      if (action.modify) {
-        modifyOpen = !modifyOpen;
-        render();
-        if (modifyOpen) $('marks-amount').focus();
-        else [...$('selected-actions').querySelectorAll('button')].find((b) => b.textContent === 'Modify')?.focus();
-        return;
-      }
-      if (action.deselect) { selected = null; render(); return; }
-      apply(action.run, action.message);
-    });
-    return button;
-  }));
+  if (zone !== 'battlefield') modifyOpen = false; // counters and the power/toughness change belong to a card on the battlefield
+  $('marks').hidden = !modifyOpen;
+  if (modifyOpen) placeModify();
+}
+
+// The Modify window (counters and power/toughness change, src/marks-panel.js): a small floating panel next to the selected card, opened from "Modify..." in the card's right-click menu.
+function closeModify() {
+  modifyOpen = false;
+  $('marks').hidden = true;
+}
+function placeModify() {
+  const panel = $('marks');
+  const card = document.querySelector('.card.selected');
+  const box = card ? card.getBoundingClientRect() : { left: 20, right: 20, top: 80, bottom: 80 };
+  panel.style.left = '0px';
+  panel.style.top = '0px';
+  const size = panel.getBoundingClientRect();
+  const room = window.innerWidth - box.right - 8 >= size.width;
+  panel.style.left = `${Math.max(8, Math.min(room ? box.right + 8 : box.left - size.width - 8, window.innerWidth - size.width - 8))}px`;
+  panel.style.top = `${Math.max(8, Math.min(box.top, window.innerHeight - size.height - 8))}px`;
 }
 
 // ---- doing things ----
@@ -178,6 +165,7 @@ function apply(run, message = '') {
 }
 
 function select(uid) {
+  if (uid !== selected) modifyOpen = false;
   selected = uid;
   render();
 }
@@ -193,7 +181,7 @@ function openMenuFor(uid, where) {
 function pickFromMenu(uid, id, amount) {
   const found = findCard(uid);
   if (!found) return;
-  if (id === 'modify') { modifyOpen = true; render(); $('marks-amount').focus(); return; }
+  if (id === 'modify') { modifyOpen = true; render(); $('marks-amount').focus(); return; } // opens the Modify window next to the card
   try {
     const action = menuAction(id, found.card, amount, { printed: printedOf(found.card, lookup) });
     if (!action) return;
@@ -267,8 +255,8 @@ function doMulligan() {
 }
 
 function togglePile(zone) {
-  viewing = viewing === zone ? null : zone;
-  render();
+  if (viewing === zone && !viewTop) { viewer.close(); return; }
+  openPile(zone);
 }
 
 // ---- starting ----
@@ -308,13 +296,44 @@ mountMarksPanel($('marks'), {
   onChange: (change, message) => apply(() => change(game), message),
   say,
 });
+{ const close = make('button', 'secondary modify-close', 'Close'); close.type = 'button'; close.addEventListener('click', () => { closeModify(); const card = document.querySelector('.card.selected'); card?.focus(); }); $('marks').prepend(close); }
 $('draw').addEventListener('click', drawOne);
 $('next-turn').addEventListener('click', goNextTurn);
 $('untap-all').addEventListener('click', () => { play('tap'); apply(() => untapAll(game), untapMessage(game)); });
-$('shuffle').addEventListener('click', () => { play('shuffle'); apply(() => shuffleLibrary(game), 'Shuffled your library.'); });
 mountSoundSettings($('sound-settings'));
 // ---- piles drawn diagonally or horizontally (shared/pile-style.mjs), a double click taps a card, a click on empty space deselects ----
 mountPileStyle($('pile-style-settings'));
+const viewer = mountPileViewer({ root: $('viewer'), nodeFor: (card) => cardNodes.nodeFor(card, false), onClose: () => { viewing = null; viewTop = null; if (game) render(); } });
+viewer.onSearch(() => { if (game && viewing) renderViewer(); });
+// ---- the piles: a click opens the viewer (the cards and a search bar), a right-click opens the menu of the pile (search, shuffle, draw, look, mill, move all) ----
+function openPile(zone, { look = null, search = false } = {}) {
+  viewing = zone;
+  viewTop = look;
+  if (!search) viewer.clearSearch();
+  render();
+  if (search) viewer.focusSearch();
+}
+function pickFromPileMenu(zone, id, amount) {
+  if (id === 'search') { openPile(zone, { search: true }); return; }
+  if (id === 'look') { openPile(zone, { look: amount ?? 1 }); return; }
+  const action = pileAction(id, zone, amount);
+  if (!action) return;
+  if (id === 'shuffle') play('shuffle'); else if (id === 'draw') play('draw');
+  apply(() => action.run(game), action.message);
+}
+function openPileMenu(zone, where) {
+  openCardMenu({ title: `${ZONE_WORDS[zone][0].toUpperCase()}${ZONE_WORDS[zone].slice(1)}`, items: pileMenuItems(zone, game.zones[zone].length), x: where.x, y: where.y, returnFocus: where.element, onPick: (id, amount) => pickFromPileMenu(zone, id, amount) });
+}
+for (const zone of ['library', 'graveyard', 'exile', 'sideboard']) {
+  $(`pile-${zone}`).addEventListener('contextmenu', (event) => {
+    event.preventDefault();
+    const box = event.currentTarget.getBoundingClientRect();
+    const fromKeyboard = event.clientX === 0 && event.clientY === 0;
+    openPileMenu(zone, { x: fromKeyboard ? box.left + box.width / 2 : event.clientX, y: fromKeyboard ? box.top + box.height / 2 : event.clientY, element: event.currentTarget });
+  });
+}
+mountSettingsMenu({ button: $('settings-button'), panel: $('settings-menu') });
+
 // Two clicks close together in time and place tap or untap the card under the second one. This is counted here rather than taken from the browser's own double click event, which fires only for
 // the second click of a run (a third and fourth quick click are not double clicks) and so made fast tapping unreliable. A pair is used up, so four quick clicks are two taps. No waiting time.
 const TAP_PAIR_MS = 450;
@@ -333,7 +352,7 @@ $('battlefield').addEventListener('click', (event) => {
 });
 document.addEventListener('click', (event) => {
   if (!selected || !game || !event.target.isConnected) return;
-  if (event.target.closest('.card, button, a, input, select, textarea, summary, label, details, .side-panels, .card-menu, .spotlight')) return;
+  if (event.target.closest('.card, button, a, input, select, textarea, summary, label, details, .side-panels, .card-menu, .spotlight, .marks-popover')) return;
   selected = null;
   render();
 });

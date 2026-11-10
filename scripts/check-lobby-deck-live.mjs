@@ -199,6 +199,19 @@ try {
 
   // The game on the table page: Alice's own cards, saved as she moves (hand and library private, the rest public).
   const count = (browser, selector) => browser.eval(`document.querySelectorAll(${JSON.stringify(selector)}).length`);
+  // What the buttons of the selected-card panel did is in the right-click menu of the card now: open the menu of the selected card with a real right click and pick, the way a person would.
+  const MENU_PATHS = { 'To hand': ['Move to', 'Hand'], 'To battlefield': ['Move to', 'Battlefield'], 'To graveyard': ['Move to', 'Graveyard'], 'To exile': ['Move to', 'Exile'], 'To command zone': ['Move to', 'Command zone'], 'To sideboard': ['Move to', 'Sideboard'], 'Top of library': ['Move to', 'Top of library'], 'Bottom of library': ['Move to', 'Bottom of library'], Modify: ['Modify...'] };
+  const openSelectedMenu = (page) => page.eval(`(() => { const c = document.querySelector('.card.selected'); if (!c) return false; const r = c.getBoundingClientRect(); c.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: r.x + r.width * 0.7, clientY: r.y + r.height * 0.15 })); return true; })()`);
+  const pressMenuEntry = async (page, label) => {
+    const p = await page.eval(`(() => { const b = [...document.querySelectorAll('.card-menu [role="menuitem"]')].filter((x) => !x.closest('[hidden]')).find((x) => x.textContent.replace(String.fromCharCode(0x25b8), '').trim() === ${JSON.stringify(label)}); if (!b) return null; const r = b.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`);
+    if (!p) throw new Error(`no menu item "${label}"`);
+    await page.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p.x, y: p.y });
+    await page.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: p.x, y: p.y, button: 'left', buttons: 1, clickCount: 1 });
+    await page.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: p.x, y: p.y, button: 'left', buttons: 0, clickCount: 1 });
+    await sleep(40);
+  };
+  const act = async (page, label) => { if (!(await openSelectedMenu(page))) throw new Error(`no selected card for "${label}"`); for (const step of MENU_PATHS[label] ?? [label]) await pressMenuEntry(page, step); };
+  const buttonLabels = async (page = alice) => { if (!(await openSelectedMenu(page))) return []; const labels = await page.eval(`[...document.querySelectorAll('.card-menu [role="menuitem"]')].filter((x) => !x.closest('[hidden]')).map((x) => x.textContent.replace(String.fromCharCode(0x25b8), '').trim())`); await page.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await page.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await sleep(40); return labels; };
   // "public" or "private/hand": the branch, then Alice's id, then the rest (the layout is tables/CODE/BRANCH/UID/REST)
   const pathOf = (where) => { const [branch, ...rest] = where.split('/'); return `tables/${code}/${branch}/${cleanup.alice.uid}${rest.length ? `/${rest.join('/')}` : ''}`; };
   const aliceBoard = await waitFor(async () => (await count(alice, '#hand .card')) === 7 ? true : null, 30000, 200);
@@ -218,12 +231,13 @@ try {
   record('Draw shows 8 cards and saves them (the hand 8, the library 22, both counts)', Boolean(drew) && (await count(alice, '#hand .card')) === 8 && (await rest('GET', pathOf('public/counts'), cleanup.bob.token)).json?.hand === 8 && Object.keys((await rest('GET', pathOf('private/library'), cleanup.alice.token)).json).length === 22);
 
   record('Draw on the table page plays the draw sound, and the sound settings are on the page', JSON.stringify(await alice.eval(`window.__plays`)) === '["/sfx/draw.mp3"]' && (await alice.eval(`document.getElementById('sound-on').checked`)) === true);
-  await click(alice, 'shuffle');
+  await alice.eval(`(() => { const b = document.getElementById('pile-library'); const r = b.getBoundingClientRect(); b.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: r.x + 5, clientY: r.y + 5 })); })()`);
+  await pressMenuEntry(alice, 'Shuffle');
   record('Shuffle on the table page plays the shuffle sound', JSON.stringify(await alice.eval(`window.__plays`)) === '["/sfx/draw.mp3","/sfx/shuffle.mp3"]');
 
 
   await alice.eval(`document.querySelector('#hand .card').click()`);
-  await alice.eval(`Array.from(document.querySelectorAll('#selected-actions button')).find((b) => b.textContent === 'To battlefield').click()`);
+  await act(alice, 'To battlefield');
   const played = await waitFor(async () => { const r = await rest('GET', pathOf('public/battlefield'), cleanup.bob.token); return r.json && Object.keys(r.json).length === 1 ? r.json : null; }, 15000, 250);
   record('playing a card puts it on her battlefield on the page and in the public branch that Bob can read', Boolean(played) && (await count(alice, '#battlefield .card')) === 1 && (await count(alice, '#hand .card')) === 7, JSON.stringify(played));
   record('the played card is no longer in her private hand', Object.keys((await rest('GET', pathOf('private/hand'), cleanup.alice.token)).json).length === 7);
@@ -293,7 +307,7 @@ try {
   // and they are still there after a refresh.
   await alice.eval(`document.querySelector('#battlefield .card').click()`);
   record('the counter controls stay hidden until Modify is pressed', (await alice.eval(`document.getElementById('marks').hidden`)) === true);
-  await alice.eval(`Array.from(document.querySelectorAll('#selected-actions button')).find((b) => b.textContent === 'Modify').click()`);
+  await act(alice, 'Modify');
   record('and Modify shows the counter controls for her card on the battlefield on the table page', (await alice.eval(`document.getElementById('marks').hidden`)) === false);
   await alice.eval(`document.getElementById('marks-amount').value = '3'`);
   await alice.eval(`Array.from(document.querySelectorAll('#marks button')).find((b) => b.textContent === 'Add counters').click()`);
@@ -422,7 +436,7 @@ try {
     const aliceCard = `#battlefield .card`;
     await alice.eval(`document.querySelector(${JSON.stringify(aliceCard)}).click()`);
     await sleep(200);
-    await alice.eval(`Array.from(document.querySelectorAll('#selected-actions button')).find((b) => b.textContent === 'Ping card').click()`);
+    await act(alice, 'Ping card');
     const stored = await waitFor(async () => { const r = (await rest('GET', pathOf('public/ping'), cleanup.bob.token)).json; return r && r.k ? r : null; }, 15000, 250);
     record('the ping is ONE small record on Alice\'s own branch: a number and the card, nothing else', Boolean(stored) && Object.keys(stored).sort().join() === 'card,k' && Number.isInteger(stored.k) && stored.card.u === first?.u && stored.card.n === first?.n && stored.card.i === first?.i, JSON.stringify(stored));
     const aliceSees = await waitFor(async () => { const v = await spot(alice); return v.hidden ? null : v; }, 5000, 100);
@@ -455,7 +469,7 @@ try {
     // a card in the hand cannot be pinged: not from the buttons, not from the menu (a ping would reveal it)
     await alice.eval(`document.querySelector('#hand .card').click()`);
     await sleep(200);
-    record('a card in the hand has no Ping card button', (await alice.eval(`Array.from(document.querySelectorAll('#selected-actions button')).some((b) => b.textContent === 'Ping card')`)) === false);
+    record('a card in the hand has no Ping card in its menu', !(await buttonLabels()).includes('Ping card'));
     await alice.eval(`document.querySelector('#hand .card').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 300, clientY: 700, button: 2 }))`);
     await sleep(300);
     record('...and no Ping card item in its right-click menu', (await alice.eval(`[...document.querySelectorAll('.card-menu [role="menuitem"]')].some((b) => b.textContent.includes('Ping'))`)) === false);
@@ -474,15 +488,14 @@ try {
   })()`);
   const delverInDb = async () => { const r = await rest('GET', pathOf('public/battlefield'), cleanup.bob.token); return r.json ? Object.values(r.json).find((c) => c.n?.startsWith('Delver')) ?? null : null; };
   await click(alice, 'pile-sideboard');
-  const sideRows = await waitFor(async () => { const n = await count(alice, '#viewer-list li'); return n >= 1 ? n : null; }, 10000, 100);
-  record("Alice's sideboard holds the Delver (the one card the deck put there)", sideRows === 1 && (await alice.eval(`document.querySelector('#viewer-list li').textContent`)).includes('Delver'), `rows ${sideRows} | button: ${await text(alice, 'pile-sideboard')} | viewer hidden: ${await alice.eval(`document.getElementById('viewer').hidden`)} | db sideboard: ${JSON.stringify((await rest('GET', pathOf('private/sideboard'), cleanup.alice.token)).json)} | deck line: ${await text(alice, 'deck-line')}`);
-  await alice.eval(`document.querySelector('#viewer-list li .pile-card').click()`);
-  await alice.eval(`Array.from(document.querySelectorAll('#selected-actions button')).find((b) => b.textContent === 'To battlefield').click()`);
+  const sideRows = await waitFor(async () => { const n = await count(alice, '#viewer-list .card'); return n >= 1 ? n : null; }, 10000, 100);
+  record("Alice's sideboard holds the Delver (the one card the deck put there)", sideRows === 1 && (await alice.eval(`document.querySelector('#viewer-list .card').getAttribute('aria-label')`)).includes('Delver'), `rows ${sideRows} | button: ${await text(alice, 'pile-sideboard')} | viewer hidden: ${await alice.eval(`document.getElementById('viewer').hidden`)} | db sideboard: ${JSON.stringify((await rest('GET', pathOf('private/sideboard'), cleanup.alice.token)).json)} | deck line: ${await text(alice, 'deck-line')}`);
+  await alice.eval(`document.querySelector('#viewer-list .card').click()`);
+  await act(alice, 'To battlefield');
   const delverPlayed = await waitFor(async () => (await delverInDb()) ? true : null, 15000, 250);
   record('playing it puts it on the public battlefield, showing its front: no turned-over mark in the database', Boolean(delverPlayed) && (await delverInDb()).bk === undefined, JSON.stringify(await delverInDb()));
-  const buttonLabels = () => alice.eval(`Array.from(document.querySelectorAll('#selected-actions button')).map((b) => b.textContent)`);
-  record('her selected-card buttons offer Turn over for it (the page found its back face by name in the card list)', (await buttonLabels()).includes('Turn over'), (await buttonLabels()).join(' | '));
-  await alice.eval(`Array.from(document.querySelectorAll('#selected-actions button')).find((b) => b.textContent === 'Turn over').click()`);
+  record('her right-click menu offers Turn over for it (the page found its back face by name in the card list)', (await buttonLabels()).includes('Turn over'), (await buttonLabels()).join(' | '));
+  await act(alice, 'Turn over');
   const delverTurned = await waitFor(async () => (await delverInDb())?.bk === 1 ? await delverInDb() : null, 15000, 250);
   record('turning it over saves exactly one small mark on that card: bk is 1, and no back-face field (b) is stored', Boolean(delverTurned) && delverTurned.bk === 1 && !('b' in delverTurned) && !('turned' in delverTurned), JSON.stringify(delverTurned));
   const aliceDelver = await delverOf(alice, '#battlefield .card');
@@ -497,7 +510,7 @@ try {
   const copyInDb = async () => { const r = await rest('GET', pathOf('public/battlefield'), cleanup.bob.token); return r.json ? Object.values(r.json).find((c) => c.tok === 1 && c.n === 'Insectile Aberration') ?? null : null; };
   const faceOf = (browser, where, prefix) => browser.eval(`(() => { const card = Array.from(document.querySelectorAll(${JSON.stringify(where)})).find((c) => (c.getAttribute('aria-label') || '').startsWith(${JSON.stringify(prefix)})); if (!card) return null; const img = card.querySelector('img'); return { label: card.getAttribute('aria-label'), src: img ? img.getAttribute('src') : null, disabled: card.disabled }; })()`);
   record('her selected-card buttons offer Create copy for the turned Delver', (await buttonLabels()).includes('Create copy'), (await buttonLabels()).join(' | '));
-  await alice.eval(`Array.from(document.querySelectorAll('#selected-actions button')).find((b) => b.textContent === 'Create copy').click()`);
+  await act(alice, 'Create copy');
   const copyStored = await waitFor(async () => (await copyInDb()) ?? null, 15000, 250);
   record('the copy is saved as a small token of the BACK face: its name, ONE face\'s type line, its 3/2, bk 1, and no back-face or counter fields', Boolean(copyStored) && copyStored.tt === 'Creature — Human Insect' && copyStored.pt === '3/2' && copyStored.bk === 1 && copyStored.tok === 1 && !('b' in copyStored) && !('ct' in copyStored) && copyStored.tt.length <= 60, JSON.stringify(copyStored));
   const aliceCopy = await waitFor(async () => { const d = await faceOf(alice, '#battlefield .card', 'Insectile Aberration'); return d && d.src?.includes('/back/') ? d : null; }, 15000, 250);
@@ -510,7 +523,7 @@ try {
   const delverAfterRefresh = await waitFor(async () => { const d = await delverOf(alice, '#battlefield .card'); return d && d.src?.includes('/back/') ? d : null; }, 30000, 250);
   record('after a refresh Alice\'s Delver is still turned over (read back from the database)', Boolean(delverAfterRefresh) && /turned over/.test(delverAfterRefresh.label), JSON.stringify(delverAfterRefresh));
   await alice.eval(`Array.from(document.querySelectorAll('#battlefield .card')).find((c) => (c.getAttribute('aria-label') || '').startsWith('Delver')).click()`);
-  await alice.eval(`Array.from(document.querySelectorAll('#selected-actions button')).find((b) => b.textContent === 'Turn back to front').click()`);
+  await act(alice, 'Turn back to front');
   const delverBack = await waitFor(async () => { const d = await delverInDb(); return d && d.bk === undefined ? d : null; }, 15000, 250);
   record('turning it back removes the mark from the database (nothing is stored for a card showing its front)', Boolean(delverBack), JSON.stringify(await delverInDb()));
   const bobFront = await waitFor(async () => { const d = await delverOf(bob, '#opponent-list .opponent .card'); return d && d.src?.includes('/front/') ? d : null; }, 20000, 250);
@@ -575,8 +588,8 @@ try {
   const bobSeesSick = await waitFor(async () => { const b = await aliceBadges(bob, '#opponent-list .opponent .card'); return b && b.sick ? b : null; }, 20000, 250);
   record("Bob's page shows the SICK badge on Alice's Delver, read-only, and its label says so", Boolean(bobSeesSick) && !bobSeesSick.clickable && /summoning sick/.test(bobSeesSick.label), JSON.stringify(bobSeesSick));
   await alice.eval(`Array.from(document.querySelectorAll('#battlefield .card')).find((c) => (c.getAttribute('aria-label') || '').startsWith('Delver')).click()`);
-  await alice.eval(`Array.from(document.querySelectorAll('#selected-actions button')).find((b) => b.textContent === "Doesn't untap").click()`);
-  await alice.eval(`Array.from(document.querySelectorAll('#selected-actions button')).find((b) => b.textContent === 'Tap').click()`);
+  await act(alice, "Doesn't untap");
+  await act(alice, 'Tap');
   const lockStored = await waitFor(async () => { const c = await delverStored(); return c && c.nu === 1 && c.x === 1 ? c : null; }, 15000, 250);
   record('marking it "does not untap" and tapping it saves nu 1 and x 1 on that card', Boolean(lockStored), JSON.stringify(await delverStored()));
   const bobSeesLock = await waitFor(async () => { const b = await aliceBadges(bob, '#opponent-list .opponent .card'); return b && b.lock ? b : null; }, 20000, 250);

@@ -687,3 +687,28 @@ body[data-pile-style="horizontal"] .battlefield > .card[data-stack-ext="3"]::bef
 body .battlefield > .card.tapped[data-stack-ext="1"]::before { left: -3px; top: calc(var(--step-v) * -1 - 3px); }
 body .battlefield > .card.tapped[data-stack-ext="2"]::before { left: -3px; top: calc(var(--step-v) * -2 - 3px); }
 body .battlefield > .card.tapped[data-stack-ext="3"]::before { left: -3px; top: calc(var(--step-v) * -3 - 3px); }
+/* the Modify window: counters and the power/toughness change, floating next to the selected card (opened from its right-click menu) */
+.marks-popover { position: fixed; z-index: 45; width: min(22rem, calc(100vw - 1rem)); max-height: calc(100vh - 1rem); overflow: auto; padding: 0.6rem; border: 1px solid var(--line); border-radius: 0.6rem; background: var(--bg); box-shadow: 0 0.6rem 1.6rem rgba(0, 0, 0, 0.55); }
+.marks-popover[hidden] { display: none; }
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+/* the viewer of a pile: a large window over the table with the cards themselves and a search bar */
+.viewer-overlay { position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; padding: 1rem; background: rgba(0, 0, 0, 0.6); }
+.viewer-overlay[hidden] { display: none; }
+.viewer-window { display: flex; flex-direction: column; width: min(78rem, 100%); max-height: 100%; padding: 0.7rem 0.9rem 0.9rem; border: 1px solid var(--line); border-radius: 0.7rem; background: var(--bg); box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.6); }
+.viewer-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; margin-bottom: 0.3rem; }
+.viewer-head h2 { margin: 0; font-size: 1.1rem; }
+.viewer-head input[type="search"] { flex: 1 1 14rem; min-width: 10rem; }
+.viewer-window .hint { margin: 0 0 0.5rem; font-size: 0.8rem; }
+.viewer-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr)); gap: 0.6rem; overflow-y: auto; padding: 0.2rem; align-content: start; }
+.viewer-card { position: relative; display: flex; flex-direction: column; align-items: center; gap: 0.15rem; }
+.viewer-card .card { width: 7rem; height: 9.8rem; }
+.viewer-card .card .face { width: 100%; height: 100%; }
+.viewer-depth { color: var(--muted); font-size: 0.7rem; }
+.viewer-empty { grid-column: 1 / -1; margin: 1rem 0; color: var(--muted); text-align: center; }
+.card-menu { z-index: 80; }
+/* the Settings menu */
+.settings-menu { position: fixed; z-index: 45; min-width: 16rem; padding: 0.6rem 0.8rem; border: 1px solid var(--line); border-radius: 0.6rem; background: var(--bg); box-shadow: 0 0.6rem 1.6rem rgba(0, 0, 0, 0.55); }
+.settings-menu[hidden] { display: none; }
+.settings-menu h2 { margin: 0 0 0.4rem; font-size: 1rem; }
+.settings-menu .sound-settings, .settings-menu #pile-style-settings { display: flex; flex-direction: column; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.5rem; }

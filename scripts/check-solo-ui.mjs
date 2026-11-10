@@ -76,8 +76,28 @@ try {
   const pileCount = (zone) => ev(`document.getElementById('pile-${zone}').textContent`);
   const handNames = () => names('#hand .card');
   const clickCard = (selector, index = 0) => ev(`document.querySelectorAll(${JSON.stringify(selector)})[${index}].click()`);
-  const clickAction = (label) => ev(`(() => { const b = Array.from(document.querySelectorAll('#selected-actions button')).find((x) => x.textContent === ${JSON.stringify(label)}); if (!b) return false; b.click(); return true; })()`);
-  const actionLabels = () => ev(`Array.from(document.querySelectorAll('#selected-actions button')).map((b) => b.textContent)`);
+  // What the buttons of the selected-card panel used to do is in the right-click menu of the card now. These helpers do it the same way a person would: open the menu of the selected card and pick.
+  const MENU_PATHS = { 'To hand': ['Move to', 'Hand'], 'To battlefield': ['Move to', 'Battlefield'], 'To graveyard': ['Move to', 'Graveyard'], 'To exile': ['Move to', 'Exile'], 'To command zone': ['Move to', 'Command zone'], 'To sideboard': ['Move to', 'Sideboard'], 'Top of library': ['Move to', 'Top of library'], 'Bottom of library': ['Move to', 'Bottom of library'], Modify: ['Modify...'] };
+  const openMenuOfSelected = () => ev(`(() => { const c = document.querySelector('.card.selected'); if (!c) return false; const r = c.getBoundingClientRect(); c.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: r.x + r.width * 0.7, clientY: r.y + r.height * 0.15 })); return true; })()`);
+  const menuLabels = () => ev(`(() => { const arrow = String.fromCharCode(0x25b8); return [...document.querySelectorAll('.card-menu [role="menuitem"]')].filter((x) => !x.closest('[hidden]')).map((x) => x.textContent.replace(arrow, '').trim()); })()`);
+  const pressMenuItem = async (text) => { // a real mouse click on the item, like a person (the menu reacts to pointer events)
+    const p = await ev(`(() => { const arrow = String.fromCharCode(0x25b8); const b = [...document.querySelectorAll('.card-menu [role="menuitem"]')].filter((x) => !x.closest('[hidden]')).find((x) => x.textContent.replace(arrow, '').trim() === ${JSON.stringify(text)}); if (!b) return null; const r = b.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`);
+    if (!p) return false;
+    await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p.x, y: p.y });
+    await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: p.x, y: p.y, button: 'left', buttons: 1, clickCount: 1 });
+    await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: p.x, y: p.y, button: 'left', buttons: 0, clickCount: 1 });
+    return true;
+  };
+  const escapeKey = async () => { await browser.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await sleep(30); };
+  const closeMenu = async () => { if (await ev(`Boolean(document.querySelector('.card-menu'))`)) await escapeKey(); };
+  const clickAction = async (label) => {
+    if (label === 'Deselect') { await closeMenu(); await escapeKey(); return true; }
+    if (!(await openMenuOfSelected())) return false;
+    for (const step of MENU_PATHS[label] ?? [label]) { if (!(await pressMenuItem(step))) { await closeMenu(); return false; } await sleep(30); }
+    return true;
+  };
+  const shuffleViaMenu = async () => { await ev(`(() => { const r = document.getElementById('pile-library').getBoundingClientRect(); document.getElementById('pile-library').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: r.x + 5, clientY: r.y + 5 })); })()`); await pressMenuItem('Shuffle'); await sleep(30); };
+  const actionLabels = async () => { if (!(await openMenuOfSelected())) return []; const labels = await menuLabels(); await closeMenu(); return labels; };
   const LANDS = ['Forest', 'Island'];
   const NO_STATS = ['Sol Ring', 'Lightning Bolt']; // no printed power and toughness: their counters show as pills, not as a power and toughness box
   // draw until the hand holds a card matching the test, up to 40 draws (the library is half lands)
@@ -133,17 +153,18 @@ try {
   check('selecting a card says what it is and where', new RegExp(`^${landName}: .*Land.*, in your hand\\.$`).test(await $text('selected-line')), await $text('selected-line'));
   check('the selected card is marked', (await count('#hand .card.selected')) === 1 && (await ev(`document.querySelector('#hand .card.selected').getAttribute('aria-pressed')`)) === 'true');
   const labels = await actionLabels();
-  check('a hand card offers every other zone, the library top and bottom, and Deselect, but not Tap', JSON.stringify(labels) === JSON.stringify(['To battlefield', 'To graveyard', 'To exile', 'To command zone', 'To sideboard', 'Top of library', 'Bottom of library', 'Deselect']), JSON.stringify(labels));
+  const inner = await (async () => { await openMenuOfSelected(); await pressMenuItem('Move to'); await sleep(30); const all = await menuLabels(); await closeMenu(); return all.filter((x) => x !== 'Move to'); })();
+  check('the right-click menu of a hand card is one entry, Move to, with every other zone and the library top and bottom inside it, and no Tap', JSON.stringify(labels) === JSON.stringify(['Move to']) && JSON.stringify(inner) === JSON.stringify(['Battlefield', 'Graveyard', 'Exile', 'Command zone', 'Sideboard', 'Top of library', 'Bottom of library']), JSON.stringify({ labels, inner }));
   const handBefore = await count('#hand .card');
   await clickAction('To battlefield');
   check('moving a land to the battlefield puts it in the lands row', (await count('#battlefield .card[data-kind="land"]')) === 1 && (await count('#battlefield .card[data-kind="other"]')) === 0 && (await count('#hand .card')) === handBefore - 1 && (await $text('status')) === `Moved ${landName} to the battlefield.`, await $text('status'));
-  check('the card stays selected and now offers Tap and the other zones', (await count('#battlefield .card[data-kind="land"].selected')) === 1 && (await actionLabels())[0] === 'Tap' && !(await actionLabels()).includes('To battlefield'), JSON.stringify(await actionLabels()));
+  check('the card stays selected and its menu now offers Modify and Tap', (await count('#battlefield .card[data-kind="land"].selected')) === 1 && (await actionLabels()).includes('Tap') && (await actionLabels())[0] === 'Modify...', JSON.stringify(await actionLabels()));
   check('a card that was never tapped is not turned', (await count('#battlefield .card[data-kind="land"].tapped')) === 0);
   await clickAction('Tap');
   const tapped = await ev(`(() => { const c = document.querySelector('#battlefield .card[data-kind="land"]'); const face = c.querySelector('.face'); const m = getComputedStyle(face).transform; const r = c.getBoundingClientRect(); const f = face.getBoundingClientRect(); return { tapped: c.classList.contains('tapped'), label: c.getAttribute('aria-label'), transform: m, boxW: Math.round(r.width), boxH: Math.round(r.height), faceW: Math.round(f.width), faceH: Math.round(f.height) }; })()`);
   check('tapping turns the card sideways and says it is tapped', tapped.tapped && /, tapped$/.test(tapped.label) && /matrix\(0(\.\d+)?(e-\d+)?, 1, -1, 0(\.\d+)?(e-\d+)?/.test(tapped.transform), JSON.stringify(tapped));
   check('a tapped card on the battlefield is a landscape box exactly as big as the turned card (no square box around it)', Math.abs(tapped.boxW - tapped.boxH * 1.4015) <= 3 && Math.abs(tapped.faceW - tapped.boxW) <= 3 && Math.abs(tapped.faceH - tapped.boxH) <= 3, JSON.stringify(tapped));
-  check('the action now says Untap, and the status says Tapped', (await actionLabels())[0] === 'Untap' && (await $text('status')) === `Tapped ${landName}.`);
+  check('the action now says Untap, and the status says Tapped', (await actionLabels()).includes('Untap') && (await $text('status')) === `Tapped ${landName}.`);
   await clickAction('Untap');
   check('untapping turns it back', (await count('#battlefield .card[data-kind="land"].tapped')) === 0 && (await $text('status')) === `Untapped ${landName}.`);
   await clickAction('Tap');
@@ -164,16 +185,17 @@ try {
   await clickAction('To graveyard');
   check('moving to the graveyard changes the count', (await pileCount('graveyard')) === 'Graveyard: 1' && (await count('#battlefield .card[data-kind="other"]')) === 0);
   await press('pile-graveyard');
-  const viewer = { shown: !(await $hidden('viewer')), rows: await count('#viewer-list li'), title: await $text('viewer-title'), note: await $text('viewer-note'), pressed: await ev(`document.getElementById('pile-graveyard').getAttribute('aria-pressed')`) };
-  check('opening the graveyard lists its card, newest first, and marks the button', viewer.shown && viewer.rows === 1 && /graveyard: 1 card/i.test(viewer.title) && /newest card is first/.test(viewer.note) && viewer.pressed === 'true', JSON.stringify(viewer));
-  check('the card in the pile is still selected, and shown so', (await count('#viewer-list .pile-card.selected')) === 1 && /in your graveyard/.test(await $text('selected-line')));
+  const viewer = { shown: !(await $hidden('viewer')), rows: await count('#viewer-list .card'), title: await $text('viewer-title'), note: await $text('viewer-note'), pressed: await ev(`document.getElementById('pile-graveyard').getAttribute('aria-pressed')`) };
+  check('opening the graveyard shows its card, newest first', viewer.shown && viewer.rows === 1 && /graveyard: 1 card/i.test(viewer.title) && /newest card is first/.test(viewer.note), JSON.stringify(viewer));
+  check('the card in the pile is still selected, and shown so', (await count('#viewer-list .card.selected')) === 1 && /in your graveyard/.test(await $text('selected-line')));
   await clickAction('To hand');
-  check('it can be taken back to the hand from the pile', (await pileCount('graveyard')) === 'Graveyard: 0' && (await handNames()).includes(otherName) && (await count('#viewer-list li')) === 0);
+  check('it can be taken back to the hand from the pile', (await pileCount('graveyard')) === 'Graveyard: 0' && (await handNames()).includes(otherName) && (await count('#viewer-list .card')) === 0);
+  await press('viewer-close');
   await press('pile-library');
-  const libRows = await count('#viewer-list li');
-  check('the library can be looked at: every card, numbered from the top', !(await $hidden('viewer')) && libRows === parseInt((await pileCount('library')).split(': ')[1], 10) && (await ev(`document.querySelector('#viewer-list li .pos').textContent`)) === '1' && /top card is first/.test(await $text('viewer-note')));
-  await press('pile-library');
-  check('pressing the pile again closes it', (await $hidden('viewer')));
+  const libRows = await count('#viewer-list .card');
+  check('the library can be looked at: every card, numbered from the top', !(await $hidden('viewer')) && libRows === parseInt((await pileCount('library')).split(': ')[1], 10) && (await ev(`document.querySelector('#viewer-list .viewer-depth').textContent`)) === '#1');
+  await press('viewer-close');
+  check('the Close button closes the viewer', (await $hidden('viewer')));
 
   // ---- the top and the bottom of the library ----
   await clickCard('#hand .card', 0);
@@ -184,12 +206,12 @@ try {
   await clickCard('#hand .card', 0);
   await clickAction('Bottom of library');
   await press('pile-library');
-  check('a card put on the bottom is last in the library list', (await ev(`Array.from(document.querySelectorAll('#viewer-list li .pos')).at(-1).textContent`)) === (await pileCount('library')).split(': ')[1]);
-  await press('pile-library');
+  check('a card put on the bottom is last in the library list', (await ev(`Array.from(document.querySelectorAll('#viewer-list .viewer-depth')).at(-1).textContent`)) === '#' + (await pileCount('library')).split(': ')[1]);
+  await press('viewer-close');
 
   // ---- shuffle, mulligan, escape ----
   const libCount = await pileCount('library');
-  await press('shuffle');
+  await shuffleViaMenu();
   check('Shuffle keeps the same cards and says so', (await pileCount('library')) === libCount && (await $text('status')) === 'Shuffled your library.');
   await press('mulligan');
   check('a mulligan deals a new hand of 7, counts itself and tells you what to do', (await count('#hand .card')) === 7 && (await $text('mulligan')) === 'Mulligan (1 so far)' && /^Mulligan 1: a new hand of 7 cards\. Put 1 card on the bottom of your library/.test(await $text('status')), await $text('status'));
@@ -207,7 +229,7 @@ try {
     check('nothing is played before anything is pressed', (await plays()).length === 0);
     await press('draw');
     same('Draw plays the draw sound at the saved volume', await plays(), [{ src: '/sfx/draw.mp3', volume: 0.1 }]);
-    await press('shuffle');
+    await shuffleViaMenu();
     same('Shuffle plays the shuffle sound', (await plays()).at(-1), { src: '/sfx/shuffle.mp3', volume: 0.095 });
     await press('mulligan');
     same('a mulligan plays the shuffle sound', (await plays()).at(-1), { src: '/sfx/shuffle.mp3', volume: 0.095 });
@@ -225,7 +247,7 @@ try {
     const beforeMute = (await plays()).length;
     await ev(`(() => { const c = document.getElementById('sound-on'); c.checked = false; c.dispatchEvent(new Event('change')); })()`);
     check('turning Sound off disables the volume slider and is remembered', (await ev(`document.getElementById('sound-volume').disabled`)) === true && (await stored()) === '{"on":false,"volume":1}', await stored());
-    await press('draw'); await press('shuffle');
+    await press('draw'); await shuffleViaMenu();
     check('with Sound off nothing is played', (await plays()).length === beforeMute);
     await ev(`(() => { const c = document.getElementById('sound-on'); c.checked = true; c.dispatchEvent(new Event('change')); })()`);
     check('turning Sound on again enables the slider', (await ev(`document.getElementById('sound-volume').disabled`)) === false && (await stored()) === '{"on":true,"volume":1}');
@@ -252,6 +274,8 @@ try {
     // The slider can be dragged all the way to both ends with a real mouse (Kevin found it could not: the page's general input style squeezed it).
     await browser.goto(PAGE);
     await waitFor(async () => !(await $hidden('game')) || null, 15000, 50);
+    await press('settings-button'); // the slider lives in the Settings menu, which has to be open to be measured and dragged
+    await sleep(100);
     const box = await ev(`(() => { const r = document.getElementById('sound-volume').getBoundingClientRect(); return { left: r.left, right: r.right, y: r.top + r.height / 2, width: r.width, height: r.height }; })()`);
     const mouseAt = (type, x, extra = {}) => browser.send('Input.dispatchMouseEvent', { type, x, y: box.y, button: 'left', buttons: type === 'mouseReleased' ? 0 : 1, clickCount: 1, ...extra });
     const dragSlider = async (toX) => {
@@ -430,7 +454,7 @@ try {
   }
   await clickCard('#hand .card', 0);
   check('Escape deselects', (await count('.card.selected')) === 1 && await (async () => { await ev(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))`); return (await count('.card.selected')) === 0 && (await actionLabels()).length === 0; })());
-  check('every card is somewhere: 61 cards in the game', await (async () => { const n = async (s) => parseInt((await $text(s)).split(': ').at(-1), 10); return (await count('.card')) + (await n('pile-library')) + (await n('pile-graveyard')) + (await n('pile-exile')) + (await n('pile-sideboard')) === 61; })());
+  check('every card is somewhere: 61 cards in the game', await (async () => { const n = async (s) => parseInt((await $text(s)).split(': ').at(-1), 10); return ((await count('.card')) - (await count('#viewer-list .card'))) + (await n('pile-library')) + (await n('pile-graveyard')) + (await n('pile-exile')) + (await n('pile-sideboard')) === 61; })());
 
   // ---- a new game ----
   await press('new-game');
@@ -442,24 +466,26 @@ try {
   check('a sideboard deck is dealt: 7 in hand, the commander in the command zone, 2 in the sideboard, life 40', (await count('#hand .card')) === 7 && (await count('#command .card')) === 1 && (await pileCount('sideboard')) === 'Sideboard: 2' && (await pileCount('library')) === 'Library: 45' && (await $text('life')) === '40', `${await pileCount('sideboard')} ${await pileCount('library')}`);
   check('the commander named last is the one in the command zone', /Kyodai/.test((await names('#command .card'))[0]));
   await press('pile-sideboard');
-  const sideNames = await ev(`Array.from(document.querySelectorAll('#viewer-list li')).map((li) => li.textContent)`);
+  const sideNames = await ev(`Array.from(document.querySelectorAll('#viewer-list .card')).map((c) => c.getAttribute('aria-label'))`);
   check('opening the sideboard lists both of its cards', !(await $hidden('viewer')) && sideNames.length === 2 && sideNames.some((t) => /Annul/.test(t)) && sideNames.some((t) => /Swords to Plowshares/.test(t)) && /sideboard: 2 cards/i.test(await $text('viewer-title')), JSON.stringify(sideNames));
-  await ev(`document.querySelector('#viewer-list .pile-card').click()`);
-  const fromSide = await actionLabels();
-  check('a sideboard card can go to the hand and to every other zone, but not "to the sideboard"', fromSide.includes('To hand') && fromSide.includes('To battlefield') && !fromSide.includes('To sideboard'), JSON.stringify(fromSide));
+  await ev(`document.querySelector('#viewer-list .card').click()`);
+  const moveTargets = async () => { await openMenuOfSelected(); await pressMenuItem('Move to'); await sleep(30); const all = (await menuLabels()).filter((x) => x !== 'Move to'); await closeMenu(); return all; };
+  const fromSide = await moveTargets();
+  check('a sideboard card can go to the hand and to every other zone, but not "to the sideboard"', fromSide.includes('Hand') && fromSide.includes('Battlefield') && !fromSide.includes('Sideboard'), JSON.stringify(fromSide));
   const wished = /^(.+?):/.exec(await $text('selected-line'))[1];
   await clickAction('To hand');
   check('taking it to the hand leaves 1 in the sideboard and puts it in the hand', (await pileCount('sideboard')) === 'Sideboard: 1' && (await count('#hand .card')) === 8 && (await handNames()).includes(wished) && (await $text('status')) === `Moved ${wished} to your hand.`, await $text('status'));
-  check('and it now offers "To sideboard"', (await actionLabels()).includes('To sideboard'));
+  check('and it now offers "To sideboard"', (await moveTargets()).includes('Sideboard'));
   await clickAction('To sideboard');
   check('putting it back restores the sideboard and the hand', (await pileCount('sideboard')) === 'Sideboard: 2' && (await count('#hand .card')) === 7 && (await $text('status')) === `Moved ${wished} to your sideboard.`, await $text('status'));
+  await press('viewer-close');
   await press('pile-library');
-  const libNames = await ev(`Array.from(document.querySelectorAll('#viewer-list li')).map((li) => li.textContent)`);
+  const libNames = await ev(`Array.from(document.querySelectorAll('#viewer-list .card')).map((c) => c.getAttribute('aria-label'))`);
   check('the card imported by its other title is in the game under its real name', (libNames.some((t) => /Arcane Signet/.test(t)) || (await handNames()).includes('Arcane Signet')) && !libNames.some((t) => /Heart of the Mountain/.test(t)));
-  await press('pile-library');
+  await press('viewer-close');
   await press('new-game');
   check('a new game keeps the sideboard whole', (await pileCount('sideboard')) === 'Sideboard: 2' && (await count('#hand .card')) === 7 && (await pileCount('library')) === 'Library: 45');
-  check('every one of the 55 cards is somewhere', await (async () => { const n = async (s) => parseInt((await $text(s)).split(': ').at(-1), 10); return (await count('.card')) + (await n('pile-library')) + (await n('pile-graveyard')) + (await n('pile-exile')) + (await n('pile-sideboard')) === 55; })());
+  check('every one of the 55 cards is somewhere', await (async () => { const n = async (s) => parseInt((await $text(s)).split(': ').at(-1), 10); return ((await count('.card')) - (await count('#viewer-list .card'))) + (await n('pile-library')) + (await n('pile-graveyard')) + (await n('pile-exile')) + (await n('pile-sideboard')) === 55; })());
 
   // ---- printings: a card is drawn with the printing its deck named, then the default picture, then its name ----
   // Real data (checked against Scryfall's own records on 2026-10-29): Sol Ring cmm 410 is 46ca0b66..., Arcane Signet sld 916 is
@@ -559,7 +585,7 @@ try {
   check('a selected card on the battlefield does not show the counter controls until Modify', await $hidden('marks'));
   await clickAction('Modify');
   check('Modify shows the counter controls', !(await $hidden('marks')));
-  check('the controls are an amount box, a kind of counter and nine buttons', (await count('#marks input')) === 1 && (await count('#marks select option')) === 6 && (await count('#marks button')) === 9);
+  check('the controls are an amount box, a kind of counter, nine buttons and a Close button', (await count('#marks input')) === 1 && (await count('#marks select option')) === 6 && (await count('#marks button')) === 10);
   check('a new card shows no counters and no change', (await count('#battlefield .card[data-kind="other"] .marks')) === 0);
   await setAmount('1'); await clickMark('Add counters');
   check('adding one +1/+1 counter shows a chip and a +1/+1 change on the card', JSON.stringify(await chipsOnCard()) === '["+1/+1 1"]' && (await changeOnCard()) === '+1/+1', JSON.stringify(await chipsOnCard()));
@@ -860,9 +886,9 @@ try {
   await clickCard('#battlefield .card[data-kind="land"]', 0);
   check('selecting a card on the battlefield does not open the counters panel by itself', await $hidden('marks'));
   await clickAction('Modify');
-  check('the Modify button opens it (and says so with aria-expanded) and puts the cursor in the amount box', !(await $hidden('marks')) && (await ev(`Array.from(document.querySelectorAll('#selected-actions button')).find((b) => b.textContent === 'Modify').getAttribute('aria-expanded')`)) === 'true' && (await ev(`document.activeElement.id`)) === 'marks-amount');
+  check('Modify... in the right-click menu opens the window and puts the cursor in the amount box', !(await $hidden('marks')) && (await ev(`document.activeElement.id`)) === 'marks-amount');
   await clickAction('Modify');
-  check('pressing it again hides the panel and keeps the focus on the button', (await $hidden('marks')) && (await ev(`document.activeElement.textContent`)) === 'Modify');
+  check('its Close button hides the window and puts the focus back on the card', await (async () => { await ev(`document.querySelector('#marks .modify-close').click()`); return (await $hidden('marks')) && (await ev(`document.activeElement.classList.contains('card')`)); })());
   await clickAction('Deselect');
   await clickCard('#battlefield .card[data-kind="land"]', 0);
   await clickAction('To hand');
@@ -942,9 +968,7 @@ try {
   // A card with a long, two-line type line is selected, so the selected-card panel gets shorter when the right-click selects Delver; the
   // browser then moves the scroll position (here by 23 px) to keep the cards still. That used to close the menu at once (found 2026-11-06).
   await clickCard(cardAt('Sephiroth'));
-  const panelBefore = await ev(`document.getElementById('selected').getBoundingClientRect().height`);
   await mouse(cardAt('Delver'), { button: 'right', dy: 30 });
-  check('the test is real: the right-click made the selected-card panel shorter, so the page had to scroll by itself', (await ev(`document.getElementById('selected').getBoundingClientRect().height`)) < panelBefore - 10, `${panelBefore} -> ${await ev(`document.getElementById('selected').getBoundingClientRect().height`)}`);
   const delverMenu = await menuState();
   check('the menu for Delver lists Turn over between Tap and the counter', delverMenu && JSON.stringify(delverMenu.items.slice(0, 4)) === JSON.stringify(['Modify...', 'Tap', 'Turn over', "Doesn't untap"]), JSON.stringify(delverMenu?.items));
   await sleep(500);
@@ -1395,10 +1419,10 @@ try {
   { const corner = { x: 4, y: 4 }; await mouseAt('mouseMoved', corner, 0); await mouseAt('mousePressed', corner, 1); await mouseAt('mouseReleased', corner, 0); await sleep(80); }
   check('a click on the empty page background (the top-left corner) takes it off too', /^Click a card/.test(await $text('selected-line')) && (await count('#battlefield .card.selected')) === 0, await $text('selected-line'));
   await clickCard('#battlefield .card[data-stack-depth="0"]');
-  { const p = await ev(`(() => { const b = Array.from(document.querySelectorAll('#selected-actions button')).find((x) => x.textContent === 'Modify'); const r = b.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`); await mouseAt('mouseMoved', p, 0); await mouseAt('mousePressed', p, 1); await mouseAt('mouseReleased', p, 0); await sleep(80); }
-  check('a click on a button of the selected-card panel does not deselect the card (it is how the card is used)', (await count('#battlefield .card.selected')) === 1, await $text('selected-line'));
-  { const p = await centerOfSelector('#selected-line'); await mouseAt('mouseMoved', p, 0); await mouseAt('mousePressed', p, 1); await mouseAt('mouseReleased', p, 0); await sleep(80); }
-  check('a click on the plain text of the selected-card panel does not deselect the card either', (await count('#battlefield .card.selected')) === 1, await $text('selected-line'));
+  await clickAction('Modify');
+  { const p = await centerOfSelector('#marks-amount'); await mouseAt('mouseMoved', p, 0); await mouseAt('mousePressed', p, 1); await mouseAt('mouseReleased', p, 0); await sleep(80); }
+  check('a click inside the Modify window does not deselect the card (it is how the card is used)', (await count('#battlefield .card.selected')) === 1 && !(await $hidden('marks')), await $text('selected-line'));
+  await ev(`document.querySelector('#marks .modify-close').click()`);
   await clickAction('Deselect');
   { const p = await centerOfSelector('#battlefield .card[data-stack-depth="0"]');
     await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p.x, y: p.y });
