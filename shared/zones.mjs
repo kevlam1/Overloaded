@@ -135,7 +135,8 @@ export function makeGame(deck, lookup = () => null, { random = secureRandom, han
     }
   }
   zones.library = shuffled(zones.library, random);
-  const game = { zones, life: zones.command.length ? COMMANDER_LIFE : DEFAULT_LIFE, turn: 1, mulligans: 0, nextUid: uid };
+  // cmd: which cards are this player's commanders (the ones in the command zone at the start), so the commander tax can follow a commander that has left the zone
+  const game = { zones, life: zones.command.length ? COMMANDER_LIFE : DEFAULT_LIFE, turn: 1, mulligans: 0, nextUid: uid, ...(zones.command.length ? { cmd: zones.command.map((card) => card.uid) } : {}) };
   return draw(game, handSize).game;
 }
 
@@ -450,6 +451,15 @@ export function changePlayerCounter(game, kind, delta) {
   const { pc: _old, ...rest } = game;
   return Object.keys(pc).length ? { ...rest, pc } : rest;
 }
+// The commander tax: how many times each commander has been cast from the command zone (game.tax, by the commander's uid, only counts above 0). Each cast makes the next one cost 2 more.
+// A game from the live table has no cmd (it is not stored there yet), so the commanders are then the cards in the command zone now.
+export const commanderUids = (game) => (Array.isArray(game.cmd) ? game.cmd : (game.zones?.command ?? []).map((card) => card.uid));
+export function changeTax(game, uid, delta) {
+  if (!commanderUids(game).includes(uid)) throw new Error('That card is not one of your commanders.');
+  const tax = bumped(game.tax, uid, delta, 'a cast count');
+  const { tax: _old, ...rest } = game;
+  return Object.keys(tax).length ? { ...rest, tax } : rest;
+}
 export function changeCommanderDamage(game, seat, delta) {
   if (!COMMANDER_SEATS.includes(seat)) throw new Error('Commander damage comes from a seat from 1 to 4.');
   const cd = bumped(game.cd, seat, delta, 'commander damage');
@@ -597,6 +607,15 @@ export function checkGame(game) {
   if ('cd' in game) {
     const ok = game.cd && typeof game.cd === 'object' && !Array.isArray(game.cd) && Object.keys(game.cd).length > 0 && Object.entries(game.cd).every(([key, value]) => COMMANDER_SEATS.includes(key) && Number.isInteger(value) && value >= 1 && value <= MAX_COUNT);
     if (!ok) problems.push('the commander damage is damaged');
+  }
+  if ('cmd' in game) {
+    const everyCard = ZONES.flatMap((zone) => (Array.isArray(game.zones[zone]) ? game.zones[zone] : []).map((card) => card?.uid));
+    const ok = Array.isArray(game.cmd) && game.cmd.length > 0 && game.cmd.length <= 2 && new Set(game.cmd).size === game.cmd.length && game.cmd.every((uid) => everyCard.includes(uid));
+    if (!ok) problems.push('the list of commanders is damaged');
+  }
+  if ('tax' in game) {
+    const ok = game.tax && typeof game.tax === 'object' && !Array.isArray(game.tax) && Object.keys(game.tax).length > 0 && Object.entries(game.tax).every(([uid, value]) => commanderUids(game).includes(uid) && Number.isInteger(value) && value >= 1 && value <= MAX_COUNT);
+    if (!ok) problems.push('the commander tax is damaged');
   }
   for (const key of Object.keys(game.zones)) if (!ZONES.includes(key)) problems.push(`unknown zone ${key}`);
   if (!Number.isInteger(game.life) || Math.abs(game.life) > MAX_LIFE) problems.push('life is not a whole number within the limit');

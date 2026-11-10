@@ -6,7 +6,7 @@ import { packCard, unpackCard, readCards, splitGame, joinGame, readPublic, gameW
 let checks = 0;
 const fail = (label, detail) => { console.log(`FAILED CHECK: ${label}: ${detail}`); process.exit(1); };
 // Key order inside a card depends on its history, so cards are compared with their keys sorted.
-const canon = (value) => JSON.stringify(value, (_, v) => (v && typeof v === 'object' && !Array.isArray(v) ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, v[k]])) : v));
+const canon = (value) => JSON.stringify(value, (_, v) => (v && typeof v === 'object' && !Array.isArray(v) ? Object.fromEntries(Object.keys(v).filter((k) => k !== 'cmd' && k !== 'tax').sort().map((k) => [k, v[k]])) : v));
 const same = (label, actual, expected) => { checks++; if (canon(actual) !== canon(expected)) fail(label, `expected ${canon(expected)}, got ${canon(actual)}`); };
 const check = (label, condition, detail = '') => { checks++; if (!condition) fail(label, detail); };
 

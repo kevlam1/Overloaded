@@ -158,6 +158,7 @@ export function joinGame(storedPublic, storedPrivate, lookup) {
     turn: whole(storedPublic.turn, 1, MAX_TURN) ? storedPublic.turn : 1,
     mulligans: whole(storedPublic.mulligans, 0, 1000) ? storedPublic.mulligans : 0,
     nextUid,
+    ...(zones.command.length ? { cmd: zones.command.slice(0, 2).map((card) => card.uid) } : {}), // the commanders are not stored yet (the commander tax is not on the live table), so they are the cards in the command zone now
     ...(Object.keys(cleanCounts(storedPublic.pc, PLAYER_COUNTERS)).length ? { pc: cleanCounts(storedPublic.pc, PLAYER_COUNTERS) } : {}),
     ...(Object.keys(cleanCounts(storedPublic.cd, COMMANDER_SEATS)).length ? { cd: cleanCounts(storedPublic.cd, COMMANDER_SEATS) } : {}),
     ...(validPass(storedPublic.pass) ? { pass: validPass(storedPublic.pass) } : {}),

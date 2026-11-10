@@ -46,6 +46,7 @@ const suites = [
   { name: 'how piles are drawn: the saved choice', cmd: node, args: ['scripts/test-pile-style.mjs'] },
   { name: 'searching a pile: names, letters in order, types', cmd: node, args: ['scripts/test-card-search.mjs'] },
   { name: 'the right-click menu of a pile: shuffle, draw, mill, move all', cmd: node, args: ['scripts/test-pile-menu.mjs'] },
+  { name: 'the command zone: commanders and the commander tax', cmd: node, args: ['scripts/test-commander-zone.mjs'] },
   { name: 'the card hover preview: which picture, where the box goes', cmd: node, args: ['scripts/test-card-hover.mjs'] },
   { name: 'counters, modifier, tokens, player counters', cmd: node, args: ['scripts/test-counters.mjs'] },
   { name: 'counters and tokens: how they are stored and read back', cmd: node, args: ['scripts/test-sync-counters.mjs'] },
