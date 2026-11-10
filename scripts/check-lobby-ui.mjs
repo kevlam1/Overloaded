@@ -69,7 +69,7 @@ try {
   check('the disclaimer does not use a Wizards or Magic logo or call the site by the trademarked name in its title', !/Magic: The Gathering/i.test(facts.title));
   check('buttons are at least 44 px tall', facts.buttonHeights.every((h) => h >= 44), facts.buttonHeights.join(','));
   check('nothing scrolls sideways at desktop width', !facts.scrollsSideways);
-  check('headings go h1, five h2 (name, make, join by code, join this table, your table), seven h3 inside the table (the players, your deck, the importer and its three parts: saved decks, paste, your deck; then the host\'s Start), then the closed popup\'s own h2', facts.headingOrder === 'H1,H2,H2,H2,H2,H2,H3,H3,H3,H3,H3,H3,H3,H2', facts.headingOrder);
+  check('headings go h1, five h2 (name, make, join by code, join this table, your table), three h3 inside the table (the players, your deck, then the Start box; the deck manager builds its own headings only when it is opened), then the closed popup own h2', facts.headingOrder === 'H1,H2,H2,H2,H2,H2,H3,H3,H3,H2', facts.headingOrder);
 
   // ---- loading: nothing from anyone else, and nothing sent to the database yet ----
   const loadRequests = browser.events.filter((e) => e.method === 'Network.requestWillBeSent').map((e) => e.params.request.url);

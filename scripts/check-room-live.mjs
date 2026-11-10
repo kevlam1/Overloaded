@@ -66,7 +66,7 @@ try {
   await waitFor(async () => ((await shown(bob, 'deck-import')) ? true : null), 15000, 200);
   record('Bob has no deck for this format, so the lobby offers "Import a deck here" (a button in the lobby, not a link to another page)', (await shown(bob, 'deck-import')) &&(await bob.eval(`document.querySelectorAll('#deck-import a').length`)) === 0 && (await shown(bob, 'deck-import-open')));
   await click(bob, 'open-importer');
-  const importerReady = await waitFor(async () => (await shown(bob, 'deck-importer')) && !(await bob.eval(`document.getElementById('check').disabled`)) ? true : null, 30000, 250);
+  const importerReady = await waitFor(async () => (await shown(bob, 'deck-importer')) && (await bob.eval(`document.getElementById('check')?.disabled === false`)) ? true : null, 30000, 250);
   record('Import or change a deck opens the importer inside the lobby and loads the card list then', Boolean(importerReady) && askedForList() && (await pathOf(bob)) === `/lobby/${code}`);
   await setValue(bob, 'deck-text', 'Commander\n1 Krenko, Mob Boss\n\n1 Sol Ring\n1 Mountain');
   await click(bob, 'check');
@@ -75,7 +75,7 @@ try {
   if (process.argv.includes('--screenshot')) { await bob.eval(`document.getElementById('deck-importer').scrollIntoView()`); await sleep(500); await bob.screenshot('scratch-room-importer.png'); }
   await setValue(bob, 'deck-name', 'Bob goblins');
   await click(bob, 'save');
-  const savedMessage = await waitFor(async () => (/Saved "Bob goblins"/.test(await text(bob, 'importer-status')) ? true : null), 15000, 250);
+  const savedMessage = await waitFor(async () => (/Saved "Bob goblins"/.test(await text(bob, 'deck-status')) ? true : null), 15000, 250);
   record('Save puts the deck in this browser and says so in the importer message line, leaving the lobby status line alone', Boolean(savedMessage) && !/Bob goblins/.test(await text(bob, 'status')));
   const listed = await waitFor(async () => { const o = await bob.eval(`Array.from(document.getElementById('deck-pick').options).map((x) => x.textContent)`); return o.some((t) => /^Bob goblins \(Krenko, Mob Boss/.test(t)) ? o : null; }, 15000, 250);
   record("the lobby's deck picker lists the new deck straight away, with its commander (no reload, no going back)", Boolean(listed), JSON.stringify(listed));
