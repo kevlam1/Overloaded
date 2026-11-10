@@ -1,17 +1,26 @@
 // Reads a mana cost as Scryfall writes it ("{2}{G}{G}", "{1}{R} // {2}{W}" for a card with two costs) into symbols a page can draw. Plain data in, plain data out, no browser
 // code, so Node tests can load it (scripts/test-mana-cost.mjs). The symbols are drawn by frontend/src/mana-pips.js.
 //
-// A symbol is { text, kind, colors, label }:
+// A symbol is { text, kind, colors, label, url }:
 //   kind    'color' (W U B R G), 'colorless' (C), 'generic' (a number), 'x' (X, Y, Z), 'snow' (S), 'hybrid' ({W/U}, {2/W}), 'phyrexian' ({G/P}, {G/W/P}), or 'other' (anything else, shown as written)
 //   colors  the colors in it, as letters in the order written (a hybrid has two, a phyrexian one or two, a generic none)
 //   label   the words for a screen reader: "2 generic mana", "green mana", "white or blue mana", "green or 2 life"
+//   url     where Scryfall serves the symbol's picture (SVG), or null for a symbol it has none for. Scryfall names them by the symbol without its slashes: {W} is W.svg, {W/U} is WU.svg, {2/W} is 2W.svg, {G/P} is GP.svg (checked against its /symbology list on 2026-11-10).
 // A cost is a list of parts (a split or adventure card has two), each a list of symbols. Anything that is not a {...} symbol is dropped, and a damaged cost gives no symbols.
 
 const COLOR_WORDS = { W: 'white', U: 'blue', B: 'black', R: 'red', G: 'green' };
 const SYMBOL = /\{([^{}]{1,10})\}/g;
 const MAX_GENERIC = 100; // a generic number above this is not a mana cost (the largest real one is 1,000,000 on a joke card, which the page shows as text)
 
+export const SYMBOL_HOST = 'https://svgs.scryfall.io/card-symbols';
+const symbolUrl = (upper) => { const code = upper.split(String.fromCharCode(47)).join(''); return /^[0-9WUBRGCSPXYZ]{1,3}$/.test(code) ? `${SYMBOL_HOST}/${code}.svg` : null; };
+
 function describe(text) {
+  const symbol = describeKind(text);
+  return { ...symbol, url: symbol.kind === 'other' || (symbol.kind === 'generic' && Number(symbol.text) > 20) ? null : symbolUrl(text.toUpperCase()) };
+}
+
+function describeKind(text) {
   const upper = text.toUpperCase();
   if (/^[WUBRG]$/.test(upper)) return { text: upper, kind: 'color', colors: [upper], label: `${COLOR_WORDS[upper]} mana` };
   if (upper === 'C') return { text: 'C', kind: 'colorless', colors: [], label: 'colorless mana' };

@@ -781,3 +781,4 @@ body .battlefield > .card.tapped[data-stack-ext="3"]::before { left: -3px; top: 
 .pip-phyrexian.p2-W, .pip-phyrexian.p2-U, .pip-phyrexian.p2-B, .pip-phyrexian.p2-R, .pip-phyrexian.p2-G { background: linear-gradient(135deg, var(--c1) 50%, var(--c2) 50%); }
 .pip-colorless { background: #d6d2cf; } .pip-snow { background: #cfe9f6; } .pip-x, .pip-generic { background: #cbc2bf; } .pip-other { width: auto; padding: 0 0.3rem; border-radius: 0.6rem; background: #cbc2bf; }
 .cost-or { color: var(--muted); font-size: 0.75rem; }
+.pip-img { display: block; width: 1.3rem; height: 1.3rem; }

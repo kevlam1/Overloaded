@@ -2581,6 +2581,22 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 124. The real mana symbols, from Scryfall (2026-11-10)
+
+**What I asked for**
+- Use the actual color icons, like the deck-building sites, instead of my plain circles from entry 123.
+
+**What changed** (`shared/mana-cost.mjs`, `frontend/src/mana-pips.js`, `vercel.json`, `style.css`, `scripts/lib/browser.mjs`)
+- Each symbol is Scryfall's own SVG of it (`https://svgs.scryfall.io/card-symbols/W.svg`, `WU.svg` for {W/U}, `2W.svg` for {2/W}, `GP.svg` for {G/P}), the same pictures the deck sites use. I printed Scryfall's `/symbology` list first: 84 symbols, each with an `svg_uri` in that form (checked 2026-11-10). A symbol with no picture there (an unknown one, or a number above 20), or one whose picture cannot load, falls back to my round pip, so a cost is never blank.
+- The content policy now allows pictures from `https://svgs.scryfall.io` as well as `https://cards.scryfall.io` (`vercel.json`, and the deploy check expects it). It is a new third-party host: Scryfall serves them like the card pictures. No dependency, no icon font and nothing copied into the repo. The symbols are Wizards' artwork, shown unaltered under the same Fan Content rules as the card pictures; I have not re-read the policy for them (it is on my list to read in a browser before the site goes public).
+- The test browser helper can now answer more than one host (`fakeImages` was replacing its earlier pattern when called twice).
+
+**What I checked**
+- 16 mana cost checks (the addresses and the cases with no picture), two in the deck page check (the pictures with their words for a screen reader, and a symbol that fails to load turning into a plain pip), the deck page check 224, the solo check 430, `npm run test:quick` (51 suites), and the deploy check 56 of 56. A screenshot with the REAL pictures: 23 of 23 loaded and no fallbacks.
+- **Not checked:** the policy of the real Vercel site (the deploy check only reads the file), light mode, phone width.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-10, entry 122) Claude's first deck page started a library it could not read at the box to paste into, hiding the message about it; the old check noticed.
 - (2026-11-10, entry 120) Claude's solo check clicked a fixed empty spot that stopped being empty once the graveyard stack moved there, and the failure first looked like a menu bug; a screenshot at the moment of the failure showed the open viewer.

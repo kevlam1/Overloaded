@@ -40,6 +40,9 @@ try {
     const height = oddPictures.has(id) ? 300 : 680;
     return { type: 'image/svg+xml', text: `<svg xmlns="http://www.w3.org/2000/svg" width="488" height="${height}" viewBox="0 0 488 ${height}"><rect width="488" height="${height}" rx="30" fill="#456"/></svg>` };
   });
+  // Mana symbols are Scryfall's SVGs; a stand-in answers them too (an address in failSymbols answers 404, so the plain round symbol is drawn instead).
+  const failSymbols = new Set();
+  const symbolRequests = await browser.fakeImages('https://svgs.scryfall.io/*', (url) => (failSymbols.has(url.split('/').pop()) ? { status: 404, type: 'text/plain', text: '' } : { type: 'image/svg+xml', text: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="10" fill="#789"/></svg>' }));
   const ev = (expression) => browser.eval(expression);
   const $text = (id) => ev(`document.getElementById(${JSON.stringify(id)}).textContent`);
   const $hidden = (id) => ev(`document.getElementById(${JSON.stringify(id)}).hidden`);
@@ -229,8 +232,8 @@ try {
   check('a card with no set typed shows the default picture and has no printing cell at all', printedBy('Lightning Bolt')?.source === 'default' && printedBy('Lightning Bolt')?.printing === null && printedBy('Lightning Bolt')?.id !== null);
   check('a card that was not found still shows what was typed, and a row has a printing cell only when there is something to say (count, name, printing, cost, or three cells without a printing)', printedBy('Not A Real Card')?.printing === 'ABC 7' && printedBy('Not A Real Card')?.columns === 4 && printed.every((row) => row.columns === (row.printing === null ? 3 : 4)), JSON.stringify(printed));
   check('count, name, cost and (as the name\'s tooltip) the type are still shown', printedBy('Lightning Bolt')?.qty === '2' && /Instant/.test(printedBy('Lightning Bolt')?.type ?? '') && printedBy('Lightning Bolt')?.cost === '{R}' && ringRows.every((row) => /Artifact/.test(row.type) && row.cost === '{1}'), JSON.stringify(printed));
-  const pips = await ev(`(() => { const costs = [...document.querySelectorAll('#sections .card-line')].map((li) => li.querySelector('.cost')); const bolt = costs.find((c) => c.dataset.cost === '{R}'); const ring = costs.find((c) => c.dataset.cost === '{1}'); return { bolt: bolt && [bolt.querySelectorAll('.pip').length, bolt.querySelector('.pip').textContent, bolt.getAttribute('aria-label'), bolt.querySelector('.pip').classList.contains('pip-color')], ring: ring && [ring.querySelectorAll('.pip').length, ring.querySelector('.pip').textContent, ring.getAttribute('aria-label')] }; })()`);
-  check('a mana cost is drawn as round symbols with its words for a screen reader (a red pip with R, a generic pip with its number), not as {R}', JSON.stringify(pips) === JSON.stringify({ bolt: [1, 'R', 'red mana', true], ring: [1, '1', '1 generic mana'] }), JSON.stringify(pips));
+  const pips = await ev(`(() => { const costs = [...document.querySelectorAll('#sections .card-line')].map((li) => li.querySelector('.cost')); const bolt = costs.find((c) => c.dataset.cost === '{R}'); const ring = costs.find((c) => c.dataset.cost === '{1}'); return { bolt: bolt && [bolt.querySelectorAll('img.pip-img').length, bolt.getAttribute('aria-label'), bolt.querySelector('img').src.split('/').pop()], ring: ring && [ring.querySelectorAll('img.pip-img').length, ring.getAttribute('aria-label'), ring.querySelector('img').src.split('/').pop()] }; })()`);
+  check('a mana cost is drawn as the Scryfall symbol pictures with its words for a screen reader, not as {R}', JSON.stringify(pips) === JSON.stringify({ bolt: [1, 'red mana', 'R.svg'], ring: [1, '1 generic mana', '1.svg'] }), JSON.stringify(pips));
   const notes = await ev(`Array.from(document.querySelectorAll('#notices li')).map((li) => li.textContent)`);
   check('the page says that two sets and numbers were not found, and which', notes.some((n) => /2 sets and numbers were not found, so those cards show their default picture: CMM 5, CMM 99999/.test(n)), JSON.stringify(notes));
   check('only the sets the deck names were fetched, once each (cmm and sld; abc is not a card so it costs nothing)', (await ev(`performance.getEntriesByType('resource').map((e) => e.name).filter((n) => n.includes('/data/printings/'))`)).map((n) => n.split('/').pop()).sort().join() === 'set-cmm.json,set-sld.json');
@@ -693,6 +696,13 @@ try {
   check('no Clear button and no stand-alone save note any more (one of each action, nothing said twice)', (await ev(`document.getElementById('clear') === null && document.getElementById('save-note') === null && document.querySelectorAll('#preview button').length`)) >= 0 && (await ev(`document.getElementById('clear')`)) === null);
   await deleteAllSaved();
 
+  // ---- a mana symbol picture that cannot load is replaced by a plain round symbol ----
+  failSymbols.add('G.svg');
+  await load(); await paste('1 Llanowar Elves'); await press('check');
+  const fallbackPip = await waitFor(async () => (await ev(`(() => { const c = document.querySelector('#sections .cost'); return c && c.querySelector('.pip-color') ? [c.querySelectorAll('img').length, c.querySelector('.pip').textContent, c.querySelector('.pip').title] : null; })()`)) || null, 5000, 50).catch(() => null);
+  check('a symbol picture that cannot load is replaced by a plain round symbol with its letter (the cost is never blank)', JSON.stringify(fallbackPip) === JSON.stringify([0, 'G', 'green mana']), JSON.stringify(fallbackPip));
+  failSymbols.clear();
+
   // ---- limits and odd input ----
   await paste('201 Forest'); await press('check');
   check('too many cards: shown, with the limit, and cannot be saved', /limit is 200/.test(await $text('notices')) && (await ev(`document.getElementById('save').disabled`)));
@@ -700,7 +710,7 @@ try {
   const notices = await $text('notices');
   check('skipped lines are explained with their line numbers', /Line 1 was skipped/.test(notices) && /Line 3 was skipped: the quantity is 0/.test(notices) && /Line 4 says "Commander" but no card follows it/.test(notices), notices);
   await paste('<img src=x onerror="window.__pwned=1">\n<script>window.__pwned=2<\/script>\n1 Sol Ring'); await press('check');
-  const injected = await ev(`({ imgs: document.querySelectorAll('#preview img, #notices img').length, scripts: document.querySelectorAll('#preview script, #notices script').length, pwned: typeof window.__pwned, shown: document.getElementById('preview').textContent.includes('<img src=x') })`); // a line with no number is now a card name that was not found, so the text shows in the list and the problems, not the notices
+  const injected = await ev(`({ imgs: document.querySelectorAll('#preview img:not(.pip-img), #notices img').length, scripts: document.querySelectorAll('#preview script, #notices script').length, pwned: typeof window.__pwned, shown: document.getElementById('preview').textContent.includes('<img src=x') })`); // a line with no number is now a card name that was not found, so the text shows in the list and the problems, not the notices
   check('pasted markup is shown as text and never runs', injected.imgs === 0 && injected.scripts === 0 && injected.pwned === 'undefined' && injected.shown, JSON.stringify(injected));
   await paste('1 Sol Ring\n'.repeat(1500)); await press('check');
   check('a huge paste is refused with the limit, without freezing', /too many lines/.test(await $text('notices')) || /limit/.test(await $text('notices')), await $text('notices'));
@@ -726,7 +736,7 @@ try {
   // ---- the whole session ----
   const errors = browser.logs.filter((l) => /^exception:|^console\.error|^error:/.test(l) && !/Failed to load resource|ERR_BLOCKED|net::/.test(l));
   check('no script errors', errors.length === 0, errors.slice(0, 2).join(' | '));
-  const foreign = browser.events.filter((e) => e.method === 'Network.requestWillBeSent' && !e.params.request.url.startsWith(ORIGIN) && !e.params.request.url.startsWith('data:') && !e.params.request.url.startsWith('https://cards.scryfall.io/'));
+  const foreign = browser.events.filter((e) => e.method === 'Network.requestWillBeSent' && !e.params.request.url.startsWith(ORIGIN) && !e.params.request.url.startsWith('data:') && !e.params.request.url.startsWith('https://cards.scryfall.io/') && !e.params.request.url.startsWith('https://svgs.scryfall.io/card-symbols/'));
   check('nothing was requested from any other site', foreign.length === 0, foreign.slice(0, 2).map((e) => e.params.request.url).join(' | '));
 
   if (process.argv.includes('--screenshot')) {

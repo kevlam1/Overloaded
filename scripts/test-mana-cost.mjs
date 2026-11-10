@@ -1,5 +1,5 @@
 // Tests for shared/mana-cost.mjs: reading a mana cost into symbols.
-import { parseSymbols, parseCost, costWords } from '../shared/mana-cost.mjs';
+import { parseSymbols, parseCost, costWords, SYMBOL_HOST } from '../shared/mana-cost.mjs';
 
 let checks = 0;
 const fail = (label, detail) => { console.log(`FAILED CHECK: ${label}: ${detail}`); process.exit(1); };
@@ -19,5 +19,9 @@ same('a card with two costs is two parts', parseCost('{1}{R} // {2}{W}').map((pa
 same('one part, no part, an empty side', [parseCost('{R}').length, parseCost('').length, parseCost(' // {R}').length], [1, 0, 1]);
 same('words for a screen reader', [costWords('{2}{G}{G}'), costWords('{1}{R} // {2}{W}'), costWords('')], ['2 generic mana, green mana, green mana', '1 generic mana, red mana or 2 generic mana, white mana', '']);
 same('text around symbols is dropped, never turned into markup', parseSymbols('<b>{R}</b> {G}').map((s) => s.text), ['R', 'G']);
+
+same('where each symbol picture is: its text without the slashes', parseSymbols('{W}{C}{S}{X}{7}{20}{W/U}{2/W}{G/P}{G/W/P}').map((s) => s.url.slice(SYMBOL_HOST.length + 1)), ['W.svg', 'C.svg', 'S.svg', 'X.svg', '7.svg', '20.svg', 'WU.svg', '2W.svg', 'GP.svg', 'GWP.svg']);
+same('a symbol Scryfall has no picture for has no address', [parseSymbols('{HW}')[0].url, parseSymbols('{21}')[0].url, parseSymbols('{999}')[0].url], [null, null, null]);
+same('the host is the Scryfall symbol server, over https', SYMBOL_HOST, 'https://svgs.scryfall.io/card-symbols');
 
 console.log(`All ${checks} mana cost checks passed.`);

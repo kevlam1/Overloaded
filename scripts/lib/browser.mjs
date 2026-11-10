@@ -59,15 +59,21 @@ export async function openBrowser(label, { width = 1280, height = 800 } = {}) {
   // addresses asked for. Returns the list of them. Used to test pages that show pictures from another host.
   // make(url) may return { type, text } to serve something else (for example an SVG that looks like a card), and { status }
   // to answer with an error (for example 404, a picture that does not exist).
+  // Answers requests that match a pattern (* is any text) with a stand-in picture and records them. It can be called more than once, for different hosts: each call answers only its own pattern.
+  const fakePatterns = [];
   browser.fakeImages = async (urlPattern, make) => {
     const asked = [];
+    const prefix = urlPattern.split('*')[0]; // the patterns used are a host and a path with a * at the end
+    const matches = { test: (url) => url.startsWith(prefix) };
+    fakePatterns.push({ urlPattern });
     const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
     browser.on('Fetch.requestPaused', (params) => {
+      if (!matches.test(params.request.url)) return;
       asked.push(params.request.url);
       const made = make ? make(params.request.url) : null;
       send('Fetch.fulfillRequest', { requestId: params.requestId, responseCode: made?.status ?? 200, responseHeaders: [{ name: 'Content-Type', value: made?.type ?? 'image/png' }, { name: 'Access-Control-Allow-Origin', value: '*' }], body: made?.text !== undefined ? Buffer.from(made.text).toString('base64') : PNG }).catch(() => {});
     });
-    await send('Fetch.enable', { patterns: [{ urlPattern }] });
+    await send('Fetch.enable', { patterns: fakePatterns });
     return asked;
   };
   browser.eval = async (expression) => {

@@ -79,7 +79,7 @@ check('the policy starts from default-src self', directive('default-src') === "d
 check('the policy forbids plugins, framing and a changed base', directive('object-src').includes("'none'") && directive('frame-ancestors').includes("'none'") && directive('base-uri').includes("'self'"));
 check('the policy allows sign-in and the database connection', /identitytoolkit\.googleapis\.com/.test(directive('connect-src')) && /securetoken\.googleapis\.com/.test(directive('connect-src')) && /wss:\/\/\*\.firebaseio\.com/.test(directive('connect-src')));
 check('no wildcard source for scripts or connections', !/(^|\s)(\*|https:|http:|data:)(\s|$)/.test(directive('script-src')) && !/(^|\s)(\*|https:|http:)(\s|$)/.test(directive('connect-src')));
-check('pictures may come from this site, data: and Scryfall\'s picture server only', directive('img-src') === "img-src 'self' data: https://cards.scryfall.io", directive('img-src'));
+check('pictures may come from this site, data: and Scryfall\'s picture server only', directive('img-src') === "img-src 'self' data: https://cards.scryfall.io https://svgs.scryfall.io", directive('img-src'));
 check('nosniff is set', page['x-content-type-options'] === 'nosniff');
 check('framing is denied', page['x-frame-options'] === 'DENY');
 check('a referrer policy is set that does not send the path to other sites', ['strict-origin-when-cross-origin', 'strict-origin', 'same-origin', 'no-referrer'].includes(page['referrer-policy']));
@@ -121,7 +121,7 @@ check('the served site serves the lobby page at /', root.status === 200 && root.
 check('the served site serves the same page at /lobby/ABC234', (await get('/lobby/ABC234')).body === root.body);
 check('the served site serves the same page at /lobby', (await get('/lobby')).body === root.body);
 const deckPage = await get('/deck');
-check('the served site serves the deck import page at /deck', deckPage.status === 200 && deckPage.type.startsWith('text/html') && /<h1>Import a deck/.test(deckPage.body) && deckPage.body !== root.body);
+check('the served site serves the deck import page at /deck', deckPage.status === 200 && deckPage.type.startsWith('text/html') && /<h1>Decks</.test(deckPage.body) && deckPage.body !== root.body);
 check('and sends the policy with it', deckPage.csp === csp);
 const soloPage = await get('/solo');
 check('the served site serves the solo table at /solo', soloPage.status === 200 && soloPage.type.startsWith('text/html') && /<h1>Solo table/.test(soloPage.body) && soloPage.body !== root.body && soloPage.body !== deckPage.body);
