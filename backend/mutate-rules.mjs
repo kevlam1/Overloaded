@@ -498,13 +498,16 @@ function mutate([name, path, from, to, nth = 1]) {
 
 for (const m of M) mutate(m); // dry run: every mutation must apply, before the slow part starts
 console.log(`${M.length} mutations apply cleanly`);
-const only = process.argv[2]; // optional: run only mutations whose name contains this text
+const only = process.argv[2]; // optional: run only mutations whose name contains this text (an empty text means all)
+const skip = Number(process.argv[3] ?? 0); // optional: skip this many mutations from the start of the list, to finish a run that was stopped (the log says how far it got)
+let position = 0;
 let survived = 0, killed = 0, suspicious = 0, equivalent = 0;
 const restore = () => { writeFileSync(rulesUrl, original); if (existsSync(backupUrl)) unlinkSync(backupUrl); };
 writeFileSync(backupUrl, original);
 process.on('SIGINT', () => { restore(); process.exit(130); });
 try {
   for (const m of M) {
+    if (position++ < skip) continue;
     if (only && !m[0].includes(only)) continue;
     const text = mutate(m); // throws if the mutation does not apply, so nothing here can pass by accident
     if (text === original) throw new Error(`${m[0]}: mutation changed nothing`);

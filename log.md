@@ -2475,7 +2475,33 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 119. Player counters move into the life total: chips with icons and a right-click menu (2026-11-10)
+
+**What I asked for**
+- Move the player counters into the player's life total area. A player right-clicks their own life to add every kind of counter that goes on a player, even the monarch. Show them with icons. I also asked for a bigger reorganization (stacked piles, two commander zones with a tax counter, the sideboard and the legal disclaimer in Settings, the top buttons on the right, a corner for the selected card) and Claude split it into three steps. This entry is step 1 only.
+- My answers: the new counters can wait for the database rules (one rules change at the end); Alt held over a card shows the hover picture; the selected-card corner also shows pings from other players; the disclaimer goes in Settings only.
+
+**What changed** (`shared/zones.mjs`, `shared/player-counters.mjs`, `shared/game-sync.mjs`, `frontend/src/counter-icons.js`, `frontend/src/counter-chips.js`, both pages, `style.css`)
+- A player can have six counts (poison, energy, experience, rad, ticket, speed), the Ring tempts you (a count), and three marks that are on or off (monarch, initiative, city's blessing). A mark is stored as 1.
+- Chips sit next to the life total: an icon and a number, or only the icon for a mark. A right-click on the life opens "Your counters": each count has Add 1, Add 5, Remove 1 and Remove 5 (or Remove all); a mark is one choice that turns it on or off; on a Commander table commander damage from each seat is in the same menu. Other players see the same chips on their panel, read-only.
+- The old "Your counters" block with its buttons, and the commander damage block, are gone (`frontend/src/player-counters.js` is deleted).
+- The icons are simple shapes drawn for this site, inline SVG with width, height and fill set.
+- **The live table offers only poison, energy and experience for now.** The published database rules refuse any other key under `pc`, and one refused key would fail the player's whole public branch. `PUBLISHED_COUNTERS` in `shared/player-counters.mjs` is the one list to change after the rules are updated. The solo table offers all ten.
+
+**What I checked**
+- Unit: player counter checks 151 (new menu, chips and actions, and a 600-step random walk that keeps the game consistent), counter checks 237, counter storage 83. A screenshot at 1366x768 of the menu and the chips.
+- Browser: solo check 414, layout check 365, and the live two-browser check 169 of 169 (the right-click menu, the chips, the other player seeing them, lethal at 21, a refresh). `npm test` passes all 54 suites.
+- **Not checked:** phone width, light mode, and the new counters on the live table (waiting for the rules).
+
+**Decisions**
+- A new backend test ties `PUBLISHED_COUNTERS` to the rules file: the list must be exactly the keys the rules accept under `pc`.
+- The mutation run for the rules (417 copies) was stopped by its time limit after 381 (361 killed, 20 documented as redundant, none survived). The rules file was left as a broken copy and I restored it by hand after checking the backup equalled the commit. `mutate-rules.mjs` now takes a second argument, how many to skip, so the rest can be run.
+- Claude's own mistakes: the random game test in `backend/test-rules-game.mjs` used every player counter, so it wrote keys the published rules refuse and the rules suite failed; `npm test` found it and it now uses `PUBLISHED_COUNTERS`. A solo check (a hostile card name) drew only 40 cards and so failed about 1 run in 60; it now draws up to 70. The menu click helper in the solo check clicked hidden submenu items; it skips them now.
+
+---
+
 ## Where AI misread me, or I had to correct course
+- (2026-11-10, entry 119) Claude let the random game test use every new player counter, which the published rules refuse; the full test run found it. It also left the mutation run's own time limit too short, so the run stopped with the rules file broken (restored by hand).
 - (2026-11-10, entry 118) Claude's first library search matched the letters in order against the type line as well, so searching "ft" found every artifact; the letters rule now applies to names only.
 - (2026-11-10, entry 116) Claude had Horizontal piles send a tapped card above the pile because it read "the tapped stack goes up" as part of that style; the style was only meant to change how a pile is drawn.
 - (2026-11-10, entry 115) Claude read "tapped cards go up" as moving the whole tapped stack above the pile in the Horizontal style only; what was meant was a tapped stack drawn straight up in both styles, and untapping to the left of it.
