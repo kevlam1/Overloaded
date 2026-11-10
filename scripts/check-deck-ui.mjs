@@ -214,7 +214,7 @@ try {
   const SIGNET_SLD_916 = 'dd1d87e4-f51a-448f-824f-99dffd73403c';
   const SIGNET_CMM_367 = '0539b83c-4459-41b5-a001-d15a1c9ddf23';
   const checked = () => waitFor(async () => (!(await $hidden('preview')) && !/^Checking/.test(await $text('deck-status'))) || null, 15000, 50);
-  const rowsOf = () => ev(`Array.from(document.querySelectorAll('#sections .card-line')).map((li) => ({ name: li.querySelector('.name').textContent, qty: li.querySelector('.qty').textContent, printing: li.querySelector('.printing')?.textContent ?? null, tip: li.querySelector('.printing')?.title ?? '', type: li.querySelector('.name')?.title ?? null, cost: li.querySelector('.cost')?.dataset.cost ?? li.querySelector('.cost')?.textContent ?? null, columns: li.children.length, id: li.dataset.cardId ?? null, source: li.dataset.printing ?? null }))`);
+  const rowsOf = () => ev(`Array.from(document.querySelectorAll('#sections .card-line')).map((li) => ({ name: li.querySelector('.name').textContent, qty: li.querySelector('.qty').textContent, printing: li.querySelector('.printing')?.textContent ?? null, tip: li.querySelector('.printing')?.title ?? '', type: li.querySelector('.name')?.title ?? null, cost: li.querySelector('.cost')?.dataset.cost ?? li.querySelector('.cost')?.textContent ?? null, columns: [...li.children].filter((c) => !c.classList.contains('row-menu')).length, id: li.dataset.cardId ?? null, source: li.dataset.printing ?? null }))`);
   await load();
   const requestsBefore = pictureRequests.length;
   await paste('1 Sol Ring (cmm) 410\n2 Lightning Bolt\n1 Arcane Signet (sld) 916\n1 Arcane Signet (cmm) 367\n1 Heart of the Mountain\n1 Sol Ring (cmm) 5\n1 Sol Ring (cmm) 99999\n1 Not A Real Card (abc) 7');
@@ -445,8 +445,8 @@ try {
 
   // ---- hovering a card in the checked list shows its picture (the titled deck above is still on the page) ----
   // The checks below scroll rows to the top and the bottom of the window, which needs a page taller than the window. The page under
-  // the list got shorter (no radio buttons), so a spacer keeps these checks about the picture box and not about the page height.
-  await ev(`(() => { const spacer = document.createElement('div'); spacer.id = 'test-spacer'; spacer.style.height = '1500px'; document.body.append(spacer); })()`);
+  // the list got shorter (no radio buttons), so a spacer above the list keeps these checks about the picture box and not about the page height.
+  await ev(`(() => { const spacer = document.createElement('div'); spacer.id = 'test-spacer'; spacer.style.height = '1500px'; document.body.prepend(spacer); const after = spacer.cloneNode(); after.id = 'test-spacer-after'; document.body.append(after); })()`);
   const peek = () => ev(`(() => { const p = document.getElementById('card-peek'); const i = document.getElementById('card-peek-image'); const r = p.getBoundingClientRect(); return { hidden: p.hidden, src: i.getAttribute('src'), imageHidden: i.hidden, note: document.getElementById('card-peek-note').textContent, left: r.left, right: r.right, top: r.top, bottom: r.bottom, w: innerWidth, h: innerHeight, pointerEvents: getComputedStyle(p).pointerEvents }; })()`);
   // Scrolls the row into the middle and waits two frames, so the scroll event (which hides the box) has come BEFORE the pointer moves.
   const rowFacts = (index, block = 'center') => ev(`new Promise((resolve) => { const row = document.querySelectorAll('#sections .card-line')[${index}]; row.scrollIntoView({ block: ${JSON.stringify(block)} }); requestAnimationFrame(() => requestAnimationFrame(() => resolve({ id: row.dataset.cardId ?? null, name: row.dataset.cardName ?? null }))); })`);
@@ -464,7 +464,8 @@ try {
   check('the box says whose picture it is and which printing', /Arcane Signet/.test(shown1.note) && /the printing that carries the title you typed/.test(shown1.note) && !/default printing/.test(shown1.note), shown1.note);
   const textEnd = await ev(`(() => { const range = document.createRange(); range.selectNodeContents(document.querySelectorAll('#sections .card-line')[4].querySelector('.name')); return range.getBoundingClientRect().right; })()`);
   check('it is inside the window and never takes the pointer', shown1.left >= 0 && shown1.right <= shown1.w && shown1.top >= 0 && shown1.bottom <= shown1.h && shown1.pointerEvents === 'none', JSON.stringify({ at1, shown1 }));
-  check('on a wide window it sits at the right, level with the pointer, and does not cover the name it points at', shown1.left > textEnd && (Math.abs((shown1.top + shown1.bottom) / 2 - at1.y) < 3 || shown1.top === 8 || Math.round(shown1.bottom) === shown1.h - 8), JSON.stringify({ at1, textEnd, shown1 }));
+  const rowBox = await ev(`(() => { const r = document.querySelectorAll('#sections .card-line')[4].getBoundingClientRect(); return { left: r.left, right: r.right }; })()`);
+  check('on a wide window it sits beside the row, level with the pointer, and does not cover the row it points at', (shown1.left >= rowBox.right || shown1.right <= rowBox.left) && textEnd < shown1.left + 1000 && (Math.abs((shown1.top + shown1.bottom) / 2 - at1.y) < 3 || shown1.top === 8 || Math.round(shown1.bottom) === shown1.h - 8), JSON.stringify({ at1, textEnd, shown1 }));
   check('the picture was asked for from Scryfall\'s picture server, once, and only in the normal size', pictureRequests.filter((u) => u === pictureUrl(row1.id)).length === 1 && pictureRequests.every((u) => /^https:\/\/cards\.scryfall\.io\/normal\/front\/[0-9a-f]\/[0-9a-f]\/[0-9a-f-]{36}\.jpg$/.test(u)), JSON.stringify(pictureRequests));
   const row4 = await rowFacts(1);
   await hover(1);
@@ -702,6 +703,57 @@ try {
   const fallbackPip = await waitFor(async () => (await ev(`(() => { const c = document.querySelector('#sections .cost'); return c && c.querySelector('.pip-color') ? [c.querySelectorAll('img').length, c.querySelector('.pip').textContent, c.querySelector('.pip').title] : null; })()`)) || null, 5000, 50).catch(() => null);
   check('a symbol picture that cannot load is replaced by a plain round symbol with its letter (the cost is never blank)', JSON.stringify(fallbackPip) === JSON.stringify([0, 'G', 'green mana']), JSON.stringify(fallbackPip));
   failSymbols.clear();
+
+  // ---- the groups flow in columns, and a card's menu (the "..." button or a right-click) makes it the commander or the partner ----
+  await load(); await deleteAllSaved(); await load();
+  await ev(`document.getElementById('sample').click()`); await settled();
+  await ev(`document.querySelector('[data-view="text"]').click()`);
+  const flow = await ev(`(() => { const box = document.getElementById('sections'); const lefts = new Set([...box.querySelectorAll('.deck-group')].map((g) => Math.round(g.getBoundingClientRect().left))); const costs = [...box.querySelectorAll('.card-line')].slice(0, 20).map((li) => { const c = li.querySelector('.cost').getBoundingClientRect(); const n = li.querySelector('.name').getBoundingClientRect(); const r = li.getBoundingClientRect(); return { rightGap: Math.round(r.right - c.right), width: Math.round(c.width) }; }); return { columns: lefts.size, columnWidth: getComputedStyle(box).columnWidth, costs }; })()`);
+  check('the text view flows in columns (three on a 1280 window), not one long list', flow.columns >= 3 && flow.columnWidth !== 'auto', JSON.stringify({ c: flow.columns, w: flow.columnWidth }));
+  check('a mana cost sits at the end of its row, not stretched (each is narrower than 120 px and its menu button leaves little room beside it)', flow.costs.every((c) => c.width <= 120 && c.rightGap <= 40), JSON.stringify(flow.costs.slice(0, 5)));
+  const lineMenu = () => ev(`(() => { const m = document.querySelector('.card-menu'); return m ? { title: m.querySelector('.card-menu-title').textContent, items: [...m.querySelectorAll('[role="menuitem"]')].map((b) => b.textContent) } : null; })()`);
+  const pickMenu = async (text) => { const p = await ev(`(() => { const b = [...document.querySelectorAll('.card-menu [role="menuitem"]')].find((x) => x.textContent === ${JSON.stringify(text)}); if (!b) return null; const r = b.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`); if (!p) throw new Error('no menu item ' + text); await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p.x, y: p.y }); await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: p.x, y: p.y, button: 'left', buttons: 1, clickCount: 1 }); await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: p.x, y: p.y, button: 'left', buttons: 0, clickCount: 1 }); await sleep(120); };
+  const rowCenter = (name) => ev(`(() => { const li = [...document.querySelectorAll('#sections .card-line')].find((l) => l.querySelector('.name').textContent === ${JSON.stringify(name)}); li.scrollIntoView({ block: 'center' }); const r = li.querySelector('.name').getBoundingClientRect(); return { x: Math.round(r.left + 12), y: Math.round(r.top + r.height / 2) }; })()`);
+  const rightClick = async (name) => { await sleep(150); const p = await rowCenter(name); await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p.x, y: p.y }); await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: p.x, y: p.y, button: 'right', buttons: 2, clickCount: 1 }); await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: p.x, y: p.y, button: 'right', buttons: 0, clickCount: 1 }); await sleep(150); };
+  const commanders = () => ev(`({ group: [...document.querySelectorAll('#sections [data-group="commander"] .name')].map((n) => n.textContent), first: document.getElementById('commander-1').selectedOptions[0]?.textContent ?? '', second: document.getElementById('commander-2').selectedOptions[0]?.textContent ?? '' })`);
+  const escapeKey = async () => { await browser.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await sleep(80); };
+  check('every card has a "..." button with its own label (and the commander too)', (await ev(`document.querySelectorAll('#sections .card-line .row-menu').length`)) === 85 && (await ev(`document.querySelector('#sections .row-menu').getAttribute('aria-label')`)) === 'Options for Krenko, Mob Boss');
+  await rightClick('Goblin Chieftain');
+  const m1 = await lineMenu();
+  check('a right-click on a card in a Commander deck offers to make it the commander (replacing the current one) or the partner', m1 && m1.title === 'Goblin Chieftain' && JSON.stringify(m1.items) === JSON.stringify(['Make commander (replaces the current one)', 'Make partner']), JSON.stringify(m1));
+  await pickMenu('Make partner');
+  let cmd = await commanders();
+  check('Make partner puts it in the Commander group beside Krenko and in the Partner picker, and says so', JSON.stringify(cmd) === JSON.stringify({ group: ['Krenko, Mob Boss', 'Goblin Chieftain'], first: 'Krenko, Mob Boss', second: 'Goblin Chieftain' }) && /^Goblin Chieftain is now the partner\.$/.test(await $text('deck-status')) && !(await lineMenu()), JSON.stringify(cmd));
+  check('and it is out of the Creatures group (28 left)', (await ev(`document.querySelector('#sections [data-group="creature"] h3').textContent`)) === 'Creatures (28)');
+  await rightClick('Goblin Chieftain');
+  const m2 = await lineMenu();
+  check('the partner can be taken out or made the commander', m2 && JSON.stringify(m2.items) === JSON.stringify(['Not the partner', 'Make commander instead']), JSON.stringify(m2));
+  await pickMenu('Make commander instead');
+  cmd = await commanders();
+  check('making the partner the commander swaps the two', JSON.stringify(cmd) === JSON.stringify({ group: ['Goblin Chieftain', 'Krenko, Mob Boss'], first: 'Goblin Chieftain', second: 'Krenko, Mob Boss' }), JSON.stringify(cmd));
+  await rightClick('Combat Celebrant');
+  await pickMenu('Make commander (replaces the current one)');
+  cmd = await commanders();
+  check('making another card the commander replaces the commander only; the old commander goes back to its type group', JSON.stringify(cmd) === JSON.stringify({ group: ['Combat Celebrant', 'Krenko, Mob Boss'], first: 'Combat Celebrant', second: 'Krenko, Mob Boss' }) && (await ev(`[...document.querySelectorAll('#sections [data-group="creature"] .name')].some((n) => n.textContent === 'Goblin Chieftain')`)), JSON.stringify(cmd));
+  // the "..." button opens the same menu
+  await ev(`[...document.querySelectorAll('#sections .card-line')].find((l) => l.querySelector('.name').textContent === 'Combat Celebrant').querySelector('.row-menu').scrollIntoView({ block: 'center' })`); await sleep(150);
+  const buttonAt = await ev(`(() => { const b = [...document.querySelectorAll('#sections .card-line')].find((l) => l.querySelector('.name').textContent === 'Combat Celebrant').querySelector('.row-menu'); const r = b.getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) }; })()`);
+  await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: buttonAt.x, y: buttonAt.y }); await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: buttonAt.x, y: buttonAt.y, button: 'left', buttons: 1, clickCount: 1 }); await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: buttonAt.x, y: buttonAt.y, button: 'left', buttons: 0, clickCount: 1 }); await sleep(150);
+  const m3 = await lineMenu();
+  check('the "..." button opens the card\'s menu: for the commander, only "Not the commander"', m3 && m3.title === 'Combat Celebrant' && JSON.stringify(m3.items) === JSON.stringify(['Not the commander']), JSON.stringify(m3));
+  await pickMenu('Not the commander');
+  cmd = await commanders();
+  check('taking the commander out lets the partner step up', JSON.stringify(cmd) === JSON.stringify({ group: ['Krenko, Mob Boss'], first: 'Krenko, Mob Boss', second: 'No partner' }), JSON.stringify(cmd));
+  await rightClick('Goblin Chieftain'); await escapeKey();
+  check('Escape closes a menu and changes nothing', !(await lineMenu()) && (await commanders()).group.join() === 'Krenko, Mob Boss');
+  await setField('deck-format', 'standard');
+  const standard = await ev(`({ buttons: document.querySelectorAll('#sections .row-menu').length })`);
+  await rightClick('Goblin Chieftain');
+  check('in Standard there is no "..." button and a right-click leaves the browser\'s own menu alone', standard.buttons === 0 && !(await lineMenu()));
+  await setField('deck-format', 'commander');
+  await paste('Commander\n1 Sol Ring\n\n1 Island\n\nSIDEBOARD:\n1 Annul'); await press('check');
+  check('a sideboard card has no menu (only the main deck can be the commander)', (await ev(`[...document.querySelectorAll('#sections [data-group="sideboard"] .row-menu')].length`)) === 0);
+  await deleteAllSaved();
 
   // ---- limits and odd input ----
   await paste('201 Forest'); await press('check');

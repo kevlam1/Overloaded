@@ -65,13 +65,24 @@ export function mountViewToggle(container, { view, onChange }) {
 // The picture box looks these up on whatever is pointed at: which card, which printing, whether it has a back face.
 function describeCard(element, line) {
   if (!line.card) return;
+  element.dataset.ref = line.card.i; // which card (the menu and the commander choice work on this)
   element.dataset.cardId = line.printingId ?? line.card.i;
   element.dataset.printing = line.printingSource ?? 'default';
   element.dataset.cardName = line.name;
   if (line.card.b === 1) element.dataset.twoSided = '1'; // a card with a back face: the picture box shows both faces
 }
 
-function textRow(line, printingCell) {
+// The "..." button that opens a card's menu (the page decides what the menu holds). A right-click on the card does the same.
+function menuButton(line) {
+  const button = make('button', 'row-menu', '\u2026');
+  button.type = 'button';
+  button.setAttribute('aria-haspopup', 'menu');
+  button.setAttribute('aria-label', `Options for ${line.name}`);
+  button.title = 'Options';
+  return button;
+}
+
+function textRow(line, printingCell, withMenu) {
   const item = make('li', line.status === 'matched' ? 'card-line' : 'card-line unmatched');
   const name = make('span', 'name', line.name);
   if (line.viaTitle) name.append(make('span', 'typed-as', ` (typed as "${line.viaTitle}")`)); // a card found by another title it was printed under
@@ -81,12 +92,14 @@ function textRow(line, printingCell) {
   const printing = printingCell(line);
   if (printing.textContent) item.append(printing);
   item.append(line.card ? manaNode(line.card.m) : make('span', 'cost', 'not matched'));
+  if (withMenu) item.append(menuButton(line));
   return item;
 }
 
-function tile(line) {
+function tile(line, withMenu) {
   const item = make('li', line.status === 'matched' ? 'deck-tile' : 'deck-tile unmatched');
   item.append(make('span', 'sr-only', `${line.qty} ${line.name}`));
+  if (line.card) item.dataset.ref = line.card.i; // (also for a picture that cannot be shown, so its menu still works)
   const picture = make('span', 'tile-picture');
   picture.setAttribute('aria-hidden', 'true');
   const fallback = () => { picture.replaceChildren(make('span', 'tile-name', line.name)); picture.classList.add('noimage'); };
@@ -106,12 +119,14 @@ function tile(line) {
     fallback();
   }
   item.append(picture);
+  if (withMenu) item.append(menuButton(line));
   if (line.qty > 1) { const count = make('span', 'tile-qty', `x${line.qty}`); count.setAttribute('aria-hidden', 'true'); item.append(count); }
   return item;
 }
 
 // groups: from groupDeck(). view: 'text' or 'images'. printingCell(line): the small element that says which printing a text row shows (the importer builds it).
-export function renderGroups(container, groups, { view, printingCell }) {
+// menuFor(line): whether the line has a "..." menu (true when the page has something to offer for it).
+export function renderGroups(container, groups, { view, printingCell, menuFor = () => false }) {
   container.replaceChildren();
   container.dataset.view = view;
   for (const group of groups) {
@@ -119,7 +134,7 @@ export function renderGroups(container, groups, { view, printingCell }) {
     section.dataset.group = group.key;
     section.append(make('h3', '', `${group.title} (${group.count})`));
     const list = make('ul', view === 'images' ? 'deck-tiles' : 'deck-list');
-    list.append(...group.lines.map((line) => (view === 'images' ? tile(line) : textRow(line, printingCell))));
+    list.append(...group.lines.map((line) => (view === 'images' ? tile(line, menuFor(line)) : textRow(line, printingCell, menuFor(line)))));
     section.append(list);
     container.append(section);
   }

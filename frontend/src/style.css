@@ -164,10 +164,10 @@ h3 { margin: 1rem 0 0.4rem; font-size: 1rem; }
 .problem { margin: 0 0 0.5rem; }
 .problem select { width: auto; max-width: 100%; margin-top: 0.25rem; }
 .deck-list { list-style: none; margin: 0; padding: 0; }
-.card-line { display: grid; grid-template-columns: 2.5rem minmax(0, 1fr) auto auto; gap: 0.5rem; align-items: baseline; padding: 0.2rem 0; border-bottom: 1px solid var(--line); font-size: 0.9rem; }
-.card-line .qty { color: var(--muted); text-align: right; }
-.card-line .cost, .card-line .printing { color: var(--muted); overflow-wrap: anywhere; }
-.card-line .cost { text-align: right; }
+.card-line { display: flex; align-items: center; gap: 0.4rem; min-height: 1.9rem; padding: 0.1rem 0.25rem; border-bottom: 1px solid var(--line); font-size: 0.9rem; }
+.card-line .qty { flex: none; width: 1.3rem; color: var(--muted); text-align: right; }
+.card-line .name { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.card-line .printing { flex: none; color: var(--muted); font-size: 0.72rem; }
 .card-line.unmatched .name { color: var(--danger); }
 .card-line .typed-as { color: var(--muted); }
 .card-line[data-card-id] { cursor: zoom-in; }
@@ -183,7 +183,7 @@ h3 { margin: 1rem 0 0.4rem; font-size: 1rem; }
 /* A card with a back face: both faces side by side, the note under both (src/card-peek.js adds the second picture). */
 .card-peek.two-faced:not([hidden]) { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; width: 34.4rem; max-width: calc(100vw - 1rem); }
 .card-peek.two-faced .card-peek-note { grid-column: 1 / -1; margin-top: 0; }
-@media (max-width: 36rem) { .card-line { grid-template-columns: 2rem minmax(0, 1fr); } .card-line .printing, .card-line .cost { grid-column: 2; } }
+
 
 /* The solo table: a wide page, cards as pictures, a tapped card turned sideways, and the controls around them. */
 main.table { max-width: 80rem; }
@@ -770,9 +770,9 @@ body .battlefield > .card.tapped[data-stack-ext="3"]::before { left: -3px; top: 
 .deck-app .deck-settings select { width: 100%; }
 
 /* Mana costs as round symbols (frontend/src/mana-pips.js): a circle in the color, with its letter or number. Made for this site; not any publisher's symbols. */
-.card-line .cost { display: inline-flex; align-items: center; justify-content: flex-end; gap: 0.35rem; }
+.card-line .cost { display: inline-flex; flex: none; align-items: center; gap: 0.25rem; margin-left: auto; color: var(--muted); }
 .cost .pips { display: inline-flex; gap: 0.12rem; }
-.pip { --c1: #cbc2bf; --c2: #cbc2bf; display: inline-flex; align-items: center; justify-content: center; width: 1.25rem; height: 1.25rem; border: 1px solid rgba(0, 0, 0, 0.45); border-radius: 50%; background: var(--c1); color: #111; font-size: 0.7rem; font-weight: 700; line-height: 1; }
+.pip { --c1: #cbc2bf; --c2: #cbc2bf; display: inline-flex; align-items: center; justify-content: center; width: 1.1rem; height: 1.1rem; border: 1px solid rgba(0, 0, 0, 0.45); border-radius: 50%; background: var(--c1); color: #111; font-size: 0.7rem; font-weight: 700; line-height: 1; }
 .pip.p1-W { --c1: #f4f2c8; } .pip.p1-U { --c1: #aad2ee; } .pip.p1-B { --c1: #b9aeb0; } .pip.p1-R { --c1: #ef9f84; } .pip.p1-G { --c1: #a9d2b0; }
 .pip.p2-W { --c2: #f4f2c8; } .pip.p2-U { --c2: #aad2ee; } .pip.p2-B { --c2: #b9aeb0; } .pip.p2-R { --c2: #ef9f84; } .pip.p2-G { --c2: #a9d2b0; }
 .pip-hybrid { background: linear-gradient(135deg, var(--c1) 50%, var(--c2) 50%); }
@@ -781,10 +781,33 @@ body .battlefield > .card.tapped[data-stack-ext="3"]::before { left: -3px; top: 
 .pip-phyrexian.p2-W, .pip-phyrexian.p2-U, .pip-phyrexian.p2-B, .pip-phyrexian.p2-R, .pip-phyrexian.p2-G { background: linear-gradient(135deg, var(--c1) 50%, var(--c2) 50%); }
 .pip-colorless { background: #d6d2cf; } .pip-snow { background: #cfe9f6; } .pip-x, .pip-generic { background: #cbc2bf; } .pip-other { width: auto; padding: 0 0.3rem; border-radius: 0.6rem; background: #cbc2bf; }
 .cost-or { color: var(--muted); font-size: 0.75rem; }
-.pip-img { display: block; width: 1.3rem; height: 1.3rem; }
+.pip-img { display: block; width: 1.1rem; height: 1.1rem; }
 
 /* A quieter deck manager: the count is plain small text, a problem count is marked, and the list message takes no room when it has nothing to say. */
 .deck-app .deck-summary p { color: var(--muted); font-size: 0.95rem; }
 .deck-app .deck-summary p.has-problems { color: var(--danger); }
 #list-state:empty { display: none; }
 .deck-app .deck-bar .secondary { min-height: 2.25rem; }
+
+/* The deck screen, laid out like a deck builder: a header panel, then the groups flowing in columns (a wide page, as many columns as fit). */
+main.wide:has(.deck-app[data-screen="deck"]) { max-width: 84rem; }
+.deck-app .deck-header { margin-bottom: 0.75rem; padding: 0.9rem 1rem 0.4rem; border: 1px solid var(--line); border-radius: 0.75rem; background: var(--card); }
+.deck-app .deck-header .hint { margin: 0 0 0.5rem; }
+.deck-app .deck-name-field input { font-size: 1.15rem; font-weight: 600; }
+.deck-app .deck-sections[data-view="text"] { column-width: 20rem; column-gap: 2.25rem; }
+.deck-app .deck-sections[data-view="text"] .deck-group { break-inside: avoid; margin-bottom: 1rem; }
+.deck-group h3 { margin: 0.2rem 0 0.3rem; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+.deck-app .deck-sections[data-view="images"] .deck-group { margin-bottom: 1.25rem; }
+.card-line:hover { background: color-mix(in srgb, var(--accent) 9%, transparent); }
+.row-menu { flex: none; min-height: 0; width: 1.6rem; height: 1.6rem; padding: 0; border: 0; border-radius: 0.4rem; background: transparent; color: var(--muted); font-size: 1rem; line-height: 1; opacity: 0; }
+.card-line:hover .row-menu, .deck-tile:hover .row-menu, .row-menu:focus-visible, .row-menu[aria-expanded="true"] { opacity: 1; }
+.row-menu:hover { background: var(--line); color: var(--text); }
+@media (hover: none) { .row-menu { opacity: 1; } }
+.deck-tile .row-menu { position: absolute; top: 0.3rem; right: 0.3rem; background: rgba(0, 0, 0, 0.65); color: #fff; }
+/* the saved decks as cards */
+.saved-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(22rem, 1fr)); gap: 0.75rem; }
+.saved-deck { flex-direction: column; align-items: stretch; gap: 0.75rem; padding: 0.9rem 1rem; border: 1px solid var(--line); border-radius: 0.75rem; background: var(--card); }
+.saved-deck:last-child { border: 1px solid var(--line); }
+.saved-deck .saved-text { flex: 1 1 auto; }
+.saved-deck .saved-actions { justify-content: flex-start; }
+.deck-app .screen-head { justify-content: flex-end; }

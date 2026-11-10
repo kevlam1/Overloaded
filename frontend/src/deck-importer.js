@@ -9,6 +9,8 @@ import { buildCardIndex, matchDeck } from '../../shared/card-match.mjs';
 import { parseDeckText } from '../../shared/deck-text.mjs';
 import { makePreview, buildSavedDeck, printingSetsNeeded, isLegendaryCreature, PRINTING_PROBLEM_WORDS } from '../../shared/deck-preview.mjs';
 import { groupDeck } from '../../shared/deck-view.mjs';
+import { commanderMenuItems, applyCommanderChoice, commanderChoiceMessage } from '../../shared/deck-commander.mjs';
+import { openCardMenu } from './card-menu.js';
 import { LIBRARY_KEY, LEGACY_KEY, FORMAT_TITLES, emptyLibrary, readLibrary, serializeLibrary, addDeck, removeDeck, selectDeck } from '../../shared/deck-library.mjs';
 import { makeSafeStore } from './safe-store.js';
 import { loadCardList } from './card-list.js';
@@ -195,7 +197,9 @@ function build() {
   problems.append(make('h3', '', 'Needs attention'), problemList);
   const sections = make('div', 'deck-sections');
   sections.id = 'sections';
-  deck.append(deckHeading, bar, head, settings, commanderNote, summaryRow, notices, problems, sections);
+  const header = make('div', 'deck-header');
+  header.append(head, settings, commanderNote);
+  deck.append(deckHeading, bar, header, summaryRow, notices, problems, sections);
 
   root.replaceChildren(status, saved, paste, deck);
 }
@@ -354,7 +358,33 @@ const isCommander = () => $('deck-format').value === 'commander';
 const commanderIds = () => (isCommander() && !$('commander-box').hidden ? [$('commander-1').value, $('commander-2').value].filter(Boolean) : []);
 
 function renderSections() {
-  renderGroups($('sections'), groupDeck(preview.lines, { commanderIds: commanderIds() }), { view, printingCell });
+  renderGroups($('sections'), groupDeck(preview.lines, { commanderIds: commanderIds() }), { view, printingCell, menuFor: (line) => menuItemsFor(line).length > 0 });
+}
+
+// ---- a card's menu: the "..." button on a card, or a right-click on it ----
+// What it offers is in shared/deck-commander.mjs (making a card the commander or the partner, or taking it out; the card that was replaced goes back to its type group).
+const currentPicks = () => (isCommander() && !$('commander-box').hidden ? [$('commander-1').value, $('commander-2').value] : ['', '']);
+function menuItemsFor(line) {
+  return commanderMenuItems(line, currentPicks(), { commanderFormat: isCommander() && !$('commander-box').hidden });
+}
+function lineOf(element) {
+  const ref = element instanceof Element ? element.closest('[data-ref]')?.dataset.ref : null;
+  const group = element instanceof Element ? element.closest('.deck-group')?.dataset.group : null;
+  // a card's line: the one in the group it is shown in (the Commander group holds a copy of its line), else any line of that card
+  const candidates = preview.lines.filter((line) => line.card && line.card.i === ref);
+  return candidates.find((line) => group !== 'sideboard' && group !== 'maybeboard' && group !== 'companion' && ['main', 'commander', 'unlabeled'].includes(line.section))
+    ?? candidates.find((line) => line.section === group) ?? candidates[0] ?? null;
+}
+function openLineMenu(line, x, y, returnFocus) {
+  const items = menuItemsFor(line);
+  if (!items.length) return;
+  openCardMenu({ title: line.name, items, x, y, returnFocus, onPick: (action) => {
+    picks = applyCommanderChoice(currentPicks(), action, line.card.i);
+    picksTouched = true;
+    renderCommander();
+    renderSections();
+    say(commanderChoiceMessage(action, line.name));
+  } });
 }
 
 const CERTAINTY_NOTES = {
@@ -546,6 +576,21 @@ export function mountDeckImporter({ root: container, sampleId, onLibraryChange: 
   $('commander-1').addEventListener('change', () => { picks[0] = $('commander-1').value; picksTouched = true; renderSections(); });
   $('commander-2').addEventListener('change', () => { picks[1] = $('commander-2').value; picksTouched = true; renderSections(); });
   $('save').addEventListener('click', save);
+  $('sections').addEventListener('click', (event) => {
+    const button = event.target instanceof Element ? event.target.closest('.row-menu') : null;
+    const line = button ? lineOf(button) : null;
+    if (!button || !line) return;
+    const box = button.getBoundingClientRect();
+    openLineMenu(line, box.left, box.bottom + 2, button);
+  });
+  $('sections').addEventListener('contextmenu', (event) => {
+    const line = lineOf(event.target);
+    if (!line || menuItemsFor(line).length === 0) return; // nothing to offer: leave the browser's own menu
+    event.preventDefault();
+    const fromKeyboard = event.clientX === 0 && event.clientY === 0;
+    const box = event.target.closest('[data-ref]').getBoundingClientRect();
+    openLineMenu(line, fromKeyboard ? box.left + 24 : event.clientX, fromKeyboard ? box.top + box.height / 2 : event.clientY, event.target.closest('[data-ref]'));
+  });
   $('deck-format').addEventListener('change', () => { formatTouched = true; renderCommander(); renderSections(); });
   // The buttons of each saved deck, found by delegation so the list can be drawn again without wiring anything.
   $('saved-list').addEventListener('click', (event) => {

@@ -2619,6 +2619,23 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 126. The deck page in columns, a menu on every card, a more modern layout (2026-11-10)
+
+**What I asked for**
+- The text was one column; I want it like Moxfield or Archidekt. The mana costs were spaced too far. Consider a right-click or a "..." on a card to change its printing or to pick it as the commander (some commanders swap with a card in the 99). A more modern layout.
+
+**What changed** (`shared/deck-commander.mjs`, `frontend/src/deck-groups.js`, `deck-importer.js`, `card-peek.js`, `style.css`)
+- **Columns:** the deck page is wider (84 rem) and the text groups flow in as many columns as fit (three on a 1280 window), each group kept whole, with small capital group headings. A row is the count, the name, the printing (small, only when the list named one) and the cost at the end, with smaller symbols, so the cost sits next to the name instead of far away.
+- **A menu on every card:** a "..." button at the end of a row (shown on hover or keyboard focus; always shown on touch screens), or a right-click, opens the card's menu. For a card in a Commander deck it offers "Make commander (replaces the current one)" and "Make partner"; for the commander "Not the commander"; for the partner "Not the partner" and "Make commander instead" (swap). The card that is replaced goes back to its type group; the Commander and Partner pickers and the Commander group stay in step. Standard decks and sideboard, companion and maybeboard cards have no menu and keep the browser's own right-click.
+- **Layout:** the name, Save, Format, Bracket, Commander and Partner sit in one header panel; the saved decks are cards in a grid with Open, Play solo and Delete; the big picture now opens beside the row you point at (to its right, else its left) instead of at the window's edge, because the list now fills the window.
+- **NOT built: changing a card's printing.** The card list only knows each set's printings by number, not all the printings of one card, so a printing picker needs a new data file (printings grouped by card) or a request to Scryfall's search on each use. I did not add either without asking: my own rule for this site is to keep Scryfall API calls as low as possible. Options are in my message to you.
+
+**What I checked**
+- `scripts/test-deck-commander.mjs` (23 checks: which choices a card offers, every swap and replacement, bad input). The deck page check is 238 (14 new: three columns, costs at the end of their row, the "..." buttons, a right-click, making a partner, swapping, replacing, taking one out, the button, Escape, no menu in Standard or for a sideboard card). The existing picture-box checks changed with the new placement. `npm run test:quick` (52 suites), the lobby page check (65) and the live room check (26 of 26). Screenshots at 1400 wide of the columns, an open menu and the saved decks.
+- **Not checked:** phone width (the columns drop to one on a narrow window but I have not looked), light mode, and the picture-view tiles' "..." button on a touch screen.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-10, entry 122) Claude's first deck page started a library it could not read at the box to paste into, hiding the message about it; the old check noticed.
 - (2026-11-10, entry 120) Claude's solo check clicked a fixed empty spot that stopped being empty once the graveyard stack moved there, and the failure first looked like a menu bug; a screenshot at the moment of the failure showed the open viewer.

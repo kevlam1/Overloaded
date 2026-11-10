@@ -6,6 +6,7 @@ import { imageUrl } from '../../shared/card-image.mjs';
 
 const GAP = 24; // pixels between the pointer and the picture
 const EDGE = 8; // pixels kept free at the window's edge
+const ROW_GAP = 12; // pixels between a row and the picture beside it
 const DOCK_MIN_WIDTH = 900; // a window at least this wide has room for the picture beside the list
 // What the note says about the picture, from the row's data-printing: the printing the list named by set and number, the printing
 // that carries a title the player typed, or (nothing known) the card's default printing.
@@ -45,9 +46,15 @@ export function setupCardPeek({ root, peek, image, note, win = window }) {
     const width = peek.offsetWidth;
     const height = peek.offsetHeight;
     const room = win.document.documentElement.clientWidth; // without the scroll bar
-    // On a wide window the picture sits at the right edge, level with the pointer, so it never covers the names. On a
-    // narrow one there is no spare room, so it follows the pointer, to its right or (with no room there) to its left.
-    let left = room >= DOCK_MIN_WIDTH ? room - width - EDGE : x + GAP + width > room - EDGE ? x - GAP - width : x + GAP;
+    // On a wide window the picture sits beside the row that is pointed at, level with the pointer, so it never covers that row: to the right of it when there is room, else to the left, else
+    // (a row as wide as the window) at the right edge. On a narrow window there is no spare room, so it follows the pointer, to its right or (with no room there) to its left.
+    let left;
+    if (room >= DOCK_MIN_WIDTH) {
+      const rect = current ? current.getBoundingClientRect() : { left: x, right: x };
+      left = rect.right + ROW_GAP + width <= room - EDGE ? rect.right + ROW_GAP : rect.left - ROW_GAP - width >= EDGE ? rect.left - ROW_GAP - width : room - width - EDGE;
+    } else {
+      left = x + GAP + width > room - EDGE ? x - GAP - width : x + GAP;
+    }
     left = Math.max(EDGE, Math.min(left, room - width - EDGE));
     const top = Math.max(EDGE, Math.min(y - height / 2, win.innerHeight - height - EDGE));
     peek.style.left = `${Math.round(left)}px`;

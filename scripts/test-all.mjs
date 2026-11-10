@@ -49,6 +49,7 @@ const suites = [
   { name: 'the command zone: commanders and the commander tax', cmd: node, args: ['scripts/test-commander-zone.mjs'] },
   { name: 'the deck view: type groups, commanders, sorting', cmd: node, args: ['scripts/test-deck-view.mjs'] },
   { name: 'mana costs: reading the symbols', cmd: node, args: ['scripts/test-mana-cost.mjs'] },
+  { name: 'the deck view: choosing the commander from a card', cmd: node, args: ['scripts/test-deck-commander.mjs'] },
   { name: 'the card hover preview: which picture, where the box goes', cmd: node, args: ['scripts/test-card-hover.mjs'] },
   { name: 'counters, modifier, tokens, player counters', cmd: node, args: ['scripts/test-counters.mjs'] },
   { name: 'counters and tokens: how they are stored and read back', cmd: node, args: ['scripts/test-sync-counters.mjs'] },
