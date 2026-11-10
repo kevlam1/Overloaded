@@ -7,6 +7,7 @@ import { rejoinTable, watchMembers, watchMeta, watchPresence, watchServerOffset,
 import { startKeepAlive } from '../../src/keep-alive.js';
 import { makeSafeStore } from '../../src/safe-store.js';
 import { play, mountSoundSettings } from '../../src/sound.js';
+import { mountPileStyle } from '../../src/pile-style.js';
 import { mountCardHover } from '../../src/card-hover.js';
 import { mountBoardDrag } from '../../src/board-drag.js';
 import { createSpotlight } from '../../src/spotlight.js';
@@ -27,7 +28,7 @@ import { seatDeckText, defaultDeckFor, hasConceded } from '../../../shared/lobby
 import { LIBRARY_KEY, LEGACY_KEY, readLibrary } from '../../../shared/deck-library.mjs';
 import { makeLookup } from '../../../shared/card-lookup.mjs';
 import { friendlyMessage } from '../../../shared/friendly-error.mjs';
-import { makeGame, draw, moveCard, shuffleLibrary, mulligan, setTapped, turnOver, untapAll, beginTurn, adjustLife, boardCells, settleBoard, isLandCard, placeCard, arrangeBoard, zoneCounts } from '../../../shared/zones.mjs';
+import { makeGame, draw, moveCard, shuffleLibrary, mulligan, setTapped, turnOver, untapAll, beginTurn, adjustLife, boardCells, settleBoard, isLandCard, placeCard, placeStack, arrangeBoard, zoneCounts } from '../../../shared/zones.mjs';
 import { gameWrites, joinGame, readPublic } from '../../../shared/game-sync.mjs';
 import { placeAll, stepFrom } from '../../../shared/board-grid.mjs';
 
@@ -688,14 +689,45 @@ $('take-back').addEventListener('click', () => { if (game) { const action = take
 $('untap-all').addEventListener('click', () => { if (game) { play('tap'); apply(() => untapAll(game), untapMessage(game)); } });
 $('shuffle').addEventListener('click', () => { if (game) { play('shuffle'); apply(() => shuffleLibrary(game), 'Shuffled your library.'); } });
 mountSoundSettings($('sound-settings'));
+// ---- piles drawn diagonally or horizontally (shared/pile-style.mjs), a double click taps a card, a click on empty space deselects ----
+mountPileStyle($('pile-style-settings'));
+// Two clicks close together in time and place tap or untap the card under the second one. This is counted here rather than taken from the browser's own double click event, which fires only for
+// the second click of a run (a third and fourth quick click are not double clicks) and so made fast tapping unreliable. A pair is used up, so four quick clicks are two taps. No waiting time.
+const TAP_PAIR_MS = 450;
+const TAP_PAIR_PX = 14;
+let lastBoardClick = { at: 0, x: 0, y: 0 };
+$('battlefield').addEventListener('click', (event) => {
+  if (!game || event.detail === 0 || event.target.closest('[data-mark], [data-badge]')) return; // detail 0: a click made by the keyboard or by a script, not by the mouse
+  const button = event.target.closest('.card');
+  const now = performance.now();
+  const pair = button && now - lastBoardClick.at < TAP_PAIR_MS && Math.hypot(event.clientX - lastBoardClick.x, event.clientY - lastBoardClick.y) <= TAP_PAIR_PX;
+  if (!pair) { lastBoardClick = { at: button ? now : 0, x: event.clientX, y: event.clientY }; return; }
+  lastBoardClick = { at: 0, x: 0, y: 0 };
+  const found = findCard(button.dataset.uid);
+  if (!found || found.zone !== 'battlefield') return;
+  apply(() => { const next = setTapped(game, found.card.uid, !found.card.tapped); play('tap'); return next; }, `${found.card.tapped ? 'Untapped' : 'Tapped'} ${found.card.n}.`);
+});
+document.addEventListener('click', (event) => {
+  if (!selected || !game || !event.target.isConnected) return;
+  if (event.target.closest('.card, button, a, input, select, textarea, summary, label, details, .side-panels, .card-menu, .spotlight')) return;
+  selected = null;
+  render();
+});
+
 mountCardHover(); // a larger picture of any card the pointer rests on (the cards are small on the one-screen layout)
 // ---- the battlefield grid: drag and drop, Auto-arrange and Alt+arrow keys (shared/board-grid.mjs, src/board-drag.js) ----
 // A card dropped on a cell of your battlefield: from the hand it is played there (a taken cell is refused); from the battlefield it moves there, or swaps places with the card that is there.
-function dropOnBoard({ uid, from, col, row }) {
+function dropOnBoard({ uid, from, col, row, whole = false }) {
   if (!game) return;
   const found = findCard(uid);
   if (!found || found.zone !== from) return;
   try {
+    if (whole && from === 'battlefield') { // a whole pile (Shift while dragging, or the corner handle)
+      const moved = placeStack(game, uid, col, row);
+      if (moved.game === game) return;
+      apply(() => moved.game, `Moved the pile of ${moved.moved} ${found.card.n}.`);
+      return;
+    }
     if (from === 'hand') { apply(() => moveCard(game, uid, 'battlefield', { cell: { col, row } }), `Played ${found.card.n}.`); return; }
     const result = placeCard(game, uid, col, row);
     if (result.game === game) return; // dropped on its own cell
@@ -722,7 +754,14 @@ document.addEventListener('keydown', (event) => {
   if (direction && nudgeSelected(direction)) event.preventDefault();
 });
 $('arrange').addEventListener('click', () => { if (!game) return; apply(() => arrangeBoard(game), 'Tidied the battlefield: lands along the bottom, everything else along the top, cards with the same name side by side.'); });
-mountBoardDrag({ board: () => $('battlefield'), onDrop: dropOnBoard, isEnabled: () => Boolean(game) });
+// A card of yours dragged from the battlefield and let go over your hand goes back into the hand (a token that leaves the battlefield stops existing, like every other way of moving it).
+function dropOnHand({ uid, from }) {
+  if (!game || from !== 'battlefield') return;
+  const found = findCard(uid);
+  if (!found || found.zone !== 'battlefield') return;
+  apply(() => moveCard(game, uid, 'hand'), `Moved ${found.card.n} back to your hand.`);
+}
+mountBoardDrag({ board: () => $('battlefield'), onDrop: dropOnBoard, hand: () => $('hand-section'), onDropHand: dropOnHand, isEnabled: () => Boolean(game) });
 
 $('mulligan').addEventListener('click', () => { if (game) doMulligan(); });
 for (const [id, delta] of [['life-minus5', -5], ['life-minus1', -1], ['life-plus1', 1], ['life-plus5', 5]]) {
