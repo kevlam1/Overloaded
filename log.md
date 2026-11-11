@@ -2919,6 +2919,18 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 142. The footer no longer repeats the header (2026-11-10)
+
+**What I asked for**
+- The same clean-up for the footer.
+
+**What changed** (`frontend/pages/deck/index.html`, `frontend/pages/lobby/index.html`, `style.css`)
+- The footer's Lobby, Decks and Solo table links are gone. It now has the credit to Scryfall with the link to the source on GitHub, and the fan content notice.
+
+**What I checked:** the deck page check (273, the footer check now expects only the Scryfall and GitHub links), the lobby page check (65) and all 57 quick suites. I did not look at a new screenshot of the footer.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-10, entry 132) Claude kept committing and pushing to the development branch in turns where I had only asked for a change, after I had asked for it once; my rule is to do it only when asked.
 - (2026-11-10, entry 122) Claude's first deck page started a library it could not read at the box to paste into, hiding the message about it; the old check noticed.
