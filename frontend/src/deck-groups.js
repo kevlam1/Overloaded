@@ -1,6 +1,6 @@
 // Draws a checked deck, group by group (shared/deck-view.mjs decides the groups), either as a text list or as card pictures, and the two buttons that choose between them.
 // Everything typed or pasted (a card name, a title the player typed) goes in as text, never as markup. Both views put the data the card picture box needs on every card
-// (data-card-id and friends, see src/card-peek.js), so pointing at a line or at a picture shows the big picture.
+// (data-card-id and friends, see src/card-peek.js), so pointing at a line or at a picture shows the big picture in the card display beside the deck.
 import { imageUrl } from '../../shared/card-image.mjs';
 import { manaNode } from './mana-pips.js';
 
@@ -69,14 +69,14 @@ export function mountViewToggle(container, { view, onChange }) {
   return { set };
 }
 
-// The picture box looks these up on whatever is pointed at: which card, which printing, whether it has a back face.
+// The card display beside the deck (src/stack-preview.js) looks these up on whatever is pointed at: which picture, the name, whether the card has a back face.
 function describeCard(element, line) {
   if (!line.card) return;
   element.dataset.ref = line.card.i; // which card (the menu and the commander choice work on this)
-  element.dataset.cardId = line.printingId ?? line.card.i;
-  element.dataset.printing = line.printingSource ?? 'default';
+  element.dataset.previewId = line.printingId ?? line.card.i;
+  element.dataset.printing = line.printingSource ?? 'default'; // 'set', 'title' or 'default': where the picture's printing came from
   element.dataset.cardName = line.name;
-  if (line.card.b === 1) element.dataset.twoSided = '1'; // a card with a back face: the picture box shows both faces
+  if (line.card.b === 1) element.dataset.twoSided = '1'; // a card with a back face: the display shows both faces
 }
 
 // The "..." button that opens a card's menu (the page decides what the menu holds). A right-click on the card does the same.
@@ -103,8 +103,7 @@ function textRow(line, printingCell, withMenu) {
   return item;
 }
 
-// inStacks: the stacks view has its own card display beside it (src/stack-preview.js), so its tiles carry data-preview-id (not data-card-id) and the floating picture of the other views stays away.
-function tile(line, withMenu, inStacks) {
+function tile(line, withMenu) {
   const item = make('li', line.status === 'matched' ? 'deck-tile' : 'deck-tile unmatched');
   item.append(make('span', 'sr-only', `${line.qty} ${line.name}`));
   if (line.card) item.dataset.ref = line.card.i; // (also for a picture that cannot be shown, so its menu still works)
@@ -113,7 +112,7 @@ function tile(line, withMenu, inStacks) {
   const fallback = () => { picture.replaceChildren(make('span', 'tile-name', line.name)); picture.classList.add('noimage'); };
   const url = line.card ? imageUrl(line.printingId ?? line.card.i, 'small') : null;
   if (url) {
-    if (inStacks) { item.dataset.previewId = line.printingId ?? line.card.i; item.dataset.cardName = line.name; } else describeCard(item, line);
+    describeCard(item, line);
     item.tabIndex = 0;
     const image = new Image();
     image.alt = '';
@@ -124,8 +123,8 @@ function tile(line, withMenu, inStacks) {
     // The small picture (146 px wide, 12 KB) serves a tile up to 190 px wide (stretched at most 1.3 times); a wider tile gets the normal one (488 px, 71 KB), chosen by the browser from the width the tile will have. So the pictures are sharp on a large window and cost the least on a smaller one. (The 190w is the width the small picture is allowed to stand for, not its real width.)
     const normal = imageUrl(line.printingId ?? line.card.i, 'normal');
     if (normal) {
-      image.srcset = `${url} 190w, ${normal} 488w`;
-      image.sizes = '(max-width: 520px) calc((100vw - 3rem) / 3), (max-width: 800px) calc((100vw - 3rem) / 4), (max-width: 1100px) calc((100vw - 3rem) / 6), calc((100vw - 4rem) / 8)';
+      image.srcset = `${url} 160w, ${normal} 488w`;
+      image.sizes = '(max-width: 520px) calc((100vw - 3rem) / 3), (max-width: 800px) calc((100vw - 3rem) / 4), (max-width: 1500px) calc((100vw - 4rem - 22rem) / 6), calc((100vw - 4rem - 22rem) / 8)';
     }
     image.src = url;
     picture.append(image);
@@ -148,7 +147,7 @@ export function renderGroups(container, groups, { view, printingCell, menuFor = 
     section.dataset.group = group.key;
     section.append(make('h3', '', `${group.title} (${group.count})`));
     const list = make('ul', view === 'images' ? 'deck-tiles' : view === 'stacks' ? 'deck-stack' : 'deck-list');
-    list.append(...group.lines.map((line) => (view === 'text' ? textRow(line, printingCell, menuFor(line)) : tile(line, menuFor(line), view === 'stacks'))));
+    list.append(...group.lines.map((line) => (view === 'text' ? textRow(line, printingCell, menuFor(line)) : tile(line, menuFor(line)))));
     section.append(list);
     container.append(section);
   }

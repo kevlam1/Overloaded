@@ -4,6 +4,7 @@
 import { createTable, joinTable, rejoinTable, findMyTable, watchMembers, heartbeat, watchActivity, watchMeta, watchServerOffset, startPresence, watchPresence, watchConnection, takeOverHost, setDeck, setReady, clearReady, startMatch, leaveTable } from '../../src/db.js';
 import { presenceStatus, presenceText, ownConnectionText, hostIsGone } from '../../../shared/presence.mjs';
 import { startKeepAlive } from '../../src/keep-alive.js';
+import { mountSiteHeader } from '../../src/site-header.js';
 import { makeSafeStore } from '../../src/safe-store.js';
 import { normalizeCode, isValidCode } from '../../../shared/table-code.mjs';
 import { cleanPlayerName } from '../../../shared/player-name.mjs';
@@ -420,6 +421,7 @@ $('leave-table').addEventListener('click', () => run(async () => {
 window.addEventListener('popstate', () => location.reload());
 
 // ---- starting ----
+mountSiteHeader({ current: 'lobby' });
 nameInput.value = store.get(NAME_KEY) ?? '';
 
 // The start page: if this browser is at a table, say so and link to it (no redirect: you may want to make or join another).

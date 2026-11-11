@@ -2808,6 +2808,25 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 136. The card display in every view, and a site header (2026-11-10)
+
+**What I asked for**
+- The card display on the left should be for all views, not just the stacks. Let's have a proper header now, and which folder can I put Overloaded's logo in?
+
+**What changed** (`frontend/src/stack-preview.js`, `deck-groups.js`, `deck-importer.js`, `site-header.js`, `style.css`, `lobby.js`, `deck.js`, `frontend/public/brand/logo.svg`)
+- **The display for every view.** The text list, the pictures and the stacks all have the card display on the left, with the same behavior: it shows the card the pointer is on, a click keeps a card there, blank space returns to the clicked card, and before any click it shows the commander. A card with a back face shows the back too, smaller, under the front (a back picture that does not exist is dropped and the front stays). The floating picture is no longer used in the deck; the printing picker still uses it. Cost: one normal-size picture (about 70 KB) is asked for as soon as a deck is shown; it used to be nothing until a hover. The list and the pictures now have less room: the text list is two columns at 1280 (it was three), the pictures are six to a row up to 1500 wide and eight on a wider window. The small picture now stands for 160 px in the picture view (it was 190), so a tile 170 px or wider gets the sharper normal picture.
+- **The header.** One bar at the top of the lobby and deck pages: the logo and the name "Overloaded" with a BETA mark on the left (it links home), and Lobby, Decks and Solo table on the right with the current page marked. "Lobby" goes to the table this browser is at, if any. The solo and table pages keep their own top bars because the game needs the room.
+- **The logo goes in `frontend/public/brand/logo.svg`** (Vite serves `frontend/public` at the site root, so it is `/brand/logo.svg`). I put a plain placeholder there so the header never asks for a file that is not there (that was a console error in a check); replace the file, keeping the name, or change `LOGO_URL` in `site-header.js`. A favicon can go in the same folder, and the pages' `<link rel="icon">` should then point at it (they still say `data:,`).
+
+**What I checked**
+- The deck page check is 273 and the lobby page check 65; the live room check 26 and the live lobby check 170 pass; all 57 quick suites pass. Screenshots at 1280 (text view) and 1920 (stacks) with the real pictures and the header.
+- I removed about 30 checks that exercised the floating picture on deck rows (placement near the window's edge, Escape, scrolling, a missing picture, a narrow window), because that behavior no longer exists in the deck. The printing picker still uses the floating picture and still has its hover check, but its Escape, scroll and edge cases are no longer tested anywhere. I have not re-tested those for the picker.
+- **Not checked:** light mode, phone width, the header on a phone, a keyboard walk through the display, the logo as a favicon. The "Back to the lobby" link and the lobby's own "Overloaded (BETA)" heading are now redundant with the header; I left them because tests and the table-return logic depend on them, so they are for Kevin to decide.
+
+**My mistakes this round:** a global replace of `dataset.cardId` in the check also changed the printing picker's lines, which a failing check then showed; the first header put Save in the middle of the row until a screenshot showed it.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-10, entry 132) Claude kept committing and pushing to the development branch in turns where I had only asked for a change, after I had asked for it once; my rule is to do it only when asked.
 - (2026-11-10, entry 122) Claude's first deck page started a library it could not read at the box to paste into, hiding the message about it; the old check noticed.

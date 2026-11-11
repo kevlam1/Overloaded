@@ -412,9 +412,9 @@ function renderSections() {
   const groups = groupDeck(preview.lines, { commanderIds: commanderIds(), sort, direction, grouping });
   renderGroups($('sections'), groups, { view, printingCell, menuFor: (line) => menuItemsFor(line).length > 0 });
   $('deck-body').dataset.view = view;
-  // The stacks view shows one card beside it: the commander until the player clicks another (or the first card when there is none).
+  // Every view has the card display beside it: the commander until the player clicks another card (or the first card when there is none).
   const first = (groups.find((entry) => entry.key === 'commander') ?? groups.find((entry) => entry.lines.some((line) => line.card)))?.lines.find((line) => line.card);
-  stackPreview?.refresh(first ? { id: first.printingId ?? first.card.i, name: first.name } : null, view === 'stacks');
+  stackPreview?.refresh(first ? { id: first.printingId ?? first.card.i, name: first.name } : null, true);
 }
 
 // ---- changing a card's printing: the window of printings (src/printing-picker.js), and the card's line in the text rewritten to name the one that was chosen ----

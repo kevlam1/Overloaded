@@ -87,6 +87,9 @@ try {
     };
   })()`);
   check('the page has a title, a language and one h1', /decks/i.test(facts.title) && facts.lang === 'en' && facts.h1s === 1);
+  const siteHeader = await ev(`(() => { const h = document.querySelector('body > header.site-header'); return h ? { brand: h.querySelector('.brand')?.getAttribute('href'), name: h.querySelector('.brand-name')?.textContent, links: [...h.querySelectorAll('.site-nav a')].map((a) => a.textContent + ' ' + a.getAttribute('href')), current: [...h.querySelectorAll('[aria-current="page"]')].map((a) => a.textContent), logo: h.querySelectorAll('img.brand-logo').length, first: document.body.firstElementChild === h, headings: h.querySelectorAll('h1,h2,h3').length } : null; })()`);
+  check('the site header is the first thing on the page: the name linking home, Lobby, Decks and Solo table, the current page marked, no heading of its own', siteHeader && siteHeader.first && siteHeader.brand === '/' && siteHeader.name === 'Overloaded' && JSON.stringify(siteHeader.links) === JSON.stringify(['Lobby /', 'Decks /deck', 'Solo table /solo']) && JSON.stringify(siteHeader.current) === JSON.stringify(['Decks']) && siteHeader.headings === 0, JSON.stringify(siteHeader));
+  check('the logo (frontend/public/brand/logo.svg) is shown and loaded', siteHeader && siteHeader.logo === 1 && (await ev(`(() => { const i = document.querySelector('.site-header img.brand-logo'); return i.complete && i.naturalWidth > 0; })()`)), JSON.stringify(siteHeader));
   check('every field has a label', facts.withoutLabel.length === 0, facts.withoutLabel.join());
   check('every button has text or a label (the two view buttons are icons)', facts.buttonsWithoutText === 0);
   check('the fan content disclaimer is on the page', /unofficial Fan Content/.test(facts.footer) && /Fan Content Policy/.test(facts.footer) && /Not approved\/endorsed by Wizards/.test(facts.footer) && /property of Wizards of the Coast/.test(facts.footer));
@@ -220,7 +223,7 @@ try {
   const SIGNET_SLD_916 = 'dd1d87e4-f51a-448f-824f-99dffd73403c';
   const SIGNET_CMM_367 = '0539b83c-4459-41b5-a001-d15a1c9ddf23';
   const checked = () => waitFor(async () => (!(await $hidden('preview')) && !/^Checking/.test(await $text('deck-status'))) || null, 15000, 50);
-  const rowsOf = () => ev(`Array.from(document.querySelectorAll('#sections .card-line')).map((li) => ({ name: li.querySelector('.name').textContent, qty: li.querySelector('.qty').textContent, printing: li.querySelector('.printing')?.textContent ?? null, tip: li.querySelector('.printing')?.title ?? '', type: li.querySelector('.name')?.title ?? null, cost: li.querySelector('.cost')?.dataset.cost ?? li.querySelector('.cost')?.textContent ?? null, columns: [...li.children].filter((c) => !c.classList.contains('row-menu')).length, id: li.dataset.cardId ?? null, source: li.dataset.printing ?? null }))`);
+  const rowsOf = () => ev(`Array.from(document.querySelectorAll('#sections .card-line')).map((li) => ({ name: li.querySelector('.name').textContent, qty: li.querySelector('.qty').textContent, printing: li.querySelector('.printing')?.textContent ?? null, tip: li.querySelector('.printing')?.title ?? '', type: li.querySelector('.name')?.title ?? null, cost: li.querySelector('.cost')?.dataset.cost ?? li.querySelector('.cost')?.textContent ?? null, columns: [...li.children].filter((c) => !c.classList.contains('row-menu')).length, id: li.dataset.previewId ?? null, source: li.dataset.printing ?? null }))`);
   await load();
   const requestsBefore = pictureRequests.length;
   await paste('1 Sol Ring (cmm) 410\n2 Lightning Bolt\n1 Arcane Signet (sld) 916\n1 Arcane Signet (cmm) 367\n1 Heart of the Mountain\n1 Sol Ring (cmm) 5\n1 Sol Ring (cmm) 99999\n1 Not A Real Card (abc) 7');
@@ -243,7 +246,7 @@ try {
   const notes = await ev(`Array.from(document.querySelectorAll('#notices li')).map((li) => li.textContent)`);
   check('the page says that two sets and numbers were not found, and which', notes.some((n) => /2 sets and numbers were not found, so those cards show their default picture: CMM 5, CMM 99999/.test(n)), JSON.stringify(notes));
   check('only the sets the deck names were fetched, once each (cmm and sld; abc is not a card so it costs nothing)', (await ev(`performance.getEntriesByType('resource').map((e) => e.name).filter((n) => n.includes('/data/printings/'))`)).map((n) => n.split('/').pop()).sort().join() === 'set-cmm.json,set-sld.json');
-  check('and no request went to Scryfall for printings (pictures are loaded only on hover)', pictureRequests.length === requestsBefore, JSON.stringify(pictureRequests.slice(requestsBefore)));
+  check('and no request went to Scryfall for printings: the only picture asked for is the one in the card display (the commander, or the first card), in the normal size', pictureRequests.length - requestsBefore <= 1 && pictureRequests.slice(requestsBefore).every((u) => u.includes('/normal/front/')), JSON.stringify(pictureRequests.slice(requestsBefore)));
 
   // While the printing files load the old preview is gone, so Save cannot pair its cards with the new text (read in the same
   // moment as the click, before the page has had time to finish).
@@ -458,159 +461,52 @@ try {
   await ev(`(() => { const spacer = document.createElement('div'); spacer.id = 'test-spacer'; spacer.style.height = '1500px'; document.body.prepend(spacer); const after = spacer.cloneNode(); after.id = 'test-spacer-after'; document.body.append(after); })()`);
   const peek = () => ev(`(() => { const p = document.getElementById('card-peek'); const i = document.getElementById('card-peek-image'); const r = p.getBoundingClientRect(); return { hidden: p.hidden, src: i.getAttribute('src'), imageHidden: i.hidden, note: document.getElementById('card-peek-note').textContent, left: r.left, right: r.right, top: r.top, bottom: r.bottom, w: innerWidth, h: innerHeight, pointerEvents: getComputedStyle(p).pointerEvents, radius: getComputedStyle(i).borderTopLeftRadius }; })()`);
   // Scrolls the row into the middle and waits two frames, so the scroll event (which hides the box) has come BEFORE the pointer moves.
-  const rowFacts = (index, block = 'center') => ev(`new Promise((resolve) => { const row = document.querySelectorAll('#sections .card-line')[${index}]; row.scrollIntoView({ block: ${JSON.stringify(block)} }); requestAnimationFrame(() => requestAnimationFrame(() => resolve({ id: row.dataset.cardId ?? null, name: row.dataset.cardName ?? null }))); })`);
+  const rowFacts = (index, block = 'center') => ev(`new Promise((resolve) => { const row = document.querySelectorAll('#sections .card-line')[${index}]; row.scrollIntoView({ block: ${JSON.stringify(block)} }); requestAnimationFrame(() => requestAnimationFrame(() => resolve({ id: row.dataset.previewId ?? null, name: row.dataset.cardName ?? null }))); })`);
   const nameBox = (index) => ev(`(() => { const r = document.querySelectorAll('#sections .card-line')[${index}].querySelector('.name').getBoundingClientRect(); return { x: Math.round(r.left + 10), y: Math.round(r.top + r.height / 2) }; })()`);
   const hover = async (index, block = 'center') => { await rowFacts(index, block); await sleep(150); const { x, y } = await nameBox(index); await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: x - 5, y }); await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y }); await sleep(120); return { x, y }; };
   const away = async () => { await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 3, y: 3 }); await sleep(120); };
   const pictureUrl = (id) => `https://cards.scryfall.io/normal/front/${id[0]}/${id[1]}/${id}.jpg`;
   await away();
-  check('before anything is hovered the picture box is hidden and no picture was asked for', (await peek()).hidden && pictureRequests.length === 0, JSON.stringify(await peek()));
-  check('every matched row carries its card id and name, and its name can be focused', (await ev(`document.querySelectorAll('#sections .card-line[data-card-id]').length`)) === 6 && (await ev(`Array.from(document.querySelectorAll('#sections .card-line .name')).every((n) => n.tabIndex === 0)`)));
-  const row1 = await rowFacts(4);
-  const at1 = await hover(4);
-  const shown1 = await peek();
-  check('hovering the second card (Arcane Signet, typed as "Heart of the Mountain") shows its normal-size picture, of the printing that carries that title (SLD 916), not the default one', !shown1.hidden && shown1.src === pictureUrl(row1.id) && row1.id === SIGNET_SLD_916 && !shown1.imageHidden && row1.name === 'Arcane Signet', JSON.stringify({ row1, shown1 }));
-  check('nothing is written under a picture that loaded (no caption), and the corners of the picture are rounded', shown1.note === '' && shown1.radius !== '0px' && shown1.radius !== '', JSON.stringify({ note: shown1.note, radius: shown1.radius }));
-  const textEnd = await ev(`(() => { const range = document.createRange(); range.selectNodeContents(document.querySelectorAll('#sections .card-line')[4].querySelector('.name')); return range.getBoundingClientRect().right; })()`);
-  check('it is inside the window and never takes the pointer', shown1.left >= 0 && shown1.right <= shown1.w && shown1.top >= 0 && shown1.bottom <= shown1.h && shown1.pointerEvents === 'none', JSON.stringify({ at1, shown1 }));
-  const rowBox = await ev(`(() => { const r = document.querySelectorAll('#sections .card-line')[4].getBoundingClientRect(); return { left: r.left, right: r.right }; })()`);
-  check('on a wide window it sits beside the row, level with the pointer, and does not cover the row it points at', (shown1.left >= rowBox.right || shown1.right <= rowBox.left) && textEnd < shown1.left + 1000 && (Math.abs((shown1.top + shown1.bottom) / 2 - at1.y) < 3 || shown1.top === 8 || Math.round(shown1.bottom) === shown1.h - 8), JSON.stringify({ at1, textEnd, shown1 }));
-  check('the picture was asked for from Scryfall\'s picture server, once, and only in the normal size', pictureRequests.filter((u) => u === pictureUrl(row1.id)).length === 1 && pictureRequests.every((u) => /^https:\/\/cards\.scryfall\.io\/normal\/front\/[0-9a-f]\/[0-9a-f]\/[0-9a-f-]{36}\.jpg$/.test(u)), JSON.stringify(pictureRequests));
-  const row4 = await rowFacts(1);
-  await hover(1);
-  const shown4 = await peek();
-  check('a card imported by another title (the Japanese one) shows its card\'s picture too, and the box is visible', !shown4.hidden && shown4.src === pictureUrl(row4.id) && row4.id !== row1.id, JSON.stringify({ row4, shown4 }));
-  // Moving between the columns of one row must not hide and show the box again (a flicker): count every change of its hidden state.
-  await ev(`window.__peekChanges = 0; new MutationObserver((records) => { window.__peekChanges += records.length; }).observe(document.getElementById('card-peek'), { attributes: true, attributeFilter: ['hidden'] })`);
-  const typeBox = await ev(`(() => { const r = document.querySelectorAll('#sections .card-line')[1].querySelector('.cost').getBoundingClientRect(); return { x: Math.round(r.left + 4), y: Math.round(r.top + 4) }; })()`);
-  await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: typeBox.x, y: typeBox.y }); await sleep(150);
-  check('moving across the columns of one row does not flicker the box (it stays shown)', (await ev(`window.__peekChanges`)) === 0 && !(await peek()).hidden, `${await ev('window.__peekChanges')} changes`);
+  // The floating picture box is now only the printing picker's. In the deck, the card display on the left shows the card the pointer is on, in every view (checks below).
+  const display = () => ev(`(() => { const front = document.querySelector('#stack-preview .stack-preview-image:not(.stack-preview-back)'); const back = document.querySelector('#stack-preview .stack-preview-back'); const r = front.getBoundingClientRect(); return { src: front.getAttribute('src'), frontHidden: front.hidden, backSrc: back.getAttribute('src'), backHidden: back.hidden, name: document.querySelector('#stack-preview .stack-preview-name').textContent, left: Math.round(r.left), width: Math.round(r.width), floating: !document.getElementById('card-peek').hidden }; })()`);
+  const cardCenter = (index) => ev(`(() => { const row = document.querySelectorAll('#sections .card-line')[${index}]; row.scrollIntoView({ block: 'center' }); const r = row.querySelector('.name').getBoundingClientRect(); return { x: Math.round(r.left + 10), y: Math.round(r.top + r.height / 2), name: row.dataset.cardName, id: row.dataset.previewId, two: row.dataset.twoSided ?? null }; })()`);
+  const pointAt = async (at) => { await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: at.x - 4, y: at.y }); await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: at.x, y: at.y }); await sleep(250); };
+  await load(); await paste('Commander\n1 Krenko, Mob Boss\n\n1 Valakut Awakening\n1 Sol Ring\n1 Delver of Secrets\n1 Lightning Bolt'); await press('check');
+  const first = await display();
+  check('the card display is on the left of the deck, showing the commander before anything is pointed at or clicked', first.name === 'Krenko, Mob Boss' && /\/normal\/front\//.test(first.src ?? '') && first.left < 400 && first.width >= 250 && first.backHidden, JSON.stringify(first));
+  const cardRows = await ev(`Array.from(document.querySelectorAll('#sections .card-line')).map((li) => ({ name: li.dataset.cardName, id: li.dataset.previewId, two: li.dataset.twoSided ?? null, cardId: li.dataset.previewId ?? null }))`);
+  check('only the card with a back face is marked two-sided (Valakut Awakening and Delver yes, Sol Ring no)', cardRows.find((r) => r.name === 'Sol Ring').two === null && cardRows.find((r) => r.name.startsWith('Valakut')).two === '1' && cardRows.find((r) => r.name.startsWith('Delver of Secrets')).two === '1' && cardRows.every((r) => r.id), JSON.stringify(cardRows));
+  const solAt = await cardCenter(cardRows.findIndex((r) => r.name === 'Sol Ring')); await sleep(150);
+  await pointAt(await cardCenter(cardRows.findIndex((r) => r.name === 'Sol Ring')));
+  const sol = await display();
+  check('pointing at a line in the text list shows that card in the display (the normal picture, no back, no floating box)', sol.name === 'Sol Ring' && sol.src === pictureUrl(solAt.id) && sol.backHidden && !sol.floating, JSON.stringify(sol));
   await away();
-  check('moving away hides the box', (await peek()).hidden);
-  // Near the top and the bottom of the window the box is kept inside it.
-  await hover(4, 'start');
-  const nearTop = await peek();
-  check('with the row at the top of the window the box is kept inside it (not cut off above)', !nearTop.hidden && nearTop.top >= 0 && nearTop.top <= 8.5, JSON.stringify(nearTop));
+  check('with the pointer off the lines it goes back to the commander', (await display()).name === 'Krenko, Mob Boss');
+  const valakutAt = await cardCenter(cardRows.findIndex((r) => r.name.startsWith('Valakut'))); await sleep(150);
+  pictureRequests.length = 0;
+  await pointAt(await cardCenter(cardRows.findIndex((r) => r.name.startsWith('Valakut'))));
+  const two = await display();
+  check('a card with a back face shows its back too, from the same printing', two.name.startsWith('Valakut') && two.src === pictureUrl(valakutAt.id) && !two.backHidden && two.backSrc === `https://cards.scryfall.io/normal/back/${valakutAt.id[0]}/${valakutAt.id[1]}/${valakutAt.id}.jpg`, JSON.stringify(two));
+  await pointAt(await cardCenter(cardRows.findIndex((r) => r.name === 'Lightning Bolt')));
+  await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: (await cardCenter(cardRows.findIndex((r) => r.name === 'Lightning Bolt'))).x, y: (await cardCenter(cardRows.findIndex((r) => r.name === 'Lightning Bolt'))).y, button: 'left', clickCount: 1 });
+  await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: (await cardCenter(cardRows.findIndex((r) => r.name === 'Lightning Bolt'))).x, y: (await cardCenter(cardRows.findIndex((r) => r.name === 'Lightning Bolt'))).y, button: 'left', clickCount: 1 });
+  await pointAt(await cardCenter(cardRows.findIndex((r) => r.name === 'Sol Ring')));
   await away();
-  await hover(5, 'end');
-  const nearBottom = await peek();
-  check('with the row at the bottom of the window the box is kept inside it (not cut off below)', !nearBottom.hidden && nearBottom.bottom <= nearBottom.h && nearBottom.bottom >= nearBottom.h - 8.5, JSON.stringify(nearBottom));
+  check('a click keeps a card in the display: after pointing at others and away it is the clicked one (Lightning Bolt), not the commander', (await display()).name === 'Lightning Bolt', JSON.stringify(await display()));
+  const delverId = cardRows.find((r) => r.name.startsWith('Delver of Secrets')).id;
+  failBackPictures.add(delverId);
+  await pointAt(await cardCenter(cardRows.findIndex((r) => r.name.startsWith('Delver of Secrets'))));
+  await waitFor(async () => (await display()).backHidden || null, 3000, 50);
+  const noBack = await display();
+  check('when the back picture does not exist the front is shown alone, with no broken image', noBack.name.startsWith('Delver of Secrets') && noBack.backHidden && !noBack.frontHidden, JSON.stringify(noBack));
   await away();
-  // A row whose card id is damaged shows nothing and asks for nothing.
-  const asksBefore = pictureRequests.length;
-  await ev(`document.querySelectorAll('#sections .card-line')[3].dataset.cardId = 'not-an-id'`);
-  await hover(3);
-  check('a row with a damaged card id shows no box and asks for no picture', (await peek()).hidden && pictureRequests.length === asksBefore, JSON.stringify(pictureRequests.slice(asksBefore)));
-  await away();
-  await browser.send('Emulation.setDeviceMetricsOverride', { width: 700, height: 900, deviceScaleFactor: 1, mobile: false });
-  await sleep(300);
-  const rowNarrow = await rowFacts(4);
-  const atNarrow = await hover(4);
-  const narrow = await peek();
-  check('on a narrow window (700 px) it follows the pointer instead, to its right, inside the window', !narrow.hidden && Math.abs(narrow.left - (atNarrow.x + 24)) <= 1 && narrow.right <= narrow.w && narrow.src === pictureUrl(rowNarrow.id), JSON.stringify({ atNarrow, narrow }));
-  await away();
-  await browser.send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
-  await sleep(300);
-  await ev(`document.querySelectorAll('#sections .card-line .name')[0].focus()`);
-  const focused = await peek();
-  check('focusing a name with the keyboard shows the picture too', !focused.hidden && focused.src === pictureUrl((await rowFacts(0)).id), JSON.stringify(focused));
-  await ev(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))`);
-  check('Escape hides it', (await peek()).hidden);
-  await ev(`document.querySelectorAll('#sections .card-line .name')[0].blur(); document.querySelectorAll('#sections .card-line .name')[0].focus()`);
-  await ev(`document.activeElement.blur()`);
-  check('leaving the name with the keyboard hides it', (await peek()).hidden);
-  // A card whose picture was never loaded before (the browser would otherwise answer from its cache) and that Scryfall "does not have".
-  const row3 = await rowFacts(2);
-  failPictures.add(row3.id);
-  await hover(2);
-  await waitFor(async () => (await peek()).imageHidden || null, 3000, 50);
-  const missing = await peek();
-  check('a picture that does not exist says so instead of showing a broken image', missing.imageHidden && /No picture could be loaded for Dovin's Veto/.test(missing.note) && !missing.hidden, JSON.stringify(missing));
-  await away(); await hover(2);
-  const missingAgain = await peek();
-  check('and hovering that card again still shows the message, not a broken image', missingAgain.imageHidden && /No picture could be loaded for Dovin's Veto/.test(missingAgain.note) && !missingAgain.hidden, JSON.stringify(missingAgain));
-  await away();
-  // Escape closes the box and it stays closed while the pointer moves inside that row; leaving the row and coming back shows it.
-  await hover(4);
-  check('(before Escape) the box is showing', !(await peek()).hidden);
-  await ev(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))`);
-  const at = await nameBox(4);
-  await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: at.x + 20, y: at.y }); await sleep(120);
-  check('Escape closes the box and moving inside the same row does not bring it back', (await peek()).hidden);
-  await away();
-  await hover(4);
-  check('after leaving the row (with the mouse) and coming back it shows again', !(await peek()).hidden);
-  // Closed again with the pointer still in the row: focusing the name with the keyboard on purpose brings it back, and once
-  // that has been cleared the pointer moving in the row shows it again after the keyboard is done with it.
-  await ev(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))`);
-  check('(closed again with Escape)', (await peek()).hidden);
-  await ev(`document.querySelectorAll('#sections .card-line .name')[4].focus()`);
-  check('focusing that name with the keyboard on purpose shows it', !(await peek()).hidden);
-  await ev(`document.activeElement.blur()`);
-  check('and blurring it hides it', (await peek()).hidden);
-  const at2 = await nameBox(4);
-  await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: at2.x + 12, y: at2.y }); await sleep(120);
-  check('after that, the pointer moving in the same row shows it again (the closed state was cleared by the focus)', !(await peek()).hidden);
-  await ev(`new Promise((resolve) => { window.scrollBy(0, 60); requestAnimationFrame(() => requestAnimationFrame(resolve)); })`);
-  check('scrolling the page hides the box (it would be left behind at the old spot)', (await peek()).hidden);
-  await away();
-  await load(); await paste('1 Totally Fake Card\n1 Sol Ring'); await press('check');
-  const fakeIndex = await ev(`Array.from(document.querySelectorAll('#sections .card-line')).findIndex((li) => li.classList.contains('unmatched'))`);
-  await rowFacts(fakeIndex); await sleep(150);
-  const fakeAt = await nameBox(fakeIndex);
-  await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: fakeAt.x, y: fakeAt.y }); await sleep(120);
-  check('a line that was not matched has no picture to show', fakeIndex >= 0 && (await ev(`document.querySelectorAll('#sections .card-line')[${fakeIndex}].dataset.cardId`)) === undefined && (await peek()).hidden);
+  await ev(`document.querySelector('[data-view="images"]').click()`); await sleep(500);
+  const tileAt = await ev(`(() => { const t = [...document.querySelectorAll('#sections .deck-tile')].find((x) => x.dataset.cardName === 'Sol Ring'); t.scrollIntoView({ block: 'center' }); const r = t.getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) }; })()`);
+  await sleep(150); await pointAt(tileAt);
+  check('the picture view has the same display: pointing at a picture shows the card there', (await display()).name === 'Sol Ring' && !(await display()).floating, JSON.stringify(await display()));
+  await ev(`document.querySelector('[data-view="text"]').click()`);
   await away();
 
-  // A picture whose real shape differs from the declared one: once it has loaded the box is centred on the pointer again.
-  await load(); await paste('1 Lightning Bolt'); await press('check');
-  const bolt = await rowFacts(0);
-  oddPictures.add(bolt.id);
-  const atBolt = await hover(0);
-  await waitFor(async () => (await ev(`document.getElementById('card-peek-image').complete && document.getElementById('card-peek-image').naturalHeight === 300`)) || null, 3000, 50);
-  await sleep(150);
-  const odd = await peek();
-  check('a picture that turns out a different shape is placed again once it has loaded (centred on the pointer)', !odd.hidden && Math.abs((odd.top + odd.bottom) / 2 - atBolt.y) < 3 && odd.bottom - odd.top < 400, JSON.stringify({ atBolt, odd }));
-  await away();
-
-  // ---- a card with a back face shows both faces in the hover picture (Valakut Awakening is a modal card, Delver of Secrets a transform card) ----
-  await load(); await paste('1 Valakut Awakening\n1 Sol Ring'); await press('check');
-  const twoRows = await ev(`Array.from(document.querySelectorAll('#sections .card-line')).map((li) => ({ name: li.dataset.cardName, two: li.dataset.twoSided ?? null, id: li.dataset.cardId }))`);
-  const valakutRow = twoRows.findIndex((r) => r.name?.startsWith('Valakut')), solRow = twoRows.findIndex((r) => r.name === 'Sol Ring');
-  check('only the card with a back face is marked two-sided (Valakut Awakening yes, Sol Ring no)', valakutRow >= 0 && solRow >= 0 && twoRows[valakutRow].two === '1' && twoRows[solRow].two === null, JSON.stringify(twoRows));
-  const both = () => ev(`(() => { const p = document.getElementById('card-peek'); const imgs = Array.from(p.querySelectorAll('img')); const r = p.getBoundingClientRect(); const a = imgs[0].getBoundingClientRect(); const b = imgs[1] ? imgs[1].getBoundingClientRect() : null; return { hidden: p.hidden, two: p.classList.contains('two-faced'), count: imgs.length, front: imgs[0].getAttribute('src'), frontHidden: imgs[0].hidden, back: imgs[1] ? imgs[1].getAttribute('src') : null, backHidden: imgs[1] ? imgs[1].hidden : null, frontBox: { left: a.left, right: a.right, width: a.width }, backBox: b && { left: b.left, right: b.right, width: b.width }, left: r.left, right: r.right, top: r.top, bottom: r.bottom, w: document.documentElement.clientWidth, h: innerHeight, note: document.getElementById('card-peek-note').textContent }; })()`);
-  const backUrl = (id) => `https://cards.scryfall.io/normal/back/${id[0]}/${id[1]}/${id}.jpg`;
-  pictureRequests.length = 0;
-  await away();
-  await hover(valakutRow);
-  const twoShown = await both();
-  check('hovering it shows the front AND the back of the same printing, side by side, in one box', !twoShown.hidden && twoShown.two && twoShown.front === pictureUrl(twoRows[valakutRow].id) && twoShown.back === backUrl(twoRows[valakutRow].id) && !twoShown.frontHidden && !twoShown.backHidden && twoShown.frontBox.right <= twoShown.backBox.left + 1 && Math.abs(twoShown.frontBox.width - twoShown.backBox.width) < 2, JSON.stringify(twoShown));
-  check('the two-faced box is inside the window and has no caption', twoShown.left >= 0 && twoShown.right <= twoShown.w && twoShown.top >= 0 && twoShown.bottom <= twoShown.h && twoShown.note === '', JSON.stringify({ l: twoShown.left, r: twoShown.right, w: twoShown.w, note: twoShown.note }));
-  check('each picture was asked for once, in the normal size', pictureRequests.filter((u) => u === pictureUrl(twoRows[valakutRow].id)).length === 1 && pictureRequests.filter((u) => u === backUrl(twoRows[valakutRow].id)).length === 1 && pictureRequests.length === 2, JSON.stringify(pictureRequests));
-  await away();
-  await hover(solRow);
-  const oneShown = await both();
-  check('a card with one face shows one picture: the box is back to its single size and the back picture is hidden', !oneShown.hidden && !oneShown.two && oneShown.backHidden === true && oneShown.front === pictureUrl(twoRows[solRow].id) && oneShown.frontBox.width > 0, JSON.stringify(oneShown));
-  check('and it asked for no back picture', !pictureRequests.some((u) => u.includes('/back/') && u.includes(twoRows[solRow].id)));
-  await away();
-  await hover(valakutRow);
-  check('hovering the two-sided card again shows both again, with no new request', (await both()).two && pictureRequests.length === 3, `${(await both()).two} ${pictureRequests.length}`);
-  await away();
-  // A back picture that does not exist (a 404): the front is shown alone, the note drops "front and back", and nothing is asked twice.
-  await load(); await paste('1 Delver of Secrets'); await press('check');
-  const delverRow = await rowFacts(0);
-  failBackPictures.add(delverRow.id);
-  pictureRequests.length = 0;
-  await hover(0);
-  await waitFor(async () => (!(await both()).two) || null, 3000, 50);
-  const noBack = await both();
-  check('when the back picture does not exist the front is shown alone, with no broken image and no mention of the back', !noBack.hidden && !noBack.two && noBack.backHidden === true && !noBack.frontHidden && !/front and back/.test(noBack.note) && noBack.front === pictureUrl(delverRow.id), JSON.stringify(noBack));
-  await away();
-  const askedBefore = pictureRequests.length;
-  await hover(0);
-  await sleep(300);
-  check('hovering it again does not ask for the missing back picture again', pictureRequests.length === askedBefore && !(await both()).two, `${askedBefore} ${pictureRequests.length}`);
-  await away();
 
   // ---- the number is optional ----
   await load(); await paste('Thrasios, Triton Hero\n2 Sol Ring\nLands (36)\nSIDEBOARD:\nAnnul'); await press('check');
@@ -653,22 +549,11 @@ try {
   pictureRequests.length = 0; // only what the picture view asks for from here on
   await ev(`document.querySelector('[data-view="images"]').click()`);
   await sleep(300);
-  const tiles = await ev(`({ lists: document.querySelectorAll('#sections .deck-list').length, tiles: document.querySelectorAll('#sections .deck-tile').length, grids: document.querySelectorAll('#sections .deck-tiles').length, headings: [...document.querySelectorAll('#sections h3')].map((h) => h.textContent), pressed: [...document.querySelectorAll('#view-toggle button')].map((b) => b.getAttribute('aria-pressed')).join(), lazy: [...document.querySelectorAll('#sections .deck-tile img')].every((i) => i.loading === 'lazy' && i.alt === ''), ids: [...document.querySelectorAll('#sections .deck-tile')].every((t) => /^[0-9a-f-]{36}$/.test(t.dataset.cardId)), badges: [...document.querySelectorAll('#sections .tile-qty')].map((b) => b.textContent), saved: localStorage.getItem('overloaded.deckView'), spoken: [...document.querySelectorAll('#sections .deck-tile .sr-only')].map((n) => n.textContent) })`);
+  const tiles = await ev(`({ lists: document.querySelectorAll('#sections .deck-list').length, tiles: document.querySelectorAll('#sections .deck-tile').length, grids: document.querySelectorAll('#sections .deck-tiles').length, headings: [...document.querySelectorAll('#sections h3')].map((h) => h.textContent), pressed: [...document.querySelectorAll('#view-toggle button')].map((b) => b.getAttribute('aria-pressed')).join(), lazy: [...document.querySelectorAll('#sections .deck-tile img')].every((i) => i.loading === 'lazy' && i.alt === ''), ids: [...document.querySelectorAll('#sections .deck-tile')].every((t) => /^[0-9a-f-]{36}$/.test(t.dataset.previewId)), badges: [...document.querySelectorAll('#sections .tile-qty')].map((b) => b.textContent), saved: localStorage.getItem('overloaded.deckView'), spoken: [...document.querySelectorAll('#sections .deck-tile .sr-only')].map((n) => n.textContent) })`);
   check('the picture button shows one tile per line instead of the list, with the same headings, and is remembered in this browser', tiles.lists === 0 && tiles.tiles === 10 && tiles.grids === g0.length && JSON.stringify(tiles.headings) === JSON.stringify(g0.map((g) => g.heading)) && tiles.pressed === 'false,true,false' && tiles.saved === 'images', JSON.stringify(tiles));
   check('each tile has its card id (for the big picture), a lazy picture with no alt text (a spoken line carries the count and name), and a count on a card with copies', tiles.lazy && tiles.ids && tiles.badges.length > 0 && tiles.badges.every((b) => /^x\d+$/.test(b)) && tiles.badges.includes('x10') && tiles.spoken.includes('10 Forest') && tiles.spoken.includes('1 Éowyn, Lady of Rohan'), JSON.stringify(tiles));
   await waitFor(async () => (await ev(`[...document.querySelectorAll('#sections .deck-tile img')].every((i) => i.complete && i.naturalWidth > 0)`)) || null, 5000, 50).catch(() => null);
-  check('the tile pictures are the small size, and the card-picture box (the big one) is still on hover', pictureRequests.length >= 10 && pictureRequests.every((u) => /^https:\/\/cards\.scryfall\.io\/(small|normal)\/front\//.test(u)) && pictureRequests.some((u) => u.includes('/small/')), JSON.stringify(pictureRequests.slice(0, 3)));
-  {
-    const at = await ev(`(() => { const r = document.querySelectorAll('#sections .deck-tile')[2].getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2), id: document.querySelectorAll('#sections .deck-tile')[2].dataset.cardId }; })()`);
-    await ev(`document.querySelectorAll('#sections .deck-tile')[2].scrollIntoView({ block: 'center' })`); await sleep(150);
-    const at2 = await ev(`(() => { const r = document.querySelectorAll('#sections .deck-tile')[2].getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) }; })()`);
-    await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: at2.x - 4, y: at2.y }); await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: at2.x, y: at2.y }); await sleep(200);
-    const big = await ev(`({ hidden: document.getElementById('card-peek').hidden, src: document.getElementById('card-peek-image').getAttribute('src') })`);
-    check('pointing at a picture shows its big picture, like pointing at a line', !big.hidden && big.src.includes(at.id) && big.src.includes('/normal/'), JSON.stringify({ at, big }));
-    await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 3, y: 3 }); await sleep(150);
-  }
-  await load(); await paste(MOXFIELD_PLAIN); await press('check');
-  check('after a reload the picture view is still the one shown', (await ev(`document.querySelectorAll('#sections .deck-tiles').length > 0 && document.querySelector('[data-view="images"]').getAttribute('aria-pressed') === 'true'`)));
+  check('the tile pictures are the small size, and the card-picture box (the big one) is still on hover', pictureRequests.length >= 3 && pictureRequests.every((u) => /^https:\/\/cards\.scryfall\.io\/(small|normal)\/front\//.test(u)) && pictureRequests.some((u) => u.includes('/small/')), JSON.stringify(pictureRequests.slice(0, 3)));
   await ev(`document.querySelector('[data-view="text"]').click()`);
   check('the text button goes back to the list (and is remembered)', (await ev(`document.querySelectorAll('#sections .deck-list').length > 0 && document.querySelectorAll('#sections .deck-tile').length === 0 && localStorage.getItem('overloaded.deckView') === 'text'`)));
   // the commander picker decides the Commander group, and Standard has none
@@ -683,7 +568,7 @@ try {
   const gu = await groupsNow();
   check('a line that was not matched has a group of its own, first, so the counts add up', gu[0].key === 'unmatched' && gu[0].names.join() === 'Totally Fake Card' && gu[0].heading === 'Not matched (1)', JSON.stringify(gu));
   await ev(`document.querySelector('[data-view="images"]').click()`);
-  check('and a tile with its name in the picture view', (await ev(`(() => { const t = document.querySelector('#sections [data-group="unmatched"] .deck-tile'); return Boolean(t) && t.classList.contains('unmatched') && t.querySelector('.tile-name')?.textContent === 'Totally Fake Card' && t.dataset.cardId === undefined; })()`)));
+  check('and a tile with its name in the picture view', (await ev(`(() => { const t = document.querySelector('#sections [data-group="unmatched"] .deck-tile'); return Boolean(t) && t.classList.contains('unmatched') && t.querySelector('.tile-name')?.textContent === 'Totally Fake Card' && t.dataset.previewId === undefined; })()`)));
   await ev(`document.querySelector('[data-view="text"]').click()`);
 
   // the three screens: the list of decks, the box to paste into, one deck
@@ -718,7 +603,7 @@ try {
   await ev(`document.getElementById('sample').click()`); await settled();
   await ev(`document.querySelector('[data-view="text"]').click()`);
   const flow = await ev(`(() => { const box = document.getElementById('sections'); const lefts = new Set([...box.querySelectorAll('.deck-group')].map((g) => Math.round(g.getBoundingClientRect().left))); const costs = [...box.querySelectorAll('.card-line')].slice(0, 20).map((li) => { const c = li.querySelector('.cost').getBoundingClientRect(); const n = li.querySelector('.name').getBoundingClientRect(); const r = li.getBoundingClientRect(); return { rightGap: Math.round(r.right - c.right), width: Math.round(c.width) }; }); return { columns: lefts.size, columnWidth: getComputedStyle(box).columnWidth, costs }; })()`);
-  check('the text view flows in columns (three on a 1280 window), not one long list', flow.columns >= 3 && flow.columnWidth !== 'auto', JSON.stringify({ c: flow.columns, w: flow.columnWidth }));
+  check('the text view flows in columns (two on a 1280 window, with the card display beside the list), not one long list', flow.columns >= 2 && flow.columnWidth !== 'auto', JSON.stringify({ c: flow.columns, w: flow.columnWidth }));
   check('a mana cost sits at the end of its row, not stretched (each is narrower than 120 px and its menu button leaves little room beside it)', flow.costs.every((c) => c.width <= 120 && c.rightGap <= 40), JSON.stringify(flow.costs.slice(0, 5)));
   const lineMenu = () => ev(`(() => { const m = document.querySelector('.card-menu'); return m ? { title: m.querySelector('.card-menu-title').textContent, items: [...m.querySelectorAll('[role="menuitem"]')].map((b) => b.textContent) } : null; })()`);
   const pickMenu = async (text) => { const p = await ev(`(() => { const b = [...document.querySelectorAll('.card-menu [role="menuitem"]')].find((x) => x.textContent === ${JSON.stringify(text)}); if (!b) return null; const r = b.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`); if (!p) throw new Error('no menu item ' + text); await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p.x, y: p.y }); await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: p.x, y: p.y, button: 'left', buttons: 1, clickCount: 1 }); await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: p.x, y: p.y, button: 'left', buttons: 0, clickCount: 1 }); await sleep(120); };
@@ -805,7 +690,7 @@ try {
   check('pointing at a printing shows its picture in the normal size (one request for a normal-size picture; the tiles themselves are small and lazy)', !hovered.hidden && hovered.src === pictureUrl(SOL_RING_CMM_410_ID) && rowAt.id === SOL_RING_CMM_410_ID && pictureRequests.filter((u) => u.includes('/normal/')).length === 1, JSON.stringify({ hovered, requests: pictureRequests }));
   await ev(`[...document.querySelectorAll('.picker-tile')].find((x) => /CMM 410/.test(x.textContent)).click()`);
   await sleep(300);
-  const chosen = await ev(`({ closed: !document.querySelector('.picker'), text: document.getElementById('deck-text').value, status: document.getElementById('deck-status').textContent, row: (() => { const li = [...document.querySelectorAll('#sections .card-line')].find((l) => l.querySelector('.name').textContent === 'Sol Ring'); return li && { id: li.dataset.cardId, source: li.dataset.printing, printing: li.querySelector('.printing')?.textContent, qty: li.querySelector('.qty').textContent }; })(), name: document.getElementById('deck-name').value })`);
+  const chosen = await ev(`({ closed: !document.querySelector('.picker'), text: document.getElementById('deck-text').value, status: document.getElementById('deck-status').textContent, row: (() => { const li = [...document.querySelectorAll('#sections .card-line')].find((l) => l.querySelector('.name').textContent === 'Sol Ring'); return li && { id: li.dataset.previewId, source: li.dataset.printing, printing: li.querySelector('.printing')?.textContent, qty: li.querySelector('.qty').textContent }; })(), name: document.getElementById('deck-name').value })`);
   check('choosing a printing closes the window, rewrites the line in the list (keeping its 2 copies), and the deck now shows that printing', chosen.closed && chosen.text === '2 Sol Ring (CMM) 410\n1 Island' && chosen.status === 'Sol Ring: CMM 410.' && chosen.row && chosen.row.id === SOL_RING_CMM_410_ID && chosen.row.source === 'set' && chosen.row.printing === 'CMM 410' && chosen.row.qty === '2', JSON.stringify(chosen));
   await rightClick('Sol Ring');
   await pickMenu('Change printing...');
@@ -851,8 +736,8 @@ try {
   const order = await ev(`[...document.querySelectorAll('#sections .deck-group')].map((g) => g.dataset.group).join()`);
   check('the planeswalkers group is above the creatures group', /commander,planeswalker,creature,/.test(order), order);
   await ev(`document.querySelector('[data-view="images"]').click()`); await sleep(400);
-  const eight = await ev(`(() => { const grid = [...document.querySelectorAll('#sections .deck-tiles')].find((g) => g.children.length >= 16); const lefts = [...grid.children].map((li) => Math.round(li.getBoundingClientRect().left)); const radius = getComputedStyle(grid.querySelector('.tile-picture')).borderTopLeftRadius; const last = grid.children[7].getBoundingClientRect(); return { columns: new Set(lefts).size, radius, width: Math.round(grid.children[0].getBoundingClientRect().width), fills: Math.round(grid.getBoundingClientRect().right - last.right) }; })()`);
-  check('the picture view is eight to a row (at 1280 wide), the row filling the width, each picture with rounded corners', eight.columns === 8 && eight.radius !== '0px' && eight.fills <= 2 && eight.width >= 120, JSON.stringify(eight));
+  const eight = await ev(`(() => { const grid = [...document.querySelectorAll('#sections .deck-tiles')].find((g) => g.children.length >= 16); const lefts = [...grid.children].map((li) => Math.round(li.getBoundingClientRect().left)); const radius = getComputedStyle(grid.querySelector('.tile-picture')).borderTopLeftRadius; const last = grid.children[new Set(lefts).size - 1].getBoundingClientRect(); return { columns: new Set(lefts).size, radius, width: Math.round(grid.children[0].getBoundingClientRect().width), fills: Math.round(grid.getBoundingClientRect().right - last.right) }; })()`);
+  check('the picture view is six to a row at 1280 wide (eight on a wider window), the row filling the space beside the card display, each picture with rounded corners', eight.columns === 6 && eight.radius !== '0px' && eight.fills <= 2 && eight.width >= 120, JSON.stringify(eight));
   await ev(`document.querySelector('[data-view="stacks"]').click()`); await sleep(600);
   const stacks = await ev(`(() => { const box = document.getElementById('sections'); const groups = [...box.querySelectorAll('.deck-group')]; const lefts = new Set(groups.map((g) => Math.round(g.getBoundingClientRect().left))); const stack = [...box.querySelectorAll('.deck-stack')].find((u) => u.children.length >= 10); const tiles = [...stack.children].map((li) => li.getBoundingClientRect()); const firstOverlaps = tiles[1].top < tiles[0].bottom - 20; const strip = Math.round(tiles[1].top - tiles[0].top); const lastFull = tiles.at(-1).height > 100; return { pressed: [...document.querySelectorAll('#view-toggle button')].map((b) => b.getAttribute('aria-pressed')).join(), stored: localStorage.getItem('overloaded.deckView'), columns: lefts.size, firstOverlaps, strip, lastFull, tiles: tiles.length, lists: box.querySelectorAll('.deck-list, .deck-tiles').length }; })()`);
   check('the stacks view puts each group in its own column with the cards overlapping (a strip of about 24 px of each shows, the last one in full), and is remembered', stacks.pressed === 'false,false,true' && stacks.stored === 'stacks' && stacks.columns >= 6 && stacks.firstOverlaps && stacks.strip >= 18 && stacks.strip <= 30 && stacks.lastFull && stacks.lists === 0, JSON.stringify(stacks));
@@ -882,7 +767,7 @@ try {
   check('the stacks are spread across a 1920 window: eight columns of wide cards (165 px or more, with the card display beside them), the last one at the right edge', wide.groups >= 8 && wide.lastRight <= 2 && wide.width >= 165, JSON.stringify(wide));
   await ev(`document.querySelector('[data-view="images"]').click()`); await sleep(1500);
   const wideTiles = await ev(`(() => { const grid = [...document.querySelectorAll('#sections .deck-tiles')].find((g) => g.children.length >= 16); const imgs = [...grid.querySelectorAll('img')].filter((i) => i.complete && i.naturalWidth > 0); const last = grid.children[7].getBoundingClientRect(); return { width: Math.round(grid.children[0].getBoundingClientRect().width), fills: Math.round(grid.getBoundingClientRect().right - last.right), loaded: imgs.length, normal: imgs.filter((i) => i.currentSrc.includes('/normal/')).length }; })()`);
-  check('the pictures fill a 1920 row (tiles 200 px or more) and the browser picked the normal-size picture for them', wideTiles.width >= 200 && wideTiles.fills <= 2 && wideTiles.loaded > 0 && wideTiles.normal === wideTiles.loaded, JSON.stringify(wideTiles));
+  check('the pictures fill a 1920 row (tiles 170 px or more) and the browser picked the normal-size picture for them', wideTiles.width >= 170 && wideTiles.fills <= 2 && wideTiles.loaded > 0 && wideTiles.normal === wideTiles.loaded, JSON.stringify(wideTiles));
   await browser.send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
   await sleep(400);
   await ev(`document.querySelector('[data-view="text"]').click()`);
@@ -940,9 +825,9 @@ try {
   check('the card types list only the types the deck has', info.types === 'Creatures,Instants,Artifacts,Lands', info.types);
 
   // the cursor stays an arrow over a card (no magnifying glass)
-  const cursors = await ev(`({ row: getComputedStyle(document.querySelector('#sections .card-line[data-card-id]')).cursor, name: getComputedStyle(document.querySelector('#sections .card-line .name')).cursor })`);
+  const cursors = await ev(`({ row: getComputedStyle(document.querySelector('#sections .card-line[data-preview-id]')).cursor, name: getComputedStyle(document.querySelector('#sections .card-line .name')).cursor })`);
   await ev(`document.querySelector('[data-view="images"]').click()`); await sleep(300);
-  const tileCursor = await ev(`getComputedStyle(document.querySelector('#sections .deck-tile[data-card-id]')).cursor`);
+  const tileCursor = await ev(`getComputedStyle(document.querySelector('#sections .deck-tile[data-preview-id]')).cursor`);
   await ev(`document.querySelector('[data-view="text"]').click()`);
   check('the cursor over a card (a line or a picture) is not a magnifying glass', ![cursors.row, cursors.name, tileCursor].some((c) => /zoom/.test(c)), JSON.stringify({ cursors, tileCursor }));
 
