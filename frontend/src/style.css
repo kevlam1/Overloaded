@@ -348,8 +348,6 @@ body.playing { --cw-mine: clamp(2.6rem, 8.4vh, 6.2rem); --cw-opp: clamp(2.2rem, 
 body.playing main.table { flex: 1 1 auto; min-height: 0; max-width: none; margin: 0; padding: 0.35rem 0.5rem 0; display: grid; gap: 0.35rem;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 17rem; grid-template-rows: auto auto minmax(0, 1fr) minmax(0, 1fr) auto; }
 body.playing #game, body.playing #opponents, body.playing #opponent-list { display: contents; }
-body.playing footer { flex: 0 0 auto; max-width: none; margin: 0; padding: 0.1rem 0.5rem 0.2rem; font-size: 0.62rem; line-height: 1.2; }
-body.playing footer p { margin: 0; }
 body.playing h1 { margin: 0; font-size: 1.05rem; }
 body.playing h2 { margin: 0 0 0.2rem; font-size: 0.85rem; }
 body.playing h3 { margin: 0 0 0.15rem; font-size: 0.75rem; color: var(--muted); }
@@ -412,14 +410,20 @@ body.playing .hand-section { grid-column: 1 / 3; grid-row: 5; min-width: 0; --cw
 body.playing #hand { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; min-height: 0; padding-bottom: 0.15rem; gap: 0.3rem; }
 
 /* the right-hand column: who is at the table (and the sound and match buttons) above, your counters, the selected card and your piles below; each scrolls inside itself */
-body.playing .players-section { grid-column: 3; grid-row: 2 / 4; min-height: 0; overflow: auto; padding: 0.3rem 0.5rem; border: 1px solid var(--line); border-radius: 0.5rem; }
+/* The right column: the action buttons, the players (the table page), your piles and command zone, and under them the card corner, which takes what room is left. */
+body.playing .right-column { grid-column: 3; grid-row: 2 / 6; display: flex; flex-direction: column; gap: 0.35rem; min-height: 0; overflow: hidden; }
+body.playing .right-column > * { min-height: 0; }
+body.playing .actions-panel { flex: 0 0 auto; padding: 0.3rem 0.4rem; border: 1px solid var(--line); border-radius: 0.5rem; }
+body.playing .actions-panel .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 0.3rem; margin: 0; }
+body.playing .actions-panel .actions button { width: 100%; padding: 0.1rem 0.3rem; }
+body.playing .players-slot { flex: 0 1 auto; display: flex; flex-direction: column; min-height: 0; max-height: 40%; }
+body.playing .players-section { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 0.3rem 0.5rem; border: 1px solid var(--line); border-radius: 0.5rem; }
 body.playing #players { margin: 0; padding-left: 1rem; font-size: 0.8rem; }
 body.playing #match-state { margin: 0 0 0.15rem; font-size: 0.8rem; }
 body.playing .players-section .actions { margin-top: 0.3rem; gap: 0.3rem; }
 body.playing .players-section .sound-settings { margin-top: 0.3rem; font-size: 0.75rem; }
 body.playing .players-section .hint { margin: 0.2rem 0 0; font-size: 0.7rem; }
-body.playing .side-panels { grid-column: 3; grid-row: 4 / 6; display: flex; flex-direction: column; gap: 0.35rem; min-height: 0; overflow: auto; }
-body.playing.solo .side-panels { grid-row: 2 / 6; }
+body.playing .side-panels { flex: 0 0 auto; display: flex; flex-direction: column; gap: 0.35rem; }
 body.playing .side-panels > section { padding: 0.3rem 0.5rem; border: 1px solid var(--line); border-radius: 0.5rem; flex: 0 0 auto; }
 body.playing .selected-panel { position: static; }
 body.playing .selected-panel .hint { margin: 0 0 0.25rem; font-size: 0.8rem; }
@@ -427,9 +431,17 @@ body.playing .selected-panel .actions, body.playing .piles-section .pile-buttons
 body.playing .viewer { margin-top: 0.4rem; }
 body.playing .pile-list { max-height: 11rem; }
 
-/* a pinged card is shown over the table (the spotlight), not in the page flow */
-body.playing .spotlight { position: fixed; z-index: 20; top: 2.6rem; right: 0.5rem; width: min(20rem, 38vw); flex-direction: column; flex-wrap: nowrap; margin: 0; box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.45); }
-body.playing .spotlight .spot-picture { width: 100%; }
+/* the card corner: the selected card, or a pinged one, large, at the bottom of the right column */
+body.playing .card-corner { flex: 1 1 6rem; min-height: 6rem; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 0.3rem; margin: 0; padding: 0.3rem; border: 1px dashed var(--line); border-radius: 0.5rem; overflow: hidden; box-shadow: none; }
+body.playing .card-corner:not(.is-empty) { border-style: solid; }
+body.playing .card-corner .spot-picture { flex: 1 1 0; min-height: 0; width: auto; max-width: 100%; height: auto; max-height: 100%; object-fit: contain; aspect-ratio: 488 / 680; border-radius: 4.8% / 3.4%; }
+body.playing .card-corner .spot-text { flex: 0 0 auto; width: 100%; text-align: center; }
+body.playing .card-corner .spot-name { font-size: 0.85rem; }
+body.playing .card-corner .spot-type, body.playing .card-corner .spot-detail { display: none; } /* (they are in the line for a screen reader) */
+body.playing .card-corner .spot-line { margin: 0; font-size: 0.75rem; }
+body.playing .card-corner .spot-close { margin-top: 0.2rem; min-height: 1.5rem; }
+body.playing .card-corner .spot-empty { margin: auto; color: var(--muted); font-size: 0.8rem; text-align: center; }
+body.playing .card-corner .spot-empty[hidden], body.playing .card-corner .spot-text[hidden] { display: none; }
 
 /* ---- the one-screen layout, second pass: cards sized from the row they are in, a compact panel for each other player, tighter side column ---- */
 /* A card fills the height of its row (the row is a size container), so it always fits whatever the window and however many players; a tapped card is as wide as the card is tall.
@@ -1030,3 +1042,6 @@ body:has(> .site-footer) { min-height: 100vh; display: flex; flex-direction: col
 body:has(> .site-footer) > main { flex: 1 0 auto; width: 100%; box-sizing: border-box; }
 body:has(> .site-footer) > .site-footer { margin-top: 2rem; }
 .status:empty { min-height: 0; margin: 0; }
+
+/* The fan content notice lives in Settings on the table pages. */
+.settings-legal { max-width: 20rem; margin: 0.6rem 0 0; padding-top: 0.5rem; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.7rem; line-height: 1.4; }

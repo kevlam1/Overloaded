@@ -37,15 +37,6 @@
             <button id="life-plus1" type="button" class="secondary" aria-label="Gain 1 life">+1</button>
             <button id="life-plus5" type="button" class="secondary" aria-label="Gain 5 life">+5</button>
           </div>
-          <div class="actions" role="group" aria-label="Actions">
-            <button id="draw" type="button">Draw</button>
-            <button id="next-turn" type="button">Next turn</button>
-            <button id="untap-all" type="button" class="secondary">Untap all</button>
-            <button id="arrange" type="button" class="secondary">Auto-arrange</button>
-            <button id="mulligan" type="button" class="secondary">Mulligan</button>
-            <button id="new-game" type="button" class="secondary">New game</button>
-            <button id="settings-button" type="button" class="secondary" aria-haspopup="dialog" aria-expanded="false" aria-controls="settings-menu">Settings</button>
-          </div>
         </section>
 
         <section id="my-board" class="board mine" aria-labelledby="battlefield-heading">
@@ -58,21 +49,35 @@
           <div id="hand" class="row" data-empty="Your hand is empty."></div>
         </section>
 
-        <aside class="side-panels" aria-label="The selected card and your piles">
-        <p id="selected-line" class="sr-only" aria-live="polite">Click a card to select it; right-click it for what you can do.</p>
+        <aside id="right-column" class="right-column" aria-label="Your actions and your piles">
+          <section class="actions-panel" aria-label="Your actions">
+            <div class="actions" role="group" aria-label="Actions">
+              <button id="draw" type="button">Draw</button>
+              <button id="next-turn" type="button">Next turn</button>
+              <button id="untap-all" type="button" class="secondary">Untap all</button>
+              <button id="arrange" type="button" class="secondary">Auto-arrange</button>
+              <button id="mulligan" type="button" class="secondary">Mulligan</button>
+              <button id="new-game" type="button" class="secondary">New game</button>
+              <button id="settings-button" type="button" class="secondary" aria-haspopup="dialog" aria-expanded="false" aria-controls="settings-menu">Settings</button>
+            </div>
+          </section>
+          <aside class="side-panels" aria-label="The selected card and your piles">
+          <p id="selected-line" class="sr-only" aria-live="polite">Click a card to select it; right-click it for what you can do.</p>
 
-        <section id="piles-section" class="piles-section zones" aria-labelledby="piles-heading">
-          <h2 id="piles-heading" class="sr-only">Your piles and command zone</h2>
-          <div class="zone-stacks" role="group" aria-label="Look at a pile">
-            <button id="pile-library" type="button" data-zone="library" aria-pressed="false">Library: 0</button>
-            <button id="pile-graveyard" type="button" data-zone="graveyard" aria-pressed="false">Graveyard: 0</button>
-            <button id="pile-exile" type="button" data-zone="exile" aria-pressed="false">Exile: 0</button>
-          </div>
-          <div id="command-zone" class="command-zone">
-            <h3>Command zone</h3>
-            <div id="command" class="command-slots"></div>
-          </div>
-        </section>
+          <section id="piles-section" class="piles-section zones" aria-labelledby="piles-heading">
+            <h2 id="piles-heading" class="sr-only">Your piles and command zone</h2>
+            <div class="zone-stacks" role="group" aria-label="Look at a pile">
+              <button id="pile-library" type="button" data-zone="library" aria-pressed="false">Library: 0</button>
+              <button id="pile-graveyard" type="button" data-zone="graveyard" aria-pressed="false">Graveyard: 0</button>
+              <button id="pile-exile" type="button" data-zone="exile" aria-pressed="false">Exile: 0</button>
+            </div>
+            <div id="command-zone" class="command-zone">
+              <h3>Command zone</h3>
+              <div id="command" class="command-slots"></div>
+            </div>
+          </section>
+          </aside>
+          <section id="spotlight" class="card-corner" aria-label="The selected or pinged card"></section>
         </aside>
       </div>
     <div id="viewer" class="viewer-overlay" hidden>
@@ -91,13 +96,10 @@
       <div class="settings-row"><button id="pile-sideboard" type="button" class="secondary" data-zone="sideboard" aria-pressed="false">Sideboard: 0</button></div>
       <div id="sound-settings"></div>
       <div id="pile-style-settings"></div>
+      <p class="settings-legal">Overloaded is unofficial Fan Content permitted under the Fan Content Policy. Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. &copy;Wizards of the Coast LLC.</p>
     </div>
     <div id="marks" class="marks-panel marks-popover" role="dialog" aria-label="Counters and power and toughness" hidden></div>
     </main>
-
-    <footer class="wide">
-      <p>Overloaded is unofficial Fan Content permitted under the Fan Content Policy. Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. &copy;Wizards of the Coast LLC.</p>
-    </footer>
 
     <script type="module" src="/pages/solo/solo.js"></script>
   </body>

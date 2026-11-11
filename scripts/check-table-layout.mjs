@@ -25,6 +25,7 @@ const FILL = (opponents) => `(() => {
   const board = (grid, lands, others, tappedEvery) => { grid.replaceChildren(); const put = (n, col, row, kind) => { const b = card(n, tappedEvery && n % tappedEvery === 0); b.dataset.col = String(col); b.dataset.row = String(row); b.dataset.kind = kind; grid.append(b); }; for (let i = 0; i < lands; i++) put(i, (i % 14) * 8, 33 - 11 * Math.floor(i / 14), 'land'); for (let i = 0; i < others; i++) put(100 + i, (i % 14) * 8, 11 * Math.floor(i / 14), 'other'); };
   document.body.classList.add('playing');
   document.getElementById('game').hidden = false;
+  document.getElementById('players-slot').append(document.getElementById('players-section')); // as the page does while a game shows
   document.getElementById('opponents').hidden = false;
   document.getElementById('blocked').hidden = true;
   document.querySelector('main').dataset.opponents = String(${opponents});
@@ -64,7 +65,7 @@ const RECTS = `(() => {
     win: { w: innerWidth, h: innerHeight },
     scroll: { docH: document.documentElement.scrollHeight, docW: document.documentElement.scrollWidth, bodyH: document.body.scrollHeight },
     topbar: r(document.querySelector('.topbar')), bar: r(document.querySelector('.bar')), mine: r(document.getElementById('my-board')), hand: r(document.getElementById('hand-section')),
-    side: r(document.querySelector('.side-panels')), players: r(document.getElementById('players-section')), footer: r(document.querySelector('footer')),
+    side: r(document.querySelector('.right-column')), piles: r(document.querySelector('.side-panels')), actions: r(document.querySelector('.actions-panel')), corner: r(document.getElementById('spotlight')), players: r(document.getElementById('players-section')), cornerImageH: document.querySelector('#spotlight .spot-picture')?.getBoundingClientRect().height ?? 0,
     opponents: [...document.querySelectorAll('.opponent')].map(r),
     opponentOverflow: [...document.querySelectorAll('.opponent')].map((p) => p.scrollHeight - p.clientHeight),
     mineOverflow: document.getElementById('my-board').scrollHeight - document.getElementById('my-board').clientHeight,
@@ -94,7 +95,7 @@ try {
       // nothing scrolls the page
       check(`${label}: the page does not scroll (height ${m.scroll.docH} of ${m.win.h}, width ${m.scroll.docW} of ${m.win.w})`, m.scroll.docH <= m.win.h + 1 && m.scroll.bodyH <= m.win.h + 1 && m.scroll.docW <= m.win.w + 1);
       // everything is inside the window
-      const named = { topbar: m.topbar, bar: m.bar, 'your board': m.mine, 'your hand': m.hand, 'the side column': m.side, footer: m.footer, ...(opponents ? { players: m.players } : { players: m.players }) };
+      const named = { topbar: m.topbar, bar: m.bar, 'your board': m.mine, 'your hand': m.hand, 'the actions': m.actions, 'the players': m.players, 'the piles': m.piles, 'the card corner': m.corner };
       m.opponents.forEach((o, i) => { named[`opponent ${i + 1}`] = o; });
       for (const [name, rect] of Object.entries(named)) {
         check(`${label}: the ${name} is inside the window and has a size`, rect && rect.width > 20 && rect.height > 10 && rect.left >= -0.5 && rect.top >= -0.5 && rect.right <= m.win.w + 0.5 && rect.bottom <= m.win.h + 0.5, JSON.stringify(rect));
@@ -122,7 +123,7 @@ try {
       // your hand runs along the whole bottom under the boards, and the controls under the top bar run across the same width
       const boardsRight = Math.max(m.mine.right, ...m.opponents.map((o) => o.right));
       check(`${label}: your hand runs under all the boards (it ends where they end) and the controls start at the same left edge`, near(m.hand.left, m.mine.left) && near(m.hand.right, boardsRight, 3) && near(m.bar.left, m.mine.left), JSON.stringify([m.hand, boardsRight, m.bar.left, m.mine.left]));
-      check(`${label}: the side column is to the right of the boards, from below the top bar to the footer`, m.side.left >= boardsRight - 1 && m.players.left >= boardsRight - 1 && m.side.bottom <= m.footer.top + 1 && m.players.top <= m.bar.bottom + 1, JSON.stringify([m.side, m.players, boardsRight]));
+      check(`${label}: the right column is to the right of the boards and runs from below the top bar to the bottom of the window, in this order: the actions, the players, the piles, the card corner`, m.side.left >= boardsRight - 1 && m.actions.left >= boardsRight - 1 && m.corner.left >= boardsRight - 1 && m.side.bottom <= m.win.h + 1 && m.actions.top <= m.bar.bottom + 1 && m.actions.bottom <= m.players.top + 1 && m.players.bottom <= m.piles.top + 1 && m.piles.bottom <= m.corner.top + 1 && m.corner.bottom >= m.win.h - 12, JSON.stringify([m.side, m.players, boardsRight]));
       // the boards, the bar and the top show everything they hold
       check(`${label}: no board clips its content (the other players' panels and yours)`, m.opponentOverflow.every((o) => o <= 1) && m.mineOverflow <= 1, JSON.stringify([m.opponentOverflow, m.mineOverflow]));
       check(`${label}: the top bar and the controls are not cut off`, m.topbarOverflow <= 1 && m.barOverflow <= 1, JSON.stringify([m.topbarOverflow, m.barOverflow]));

@@ -396,49 +396,60 @@ try {
     await browser.goto(PAGE);
     await handIs(7);
   }
-  // ---- the larger picture of a card while the pointer rests on it (frontend/src/card-hover.js): real mouse movement ----
+  // ---- the larger picture of a card while Alt is held over it (frontend/src/card-hover.js): real mouse movement and real Alt key events ----
   {
     const rectOf = (selector, index = 0) => ev(`(() => { const r = document.querySelectorAll(${JSON.stringify(selector)})[${index}].getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, left: r.left, right: r.right, top: r.top, bottom: r.bottom }; })()`);
-    const moveTo = (x, y) => browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y });
+    let alt = false;
+    const moveTo = (x, y) => browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y, modifiers: alt ? 1 : 0 });
+    const altDown = async () => { alt = true; await browser.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'Alt', code: 'AltLeft', windowsVirtualKeyCode: 18, modifiers: 1 }); await sleep(60); };
+    const altUp = async () => { alt = false; await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Alt', code: 'AltLeft', windowsVirtualKeyCode: 18, modifiers: 0 }); await sleep(60); };
     const hoverState = () => ev(`(() => { const b = document.getElementById('card-hover'); if (!b) return null; const r = b.getBoundingClientRect(); return { hidden: b.hidden, src: b.querySelector('img').getAttribute('src'), left: r.left, right: r.right, top: r.top, bottom: r.bottom, inside: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight }; })()`);
     const c = await rectOf('#hand .card', 0);
     const smallSrc = await ev(`document.querySelector('#hand .card img').getAttribute('src')`);
     await moveTo(5, 5); await sleep(60);
     check('the hover box exists and starts hidden', (await hoverState())?.hidden === true);
     await moveTo(c.x, c.y);
-    await sleep(150);
-    check('the larger picture does not show at once (it waits a moment, so sweeping across the table shows nothing)', (await hoverState()).hidden === true);
-    await sleep(450);
-    let h = await hoverState();
-    check('after a moment it shows the NORMAL size of the same card', h.hidden === false && h.src === smallSrc.replace('/small/', '/normal/'), JSON.stringify(h));
-    check('...inside the window and not covering the card', h.inside && (h.left >= c.right || h.right <= c.left), JSON.stringify([h, c]));
-    await moveTo(5, 5); await sleep(80);
-    check('moving off the card hides it', (await hoverState()).hidden === true);
-    await moveTo(c.x, c.y); await sleep(650);
-    check('it shows again on the way back', (await hoverState()).hidden === false);
-    await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: c.x, y: c.y, button: 'left', buttons: 1, clickCount: 1 });
-    await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: c.x, y: c.y, button: 'left', buttons: 0, clickCount: 1 });
     await sleep(700);
-    check('a click hides it, and it stays hidden while the pointer stays on that card', (await hoverState()).hidden === true);
-    await moveTo(5, 5); await sleep(80); await moveTo(c.x, c.y); await sleep(650);
+    check('with the pointer resting on a card and no Alt held, no larger picture shows (however long it rests)', (await hoverState()).hidden === true);
+    await altDown();
+    let h = await hoverState();
+    check('holding Alt shows the NORMAL size of the same card at once', h.hidden === false && h.src === smallSrc.replace('/small/', '/normal/'), JSON.stringify(h));
+    check('...inside the window and not covering the card', h.inside && (h.left >= c.right || h.right <= c.left), JSON.stringify([h, c]));
+    await altUp();
+    check('letting go of Alt hides it', (await hoverState()).hidden === true);
+    await altDown(); await moveTo(5, 5); await sleep(80);
+    check('with Alt held, moving off the card hides it', (await hoverState()).hidden === true);
+    await moveTo(c.x, c.y); await sleep(80);
+    check('and moving back on shows it again at once', (await hoverState()).hidden === false);
+    const c3 = await rectOf('#hand .card', 2); await moveTo(c3.x, c3.y); await sleep(100);
+    const other = await hoverState();
+    check('with Alt held, moving to another card shows that card', other.hidden === false && other.src !== h.src, JSON.stringify(other));
+    await moveTo(c.x, c.y); await sleep(80);
+    await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: c.x, y: c.y, button: 'left', buttons: 1, clickCount: 1, modifiers: 1 });
+    await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: c.x, y: c.y, button: 'left', buttons: 0, clickCount: 1, modifiers: 1 });
+    await sleep(150);
+    check('a click hides it, and it stays hidden while the pointer stays on that card with Alt still held', (await hoverState()).hidden === true);
+    await moveTo(5, 5); await sleep(80); await moveTo(c.x, c.y); await sleep(100);
     check('after leaving and coming back it shows again', (await hoverState()).hidden === false);
-    await browser.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
-    await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+    await browser.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, modifiers: 1 });
+    await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, modifiers: 1 });
     await sleep(100);
     check('Escape hides it', (await hoverState()).hidden === true);
-    await moveTo(5, 5); await sleep(80);
-    await ev(`document.querySelector('#hand .card').dispatchEvent(new PointerEvent('pointerover', { bubbles: true, pointerType: 'touch' }))`);
-    await sleep(650);
-    check('a touch never shows it (a phone has no hover)', (await hoverState()).hidden === true);
+    await altUp(); await moveTo(5, 5); await sleep(80);
+    await ev(`document.querySelector('#hand .card').dispatchEvent(new PointerEvent('pointerover', { bubbles: true, pointerType: 'touch', altKey: true }))`);
+    await altDown(); await sleep(100);
+    check('a touch never shows it (a phone has no Alt or hover)', (await hoverState()).hidden === true);
+    await altUp(); await moveTo(5, 5); await sleep(60);
     await ev(`document.querySelectorAll('#hand .card')[1].classList.add('noimage')`);
-    const c2 = await rectOf('#hand .card', 1); await moveTo(c2.x, c2.y); await sleep(700);
+    const c2 = await rectOf('#hand .card', 1); await moveTo(c2.x, c2.y); await altDown(); await sleep(100);
     check('a card that shows only its name has no larger picture', (await hoverState()).hidden === true);
+    await altUp();
     await ev(`document.querySelectorAll('#hand .card')[1].classList.remove('noimage')`);
-    await moveTo(5, 5); await sleep(80);
-    await moveTo(c.x, c.y); await sleep(650);
+    await moveTo(5, 5); await sleep(60);
+    await moveTo(c.x, c.y); await altDown(); await sleep(100);
     await ev(`document.querySelector('.side-panels').dispatchEvent(new Event('scroll'))`); await sleep(80);
     check('a scroll hides it', (await hoverState()).hidden === true);
-    await moveTo(5, 5); await sleep(80);
+    await altUp(); await moveTo(5, 5); await sleep(80);
     // a card on the battlefield, and a tapped one
     await clickCard('#hand .card', 0);
     await clickAction('To battlefield');
@@ -446,11 +457,29 @@ try {
     await moveTo(5, 5); await sleep(80);
     const b = await rectOf('#battlefield .card', 0);
     const bSmall = await ev(`document.querySelector('#battlefield .card img').getAttribute('src')`);
-    await moveTo(b.x, b.y); await sleep(650);
+    await moveTo(b.x, b.y); await altDown(); await sleep(100);
     h = await hoverState();
     check('a tapped card on the battlefield shows its larger picture too, beside it', h.hidden === false && h.src === bSmall.replace('/small/', '/normal/') && h.inside && (h.left >= b.right || h.right <= b.left), JSON.stringify([h, b]));
-    await moveTo(5, 5); await sleep(80);
+    await altUp(); await moveTo(5, 5); await sleep(80);
     check('the hover box is never in the way of the pointer (it does not take mouse events)', (await ev(`getComputedStyle(document.getElementById('card-hover')).pointerEvents`)) === 'none');
+  }
+  // ---- the card corner (frontend/src/spotlight.js) and the right column ----
+  {
+    const corner = () => ev(`(() => { const c = document.getElementById('spotlight'); const img = c.querySelector('.spot-picture'); const r = c.getBoundingClientRect(); return { empty: c.classList.contains('is-empty'), name: c.querySelector('.spot-name').textContent, src: img.hidden ? null : img.getAttribute('src'), closeShown: !c.querySelector('.spot-close').hidden, bottomGap: Math.round(innerHeight - r.bottom), right: Math.round(innerWidth - r.right), width: Math.round(r.width) }; })()`);
+    const sel = await ev(`document.querySelector('.card.selected')?.querySelector('img')?.getAttribute('src') ?? null`);
+    await ev(`document.querySelector('#battlefield').click()`); await sleep(100);
+    const first = await corner();
+    check('the card corner is at the bottom right of the window; it shows the selected card (the normal size) and keeps it after you click away', first.bottomGap <= 12 && first.right <= 12 && first.width > 150 && !first.empty && /\/normal\//.test(first.src ?? '') && !first.closeShown, JSON.stringify(first));
+    await clickCard('#hand .card', 1);
+    const second = await corner();
+    check('selecting another card changes the corner to that card', second.name !== first.name || second.src !== first.src, JSON.stringify([first, second]));
+    const column = await ev(`(() => { const r = (sel) => document.querySelector(sel).getBoundingClientRect(); const a = r('.actions-panel'); const p = r('.side-panels'); const c = r('#spotlight'); const bar = r('.bar'); return { actionsRight: Math.round(innerWidth - a.right), actionsTop: Math.round(a.top - bar.top), buttons: [...document.querySelectorAll('.actions-panel button')].map((b) => b.id), barButtons: document.querySelectorAll('.bar .actions button').length, order: a.bottom <= p.top && p.bottom <= c.top, footer: document.querySelector('footer') !== null }; })()`);
+    check('the action buttons are at the top of the right column (not in the bar), the piles below them and the corner under those, and the page has no footer', column.actionsRight <= 12 && Math.abs(column.actionsTop) <= 4 && column.barButtons === 0 && column.buttons.includes('draw') && column.buttons.includes('settings-button') && column.order && !column.footer, JSON.stringify(column));
+    const legal = await ev(`(() => { document.getElementById('settings-button').click(); const t = document.querySelector('#settings-menu .settings-legal')?.textContent ?? ''; const shown = !document.getElementById('settings-menu').hidden; document.getElementById('settings-button').click(); return { t, shown }; })()`);
+    check('the fan content notice is in Settings', legal.shown && /unofficial Fan Content/.test(legal.t) && /Not approved\/endorsed by Wizards/.test(legal.t) && /property of Wizards of the Coast/.test(legal.t), JSON.stringify(legal));
+    await ev(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))`); await sleep(60);
+    const kept = await corner();
+    check('Escape deselects the card but the corner still shows it', (await count('.card.selected')) === 0 && !kept.empty && kept.name === second.name, JSON.stringify(kept));
   }
   await clickCard('#hand .card', 0);
   check('Escape deselects', (await count('.card.selected')) === 1 && await (async () => { await ev(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))`); return (await count('.card.selected')) === 0 && (await actionLabels()).length === 0; })());

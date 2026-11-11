@@ -2944,6 +2944,25 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 144. Table layout step 3: the right column, the card corner, Alt for the big picture (2026-11-10)
+
+**What I asked for**
+- Step 3 of the table layout from my list: the buttons from the top on the right side, a corner at the bottom right that shows the selected card until another is selected and also pings from other players, Alt held over a card shows the hover picture, and the legal disclaimer in Settings only.
+
+**What changed** (`frontend/pages/table/index.html`, `frontend/pages/solo/index.html`, `table.js`, `solo.js`, `frontend/src/spotlight.js`, `card-hover.js`, `style.css`; details in `docs/layout.md`)
+- **Right column.** The action buttons, the players list (table page), the piles and the command zone, and the card corner are one column at the right; the bar above the boards keeps only the turn and the life. On the table page the players list is moved into the column while a game shows.
+- **Card corner.** The old pinged-card box that floated over the table is now this corner. It shows the selected card at the normal size and keeps it after I click away or press Escape, until I select another. A ping replaces it (with who pinged and a Close button) and goes when I select another card, another ping arrives or I close it; Close brings the selected card back. When empty it says "Select a card to see it here."
+- **Alt.** The big picture appears at once while Alt is held over a card, and goes when Alt is let go or the pointer leaves. Resting the pointer no longer shows it (the old 0.35 s rest and its test are gone).
+- **Disclaimer.** In Settings on the solo and table pages; those pages have no footer.
+
+**What I checked**
+- Layout check 385 at five window sizes with 0 to 3 other players (the order actions, players, piles, corner; the corner at the bottom right; nothing scrolls or overlaps); solo check 437 (Alt with real key events, the corner, the buttons' place, no footer, the notice in Settings); spotlight check 31 (corner mode); card hover unit test 21; the live two-browser check 172 (a real ping, then selecting another card replaces it, then deselecting keeps the card); lobby 65, deck 273, live room 26 and all 57 quick suites. Screenshots at 1366x650, 1366x768 and 1920x950 with three opponents.
+- **Not checked:** a real four-player game; phones (no Alt there); light mode. **Tight spots:** at 1366x650 the players list scrolls inside its box and the corner is only about 85 px wide, so Alt is how a card is read there. The Fan Content rules say the notice goes on every public page; putting it only in Settings is my decision to follow Kevin's, so I will keep an eye on it before the site goes public.
+
+**My mistakes this round:** the live check's old expectation that a closed ping hides the box was wrong after the corner became permanent (I changed it, not the page); my first live check for "selecting another card replaces the ping" compared pictures, and both cards were an Island, so it could not tell, and I changed it to look at the ping sentence.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-10, entry 132) Claude kept committing and pushing to the development branch in turns where I had only asked for a change, after I had asked for it once; my rule is to do it only when asked.
 - (2026-11-10, entry 122) Claude's first deck page started a library it could not read at the box to paste into, hiding the message about it; the old check noticed.

@@ -132,6 +132,38 @@ try {
     await browser.screenshot('scratch-spotlight.png');
     console.log('saved scratch-spotlight.png (delete it afterward)');
   }
+  // ---- the corner mode: always there, shows the selected card, a ping replaces it, closing a ping goes back ----
+  await ev(`(async () => {
+    const section = document.createElement('section'); section.id = 'corner'; document.body.prepend(section);
+    window.__cornerClosed = 0;
+    const { createSpotlight } = await import('/src/spotlight.js');
+    window.__corner = createSpotlight(section, { persistent: true, emptyText: 'Select a card to see it here.', onClose: () => { window.__cornerClosed++; } });
+    return true;
+  })()`);
+  const cs = () => ev(`(() => { const r = document.getElementById('corner'); const img = r.querySelector('.spot-picture'); return { hidden: r.hidden, empty: r.classList.contains('is-empty'), emptyText: r.querySelector('.spot-empty').hidden ? '' : r.querySelector('.spot-empty').textContent, src: img.hidden ? null : img.getAttribute('src'), name: r.querySelector('.spot-name').textContent, closeHidden: r.querySelector('.spot-close').hidden, lineHidden: r.querySelector('.spot-line').hidden }; })()`);
+  const cshow = (card, extra = {}) => ev(`window.__corner.show(${JSON.stringify({ card, ...extra })})`);
+  let c = await cs();
+  check('a corner is never hidden: with nothing to show it says so', !c.hidden && c.empty && c.emptyText === 'Select a card to see it here.' && c.src === null, JSON.stringify(c));
+  const before = asked.length;
+  await cshow({ i: id(11), n: 'Selected One', t: 'Instant' }, { closable: false, key: 'a' });
+  await sleep(200);
+  c = await cs();
+  check('a selected card shows its normal picture and name, with no Close button and no ping sentence', !c.empty && c.src === url(11) && c.name === 'Selected One' && c.closeHidden && c.lineHidden && asked.length === before + 1, JSON.stringify(c));
+  await cshow({ i: id(11), n: 'Selected One', t: 'Instant' }, { closable: false, key: 'a' });
+  await sleep(100);
+  check('showing the same card again with the same key asks for nothing more (the page draws it again after every change)', asked.length === before + 1);
+  await cshow({ i: id(12), n: 'Pinged', t: 'Creature' }, { sentence: 'Seat 2: Bob pinged it.', closable: true });
+  await sleep(200);
+  c = await cs();
+  check('a ping replaces it, with the sentence and a Close button', c.name === 'Pinged' && c.src === url(12) && !c.closeHidden && !c.lineHidden, JSON.stringify(c));
+  await ev(`document.querySelector('#corner .spot-close').click()`);
+  c = await cs();
+  check('closing the ping empties the corner and tells the page (which shows the selected card again)', c.empty && (await ev('window.__cornerClosed')) === 1, JSON.stringify(c));
+  await cshow({ i: id(11), n: 'Selected One', t: 'Instant' }, { closable: false, key: 'a' });
+  await sleep(100);
+  check('after it was emptied the same key shows the card again (the key is forgotten)', (await cs()).name === 'Selected One');
+  await ev('window.__corner.hide()');
+  check('hide() empties it; isOpen says so', (await cs()).empty && (await ev('window.__corner.isOpen()')) === false);
 } finally {
   await closeAllBrowsers();
   if (server) await server.close();

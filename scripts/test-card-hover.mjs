@@ -1,5 +1,5 @@
 // Tests for the pure parts of frontend/src/card-hover.js: which larger picture a card button asks for, and where the box goes. (The hover itself is checked in a real browser in check-solo-ui.mjs.)
-import { largeAddress, placeBox, HOVER_DELAY_MS } from '../frontend/src/card-hover.js';
+import { largeAddress, placeBox } from '../frontend/src/card-hover.js';
 
 let checks = 0;
 const same = (label, actual, expected) => {
@@ -11,7 +11,6 @@ const same = (label, actual, expected) => {
 const button = (src, classes = []) => ({ querySelector: (selector) => (selector === 'img' && src !== undefined ? { getAttribute: (name) => (name === 'src' ? src : null) } : null), classList: { contains: (name) => classes.includes(name) } });
 const id = '00000000-0000-4000-8000-000000000001';
 
-same('the delay before the picture shows', HOVER_DELAY_MS, 350);
 same('the small picture becomes the normal one, same card, same face', largeAddress(button(`https://cards.scryfall.io/small/front/0/0/${id}.jpg`)), `https://cards.scryfall.io/normal/front/0/0/${id}.jpg`);
 same('the back face stays the back face', largeAddress(button(`https://cards.scryfall.io/small/back/0/0/${id}.jpg`)), `https://cards.scryfall.io/normal/back/0/0/${id}.jpg`);
 same('a card with no picture (a name only) has no larger picture', largeAddress(button(`https://cards.scryfall.io/small/front/0/0/${id}.jpg`, ['noimage'])), null);

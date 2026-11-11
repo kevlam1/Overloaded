@@ -1,6 +1,7 @@
-// The spotlight: the card a player pinged, shown large to everyone at the table (shared/ping.mjs). It stays until a player closes it for themselves or the next ping
-// replaces it. Everything shown came from another player's browser: it is put in as text and as a picture address built from a card id (shared/card-image.mjs),
-// never as markup. The picture is loaded only when a ping is shown, and falls back to the default printing and then to the name alone.
+// The card corner: a place on the table that shows one card large. It shows the card you have selected (it stays after you click away, until you select another), and the card a
+// player pinged (shared/ping.mjs), which stays until you select another card, another ping replaces it, or you close it. Everything shown came from this page or from another
+// player's browser: it is put in as text and as a picture address built from a card id (shared/card-image.mjs), never as markup. The picture is loaded only when a card is shown,
+// and falls back to the default printing and then to the name alone.
 import { imageUrl } from '../../shared/card-image.mjs';
 
 const make = (tag, className, text) => {
@@ -10,8 +11,11 @@ const make = (tag, className, text) => {
   return element;
 };
 
-// root: an empty element (hidden). Returns { show({ card, sentence, detail }), hide(), isOpen() }.
-export function createSpotlight(root, { onClose = () => {} } = {}) {
+// root: an empty element. Options: persistent (the corner is always there: with nothing to show it shows emptyText, instead of hiding), emptyText, onClose (called after the
+// player closes a ping). Returns { show({ card, sentence, detail, closable, key }), hide(), isOpen() }.
+//   closable: whether the Close button shows (a ping, yes; the selected card, no). key: if it is the same as the key of the card already shown, nothing changes (so a card
+//   that is drawn again by every refresh of the page does not load its picture again).
+export function createSpotlight(root, { onClose = () => {}, persistent = false, emptyText = '' } = {}) {
   const picture = make('img', 'spot-picture');
   picture.alt = '';
   picture.decoding = 'async';
@@ -26,15 +30,28 @@ export function createSpotlight(root, { onClose = () => {} } = {}) {
   close.setAttribute('aria-label', 'Close the pinged card');
   const text = make('div', 'spot-text');
   text.append(line, name, type, detail, close);
-  root.replaceChildren(picture, text);
+  const empty = make('p', 'spot-empty', emptyText);
+  root.replaceChildren(picture, text, empty);
   root.classList.add('spotlight');
-  root.hidden = true;
+  let lastKey = null;
 
-  const hide = () => { root.hidden = true; picture.removeAttribute('src'); };
+  const showEmpty = () => { root.classList.add('is-empty'); picture.hidden = true; text.hidden = true; empty.hidden = !emptyText; };
+  const hide = () => {
+    lastKey = null;
+    picture.removeAttribute('src');
+    if (persistent) { showEmpty(); return; }
+    root.hidden = true;
+  };
+  if (persistent) showEmpty(); else root.hidden = true;
   close.addEventListener('click', () => { hide(); onClose(); });
 
   return {
-    show({ card, sentence, detail: more = '' }) {
+    show({ card, sentence = '', detail: more = '', closable = true, key = null }) {
+      if (key !== null && key === lastKey) return;
+      lastKey = key;
+      root.classList.remove('is-empty');
+      text.hidden = false;
+      empty.hidden = true;
       const side = card.turned ? 'back' : 'front';
       const first = imageUrl(card.p ?? card.i, 'normal', side);
       picture.hidden = false;
@@ -47,18 +64,20 @@ export function createSpotlight(root, { onClose = () => {} } = {}) {
       };
       if (first) picture.src = first; else picture.hidden = true;
       line.textContent = sentence;
+      line.hidden = !sentence;
       name.textContent = card.n;
       type.textContent = card.t || '';
       type.hidden = !card.t;
       detail.textContent = more;
       detail.hidden = !more;
+      close.hidden = !closable;
       root.hidden = false;
-      // a short entrance (off under prefers-reduced-motion in the style sheet): remove and add the class again so a new ping replays it
+      // a short entrance (off under prefers-reduced-motion in the style sheet): remove and add the class again so a new card replays it
       root.classList.remove('enter');
       void root.offsetWidth;
       root.classList.add('enter');
     },
     hide,
-    isOpen: () => !root.hidden,
+    isOpen: () => (persistent ? !root.classList.contains('is-empty') : !root.hidden),
   };
 }

@@ -429,7 +429,8 @@ try {
   // Pinging a card (shared/ping.mjs): Alice shows one of her battlefield cards to the table. The record is one small write on HER branch; both pages show the spotlight and the card
   // glows on both screens; closing it is local; a refresh does not bring an old ping back; a card in the hand cannot be pinged. (Needs the rules published with the ping field.)
   {
-    const spot = (page) => page.eval(`(() => { const r = document.getElementById('spotlight'); return { hidden: r.hidden, name: r.querySelector('.spot-name')?.textContent ?? '', line: r.querySelector('.spot-line')?.textContent ?? '', src: r.querySelector('.spot-picture')?.getAttribute('src') ?? '' }; })()`);
+    const spot = (page) => // (the card corner is always there: with no ping and no selected card it is empty, which counts as hidden here)
+     page.eval(`(() => { const r = document.getElementById('spotlight'); return { hidden: r.hidden || r.classList.contains('is-empty'), name: r.querySelector('.spot-name')?.textContent ?? '', line: r.querySelector('.spot-line')?.textContent ?? '', src: r.querySelector('.spot-picture')?.getAttribute('src') ?? '' }; })()`);
     const battlefieldCard = (await rest('GET', pathOf('public/battlefield'), cleanup.bob.token)).json;
     const first = battlefieldCard ? Object.values(battlefieldCard)[0] : null;
     record('Alice has a card on the battlefield to ping', Boolean(first?.n && first?.u), JSON.stringify(first));
@@ -447,6 +448,15 @@ try {
     record('the pinged card glows in Alice\'s panel on Bob\'s screen, and on Alice\'s own screen too', Boolean(glowOnBob) && (await alice.eval(`document.querySelectorAll('#game .card.pinged').length`)) >= 1);
     await bob.eval(`document.querySelector('#spotlight .spot-close').click()`);
     record('Bob closes his spotlight; Alice\'s stays open (closing is local)', (await spot(bob)).hidden === true && (await spot(alice)).hidden === false);
+    // the card corner: a ping stays while the same card is selected, and selecting another card replaces it
+    const pingSrc = (await spot(alice)).src;
+    await alice.eval(`document.querySelector('#hand .card').click()`);
+    await sleep(300);
+    const afterSelect = await spot(alice);
+    record('on Alice\'s page, selecting another card (from her hand) replaces her ping in the corner with that card (the ping sentence is gone; both cards here happen to be an Island)', !afterSelect.hidden && afterSelect.line === '' && afterSelect.src.includes('/normal/'), JSON.stringify(afterSelect));
+    await alice.eval(`document.querySelector('#battlefield').click()`);
+    await sleep(200);
+    record('and clicking the empty battlefield deselects it but the corner keeps showing it (until another is selected)', (await alice.eval(`document.querySelectorAll('.card.selected').length`)) === 0 && (await spot(alice)).src === afterSelect.src);
 
     // the right-click menu path, a second ping of the same card (the number must differ so Bob shows it again)
     await sleep(900);

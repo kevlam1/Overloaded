@@ -1,12 +1,12 @@
-// A larger picture of any card on the table while the pointer rests on it (Kevin, 2026-11-06: on the one-screen layout the cards are small, so a card is read by
-// hovering it). It works for every card button on the page, yours or another player's, in play or in the hand, by asking the card's own small picture for its address
-// (Scryfall keeps the same card under /small/, /normal/ and /large/), so no card data is needed. It never takes the pointer, never shows on touch (a phone has no hover),
-// waits a moment so a pointer sweeping across the table shows nothing, and hides on a click, a menu, Escape or a scroll.
+// A larger picture of any card on the table while Alt is held and the pointer is on it (Kevin, 2026-11-10: the cards are small, so a card is read by holding Alt over it; the
+// selected card also stays in the card corner). It works for every card button on the page, yours or another player's, in play or in the hand, by asking the card's own small
+// picture for its address (Scryfall keeps the same card under /small/, /normal/ and /large/), so no card data is needed. It never takes the pointer, never shows on touch (a phone
+// has no pointer or Alt), appears at once and goes when Alt is let go or the pointer leaves the card, and hides on a click, a menu, Escape or a scroll (and stays hidden for that
+// card until Alt is let go or the pointer has left it).
 import { IMAGE_HOST } from '../../shared/card-image.mjs';
 
 const SMALL = `${IMAGE_HOST}/small/`;
 const NORMAL = `${IMAGE_HOST}/normal/`;
-export const HOVER_DELAY_MS = 350;
 const BOX_WIDTH = 272; // px, the picture is 17rem wide
 
 // The bigger picture's address for a card button, or null when the card shows no picture (a name only, or an address that is not one of Scryfall's).
@@ -29,7 +29,7 @@ export function placeBox(rect, { width = BOX_WIDTH, height, windowWidth, windowH
 }
 
 // Starts the preview for the whole page. Returns { stop(), box } (the box is the element, for tests).
-export function mountCardHover(doc = document, { delay = HOVER_DELAY_MS } = {}) {
+export function mountCardHover(doc = document) {
   const box = doc.createElement('div');
   box.id = 'card-hover';
   box.className = 'card-peek card-hover';
@@ -42,12 +42,12 @@ export function mountCardHover(doc = document, { delay = HOVER_DELAY_MS } = {}) 
   box.append(picture);
   doc.body.append(box);
 
-  let timer = null;
-  let pending = null; // the card button the pointer is on while the box waits to show
+  let altHeld = false;
+  let over = null; // the card button the pointer is on
   let current = null; // the card button the box is for
-  let suppressed = null; // after Escape or a click: not again for this card until the pointer has left it
+  let suppressed = null; // after Escape or a click: not again for this card until Alt is let go or the pointer has left it
 
-  const hide = () => { clearTimeout(timer); timer = null; box.hidden = true; picture.removeAttribute('src'); current = null; };
+  const hide = () => { box.hidden = true; picture.removeAttribute('src'); current = null; };
   const show = (button) => {
     const url = largeAddress(button);
     if (!url || !button.isConnected) return;
@@ -61,15 +61,18 @@ export function mountCardHover(doc = document, { delay = HOVER_DELAY_MS } = {}) 
     box.style.top = `${spot.top}px`;
     box.hidden = false;
   };
+  // The box is for the card under the pointer, and only while Alt is held.
+  const sync = () => {
+    if (!altHeld || !over || over === suppressed) { if (current) hide(); return; }
+    if (over !== current) { hide(); show(over); }
+  };
+  const setAlt = (value) => { if (altHeld === value) return; altHeld = value; if (!value) suppressed = null; sync(); };
 
   const onOver = (event) => {
     if (event.pointerType === 'touch' || event.pointerType === 'pen') return;
-    const button = event.target.closest?.('.card');
-    if (!button || button === current || button === pending || button === suppressed) return;
-    hide();
-    timer = setTimeout(() => show(button), delay);
-    current = null;
-    pending = button;
+    over = event.target.closest?.('.card') ?? null;
+    if (typeof event.altKey === 'boolean') altHeld = event.altKey;
+    sync();
   };
   const onOut = (event) => {
     const from = event.target.closest?.('.card');
@@ -77,19 +80,32 @@ export function mountCardHover(doc = document, { delay = HOVER_DELAY_MS } = {}) 
     const to = event.relatedTarget?.closest?.('.card');
     if (to === from) return; // moved between the parts of the same card
     if (suppressed === from) suppressed = null;
-    pending = null;
-    hide();
+    over = to ?? null;
+    sync();
   };
-  const onAway = () => { if (current || timer) { suppressed = current ?? pending; hide(); } };
-  const onKey = (event) => { if (event.key === 'Escape') onAway(); };
+  const onMove = (event) => { if (typeof event.altKey === 'boolean' && event.altKey !== altHeld) setAlt(event.altKey); };
+  const onAway = () => { if (current) { suppressed = current; hide(); } };
+  const onKeyDown = (event) => {
+    if (event.key === 'Alt') setAlt(true);
+    else if (event.key === 'Escape') onAway();
+  };
+  const onKeyUp = (event) => {
+    if (event.key !== 'Alt') return;
+    const wasShowing = Boolean(current);
+    setAlt(false);
+    if (wasShowing) event.preventDefault(); // some browsers move focus to their menu when Alt is let go
+  };
+  const onBlur = () => { altHeld = false; suppressed = null; hide(); };
 
   doc.addEventListener('pointerover', onOver);
   doc.addEventListener('pointerout', onOut);
+  doc.addEventListener('pointermove', onMove);
   doc.addEventListener('pointerdown', onAway, true);
   doc.addEventListener('contextmenu', onAway, true);
-  doc.addEventListener('keydown', onKey);
+  doc.addEventListener('keydown', onKeyDown);
+  doc.addEventListener('keyup', onKeyUp);
   doc.defaultView.addEventListener('scroll', onAway, true);
-  doc.defaultView.addEventListener('blur', hide);
+  doc.defaultView.addEventListener('blur', onBlur);
 
   return {
     box,
@@ -97,11 +113,13 @@ export function mountCardHover(doc = document, { delay = HOVER_DELAY_MS } = {}) 
       hide();
       doc.removeEventListener('pointerover', onOver);
       doc.removeEventListener('pointerout', onOut);
+      doc.removeEventListener('pointermove', onMove);
       doc.removeEventListener('pointerdown', onAway, true);
       doc.removeEventListener('contextmenu', onAway, true);
-      doc.removeEventListener('keydown', onKey);
+      doc.removeEventListener('keydown', onKeyDown);
+      doc.removeEventListener('keyup', onKeyUp);
       doc.defaultView.removeEventListener('scroll', onAway, true);
-      doc.defaultView.removeEventListener('blur', hide);
+      doc.defaultView.removeEventListener('blur', onBlur);
       box.remove();
     },
   };

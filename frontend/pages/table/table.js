@@ -145,6 +145,8 @@ const dealer = createDealer({
 function showBlocked(message, { link = true, retry = false } = {}) {
   $('game').hidden = true;
   document.body.classList.remove('playing');
+  dockPlayers(false);
+  clearCorner();
   $('blocked').hidden = false;
   $('blocked-message').textContent = message;
   $('blocked-link').hidden = !link;
@@ -197,6 +199,13 @@ function renderViewer() {
   });
 }
 
+// While a game shows, the list of players sits in the right column under the action buttons; otherwise it is in the page where it was (before the other players' panels).
+function dockPlayers(on) {
+  const section = $('players-section');
+  if (on) $('players-slot').append(section);
+  else $('opponents').before(section);
+}
+
 function renderSelected() {
   const found = selected ? findCard(selected) : null;
   if (!found) {
@@ -207,6 +216,8 @@ function renderSelected() {
   }
   const { card, zone } = found;
   const marks = marksSentence(card, printedOf(card, lookup));
+  // The corner shows the selected card (a ping in it is left alone while the same card stays selected: a new selection replaces it).
+  if (selected !== cornerUid || cornerMode === 'selected') showInCorner(card, marks, selected);
   // The details of the selected card are for a screen reader (this line is not drawn); the picture on hover is how they are seen, and everything you can do with the card is in its right-click menu.
   $('selected-line').textContent = `${card.n}${card.t ? `: ${card.t}` : ''}, in ${ZONE_WORDS[zone]}${card.turned && !card.tok ? ' (turned over)' : ''}${card.tapped ? ' (tapped)' : ''}.${marks ? ` ${marks}` : ''}`;
   if (zone !== 'battlefield') modifyOpen = false; // counters and the power/toughness change belong to a card on the battlefield
@@ -445,6 +456,8 @@ async function beginGame() {
   cardNodes.clear();
   $('game').hidden = false;
   document.body.classList.add('playing'); // the one-screen layout (src/style.css)
+  dockPlayers(true);
+  clearCorner();
   if (fresh) dealer.start(game.zones.hand.length); // a new hand is dealt one card at a time; a game put back after a refresh shows whole
   else render();
   sync();
@@ -458,6 +471,8 @@ function checkStart() {
   game = null;
   $('game').hidden = true;
   document.body.classList.remove('playing');
+  dockPlayers(false);
+  clearCorner();
   $('blocked').hidden = true;
   // The match is over (the host ended it): everyone goes back to the lobby to get ready for the next one.
   if (meta.status === 'lobby') location.assign(`/lobby/${tableCode}`);
@@ -542,7 +557,19 @@ async function renderOpponents() {
 // ---- pinging a card (shared/ping.mjs) ----
 // A ping is one record on the pinger's own public branch; every page shows a ping whose number differs from the last one it saw for that player. The first snapshot after the
 // page loads is only remembered, so an old ping does not come back after a refresh.
-const spotlight = createSpotlight($('spotlight'));
+const spotlight = createSpotlight($('spotlight'), { persistent: true, emptyText: 'Select a card to see it here.', onClose: () => bringBackSelectionToCorner() });
+// ---- the card corner (frontend/src/spotlight.js): the selected card stays there, after you click away, until you select another; a pinged card replaces it until you select another card, another ping comes or you close it ----
+let cornerUid = null; // the card whose picture the corner shows as the selection
+let cornerShown = null; // { card, marks } of the last selected card, so closing a ping brings it back
+let cornerMode = 'selected'; // 'selected', or 'ping' while a pinged card is showing
+function showInCorner(card, marks, uid) {
+  cornerUid = uid;
+  cornerMode = 'selected';
+  cornerShown = { card, marks };
+  spotlight.show({ card, detail: marks, closable: false, key: `${uid}:${card.turned ? 1 : 0}:${card.p ?? card.i}:${marks}` });
+}
+function clearCorner() { cornerUid = null; cornerShown = null; cornerMode = 'selected'; spotlight.hide(); }
+function bringBackSelectionToCorner() { cornerMode = 'selected'; if (cornerShown) spotlight.show({ card: cornerShown.card, detail: cornerShown.marks, closable: false }); }
 let pingSeen = null; // uid -> the number of the last ping seen; null until the first snapshot of the table's public branches (and its match number) has arrived
 let publicSeen = false;
 let lastPingKey = 0; // the number of my own last ping
@@ -560,7 +587,8 @@ function glowCard(ownerUid, cardUid) {
 function showPing({ uid, card }) {
   const member = members[uid];
   const sentence = pingSentence(typeof member?.name === 'string' ? member.name : 'A player', typeof member?.seat === 'string' ? member.seat : '', card);
-  spotlight.show({ card, sentence, detail: marksSentence(card, printedOf(card, lookup)) });
+  cornerMode = 'ping';
+  spotlight.show({ card, sentence, detail: marksSentence(card, printedOf(card, lookup)), closable: true });
   glowCard(uid, card.uid);
 }
 
@@ -740,7 +768,7 @@ document.addEventListener('click', (event) => {
   render();
 });
 
-mountCardHover(); // a larger picture of any card the pointer rests on (the cards are small on the one-screen layout)
+mountCardHover(); // a larger picture of any card the pointer is on while Alt is held (the cards are small on the one-screen layout)
 // ---- the battlefield grid: drag and drop, Auto-arrange and Alt+arrow keys (shared/board-grid.mjs, src/board-drag.js) ----
 // A card dropped on a cell of your battlefield: from the hand it is played there (a taken cell is refused); from the battlefield it moves there, or swaps places with the card that is there.
 function dropOnBoard({ uid, from, col, row, whole = false }) {

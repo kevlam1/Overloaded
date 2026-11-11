@@ -12,6 +12,7 @@ import { mountCommandZone } from '../../src/command-zone.js';
 import { taxAction } from '../../../shared/commander-zone.mjs';
 import { pileMenuItems, pileAction } from '../../../shared/pile-menu.mjs';
 import { mountCardHover } from '../../src/card-hover.js';
+import { createSpotlight } from '../../src/spotlight.js';
 import { mountBoardDrag } from '../../src/board-drag.js';
 import { stepFrom } from '../../../shared/board-grid.mjs';
 import { createDealer, SHUFFLE_PAUSE_MS } from '../../../shared/deal-sequence.mjs';
@@ -34,6 +35,20 @@ let deck = null;
 let lookup = null;
 let game = null;
 let selected = null; // the uid of the selected card
+const spotlight = createSpotlight($('spotlight'), { persistent: true, emptyText: 'Select a card to see it here.' });
+
+// ---- the card corner (frontend/src/spotlight.js): the selected card stays there, after you click away, until you select another ----
+let cornerUid = null; // the card whose picture the corner shows as the selection
+let cornerShown = null; // { card, marks } of the last selected card, so closing a ping brings it back
+let cornerMode = 'selected'; // 'selected', or 'ping' while a pinged card is showing
+function showInCorner(card, marks, uid) {
+  cornerUid = uid;
+  cornerMode = 'selected';
+  cornerShown = { card, marks };
+  spotlight.show({ card, detail: marks, closable: false, key: `${uid}:${card.turned ? 1 : 0}:${card.p ?? card.i}:${marks}` });
+}
+function clearCorner() { cornerUid = null; cornerShown = null; cornerMode = 'selected'; spotlight.hide(); }
+function bringBackSelectionToCorner() { cornerMode = 'selected'; if (cornerShown) spotlight.show({ card: cornerShown.card, detail: cornerShown.marks, closable: false }); }
 let modifyOpen = false; // the counters and power/toughness panel is shown (from Modify, in the card menu or the selected-card buttons)
 let viewing = null; // the pile being looked at: 'library', 'graveyard', 'exile' or 'sideboard'
 let viewTop = null; // when only the top few cards of the library are being looked at: how many
@@ -137,6 +152,7 @@ function renderSelected() {
   }
   const { card, zone } = found;
   const marks = marksSentence(card, printedOf(card, lookup));
+  showInCorner(card, marks, selected); // the corner shows the selected card, and keeps it after you click away until you select another
   // The details of the selected card are for a screen reader (this line is not drawn); the picture on hover is how they are seen, and everything you can do with the card is in its right-click menu.
   $('selected-line').textContent = `${card.n}${card.t ? `: ${card.t}` : ''}, in ${ZONE_WORDS[zone]}${card.turned && !card.tok ? ' (turned over)' : ''}${card.tapped ? ' (tapped)' : ''}.${marks ? ` ${marks}` : ''}`;
   if (zone !== 'battlefield') modifyOpen = false; // counters and the power/toughness change belong to a card on the battlefield
@@ -236,6 +252,7 @@ function deal({ pause = 0 } = {}) {
   cardNodes.clear();
   $('game').hidden = false;
   document.body.classList.add('playing', 'solo'); // the one-screen layout (src/style.css)
+  clearCorner();
   $('blocked').hidden = true;
   dealer.start(game.zones.hand.length, { pause }); // draws the table, and deals the hand one card at a time
   say(`Dealt ${plural(game.zones.hand.length, 'card', 'cards')}. ${game.zones.command.length ? `Your commander is in the command zone. Life is ${game.life}.` : `Life is ${game.life}.`}`);
@@ -276,6 +293,7 @@ function togglePile(zone) {
 function showBlocked(message, { link = true, retry = false } = {}) {
   $('game').hidden = true;
   document.body.classList.remove('playing', 'solo');
+  clearCorner();
   $('blocked').hidden = false;
   $('blocked-message').textContent = message;
   $('blocked-link').hidden = !link;
@@ -371,7 +389,7 @@ document.addEventListener('click', (event) => {
   render();
 });
 
-mountCardHover(); // a larger picture of any card the pointer rests on (the cards are small on the one-screen layout)
+mountCardHover(); // a larger picture of any card the pointer is on while Alt is held (the cards are small on the one-screen layout)
 // ---- the battlefield grid: drag and drop, Auto-arrange and Alt+arrow keys (shared/board-grid.mjs, src/board-drag.js) ----
 // A card dropped on a cell of your battlefield: from the hand it is played there (a taken cell is refused); from the battlefield it moves there, or swaps places with the card that is there.
 function dropOnBoard({ uid, from, col, row, whole = false }) {
