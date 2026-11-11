@@ -48,6 +48,7 @@ const suites = [
   { name: 'the right-click menu of a pile: shuffle, draw, mill, move all', cmd: node, args: ['scripts/test-pile-menu.mjs'] },
   { name: 'the command zone: commanders and the commander tax', cmd: node, args: ['scripts/test-commander-zone.mjs'] },
   { name: 'the deck view: type groups, commanders, sorting', cmd: node, args: ['scripts/test-deck-view.mjs'] },
+  { name: 'the hand: sorts, type order, fan layout, rearranging', cmd: node, args: ['scripts/test-hand.mjs'] },
   { name: 'the deck stats: curve, color demand, averages', cmd: node, args: ['scripts/test-deck-stats.mjs'] },
   { name: 'mana costs: reading the symbols', cmd: node, args: ['scripts/test-mana-cost.mjs'] },
   { name: 'the deck view: choosing the commander from a card', cmd: node, args: ['scripts/test-deck-commander.mjs'] },

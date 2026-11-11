@@ -179,6 +179,19 @@ export function moveCard(game, uid, to, { position, cell = null } = {}) {
   return { ...game, zones };
 }
 
+// Puts a card of the hand at another place in the hand (the player arranging their own hand). toIndex is where it ends up in the new order (0 is the leftmost), clamped to the hand.
+// Only the order changes; the same game comes back when the card is already there. Throws for a card that is not in the hand.
+export function reorderHand(game, uid, toIndex) {
+  const hand = game.zones.hand;
+  const from = hand.findIndex((card) => card.uid === uid);
+  if (from < 0) throw new Error('That card is not in your hand.');
+  const to = Math.max(0, Math.min(hand.length - 1, Number.isInteger(toIndex) ? toIndex : from));
+  if (to === from) return game;
+  const next = hand.filter((_, index) => index !== from);
+  next.splice(to, 0, hand[from]);
+  return { ...game, zones: { ...game.zones, hand: next } };
+}
+
 // Draws cards from the top of the library into the hand. Returns { game, drawn: [uid], short } where short is true if the
 // library ran out before n cards were drawn (the player decides what that means; casual play does not end the game).
 export function draw(game, count = 1) {
