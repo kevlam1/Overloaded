@@ -1025,3 +1025,8 @@ main.wide:has(.deck-app[data-screen="list"]) .screen-head { margin-top: -2.9rem;
 .footer-legal { max-width: 62rem; font-size: 0.75rem; line-height: 1.4; }
 .deck-app .deck-settings [hidden] { display: none; }
 .site-footer { max-width: none; margin: 2rem 0 0; padding: 0; } /* (the base footer rule is a narrow centered column; this one spans the page) */
+/* The footer sits at the bottom of the window even when the page is short; an empty message line takes no room. */
+body:has(> .site-footer) { min-height: 100vh; display: flex; flex-direction: column; }
+body:has(> .site-footer) > main { flex: 1 0 auto; width: 100%; box-sizing: border-box; }
+body:has(> .site-footer) > .site-footer { margin-top: 2rem; }
+.status:empty { min-height: 0; margin: 0; }

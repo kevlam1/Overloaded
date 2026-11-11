@@ -2931,6 +2931,19 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 143. The footer at the bottom of the window (2026-11-10)
+
+**What I asked for**
+- Kevin sent a screenshot of the lobby at 1875 by 957 with the footer floating in the middle of the window, and asked why it was that high.
+
+**What changed** (`frontend/src/style.css`)
+- On the pages with the new footer (lobby and deck), the page is a column at least as tall as the window and the content grows, so the footer sits at the bottom of the window when the page is short and after the content when it is long. An empty message line no longer takes room (it left a gap under the lobby heading).
+- **Why it happened:** I had only looked at the deck page, which is always long; the lobby is short, and nothing pushed the footer down. My mistake: I did not look at the lobby after changing the footer.
+
+**What I checked:** a screenshot of the lobby at 1875 by 957 (the footer ends exactly at the bottom of the window: bottom 957, window 957, no scroll); the lobby check (65), the deck page check (273), the solo check (430) and all 57 quick suites. Not checked: the footer on the lobby with a table open (a taller page) and light mode.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-10, entry 132) Claude kept committing and pushing to the development branch in turns where I had only asked for a change, after I had asked for it once; my rule is to do it only when asked.
 - (2026-11-10, entry 122) Claude's first deck page started a library it could not read at the box to paste into, hiding the message about it; the old check noticed.
