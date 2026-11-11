@@ -21,6 +21,9 @@ import { makePrintingLoader } from './printings.js';
 import { sampleById } from '../../shared/sample-decks.mjs';
 import { setupCardPeek } from './card-peek.js';
 import { renderGroups, mountViewToggle, VIEWS } from './deck-groups.js';
+import { guessBracket, gameChangersIn, bracketNote } from '../../shared/deck-bracket.mjs';
+import { deckFace, colorsAsCost, tintGradient, COLOR_NAMES } from '../../shared/deck-colors.mjs';
+import { manaNode } from './mana-pips.js';
 import { isValidCode } from '../../shared/table-code.mjs';
 
 const store = makeSafeStore();
@@ -33,6 +36,8 @@ let root = null;
 const $ = (id) => root.querySelector(`#${id}`);
 
 let index = null; // the card list, ready to match against
+let cardsByName = null; // the card list by name, for the colors of a saved deck (null until it has loaded)
+let bracketGuessNow = null; // the bracket guessed for the deck on screen from its Game Changers (null: none, a Standard deck)
 let text = ''; // the text the preview on screen is for
 let choices = {}; // names the player settled (an ambiguous name, a "did you mean")
 let preview = null;
@@ -177,10 +182,10 @@ function build() {
   head.append(field('deck-name', 'Deck name', nameInput, 'field deck-name-field'), saveBox);
 
   const formatSelect = select([['commander', 'Commander'], ['standard', 'Standard']]);
-  const bracketSelect = select([['', 'Not set'], ['1', '1'], ['2', '2'], ['3', '3'], ['4', '4'], ['5', '5']]);
+  const bracketSelect = select([['', 'Auto'], ['1', '1'], ['2', '2'], ['3', '3'], ['4', '4'], ['5', '5']]);
   const bracketField = field('deck-bracket', 'Bracket', bracketSelect);
   bracketField.id = 'bracket-field';
-  bracketField.title = 'How strong the deck is, for the table to see next to your commander.';
+  bracketField.title = 'How strong the deck is, for the table to see next to your commander. Auto guesses it from the Game Changers in the deck; pick a number to say it yourself.';
   const commanderBox = make('div', 'commander-box');
   commanderBox.id = 'commander-box';
   commanderBox.append(field('commander-1', 'Commander', make('select')), field('commander-2', 'Partner', make('select')));
@@ -188,6 +193,8 @@ function build() {
   settings.append(field('deck-format', 'Format', formatSelect), bracketField, commanderBox);
   const commanderNote = make('p', 'hint');
   commanderNote.id = 'commander-note';
+  const bracketNoteElement = make('p', 'hint');
+  bracketNoteElement.id = 'bracket-note';
 
   const summaryRow = make('div', 'deck-summary');
   const summary = make('p');
@@ -214,7 +221,7 @@ function build() {
   const sections = make('div', 'deck-sections');
   sections.id = 'sections';
   const header = make('div', 'deck-header');
-  header.append(head, settings, commanderNote);
+  header.append(head, settings, commanderNote, bracketNoteElement);
   deck.append(deckHeading, bar, header, summaryRow, notices, problems, sections);
 
   root.replaceChildren(status, saved, paste, deck);
@@ -242,6 +249,8 @@ async function loadCards() {
   try {
     const cards = await loadCardList();
     index = buildCardIndex(cards);
+    cardsByName = new Map(cards.map((card) => [card.n, card]));
+    renderSaved(); // the saved decks now get their colors
     $('list-state').textContent = '';
     $('list-state').title = `${cards.length.toLocaleString('en-US')} cards in the card list. Cards newer than the list show as not found; the list is refreshed every week.`;
     $('check').disabled = false;
@@ -314,6 +323,7 @@ function renderPreview() {
   notices.hidden = preview.notices.length === 0;
   renderProblems();
   renderCommander();
+  renderBracket();
   renderSections();
   renderSaveBox();
 }
@@ -431,9 +441,20 @@ const CERTAINTY_NOTES = {
   first: 'No commander is marked in your list, so the first card was picked.',
 };
 
+// The bracket: "Auto" is the guess from the Game Changers (shared/deck-bracket.mjs), and says what it would be; picking a number says it yourself. A Standard deck has no bracket.
+function renderBracket() {
+  if (!preview) return;
+  const found = gameChangersIn(preview.lines);
+  bracketGuessNow = isCommander() ? guessBracket(found.count) : null;
+  $('deck-bracket').options[0].textContent = bracketGuessNow === null ? 'Auto' : `Auto (${bracketGuessNow})`;
+  $('bracket-note').textContent = isCommander() ? bracketNote(found) : '';
+  $('bracket-note').hidden = !isCommander();
+}
+
 function setFormat(value) {
   $('deck-format').value = value;
   formatTouched = true; // the player (or a loaded deck) chose it, so it no longer follows the guess
+  renderBracket();
   renderCommander();
   renderSections();
 }
@@ -510,15 +531,54 @@ function commit(next, message) {
   return true;
 }
 
-// One saved deck as two lines: its name, and what it is (format, bracket, size, commander, when it was saved).
-function deckMeta(entry) {
+// One saved deck as a card of CSS: tinted with its colors (a Commander deck's commanders' colors; two commanders split it diagonally, the first on the upper left), with the deck's name, its commanders, its
+// colors as the mana symbols, its bracket (and "guess" when it was guessed) and its size. The colors come from the card list, so they appear as soon as it has loaded.
+function deckCard(entry) {
   const { deck } = entry;
-  const commanders = deck.cards.filter((card) => card.section === 'commander').map((card) => card.n);
-  const parts = [FORMAT_TITLES[entry.format] + (entry.bracket ? `, bracket ${entry.bracket}` : ''), plural(totalCards(deck), 'card', 'cards')];
-  if (commanders.length) parts.push(commanders.join(' and '));
-  parts.push(`saved ${new Date(deck.savedAt).toLocaleDateString()}`);
-  if (deck.skipped) parts.push(`${plural(deck.skipped, 'line', 'lines')} left out (not matched)`);
-  return parts.join(' · ');
+  const face = deckFace(entry, cardsByName);
+  const faceElement = make('div', 'deck-face');
+  faceElement.dataset.colors = face.colors;
+  if (face.split) {
+    faceElement.dataset.split = '1';
+    face.commanders.forEach((commander, index) => {
+      const half = make('span', index === 0 ? 'face-half face-a' : 'face-half face-b');
+      half.style.setProperty('--tint', tintGradient(commander.colors));
+      faceElement.append(half);
+    });
+  } else {
+    const whole = make('span', 'face-half face-whole');
+    whole.style.setProperty('--tint', tintGradient(face.colors));
+    faceElement.append(whole);
+  }
+  const text = make('span', 'saved-text');
+  const top = make('span', 'face-top');
+  const name = make('strong', 'saved-name', deck.name);
+  if (solo && entry.id === library.selected) name.append(make('span', 'solo-tag', ' solo deck'));
+  top.append(name, make('span', 'face-format', FORMAT_TITLES[entry.format]));
+  text.append(top);
+  const commanders = face.commanders.length ? face.commanders.map((commander) => commander.name) : [];
+  if (commanders.length) {
+    const line = make('span', 'face-commanders');
+    commanders.forEach((commander, index) => line.append(make('span', 'face-commander', commander), ...(index < commanders.length - 1 ? [make('span', 'face-and', ' & ')] : [])));
+    text.append(line);
+  }
+  const bottom = make('span', 'face-bottom');
+  const pips = face.colors ? manaNode(colorsAsCost(face.colors)) : make('span', 'cost');
+  pips.classList.add('face-colors');
+  if (!face.colors) pips.textContent = cardsByName ? 'Colorless' : '';
+  bottom.append(pips);
+  if (entry.bracket) {
+    const bracket = make('span', 'face-bracket', `Bracket ${entry.bracket}`);
+    if (entry.bracketGuess === true) { bracket.classList.add('guessed'); bracket.title = 'Guessed from the Game Changers in the deck. Open the deck to choose one.'; bracket.append(make('span', 'face-guess', ' (guess)')); }
+    bottom.append(bracket);
+  }
+  const facts = [plural(totalCards(deck), 'card', 'cards'), `saved ${new Date(deck.savedAt).toLocaleDateString()}`];
+  if (deck.skipped) facts.push(`${plural(deck.skipped, 'line', 'lines')} left out (not matched)`);
+  bottom.append(make('span', 'face-facts', facts.join(' \u00b7 ')));
+  text.append(bottom);
+  faceElement.append(text);
+  if (face.colors) faceElement.setAttribute('aria-label', `Colors: ${face.colors.split('').map((color) => COLOR_NAMES[color]).join(', ')}`);
+  return faceElement;
 }
 
 function renderSaved() {
@@ -531,10 +591,6 @@ function renderSaved() {
   $('saved-list').replaceChildren(...library.decks.map((entry) => {
     const item = make('li', 'saved-deck');
     item.dataset.deckId = entry.id;
-    const text = make('span', 'saved-text');
-    const name = make('strong', 'saved-name', entry.deck.name);
-    if (solo && entry.id === library.selected) name.append(make('span', 'solo-tag', ' solo deck'));
-    text.append(name, make('span', 'saved-meta', deckMeta(entry)));
     const actions = make('span', 'saved-actions');
     const action = (kind, label, className) => {
       const element = button('', label, className);
@@ -543,7 +599,7 @@ function renderSaved() {
       return element;
     };
     actions.append(action('load', 'Open'), ...(solo ? [action('play', 'Play solo', 'secondary')] : []), action('delete', 'Delete', 'secondary'));
-    item.append(text, actions);
+    item.append(deckCard(entry), actions);
     return item;
   }));
 }
@@ -558,7 +614,7 @@ async function loadSaved(id) {
   picks = [deck.commander[0] ?? '', deck.commander[1] ?? ''];
   picksTouched = true;
   $('deck-name').value = deck.name;
-  $('deck-bracket').value = entry.bracket ? String(entry.bracket) : '';
+  $('deck-bracket').value = entry.bracket && entry.bracketGuess !== true ? String(entry.bracket) : ''; // a guessed bracket comes back as Auto, guessed again from today's list
   setFormat(entry.format);
 }
 
@@ -567,8 +623,10 @@ function save() {
   const ids = commanderIds();
   const result = buildSavedDeck(preview, { name: $('deck-name').value, text, commanderIds: ids, allowMissing: $('allow-missing').checked });
   if (!result.ok) { say(result.error, true); return; }
-  const bracket = isCommander() && $('deck-bracket').value ? Number($('deck-bracket').value) : null; // brackets are a Commander idea
-  const added = addDeck(library, result.deck, { format: $('deck-format').value, bracket });
+  // Brackets are a Commander idea. A number the player picked is saved as chosen; with Auto the guess is saved, marked as a guess, so it can be guessed again.
+  const chosen = isCommander() && $('deck-bracket').value ? Number($('deck-bracket').value) : null;
+  const bracket = chosen ?? (isCommander() ? bracketGuessNow : null);
+  const added = addDeck(library, result.deck, { format: $('deck-format').value, bracket, bracketGuess: chosen === null && bracket !== null });
   if (!added.ok) { say(added.error, true); return; }
   commit(added.library, `${added.replaced ? 'Replaced' : 'Saved'} "${result.deck.name}": ${plural(totalCards(result.deck), 'card', 'cards')}.`);
 }
@@ -638,7 +696,7 @@ export function mountDeckImporter({ root: container, sampleId, onLibraryChange: 
     const box = event.target.closest('[data-ref]').getBoundingClientRect();
     openLineMenu(line, fromKeyboard ? box.left + 24 : event.clientX, fromKeyboard ? box.top + box.height / 2 : event.clientY, event.target.closest('[data-ref]'));
   });
-  $('deck-format').addEventListener('change', () => { formatTouched = true; renderCommander(); renderSections(); });
+  $('deck-format').addEventListener('change', () => { formatTouched = true; renderCommander(); renderBracket(); renderSections(); });
   // The buttons of each saved deck, found by delegation so the list can be drawn again without wiring anything.
   $('saved-list').addEventListener('click', (event) => {
     const clicked = event.target instanceof Element ? event.target.closest('button[data-action]') : null;

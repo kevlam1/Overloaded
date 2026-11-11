@@ -26,6 +26,23 @@ const id = (n) => `d${String(n).padStart(10, '0')}`;
 const libraryOf = (...decks) => { let lib = emptyLibrary(); const nextId = counter(); for (const deck of decks) lib = addDeck(lib, deck, { newId: nextId }).library; return lib; };
 const names = (lib) => lib.decks.map((entry) => entry.deck.name);
 
+// ---- a guessed bracket ----
+{
+  const lib = emptyLibrary();
+  const guess = addDeck(lib, deckOf('G', { commander: true }), { format: 'commander', bracket: 3, bracketGuess: true, newId: counter() });
+  same('a guessed bracket is saved with the flag', guess.library.decks[0], { id: id(1), format: 'commander', bracket: 3, bracketGuess: true, deck: deckOf('G', { commander: true }) });
+  same('a chosen bracket has no flag', addDeck(lib, deckOf('C', { commander: true }), { format: 'commander', bracket: 3, newId: counter() }).library.decks[0].bracketGuess, undefined);
+  same('only a bracket can be a guess (the error says so, and nothing is saved)', addDeck(lib, deckOf('X', { commander: true }), { format: 'commander', bracketGuess: true, newId: counter() }), { ok: false, error: 'Only a bracket can be a guess.' });
+  same('a guess that is not exactly true is refused', [1, 'true', {}].map((g) => addDeck(lib, deckOf('Y', { commander: true }), { format: 'commander', bracket: 2, bracketGuess: g, newId: counter() }).ok), [false, false, false]);
+  const back = readLibrary(serializeLibrary(guess.library), null);
+  same('the flag survives storage', back.library.decks[0].bracketGuess, true);
+  const damaged = JSON.parse(serializeLibrary(guess.library));
+  damaged.decks[0].bracketGuess = 'yes';
+  const noBracket = JSON.parse(serializeLibrary(guess.library));
+  delete noBracket.decks[0].bracket;
+  same('a damaged flag, or a flag with no bracket, drops that deck and counts it', [readLibrary(JSON.stringify(damaged), null).library.decks.length, readLibrary(JSON.stringify(damaged), null).skipped, readLibrary(JSON.stringify(noBracket), null).library.decks.length], [0, 1, 0]);
+}
+
 // ---- constants ----
 check('the keys, the limit and the formats are what the notes say', LIBRARY_KEY === 'overloaded.decks' && LEGACY_KEY === 'overloaded.deck' && LIBRARY_VERSION === 1 && MAX_DECKS === 20 && FORMATS.join() === 'commander,standard');
 same('every format has a title', FORMAT_TITLES, { commander: 'Commander', standard: 'Standard' });

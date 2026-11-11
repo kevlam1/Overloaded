@@ -1,7 +1,7 @@
 // Several saved decks, kept in this browser. Plain JavaScript with no browser or network code, so Node tests can load it.
 // A saved deck keeps the shape and the strict reader of shared/deck-preview.mjs (readSavedDeck); this only wraps up to
 // MAX_DECKS of them: each with an id, the format it is for and, if the player chose one, a bracket (1 to 5, the same values the
-// table accepts; an entry with no `bracket` has none), and which one is selected (the deck the solo table plays and,
+// table accepts; an entry with no `bracket` has none; `bracketGuess: true` says the bracket was guessed from the deck's Game Changers and not chosen, so it can be guessed again), and which one is selected (the deck the solo table plays and,
 // later, the lobby offers). Saving a deck with the same name replaces that deck. The old single deck (LEGACY_KEY) is read once
 // as the first deck of a library that does not exist yet; once the library exists the old key is never read again, so a deck
 // that was deleted cannot come back.
@@ -51,9 +51,10 @@ export function readLibrary(raw, legacyRaw = null, newId = newDeckId) {
     for (const entry of parsed.decks) {
       const deck = entry && typeof entry === 'object' ? readSavedDeck(JSON.stringify(entry.deck)) : null;
       const bracketOk = entry?.bracket === undefined || BRACKETS.includes(entry.bracket);
-      if (!deck || typeof entry.id !== 'string' || !ID.test(entry.id) || ids.has(entry.id) || !FORMATS.includes(entry.format) || !bracketOk) { skipped++; continue; }
+      const guessOk = entry?.bracketGuess === undefined || (entry.bracketGuess === true && entry.bracket !== undefined);
+      if (!deck || typeof entry.id !== 'string' || !ID.test(entry.id) || ids.has(entry.id) || !FORMATS.includes(entry.format) || !bracketOk || !guessOk) { skipped++; continue; }
       ids.add(entry.id);
-      decks.push({ id: entry.id, format: entry.format, ...(entry.bracket === undefined ? {} : { bracket: entry.bracket }), deck });
+      decks.push({ id: entry.id, format: entry.format, ...(entry.bracket === undefined ? {} : { bracket: entry.bracket }), ...(entry.bracketGuess === true ? { bracketGuess: true } : {}), deck });
     }
     const selected = typeof parsed.selected === 'string' && ids.has(parsed.selected) ? parsed.selected : (decks[0]?.id ?? null);
     return { library: { version: LIBRARY_VERSION, selected, decks }, source: 'library', skipped };
@@ -85,14 +86,15 @@ function freshId(library, newId) {
 // Saves a deck (a saved deck as built by shared/deck-preview.mjs). A deck with the same name (capitals do not matter) is
 // replaced where it is; otherwise the deck is added at the end, unless MAX_DECKS are saved. The saved deck becomes the selected
 // one. Returns { ok: true, library, id, replaced } or { ok: false, error } in words for people. Never changes `library`.
-export function addDeck(library, deck, { format = formatOf(deck), bracket = null, newId = newDeckId } = {}) {
+export function addDeck(library, deck, { format = formatOf(deck), bracket = null, bracketGuess = false, newId = newDeckId } = {}) {
   if (!FORMATS.includes(format)) return { ok: false, error: 'Choose Commander or Standard for this deck.' };
   if (bracket !== null && !BRACKETS.includes(bracket)) return { ok: false, error: 'A bracket is a whole number from 1 to 5.' };
+  if (bracketGuess !== false && !(bracketGuess === true && bracket !== null)) return { ok: false, error: 'Only a bracket can be a guess.' };
   const name = deck.name.toLowerCase();
   const at = library.decks.findIndex((entry) => entry.deck.name.toLowerCase() === name);
   if (at < 0 && library.decks.length >= MAX_DECKS) return { ok: false, error: `You can save up to ${MAX_DECKS} decks. Delete one first.` };
   const id = at >= 0 ? library.decks[at].id : freshId(library, newId);
-  const entry = { id, format, ...(bracket === null ? {} : { bracket }), deck };
+  const entry = { id, format, ...(bracket === null ? {} : { bracket }), ...(bracketGuess ? { bracketGuess: true } : {}), deck };
   const decks = at >= 0 ? library.decks.map((existing, index) => (index === at ? entry : existing)) : [...library.decks, entry];
   return { ok: true, library: { ...library, selected: id, decks }, id, replaced: at >= 0 };
 }

@@ -51,10 +51,20 @@ export function hasBackFace(record) {
   return record.layout !== 'reversible_card' && Array.isArray(faces) && faces.length === 2 && !('image_uris' in record) && faces.every((face) => face && typeof face.image_uris === 'object' && face.image_uris !== null);
 }
 
+// ci and gc (list format 9), from Scryfall's own fields (checked on the Oracle file on 2026-11-10: every one of 39,287 records has `game_changer`, 53 of them true, and `color_identity`, a list of W U B R G):
+// ci is the card's color identity as letters in the order W U B R G ("WU"), only for a card that has one; gc is 1 for a card on Wizards' Game Changers list (it is what the bracket guess counts).
+const IDENTITY_ORDER = ['W', 'U', 'B', 'R', 'G'];
+export function colorIdentity(record) {
+  return Array.isArray(record.color_identity) ? IDENTITY_ORDER.filter((color) => record.color_identity.includes(color)).join('') : '';
+}
+
 export function toEntry(record, alternateNames = [], alternateIds = []) {
   const entry = { n: record.name, t: record.type_line, m: record.mana_cost ?? record.card_faces?.[0]?.mana_cost ?? '', k: record.keywords ?? [], i: record.id };
   const stats = printedStats(record);
   if (stats) entry.pt = stats;
+  const identity = colorIdentity(record);
+  if (identity) entry.ci = identity;
+  if (record.game_changer === true) entry.gc = 1;
   if (hasBackFace(record)) {
     entry.b = 1;
     const back = statsText(record.card_faces[1].power, record.card_faces[1].toughness);
@@ -231,6 +241,9 @@ export function validateList(list, { minCards = MIN_CARDS, previousCount = null,
     // `b` and `bpt` (format 5): a back face to turn over, and its power and toughness (only with `b`). A list in format 4 has neither.
     if ('b' in e && e.b !== 1) { badEntries++; continue; }
     if ('bpt' in e && !(e.b === 1 && typeof e.bpt === 'string' && PRINTED_STATS.test(e.bpt))) { badEntries++; continue; }
+    // `ci` and `gc` (format 9): the color identity and the Game Changers mark. A list in format 8 has neither, and is still fine.
+    if ('ci' in e && !(typeof e.ci === 'string' && /^W?U?B?R?G?$/.test(e.ci) && e.ci.length > 0)) { badEntries++; continue; }
+    if ('gc' in e && e.gc !== 1) { badEntries++; continue; }
     // `md` (format 6): a modal card, always together with `b`. A list in format 5 has none, and is still fine.
     if ('md' in e && !(e.md === 1 && e.b === 1)) { badEntries++; continue; }
     if ('f' in e && !(Array.isArray(e.f) && e.f.length > 0 && e.f.every((title) => typeof title === 'string' && title.length > 0))) { badEntries++; continue; }

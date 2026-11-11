@@ -2751,6 +2751,25 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 133. Saved decks as cards, and a bracket guess from the Game Changers (2026-11-10)
+
+**What I asked for**
+- How are decks displayed today, and maybe CSS cards of the commanders with the deck name, commander name(s), bracket and colors, a dual-commander card split diagonally. Also bracket guesses, purely from the Game Changer count, unless the player reselects the bracket.
+
+**What it was before:** each saved deck was a plain bordered row: its name, a line of text (format, bracket, size, commander names, date) and Open, Play solo and Delete; the lobby shows the decks only as lines in a drop-down.
+
+**What changed** (`shared/deck-bracket.mjs`, `shared/deck-colors.mjs`, `shared/deck-library.mjs`, `shared/lobby-deck.mjs`, `scripts/lib/card-list.mjs`, `frontend/src/deck-importer.js`, `style.css`)
+- **Data (list format 9):** the card list now carries `ci` (a card's color identity as letters in W U B R G order) and `gc` (1 for a Game Changer), straight from Scryfall's own `color_identity` and `game_changer` fields. I printed them first: all 39,287 Oracle records have both fields; 53 are Game Changers (on the Nov 5 file); 31,078 of the 34,192 cards in our list have a color identity. The list grew from 1.38 to 1.42 MB compressed. The next Vercel build rebuilds the list once for the new format (the 100 MB download, as for every format change).
+- **The cards:** a saved deck is a CSS card tinted with its colors, a soft gradient across them (one tint for one color, grey for none), with the deck's name, "Commander" or "Standard", the commander name(s), the colors as the mana symbols, the bracket as a dark badge (with "(guess)" when it was guessed) and the size and date. **Two commanders split the card diagonally** (the first commander's colors on the upper left, the second's on the lower right, a thin line along the split, the colors of both together in the symbols). A Standard deck has no commanders and takes the colors of its cards. Colors are the card list's color identity, which includes colors in a card's text, not only its cost. They appear as soon as the card list has loaded (about a second after the page).
+- **The bracket guess:** only the number of Game Changers in the main deck and the commander (not the sideboard, companion or maybeboard): none is bracket 2, one to three is bracket 3, four or more is bracket 4. The Bracket choice now starts at "Auto (3)" (it says what the guess is) with a note under it naming them ("2 Game Changers: Cyclonic Rift, Rhystic Study"); picking a number says it yourself, and picking Auto again goes back to guessing. A guess is saved with the bracket and a `bracketGuess` flag, and the deck page guesses it again from today's list when the deck is opened; the lobby sends the flag, so seats say "bracket 3 (guess)" and the deck picker too. A Standard deck has no bracket.
+- **What the guess cannot see:** it is only the lowest bracket the Game Changer count allows, and it reads 0 as 2 and 4 or more as 4. Bracket 1 (no Game Changers and a theme), bracket 5 (cEDH) and the other limits (mass land destruction, chained extra turns, tutors) depend on things the list does not know, and on the table's intent. A deck with 0 Game Changers can be 1, 2 or 3; a deck with many can be 4 or 5.
+
+**What I checked**
+- New suites: `test-deck-bracket` (9), `test-deck-colors` (11); `test-card-list` is 240 (6 new for `ci` and `gc`), `test-deck-library` 114, `test-lobby-deck` 43. The deck page check is 288 (13 new: Auto (2), (3) and (4), the note, sideboard cards not counted, Standard, saving on Auto stores the guess with the flag, choosing stores it as chosen, opening shows the chosen one or Auto, the cards with their colors and brackets, the diagonal split with its two triangles and line); the live lobby check (170) and the live room check (26) pass. A screenshot of four decks, one of them with two commanders.
+- **Not checked:** a real Vercel build of list format 9, light mode and phone width for the cards, the cards in the lobby (it still shows a drop-down).
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-10, entry 132) Claude kept committing and pushing to the development branch in turns where I had only asked for a change, after I had asked for it once; my rule is to do it only when asked.
 - (2026-11-10, entry 122) Claude's first deck page started a library it could not read at the box to paste into, hiding the message about it; the old check noticed.

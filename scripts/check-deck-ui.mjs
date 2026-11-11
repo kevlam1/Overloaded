@@ -182,7 +182,7 @@ try {
   const stored = await selectedSaved();
   check('the browser holds the saved deck, with its text and the cards that were matched', stored.name === 'Problems deck' && stored.cards.length === 3 && stored.skipped === 1 && stored.text.includes('Totally Fake Card'));
   await showList();
-  check('the saved deck is on the list screen: its name, format, size and the line that was left out', !(await $hidden('saved')) && (await $hidden('preview')) && /Problems deck/.test(await $text('saved-list')) && /(Standard|Commander) \u00b7 3 cards/.test(await $text('saved-list')) && /1 line left out/.test(await $text('saved-list')), await $text('saved-list'));
+  check('the saved deck is on the list screen: its name, format, size and the line that was left out', !(await $hidden('saved')) && (await $hidden('preview')) && /Problems deck/.test(await $text('saved-list')) && /(Standard|Commander)/.test(await $text('saved-list')) && /3 cards/.test(await $text('saved-list')) && /1 line left out/.test(await $text('saved-list')), await $text('saved-list'));
   await load();
   check('after a reload the saved deck is still shown', !(await $hidden('saved')) && /Problems deck/.test(await $text('saved-list')));
   await pressLoad();
@@ -331,7 +331,7 @@ try {
   const bracketHidden = () => ev(`document.getElementById('bracket-field').hidden`);
   await paste('Commander\n1 Sol Ring\n\n1 Island'); await press('check');
   await setField('deck-format', 'commander'); // (the same text as the loaded Standard deck keeps that deck's format)
-  check('a Commander deck shows the bracket choice, starting at "Not set" with the options 1 to 5', !(await bracketHidden()) && (await ev(`document.getElementById('deck-bracket').value`)) === '' && (await ev(`Array.from(document.getElementById('deck-bracket').options).map((o) => o.value).join()`)) === ',1,2,3,4,5');
+  check('a Commander deck shows the bracket choice, starting at Auto with the options 1 to 5', !(await bracketHidden()) && (await ev(`document.getElementById('deck-bracket').value`)) === '' && (await ev(`Array.from(document.getElementById('deck-bracket').options).map((o) => o.value).join()`)) === ',1,2,3,4,5');
   await setField('deck-format', 'standard');
   check('choosing Standard hides the bracket choice', await bracketHidden());
   await setField('deck-format', 'commander');
@@ -341,17 +341,17 @@ try {
   const deckE = lib.decks.find((d) => d.deck.name === 'Deck E');
   check('a Commander deck saved with a bracket keeps it next to the format', deckE?.format === 'commander' && deckE.bracket === 3, JSON.stringify(deckE && [deckE.format, deckE.bracket]));
   list = await rows();
-  check('the saved deck row shows the bracket', /Deck E.*Commander, bracket 3/.test(list.find((r) => /Deck E/.test(r.text)).text), list.map((r) => r.text).join(' | '));
-  check('a deck saved with no bracket shows none in its row and stores none', !/bracket/.test(list.find((r) => /Deck C/.test(r.text)).text) && !('bracket' in lib.decks.find((d) => d.deck.name === 'Deck C')));
+  check('the saved deck row shows the bracket', /Deck E.*Commander.*Bracket 3/.test(list.find((r) => /Deck E/.test(r.text)).text), list.map((r) => r.text).join(' | '));
+  check('a Commander deck saved on Auto stores the guess (no Game Changers: bracket 2) marked as a guess, and its row says so', /Bracket 2 \(guess\)/.test(list.find((r) => /Deck C/.test(r.text)).text) && lib.decks.find((d) => d.deck.name === 'Deck C').bracket === 2 && lib.decks.find((d) => d.deck.name === 'Deck C').bracketGuess === true);
   await setField('deck-bracket', '5'); await setField('deck-format', 'standard'); await setField('deck-name', 'Deck F'); await press('save');
   lib = await library();
-  check('a bracket picked before switching to Standard is not saved with the Standard deck', lib.decks.find((d) => d.deck.name === 'Deck F')?.format === 'standard' && !('bracket' in lib.decks.find((d) => d.deck.name === 'Deck F')));
+  check('a bracket picked before switching to Standard is not saved with the Standard deck', lib.decks.find((d) => d.deck.name === 'Deck F')?.format === 'standard' && !('bracket' in lib.decks.find((d) => d.deck.name === 'Deck F')) && !('bracketGuess' in lib.decks.find((d) => d.deck.name === 'Deck F')));
   await setField('deck-format', 'commander'); await setField('deck-bracket', '2'); await setField('deck-name', 'Deck E'); await press('save');
   lib = await library();
   check('saving under the same name replaces the bracket', lib.decks.find((d) => d.deck.name === 'Deck E').bracket === 2 && lib.decks.filter((d) => d.deck.name === 'Deck E').length === 1);
   await setField('deck-bracket', ''); await press('save');
   lib = await library();
-  check('saving again with "Not set" takes the bracket away', !('bracket' in lib.decks.find((d) => d.deck.name === 'Deck E')));
+  check('saving again with Auto puts the guess back, marked as a guess', lib.decks.find((d) => d.deck.name === 'Deck E').bracket === 2 && lib.decks.find((d) => d.deck.name === 'Deck E').bracketGuess === true);
   await setField('deck-bracket', '4'); await press('save');
   list = await rows();
   const eRow = list.findIndex((r) => /Deck E/.test(r.text));
@@ -900,6 +900,50 @@ try {
   const tileCursor = await ev(`getComputedStyle(document.querySelector('#sections .deck-tile[data-card-id]')).cursor`);
   await ev(`document.querySelector('[data-view="text"]').click()`);
   check('the cursor over a card (a line or a picture) is not a magnifying glass', ![cursors.row, cursors.name, tileCursor].some((c) => /zoom/.test(c)), JSON.stringify({ cursors, tileCursor }));
+
+  // ---- the bracket guess from the Game Changers, and the saved decks as cards ----
+  await load(); await deleteAllSaved(); await load();
+  const bracketFacts = () => ev(`({ first: document.getElementById('deck-bracket').options[0].textContent, value: document.getElementById('deck-bracket').value, note: document.getElementById('bracket-note').textContent, noteHidden: document.getElementById('bracket-note').hidden })`);
+  await paste('Commander\n1 Krenko, Mob Boss\n\n1 Sol Ring\n10 Mountain'); await press('check');
+  let bf = await bracketFacts();
+  check('a Commander deck with no Game Changers guesses bracket 2: the choice reads "Auto (2)" and the note says "No Game Changers"', bf.first === 'Auto (2)' && bf.value === '' && bf.note === 'No Game Changers' && !bf.noteHidden, JSON.stringify(bf));
+  await paste('Commander\n1 Krenko, Mob Boss\n\n1 Rhystic Study\n1 Cyclonic Rift\n1 Sol Ring\n10 Mountain'); await press('check');
+  bf = await bracketFacts();
+  check('two Game Changers is bracket 3, and the note names them', bf.first === 'Auto (3)' && bf.note === '2 Game Changers: Cyclonic Rift, Rhystic Study', JSON.stringify(bf));
+  await paste('Commander\n1 Krenko, Mob Boss\n\n1 Rhystic Study\n1 Cyclonic Rift\n1 Mana Vault\n1 Demonic Tutor\n10 Mountain'); await press('check');
+  bf = await bracketFacts();
+  check('four is bracket 4', bf.first === 'Auto (4)' && /^4 Game Changers:/.test(bf.note), JSON.stringify(bf));
+  await paste('Commander\n1 Krenko, Mob Boss\n\n1 Rhystic Study\n10 Mountain\n\nSIDEBOARD:\n1 Demonic Tutor\n1 Mana Vault\n1 Gamble\n1 Cyclonic Rift'); await press('check');
+  bf = await bracketFacts();
+  check('Game Changers in the sideboard do not count', bf.first === 'Auto (3)' && bf.note === '1 Game Changer: Rhystic Study', JSON.stringify(bf));
+  await setField('deck-format', 'standard');
+  bf = await bracketFacts();
+  check('a Standard deck has no bracket and no note (the choice just says Auto)', bf.first === 'Auto' && bf.noteHidden && (await ev(`document.getElementById('bracket-field').hidden`)), JSON.stringify(bf));
+  await setField('deck-format', 'commander');
+  await setField('deck-name', 'Guessy'); await press('save');
+  let lib2 = await library();
+  check('saving on Auto stores the guess with the guess flag', lib2.decks[0].bracket === 3 && lib2.decks[0].bracketGuess === true, JSON.stringify(lib2.decks[0]));
+  await setField('deck-bracket', '4'); await press('save');
+  lib2 = await library();
+  check('choosing a number stores it as chosen (no guess flag)', lib2.decks[0].bracket === 4 && !('bracketGuess' in lib2.decks[0]), JSON.stringify(lib2.decks[0]));
+  await showList(); await clickSaved('load', 0); await settled();
+  check('opening a deck with a chosen bracket shows that bracket, not Auto', (await ev(`document.getElementById('deck-bracket').value`)) === '4');
+  await setField('deck-bracket', ''); await press('save');
+  await showList(); await clickSaved('load', 0); await settled();
+  check('reselecting Auto saves the guess again, and opening that deck shows Auto (guessed again from the list)', (await ev(`document.getElementById('deck-bracket').value`)) === '' && (await ev(`document.getElementById('deck-bracket').options[0].textContent`)) === 'Auto (3)' && (await library()).decks[0].bracketGuess === true);
+  // the cards
+  await deleteAllSaved();
+  const saveDeck = async (text, name) => { await ev(`document.getElementById('new-deck').click()`); await paste(text); await press('check'); await setField('deck-name', name); await press('save'); await showList(); };
+  await saveDeck('Commander\n1 Tymna the Weaver\nCommander\n1 Thrasios, Triton Hero\n\n1 Rhystic Study\n1 Cyclonic Rift\n1 Sol Ring\n10 Island', 'Two Partners');
+  await saveDeck('Commander\n1 Krenko, Mob Boss\n\n1 Sol Ring\n10 Mountain', 'One Commander');
+  await saveDeck('4 Lightning Bolt\n4 Counterspell\n20 Island', 'Plain UR');
+  const cards = await ev(`[...document.querySelectorAll('#saved-list .deck-face')].map((f) => ({ name: f.querySelector('.saved-name').textContent, colors: f.dataset.colors, split: f.dataset.split ?? '', halves: f.querySelectorAll('.face-half').length, tints: [...f.querySelectorAll('.face-half')].map((h) => h.style.getPropertyValue('--tint')), commanders: [...f.querySelectorAll('.face-commander')].map((c) => c.textContent), pips: f.querySelectorAll('.face-colors img, .face-colors .pip').length, bracket: f.querySelector('.face-bracket')?.textContent ?? '', format: f.querySelector('.face-format').textContent, label: f.getAttribute('aria-label') ?? '' }))`);
+  check('each saved deck is a card: its name, format, colors as symbols and (for Commander) its bracket with "guess"', cards.length === 3 && cards.every((c) => c.name && c.format) && cards[0].bracket === 'Bracket 3 (guess)' && cards[1].bracket === 'Bracket 2 (guess)' && cards[2].bracket === '' && cards[1].colors === 'R' && cards[1].pips === 1 && cards[2].colors === 'UR' && cards[2].pips === 2 && cards[2].commanders.length === 0 && cards[2].format === 'Standard', JSON.stringify(cards));
+  check('two commanders: the card is split, the first commander\'s colors on the upper left and the second\'s on the lower right, both names shown, the colors the two together', cards[0].split === '1' && cards[0].halves === 2 && cards[0].tints[0] !== cards[0].tints[1] && cards[0].commanders.length === 2 && cards[0].colors.length === 4 && cards[0].pips === 4 && /Colors: /.test(cards[0].label), JSON.stringify(cards[0]));
+  const geometry = await ev(`(() => { const face = document.querySelector('#saved-list .deck-face[data-split="1"]'); const a = getComputedStyle(face.querySelector('.face-a')).clipPath; const b = getComputedStyle(face.querySelector('.face-b')).clipPath; return { a, b, line: getComputedStyle(face, '::after').backgroundImage.includes('to bottom right') || getComputedStyle(face, '::after').backgroundImage.includes('linear-gradient') }; })()`);
+  check('the split is a diagonal from the upper right to the lower left (two triangles), with a thin line along it', /polygon\(0(px)? 0(px)?, 100% 0(px)?, 0(px)? 100%\)/.test(geometry.a) && /polygon\(100% 0(px)?, 100% 100%, 0(px)? 100%\)/.test(geometry.b) && geometry.line, JSON.stringify(geometry));
+  check('one commander is not split: one tint over the whole card', cards[1].split === '' && cards[1].halves === 1);
+  await deleteAllSaved();
 
   // ---- limits and odd input ----
   await paste('201 Forest'); await press('check');

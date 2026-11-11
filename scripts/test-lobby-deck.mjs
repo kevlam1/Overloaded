@@ -21,8 +21,16 @@ const entry = (name, format, commanders, bracket) => {
   return r.library.decks[0];
 };
 
+// a bracket the deck page guessed is sent as a guess
+const guessed = (bracketGuess, bracket = 3) => { const r = addDeck(emptyLibrary(), deckOf('G', ['Krenko, Mob Boss']), { format: 'commander', bracket, bracketGuess, newId }); if (!r.ok) fail('building a guessed entry', r.error); return r.library.decks[0]; };
+same('the deck picker says when a bracket is a guess', [deckChoiceLabel(guessed(true)), deckChoiceLabel(guessed(false))], ['G (Krenko, Mob Boss, bracket 3 (guess))', 'G (Krenko, Mob Boss, bracket 3)']);
+same('a guessed bracket is sent with bracketGuess true', deckFieldsOf(guessed(true)), { commander: 'Krenko, Mob Boss', bracket: 3, bracketGuess: true });
+same('...and a chosen one with false', deckFieldsOf(guessed(false)).bracketGuess, false);
+same('a guess with no bracket is never sent as one', deckFieldsOf({ ...entry('H', 'commander', ['Krenko, Mob Boss']), bracketGuess: true }), { commander: 'Krenko, Mob Boss', bracket: null, bracketGuess: false });
+same('a Standard deck never sends a guess', deckFieldsOf({ ...entry('S', 'standard', []), bracket: 3, bracketGuess: true }), { commander: '', bracket: null, bracketGuess: false });
+
 // ---- deckFieldsOf ----
-same('a Commander deck sends its commander and bracket, never as a guess', deckFieldsOf(entry('A', 'commander', ['Krenko, Mob Boss'], 3)), { commander: 'Krenko, Mob Boss', bracket: 3, bracketGuess: false });
+same('a Commander deck sends its commander and a bracket the player chose, not as a guess', deckFieldsOf(entry('A', 'commander', ['Krenko, Mob Boss'], 3)), { commander: 'Krenko, Mob Boss', bracket: 3, bracketGuess: false });
 same('two commanders are joined with " & "', deckFieldsOf(entry('B', 'commander', ['Tymna the Weaver', 'Thrasios, Triton Hero'])).commander, 'Tymna the Weaver & Thrasios, Triton Hero');
 same('a Commander deck with no bracket sends none', deckFieldsOf(entry('C', 'commander', ['Krenko, Mob Boss'])).bracket, null);
 same('a Standard deck sends nothing about a commander or bracket', deckFieldsOf(entry('D', 'standard', [])), { commander: '', bracket: null, bracketGuess: false });

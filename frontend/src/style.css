@@ -808,10 +808,9 @@ main.wide:has(.deck-app[data-screen="deck"]) { max-width: 120rem; }
 @media (hover: none) { .row-menu { opacity: 1; } }
 .deck-tile .row-menu { position: absolute; top: 0.3rem; right: 0.3rem; background: rgba(0, 0, 0, 0.65); color: #fff; }
 /* the saved decks as cards */
-.saved-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(22rem, 1fr)); gap: 0.75rem; }
-.saved-deck { flex-direction: column; align-items: stretch; gap: 0.75rem; padding: 0.9rem 1rem; border: 1px solid var(--line); border-radius: 0.75rem; background: var(--card); }
-.saved-deck:last-child { border: 1px solid var(--line); }
-.saved-deck .saved-text { flex: 1 1 auto; }
+.saved-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(21rem, 1fr)); gap: 1rem; }
+.saved-deck { flex-direction: column; align-items: stretch; gap: 0.6rem; padding: 0; border: 0; }
+.saved-deck:last-child { border: 0; }
 .saved-deck .saved-actions { justify-content: flex-start; }
 .deck-app .screen-head { justify-content: flex-end; }
 
@@ -855,3 +854,22 @@ main.wide:has(.deck-app[data-screen="deck"]) { max-width: 120rem; }
 .deck-app .deck-sort { margin: 0; color: var(--muted); font-size: 0.85rem; font-weight: 400; }
 .deck-app .deck-controls select { width: auto; min-height: 2.25rem; padding-top: 0.25rem; padding-bottom: 0.25rem; }
 .deck-app .sort-direction { min-width: 2.25rem; min-height: 2.25rem; padding: 0; font-size: 1.1rem; line-height: 1; font-weight: 400; }
+
+/* A saved deck as a card made of CSS: tinted with its colors, split diagonally for two commanders (the first on the upper left). The tint is a custom property the page sets from the deck's colors. */
+.deck-face { position: relative; display: flex; min-height: 9.5rem; overflow: hidden; border: 1px solid rgba(0, 0, 0, 0.35); border-radius: 1rem; background: #cdc9c6; color: #17171b; box-shadow: 0 0.2rem 0.7rem rgba(0, 0, 0, 0.3); }
+.deck-face .face-half { position: absolute; inset: 0; background: var(--tint); }
+.deck-face .face-a { clip-path: polygon(0 0, 100% 0, 0 100%); }
+.deck-face .face-b { clip-path: polygon(100% 0, 100% 100%, 0 100%); }
+.deck-face[data-split="1"]::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to bottom right, transparent calc(50% - 1px), rgba(0, 0, 0, 0.4) calc(50% - 1px), rgba(0, 0, 0, 0.4) calc(50% + 1px), transparent calc(50% + 1px)); pointer-events: none; }
+.deck-face .saved-text { position: relative; z-index: 1; display: flex; flex-direction: column; justify-content: space-between; gap: 0.5rem; width: 100%; padding: 0.8rem 1rem; }
+.deck-face .face-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.75rem; }
+.deck-face .saved-name { font-size: 1.1rem; line-height: 1.2; overflow-wrap: anywhere; }
+.deck-face .solo-tag { margin-left: 0.4rem; border-color: #17171b; color: #17171b; }
+.deck-face .face-format { flex: none; padding: 0 0.5rem; border: 1px solid rgba(0, 0, 0, 0.45); border-radius: 0.8rem; font-size: 0.7rem; font-weight: 600; line-height: 1.3rem; }
+.deck-face .face-commanders { display: flex; flex-wrap: wrap; font-size: 0.85rem; font-weight: 600; }
+.deck-face .face-and { white-space: pre; }
+.deck-face .face-bottom { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem 0.7rem; font-size: 0.78rem; }
+.deck-face .face-colors { margin-left: 0; color: #17171b; font-weight: 600; }
+.deck-face .face-bracket { padding: 0 0.5rem; border-radius: 0.8rem; background: rgba(0, 0, 0, 0.72); color: #fff; font-weight: 700; line-height: 1.3rem; }
+.deck-face .face-guess { font-weight: 400; opacity: 0.85; }
+.deck-face .face-facts { flex: 1 1 auto; text-align: right; opacity: 0.85; }

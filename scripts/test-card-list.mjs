@@ -5,7 +5,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
-import { NOT_IN_DECKS, TOKENISH, MIN_CARDS, MIN_PRINTINGS, MIN_PRINTING_SETS, oracleIdOf, isDeckCandidate, hasBackFace, toEntry, PrintingSummary, buildList, serializeList, serializePrintings, validateList, validatePrintings, countPrintings, readJsonLines, buildFromFiles } from './lib/card-list.mjs';
+import { NOT_IN_DECKS, TOKENISH, MIN_CARDS, MIN_PRINTINGS, MIN_PRINTING_SETS, oracleIdOf, isDeckCandidate, hasBackFace, toEntry, colorIdentity, PrintingSummary, buildList, serializeList, serializePrintings, validateList, validatePrintings, countPrintings, readJsonLines, buildFromFiles } from './lib/card-list.mjs';
 import { printingValue } from '../shared/printings.mjs';
 
 let checks = 0;
@@ -365,6 +365,18 @@ try {
   check('the same printings in the reverse order give identical bytes', serializePrintings(reversedBuild.printingFiles) === serializePrintings(files) && serializeList(reversedBuild.list) === serializeList(withPrintings.list));
 } finally {
   rmSync(dir, { recursive: true, force: true });
+}
+
+// ---- list format 9: the color identity (ci) and the Game Changers mark (gc), from Scryfall's own fields ----
+{
+  const record = (extra) => ({ name: 'X', type_line: 'Creature', mana_cost: '{1}', keywords: [], id: '00000000-0000-4000-8000-000000000001', ...extra });
+  same('the identity is in the order W U B R G whatever order Scryfall lists it in', [colorIdentity(record({ color_identity: ['G', 'W', 'B'] })), colorIdentity(record({ color_identity: ['R', 'U'] })), colorIdentity(record({ color_identity: ['W', 'U', 'B', 'R', 'G'] }))], ['WBG', 'UR', 'WUBRG']);
+  same('no identity, a missing one and a damaged one give nothing, and unknown letters are ignored', [colorIdentity(record({ color_identity: [] })), colorIdentity(record({})), colorIdentity(record({ color_identity: 'WU' })), colorIdentity(record({ color_identity: ['X', 'G'] }))], ['', '', '', 'G']);
+  same('a card with an identity has ci, a colorless card has none', [toEntry(record({ color_identity: ['U', 'W'] })).ci, 'ci' in toEntry(record({ color_identity: [] })), 'ci' in toEntry(record({}))], ['WU', false, false]);
+  same('a Game Changer has gc 1, any other card has no gc (false, missing and not-exactly-true all count as no)', [toEntry(record({ game_changer: true })).gc, 'gc' in toEntry(record({ game_changer: false })), 'gc' in toEntry(record({})), 'gc' in toEntry(record({ game_changer: 'true' }))], [1, false, false, false]);
+  const withKeys = (extra) => { const list = Array.from({ length: 3 }, (_, n) => ({ n: 'Card ' + n, t: 'Creature', m: '', k: [], i: '00000000-0000-4000-8000-00000000000' + n })); Object.assign(list[1], extra); return validateList(list, { minCards: 3, mustHave: [] }); };
+  same('good ci and gc pass the build checks', [withKeys({ ci: 'WUBRG', gc: 1 }), withKeys({ ci: 'G' })], [[], []]);
+  check('a damaged ci or gc (out of order, empty, not a letter, text, 2) is refused', ['GW', '', 'X', 'wu', 5].every((ci) => withKeys({ ci }).length > 0) && withKeys({ gc: 2 }).length > 0 && withKeys({ gc: true }).length > 0);
 }
 
 console.log(`All ${checks} card list checks passed.`);

@@ -6,12 +6,13 @@ import { commanderText, BRACKETS } from './deck-fields.mjs';
 import { decksOfFormat, selectedEntry } from './deck-library.mjs';
 
 // The fields setDeck sends for a saved deck entry ({ id, format, bracket?, deck }): the commander names of a Commander deck
-// (a Standard deck has none, and no bracket: brackets are a Commander idea). The player picked the bracket, so it is never
-// marked as a guess here.
+// (a Standard deck has none, and no bracket: brackets are a Commander idea). A bracket the player did not choose but the deck
+// page guessed from the Game Changers is marked as a guess, so the table can say so.
 export function deckFieldsOf(entry) {
   if (entry.format !== 'commander') return { commander: '', bracket: null, bracketGuess: false };
   const names = entry.deck.cards.filter((card) => card.section === 'commander').map((card) => card.n);
-  return { commander: commanderText(names), bracket: entry.bracket ?? null, bracketGuess: false };
+  const bracket = entry.bracket ?? null;
+  return { commander: commanderText(names), bracket, bracketGuess: bracket !== null && entry.bracketGuess === true };
 }
 
 // The deck the lobby offers first: the one selected in the library if it is for this table's format, otherwise the first
@@ -25,7 +26,7 @@ export function defaultDeckFor(library, format) {
 // One line for the picker: the deck's name and, for Commander, its commander and bracket.
 export function deckChoiceLabel(entry) {
   const fields = deckFieldsOf(entry);
-  const details = [fields.commander, fields.bracket ? `bracket ${fields.bracket}` : ''].filter(Boolean).join(', ');
+  const details = [fields.commander, fields.bracket ? `bracket ${fields.bracket}${fields.bracketGuess ? ' (guess)' : ''}` : ''].filter(Boolean).join(', ');
   return details ? `${entry.deck.name} (${details})` : entry.deck.name;
 }
 
