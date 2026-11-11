@@ -1,5 +1,5 @@
 // Tests for shared/deck-view.mjs: which type group a card is in, and how a deck's lines are grouped and ordered.
-import { categoryOf, groupDeck, CATEGORY_ORDER, GROUP_TITLES, manaValue, colorOrder, SORTS, SORT_TITLES, DIRECTIONS, directionWords } from '../shared/deck-view.mjs';
+import { categoryOf, groupDeck, CATEGORY_ORDER, GROUP_TITLES, manaValue, colorOrder, SORTS, SORT_TITLES, DIRECTIONS, directionWords, GROUPINGS, GROUPING_TITLES } from '../shared/deck-view.mjs';
 
 let checks = 0;
 const fail = (label, detail) => { console.log(`FAILED CHECK: ${label}: ${detail}`); process.exit(1); };
@@ -68,7 +68,7 @@ const deck = [
 }
 
 // ---- sorting inside a group ----
-same('the sorts and their titles', [SORTS, SORTS.map((key) => SORT_TITLES[key])], [['name', 'value', 'color'], ['Name', 'Mana value', 'Color']]);
+same('the sorts and their titles', [SORTS, SORTS.map((key) => SORT_TITLES[key])], [['name', 'value', 'color'], ['Name', 'Mana cost', 'Color']]);
 same('mana value: numbers count, one for each colored, colorless, snow, hybrid and Phyrexian symbol, X is nothing, {2/W} is 2', [manaValue('{2}{G}{G}'), manaValue('{R}'), manaValue(''), manaValue(undefined), manaValue('{X}{R}{R}'), manaValue('{W/U}{W/U}'), manaValue('{2/W}{2/U}'), manaValue('{1}{G/P}'), manaValue('{C}{S}'), manaValue('{0}'), manaValue('{10}')], [4, 1, 0, 0, 2, 2, 4, 2, 2, 0, 10]);
 same('a card with two costs is counted by its first', [manaValue('{1}{R} // {3}{W}{W}'), manaValue(' // {3}')], [2, 3]);
 same('color order: white, blue, black, red, green, more than one color, colorless', [colorOrder('{W}')[0], colorOrder('{2}{U}')[0], colorOrder('{B}{B}')[0], colorOrder('{1}{R}')[0], colorOrder('{G}')[0], colorOrder('{R}{W}')[0], colorOrder('{3}')[0], colorOrder('')[0]], [0, 1, 2, 3, 4, 5, 6, 6]);
@@ -89,5 +89,16 @@ same('high to low: the dearest first, the name still settling ties from A to Z',
 same('G to W: colorless and the two-color card first, then green back to white (a tie keeps name order)', reversed('color'), ['Sol Ring', 'Boros Charm', 'Giant Growth', 'Fireball', 'Lightning Bolt', 'Dark Ritual', 'Counterspell', 'Swords to Plowshares']);
 same('ascending is the default and an unknown direction is ascending', [groupDeck(spells, { sort: 'value', direction: 'up' })[0].lines.map((l) => l.name), groupDeck(spells, { sort: 'value' })[0].lines.map((l) => l.name)], [names('value'), names('value')]);
 same('every sort keeps every card', SORTS.map((sort) => groupDeck(spells, { sort }).reduce((n, g) => n + g.count, 0)), [8, 8, 8]);
+
+// ---- grouping by color and by mana value ----
+const g = (name, t, m, qty = 1) => ({ key: 'g' + name, section: 'main', qty, status: 'matched', name, typed: name, card: { i: 'id-' + name, n: name, t, m } });
+const mixed = [g('Forest', 'Basic Land ' + DASH + ' Forest', '', 10), g('Bolt', 'Instant', '{R}'), g('Cancel', 'Instant', '{1}{U}{U}'), g('Charm', 'Instant', '{R}{W}'), g('Sol Ring', 'Artifact', '{1}'), g('Zero', 'Artifact', ''), g('Big', 'Creature ' + DASH + ' Dragon', '{8}{R}{R}'), g('Tux', 'Creature', '{4}'), g('Ritual', 'Instant', '{B}', 2)];
+same('the groupings and their titles', [GROUPINGS, GROUPINGS.map((key) => GROUPING_TITLES[key])], [['type', 'color', 'value'], ['Type', 'Color', 'Mana value']]);
+same('grouped by color: white, blue, black, red, green, multicolor, colorless, with lands last; empty groups left out', groupDeck(mixed, { grouping: 'color' }).map((x) => [x.key, x.title, x.count]), [['color-U', 'Blue', 1], ['color-B', 'Black', 2], ['color-R', 'Red', 2], ['color-multi', 'Multicolor', 1], ['color-none', 'Colorless', 3], ['land', 'Lands', 10]]);
+same('grouped by mana value: one group for each value, seven and more together, lands last', groupDeck(mixed, { grouping: 'value' }).map((x) => [x.key, x.title, x.count]), [['value-0', 'Mana value 0', 1], ['value-1', 'Mana value 1', 4], ['value-2', 'Mana value 2', 1], ['value-3', 'Mana value 3', 1], ['value-4', 'Mana value 4', 1], ['value-7', 'Mana value 7+', 1], ['land', 'Lands', 10]]);
+same('type grouping is the default and an unknown grouping is by type', [groupDeck(mixed).map((x) => x.key), groupDeck(mixed, { grouping: 'nonsense' }).map((x) => x.key)], [['creature', 'instant', 'artifact', 'land'], ['creature', 'instant', 'artifact', 'land']]);
+same('the commander, sideboard and the like stay as groups whatever the grouping', groupDeck([...mixed, { ...g('Side', 'Instant', '{R}'), section: 'sideboard' }], { grouping: 'color', commanderIds: ['id-Bolt'] }).map((x) => x.key), ['commander', 'color-U', 'color-B', 'color-R', 'color-multi', 'color-none', 'land', 'sideboard']);
+same('every grouping keeps every card', GROUPINGS.map((grouping) => groupDeck(mixed, { grouping }).reduce((n, x) => n + x.count, 0)), [19, 19, 19]);
+same('the sort still orders cards inside a color group', groupDeck([g('B', 'Instant', '{R}{R}'), g('A', 'Instant', '{R}')], { grouping: 'color', sort: 'value', direction: 'desc' })[0].lines.map((l) => l.name), ['B', 'A']);
 
 console.log(`All ${checks} deck view checks passed.`);

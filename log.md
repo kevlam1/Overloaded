@@ -2785,6 +2785,29 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 135. The deck page, third pass: cards, a card display for the stacks, grouping, and facts below the deck (2026-11-10)
+
+**What I asked for**
+- Remove "(guess)" from the deck cards, watch for five colors wrapping text, reorganize the card text, and the "..." looks wonky.
+- Stacks view: a card must not jump to the front on hover; make the stacks narrower and put an area on the left that shows the card under the pointer. A click keeps a card there; hovering others updates it; blank space goes back to the last clicked card; no highlight on the selected card; before any click, show the commander.
+- Reword the sort tooltips and say ascending or descending together with the arrow; add grouping (type, color, mana value); call the sort "mana cost".
+- Make the top of the deck page less awkward, and put information below the deck, using the reference pictures (no prices).
+
+**What changed** (`shared/deck-view.mjs`, `shared/deck-stats.mjs`, `frontend/src/deck-importer.js`, `deck-groups.js`, `stack-preview.js`, `deck-stats.js`, `style.css`)
+- **Deck cards:** no "(guess)" in the words (the tooltip on the bracket still says it was guessed). The format moved to the bottom row ("Commander · 100 cards"), the date is gone, the name has the top row to itself, and the colors, bracket and facts never break in the middle (they wrap as whole pieces, so five colors fit). The "..." is a drawn three-dot icon in a round button, because the text ellipsis sat low in its box.
+- **Stacks:** a card no longer comes to the front on hover or focus. A 20 rem card display sits on the left (it stays in view while scrolling); it shows the card under the pointer, a click keeps a card there, blank space or leaving the stacks returns to the clicked card, and before any click it shows the commander (else the first card). Nothing is highlighted. The floating picture is off in this view. The display asks for its picture only while the stacks view is showing, so the other views cost nothing extra.
+- **Sort and group:** "Mana value" sort is now "Mana cost". The order button reads "↑ Ascending" or "↓ Descending", and its tooltip says for example "Ascending ↑ (Low to high). Press for descending." A new "Group by" choice: Type (as before), Color (white, blue, black, red, green, multicolor, colorless) or Mana value (0 to 7+). Lands are always their own last group, and the commander, sideboard and the rest stay where they were. Both choices are remembered.
+- **The header:** one compact block: name, format, bracket, commander and partner on shared rows (they wrap as the window narrows), Save to the right, then a strip of facts (cards, lands, average mana value without lands, colors).
+- **Below the deck ("About this deck"):** a mana curve (permanents and instants/sorceries stacked, columns 0 to 7+), color requirements (the colored mana symbols in costs, a hybrid symbol split evenly, generic not counted), and card types with the average and median mana value. All of it is worked out from the card list's costs and types in `shared/deck-stats.mjs`. I left out what the reference pictures show that we cannot know: where mana comes from (the list has no rules text), combos, prices, and legality checks.
+
+**What I checked**
+- New suite `test-deck-stats` (23 checks); `test-deck-view` is 79 (7 new for grouping); the deck page check is 303 (10 new: grouping, the facts strip, the curve, the color requirements, the card types; the stack checks now say a card does not come to the front, shows in the display, goes back to the commander, and stays after a click); lobby page check 65; the live room check 26; all 57 quick suites pass. Screenshots at 1920 wide with the real pictures of the stacks view, the information below it, and the saved cards.
+- **Not checked:** light mode, phone width (the stacks display just stacks above the cards under 800 px), a keyboard walk through the stacks, the lobby (still a drop-down, and its picker still says "(guess)").
+
+**My mistakes this round:** a shell heredoc turned my new browser checks into broken JavaScript (a real newline inside a string), so I wrote them again with the editing tool. Four expectations in my own new tests were wrong arithmetic (a card count, a spell count, an average, "Instants (7)"); each was my error, not the code's. The first version of the stacks display asked for its picture even when another view was showing, which a check caught.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-10, entry 132) Claude kept committing and pushing to the development branch in turns where I had only asked for a change, after I had asked for it once; my rule is to do it only when asked.
 - (2026-11-10, entry 122) Claude's first deck page started a library it could not read at the box to paste into, hiding the message about it; the old check noticed.

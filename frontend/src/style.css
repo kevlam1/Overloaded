@@ -838,13 +838,13 @@ main.wide:has(.deck-app[data-screen="deck"]) { max-width: 120rem; }
 
 /* The stacks view: each group is a column of overlapping cards, each one showing only its top strip (the name) and the last one in full; the card under the pointer comes to the front. */
 .deck-app .deck-sections[data-view="stacks"] { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 1.75rem 1.25rem; align-items: start; }
-@media (max-width: 1100px) { .deck-app .deck-sections[data-view="stacks"] { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+@media (max-width: 1500px) { .deck-app .deck-sections[data-view="stacks"] { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
 @media (max-width: 800px) { .deck-app .deck-sections[data-view="stacks"] { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 @media (max-width: 520px) { .deck-app .deck-sections[data-view="stacks"] { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 .deck-stack { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; container-type: inline-size; }
 .deck-stack .deck-tile { position: relative; }
 .deck-stack .deck-tile + .deck-tile { margin-top: calc(15cqw - 139.34cqw); } /* a card is 139.34% as high as it is wide: pull each one up over the one before, leaving a strip 15% of its width high (the name, with room to spare) */
-.deck-stack .deck-tile:hover, .deck-stack .deck-tile:focus-within { z-index: 3; }
+.deck-stack .deck-tile { cursor: pointer; } /* a card does not come to the front: the card display beside the stacks shows it */
 .deck-stack .tile-picture { box-shadow: 0 -1px 4px rgba(0, 0, 0, 0.45); }
 .deck-stack .tile-qty { top: 0.25rem; right: 1.9rem; bottom: auto; }
 .deck-stack .row-menu { top: 0.1rem; right: 0.15rem; width: 1.5rem; height: 1.5rem; }
@@ -885,3 +885,81 @@ main.wide:has(.deck-app[data-screen="deck"]) { max-width: 120rem; }
 .saved-deck:hover .deck-menu-button, .saved-deck:focus-within .deck-menu-button, .deck-menu-button[aria-expanded="true"] { opacity: 1; }
 .deck-menu-button:hover { background: rgba(0, 0, 0, 0.85); }
 @media (hover: none) { .deck-menu-button { opacity: 1; } }
+
+/* ---- the deck page, second pass ---- */
+/* The saved deck cards: the name on top (clear of the "..."), the commanders, then a bottom row whose parts never break in the middle (the colors, the bracket, the format and size). */
+.deck-face .face-top { padding-right: 2.6rem; }
+.deck-face .face-bottom { flex-wrap: wrap; gap: 0.35rem 0.6rem; }
+.deck-face .face-colors, .deck-face .face-bracket, .deck-face .face-facts { flex: none; white-space: nowrap; }
+.deck-face .face-colors { display: inline-flex; flex-wrap: nowrap; gap: 0.15rem; }
+.deck-face .face-facts { margin-left: auto; text-align: right; }
+.deck-menu-button { display: grid; place-items: center; top: 0.6rem; right: 0.6rem; width: 1.9rem; height: 1.9rem; }
+.deck-menu-button svg { display: block; }
+
+/* The deck's header: one compact block. Name, format, bracket, commanders and Save share rows and wrap as the window narrows; the facts sit under them. */
+.deck-app .deck-header { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.4rem 0.75rem; padding: 0.7rem 0.9rem; }
+.deck-app .deck-head, .deck-app .deck-settings, .deck-app .commander-box { display: contents; }
+.deck-app .deck-header .field { margin: 0; flex: 0 0 auto; }
+.deck-app .deck-header .deck-name-field { flex: 1 1 14rem; max-width: 24rem; }
+.deck-app .deck-header label { font-size: 0.75rem; color: var(--muted); font-weight: 600; }
+.deck-app .deck-header input, .deck-app .deck-header select { min-height: 2.25rem; padding-top: 0.2rem; padding-bottom: 0.2rem; }
+.deck-app .deck-name-field input { font-size: 1rem; }
+.deck-app .deck-settings select, .deck-app .commander-box select { width: 100%; min-width: 0; }
+.deck-app .deck-settings .field:nth-child(1), .deck-app .deck-settings .field:nth-child(2) { width: 8.5rem; }
+.deck-app .commander-box .field { width: 15rem; }
+.deck-app .deck-save { margin-left: auto; }
+.deck-app .deck-header .hint { flex: 1 1 100%; margin: 0; font-size: 0.8rem; }
+.deck-app .deck-header .hint:empty { display: none; }
+.deck-facts { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 1.5rem; flex: 1 1 100%; padding-top: 0.55rem; border-top: 1px solid var(--line); }
+.deck-facts[hidden], .deck-info[hidden] { display: none; }
+.deck-facts .fact { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.9rem; }
+.deck-facts .fact-label { color: var(--muted); }
+.deck-facts .fact-colors { margin: 0; }
+
+/* The controls above the deck */
+.deck-app .deck-controls { flex-wrap: wrap; justify-content: flex-end; }
+.deck-app .sort-direction { min-width: 0; padding: 0 0.75rem; font-size: 0.9rem; font-weight: 600; white-space: nowrap; }
+
+/* The stacks view has a card display on the left; the other views have none. */
+.deck-body { display: block; }
+.deck-body > .stack-preview { display: none; }
+.deck-body[data-view="stacks"] { display: grid; grid-template-columns: 20rem minmax(0, 1fr); gap: 1.5rem; align-items: start; }
+.deck-body[data-view="stacks"] > .stack-preview { display: block; position: sticky; top: 1rem; }
+.stack-preview-image { display: block; width: 100%; height: auto; aspect-ratio: 488 / 680; border-radius: 4.8% / 3.4%; background: var(--card); box-shadow: 0 0.3rem 1rem rgba(0, 0, 0, 0.35); }
+.stack-preview-image[hidden] { display: none; }
+.stack-preview-name { margin: 0.6rem 0 0; font-weight: 600; text-align: center; overflow-wrap: anywhere; }
+@media (max-width: 800px) { .deck-body[data-view="stacks"] { display: block; } .deck-body[data-view="stacks"] > .stack-preview { position: static; max-width: 14rem; margin: 0 auto 1rem; } }
+
+/* The information below the deck */
+.deck-info { margin-top: 2rem; }
+.deck-info h2 { margin: 0 0 0.75rem; font-size: 1.15rem; }
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr)); gap: 1rem; }
+.stat-panel { padding: 0.9rem 1rem 1rem; border: 1px solid var(--line); border-radius: 0.75rem; background: var(--card); }
+.stat-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; margin-bottom: 0.75rem; }
+.stat-head h3 { margin: 0; font-size: 0.95rem; }
+.stat-note { color: var(--muted); font-size: 0.8rem; }
+.stat-footnote, .stat-empty { margin: 0.75rem 0 0; color: var(--muted); font-size: 0.78rem; line-height: 1.4; }
+.curve { display: flex; align-items: stretch; gap: 0.4rem; height: 11rem; }
+.curve-column { flex: 1 1 0; display: flex; flex-direction: column; align-items: center; gap: 0.2rem; min-width: 0; }
+.curve-count { min-height: 1.1rem; font-size: 0.8rem; font-weight: 700; }
+.curve-track { flex: 1 1 auto; width: 100%; display: flex; flex-direction: column; justify-content: flex-end; }
+.curve-permanents, .curve-spells { display: block; width: 100%; }
+.curve-permanents { background: var(--accent); border-radius: 0.2rem 0.2rem 0 0; }
+.curve-spells { background: color-mix(in srgb, var(--accent) 40%, var(--card)); border-radius: 0.2rem 0.2rem 0 0; }
+.curve-permanents[style*="height: 0%"], .curve-spells[style*="height: 0%"] { display: none; }
+.curve-label { color: var(--muted); font-size: 0.8rem; }
+.curve-legend { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; margin: 0.6rem 0 0; font-size: 0.78rem; color: var(--muted); }
+.curve-legend .key::before { content: ""; display: inline-block; width: 0.7rem; height: 0.7rem; margin-right: 0.35rem; border-radius: 0.15rem; vertical-align: -0.05rem; }
+.curve-legend .permanents::before { background: var(--accent); }
+.curve-legend .spells::before { background: color-mix(in srgb, var(--accent) 40%, var(--card)); }
+.color-rows, .type-rows { display: grid; gap: 0.5rem; }
+.color-row { display: grid; grid-template-columns: 1.6rem minmax(0, 1fr) 6.5rem; align-items: center; gap: 0.6rem; }
+.color-row .color-icon { margin: 0; }
+.color-bar, .type-bar { display: block; height: 0.6rem; border-radius: 0.3rem; background: color-mix(in srgb, var(--muted) 25%, var(--card)); overflow: hidden; }
+.color-fill, .type-fill { display: block; height: 100%; border-radius: 0.3rem; }
+.color-W { background: #e8e2b0; } .color-U { background: #5aa2dc; } .color-B { background: #8a7d86; } .color-R { background: #e0664a; } .color-G { background: #4fa468; } .color-C { background: #b8b4b0; }
+.color-value { color: var(--muted); font-size: 0.82rem; text-align: right; white-space: nowrap; }
+.type-row { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr) 2rem; align-items: center; gap: 0.6rem; font-size: 0.85rem; }
+.type-fill { background: var(--accent); }
+.type-count { text-align: right; font-weight: 600; }
+@media (prefers-reduced-motion: no-preference) { .color-fill, .type-fill { transition: width 0.2s ease; } }

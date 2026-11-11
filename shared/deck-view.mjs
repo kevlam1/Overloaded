@@ -31,7 +31,7 @@ export function categoryOf(typeLine) {
 
 // ---- sorting inside a group ----
 export const SORTS = ['name', 'value', 'color'];
-export const SORT_TITLES = { name: 'Name', value: 'Mana value', color: 'Color' };
+export const SORT_TITLES = { name: 'Name', value: 'Mana cost', color: 'Color' };
 export const DIRECTIONS = ['asc', 'desc'];
 // What the button that turns a sort around says: the way the cards run now.
 const DIRECTION_WORDS = { name: { asc: 'A to Z', desc: 'Z to A' }, value: { asc: 'Low to high', desc: 'High to low' }, color: { asc: 'W to G', desc: 'G to W' } };
@@ -66,11 +66,35 @@ const comparators = {
 };
 const sorter = (sort, direction) => (comparators[sort] ?? comparators.name)(direction === 'desc' ? -1 : 1);
 const total = (lines) => lines.reduce((sum, line) => sum + line.qty, 0);
-const group = (key, lines) => ({ key, title: GROUP_TITLES[key], lines, count: total(lines) });
+const group = (key, lines, title = GROUP_TITLES[key]) => ({ key, title, lines, count: total(lines) });
+
+// ---- grouping the main deck ----
+// By type (the default), by color or by mana value. Lands are always their own group, last, because they have no cost to group by. Commander, companion, sideboard and the rest stay where they are.
+export const GROUPINGS = ['type', 'color', 'value'];
+export const GROUPING_TITLES = { type: 'Type', color: 'Color', value: 'Mana value' };
+const COLOR_GROUPS = [['W', 'White'], ['U', 'Blue'], ['B', 'Black'], ['R', 'Red'], ['G', 'Green'], ['multi', 'Multicolor'], ['none', 'Colorless']];
+const MAX_VALUE_GROUP = 7; // seven or more share a group
+function groupKeyOf(line, grouping) {
+  const type = categoryOf(line.card.t);
+  if (grouping === 'type') return type;
+  if (type === 'land') return 'land';
+  if (grouping === 'color') { const [rank] = colorOrder(cost(line)); return `color-${COLOR_GROUPS[rank === 6 ? 6 : rank === 5 ? 5 : rank][0]}`; }
+  return `value-${Math.min(manaValue(cost(line)), MAX_VALUE_GROUP)}`;
+}
+function groupingOrder(grouping) {
+  if (grouping === 'color') return [...COLOR_GROUPS.map(([key]) => `color-${key}`), 'land'];
+  return [...Array.from({ length: MAX_VALUE_GROUP + 1 }, (_, n) => `value-${n}`), 'land'];
+}
+function groupingTitle(key) {
+  if (key === 'land') return GROUP_TITLES.land;
+  if (key.startsWith('color-')) return COLOR_GROUPS.find(([id]) => key === `color-${id}`)[1];
+  const n = Number(key.slice(6));
+  return n === MAX_VALUE_GROUP ? `Mana value ${n}+` : `Mana value ${n}`;
+}
 
 // lines: preview.lines. commanderIds: the card ids picked as commanders ([] when the format has none). Returns [{ key, title, lines, count }].
 // A line is { key, section, qty, status, card, name, ... }; a commander is taken from its line one copy at a time, so a line of 2 that holds a commander leaves 1 in its type group.
-export function groupDeck(lines, { commanderIds = [], sort = 'name', direction = 'asc' } = {}) {
+export function groupDeck(lines, { commanderIds = [], sort = 'name', direction = 'asc', grouping = 'type' } = {}) {
   const order = sorter(sort, direction);
   const wanted = commanderIds.filter(Boolean).slice(0, 2);
   const taken = new Set();
@@ -89,7 +113,11 @@ export function groupDeck(lines, { commanderIds = [], sort = 'name', direction =
   const matchedMain = rest.filter((line) => line.status === 'matched' && !['companion', 'sideboard', 'maybeboard'].includes(line.section));
   const groups = [group('unmatched', unmatched.sort(byName)), group('commander', commanders)];
   groups.push(group('companion', rest.filter((line) => line.section === 'companion').sort(order)));
-  for (const key of CATEGORY_ORDER) groups.push(group(key, matchedMain.filter((line) => categoryOf(line.card.t) === key).sort(order)));
+  if (grouping === 'color' || grouping === 'value') {
+    for (const key of groupingOrder(grouping)) groups.push(group(key, matchedMain.filter((line) => groupKeyOf(line, grouping) === key).sort(order), groupingTitle(key)));
+  } else {
+    for (const key of CATEGORY_ORDER) groups.push(group(key, matchedMain.filter((line) => categoryOf(line.card.t) === key).sort(order)));
+  }
   groups.push(group('sideboard', rest.filter((line) => line.section === 'sideboard').sort(order)));
   groups.push(group('maybeboard', rest.filter((line) => line.section === 'maybeboard').sort(order)));
   return groups.filter((entry) => entry.lines.length > 0);

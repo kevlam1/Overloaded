@@ -103,7 +103,8 @@ function textRow(line, printingCell, withMenu) {
   return item;
 }
 
-function tile(line, withMenu) {
+// inStacks: the stacks view has its own card display beside it (src/stack-preview.js), so its tiles carry data-preview-id (not data-card-id) and the floating picture of the other views stays away.
+function tile(line, withMenu, inStacks) {
   const item = make('li', line.status === 'matched' ? 'deck-tile' : 'deck-tile unmatched');
   item.append(make('span', 'sr-only', `${line.qty} ${line.name}`));
   if (line.card) item.dataset.ref = line.card.i; // (also for a picture that cannot be shown, so its menu still works)
@@ -112,7 +113,7 @@ function tile(line, withMenu) {
   const fallback = () => { picture.replaceChildren(make('span', 'tile-name', line.name)); picture.classList.add('noimage'); };
   const url = line.card ? imageUrl(line.printingId ?? line.card.i, 'small') : null;
   if (url) {
-    describeCard(item, line);
+    if (inStacks) { item.dataset.previewId = line.printingId ?? line.card.i; item.dataset.cardName = line.name; } else describeCard(item, line);
     item.tabIndex = 0;
     const image = new Image();
     image.alt = '';
@@ -147,7 +148,7 @@ export function renderGroups(container, groups, { view, printingCell, menuFor = 
     section.dataset.group = group.key;
     section.append(make('h3', '', `${group.title} (${group.count})`));
     const list = make('ul', view === 'images' ? 'deck-tiles' : view === 'stacks' ? 'deck-stack' : 'deck-list');
-    list.append(...group.lines.map((line) => (view === 'text' ? textRow(line, printingCell, menuFor(line)) : tile(line, menuFor(line)))));
+    list.append(...group.lines.map((line) => (view === 'text' ? textRow(line, printingCell, menuFor(line)) : tile(line, menuFor(line), view === 'stacks'))));
     section.append(list);
     container.append(section);
   }

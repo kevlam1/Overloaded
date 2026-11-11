@@ -243,7 +243,7 @@ try {
   const notes = await ev(`Array.from(document.querySelectorAll('#notices li')).map((li) => li.textContent)`);
   check('the page says that two sets and numbers were not found, and which', notes.some((n) => /2 sets and numbers were not found, so those cards show their default picture: CMM 5, CMM 99999/.test(n)), JSON.stringify(notes));
   check('only the sets the deck names were fetched, once each (cmm and sld; abc is not a card so it costs nothing)', (await ev(`performance.getEntriesByType('resource').map((e) => e.name).filter((n) => n.includes('/data/printings/'))`)).map((n) => n.split('/').pop()).sort().join() === 'set-cmm.json,set-sld.json');
-  check('and no request went to Scryfall for printings (pictures are loaded only on hover)', pictureRequests.length === requestsBefore, String(pictureRequests.length - requestsBefore));
+  check('and no request went to Scryfall for printings (pictures are loaded only on hover)', pictureRequests.length === requestsBefore, JSON.stringify(pictureRequests.slice(requestsBefore)));
 
   // While the printing files load the old preview is gone, so Save cannot pair its cards with the new text (read in the same
   // moment as the click, before the page has had time to finish).
@@ -350,8 +350,8 @@ try {
   const deckE = lib.decks.find((d) => d.deck.name === 'Deck E');
   check('a Commander deck saved with a bracket keeps it next to the format', deckE?.format === 'commander' && deckE.bracket === 3, JSON.stringify(deckE && [deckE.format, deckE.bracket]));
   list = await rows();
-  check('the saved deck row shows the bracket', /Deck E.*Commander.*Bracket 3/.test(list.find((r) => /Deck E/.test(r.text)).text), list.map((r) => r.text).join(' | '));
-  check('a Commander deck saved on Auto stores the guess (no Game Changers: bracket 2) marked as a guess, and its row says so', /Bracket 2 \(guess\)/.test(list.find((r) => /Deck C/.test(r.text)).text) && lib.decks.find((d) => d.deck.name === 'Deck C').bracket === 2 && lib.decks.find((d) => d.deck.name === 'Deck C').bracketGuess === true);
+  check('the saved deck row shows the bracket', /Deck E.*Bracket 3.*Commander/.test(list.find((r) => /Deck E/.test(r.text)).text), list.map((r) => r.text).join(' | '));
+  check('a Commander deck saved on Auto stores the guess (no Game Changers: bracket 2) marked as a guess, and its row says so', /Bracket 2/.test(list.find((r) => /Deck C/.test(r.text)).text) && !/guess/.test(list.find((r) => /Deck C/.test(r.text)).text) && lib.decks.find((d) => d.deck.name === 'Deck C').bracket === 2 && lib.decks.find((d) => d.deck.name === 'Deck C').bracketGuess === true);
   await setField('deck-bracket', '5'); await setField('deck-format', 'standard'); await setField('deck-name', 'Deck F'); await press('save');
   lib = await library();
   check('a bracket picked before switching to Standard is not saved with the Standard deck', lib.decks.find((d) => d.deck.name === 'Deck F')?.format === 'standard' && !('bracket' in lib.decks.find((d) => d.deck.name === 'Deck F')) && !('bracketGuess' in lib.decks.find((d) => d.deck.name === 'Deck F')));
@@ -861,13 +861,25 @@ try {
   await sleep(200);
   await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: hoverTile.x - 3, y: hoverTile.y }); await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: hoverTile.x, y: hoverTile.y }); await sleep(250);
   const raised = await ev(`(() => { const stack = [...document.querySelectorAll('#sections .deck-stack')].find((u) => u.children.length >= 10); return getComputedStyle(stack.children[3]).zIndex; })()`);
-  check('pointing at a card in a stack brings it in front of the cards below it (z-index 3) and shows its picture', raised === '3' && !(await peek()).hidden, JSON.stringify({ raised, lift }));
+  const sp = () => ev(`(() => { const i = document.querySelector('#stack-preview img'); const r = i.getBoundingClientRect(); return { src: i.getAttribute('src'), name: document.querySelector('#stack-preview .stack-preview-name').textContent, w: Math.round(r.width), left: Math.round(r.left), hidden: i.hidden, floatingBox: !document.getElementById('card-peek').hidden }; })()`);
+  const hoveredName = await ev(`(() => { const stack = [...document.querySelectorAll('#sections .deck-stack')].find((u) => u.children.length >= 10); return stack.children[3].dataset.cardName; })()`);
+  const stackShown = await sp();
+  check('pointing at a card in a stack does not bring it to the front (no z-index change), and shows it in the card display on the left instead of the floating picture', raised === 'auto' && stackShown.name === hoveredName && /\/normal\/front\//.test(stackShown.src) && stackShown.w >= 250 && stackShown.left < 400 && !stackShown.floatingBox, JSON.stringify({ raised, stackShown, hoveredName }));
+  await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 3, y: 3 }); await sleep(250);
+  const resting = await sp();
+  check('with the pointer off the cards, the display goes back to the deck\'s commander (nothing was clicked yet)', resting.name !== hoveredName && resting.name.length > 0, JSON.stringify(resting));
+  await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: hoverTile.x, y: hoverTile.y }); await sleep(150);
+  await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: hoverTile.x, y: hoverTile.y, button: 'left', clickCount: 1 });
+  await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: hoverTile.x, y: hoverTile.y, button: 'left', clickCount: 1 });
+  await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 3, y: 3 }); await sleep(250);
+  const kept = await sp();
+  check('a click keeps that card in the display: with the pointer off the cards again it is still there, and nothing in the stacks is highlighted', kept.name === hoveredName && (await ev(`document.querySelectorAll('#sections .deck-tile.selected, #sections .deck-tile[aria-selected="true"]').length`)) === 0, JSON.stringify(kept));
   await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 3, y: 3 }); await sleep(150);
   // on a 1920 window the cards are larger and sharper: the pictures and the stacks fill the width, and the normal-size picture is used
   await browser.send('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
   await sleep(500);
   const wide = await ev(`(() => { const box = document.getElementById('sections'); const cols = [...box.querySelectorAll('.deck-group')].map((g) => g.getBoundingClientRect()); const boxRight = box.getBoundingClientRect().right; const tile = box.querySelector('.deck-stack .deck-tile'); return { groups: cols.length, lastRight: Math.round(boxRight - cols[Math.min(7, cols.length - 1)].right), width: Math.round(tile.getBoundingClientRect().width) }; })()`);
-  check('the stacks are spread across a 1920 window: eight columns of wide cards (200 px or more), the last one at the right edge', wide.groups >= 8 && wide.lastRight <= 2 && wide.width >= 200, JSON.stringify(wide));
+  check('the stacks are spread across a 1920 window: eight columns of wide cards (165 px or more, with the card display beside them), the last one at the right edge', wide.groups >= 8 && wide.lastRight <= 2 && wide.width >= 165, JSON.stringify(wide));
   await ev(`document.querySelector('[data-view="images"]').click()`); await sleep(1500);
   const wideTiles = await ev(`(() => { const grid = [...document.querySelectorAll('#sections .deck-tiles')].find((g) => g.children.length >= 16); const imgs = [...grid.querySelectorAll('img')].filter((i) => i.complete && i.naturalWidth > 0); const last = grid.children[7].getBoundingClientRect(); return { width: Math.round(grid.children[0].getBoundingClientRect().width), fills: Math.round(grid.getBoundingClientRect().right - last.right), loaded: imgs.length, normal: imgs.filter((i) => i.currentSrc.includes('/normal/')).length }; })()`);
   check('the pictures fill a 1920 row (tiles 200 px or more) and the browser picked the normal-size picture for them', wideTiles.width >= 200 && wideTiles.fills <= 2 && wideTiles.loaded > 0 && wideTiles.normal === wideTiles.loaded, JSON.stringify(wideTiles));
@@ -879,7 +891,7 @@ try {
   await load(); await ev(`localStorage.removeItem('overloaded.deckSort')`); await deleteAllSaved(); await load();
   await paste('1 Lightning Bolt\n1 Counterspell\n1 Swords to Plowshares\n1 Dark Ritual\n1 Boros Charm\n1 Giant Growth'); await press('check');
   const instants = () => ev(`[...document.querySelectorAll('#sections [data-group="instant"] .name')].map((n) => n.textContent)`);
-  check('the sort choice is beside the view buttons, labelled, with Name, Mana value and Color, starting at Name (alphabetical)', (await ev(`[...document.getElementById('deck-sort').options].map((o) => o.textContent).join()`)) === 'Name,Mana value,Color' && (await ev(`document.querySelector('label[for="deck-sort"]').textContent`)) === 'Sort by' && (await ev(`document.getElementById('deck-sort').value`)) === 'name' && JSON.stringify(await instants()) === JSON.stringify(['Boros Charm', 'Counterspell', 'Dark Ritual', 'Giant Growth', 'Lightning Bolt', 'Swords to Plowshares']), JSON.stringify(await instants()));
+  check('the sort choice is beside the view buttons, labelled, with Name, Mana cost and Color, starting at Name (alphabetical)', (await ev(`[...document.getElementById('deck-sort').options].map((o) => o.textContent).join()`)) === 'Name,Mana cost,Color' && (await ev(`document.querySelector('label[for="deck-sort"]').textContent`)) === 'Sort by' && (await ev(`document.getElementById('deck-sort').value`)) === 'name' && JSON.stringify(await instants()) === JSON.stringify(['Boros Charm', 'Counterspell', 'Dark Ritual', 'Giant Growth', 'Lightning Bolt', 'Swords to Plowshares']), JSON.stringify(await instants()));
   await setField('deck-sort', 'value');
   check('by mana value: the one-mana spells first (alphabetical among themselves), then the two-mana ones', JSON.stringify(await instants()) === JSON.stringify(['Dark Ritual', 'Giant Growth', 'Lightning Bolt', 'Swords to Plowshares', 'Boros Charm', 'Counterspell']), JSON.stringify(await instants()));
   await setField('deck-sort', 'color');
@@ -892,17 +904,41 @@ try {
   // the other way round
   await setField('deck-sort', 'value');
   const UP = String.fromCharCode(0x2191), DOWN = String.fromCharCode(0x2193);
-  check('beside the sort is a button that is an up arrow (the usual way), with the words "Low to high" for mana value in its tooltip and for a screen reader', (await $text('deck-sort-direction')) === UP && /Sort order: Low to high/.test(await ev(`document.getElementById('deck-sort-direction').getAttribute('aria-label')`)) && /^Low to high/.test(await ev(`document.getElementById('deck-sort-direction').title`)));
+  check('beside the sort is a button with an up arrow and the word Ascending (the usual way), and "Low to high" for mana cost in its tooltip and for a screen reader', (await $text('deck-sort-direction')) === `${UP} Ascending` && /Sort order: ascending, Low to high/.test(await ev(`document.getElementById('deck-sort-direction').getAttribute('aria-label')`)) && /^Ascending \u2191 \(Low to high\)\. Press for descending/.test(await ev(`document.getElementById('deck-sort-direction').title`)));
   await ev(`document.getElementById('deck-sort-direction').click()`);
-  check('pressing it turns the order round (high to low, the name still settling ties from A to Z) and the arrow points down', (await $text('deck-sort-direction')) === DOWN && /^High to low/.test(await ev(`document.getElementById('deck-sort-direction').title`)) && JSON.stringify(await instants()) === JSON.stringify(['Counterspell', 'Dark Ritual', 'Lightning Bolt']) && (await ev(`localStorage.getItem('overloaded.deckSortDirection')`)) === 'desc', JSON.stringify(await instants()));
+  check('pressing it turns the order round (high to low, the name still settling ties from A to Z) and the arrow points down', (await $text('deck-sort-direction')) === `${DOWN} Descending` && /^Descending \u2193 \(High to low\)\. Press for ascending/.test(await ev(`document.getElementById('deck-sort-direction').title`)) && JSON.stringify(await instants()) === JSON.stringify(['Counterspell', 'Dark Ritual', 'Lightning Bolt']) && (await ev(`localStorage.getItem('overloaded.deckSortDirection')`)) === 'desc', JSON.stringify(await instants()));
   await setField('deck-sort', 'name');
-  check('the tooltip\'s words follow the sort (Z to A for names), and the direction is kept when the sort changes', (await $text('deck-sort-direction')) === DOWN && /^Z to A/.test(await ev(`document.getElementById('deck-sort-direction').title`)) && JSON.stringify(await instants()) === JSON.stringify(['Lightning Bolt', 'Dark Ritual', 'Counterspell']), JSON.stringify(await instants()));
+  check('the tooltip\'s words follow the sort (Z to A for names), and the direction is kept when the sort changes', (await $text('deck-sort-direction')) === `${DOWN} Descending` && /\(Z to A\)/.test(await ev(`document.getElementById('deck-sort-direction').title`)) && JSON.stringify(await instants()) === JSON.stringify(['Lightning Bolt', 'Dark Ritual', 'Counterspell']), JSON.stringify(await instants()));
   await setField('deck-sort', 'color');
-  check('G to W for color: green first, white last', /^G to W/.test(await ev(`document.getElementById('deck-sort-direction').title`)) && JSON.stringify(await instants()) === JSON.stringify(['Lightning Bolt', 'Dark Ritual', 'Counterspell']), JSON.stringify(await instants()));
+  check('G to W for color: green first, white last', /\(G to W\)/.test(await ev(`document.getElementById('deck-sort-direction').title`)) && JSON.stringify(await instants()) === JSON.stringify(['Lightning Bolt', 'Dark Ritual', 'Counterspell']), JSON.stringify(await instants()));
   await load(); await paste('1 Lightning Bolt\n1 Counterspell\n1 Dark Ritual'); await press('check');
-  check('after a reload the direction is still reversed (the arrow points down)', (await $text('deck-sort-direction')) === DOWN && JSON.stringify(await instants()) === JSON.stringify(['Lightning Bolt', 'Dark Ritual', 'Counterspell']), JSON.stringify(await instants()));
+  check('after a reload the direction is still reversed (the arrow points down)', (await $text('deck-sort-direction')) === `${DOWN} Descending` && JSON.stringify(await instants()) === JSON.stringify(['Lightning Bolt', 'Dark Ritual', 'Counterspell']), JSON.stringify(await instants()));
   await ev(`document.getElementById('deck-sort-direction').click()`);
   await setField('deck-sort', 'name'); await ev(`localStorage.removeItem('overloaded.deckSort'); localStorage.removeItem('overloaded.deckSortDirection')`);
+
+  // ---- grouping, the facts strip and the information below the deck ----
+  const GROUPED = 'Commander\n1 Krenko, Mob Boss\n\n4 Lightning Bolt\n2 Counterspell\n1 Sol Ring\n1 Boros Charm\n10 Mountain\n6 Island';
+  await load(); await paste(GROUPED); await press('check');
+  const groupTitles = () => ev(`[...document.querySelectorAll('#sections .deck-group h3')].map((h) => h.textContent)`);
+  check('Group by is beside Sort by, labelled, with Type, Color and Mana value, starting at Type', (await ev(`[...document.getElementById('deck-grouping').options].map((o) => o.textContent).join()`)) === 'Type,Color,Mana value' && (await ev(`document.querySelector('label[for="deck-grouping"]').textContent`)) === 'Group by' && (await ev(`document.getElementById('deck-grouping').value`)) === 'type' && (await groupTitles()).includes('Instants (7)'), JSON.stringify(await groupTitles()));
+  await setField('deck-grouping', 'color');
+  const byColor = await groupTitles();
+  check('by color: the groups are colors, the commander stays first and lands come last', JSON.stringify(byColor) === JSON.stringify(['Commander (1)', 'Blue (2)', 'Red (4)', 'Multicolor (1)', 'Colorless (1)', 'Lands (16)']), JSON.stringify(byColor));
+  await setField('deck-grouping', 'value');
+  const byValue = await groupTitles();
+  check('by mana value: one group per value, lands last', JSON.stringify(byValue) === JSON.stringify(['Commander (1)', 'Mana value 1 (5)', 'Mana value 2 (3)', 'Lands (16)']), JSON.stringify(byValue));
+  check('the grouping is remembered', (await ev(`localStorage.getItem('overloaded.deckGrouping')`)) === 'value');
+  await load(); await paste(GROUPED); await press('check');
+  check('and still in use after a reload', (await ev(`document.getElementById('deck-grouping').value`)) === 'value' && (await groupTitles()).includes('Mana value 1 (5)'));
+  await setField('deck-grouping', 'type'); await ev(`localStorage.removeItem('overloaded.deckGrouping')`);
+  const deckFacts = await ev(`[...document.querySelectorAll('#deck-facts .fact')].map((f) => f.textContent)`);
+  check('the facts strip says the cards, lands, average mana value (without lands) and colors', deckFacts.length === 4 && /^Cards25$/.test(deckFacts[0]) && /^Lands16$/.test(deckFacts[1]) && /^Avg mana value1\.67$/.test(deckFacts[2]) && /^Colors/.test(deckFacts[3]), JSON.stringify(deckFacts));
+  const info = await ev(`(() => { const i = document.getElementById('deck-info'); return { hidden: i.hidden, panels: [...i.querySelectorAll('.stat-panel h3')].map((h) => h.textContent), columns: i.querySelectorAll('.curve-column').length, counts: [...i.querySelectorAll('.curve-count')].map((c) => c.textContent).join(), colors: [...i.querySelectorAll('.color-row')].map((r) => r.getAttribute('aria-label')), types: [...i.querySelectorAll('.type-name')].map((n) => n.textContent).join() }; })()`);
+  check('below the deck: the mana curve (eight columns 0 to 7+), the color requirements and the card types', !info.hidden && JSON.stringify(info.panels) === JSON.stringify(['Mana curve', 'Color requirements', 'Card types']) && info.columns === 8, JSON.stringify(info));
+  check('the curve counts the spells by mana value: five at 1, three at 2, Krenko at 4', info.counts === ',5,3,,1,,,', info.counts);
+  check('the color requirements count mana symbols (white 1, blue 4, red 7; generic mana is not counted)', JSON.stringify(info.colors) === JSON.stringify(['white: 1 symbol, 8% of all', 'blue: 4 symbols, 33% of all', 'red: 7 symbols, 58% of all']), JSON.stringify(info.colors));
+  check('the card types list only the types the deck has', info.types === 'Creatures,Instants,Artifacts,Lands', info.types);
+
   // the cursor stays an arrow over a card (no magnifying glass)
   const cursors = await ev(`({ row: getComputedStyle(document.querySelector('#sections .card-line[data-card-id]')).cursor, name: getComputedStyle(document.querySelector('#sections .card-line .name')).cursor })`);
   await ev(`document.querySelector('[data-view="images"]').click()`); await sleep(300);
@@ -946,8 +982,8 @@ try {
   await saveDeck('Commander\n1 Tymna the Weaver\nCommander\n1 Thrasios, Triton Hero\n\n1 Rhystic Study\n1 Cyclonic Rift\n1 Sol Ring\n10 Island', 'Two Partners');
   await saveDeck('Commander\n1 Krenko, Mob Boss\n\n1 Sol Ring\n10 Mountain', 'One Commander');
   await saveDeck('4 Lightning Bolt\n4 Counterspell\n20 Island', 'Plain UR');
-  const cards = await ev(`[...document.querySelectorAll('#saved-list .deck-face')].map((f) => ({ name: f.querySelector('.saved-name').textContent, colors: f.dataset.colors, split: f.dataset.split ?? '', halves: f.querySelectorAll('.face-half').length, tints: [...f.querySelectorAll('.face-half')].map((h) => h.style.getPropertyValue('--tint')), commanders: [...f.querySelectorAll('.face-commander')].map((c) => c.textContent), pips: f.querySelectorAll('.face-colors img, .face-colors .pip').length, bracket: f.querySelector('.face-bracket')?.textContent ?? '', format: f.querySelector('.face-format').textContent, label: f.getAttribute('aria-label') ?? '' }))`);
-  check('each saved deck is a card: its name, format, colors as symbols and (for Commander) its bracket with "guess"', cards.length === 3 && cards.every((c) => c.name && c.format) && cards[0].bracket === 'Bracket 3 (guess)' && cards[1].bracket === 'Bracket 2 (guess)' && cards[2].bracket === '' && cards[1].colors === 'R' && cards[1].pips === 1 && cards[2].colors === 'UR' && cards[2].pips === 2 && cards[2].commanders.length === 0 && cards[2].format === 'Standard', JSON.stringify(cards));
+  const cards = await ev(`[...document.querySelectorAll('#saved-list .deck-face')].map((f) => ({ name: f.querySelector('.saved-name').textContent, colors: f.dataset.colors, split: f.dataset.split ?? '', halves: f.querySelectorAll('.face-half').length, tints: [...f.querySelectorAll('.face-half')].map((h) => h.style.getPropertyValue('--tint')), commanders: [...f.querySelectorAll('.face-commander')].map((c) => c.textContent), pips: f.querySelectorAll('.face-colors img, .face-colors .pip').length, bracket: f.querySelector('.face-bracket')?.textContent ?? '', format: f.querySelector('.face-facts').textContent, label: f.getAttribute('aria-label') ?? '' }))`);
+  check('each saved deck is a card: its name, format, colors as symbols and (for Commander) its bracket with "guess"', cards.length === 3 && cards.every((c) => c.name && c.format) && cards[0].bracket === 'Bracket 3' && cards[1].bracket === 'Bracket 2' && cards[2].bracket === '' && cards[1].colors === 'R' && cards[1].pips === 1 && cards[2].colors === 'UR' && cards[2].pips === 2 && cards[2].commanders.length === 0 && /^Standard/.test(cards[2].format), JSON.stringify(cards));
   check('two commanders: the card is split, the first commander\'s colors on the upper left and the second\'s on the lower right, both names shown, the colors the two together', cards[0].split === '1' && cards[0].halves === 2 && cards[0].tints[0] !== cards[0].tints[1] && cards[0].commanders.length === 2 && cards[0].colors.length === 4 && cards[0].pips === 4 && /Open: /.test(cards[0].label), JSON.stringify(cards[0]));
   const geometry = await ev(`(() => { const face = document.querySelector('#saved-list .deck-face[data-split="1"]'); const a = getComputedStyle(face.querySelector('.face-a')).clipPath; const b = getComputedStyle(face.querySelector('.face-b')).clipPath; return { a, b, line: getComputedStyle(face, '::after').backgroundImage.includes('to bottom right') || getComputedStyle(face, '::after').backgroundImage.includes('linear-gradient') }; })()`);
   check('the split is a diagonal from the upper right to the lower left (two triangles), with a thin line along it', /polygon\(0(px)? 0(px)?, 100% 0(px)?, 0(px)? 100%\)/.test(geometry.a) && /polygon\(100% 0(px)?, 100% 100%, 0(px)? 100%\)/.test(geometry.b) && geometry.line, JSON.stringify(geometry));
@@ -970,7 +1006,7 @@ try {
   const notices = await $text('notices');
   check('skipped lines are explained with their line numbers', /Line 1 was skipped/.test(notices) && /Line 3 was skipped: the quantity is 0/.test(notices) && /Line 4 says "Commander" but no card follows it/.test(notices), notices);
   await paste('<img src=x onerror="window.__pwned=1">\n<script>window.__pwned=2<\/script>\n1 Sol Ring'); await press('check');
-  const injected = await ev(`({ imgs: document.querySelectorAll('#preview img:not(.pip-img), #notices img').length, scripts: document.querySelectorAll('#preview script, #notices script').length, pwned: typeof window.__pwned, shown: document.getElementById('preview').textContent.includes('<img src=x') })`); // a line with no number is now a card name that was not found, so the text shows in the list and the problems, not the notices
+  const injected = await ev(`({ imgs: document.querySelectorAll('#preview img:not(.pip-img):not(.stack-preview-image), #notices img').length, scripts: document.querySelectorAll('#preview script, #notices script').length, pwned: typeof window.__pwned, shown: document.getElementById('preview').textContent.includes('<img src=x') })`); // a line with no number is now a card name that was not found, so the text shows in the list and the problems, not the notices
   check('pasted markup is shown as text and never runs', injected.imgs === 0 && injected.scripts === 0 && injected.pwned === 'undefined' && injected.shown, JSON.stringify(injected));
   await paste('1 Sol Ring\n'.repeat(1500)); await press('check');
   check('a huge paste is refused with the limit, without freezing', /too many lines/.test(await $text('notices')) || /limit/.test(await $text('notices')), await $text('notices'));
@@ -1023,6 +1059,14 @@ try {
     const hoverRow = await ev(`Array.from(document.querySelectorAll('#sections .card-line')).findIndex((li) => (li.dataset.cardName || '').startsWith('Valakut'))`);
     await hover(hoverRow); await sleep(2500);
     await browser.screenshot('scratch-deck-ui-hover.png');
+    // the deck page at 1920 wide with the real pictures: the stacks view with its card display, then the information below
+    await browser.send('Fetch.disable').catch(() => {});
+    await browser.send('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
+    await load(); await ev(`document.getElementById('sample').click()`); await settled();
+    await ev(`document.querySelector('[data-view="stacks"]').click()`); await sleep(3500);
+    await browser.screenshot('scratch-deck-stacks.png');
+    await ev(`document.getElementById('deck-info').scrollIntoView()`); await sleep(600);
+    await browser.screenshot('scratch-deck-info.png');
     await deleteAllSaved();
     console.log('saved scratch-deck-ui-top.png, -light.png, -bottom.png and -hover.png (delete them afterward)');
   }

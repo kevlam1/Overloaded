@@ -8,7 +8,10 @@
 import { buildCardIndex, matchDeck } from '../../shared/card-match.mjs';
 import { parseDeckText } from '../../shared/deck-text.mjs';
 import { makePreview, buildSavedDeck, printingSetsNeeded, isLegendaryCreature, PRINTING_PROBLEM_WORDS } from '../../shared/deck-preview.mjs';
-import { groupDeck, SORTS, SORT_TITLES, DIRECTIONS, directionWords } from '../../shared/deck-view.mjs';
+import { groupDeck, SORTS, SORT_TITLES, DIRECTIONS, directionWords, GROUPINGS, GROUPING_TITLES } from '../../shared/deck-view.mjs';
+import { deckStats } from '../../shared/deck-stats.mjs';
+import { mountStackPreview } from './stack-preview.js';
+import { renderDeckInfo, renderDeckFacts } from './deck-stats.js';
 import { commanderMenuItems, applyCommanderChoice, commanderChoiceMessage } from '../../shared/deck-commander.mjs';
 import { openCardMenu } from './card-menu.js';
 import { setPrintingInText } from '../../shared/deck-text-edit.mjs';
@@ -31,6 +34,7 @@ const store = makeSafeStore();
 const PROBE_KEY = 'overloaded.storage-probe';
 const VIEW_KEY = 'overloaded.deckView'; // 'text', 'images' or 'stacks', remembered in this browser
 const SORT_KEY = 'overloaded.deckSort'; // 'name', 'value' or 'color', remembered in this browser
+const GROUPING_KEY = 'overloaded.deckGrouping'; // 'type', 'color' or 'value'
 const SORT_DIRECTION_KEY = 'overloaded.deckSortDirection'; // 'asc' or 'desc'
 
 let root = null;
@@ -49,6 +53,8 @@ let libraryRead = { source: 'empty', skipped: 0 }; // what reading them found (s
 let formatTouched = false; // the player chose the format, so it no longer follows the commander choice
 let view = 'text';
 let sort = 'name';
+let grouping = 'type';
+let stackPreview = null;
 let direction = 'asc';
 let solo = true; // the saved decks have a "Play solo" button (not inside the lobby, where the table has its own deck)
 const printingLoader = makePrintingLoader();
@@ -207,9 +213,14 @@ function build() {
   sortLabel.htmlFor = 'deck-sort';
   sortSelect.id = 'deck-sort';
   sortSelect.name = 'deck-sort';
+  const groupSelect = select(GROUPINGS.map((key) => [key, GROUPING_TITLES[key]]));
+  const groupLabel = make('label', 'deck-sort', 'Group by');
+  groupLabel.htmlFor = 'deck-grouping';
+  groupSelect.id = 'deck-grouping';
+  groupSelect.name = 'deck-grouping';
   const controls = make('div', 'deck-controls');
-  const directionButton = button('deck-sort-direction', String.fromCharCode(0x2191), 'secondary sort-direction', { title: 'Turn the order round' });
-  controls.append(sortLabel, sortSelect, directionButton, toggle);
+  const directionButton = button('deck-sort-direction', String.fromCharCode(0x2191) + ' Ascending', 'secondary sort-direction', { title: 'Ascending' });
+  controls.append(groupLabel, groupSelect, sortLabel, sortSelect, directionButton, toggle);
   summaryRow.append(summary, controls);
   const notices = make('ul', 'notices');
   notices.id = 'notices';
@@ -221,9 +232,19 @@ function build() {
   problems.append(make('h3', '', 'Needs attention'), problemList);
   const sections = make('div', 'deck-sections');
   sections.id = 'sections';
+  const previewBox = make('aside', 'stack-preview');
+  previewBox.id = 'stack-preview';
+  previewBox.setAttribute('aria-label', 'The card the pointer is on');
+  const body = make('div', 'deck-body');
+  body.id = 'deck-body';
+  body.append(previewBox, sections);
+  const facts = make('div', 'deck-facts');
+  facts.id = 'deck-facts';
+  const info = make('section', 'deck-info');
+  info.id = 'deck-info';
   const header = make('div', 'deck-header');
-  header.append(head, settings, commanderNote, bracketNoteElement);
-  deck.append(deckHeading, bar, header, summaryRow, notices, problems, sections);
+  header.append(head, settings, commanderNote, bracketNoteElement, facts);
+  deck.append(deckHeading, bar, header, summaryRow, notices, problems, body, info);
 
   root.replaceChildren(status, saved, paste, deck);
 }
@@ -327,6 +348,9 @@ function renderPreview() {
   renderBracket();
   renderSections();
   renderSaveBox();
+  const stats = deckStats(preview.lines);
+  renderDeckFacts($('deck-facts'), stats);
+  renderDeckInfo($('deck-info'), stats);
 }
 
 function choiceSelect(line, label) {
@@ -385,7 +409,12 @@ const isCommander = () => $('deck-format').value === 'commander';
 const commanderIds = () => (isCommander() && !$('commander-box').hidden ? [$('commander-1').value, $('commander-2').value].filter(Boolean) : []);
 
 function renderSections() {
-  renderGroups($('sections'), groupDeck(preview.lines, { commanderIds: commanderIds(), sort, direction }), { view, printingCell, menuFor: (line) => menuItemsFor(line).length > 0 });
+  const groups = groupDeck(preview.lines, { commanderIds: commanderIds(), sort, direction, grouping });
+  renderGroups($('sections'), groups, { view, printingCell, menuFor: (line) => menuItemsFor(line).length > 0 });
+  $('deck-body').dataset.view = view;
+  // The stacks view shows one card beside it: the commander until the player clicks another (or the first card when there is none).
+  const first = (groups.find((entry) => entry.key === 'commander') ?? groups.find((entry) => entry.lines.some((line) => line.card)))?.lines.find((line) => line.card);
+  stackPreview?.refresh(first ? { id: first.printingId ?? first.card.i, name: first.name } : null, view === 'stacks');
 }
 
 // ---- changing a card's printing: the window of printings (src/printing-picker.js), and the card's line in the text rewritten to name the one that was chosen ----
@@ -570,7 +599,7 @@ function deckCard(entry) {
   const top = make('span', 'face-top');
   const name = make('strong', 'saved-name', deck.name);
   if (solo && entry.id === library.selected) name.append(make('span', 'solo-tag', ' solo deck'));
-  top.append(name, make('span', 'face-format', FORMAT_TITLES[entry.format]));
+  top.append(name);
   text.append(top);
   const commanders = face.commanders.map((commander) => commander.name);
   if (commanders.length) {
@@ -585,10 +614,10 @@ function deckCard(entry) {
   bottom.append(pips);
   if (entry.bracket) {
     const bracket = make('span', 'face-bracket', `Bracket ${entry.bracket}`);
-    if (entry.bracketGuess === true) { bracket.classList.add('guessed'); bracket.title = 'Guessed from the Game Changers in the deck. Open the deck to choose one.'; bracket.append(make('span', 'face-guess', ' (guess)')); }
+    if (entry.bracketGuess === true) { bracket.classList.add('guessed'); bracket.title = 'Guessed from the Game Changers in the deck. Open the deck to choose one.'; }
     bottom.append(bracket);
   }
-  const facts = [plural(totalCards(deck), 'card', 'cards'), `saved ${new Date(deck.savedAt).toLocaleDateString()}`];
+  const facts = [FORMAT_TITLES[entry.format], plural(totalCards(deck), 'card', 'cards')];
   if (deck.skipped) facts.push(`${plural(deck.skipped, 'line', 'lines')} left out (not matched)`);
   bottom.append(make('span', 'face-facts', facts.join(' \u00b7 ')));
   text.append(bottom);
@@ -602,6 +631,14 @@ function deckMenuItems() {
   return [{ id: 'load', label: 'Open' }, ...(solo ? [{ id: 'play', label: 'Play solo' }] : []), { id: 'delete', label: 'Delete' }];
 }
 
+// Three dots, drawn (a text ellipsis sits low in its box). Width, height and fill are set on the element.
+function dotsIcon() {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  for (const [name, value] of [['viewBox', '0 0 16 16'], ['width', '16'], ['height', '16'], ['fill', 'currentColor'], ['aria-hidden', 'true'], ['focusable', 'false']]) svg.setAttribute(name, value);
+  for (const cx of [3, 8, 13]) { const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle'); for (const [name, value] of [['cx', String(cx)], ['cy', '8'], ['r', '1.6'], ['fill', 'currentColor']]) dot.setAttribute(name, value); svg.append(dot); }
+  return svg;
+}
+
 function renderSaved() {
   const problem = libraryRead.source === 'damaged'
     ? 'Your saved decks could not be read, so they were ignored. Saving a deck starts a new list.'
@@ -612,8 +649,9 @@ function renderSaved() {
   $('saved-list').replaceChildren(...library.decks.map((entry) => {
     const item = make('li', 'saved-deck');
     item.dataset.deckId = entry.id;
-    const menu = button('', '\u2026', 'deck-menu-button', { 'aria-haspopup': 'menu', 'aria-label': `Options: ${entry.deck.name}`, title: 'Play solo, Delete' });
+    const menu = button('', '', 'deck-menu-button', { 'aria-haspopup': 'menu', 'aria-label': `Options: ${entry.deck.name}`, title: 'Options' });
     menu.dataset.action = 'menu';
+    menu.append(dotsIcon());
     item.append(deckCard(entry), menu);
     return item;
   }));
@@ -680,7 +718,19 @@ export function mountDeckImporter({ root: container, sampleId, onLibraryChange: 
   const savedDirection = store.get(SORT_DIRECTION_KEY);
   direction = DIRECTIONS.includes(savedDirection) ? savedDirection : 'asc';
   // The button is an arrow: up for the usual way (A to Z, low to high, W to G), down for the other way round. Its words (for the tooltip and a screen reader) say which.
-  const showDirection = () => { const words = directionWords(sort, direction); $('deck-sort-direction').textContent = String.fromCharCode(direction === 'desc' ? 0x2193 : 0x2191); $('deck-sort-direction').title = `${words}. Press to turn the order round.`; $('deck-sort-direction').setAttribute('aria-label', `Sort order: ${words}. Press to turn it round.`); };
+  const showDirection = () => {
+    const words = directionWords(sort, direction);
+    const arrow = String.fromCharCode(direction === 'desc' ? 0x2193 : 0x2191);
+    const now = direction === 'desc' ? 'Descending' : 'Ascending';
+    const other = direction === 'desc' ? 'ascending' : 'descending';
+    $('deck-sort-direction').textContent = `${arrow} ${now}`;
+    $('deck-sort-direction').title = `${now} ${arrow} (${words}). Press for ${other}.`;
+    $('deck-sort-direction').setAttribute('aria-label', `Sort order: ${now.toLowerCase()}, ${words}. Press for ${other}.`);
+  };
+  const savedGrouping = store.get(GROUPING_KEY);
+  grouping = GROUPINGS.includes(savedGrouping) ? savedGrouping : 'type';
+  $('deck-grouping').value = grouping;
+  $('deck-grouping').addEventListener('change', () => { grouping = GROUPINGS.includes($('deck-grouping').value) ? $('deck-grouping').value : 'type'; store.set(GROUPING_KEY, grouping); if (preview) renderSections(); });
   showDirection();
   $('deck-sort').addEventListener('change', () => { sort = SORTS.includes($('deck-sort').value) ? $('deck-sort').value : 'name'; store.set(SORT_KEY, sort); showDirection(); if (preview) renderSections(); });
   $('deck-sort-direction').addEventListener('click', () => { direction = direction === 'asc' ? 'desc' : 'asc'; store.set(SORT_DIRECTION_KEY, direction); showDirection(); if (preview) renderSections(); });
@@ -747,6 +797,7 @@ export function mountDeckImporter({ root: container, sampleId, onLibraryChange: 
   $('storage-hint').hidden = canStore;
   readSavedLibrary();
   renderSaved();
+  stackPreview = mountStackPreview({ aside: $('stack-preview'), sections: $('sections') });
   setupCardPeek({ root, peek: document.getElementById('card-peek'), image: document.getElementById('card-peek-image'), note: document.getElementById('card-peek-note') });
   // With saved decks (or a message about decks that could not be read) the page starts at the list; with none it starts at the box to paste into.
   const somethingToShow = library.decks.length > 0 || libraryRead.source === 'damaged' || libraryRead.skipped > 0;
