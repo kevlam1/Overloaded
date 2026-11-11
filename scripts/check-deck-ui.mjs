@@ -56,9 +56,15 @@ try {
   // The saved decks are a library under 'overloaded.decks' (up to 20, one selected). These read it and drive its buttons.
   const library = async () => JSON.parse((await ev(`localStorage.getItem('overloaded.decks')`)) ?? 'null');
   const selectedSaved = async () => { const lib = await library(); return lib?.decks.find((entry) => entry.id === lib.selected)?.deck ?? null; };
-  const clickSaved = (action, index = 0) => ev(`document.querySelectorAll('#saved-list [data-action="${action}"]')[${index}].click()`);
+  // A saved deck's card opens it; Play solo and Delete are in the menu behind its "..." button.
+  const LABELS = { play: 'Play solo', delete: 'Delete', load: 'Open' };
+  const clickSaved = async (action, index = 0) => {
+    if (action === 'load') return ev(`document.querySelectorAll('#saved-list .deck-face')[${index}].click()`);
+    await ev(`document.querySelectorAll('#saved-list .deck-menu-button')[${index}].click()`);
+    return ev(`[...document.querySelectorAll('.card-menu .card-menu-item')].find((b) => b.textContent.trim() === ${JSON.stringify(LABELS[action])}).click()`);
+  };
   const pressLoad = async (index = 0) => { await clickSaved('load', index); await settled(); };
-  const deleteAllSaved = async () => { for (let n = 0; n < 25 && (await ev(`document.querySelectorAll('#saved-list [data-action="delete"]').length`)); n++) await clickSaved('delete'); };
+  const deleteAllSaved = async () => { for (let n = 0; n < 25 && (await ev(`document.querySelectorAll('#saved-list .deck-face').length`)); n++) await clickSaved('delete'); };
   const ready = () => waitFor(async () => (await ev(`!document.getElementById('check').disabled`)) || null, 15000, 50);
   const load = async () => { await browser.goto(PAGE); await ready(); };
 
@@ -286,6 +292,7 @@ try {
   const setField = (id, value) => ev(`(() => { const f = document.getElementById(${JSON.stringify(id)}); f.value = ${JSON.stringify(value)}; f.dispatchEvent(new Event('input')); f.dispatchEvent(new Event('change')); })()`);
   const saveAs = async (listText, name, format) => { await paste(listText); await press('check'); await setField('deck-name', name); if (format) await setField('deck-format', format); await press('save'); };
   const rows = () => ev(`Array.from(document.querySelectorAll('#saved-list li')).map((li) => ({ id: li.dataset.deckId, text: li.querySelector('.saved-text').textContent, actions: Array.from(li.querySelectorAll('button')).map((b) => b.dataset.action) }))`);
+  const menuLabels = async (index) => { await ev(`document.querySelectorAll('#saved-list .deck-menu-button')[${index}].click()`); const labels = await ev(`[...document.querySelectorAll('.card-menu .card-menu-item')].map((b) => b.textContent.trim())`); await ev(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`); return labels; };
   await load();
   await deleteAllSaved();
   await saveAs('1 Sol Ring\n1 Lightning Bolt', 'Deck A');
@@ -295,7 +302,9 @@ try {
   lib = await library();
   let list = await rows();
   check('a second deck is added, not replacing the first, and becomes the selected one', lib.decks.length === 2 && lib.decks[1].deck.name === 'Deck B' && lib.selected === lib.decks[1].id && list.length === 2 && /Deck B/.test(list[1].text) && /solo deck/.test(list[1].text) && !/solo deck/.test(list[0].text), JSON.stringify(list));
-  check('every deck has Open, Play solo and Delete', list.every((r) => JSON.stringify(r.actions) === '["load","play","delete"]'), JSON.stringify(list.map((r) => r.actions)));
+  check('every deck is one card to open plus a "..." button; Play solo and Delete are not on the cards', list.every((r) => JSON.stringify(r.actions) === '["load","menu"]'), JSON.stringify(list.map((r) => r.actions)));
+  check('the "..." menu offers Open, Play solo and Delete', JSON.stringify(await menuLabels(0)) === '["Open","Play solo","Delete"]', JSON.stringify(await menuLabels(0)));
+  check('a right-click on a card opens the same menu', await ev(`(() => { const face = document.querySelector('#saved-list .deck-face'); face.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 200, clientY: 200 })); const n = document.querySelectorAll('.card-menu .card-menu-item').length; document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); return n; })()`) === 3);
   const firstId = lib.decks[0].id;
   await saveAs('3 Island', 'deck a');
   lib = await library();
@@ -939,10 +948,19 @@ try {
   await saveDeck('4 Lightning Bolt\n4 Counterspell\n20 Island', 'Plain UR');
   const cards = await ev(`[...document.querySelectorAll('#saved-list .deck-face')].map((f) => ({ name: f.querySelector('.saved-name').textContent, colors: f.dataset.colors, split: f.dataset.split ?? '', halves: f.querySelectorAll('.face-half').length, tints: [...f.querySelectorAll('.face-half')].map((h) => h.style.getPropertyValue('--tint')), commanders: [...f.querySelectorAll('.face-commander')].map((c) => c.textContent), pips: f.querySelectorAll('.face-colors img, .face-colors .pip').length, bracket: f.querySelector('.face-bracket')?.textContent ?? '', format: f.querySelector('.face-format').textContent, label: f.getAttribute('aria-label') ?? '' }))`);
   check('each saved deck is a card: its name, format, colors as symbols and (for Commander) its bracket with "guess"', cards.length === 3 && cards.every((c) => c.name && c.format) && cards[0].bracket === 'Bracket 3 (guess)' && cards[1].bracket === 'Bracket 2 (guess)' && cards[2].bracket === '' && cards[1].colors === 'R' && cards[1].pips === 1 && cards[2].colors === 'UR' && cards[2].pips === 2 && cards[2].commanders.length === 0 && cards[2].format === 'Standard', JSON.stringify(cards));
-  check('two commanders: the card is split, the first commander\'s colors on the upper left and the second\'s on the lower right, both names shown, the colors the two together', cards[0].split === '1' && cards[0].halves === 2 && cards[0].tints[0] !== cards[0].tints[1] && cards[0].commanders.length === 2 && cards[0].colors.length === 4 && cards[0].pips === 4 && /Colors: /.test(cards[0].label), JSON.stringify(cards[0]));
+  check('two commanders: the card is split, the first commander\'s colors on the upper left and the second\'s on the lower right, both names shown, the colors the two together', cards[0].split === '1' && cards[0].halves === 2 && cards[0].tints[0] !== cards[0].tints[1] && cards[0].commanders.length === 2 && cards[0].colors.length === 4 && cards[0].pips === 4 && /Open: /.test(cards[0].label), JSON.stringify(cards[0]));
   const geometry = await ev(`(() => { const face = document.querySelector('#saved-list .deck-face[data-split="1"]'); const a = getComputedStyle(face.querySelector('.face-a')).clipPath; const b = getComputedStyle(face.querySelector('.face-b')).clipPath; return { a, b, line: getComputedStyle(face, '::after').backgroundImage.includes('to bottom right') || getComputedStyle(face, '::after').backgroundImage.includes('linear-gradient') }; })()`);
   check('the split is a diagonal from the upper right to the lower left (two triangles), with a thin line along it', /polygon\(0(px)? 0(px)?, 100% 0(px)?, 0(px)? 100%\)/.test(geometry.a) && /polygon\(100% 0(px)?, 100% 100%, 0(px)? 100%\)/.test(geometry.b) && geometry.line, JSON.stringify(geometry));
   check('one commander is not split: one tint over the whole card', cards[1].split === '' && cards[1].halves === 1);
+  const art = await ev(`[...document.querySelectorAll('#saved-list .deck-face')].map((f) => [...f.querySelectorAll('.face-half img')].map((i) => i.src))`);
+  check('the face is the art of each commander: one picture, two for a split card, none for a Standard deck, all from art_crop on cards.scryfall.io', art[0].length === 2 && art[1].length === 1 && art[2].length === 0 && art.flat().every((u) => /^https:\/\/cards\.scryfall\.io\/art_crop\/front\//.test(u)), JSON.stringify(art));
+  if (process.argv.includes('--screenshot')) { // the saved decks with the REAL art (the stand-in pictures are switched off), the pointer on the first card so its "..." shows
+    await browser.send('Fetch.disable').catch(() => {});
+    await ev('location.reload()'); await sleep(4000);
+    const box = await ev(`(() => { const r = document.querySelector('#saved-list .deck-face').getBoundingClientRect(); return { x: r.left + 40, y: r.top + 40 }; })()`);
+    await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: box.x, y: box.y });
+    await sleep(300); await browser.screenshot('scratch-deck-cards.png');
+  }
   await deleteAllSaved();
 
   // ---- limits and odd input ----

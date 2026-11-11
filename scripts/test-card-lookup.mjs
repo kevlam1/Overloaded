@@ -37,7 +37,7 @@ check('a small front picture', imageUrl(id) === 'https://cards.scryfall.io/small
 check('the address is the one that was checked against the real server (HTTP 200, 11,919 bytes)', imageUrl(id, 'small', 'front') === `https://cards.scryfall.io/small/front/${id[0]}/${id[1]}/${id}.jpg`);
 check('other sizes', imageUrl(id, 'normal') === `https://cards.scryfall.io/normal/front/f/c/${id}.jpg` && imageUrl(id, 'large') === `https://cards.scryfall.io/large/front/f/c/${id}.jpg`);
 check('the back face', imageUrl(id, 'small', 'back') === `https://cards.scryfall.io/small/back/f/c/${id}.jpg`);
-check('the sizes and faces that exist', IMAGE_SIZES.join() === 'small,normal,large' && IMAGE_FACES.join() === 'front,back');
+check('the sizes and faces that exist', IMAGE_SIZES.join() === 'small,normal,large,art_crop' && IMAGE_FACES.join() === 'front,back');
 for (const [label, bad] of [['text that is not an id', 'abc'], ['an uppercase id', id.toUpperCase().replace(/[0-9]/g, 'A')], ['an id with text around it', `x${id}`], ['an id that is too long', `${id}0`], ['a number', 5], ['null', null], ['undefined', undefined], ['an id with a slash in it', 'fc817e07-c1f3-469f-9cf7-0945dea7400/'], ['a path trying to climb', '../../etc/passwd'], ['an empty string', '']]) {
   check(`${label} gives no address`, imageUrl(bad) === null);
 }

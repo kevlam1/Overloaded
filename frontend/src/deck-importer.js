@@ -24,6 +24,7 @@ import { renderGroups, mountViewToggle, VIEWS } from './deck-groups.js';
 import { guessBracket, gameChangersIn, bracketNote } from '../../shared/deck-bracket.mjs';
 import { deckFace, colorsAsCost, tintGradient, COLOR_NAMES } from '../../shared/deck-colors.mjs';
 import { manaNode } from './mana-pips.js';
+import { imageUrl } from '../../shared/card-image.mjs';
 import { isValidCode } from '../../shared/table-code.mjs';
 
 const store = makeSafeStore();
@@ -531,24 +532,39 @@ function commit(next, message) {
   return true;
 }
 
-// One saved deck as a card of CSS: tinted with its colors (a Commander deck's commanders' colors; two commanders split it diagonally, the first on the upper left), with the deck's name, its commanders, its
-// colors as the mana symbols, its bracket (and "guess" when it was guessed) and its size. The colors come from the card list, so they appear as soon as it has loaded.
+// One saved deck as a card of CSS: the art of its commander's printing (two commanders split it diagonally, the first on the upper left) over a tint of its colors, with the deck's name, its commanders, its
+// colors as the mana symbols, its bracket (and "guess" when it was guessed) and its size. The tint shows until the art has loaded, and stays if it cannot be loaded. The whole card is a button that opens the deck;
+// the rest (Play solo, Delete) is in the menu at its corner. The colors come from the card list, so they appear as soon as it has loaded.
 function deckCard(entry) {
   const { deck } = entry;
   const face = deckFace(entry, cardsByName);
-  const faceElement = make('div', 'deck-face');
+  const faceElement = make('button', 'deck-face');
+  faceElement.type = 'button';
+  faceElement.dataset.action = 'load';
+  faceElement.setAttribute('aria-label', `Open: ${deck.name}`);
   faceElement.dataset.colors = face.colors;
+  const half = (className, colors, picture) => {
+    const element = make('span', `face-half ${className}`);
+    element.style.setProperty('--tint', tintGradient(colors));
+    const url = picture ? imageUrl(picture, 'art_crop') : null;
+    if (url) {
+      const art = new Image();
+      art.alt = '';
+      art.loading = 'lazy';
+      art.decoding = 'async';
+      art.draggable = false;
+      art.addEventListener('load', () => faceElement.classList.add('has-art')); // light text on the art
+      art.addEventListener('error', () => art.remove()); // the tint stays
+      art.src = url;
+      element.append(art);
+    }
+    return element;
+  };
   if (face.split) {
     faceElement.dataset.split = '1';
-    face.commanders.forEach((commander, index) => {
-      const half = make('span', index === 0 ? 'face-half face-a' : 'face-half face-b');
-      half.style.setProperty('--tint', tintGradient(commander.colors));
-      faceElement.append(half);
-    });
+    faceElement.append(half('face-a', face.commanders[0].colors, face.commanders[0].picture), half('face-b', face.commanders[1].colors, face.commanders[1].picture));
   } else {
-    const whole = make('span', 'face-half face-whole');
-    whole.style.setProperty('--tint', tintGradient(face.colors));
-    faceElement.append(whole);
+    faceElement.append(half('face-whole', face.colors, face.commanders[0]?.picture ?? null));
   }
   const text = make('span', 'saved-text');
   const top = make('span', 'face-top');
@@ -556,7 +572,7 @@ function deckCard(entry) {
   if (solo && entry.id === library.selected) name.append(make('span', 'solo-tag', ' solo deck'));
   top.append(name, make('span', 'face-format', FORMAT_TITLES[entry.format]));
   text.append(top);
-  const commanders = face.commanders.length ? face.commanders.map((commander) => commander.name) : [];
+  const commanders = face.commanders.map((commander) => commander.name);
   if (commanders.length) {
     const line = make('span', 'face-commanders');
     commanders.forEach((commander, index) => line.append(make('span', 'face-commander', commander), ...(index < commanders.length - 1 ? [make('span', 'face-and', ' & ')] : [])));
@@ -577,8 +593,13 @@ function deckCard(entry) {
   bottom.append(make('span', 'face-facts', facts.join(' \u00b7 ')));
   text.append(bottom);
   faceElement.append(text);
-  if (face.colors) faceElement.setAttribute('aria-label', `Colors: ${face.colors.split('').map((color) => COLOR_NAMES[color]).join(', ')}`);
+  if (face.colors) faceElement.title = `Colors: ${face.colors.split('').map((color) => COLOR_NAMES[color]).join(', ')}`;
   return faceElement;
+}
+
+// What the "..." on a saved deck's card (or a right-click on it) opens: the things that are not "open".
+function deckMenuItems() {
+  return [{ id: 'load', label: 'Open' }, ...(solo ? [{ id: 'play', label: 'Play solo' }] : []), { id: 'delete', label: 'Delete' }];
 }
 
 function renderSaved() {
@@ -591,15 +612,9 @@ function renderSaved() {
   $('saved-list').replaceChildren(...library.decks.map((entry) => {
     const item = make('li', 'saved-deck');
     item.dataset.deckId = entry.id;
-    const actions = make('span', 'saved-actions');
-    const action = (kind, label, className) => {
-      const element = button('', label, className);
-      element.dataset.action = kind;
-      element.setAttribute('aria-label', `${label}: ${entry.deck.name}`);
-      return element;
-    };
-    actions.append(action('load', 'Open'), ...(solo ? [action('play', 'Play solo', 'secondary')] : []), action('delete', 'Delete', 'secondary'));
-    item.append(deckCard(entry), actions);
+    const menu = button('', '\u2026', 'deck-menu-button', { 'aria-haspopup': 'menu', 'aria-label': `Options: ${entry.deck.name}`, title: 'Play solo, Delete' });
+    menu.dataset.action = 'menu';
+    item.append(deckCard(entry), menu);
     return item;
   }));
 }
@@ -697,15 +712,33 @@ export function mountDeckImporter({ root: container, sampleId, onLibraryChange: 
     openLineMenu(line, fromKeyboard ? box.left + 24 : event.clientX, fromKeyboard ? box.top + box.height / 2 : event.clientY, event.target.closest('[data-ref]'));
   });
   $('deck-format').addEventListener('change', () => { formatTouched = true; renderCommander(); renderBracket(); renderSections(); });
-  // The buttons of each saved deck, found by delegation so the list can be drawn again without wiring anything.
+  // The card of each saved deck opens it; its "..." (or a right-click on it) opens a menu with Play solo and Delete. Found by delegation so the list can be drawn again without wiring anything.
+  const chooseFromDeckMenu = (id, action) => {
+    const entry = library.decks.find((candidate) => candidate.id === id);
+    if (!entry) return;
+    if (action === 'load') loadSaved(id);
+    else if (action === 'play') { if (commit(selectDeck(library, id), `"${entry.deck.name}" is now the deck for the solo table.`)) location.assign('/solo'); }
+    else if (action === 'delete') commit(removeDeck(library, id), `Deleted "${entry.deck.name}".`);
+  };
+  const openDeckMenu = (item, x, y, returnFocus) => {
+    const id = item.dataset.deckId;
+    const entry = library.decks.find((candidate) => candidate.id === id);
+    if (entry) openCardMenu({ title: entry.deck.name, items: deckMenuItems(), x, y, returnFocus, onPick: (action) => chooseFromDeckMenu(id, action) });
+  };
   $('saved-list').addEventListener('click', (event) => {
     const clicked = event.target instanceof Element ? event.target.closest('button[data-action]') : null;
-    const id = clicked?.closest('[data-deck-id]')?.dataset.deckId;
-    const entry = library.decks.find((candidate) => candidate.id === id);
-    if (!clicked || !entry) return;
-    if (clicked.dataset.action === 'load') loadSaved(id);
-    else if (clicked.dataset.action === 'play') { if (commit(selectDeck(library, id), `"${entry.deck.name}" is now the deck for the solo table.`)) location.assign('/solo'); }
-    else if (clicked.dataset.action === 'delete') commit(removeDeck(library, id), `Deleted "${entry.deck.name}".`);
+    const item = clicked?.closest('[data-deck-id]');
+    if (!clicked || !item) return;
+    if (clicked.dataset.action === 'menu') { const box = clicked.getBoundingClientRect(); openDeckMenu(item, box.left, box.bottom + 2, clicked); }
+    else chooseFromDeckMenu(item.dataset.deckId, clicked.dataset.action);
+  });
+  $('saved-list').addEventListener('contextmenu', (event) => {
+    const item = event.target instanceof Element ? event.target.closest('[data-deck-id]') : null;
+    if (!item) return;
+    event.preventDefault();
+    const fromKeyboard = event.clientX === 0 && event.clientY === 0;
+    const box = item.getBoundingClientRect();
+    openDeckMenu(item, fromKeyboard ? box.left + 24 : event.clientX, fromKeyboard ? box.top + 24 : event.clientY, item.querySelector('.deck-face'));
   });
 
   // Can this browser keep anything? If not, the page still works; it just cannot remember a deck.

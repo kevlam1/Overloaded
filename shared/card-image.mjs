@@ -3,7 +3,7 @@
 // about 12 KB for `small`, cached for a year, CORS open; an unknown id is HTTP 404, so the page needs a fallback).
 // Sizes (docs/scryfall.md): small 146x204 (12 KB), normal 488x680 (71 KB), large 672x936 (105 KB).
 export const IMAGE_HOST = 'https://cards.scryfall.io';
-export const IMAGE_SIZES = ['small', 'normal', 'large'];
+export const IMAGE_SIZES = ['small', 'normal', 'large', 'art_crop']; // art_crop: just the art, about 626 by 457 px and 40 KB (checked 2026-11-10: HTTP 200, image/jpeg, cached for a year)
 export const IMAGE_FACES = ['front', 'back'];
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 

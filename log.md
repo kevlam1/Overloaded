@@ -2770,6 +2770,21 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 134. Commander art on the deck cards, and the buttons in a menu (2026-11-10)
+
+**What I asked for**
+- Use the deck's commander prints as the face of the CSS cards, and reorganize the buttons under each one so it's tidier and not showing on every card.
+
+**What changed** (`shared/card-image.mjs`, `shared/deck-colors.mjs`, `frontend/src/deck-importer.js`, `style.css`)
+- **The face is the commander's art.** Each saved deck's card shows Scryfall's `art_crop` picture of the printing the deck uses for its commander (the printing I chose, else the card's own id). Two commanders: each art fills its own half of the diagonal split. The color tint stays underneath until the picture loads and stays if it cannot (a Standard deck has no commander, so it keeps its tint). Text turns white over art with a dark gradient for reading. I checked first that an `art_crop` address answers 200 as an image of about 42 KB with a year of caching, and it is on the host the content policy already allows, so no policy change and no new Scryfall API request (it is a picture address, like the others). Cost: about 40 KB per commander shown, loaded lazily.
+- **Buttons.** The Open, Play solo and Delete row under every card is gone. The whole card is one button that opens the deck; a round "..." at its corner (shown when the pointer is on the card or it has keyboard focus, always shown on touch screens) and a right-click on the card open a menu with Open, Play solo and Delete, the same menu as the table's cards.
+
+**What I checked**
+- Unit suites: `test-deck-colors` (12) and `test-card-lookup` (41) updated. The deck page check is 291 (the card is one button, the menu has the three items from the "..." and from a right-click, one picture for one commander, two for a split card, none for Standard, all from `art_crop`); lobby page check 65; all 56 quick suites pass. A desktop screenshot with the real art: the split card, the one-commander card and the Standard card all read well, and the "..." appears on hover.
+- **Not checked:** light mode, phone width, and the lobby (still a drop-down). No live run this time.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-10, entry 132) Claude kept committing and pushing to the development branch in turns where I had only asked for a change, after I had asked for it once; my rule is to do it only when asked.
 - (2026-11-10, entry 122) Claude's first deck page started a library it could not read at the box to paste into, hiding the message about it; the old check noticed.

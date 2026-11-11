@@ -18,12 +18,12 @@ export function unionOf(identities) {
 // The identity of a card by its name in the card list (byName: a Map from name to entry), or '' when it is not there.
 export const identityOfName = (byName, name) => clean(byName?.get?.(name)?.ci);
 
-// What a saved deck's card shows: { commanders: [{ name, colors }], colors, split }. A Commander deck has its commanders (one or two) and its colors are theirs together; any other deck has no commanders and its colors are the union
+// What a saved deck's card shows: { commanders: [{ name, colors, picture }], colors, split } (picture: the id of the printing the deck uses for that commander, its chosen printing or else its card id). A Commander deck has its commanders (one or two) and its colors are theirs together; any other deck has no commanders and its colors are the union
 // over every card in the deck (not the sideboard). split is true for two commanders (the card is split diagonally, the first commander's colors on the upper left). entry is a saved library entry { format, deck }.
 export function deckFace(entry, byName) {
   const cards = Array.isArray(entry?.deck?.cards) ? entry.deck.cards : [];
   if (entry?.format === 'commander') {
-    const commanders = cards.filter((card) => card.section === 'commander').slice(0, 2).map((card) => ({ name: card.n, colors: identityOfName(byName, card.n) }));
+    const commanders = cards.filter((card) => card.section === 'commander').slice(0, 2).map((card) => ({ name: card.n, colors: identityOfName(byName, card.n), picture: card.p ?? card.i ?? null }));
     if (commanders.length) return { commanders, colors: unionOf(commanders.map((commander) => commander.colors)), split: commanders.length === 2 };
   }
   const deckCards = cards.filter((card) => card.section === 'main' || card.section === 'commander');
