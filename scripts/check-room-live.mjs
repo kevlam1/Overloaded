@@ -73,10 +73,9 @@ try {
   const checked = await waitFor(async () => (await shown(bob, 'preview')) ? true : null, 20000, 250);
   record('pasting a list and pressing Check shows the checked deck in the lobby, with Commander picked as the format', Boolean(checked) && (await bob.eval(`document.getElementById('deck-format').value`)) === 'commander' && /Krenko/.test(await bob.eval(`document.getElementById('commander-1').selectedOptions[0].textContent`)));
   if (process.argv.includes('--screenshot')) { await bob.eval(`document.getElementById('deck-importer').scrollIntoView()`); await sleep(500); await bob.screenshot('scratch-room-importer.png'); }
-  await setValue(bob, 'deck-name', 'Bob goblins');
-  await click(bob, 'save');
-  const savedMessage = await waitFor(async () => (/Saved "Bob goblins"/.test(await text(bob, 'deck-status')) ? true : null), 15000, 250);
-  record('Save puts the deck in this browser and says so in the importer message line, leaving the lobby status line alone', Boolean(savedMessage) && !/Bob goblins/.test(await text(bob, 'status')));
+  await bob.eval(`(() => { const f = document.getElementById('deck-name'); f.value = 'Bob goblins'; f.dispatchEvent(new Event('input')); f.dispatchEvent(new Event('change')); })()`);
+  const savedMessage = await waitFor(async () => ((await text(bob, 'save-state')) === 'Saved' && /Bob goblins/.test(await bob.eval(`localStorage.getItem('overloaded.decks')`)) ? true : null), 15000, 250);
+  record('the deck saves itself in this browser (there is no Save button), says Saved in the importer, and leaves the lobby status line alone', Boolean(savedMessage) && !/Bob goblins/.test(await text(bob, 'status')));
   const listed = await waitFor(async () => { const o = await bob.eval(`Array.from(document.getElementById('deck-pick').options).map((x) => x.textContent)`); return o.some((t) => /^Bob goblins \(Krenko, Mob Boss/.test(t)) ? o : null; }, 15000, 250);
   record("the lobby's deck picker lists the new deck straight away, with its commander (no reload, no going back)", Boolean(listed), JSON.stringify(listed));
   record('and the "no deck" offer is gone', !(await shown(bob, 'deck-import')));
@@ -108,7 +107,7 @@ try {
   const resume = await waitFor(async () => (await shown(bob, 'resume')) ? true : null, 20000, 200);
   record("Bob's start page says he is at a table and links to it (it does not push him into it: he may want to make another)", Boolean(resume) && (await text(bob, 'resume-code')) === code && (await bob.eval(`document.getElementById('resume-link').getAttribute('href')`)) === `/lobby/${code}` && (await shown(bob, 'make-section')));
   await bob.goto(`${ORIGIN}/pages/deck/index.html`);
-  record("the deck page's 'Back to the lobby' goes to /lobby/CODE (it went to the start page before, while he was still at the table)", (await bob.eval(`document.getElementById('back').getAttribute('href')`)) === `/lobby/${code}`);
+  record("the deck page's header Lobby link goes to /lobby/CODE (not the start page) while he is at the table", (await bob.eval(`document.querySelector('.site-nav a').getAttribute('href')`)) === `/lobby/${code}`);
   await bob.goto(`${ORIGIN}/lobby/${code}`);
   record('...and following it puts him back in the table, still in seat 2', Boolean(await waitFor(async () => (await tableShown(bob)) || null, 20000, 200)) && (await text(bob, 'seat')) === '2');
 

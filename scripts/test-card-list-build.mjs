@@ -91,7 +91,7 @@ try {
   check('a recent list in an older format is rebuilt, not reused', decide({ cached: cachedAt(1, 1), now: T0, env: {} }).action === 'rebuild' && /older format/.test(decide({ cached: cachedAt(1, 1), now: T0, env: {} }).reason));
   check('a recent list with no format at all (made before formats existed) is rebuilt', decide({ cached: { meta: { builtAt: new Date(T0 - DAY_MS).toISOString() } }, now: T0, env: {} }).action === 'rebuild');
   check('a list in a newer format than this code knows is rebuilt too (it may not be what this code expects)', decide({ cached: cachedAt(1, LIST_FORMAT + 1), now: T0, env: {} }).action === 'rebuild');
-  check('an older-format list is still used where downloading is not allowed', decide({ cached: cachedAt(1, 1), now: T0, env: { CARD_LIST_NO_DOWNLOAD: '1' } }).action === 'reuse' && decide({ cached: cachedAt(1, 1), now: T0, env: { VERCEL_ENV: 'preview' } }).action === 'reuse');
+  check('an older-format list is still used where downloading is not allowed', decide({ cached: cachedAt(1, 1), now: T0, env: { CARD_LIST_NO_DOWNLOAD: '1' } }).action === 'reuse' && decide({ cached: cachedAt(1, 1), now: T0, env: { VERCEL_ENV: 'preview', CARD_LIST_NO_DOWNLOAD: '1' } }).action === 'reuse');
   check('SKIP_CARD_LIST still skips with an older-format list', decide({ cached: cachedAt(1, 1), now: T0, env: { SKIP_CARD_LIST: '1' } }).action === 'skip');
   check('a list exactly 7 days old is rebuilt', decide({ cached: cachedAt(7), now: T0, env: {} }).action === 'rebuild');
   check('with nothing cached it rebuilds', decide({ cached: null, now: T0, env: {} }).action === 'rebuild');
@@ -99,7 +99,8 @@ try {
   check('SKIP_CARD_LIST skips, even with a recent list', decide({ cached: cachedAt(1), now: T0, env: { SKIP_CARD_LIST: '1' } }).action === 'skip');
   check('no downloading and an old list: reuse it', decide({ cached: cachedAt(20), now: T0, env: { CARD_LIST_NO_DOWNLOAD: '1' } }).action === 'reuse');
   check('no downloading and nothing cached: skip', decide({ cached: null, now: T0, env: { CARD_LIST_NO_DOWNLOAD: '1' } }).action === 'skip');
-  check('a preview build never downloads: old list reused', decide({ cached: cachedAt(20), now: T0, env: { VERCEL_ENV: 'preview' } }).action === 'reuse');
+  check('a preview build never downloads for an old list in the current format: reused', decide({ cached: cachedAt(20), now: T0, env: { VERCEL_ENV: 'preview' } }).action === 'reuse');
+  check('but a preview build with a list in an older format rebuilds it once (the pages need its newer fields)', decide({ cached: cachedAt(1, 1), now: T0, env: { VERCEL_ENV: 'preview' } }).action === 'rebuild' && decide({ cached: cachedAt(1, 1), now: T0, env: { VERCEL_ENV: 'preview', CARD_LIST_NO_DOWNLOAD: '1' } }).action === 'reuse');
   check('a preview build with nothing cached downloads once, so the preview has a list', decide({ cached: null, now: T0, env: { VERCEL_ENV: 'preview' } }).action === 'rebuild');
   check('...unless downloading is forbidden outright (the tests)', decide({ cached: null, now: T0, env: { VERCEL_ENV: 'preview', CARD_LIST_NO_DOWNLOAD: '1' } }).action === 'skip');
   check('a production build may download', decide({ cached: null, now: T0, env: { VERCEL_ENV: 'production' } }).action === 'rebuild');

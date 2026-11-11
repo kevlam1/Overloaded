@@ -6,6 +6,8 @@ export const COLOR_NAMES = { W: 'white', U: 'blue', B: 'black', R: 'red', G: 'gr
 export const COLOR_TINTS = { W: '#f4f1d0', U: '#acd4f1', B: '#9a8e96', R: '#f0a98f', G: '#aed5b4' };
 export const COLORLESS_TINT = '#cdc9c6';
 
+import { parseCost } from './mana-cost.mjs';
+
 const clean = (identity) => (typeof identity === 'string' ? COLORS.filter((color) => identity.includes(color)).join('') : '');
 
 // The union of some identities, in W U B R G order.
@@ -16,7 +18,13 @@ export function unionOf(identities) {
 }
 
 // The identity of a card by its name in the card list (byName: a Map from name to entry), or '' when it is not there.
-export const identityOfName = (byName, name) => clean(byName?.get?.(name)?.ci);
+// The card's own identity (its `ci`), together with the colors in its cost. The cost is always inside the identity, so with a current card list nothing changes; with an older list that has no `ci` at all
+// (a red commander showed as colorless) the colors still come from the cost.
+export function identityOfName(byName, name) {
+  const card = byName?.get?.(name);
+  if (!card) return '';
+  return unionOf([card.ci, parseCost(card.m).flat().flatMap((symbol) => symbol.colors).join('')]);
+}
 
 // What a saved deck's card shows: { commanders: [{ name, colors, picture }], colors, split } (picture: the id of the printing the deck uses for that commander, its chosen printing or else its card id). A Commander deck has its commanders (one or two) and its colors are theirs together; any other deck has no commanders and its colors are the union
 // over every card in the deck (not the sideboard). split is true for two commanders (the card is split diagonally, the first commander's colors on the upper left). entry is a saved library entry { format, deck }.

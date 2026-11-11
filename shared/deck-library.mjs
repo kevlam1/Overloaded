@@ -99,6 +99,32 @@ export function addDeck(library, deck, { format = formatOf(deck), bracket = null
   return { ok: true, library: { ...library, selected: id, decks }, id, replaced: at >= 0 };
 }
 
+// A name no deck has yet (capitals do not matter): the name itself, or "Name (2)", "Name (3)", ... Used by autosave, so pasting a new deck never replaces another deck of the same name.
+export function uniqueName(library, name) {
+  const taken = new Set(library.decks.map((entry) => entry.deck.name.toLowerCase()));
+  if (!taken.has(name.toLowerCase())) return name;
+  for (let n = 2; n < 1000; n++) {
+    const suffix = ` (${n})`;
+    const candidate = `${name.slice(0, Math.max(1, 60 - suffix.length))}${suffix}`; // a deck name is at most 60 characters
+    if (!taken.has(candidate.toLowerCase())) return candidate;
+  }
+  return name;
+}
+
+// Saves changes to the deck with this id, where it is, keeping its id and leaving the selected deck as it was (editing a deck does not make it the deck for the solo table). The name may change,
+// but not to another deck's name. Returns { ok: true, library, id } or { ok: false, error }. Never changes `library`.
+export function replaceDeck(library, id, deck, { format = formatOf(deck), bracket = null, bracketGuess = false } = {}) {
+  const at = library.decks.findIndex((entry) => entry.id === id);
+  if (at < 0) return { ok: false, error: 'That deck is not saved any more.' };
+  if (!FORMATS.includes(format)) return { ok: false, error: 'Choose Commander or Standard for this deck.' };
+  if (bracket !== null && !BRACKETS.includes(bracket)) return { ok: false, error: 'A bracket is a whole number from 1 to 5.' };
+  if (bracketGuess !== false && !(bracketGuess === true && bracket !== null)) return { ok: false, error: 'Only a bracket can be a guess.' };
+  const name = deck.name.toLowerCase();
+  if (library.decks.some((entry, index) => index !== at && entry.deck.name.toLowerCase() === name)) return { ok: false, error: `You already have a deck called "${deck.name}".` };
+  const entry = { id, format, ...(bracket === null ? {} : { bracket }), ...(bracketGuess ? { bracketGuess: true } : {}), deck };
+  return { ok: true, library: { ...library, decks: library.decks.map((existing, index) => (index === at ? entry : existing)) }, id };
+}
+
 // Takes a deck away. If it was the selected one, the first deck left is selected (or none).
 export function removeDeck(library, id) {
   const decks = library.decks.filter((entry) => entry.id !== id);

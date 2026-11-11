@@ -39,14 +39,15 @@ const sleepFor = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 //   skip: ship the site without a list (SKIP_CARD_LIST=1, the emergency switch, or nothing cached and no downloading allowed)
 //   reuse: use the cached list as it is (recent, or downloading is not allowed here)
 //   rebuild: download and build a new one
-// Downloading is never allowed when CARD_LIST_NO_DOWNLOAD is set (the tests). A preview build (VERCEL_ENV=preview) reuses any cached list, however old, and downloads only when it has
-// NOTHING cached, so a branch's first preview has a list to play with; the list is then cached and the later previews of that branch reuse it.
+// Downloading is never allowed when CARD_LIST_NO_DOWNLOAD is set (the tests). A preview build (VERCEL_ENV=preview) reuses a cached list however OLD it is, but downloads when it has NOTHING cached
+// (so a branch's first preview has a list to play with) or when the cached list is in an OLDER FORMAT: the pages read fields an old list does not have (the color identity, the Game Changers), so an
+// old-format list on a preview showed a red commander as colorless and no Game Changers. The list is then cached, and the later previews reuse it.
 export function decide({ cached, now, env }) {
   if (env.SKIP_CARD_LIST) return { action: 'skip', reason: 'SKIP_CARD_LIST is set' };
   const age = cached ? now - Date.parse(cached.meta.builtAt) : Infinity;
   const oldFormat = Boolean(cached) && cached.meta.format !== LIST_FORMAT;
   if (cached && !oldFormat && age >= 0 && age < MAX_AGE_MS) return { action: 'reuse', reason: 'the cached list is recent', age };
-  const noDownload = Boolean(env.CARD_LIST_NO_DOWNLOAD) || (env.VERCEL_ENV === 'preview' && Boolean(cached));
+  const noDownload = Boolean(env.CARD_LIST_NO_DOWNLOAD) || (env.VERCEL_ENV === 'preview' && Boolean(cached) && !oldFormat);
   if (noDownload) return cached ? { action: 'reuse', reason: 'downloading is not allowed here', age } : { action: 'skip', reason: 'downloading is not allowed here and nothing is cached' };
   return { action: 'rebuild', reason: !cached ? 'no usable cached list' : oldFormat ? 'the cached list is in an older format' : 'the cached list is old', age };
 }

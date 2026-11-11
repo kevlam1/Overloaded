@@ -872,7 +872,6 @@ main.wide:has(.deck-app[data-screen="deck"]) { max-width: 120rem; }
 .deck-face .saved-text { position: relative; z-index: 2; display: flex; flex-direction: column; justify-content: space-between; gap: 0.5rem; width: 100%; padding: 0.8rem 1rem; }
 .deck-face .face-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.75rem; padding-right: 2rem; }
 .deck-face .saved-name { font-size: 1.15rem; line-height: 1.2; overflow-wrap: anywhere; }
-.deck-face .solo-tag { margin-left: 0.4rem; border-color: currentColor; color: inherit; }
 .deck-face .face-format { flex: none; padding: 0 0.5rem; border: 1px solid currentColor; border-radius: 0.8rem; font-size: 0.7rem; font-weight: 600; line-height: 1.3rem; opacity: 0.9; }
 .deck-face .face-commanders { display: flex; flex-wrap: wrap; font-size: 0.88rem; font-weight: 600; }
 .deck-face .face-and { white-space: pre; }
@@ -881,10 +880,6 @@ main.wide:has(.deck-app[data-screen="deck"]) { max-width: 120rem; }
 .deck-face .face-bracket { padding: 0 0.5rem; border-radius: 0.8rem; background: rgba(0, 0, 0, 0.72); color: #fff; font-weight: 700; line-height: 1.3rem; }
 .deck-face .face-guess { font-weight: 400; opacity: 0.85; }
 .deck-face .face-facts { flex: 1 1 auto; text-align: right; opacity: 0.9; }
-.deck-menu-button { position: absolute; z-index: 3; top: 0.5rem; right: 0.5rem; width: 2rem; height: 2rem; min-height: 0; padding: 0; border: 0; border-radius: 50%; background: rgba(0, 0, 0, 0.6); color: #fff; font-size: 1.1rem; line-height: 1; opacity: 0; }
-.saved-deck:hover .deck-menu-button, .saved-deck:focus-within .deck-menu-button, .deck-menu-button[aria-expanded="true"] { opacity: 1; }
-.deck-menu-button:hover { background: rgba(0, 0, 0, 0.85); }
-@media (hover: none) { .deck-menu-button { opacity: 1; } }
 
 /* ---- the deck page, second pass ---- */
 /* The saved deck cards: the name on top (clear of the "..."), the commanders, then a bottom row whose parts never break in the middle (the colors, the bracket, the format and size). */
@@ -893,8 +888,6 @@ main.wide:has(.deck-app[data-screen="deck"]) { max-width: 120rem; }
 .deck-face .face-colors, .deck-face .face-bracket, .deck-face .face-facts { flex: none; white-space: nowrap; }
 .deck-face .face-colors { display: inline-flex; flex-wrap: nowrap; gap: 0.15rem; }
 .deck-face .face-facts { margin-left: auto; text-align: right; }
-.deck-menu-button { display: grid; place-items: center; top: 0.6rem; right: 0.6rem; width: 1.9rem; height: 1.9rem; }
-.deck-menu-button svg { display: block; }
 
 /* The deck's header: one compact block. Name, format, bracket, commanders and Save share rows and wrap as the window narrows; the facts sit under them. */
 .deck-app .deck-header { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.4rem 0.75rem; padding: 0.7rem 0.9rem; }
@@ -907,7 +900,6 @@ main.wide:has(.deck-app[data-screen="deck"]) { max-width: 120rem; }
 .deck-app .deck-settings select, .deck-app .commander-box select { width: 100%; min-width: 0; }
 .deck-app .deck-settings .field:nth-child(1), .deck-app .deck-settings .field:nth-child(2) { width: 8.5rem; }
 .deck-app .commander-box .field { width: 15rem; }
-.deck-app .deck-save { margin-left: auto; }
 .deck-app .deck-header .hint { flex: 1 1 100%; margin: 0; font-size: 0.8rem; }
 .deck-app .deck-header .hint:empty { display: none; }
 .deck-facts { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 1.5rem; flex: 1 1 100%; padding-top: 0.55rem; border-top: 1px solid var(--line); }
@@ -979,5 +971,36 @@ main.wide:has(.deck-app[data-screen="deck"]) { max-width: 120rem; }
 .site-link:hover { background: color-mix(in srgb, var(--muted) 15%, var(--card)); color: var(--text); }
 .site-link[aria-current="page"] { background: color-mix(in srgb, var(--accent) 18%, var(--card)); color: var(--text); }
 /* In the deck's header the Save button goes after the choices (the far right of the first row), and the notes and facts below them. */
-.deck-app .deck-save { order: 5; }
 .deck-app .deck-header .hint, .deck-app .deck-facts { order: 9; }
+
+/* ---- the deck page, third pass: autosave, play and delete on the card, less empty space ---- */
+/* Play solo and Delete: two small round buttons at the corner of a saved deck's card, shown when the pointer or the keyboard is on the card (always on a touch screen). */
+.deck-actions { position: absolute; z-index: 3; top: 0.6rem; right: 0.6rem; display: flex; gap: 0.35rem; opacity: 0; transition: opacity 0.12s ease; }
+.saved-deck:hover .deck-actions, .saved-deck:focus-within .deck-actions { opacity: 1; }
+@media (hover: none) { .deck-actions { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .deck-actions { transition: none; } }
+.deck-action { display: grid; place-items: center; width: 1.9rem; height: 1.9rem; min-height: 0; padding: 0; border: 0; border-radius: 50%; background: rgba(0, 0, 0, 0.62); color: #fff; }
+.deck-action:hover { background: rgba(0, 0, 0, 0.85); }
+.deck-action[data-action="delete"]:hover { background: #b3261e; }
+.deck-action svg { display: block; }
+.deck-face .face-top { padding-right: 4.5rem; }
+/* Autosave: a quiet note beside the name. */
+.save-state { align-self: center; margin: 1.1rem 0 0; color: var(--muted); font-size: 0.8rem; }
+.save-state.error { color: var(--danger); }
+.save-state:empty { display: none; }
+/* In the deck, the way back and the list editing are small quiet buttons, not big ones. */
+.deck-app .deck-nav { display: flex; gap: 0.25rem; }
+.link-button { min-height: 0; padding: 0.2rem 0.55rem; border: 0; background: transparent; color: var(--accent); font-size: 0.9rem; font-weight: 600; }
+.link-button:hover { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+/* The page's own heading only shows on the list of decks; the header says where you are in the other screens. */
+main.wide:has(.deck-app[data-screen="deck"]) > h1, main.wide:has(.deck-app[data-screen="paste"]) > h1 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+/* Fields take the room they need and no more, so the header's choices sit together. */
+.deck-app .deck-header { gap: 0.4rem 0.9rem; }
+.deck-app .deck-header .deck-name-field { flex: 1 1 14rem; max-width: 26rem; }
+.deck-app .deck-settings .field:nth-child(1), .deck-app .deck-settings .field:nth-child(2) { width: 9rem; }
+.deck-app .commander-box .field { width: 14rem; }
+/* The site header: the places to go sit next to the logo, not at the far edge. */
+.site-header-inner { justify-content: flex-start; gap: 1.75rem; }
+/* No empty message line (it left a blank band at the top), and "New deck" on the same line as the page's heading. */
+.deck-app .status:empty { display: none; }
+main.wide:has(.deck-app[data-screen="list"]) .screen-head { margin-top: -2.9rem; margin-bottom: 1rem; }

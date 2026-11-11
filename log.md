@@ -2844,6 +2844,28 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 138. Autosave, play and delete on the deck cards, and a clean-up of repeated text (2026-11-10)
+
+**What I asked for**
+- Remove redundant lines of text in all routes and actually clean them up. Why do I need the "All decks" and "Edit list" buttons? Why does the card say "solo deck"? Remove the "..." from the cards and let me play solo or delete straight from the list. The Krenko deck is labeled colorless though the commander is red. So much gap and wasted space, the header buttons far right. Decks should save after every action, not with a Save button.
+
+**Why Krenko was colorless (found, not just fixed)**
+- My screenshot of the sample deck says "7 Game Changers" and "Auto (4)"; Kevin's says "No Game Changers" and "Auto (2)". Same code, different card list: his preview was built from an old-format list (the Vercel preview build reuses any cached list, however old). The card's colors come from the list's `ci` and the Game Changers from `gc`, and an old list has neither. Two fixes: a preview build now rebuilds (one download, then cached) when the cached list is in an older format, and the deck colors are now also taken from the cost (a cost is always inside the color identity, so nothing changes with a current list). I could not look at his preview, so the cause is deduced from those two screenshots, not observed; the first preview build after this will show it (`/data/cards.info.json` says the list format).
+
+**What changed** (`frontend/src/deck-importer.js`, `deck-stats.js`, `style.css`, `shared/deck-library.mjs`, `shared/deck-colors.mjs`, `scripts/lib/card-list-build.mjs`, the deck and lobby pages)
+- **Autosave.** The Save deck button and the "save without the unmatched lines" box are gone. A deck saves itself after a check, a new name, format, bracket, commander or partner, a card chosen for a problem line, or a changed printing, and a quiet "Saved" (or "Not saved: the reason") sits beside the name. A new deck is added under a name no other deck has ("New deck", or its commander's name, with (2), (3) if taken); an open deck is replaced by its id, so renaming it renames it. Two things behave differently from before, on purpose: a name another deck has is refused (it used to replace that deck) and editing a deck does not make it the solo deck. Unmatched lines are left out and counted, as before. Opening a deck does not write it back. The sample opens its saved copy if there is one, so it is not copied again each time.
+- **Deck cards.** No "solo deck" tag, no "...". Two small round buttons (play, delete) appear at the corner when the pointer or keyboard is on the card (always on a touch screen). The right-click menu is gone with the "...".
+- **Repeated text removed:** the Back to the lobby link on the deck page (the header's Lobby link goes to your table if you are at one); the All decks and Edit list buttons (now two small quiet buttons in the row above the deck, "‹ All decks" and "Edit list"); the page heading on the deck screens (it stays for screen readers; it shows on the list); the "19 cards" line (the facts strip has it; it shows only when something needs attention); the "No Game Changers" note (the choice already says Auto (2)); the empty message line that left a blank band; on the lobby, the heading "Overloaded (BETA)" (now "Lobby") and the line that told you to import a deck and play solo (the header has both places), and a shorter note under Make a table.
+- **Space.** The header's places sit next to the logo, not at the far edge; the deck's choices sit together now that Save is gone; the list's New deck button shares the line of its heading.
+
+**What I checked**
+- New or changed tests: `test-deck-library` is 124 (uniqueName and replaceDeck), `test-deck-colors` 13 (a card with no `ci`), `test-card-list-build` 164 (a preview with an old-format list rebuilds). The deck page check is 272: I rewrote the save-related parts for autosave (the problems, the commander, several decks, the limit of 20, the sample, the screens) and removed the checks of the menu and the Save button. The live room check (26) and the live lobby check (170) pass; all 57 quick suites pass. Screenshots of the list and the deck at 1280.
+- **Not checked:** the solo, table and lobby pages beyond the changes above (I did not go through their text, and left the Back links on the solo and table pages, which have no header), light mode, phone width, and a real Vercel preview build with the format rule (it downloads about 100 MB once, as the log says for other format changes).
+
+**My mistakes this round:** several shell one-liners lost their quoting and I had to redo them with the editing tool; my first autosave made every check in my own test run add a deck (the test needed to start each part from no decks); I first expected the editing of a loaded deck to reset its bracket as it did for a pasted one, which would have silently destroyed a chosen bracket, so editing the list of a saved deck now keeps its format, bracket and commander.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-10, entry 132) Claude kept committing and pushing to the development branch in turns where I had only asked for a change, after I had asked for it once; my rule is to do it only when asked.
 - (2026-11-10, entry 122) Claude's first deck page started a library it could not read at the box to paste into, hiding the message about it; the old check noticed.

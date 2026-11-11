@@ -32,9 +32,9 @@ for (const [name, ids] of [['deck page', deckIds], ['lobby page', lobbyIds]]) {
   const clashes = [...created].filter((id) => ids.includes(id));
   check(`no id the manager creates is also written by hand on the ${name}`, clashes.length === 0, clashes.join(', '));
 }
-check('the deck page has its #back link and the importer is told about it', deckIds.includes('back') && /document\.getElementById\('back'\)/.test(importer));
+check('the deck page has no Back link of its own (the site header has the Lobby link) and the importer no longer looks for one', !deckIds.includes('back') && !/getElementById\('back'\)/.test(importer));
 check('the lobby panel that holds the manager is #deck-importer, hidden until opened', /<section id="deck-importer"[^>]*hidden>\s*<div id="deck-app"><\/div>/.test(lobbyPage));
-check('the lobby mounts it without the Play solo button (the table has its own deck)', /mountDeckImporter\(\{ root: \$\('deck-app'\), backLink: false, play: false,/.test(read('frontend/pages/lobby/lobby.js')));
+check('the lobby mounts it without the Play solo button (the table has its own deck)', /mountDeckImporter\(\{ root: \$\('deck-app'\), play: false,/.test(read('frontend/pages/lobby/lobby.js')));
 check('the deck page mounts it into #deck-app', /mountDeckImporter\(\{ root: document\.getElementById\('deck-app'\)/.test(read('frontend/pages/deck/deck.js')));
 check('the old copies of the markup are gone from both pages (no #deck-text, #sections or #saved-list written by hand)', !/id="(deck-text|sections|saved-list|commander-1)"/.test(deckPage + lobbyPage));
 

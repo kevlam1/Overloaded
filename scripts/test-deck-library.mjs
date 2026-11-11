@@ -1,7 +1,7 @@
 // Tests for shared/deck-library.mjs: up to 20 saved decks with an id and a format each, which one is selected, replacing a deck
 // by name, and reading everything back strictly from the browser's storage (including the old single deck). Decks are small
 // hand-made saved decks that the real strict reader accepts. No browser, no network. Run: node scripts/test-deck-library.mjs
-import { LIBRARY_KEY, LEGACY_KEY, LIBRARY_VERSION, MAX_DECKS, FORMATS, FORMAT_TITLES, newDeckId, formatOf, emptyLibrary, readLibrary, serializeLibrary, selectedEntry, decksOfFormat, addDeck, removeDeck, selectDeck } from '../shared/deck-library.mjs';
+import { LIBRARY_KEY, LEGACY_KEY, LIBRARY_VERSION, MAX_DECKS, FORMATS, FORMAT_TITLES, newDeckId, formatOf, emptyLibrary, readLibrary, serializeLibrary, selectedEntry, decksOfFormat, addDeck, uniqueName, replaceDeck, removeDeck, selectDeck } from '../shared/deck-library.mjs';
 import { serializeDeck } from '../shared/deck-preview.mjs';
 
 let checks = 0;
@@ -193,6 +193,25 @@ check('each call gives a new empty library', emptyLibrary() !== emptyLibrary());
     check(`a stored bracket of ${label} drops that deck and keeps the other`, result.skipped === 1 && result.library.decks.length === 1 && result.library.decks[0].deck.name === 'B', `${result.skipped} ${result.library.decks.length}`);
   }
   check('the bracket does not change the deck inside it', JSON.stringify(read.library.decks[0].deck) === JSON.stringify(good.decks[0].deck));
+}
+
+// ---- autosave: a unique name for a new deck, and replacing a deck by its id ----
+{
+  const lib = deepFreeze(libraryOf(deckOf('Alpha'), deckOf('Alpha (2)'), deckOf('Beta')));
+  same('a name nobody has stays as it is', uniqueName(lib, 'Gamma'), 'Gamma');
+  same('a taken name gets (2), and (3) when that is taken too; capitals do not matter', [uniqueName(lib, 'Beta'), uniqueName(lib, 'ALPHA'), uniqueName(lib, 'alpha (2)')], ['Beta (2)', 'ALPHA (3)', 'alpha (2) (2)']);
+  const long = 'x'.repeat(60);
+  const withLong = libraryOf(deckOf(long));
+  check('a long name stays within 60 characters', uniqueName(withLong, long).length <= 60 && uniqueName(withLong, long) !== long, uniqueName(withLong, long));
+  const edited = replaceDeck(lib, id(3), deckOf('Beta renamed', { n: 7 }), { format: 'standard' });
+  check('replacing by id keeps the id and the position, takes the new deck, and leaves the selected deck alone', edited.ok && edited.id === id(3) && names(edited.library).join() === 'Alpha,Alpha (2),Beta renamed' && edited.library.decks[2].deck.commander.length === 0 && edited.library.selected === lib.selected && edited.library.selected === id(3), JSON.stringify(edited));
+  const selectedBefore = libraryOf(deckOf('A'), deckOf('B'));
+  same('editing the first deck does not select it', replaceDeck(selectedBefore, id(1), deckOf('A edited'), {}).library.selected, id(2));
+  check('a deck cannot take another deck\'s name (capitals do not matter), but may keep its own name in other capitals', !replaceDeck(lib, id(3), deckOf('alpha'), {}).ok && /already have a deck called "alpha"/.test(replaceDeck(lib, id(3), deckOf('alpha'), {}).error) && replaceDeck(lib, id(3), deckOf('BETA'), {}).ok);
+  check('an id that is not saved is refused', !replaceDeck(lib, 'nope', deckOf('Z'), {}).ok);
+  check('the format, the bracket and the guess are checked like addDeck', !replaceDeck(lib, id(1), deckOf('Alpha'), { format: 'modern' }).ok && !replaceDeck(lib, id(1), deckOf('Alpha'), { bracket: 9 }).ok && !replaceDeck(lib, id(1), deckOf('Alpha'), { bracketGuess: true }).ok);
+  same('a bracket and its guess are kept', (({ bracket, bracketGuess }) => [bracket, bracketGuess])(replaceDeck(lib, id(1), deckOf('Alpha'), { format: 'commander', bracket: 3, bracketGuess: true }).library.decks[0]), [3, true]);
+  same('the library it was given is not changed', names(lib), ['Alpha', 'Alpha (2)', 'Beta']);
 }
 
 console.log(`All ${checks} deck library checks passed.`);

@@ -311,7 +311,7 @@ async function openImporter() {
   if (!importerMounted) {
     importerMounted = true;
     const { mountDeckImporter } = await import('../../src/deck-importer.js');
-    mountDeckImporter({ root: $('deck-app'), backLink: false, play: false, onLibraryChange: () => refreshDeckPicker() });
+    mountDeckImporter({ root: $('deck-app'), play: false, onLibraryChange: () => refreshDeckPicker() });
   }
   panel.scrollIntoView({ block: 'nearest' });
 }

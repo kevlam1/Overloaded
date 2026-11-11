@@ -17,7 +17,7 @@ import { openCardMenu } from './card-menu.js';
 import { setPrintingInText } from '../../shared/deck-text-edit.mjs';
 import { makePrintsLoader } from './card-prints.js';
 import { openPrintingPicker } from './printing-picker.js';
-import { LIBRARY_KEY, LEGACY_KEY, FORMAT_TITLES, emptyLibrary, readLibrary, serializeLibrary, addDeck, removeDeck, selectDeck } from '../../shared/deck-library.mjs';
+import { LIBRARY_KEY, LEGACY_KEY, FORMAT_TITLES, emptyLibrary, readLibrary, serializeLibrary, addDeck, replaceDeck, uniqueName, removeDeck, selectDeck } from '../../shared/deck-library.mjs';
 import { makeSafeStore } from './safe-store.js';
 import { loadCardList } from './card-list.js';
 import { makePrintingLoader } from './printings.js';
@@ -28,7 +28,6 @@ import { guessBracket, gameChangersIn, bracketNote } from '../../shared/deck-bra
 import { deckFace, colorsAsCost, tintGradient, COLOR_NAMES } from '../../shared/deck-colors.mjs';
 import { manaNode } from './mana-pips.js';
 import { imageUrl } from '../../shared/card-image.mjs';
-import { isValidCode } from '../../shared/table-code.mjs';
 
 const store = makeSafeStore();
 const PROBE_KEY = 'overloaded.storage-probe';
@@ -166,27 +165,18 @@ function build() {
   const deckHeading = make('h2', 'sr-only', 'Your deck');
   deckHeading.id = 'preview-heading';
   deckHeading.tabIndex = -1;
-  const bar = make('div', 'deck-bar');
-  bar.append(button('back-to-decks', 'All decks', 'secondary'), button('edit-list', 'Edit list', 'secondary'));
   const nameInput = make('input');
   nameInput.type = 'text';
   nameInput.maxLength = 60;
   nameInput.autocomplete = 'off';
   nameInput.spellcheck = false;
-  const missing = make('div', 'choice');
-  missing.id = 'missing-box';
-  missing.hidden = true;
-  const allow = make('input');
-  allow.type = 'checkbox';
-  allow.id = 'allow-missing';
-  const allowLabel = make('label');
-  allowLabel.htmlFor = 'allow-missing';
-  allowLabel.id = 'allow-missing-label';
-  missing.append(allow, allowLabel);
   const head = make('div', 'deck-head');
-  const saveBox = make('div', 'deck-save');
-  saveBox.append(missing, button('save', 'Save deck'));
-  head.append(field('deck-name', 'Deck name', nameInput, 'field deck-name-field'), saveBox);
+  // A deck saves itself after every change; this says so, or says why it could not.
+  const saveState = make('p', 'save-state');
+  saveState.id = 'save-state';
+  saveState.setAttribute('role', 'status');
+  saveState.setAttribute('aria-live', 'polite');
+  head.append(field('deck-name', 'Deck name', nameInput, 'field deck-name-field'), saveState);
 
   const formatSelect = select([['commander', 'Commander'], ['standard', 'Standard']]);
   const bracketSelect = select([['', 'Auto'], ['1', '1'], ['2', '2'], ['3', '3'], ['4', '4'], ['5', '5']]);
@@ -204,6 +194,8 @@ function build() {
   bracketNoteElement.id = 'bracket-note';
 
   const summaryRow = make('div', 'deck-summary');
+  const deckNav = make('div', 'deck-nav');
+  deckNav.append(button('back-to-decks', '\u2039 All decks', 'link-button'), button('edit-list', 'Edit list', 'link-button'));
   const summary = make('p');
   summary.id = 'summary';
   const toggle = make('div', 'view-toggle');
@@ -221,7 +213,7 @@ function build() {
   const controls = make('div', 'deck-controls');
   const directionButton = button('deck-sort-direction', String.fromCharCode(0x2191) + ' Ascending', 'secondary sort-direction', { title: 'Ascending' });
   controls.append(groupLabel, groupSelect, sortLabel, sortSelect, directionButton, toggle);
-  summaryRow.append(summary, controls);
+  summaryRow.append(deckNav, summary, controls);
   const notices = make('ul', 'notices');
   notices.id = 'notices';
   const problems = make('div');
@@ -244,7 +236,7 @@ function build() {
   info.id = 'deck-info';
   const header = make('div', 'deck-header');
   header.append(head, settings, commanderNote, bracketNoteElement, facts);
-  deck.append(deckHeading, bar, header, summaryRow, notices, problems, body, info);
+  deck.append(deckHeading, header, summaryRow, notices, problems, body, info);
 
   root.replaceChildren(status, saved, paste, deck);
 }
@@ -294,11 +286,19 @@ async function loadCards() {
 async function useSample(id) {
   if (!index) return;
   const sample = sampleById(id);
+  // Opened before: the saved copy opens (no second copy is made each time).
+  const again = library.decks.find((entry) => entry.deck.name === sample.name && entry.deck.text === sample.text);
+  if (again) { await loadSaved(again.id); return; }
   $('deck-text').value = sample.text;
   $('deck-name').value = sample.name;
-  await runCheck();
-  if (!preview || $('deck-text').value !== sample.text) return; // another check came in while the printings loaded
-  setFormat(sample.format);
+  currentId = null;
+  suppressAutosave = true;
+  try {
+    await runCheck();
+    if (!preview || $('deck-text').value !== sample.text) return; // another check came in while the printings loaded
+    setFormat(sample.format);
+  } finally { suppressAutosave = false; }
+  autosave();
 }
 
 // ---- checking a pasted list ----
@@ -307,7 +307,11 @@ async function useSample(id) {
 async function runCheck() {
   if (!index) return;
   const pasted = $('deck-text').value;
-  if (pasted !== text) { choices = {}; picksTouched = false; formatTouched = false; $('deck-bracket').value = ''; }
+  if (pasted !== text) {
+    choices = {};
+    // A new deck starts again from the guesses; a saved deck that is being edited keeps its format, bracket and commander (they save with it).
+    if (!currentId) { picksTouched = false; formatTouched = false; $('deck-bracket').value = ''; }
+  }
   text = pasted;
   const run = ++checkRun;
   if (!text.trim()) { say('Paste a decklist first.', true); return; }
@@ -327,6 +331,7 @@ async function runCheck() {
   say('');
   refresh();
   showScreen('deck');
+  autosave();
 }
 
 // Works the preview out again from the text it is for (so choosing a card does not depend on what is now in the box).
@@ -340,6 +345,7 @@ function renderPreview() {
   const { counts } = preview;
   $('summary').textContent = counts.cards === 0 ? 'No cards were found in that.' : `${plural(counts.cards, 'card', 'cards')}${counts.problem === 0 ? '' : ` · ${counts.problem} need attention`}`;
   $('summary').classList.toggle('has-problems', counts.problem > 0);
+  $('summary').classList.toggle('sr-only', counts.problem === 0); // the cards are counted in the facts strip, so the visible line is only for problems
   const notices = $('notices');
   notices.replaceChildren(...preview.notices.map((notice) => make('li', '', notice)));
   notices.hidden = preview.notices.length === 0;
@@ -347,7 +353,6 @@ function renderPreview() {
   renderCommander();
   renderBracket();
   renderSections();
-  renderSaveBox();
   const stats = deckStats(preview.lines);
   renderDeckFacts($('deck-facts'), stats);
   renderDeckInfo($('deck-info'), stats);
@@ -362,6 +367,7 @@ function choiceSelect(line, label) {
     if (!element.value) return;
     choices[line.typedKey] = element.value;
     refresh();
+    autosave();
     say(`Chose ${preview.lines.find((l) => l.typedKey === line.typedKey)?.name ?? 'the card'}.`);
   });
   return element;
@@ -433,6 +439,7 @@ async function applyPrinting(line, row) {
   $('deck-text').value = text;
   printingFiles = new Map([...printingFiles, ...loaded]);
   refresh(); // the same cards, with the new printing; the name, format, bracket and commander stay as they were
+  autosave();
   say(row ? `${line.name}: ${row.set.toUpperCase()} ${row.number}.` : `${line.name}: default printing.`);
 }
 
@@ -460,6 +467,7 @@ function openLineMenu(line, x, y, returnFocus) {
     picksTouched = true;
     renderCommander();
     renderSections();
+    autosave();
     say(commanderChoiceMessage(action, line.name));
   } });
 }
@@ -478,7 +486,7 @@ function renderBracket() {
   bracketGuessNow = isCommander() ? guessBracket(found.count) : null;
   $('deck-bracket').options[0].textContent = bracketGuessNow === null ? 'Auto' : `Auto (${bracketGuessNow})`;
   $('bracket-note').textContent = isCommander() ? bracketNote(found) : '';
-  $('bracket-note').hidden = !isCommander();
+  $('bracket-note').hidden = !isCommander() || found.count === 0; // with none there is nothing to name; the choice already says what it guessed
 }
 
 function setFormat(value) {
@@ -522,13 +530,41 @@ function renderCommander() {
   $('commander-note').textContent = commander ? (CERTAINTY_NOTES[preview.commander.certainty] ?? '') : '';
 }
 
-function renderSaveBox() {
-  const unmatchedLines = preview.lines.filter((line) => line.status !== 'matched' && line.section !== 'maybeboard').length;
-  $('missing-box').hidden = unmatchedLines === 0;
-  if (unmatchedLines === 0) $('allow-missing').checked = false;
-  $('allow-missing-label').textContent = `Save without the ${plural(unmatchedLines, 'line', 'lines')} that ${unmatchedLines === 1 ? 'was' : 'were'} not matched`;
-  $('save').disabled = !preview.canSave;
-  $('save').title = library.decks.length ? 'Saving a deck with the same name replaces that deck. You can keep up to 20 decks.' : '';
+// ---- autosave: the deck saves itself after every change ----
+// currentId is the saved deck this one is (null for a new deck, which is added the first time it is saved, under a name no other deck has). suppressAutosave is on while a saved deck or the sample is being
+// opened, so opening a deck never writes it back with a guess.
+let currentId = null;
+let suppressAutosave = false;
+function setSaveState(message, isError = false) {
+  $('save-state').textContent = message;
+  $('save-state').classList.toggle('error', isError);
+}
+function autosave() {
+  if (!preview || !index || suppressAutosave) return;
+  const ids = commanderIds();
+  const typed = $('deck-name').value.trim();
+  const known = library.decks.find((entry) => entry.id === currentId);
+  // A blank name is not saved: an existing deck keeps its name, and a new one is named after its commander.
+  const name = typed || known?.deck.name || (preview.lines.find((line) => line.card && ids.includes(line.card.i))?.name ?? 'New deck');
+  const built = buildSavedDeck(preview, { name, text, commanderIds: ids, allowMissing: true });
+  if (!built.ok) { setSaveState(`Not saved: ${built.error}`, true); return; }
+  // Brackets are a Commander idea. A number the player picked is saved as chosen; with Auto the guess is saved, marked as a guess, so it can be guessed again.
+  const chosen = isCommander() && $('deck-bracket').value ? Number($('deck-bracket').value) : null;
+  const bracket = chosen ?? (isCommander() ? bracketGuessNow : null);
+  const options = { format: $('deck-format').value, bracket, bracketGuess: chosen === null && bracket !== null };
+  let result;
+  if (known) {
+    result = replaceDeck(library, known.id, built.deck, options);
+  } else {
+    const unique = uniqueName(library, built.deck.name);
+    result = addDeck(library, { ...built.deck, name: unique }, options);
+  }
+  if (!result.ok) { setSaveState(`Not saved: ${result.error}`, true); return; }
+  if (!commit(result.library, '')) { setSaveState('Not saved: your browser would not keep it.', true); return; }
+  currentId = result.id;
+  const savedName = result.library.decks.find((entry) => entry.id === result.id).deck.name;
+  if ($('deck-name').value !== savedName) $('deck-name').value = savedName;
+  setSaveState('Saved');
 }
 
 // ---- the saved decks ----
@@ -555,7 +591,6 @@ function commit(next, message) {
     return false;
   }
   renderSaved();
-  if (preview) renderSaveBox(); // its tooltip depends on whether anything is saved
   say(message);
   onLibraryChange(library);
   return true;
@@ -597,9 +632,7 @@ function deckCard(entry) {
   }
   const text = make('span', 'saved-text');
   const top = make('span', 'face-top');
-  const name = make('strong', 'saved-name', deck.name);
-  if (solo && entry.id === library.selected) name.append(make('span', 'solo-tag', ' solo deck'));
-  top.append(name);
+  top.append(make('strong', 'saved-name', deck.name));
   text.append(top);
   const commanders = face.commanders.map((commander) => commander.name);
   if (commanders.length) {
@@ -626,17 +659,18 @@ function deckCard(entry) {
   return faceElement;
 }
 
-// What the "..." on a saved deck's card (or a right-click on it) opens: the things that are not "open".
-function deckMenuItems() {
-  return [{ id: 'load', label: 'Open' }, ...(solo ? [{ id: 'play', label: 'Play solo' }] : []), { id: 'delete', label: 'Delete' }];
-}
-
-// Three dots, drawn (a text ellipsis sits low in its box). Width, height and fill are set on the element.
-function dotsIcon() {
+// A small round button with a drawn icon (a path in a 16 by 16 box), for a saved deck's card: Play solo and Delete. Width, height and fill are set on the element.
+function iconButton(action, label, title, path) {
+  const element = button('', '', 'deck-action', { 'aria-label': label, title });
+  element.dataset.action = action;
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   for (const [name, value] of [['viewBox', '0 0 16 16'], ['width', '16'], ['height', '16'], ['fill', 'currentColor'], ['aria-hidden', 'true'], ['focusable', 'false']]) svg.setAttribute(name, value);
-  for (const cx of [3, 8, 13]) { const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle'); for (const [name, value] of [['cx', String(cx)], ['cy', '8'], ['r', '1.6'], ['fill', 'currentColor']]) dot.setAttribute(name, value); svg.append(dot); }
-  return svg;
+  const shape = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  shape.setAttribute('d', path);
+  shape.setAttribute('fill', 'currentColor');
+  svg.append(shape);
+  element.append(svg);
+  return element;
 }
 
 function renderSaved() {
@@ -649,10 +683,10 @@ function renderSaved() {
   $('saved-list').replaceChildren(...library.decks.map((entry) => {
     const item = make('li', 'saved-deck');
     item.dataset.deckId = entry.id;
-    const menu = button('', '', 'deck-menu-button', { 'aria-haspopup': 'menu', 'aria-label': `Options: ${entry.deck.name}`, title: 'Options' });
-    menu.dataset.action = 'menu';
-    menu.append(dotsIcon());
-    item.append(deckCard(entry), menu);
+    const actions = make('span', 'deck-actions');
+    if (solo) actions.append(iconButton('play', `Play solo: ${entry.deck.name}`, 'Play solo', 'M5 3.5v9l7.5-4.5z'));
+    actions.append(iconButton('delete', `Delete: ${entry.deck.name}`, 'Delete', 'M5.5 2h5l.5 1.5H14V5H2V3.5h3zM3.5 6h9l-.7 8H4.2z'));
+    item.append(deckCard(entry), actions);
     return item;
   }));
 }
@@ -662,26 +696,18 @@ async function loadSaved(id) {
   if (!entry || !index) return;
   const { deck } = entry;
   $('deck-text').value = deck.text;
-  await runCheck();
-  if (!preview || $('deck-text').value !== deck.text) return; // another check came in while the printings loaded
-  picks = [deck.commander[0] ?? '', deck.commander[1] ?? ''];
-  picksTouched = true;
-  $('deck-name').value = deck.name;
-  $('deck-bracket').value = entry.bracket && entry.bracketGuess !== true ? String(entry.bracket) : ''; // a guessed bracket comes back as Auto, guessed again from today's list
-  setFormat(entry.format);
-}
-
-function save() {
-  if (!preview) return;
-  const ids = commanderIds();
-  const result = buildSavedDeck(preview, { name: $('deck-name').value, text, commanderIds: ids, allowMissing: $('allow-missing').checked });
-  if (!result.ok) { say(result.error, true); return; }
-  // Brackets are a Commander idea. A number the player picked is saved as chosen; with Auto the guess is saved, marked as a guess, so it can be guessed again.
-  const chosen = isCommander() && $('deck-bracket').value ? Number($('deck-bracket').value) : null;
-  const bracket = chosen ?? (isCommander() ? bracketGuessNow : null);
-  const added = addDeck(library, result.deck, { format: $('deck-format').value, bracket, bracketGuess: chosen === null && bracket !== null });
-  if (!added.ok) { say(added.error, true); return; }
-  commit(added.library, `${added.replaced ? 'Replaced' : 'Saved'} "${result.deck.name}": ${plural(totalCards(result.deck), 'card', 'cards')}.`);
+  currentId = id;
+  suppressAutosave = true; // opening a deck must not write it back before its commander, bracket and format are put back
+  try {
+    await runCheck();
+    if (!preview || $('deck-text').value !== deck.text) return; // another check came in while the printings loaded
+    picks = [deck.commander[0] ?? '', deck.commander[1] ?? ''];
+    picksTouched = true;
+    $('deck-name').value = deck.name;
+    $('deck-bracket').value = entry.bracket && entry.bracketGuess !== true ? String(entry.bracket) : ''; // a guessed bracket comes back as Auto, guessed again from today's list
+    setFormat(entry.format);
+    setSaveState('Saved');
+  } finally { suppressAutosave = false; }
 }
 
 function setView(next) {
@@ -694,9 +720,8 @@ function setView(next) {
 
 // ---- starting ----
 // root: the element to build the manager in. Options: sampleId (undefined, or the sample deck a /deck?sample address asks for: '' is the first), onLibraryChange (called after
-// the saved decks change, so a page that lists them can look again), backLink (point the page's #back link at the table this browser is at), play (the saved decks get a
-// "Play solo" button; not inside the lobby). Call it once; a second call does nothing.
-export function mountDeckImporter({ root: container, sampleId, onLibraryChange: onChange = () => {}, backLink = true, play = true } = {}) {
+// the saved decks change, so a page that lists them can look again), play (the saved decks get a "Play solo" button; not inside the lobby). Call it once; a second call does nothing.
+export function mountDeckImporter({ root: container, sampleId, onLibraryChange: onChange = () => {}, play = true } = {}) {
   if (mounted || !container) return;
   mounted = true;
   root = container;
@@ -704,11 +729,6 @@ export function mountDeckImporter({ root: container, sampleId, onLibraryChange: 
   pendingSample = sampleId;
   onLibraryChange = onChange;
   build();
-  // If you are at a table (the lobby remembers the last one in this browser), "Back to the lobby" goes to that table's address, not the start page.
-  const lastTable = store.get('overloaded.lastTable');
-  const back = document.getElementById('back');
-  if (backLink && back && typeof lastTable === 'string' && isValidCode(lastTable)) back.href = `/lobby/${lastTable}`;
-
   const savedView = store.get(VIEW_KEY);
   view = VIEWS.includes(savedView) ? savedView : 'text';
   viewToggle = mountViewToggle($('view-toggle'), { view, onChange: setView });
@@ -738,14 +758,15 @@ export function mountDeckImporter({ root: container, sampleId, onLibraryChange: 
   $('check').addEventListener('click', runCheck);
   $('retry').addEventListener('click', loadCards);
   $('sample').addEventListener('click', () => useSample());
-  $('new-deck').addEventListener('click', () => { $('deck-text').value = ''; text = ''; preview = null; choices = {}; picksTouched = false; formatTouched = false; $('deck-bracket').value = ''; $('deck-name').value = ''; checkRun++; say(''); showScreen('paste'); });
+  $('new-deck').addEventListener('click', () => { currentId = null; setSaveState(''); $('deck-text').value = ''; text = ''; preview = null; choices = {}; picksTouched = false; formatTouched = false; $('deck-bracket').value = ''; $('deck-name').value = ''; checkRun++; say(''); showScreen('paste'); });
   $('cancel-paste').addEventListener('click', () => { say(''); showScreen(preview ? 'deck' : 'list'); });
   $('back-to-decks').addEventListener('click', () => { say(''); showScreen('list'); });
   $('edit-list').addEventListener('click', () => { say(''); showScreen('paste'); });
   $('deck-text').addEventListener('keydown', (event) => { if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) runCheck(); });
-  $('commander-1').addEventListener('change', () => { picks[0] = $('commander-1').value; picksTouched = true; renderSections(); });
-  $('commander-2').addEventListener('change', () => { picks[1] = $('commander-2').value; picksTouched = true; renderSections(); });
-  $('save').addEventListener('click', save);
+  $('commander-1').addEventListener('change', () => { picks[0] = $('commander-1').value; picksTouched = true; renderSections(); autosave(); });
+  $('commander-2').addEventListener('change', () => { picks[1] = $('commander-2').value; picksTouched = true; renderSections(); autosave(); });
+  $('deck-bracket').addEventListener('change', autosave);
+  $('deck-name').addEventListener('change', () => { if (!$('deck-name').value.trim()) { $('deck-name').value = library.decks.find((entry) => entry.id === currentId)?.deck.name ?? ''; } autosave(); });
   $('sections').addEventListener('click', (event) => {
     const button = event.target instanceof Element ? event.target.closest('.row-menu') : null;
     const line = button ? lineOf(button) : null;
@@ -761,34 +782,16 @@ export function mountDeckImporter({ root: container, sampleId, onLibraryChange: 
     const box = event.target.closest('[data-ref]').getBoundingClientRect();
     openLineMenu(line, fromKeyboard ? box.left + 24 : event.clientX, fromKeyboard ? box.top + box.height / 2 : event.clientY, event.target.closest('[data-ref]'));
   });
-  $('deck-format').addEventListener('change', () => { formatTouched = true; renderCommander(); renderBracket(); renderSections(); });
-  // The card of each saved deck opens it; its "..." (or a right-click on it) opens a menu with Play solo and Delete. Found by delegation so the list can be drawn again without wiring anything.
-  const chooseFromDeckMenu = (id, action) => {
-    const entry = library.decks.find((candidate) => candidate.id === id);
-    if (!entry) return;
-    if (action === 'load') loadSaved(id);
-    else if (action === 'play') { if (commit(selectDeck(library, id), `"${entry.deck.name}" is now the deck for the solo table.`)) location.assign('/solo'); }
-    else if (action === 'delete') commit(removeDeck(library, id), `Deleted "${entry.deck.name}".`);
-  };
-  const openDeckMenu = (item, x, y, returnFocus) => {
-    const id = item.dataset.deckId;
-    const entry = library.decks.find((candidate) => candidate.id === id);
-    if (entry) openCardMenu({ title: entry.deck.name, items: deckMenuItems(), x, y, returnFocus, onPick: (action) => chooseFromDeckMenu(id, action) });
-  };
+  $('deck-format').addEventListener('change', () => { formatTouched = true; renderCommander(); renderBracket(); renderSections(); autosave(); });
+  // The card of each saved deck opens it; the two buttons on it play it at the solo table or delete it. Found by delegation so the list can be drawn again without wiring anything.
   $('saved-list').addEventListener('click', (event) => {
     const clicked = event.target instanceof Element ? event.target.closest('button[data-action]') : null;
     const item = clicked?.closest('[data-deck-id]');
-    if (!clicked || !item) return;
-    if (clicked.dataset.action === 'menu') { const box = clicked.getBoundingClientRect(); openDeckMenu(item, box.left, box.bottom + 2, clicked); }
-    else chooseFromDeckMenu(item.dataset.deckId, clicked.dataset.action);
-  });
-  $('saved-list').addEventListener('contextmenu', (event) => {
-    const item = event.target instanceof Element ? event.target.closest('[data-deck-id]') : null;
-    if (!item) return;
-    event.preventDefault();
-    const fromKeyboard = event.clientX === 0 && event.clientY === 0;
-    const box = item.getBoundingClientRect();
-    openDeckMenu(item, fromKeyboard ? box.left + 24 : event.clientX, fromKeyboard ? box.top + 24 : event.clientY, item.querySelector('.deck-face'));
+    const entry = item ? library.decks.find((candidate) => candidate.id === item.dataset.deckId) : null;
+    if (!clicked || !entry) return;
+    if (clicked.dataset.action === 'load') loadSaved(entry.id);
+    else if (clicked.dataset.action === 'play') { if (commit(selectDeck(library, entry.id), `"${entry.deck.name}" is now the deck for the solo table.`)) location.assign('/solo'); }
+    else if (clicked.dataset.action === 'delete') commit(removeDeck(library, entry.id), `Deleted "${entry.deck.name}".`);
   });
 
   // Can this browser keep anything? If not, the page still works; it just cannot remember a deck.
