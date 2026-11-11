@@ -85,15 +85,16 @@ export function mountCardHover(doc = document) {
   };
   const onMove = (event) => { if (typeof event.altKey === 'boolean' && event.altKey !== altHeld) setAlt(event.altKey); };
   const onAway = () => { if (current) { suppressed = current; hide(); } };
+  // Alt alone must not reach the browser: pressed and let go on its own it opens the browser's menu (and a held Alt can open it on release), so both its keydown and its keyup are
+  // cancelled whenever no other key is part of the press.
   const onKeyDown = (event) => {
-    if (event.key === 'Alt') setAlt(true);
+    if (event.key === 'Alt') { event.preventDefault(); setAlt(true); }
     else if (event.key === 'Escape') onAway();
   };
   const onKeyUp = (event) => {
     if (event.key !== 'Alt') return;
-    const wasShowing = Boolean(current);
+    event.preventDefault();
     setAlt(false);
-    if (wasShowing) event.preventDefault(); // some browsers move focus to their menu when Alt is let go
   };
   const onBlur = () => { altHeld = false; suppressed = null; hide(); };
 

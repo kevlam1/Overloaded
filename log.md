@@ -2963,6 +2963,26 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 145. Back on the main PC: a plain Alt picture, Alt kept from the browser, a number and a plus for the tax, no blue highlight, a tidier top line (2026-11-11)
+
+**What I asked for**
+- When I hold Alt the card pops up with a border around it: show just the card. Holding Alt must not open the browser's menu. The commander tax should be just a number and a plus sign, the same for the second commander. Stop using the ugly blue highlight. Fix the header or move what is up there elsewhere.
+
+**What changed** (`frontend/src/card-hover.js`, `command-zone.js`, `style.css`, the solo and table pages, `table.js`)
+- **Alt picture:** the box has no padding, border or background now; it is the picture with the card's rounded corners and a soft shadow.
+- **Alt and the browser:** the page cancels Alt's keydown and keyup, so pressing Alt does not open the browser's menu (it does it on release when Alt is pressed alone). Other keys are left alone.
+- **Tax:** each commander slot shows the number (0, 2, 4 ...) and one + button. The minus button and the word "Tax" are gone; a right-click on the number or the + takes a cast back. Both slots are the same.
+- **Blue highlight:** I read this as the blue outlines and glows, not the filled blue buttons: the focus ring, the selected card's glow, the active player's border, the dotted outline of the command slots, the drop target on the hand and the focus outlines on the deck and header links. They use a new neutral `--ring` (near white on the dark theme, near black on the light one). The blue buttons (Draw, Pass turn and so on) are unchanged.
+- **The top line of the table:** the "Back to the lobby" link is gone (you said the back and leave links are not needed; the table's own Leave button stays), and the solo page's two links are gone too. What is left is one quiet line: the table label and code (smaller, with normal letter spacing), then the messages. I read "the header" as this line, not the site header on the lobby and deck pages; tell me if you meant that one.
+
+**What I checked**
+- Solo check 440 (the Alt box has no frame; Alt's keydown and keyup are cancelled and a plain key is not; the tax is a number and one plus, a right-click takes a cast back); layout check 385; spotlight 31; lobby 65; deck 273; live lobby and table 172; live room 26; all 57 quick suites. A screenshot at 1920x950.
+- **Not checked:** the Alt menu in a real Chrome window (headless Chrome has no menu, so I checked that the page cancels the key, not what a real browser would have done), the tax on the live table (it is hidden there until the rules are published), the light theme.
+
+**My mistake this round:** two older checks assumed the shuffled hand has two different cards; with two Islands they failed at random. They now pick a different card.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-10, entry 132) Claude kept committing and pushing to the development branch in turns where I had only asked for a change, after I had asked for it once; my rule is to do it only when asked.
 - (2026-11-10, entry 122) Claude's first deck page started a library it could not read at the box to paste into, hiding the message about it; the old check noticed.

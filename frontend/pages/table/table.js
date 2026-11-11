@@ -624,7 +624,6 @@ async function start() {
   tableCode = tableCodeFromPath(location.pathname);
   if (!tableCode) { say('That is not a table address. Go back to the lobby and join with a code.', true); return; }
   $('code').textContent = tableCode;
-  $('back').href = `/lobby/${tableCode}`;
   let mine;
   try {
     mine = await rejoinTable(tableCode);

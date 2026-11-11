@@ -7,6 +7,7 @@
   --card: #ffffff;
   --line: #cfcbc0;
   --accent: #2b5fd9;
+  --ring: #2a2a2e; /* the highlight of a focused or selected thing: neutral, not the blue of the buttons */
   --accent-text: #ffffff;
   --danger: #a3261a;
 }
@@ -19,6 +20,7 @@
     --card: #1f2026;
     --line: #3a3b44;
     --accent: #7ea2ff;
+    --ring: #e8e6e0;
     --accent-text: #0e1220;
     --danger: #ff8f84;
   }
@@ -68,7 +70,7 @@ input, select {
 }
 
 input:focus-visible, select:focus-visible, button:focus-visible {
-  outline: 3px solid var(--accent);
+  outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
 
@@ -131,7 +133,7 @@ textarea {
   font: 0.9rem/1.4 ui-monospace, Menlo, Consolas, monospace;
   resize: vertical;
 }
-a:focus-visible, h2:focus-visible, h3:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+a:focus-visible, h2:focus-visible, h3:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 textarea:focus, textarea:focus-visible { outline: none; border-color: var(--muted); box-shadow: 0 0 0 1px var(--muted); } /* a quiet grey edge instead of the blue ring */
 a { color: var(--accent); }
 .back { margin: 0 0 0.75rem; font-size: 0.9rem; }
@@ -172,7 +174,7 @@ h3 { margin: 1rem 0 0.4rem; font-size: 1rem; }
 .card-line.unmatched .name { color: var(--danger); }
 .card-line .typed-as { color: var(--muted); }
 .card-line[data-card-id]:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
-.card-line .name:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.card-line .name:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 
 /* The card picture that follows the pointer over a deck list (src/card-peek.js). It never takes the pointer itself. */
 .card-peek { position: fixed; z-index: 50; width: 17rem; padding: 0.4rem; background: var(--card); border: 1px solid var(--line); border-radius: 0.5rem; box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.35); pointer-events: none; }
@@ -189,7 +191,7 @@ h3 { margin: 1rem 0 0.4rem; font-size: 1rem; }
 /* The solo table: a wide page, cards as pictures, a tapped card turned sideways, and the controls around them. */
 main.table { max-width: 80rem; }
 .button-link { display: inline-flex; align-items: center; min-height: 2.75rem; padding: 0.4rem 1rem; border: 1px solid var(--accent); border-radius: 0.5rem; background: var(--accent); color: var(--accent-text); font-weight: 600; text-decoration: none; }
-.button-link:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.button-link:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem 1.5rem; }
 .bar .stat { margin: 0; font-size: 1.05rem; }
 .life { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
@@ -198,7 +200,7 @@ main.table { max-width: 80rem; }
 .turn-banner { margin: 0 0 0.75rem; padding: 0.5rem 0.9rem; border: 1px solid var(--line); border-radius: 0.6rem; background: var(--card); color: var(--muted); font-weight: 600; }
 .turn-banner.mine { border: 2px solid var(--accent); color: var(--text); font-size: 1.05rem; }
 .turn-banner[hidden] { display: none; }
-.opponent.active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+.opponent.active { border-color: var(--ring); box-shadow: 0 0 0 1px var(--ring); }
 .opponent .turn-mark { margin-left: 0.5rem; padding: 0 0.45rem; border: 1px solid var(--accent); border-radius: 0.6rem; color: var(--accent); font-size: 0.75rem; font-weight: 600; }
 /* What a player has on them (src/counter-chips.js): small chips next to the life total, each an icon and a number; a mark such as the monarch is only the icon. */
 .counter-chips { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.4rem; }
@@ -236,7 +238,7 @@ main.table { max-width: 80rem; }
 .card.noimage .fallback { display: flex; }
 .card.tapped { width: 9.25rem; }
 .card.tapped .face { position: absolute; top: 50%; left: 50%; width: 6.6rem; height: 9.25rem; transform: translate(-50%, -50%) rotate(90deg); }
-.card.selected { border-color: transparent; box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 60%, transparent), 0 0 0.45rem color-mix(in srgb, var(--accent) 28%, transparent); } /* a thin line and a faint glow: it is easy to find without shouting */
+.card.selected { border-color: transparent; box-shadow: 0 0 0 1px color-mix(in srgb, var(--ring) 80%, transparent), 0 0 0.45rem color-mix(in srgb, var(--ring) 35%, transparent); } /* a thin line and a faint glow: it is easy to find without shouting */
 /* The state badges at the top-left of a card: the lock ("doesn't untap") and SICK. Only the badges of your own cards take clicks (they clear). */
 .card .badges { position: absolute; top: 0.25rem; left: 0.25rem; z-index: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 0.15rem; pointer-events: none; }
 .card .badge { display: inline-flex; align-items: center; justify-content: center; border: 1px solid rgba(255, 255, 255, 0.4); background: rgba(20, 20, 26, 0.92); color: #fff; font-size: 0.65rem; font-weight: 700; letter-spacing: 0.04em; line-height: 1.1rem; }
@@ -296,7 +298,7 @@ main.table { max-width: 80rem; }
 .pile-card { display: grid; grid-template-columns: 2.5rem minmax(0, 1fr) minmax(0, 1.2fr); gap: 0.5rem; width: 100%; min-height: 0; padding: 0.3rem 0.6rem; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; color: var(--text); font-weight: 400; text-align: left; }
 .pile-card .pos { color: var(--muted); text-align: right; }
 .pile-card .type { color: var(--muted); overflow-wrap: anywhere; }
-.pile-card.selected { background: var(--bg); box-shadow: inset 3px 0 0 var(--accent); }
+.pile-card.selected { background: var(--bg); box-shadow: inset 3px 0 0 var(--ring); }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 [hidden] { display: none !important; }
@@ -672,7 +674,7 @@ body .battlefield > .card.tapped[data-stack-depth="3"] { translate: 0 calc(var(-
 /* the outline of a tapped card being dragged is a landscape card: 11 cells wide and 8 tall, on the bottom line of its block */
 .battlefield > .cell-highlight[data-tapped] { grid-column-end: span 11; grid-row-end: span 8; }
 /* the hand while a card from the battlefield is held over it */
-body.dragging-card #hand-section.drop-hand, body.dragging-card .hand-section.drop-hand { outline: 2px dashed var(--accent); outline-offset: -2px; background: color-mix(in srgb, var(--accent) 14%, transparent); }
+body.dragging-card #hand-section.drop-hand, body.dragging-card .hand-section.drop-hand { outline: 2px dashed var(--ring); outline-offset: -2px; background: color-mix(in srgb, var(--ring) 10%, transparent); }
 /* the corner handle of a pile: a small triangle at the top-left of the top card; dragging it (or Shift and drag on any card of the pile) carries the whole pile */
 .card .stack-handle { position: absolute; left: 0; top: 0; width: 0; height: 0; border-style: solid; border-width: 0.9rem 0.9rem 0 0; border-color: var(--accent) transparent transparent transparent; cursor: grab; z-index: 2; }
 body.playing .card .stack-handle { border-width: 0.8rem 0.8rem 0 0; }
@@ -732,11 +734,11 @@ body .battlefield > .card.tapped[data-stack-ext="3"]::before { left: -3px; top: 
 .pile-stack[data-empty="true"] .stack-face { border: 1px dashed var(--muted); background: none; }
 .pile-stack[data-empty="true"]::before { background: var(--line); color: var(--muted); }
 .pile-stack:hover .stack-face, .pile-stack[aria-pressed="true"] .stack-face { box-shadow: 0 0 0 2px var(--accent); }
-.pile-stack:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.pile-stack:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 .command-zone h3 { margin: 0 0 0.3rem; font-size: 0.85rem; color: var(--muted); }
 .command-slots { --cw: var(--sw); display: flex; flex-wrap: wrap; gap: 0.6rem; }
 .cmd-slot { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; }
-.cmd-slot .slot-cards { display: flex; align-items: center; justify-content: center; width: calc(var(--sw) + 0.4rem); height: calc(var(--sw) * 1.4015 + 0.4rem); box-sizing: border-box; border: 2px dotted var(--accent); border-radius: 0.5rem; }
+.cmd-slot .slot-cards { display: flex; align-items: center; justify-content: center; width: calc(var(--sw) + 0.4rem); height: calc(var(--sw) * 1.4015 + 0.4rem); box-sizing: border-box; border: 2px dotted var(--muted); border-radius: 0.5rem; }
 .cmd-slot.empty-slot .slot-cards { border-color: var(--line); }
 .cmd-slot.away .slot-cards { border-style: dotted; opacity: 0.7; }
 .cmd-slot .tax { display: inline-flex; align-items: center; gap: 0.25rem; }
@@ -769,7 +771,7 @@ body .battlefield > .card.tapped[data-stack-ext="3"]::before { left: -3px; top: 
 @media (max-width: 800px) { .deck-tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 @media (max-width: 520px) { .deck-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 .deck-tile { position: relative; }
-.deck-tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.deck-tile:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 .deck-tile .tile-picture { display: block; aspect-ratio: 488 / 680; border: 1px solid var(--line); border-radius: 4.8% / 3.4%; background: var(--card); overflow: hidden; }
 .deck-tile .tile-picture img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .deck-tile .tile-picture.noimage { display: flex; align-items: center; justify-content: center; padding: 0.4rem; font-size: 0.8rem; text-align: center; overflow-wrap: anywhere; }
@@ -869,7 +871,7 @@ main.wide:has(.deck-app[data-screen="deck"]) { max-width: 120rem; }
 .saved-deck { position: relative; }
 .deck-face { position: relative; display: flex; width: 100%; min-height: 10.5rem; padding: 0; overflow: hidden; border: 1px solid rgba(0, 0, 0, 0.35); border-radius: 1rem; background: #cdc9c6; color: #17171b; font-weight: 400; text-align: left; box-shadow: 0 0.2rem 0.7rem rgba(0, 0, 0, 0.3); cursor: pointer; transition: transform 0.12s ease, box-shadow 0.12s ease; }
 .deck-face:hover { transform: translateY(-2px); box-shadow: 0 0.4rem 1rem rgba(0, 0, 0, 0.4); }
-.deck-face:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.deck-face:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { .deck-face { transition: none; } .deck-face:hover { transform: none; } }
 .deck-face .face-half { position: absolute; inset: 0; background: var(--tint); }
 .deck-face .face-half img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
@@ -967,7 +969,7 @@ main.wide:has(.deck-app[data-screen="deck"]) { max-width: 120rem; }
 .site-header { border-bottom: 1px solid var(--line); background: var(--card); }
 .site-header-inner { display: flex; align-items: center; justify-content: flex-start; gap: 2.5rem; max-width: 120rem; margin: 0 auto; padding: 0.5rem 2rem; }
 .site-header .brand { display: inline-flex; align-items: center; gap: 0.6rem; color: var(--text); text-decoration: none; }
-.site-header .brand:focus-visible, .site-header .site-link:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: 0.3rem; }
+.site-header .brand:focus-visible, .site-header .site-link:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; border-radius: 0.3rem; }
 .brand-logo { display: block; width: auto; height: 2.1rem; }
 .brand.has-logo .brand-name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 /* The wordmark is white: on the light theme it is turned dark. */
@@ -1045,3 +1047,14 @@ body:has(> .site-footer) > .site-footer { margin-top: 2rem; }
 
 /* The fan content notice lives in Settings on the table pages. */
 .settings-legal { max-width: 20rem; margin: 0.6rem 0 0; padding-top: 0.5rem; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.7rem; line-height: 1.4; }
+
+/* The Alt picture (src/card-hover.js) is only the card: no frame, padding or background around it. */
+.card-hover { padding: 0; border: 0; background: transparent; box-shadow: none; border-radius: 4.8% / 3.4%; }
+.card-hover img { border-radius: 4.8% / 3.4%; box-shadow: 0 0.4rem 1.2rem rgba(0, 0, 0, 0.5); }
+/* The commander tax: a number and a plus (a right-click on either takes a cast back). */
+.cmd-slot .tax-words { min-width: 1.4rem; font-size: 0.9rem; font-weight: 700; }
+.cmd-slot .tax-button { min-width: 1.5rem; }
+/* The table's top line: the table (or solo) label, then the messages, all on one quiet line; it takes no room when it is empty. */
+body.playing .topbar h1 { font-size: 0.8rem; font-weight: 600; color: var(--muted); }
+body.playing .topbar .code { font-size: 0.8rem; letter-spacing: 0.1em; color: var(--text); }
+body.playing .topbar:not(:has(.status:not(:empty), .banner:not([hidden]), .turn-banner:not([hidden]))) { min-height: 0; }

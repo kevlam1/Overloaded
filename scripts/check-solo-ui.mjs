@@ -415,13 +415,19 @@ try {
     let h = await hoverState();
     check('holding Alt shows the NORMAL size of the same card at once', h.hidden === false && h.src === smallSrc.replace('/small/', '/normal/'), JSON.stringify(h));
     check('...inside the window and not covering the card', h.inside && (h.left >= c.right || h.right <= c.left), JSON.stringify([h, c]));
+    const frame = await ev(`(() => { const b = document.getElementById('card-hover'); const c = getComputedStyle(b); const i = b.querySelector('img').getBoundingClientRect(); const r = b.getBoundingClientRect(); return { padding: c.paddingTop, border: c.borderTopWidth, background: c.backgroundColor, gap: Math.round(Math.abs(r.width - i.width) + Math.abs(r.height - i.height)) }; })()`);
+    check('the Alt picture is just the card: no padding, no border, no background, the box is the picture\'s size', frame.padding === '0px' && frame.border === '0px' && frame.background === 'rgba(0, 0, 0, 0)' && frame.gap <= 2, JSON.stringify(frame));
     await altUp();
     check('letting go of Alt hides it', (await hoverState()).hidden === true);
+    const altKeys = await ev(`(() => { const down = new KeyboardEvent('keydown', { key: 'Alt', altKey: true, bubbles: true, cancelable: true }); const up = new KeyboardEvent('keyup', { key: 'Alt', bubbles: true, cancelable: true }); document.dispatchEvent(down); document.dispatchEvent(up); return { down: down.defaultPrevented, up: up.defaultPrevented }; })()`);
+    check('the page cancels Alt on its own (keydown and keyup), so the browser does not open its menu', altKeys.down && altKeys.up, JSON.stringify(altKeys));
+    await ev(`document.dispatchEvent(new KeyboardEvent('keyup', { key: 'Alt', bubbles: true }))`);
+    check('a plain keystroke is left alone (not cancelled)', await ev(`(() => { const e = new KeyboardEvent('keydown', { key: 'a', bubbles: true, cancelable: true }); document.dispatchEvent(e); return !e.defaultPrevented; })()`));
     await altDown(); await moveTo(5, 5); await sleep(80);
     check('with Alt held, moving off the card hides it', (await hoverState()).hidden === true);
     await moveTo(c.x, c.y); await sleep(80);
     check('and moving back on shows it again at once', (await hoverState()).hidden === false);
-    const c3 = await rectOf('#hand .card', 2); await moveTo(c3.x, c3.y); await sleep(100);
+    const c3 = await rectOf('#hand .card', (await ev(`(() => { const imgs = [...document.querySelectorAll('#hand .card img')].map((i) => i.getAttribute('src')); return Math.max(1, imgs.findIndex((s) => s !== imgs[0])); })()`))); await moveTo(c3.x, c3.y); await sleep(100);
     const other = await hoverState();
     check('with Alt held, moving to another card shows that card', other.hidden === false && other.src !== h.src, JSON.stringify(other));
     await moveTo(c.x, c.y); await sleep(80);
@@ -470,7 +476,7 @@ try {
     await ev(`document.querySelector('#battlefield').click()`); await sleep(100);
     const first = await corner();
     check('the card corner is at the bottom right of the window; it shows the selected card (the normal size) and keeps it after you click away', first.bottomGap <= 12 && first.right <= 12 && first.width > 150 && !first.empty && /\/normal\//.test(first.src ?? '') && !first.closeShown, JSON.stringify(first));
-    await clickCard('#hand .card', 1);
+    await clickCard('#hand .card', (await ev(`(() => { const imgs = [...document.querySelectorAll('#hand .card img')].map((i) => i.getAttribute('src')); return Math.max(1, imgs.findIndex((s) => s !== imgs[0])); })()`))); // (a card that is not the same picture as the first: the hand is shuffled, and two Islands would look alike)
     const second = await corner();
     check('selecting another card changes the corner to that card', second.name !== first.name || second.src !== first.src, JSON.stringify([first, second]));
     const column = await ev(`(() => { const r = (sel) => document.querySelector(sel).getBoundingClientRect(); const a = r('.actions-panel'); const p = r('.side-panels'); const c = r('#spotlight'); const bar = r('.bar'); return { actionsRight: Math.round(innerWidth - a.right), actionsTop: Math.round(a.top - bar.top), buttons: [...document.querySelectorAll('.actions-panel button')].map((b) => b.id), barButtons: document.querySelectorAll('.bar .actions button').length, order: a.bottom <= p.top && p.bottom <= c.top, footer: document.querySelector('footer') !== null }; })()`);
@@ -1174,23 +1180,24 @@ try {
   // the command zone: two outlined slots, the commander in the first, and its tax
   check('the command zone has two slots; the commander is in the first, the second is an empty outline with no tax', (await count('#command .cmd-slot')) === 2 && (await count('#command .cmd-slot[data-slot="1"] .card')) === 1 && (await count('#command .cmd-slot.empty-slot')) === 1 && (await ev(`document.querySelector('.cmd-slot[data-slot="2"] .tax').hidden`)) === true);
   check('each slot has its own dotted outline', (await ev(`[...document.querySelectorAll('.cmd-slot .slot-cards')].map((e) => getComputedStyle(e).borderTopStyle).join()`)) === 'dotted,dotted');
-  const taxFacts = () => ev(`(() => { const slot = document.querySelector('.cmd-slot[data-slot="1"]'); const [minus, plus] = slot.querySelectorAll('.tax button'); return { words: slot.querySelector('.tax-words').textContent, minusOff: minus.disabled, plusOff: plus.disabled, away: slot.classList.contains('away'), cards: slot.querySelectorAll('.card').length }; })()`);
+  const taxFacts = () => ev(`(() => { const slot = document.querySelector('.cmd-slot[data-slot="1"]'); return { words: slot.querySelector('.tax-words').textContent, buttons: slot.querySelectorAll('.tax button').length, plusOff: slot.querySelector('.tax button').disabled, away: slot.classList.contains('away'), cards: slot.querySelectorAll('.card').length }; })()`);
+  const takeBack = () => ev(`document.querySelector('.cmd-slot[data-slot="1"] .tax-words').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }))`);
   const t0 = await taxFacts();
-  check('the tax starts at +0 and cannot go below it', t0.words === 'Tax +0' && t0.minusOff && !t0.plusOff, JSON.stringify(t0));
+  check('the tax is just a number and one plus button (no minus, no words), starting at 0', t0.words === '0' && t0.buttons === 1 && !t0.plusOff, JSON.stringify(t0));
   await mouse('.cmd-slot[data-slot="1"] .tax button:last-of-type');
   const t1 = await taxFacts();
-  check('+ adds a cast: the tax is +2 and the status says so', t1.words === 'Tax +2' && !t1.minusOff && /cast 1 time, tax \+2\.$/.test(await $text('status')), JSON.stringify(t1) + await $text('status'));
+  check('+ adds a cast: the tax shows 2 and the status says so', t1.words === '2' && /cast 1 time, tax \+2\.$/.test(await $text('status')), JSON.stringify(t1) + await $text('status'));
   await mouse('.cmd-slot[data-slot="1"] .tax button:last-of-type');
-  check('a second cast is +4 and the status says "times"', (await taxFacts()).words === 'Tax +4' && /cast 2 times, tax \+4\.$/.test(await $text('status')));
+  check('a second cast shows 4 and the status says "times"', (await taxFacts()).words === '4' && /cast 2 times, tax \+4\.$/.test(await $text('status')));
   await ev(`document.querySelector('#command .card').click()`);
   await clickAction('To battlefield');
   const cast = await taxFacts();
-  check('when the commander is cast the slot stays, empty and marked, and the tax stays with it', cast.away && cast.cards === 0 && cast.words === 'Tax +4' && (await count('#command .card')) === 0 && (await count('#battlefield .card')) >= 1, JSON.stringify(cast));
-  await mouse('.cmd-slot[data-slot="1"] .tax button:first-of-type');
-  check('- takes a cast back', (await taxFacts()).words === 'Tax +2');
+  check('when the commander is cast the slot stays, empty and marked, and the tax stays with it', cast.away && cast.cards === 0 && cast.words === '4' && (await count('#command .card')) === 0 && (await count('#battlefield .card')) >= 1, JSON.stringify(cast));
+  await takeBack();
+  check('a right-click on the number takes a cast back (the number is 2 again)', (await taxFacts()).words === '2');
   await press('new-game');
   const fresh = await taxFacts();
-  check('a new game puts the commander back in its slot and starts the tax at +0', fresh.cards === 1 && fresh.words === 'Tax +0' && !fresh.away, JSON.stringify(fresh));
+  check('a new game puts the commander back in its slot and starts the tax at 0', fresh.cards === 1 && fresh.words === '0' && !fresh.away, JSON.stringify(fresh));
   await open(deckFrom(['40 Forest', '1 Sol Ring'].join(String.fromCharCode(10)), 'Plain deck', null, []));
   check('a deck with no commander has no command zone on show', await $hidden('command-zone'));
 
