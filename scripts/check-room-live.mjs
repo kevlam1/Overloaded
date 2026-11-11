@@ -105,7 +105,7 @@ try {
   // The start page of someone who is at a table offers the way back; the deck page's back link goes to the table too.
   await bob.goto(START);
   const resume = await waitFor(async () => (await shown(bob, 'resume')) ? true : null, 20000, 200);
-  record("Bob's start page says he is at a table and links to it (it does not push him into it: he may want to make another)", Boolean(resume) && (await text(bob, 'resume-code')) === code && (await bob.eval(`document.getElementById('resume-link').getAttribute('href')`)) === `/lobby/${code}` && (await shown(bob, 'make-section')));
+  record("Bob's start page says he is at a table, and the header's Lobby link goes to it (it does not push him into it: he may want to make another)", Boolean(resume) && (await text(bob, 'resume-code')) === code && (await bob.eval(`document.querySelector('.site-nav a').getAttribute('href')`)) === `/lobby/${code}` && (await bob.eval(`document.getElementById('resume-link')`)) === null && (await shown(bob, 'make-section')));
   await bob.goto(`${ORIGIN}/pages/deck/index.html`);
   record("the deck page's header Lobby link goes to /lobby/CODE (not the start page) while he is at the table", (await bob.eval(`document.querySelector('.site-nav a').getAttribute('href')`)) === `/lobby/${code}`);
   await bob.goto(`${ORIGIN}/lobby/${code}`);

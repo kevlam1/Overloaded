@@ -2905,6 +2905,20 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 141. Two more repeats of the header taken out of the lobby (2026-11-10)
+
+**What I asked for**
+- Pass on Commander Spellbook for now (dropped; the research is in entry 140). Remove the redundant buttons that are already in the header.
+
+**What changed** (`frontend/pages/lobby/index.html`, `lobby.js`)
+- "Back to the start page" on the screen for joining a table by link: the wordmark in the header already goes to the start page.
+- "Go to your table" on the start page: the header's Lobby link already goes to your table when this browser is at one. The sentence "You are at table X" stays, and says so.
+- I looked at every page for other repeats. The solo and table pages have no header (the game needs the room), so their Back links and the "Import a deck" buttons in their empty states are not repeats of anything there; I left them. The deck page has none left.
+
+**What I checked:** the lobby page check (65, one check now says the join screen has no link of its own), the live room check (26, now checking that the header's Lobby link goes to the table), all 57 quick suites.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-10, entry 132) Claude kept committing and pushing to the development branch in turns where I had only asked for a change, after I had asked for it once; my rule is to do it only when asked.
 - (2026-11-10, entry 122) Claude's first deck page started a library it could not read at the box to paste into, hiding the message about it; the old check noticed.

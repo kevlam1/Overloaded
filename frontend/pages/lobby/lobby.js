@@ -433,7 +433,6 @@ async function startStart() {
     const table = await rejoinTable(last);
     if (table) {
       $('resume-code').textContent = table.code;
-      $('resume-link').href = `/lobby/${table.code}`;
       $('resume').hidden = false;
     } else {
       store.remove(TABLE_KEY);

@@ -138,11 +138,11 @@ try {
   await waitFor(async () => (/reach/.test(await text(room, 'status')) ? true : null), 15000, 100);
   const screen = await room.eval(`(() => {
     const shown = (id) => { const e = document.getElementById(id); return Boolean(e) && !e.hidden && !e.closest('[hidden]'); };
-    return { path: location.pathname, joinHeading: document.getElementById('room-join-heading').textContent, who: shown('who'), make: shown('make-section'), joinByCode: shown('join-section'), intro: shown('intro'), roomJoin: shown('room-join'), table: shown('table'), button: document.getElementById('room-join-button').textContent, back: document.querySelector('#room-join a').getAttribute('href') };
+    return { path: location.pathname, joinHeading: document.getElementById('room-join-heading').textContent, who: shown('who'), make: shown('make-section'), joinByCode: shown('join-section'), intro: shown('intro'), roomJoin: shown('room-join'), table: shown('table'), button: document.getElementById('room-join-button').textContent, links: document.querySelectorAll('#room-join a').length };
   })()`);
   check('a table address shows that table\'s own screen: a heading with its code, the name box and one join button', screen.roomJoin && /ABC234/.test(screen.joinHeading) && screen.who && screen.button === 'Join this table', JSON.stringify(screen));
   check('...and none of the start page: no "make a table", no code box to type into, no introduction', !screen.make && !screen.joinByCode && !screen.intro && !screen.table, JSON.stringify(screen));
-  check('...with a way back to the start page', screen.back === '/');
+  check('...with no link of its own back to the start page (the header has one)', screen.links === 0);
   check('...and a database that cannot be reached is said in plain words (the page does not guess)', /can.?t reach|could not reach|connection/i.test(await text(room, 'status')) && !/Firebase|auth\//.test(await text(room, 'status')), await text(room, 'status'));
   await room.goto(`${ORIGIN}/lobby/ZZZ`);
   const notATable = await room.eval(`({ make: !document.getElementById('make-section').hidden, roomJoin: !document.getElementById('room-join').hidden })`);
