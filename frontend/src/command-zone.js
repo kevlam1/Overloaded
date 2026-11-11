@@ -18,17 +18,16 @@ export function mountCommandZone({ root, place, onTax, showTax = true }) {
     element.dataset.slot = String(slot);
     const cards = make('div', 'slot-cards');
     const tax = make('div', 'tax');
-    const words = make('span', 'tax-words');
-    const plus = make('button', 'secondary tax-button', '+');
-    plus.type = 'button';
-    tax.append(words, plus);
+    // The tax is just its number, and the number is the button: a click adds a cast, a right-click takes one back.
+    const words = make('button', 'tax-words');
+    words.type = 'button';
+    tax.append(words);
     tax.hidden = !showTax;
     element.append(cards, tax);
     let uid = null;
-    plus.addEventListener('click', () => { if (uid) onTax(uid, 1); });
-    // a right-click on the number or the plus takes one cast back
-    for (const target of [words, plus]) target.addEventListener('contextmenu', (event) => { event.preventDefault(); if (uid) onTax(uid, -1); });
-    return { element, cards, tax, plus, words, setUid: (next) => { uid = next; } };
+    words.addEventListener('click', () => { if (uid) onTax(uid, 1); });
+    words.addEventListener('contextmenu', (event) => { event.preventDefault(); if (uid) onTax(uid, -1); });
+    return { element, cards, tax, words, setUid: (next) => { uid = next; } };
   });
   root.replaceChildren(...slots.map((slot) => slot.element));
 
@@ -48,12 +47,9 @@ export function mountCommandZone({ root, place, onTax, showTax = true }) {
       place(slot.cards, cards);
       slot.element.title = entry && !entry.inZone ? `${entry.name} is on the ${entry.zone === 'battlefield' ? 'battlefield' : entry.zone}.` : '';
       slot.words.textContent = entry ? String(entry.tax) : '';
-      slot.words.title = entry ? `${entry.name}: commander tax ${entry.tax}. Cast ${entry.casts} ${entry.casts === 1 ? 'time' : 'times'} from the command zone; each cast makes the next one cost ${TAX_PER_CAST} more. Right-click to take a cast back.` : '';
-      slot.words.setAttribute('role', 'img');
-      slot.words.setAttribute('aria-label', entry ? `${entry.name}: commander tax ${entry.tax}` : '');
-      slot.plus.disabled = !entry;
-      slot.plus.title = entry ? `Add a cast: the next cast costs ${TAX_PER_CAST} more. Right-click takes one back.` : '';
-      slot.plus.setAttribute('aria-label', entry ? `Add one cast to ${entry.name}'s commander tax (the next cast costs ${TAX_PER_CAST} more)` : 'No commander');
+      slot.words.disabled = !entry;
+      slot.words.title = entry ? `${entry.name}: commander tax ${entry.tax}, cast ${entry.casts} ${entry.casts === 1 ? 'time' : 'times'} from the command zone. Click to add a cast (each makes the next one cost ${TAX_PER_CAST} more); right-click to take one back.` : '';
+      slot.words.setAttribute('aria-label', entry ? `${entry.name}: commander tax ${entry.tax}. Click to add a cast, right-click to take one back.` : 'No commander');
       slot.tax.hidden = !showTax || !entry;
     });
   }

@@ -743,8 +743,6 @@ body .battlefield > .card.tapped[data-stack-ext="3"]::before { left: -3px; top: 
 .cmd-slot.away .slot-cards { border-style: dotted; opacity: 0.7; }
 .cmd-slot .tax { display: inline-flex; align-items: center; gap: 0.25rem; }
 .cmd-slot .tax[hidden] { display: none; }
-.cmd-slot .tax-button { min-width: 1.6rem; min-height: 0; padding: 0 0.4rem; line-height: 1.4; }
-.cmd-slot .tax-words { min-width: 3.4rem; font-size: 0.8rem; font-variant-numeric: tabular-nums; text-align: center; }
 .settings-row { margin-bottom: 0.5rem; }
 
 /* The deck manager (frontend/src/deck-importer.js): three screens, one at a time. */
@@ -1052,9 +1050,30 @@ body:has(> .site-footer) > .site-footer { margin-top: 2rem; }
 .card-hover { padding: 0; border: 0; background: transparent; box-shadow: none; border-radius: 4.8% / 3.4%; }
 .card-hover img { border-radius: 4.8% / 3.4%; box-shadow: 0 0.4rem 1.2rem rgba(0, 0, 0, 0.5); }
 /* The commander tax: a number and a plus (a right-click on either takes a cast back). */
-.cmd-slot .tax-words { min-width: 1.4rem; font-size: 0.9rem; font-weight: 700; }
-.cmd-slot .tax-button { min-width: 1.5rem; }
 /* The table's top line: the table (or solo) label, then the messages, all on one quiet line; it takes no room when it is empty. */
 body.playing .topbar h1 { font-size: 0.8rem; font-weight: 600; color: var(--muted); }
 body.playing .topbar .code { font-size: 0.8rem; letter-spacing: 0.1em; color: var(--text); }
 body.playing .topbar:not(:has(.status:not(:empty), .banner:not([hidden]), .turn-banner:not([hidden]))) { min-height: 0; }
+
+/* ---- piles and the command zone, tidied (2026-11-11) ---- */
+/* The commander tax is only its number; the number is the button (click adds a cast, right-click takes one back). */
+.cmd-slot .tax-words { min-width: 1.6rem; min-height: 0; padding: 0 0.3rem; border: 0; background: none; color: var(--text); font-size: 1rem; font-weight: 700; font-variant-numeric: tabular-nums; text-align: center; cursor: pointer; }
+.cmd-slot .tax-words:hover:not(:disabled) { background: color-mix(in srgb, var(--ring) 14%, transparent); border-radius: 0.3rem; }
+.cmd-slot .tax-words:disabled { cursor: default; opacity: 0.5; }
+/* Each command slot: the dotted frame is the card plus an even margin, and the card sits in the middle of it. */
+.cmd-slot .slot-cards { display: grid; place-items: center; padding: 0; }
+body.playing .cmd-slot .slot-cards .card, .cmd-slot .slot-cards .card { margin: 0; padding: 0; box-sizing: border-box; flex: none; width: var(--sw); height: calc(var(--sw) * 1.4015); }
+body.playing .cmd-slot .slot-cards .card .face, .cmd-slot .slot-cards .card .face { width: 100%; height: 100%; }
+.command-slots { justify-content: flex-start; gap: 0.5rem; }
+/* The three piles side by side, each with its name under it (below the offset layers, not over them) and a neutral count, not a blue one. */
+.zone-stacks { display: grid; grid-template-columns: repeat(3, max-content); justify-content: space-between; gap: 0.4rem 0.5rem; }
+.pile-stack { padding: 0 0 2.2rem; }
+.pile-stack::after { bottom: 0.1rem; width: calc(var(--sw) + 0.4rem); font-size: 0.75rem; line-height: 1.2; white-space: nowrap; }
+.pile-stack::before { top: -0.4rem; right: -0.1rem; border: 1px solid rgba(255, 255, 255, 0.35); background: rgba(20, 20, 26, 0.92); color: #fff; }
+.pile-stack[data-empty="true"]::before { background: rgba(20, 20, 26, 0.7); color: var(--muted); }
+.pile-stack:hover .stack-face, .pile-stack[aria-pressed="true"] .stack-face { box-shadow: 0 0 0 2px var(--ring); }
+/* The battlefield: only the lines between card blocks, faint; the lines between single cells are gone. The place a dragged card would go is outlined in the neutral ring. */
+body.playing .battlefield { background-image: linear-gradient(to right, rgba(255, 255, 255, 0.1) 1px, transparent 1px), linear-gradient(to bottom, rgba(255, 255, 255, 0.1) 1px, transparent 1px); }
+.battlefield > .cell-highlight { border-color: var(--ring); background: color-mix(in srgb, var(--ring) 16%, transparent); }
+/* The side column's general button padding is more specific than the pile's own, which pushed the pile names up over the cards: say it again with the same weight. */
+body.playing .side-panels .pile-stack { padding: 0 0 1.9rem; }

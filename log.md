@@ -2983,6 +2983,25 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 146. The tax as a bare number, tidier piles and command zone, a quieter battlefield (2026-11-11)
+
+**What I asked for**
+- The commander tax should just be the number itself. Reorganize the layout again, including the battlefield. The command zone card is weirdly offset, and the text for the library and the other piles is smooshed and jumbled.
+
+**What changed** (`frontend/src/command-zone.js`, `style.css`, `scripts/check-solo-ui.mjs`)
+- **Tax:** each slot shows only its number, and the number is the button: a click adds a cast, a right-click takes one back (no plus sign, no minus, no word).
+- **Command zone:** the card was drawn 48 px wide inside a 64 px card (the card's own padding squeezed its picture), so it sat off-centre in its dotted frame. The padding is zero in the slot now; a new check measures the margin on all four sides and the picture's size against the card's.
+- **Piles:** the names (Library, Graveyard, Exile) were drawn over the bottom of the stacks, because the side column's general button padding (more specific than the pile's) removed the room I had made under them. The three piles are in a row with the name under each, and the count is a neutral pill instead of blue.
+- **Battlefield:** the lines between single cells are gone; only the faint lines between card blocks stay. The drag target is outlined in the neutral ring.
+
+**What I did not do, and why:** I did not change the battlefield's shape. Its grid is fixed at 112 by 44 cells (a 2.5 to 1 shape). It fits the 2x2 boards of a four-player table exactly, but a board that spans the whole width (solo, or one opponent) is taller than the grid, so the grid ends and the rest is empty. I tried centring it and it looked worse. Fixing that properly means choosing between more rows for the grid (changes where cards may sit, and every board's shape) or letting a lone board scale, so I left it for Kevin to choose.
+
+**What I checked:** solo check 441, layout 385, spotlight 31, deck 273, lobby 65, live lobby and table 172, all 57 quick suites; real-picture screenshots of the solo table before and after.
+
+**My mistakes this round:** my first pile fix did nothing, and so did the second: two selectors in the style sheet were more specific than mine, and I only saw it in the screenshots; the screenshot mode of the solo check still stops with an error ("bump is not defined") after saving its pictures, which I did not fix.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-10, entry 132) Claude kept committing and pushing to the development branch in turns where I had only asked for a change, after I had asked for it once; my rule is to do it only when asked.
 - (2026-11-10, entry 122) Claude's first deck page started a library it could not read at the box to paste into, hiding the message about it; the old check noticed.
