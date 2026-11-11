@@ -48,7 +48,8 @@ try {
   const $hidden = (id) => ev(`document.getElementById(${JSON.stringify(id)}).hidden`);
   // The paste box is on its own screen now: open it the way a person would (New deck from the list, Edit list from a deck), then fill it.
   const paste = async (value) => { if (await ev(`document.getElementById('paste').hidden`)) await ev(`document.getElementById(document.getElementById('saved').hidden ? 'edit-list' : 'new-deck').click()`); await ev(`(() => { const t = document.getElementById('deck-text'); t.value = ${JSON.stringify(value)}; t.dispatchEvent(new Event('input')); })()`); };
-  const showList = () => ev(`document.getElementById('back-to-decks').click()`);
+  // The way back to the list is the header's Decks link (there is no All decks button on the deck page).
+  const showList = () => ev(`document.querySelector('header.site-header .site-nav a[href="/deck"]').click()`);
   // A list that names sets and numbers fetches those sets' printing files before it is shown, so after Check (or loading the
   // saved deck) the page is given time to finish: the status stops saying "Checking the printings...".
   const settled = () => waitFor(async () => !/^Checking the printings/.test(await $text('deck-status')) || null, 15000, 30);
@@ -87,6 +88,10 @@ try {
   const siteHeader = await ev(`(() => { const h = document.querySelector('body > header.site-header'); return h ? { brand: h.querySelector('.brand')?.getAttribute('href'), name: h.querySelector('.brand-name')?.textContent, links: [...h.querySelectorAll('.site-nav a')].map((a) => a.textContent + ' ' + a.getAttribute('href')), current: [...h.querySelectorAll('[aria-current="page"]')].map((a) => a.textContent), logo: h.querySelectorAll('img.brand-logo').length, first: document.body.firstElementChild === h, headings: h.querySelectorAll('h1,h2,h3').length } : null; })()`);
   check('the site header is the first thing on the page: the name linking home, Lobby, Decks and Solo table, the current page marked, no heading of its own', siteHeader && siteHeader.first && siteHeader.brand === '/' && siteHeader.name === 'Overloaded' && JSON.stringify(siteHeader.links) === JSON.stringify(['Lobby /', 'Decks /deck', 'Solo table /solo']) && JSON.stringify(siteHeader.current) === JSON.stringify(['Decks']) && siteHeader.headings === 0, JSON.stringify(siteHeader));
   check('the logo (frontend/public/brand/logo.png, a wordmark) is shown and loaded, and the written name is then hidden from the eye (kept for screen readers)', siteHeader && siteHeader.logo === 1 && (await ev(`(() => { const i = document.querySelector('.site-header img.brand-logo'); return i.complete && i.naturalWidth === 432 && document.querySelector('.brand-name').getBoundingClientRect().width <= 1; })()`)), JSON.stringify(siteHeader));
+  const htmlSource = await (await fetch(PAGE)).text();
+  check('the header and the footer are written in the page itself (not added by a script), so they are there from the first paint', /<header class="site-header">[\s\S]*<nav class="site-nav"/.test(htmlSource) && /<footer class="site-footer">[\s\S]*Fan Content Policy/.test(htmlSource) && /aria-current="page"[^>]*>Decks</.test(htmlSource));
+  const siteFooter = await ev(`(() => { const f = document.querySelector('footer.site-footer'); return f ? { links: [...f.querySelectorAll('.footer-links a')].map((a) => a.textContent + ' ' + a.getAttribute('href')), credit: f.querySelector('.footer-credit')?.textContent, legal: f.querySelector('.footer-legal')?.textContent ?? '', last: document.body.querySelector(':scope > footer') === f, count: document.querySelectorAll('footer').length } : null; })()`);
+  check('the footer has the places, the credit to Scryfall and the fan content notice, and it is the only footer', siteFooter && siteFooter.last && siteFooter.count === 1 && JSON.stringify(siteFooter.links) === JSON.stringify(['Lobby /', 'Decks /deck', 'Solo table /solo', 'Source on GitHub https://github.com/kevlam1/Overloaded']) && /Scryfall/.test(siteFooter.credit) && /unofficial Fan Content/.test(siteFooter.legal), JSON.stringify(siteFooter));
   check('every field has a label', facts.withoutLabel.length === 0, facts.withoutLabel.join());
   check('every button has text or a label (the two view buttons are icons)', facts.buttonsWithoutText === 0);
   check('the fan content disclaimer is on the page', /unofficial Fan Content/.test(facts.footer) && /Fan Content Policy/.test(facts.footer) && /Not approved\/endorsed by Wizards/.test(facts.footer) && /property of Wizards of the Coast/.test(facts.footer));
@@ -109,18 +114,17 @@ try {
       headings: Array.from(document.querySelectorAll('#sections h3')).map((h) => h.textContent),
       lines: document.querySelectorAll('#sections .card-line').length, unmatched: document.querySelectorAll('#sections .card-line.unmatched').length,
       problemsHidden: document.getElementById('problems').hidden,
-      commander: document.getElementById('commander-1').selectedOptions[0]?.textContent ?? '',
-      commanderOptions: document.getElementById('commander-1').options.length,
+      commander: [...document.querySelectorAll('#sections [data-group="commander"] .name')].map((n) => n.textContent)[0] ?? '',
       mode: document.getElementById('deck-format').value === 'commander' ? 'commander' : 'none',
-      boxHidden: document.getElementById('commander-box').hidden,
+      commanderShown: Boolean(document.querySelector('#sections [data-group="commander"]')),
       note: document.getElementById('commander-note').textContent,
       focus: document.activeElement?.id,
     }))()`);
     check(`${label}: checked, 19 cards, nothing to fix`, view.summary === '19 cards' && view.problemsHidden && view.unmatched === 0, view.summary);
     check(`${label}: sections ${expect.headings.join(' and ')}`, JSON.stringify(view.headings) === JSON.stringify(expect.headings), JSON.stringify(view.headings));
     check(`${label}: one line per card, 10 lines`, view.lines === 10, String(view.lines));
-    check(`${label}: the guessed commander is Eowyn`, /^Éowyn, Lady of Rohan$/.test(view.commander), view.commander);
-    check(`${label}: the format is ${expect.mode === 'commander' ? 'Commander and the commander pickers are shown' : 'Standard and the commander pickers are hidden'}`, view.mode === expect.mode && view.boxHidden === (expect.mode === 'none'), `${view.mode} ${view.boxHidden}`);
+    check(`${label}: ${expect.mode === 'commander' ? 'the guessed commander is Eowyn' : 'no commander is shown while the format is Standard'}`, expect.mode === 'commander' ? /^Éowyn, Lady of Rohan$/.test(view.commander) : view.commander === '', view.commander);
+    check(`${label}: the format is ${expect.mode === 'commander' ? 'Commander and the deck has a Commander group' : 'Standard and there is no Commander group'}`, view.mode === expect.mode && view.commanderShown === (expect.mode === 'commander'), `${view.mode} ${view.commanderShown}`);
     check(`${label}: ${expect.noteWords ? 'the note explains the guess' : 'no note while the format is Standard'}`, expect.noteWords ? expect.noteWords.test(view.note) : view.note === '', view.note);
     check(`${label}: focus moves to the deck heading`, view.focus === 'preview-heading', String(view.focus));
     check(`${label}: it can be saved`, !view.saveDisabled);
@@ -133,24 +137,18 @@ try {
   const setFormatInPage = (value) => ev(`(() => { const f = document.getElementById('deck-format'); f.value = ${JSON.stringify(value)}; f.dispatchEvent(new Event('change')); })()`);
   await load(); await paste(MOXFIELD_FOR_MOXFIELD); await press('check');
   check('the old "has a commander" radio buttons are gone: the format choice does that job', await ev(`document.getElementById('mode-commander') === null && document.getElementById('mode-none') === null`));
-  check('the format choice comes before the commander pickers on the page', await ev(`Boolean(document.getElementById('deck-format').compareDocumentPosition(document.getElementById('commander-box')) & Node.DOCUMENT_POSITION_FOLLOWING)`));
-  check('a list that does not look like Commander starts as Standard, with the pickers hidden', (await ev(`document.getElementById('deck-format').value`)) === 'standard' && (await ev(`document.getElementById('commander-box').hidden`)));
+  check('a list that does not look like Commander starts as Standard, with no Commander group', (await ev(`document.getElementById('deck-format').value`)) === 'standard' && !(await ev(`Boolean(document.querySelector('#sections [data-group="commander"]'))`)));
   await setFormatInPage('commander');
-  check('choosing Commander shows the pickers and says plainly that no commander is marked and what was picked', !(await ev(`document.getElementById('commander-box').hidden`)) && /^No commander is marked in your list, so the first legendary creature was picked\.$/.test(await $text('commander-note')), await $text('commander-note'));
-  const commanderGroups = await ev(`Array.from(document.getElementById('commander-1').querySelectorAll('optgroup')).map((g) => ({ label: g.label, names: Array.from(g.children).map((o) => o.textContent) }))`);
-  const groupedNames = commanderGroups.flatMap((g) => g.names);
-  check('the commander list has two groups, the likely commanders first and then every other card', commanderGroups.length === 2 && commanderGroups[0].label === 'Likely commanders' && commanderGroups[1].label === 'Other cards', JSON.stringify(commanderGroups.map((g) => g.label)));
-  check('each card is in the list once, 10 cards', groupedNames.length === 10 && new Set(groupedNames).size === 10, JSON.stringify(groupedNames));
-  check('the likely commanders are the legendary creatures, and the guess is one of them', commanderGroups[0].names.includes('Éowyn, Lady of Rohan') && (await ev(`document.getElementById('commander-1').selectedOptions[0].textContent`)) === 'Éowyn, Lady of Rohan', JSON.stringify(commanderGroups[0].names));
-  check('each group is sorted for people to read, accented names under their letter', commanderGroups.every((g) => g.names.every((n, i) => i === 0 || g.names[i - 1].localeCompare(n, 'en') <= 0)), JSON.stringify(commanderGroups));
-  check('the partner list starts with "No partner" and then has the same two groups', (await ev(`document.getElementById('commander-2').options[0].textContent`)) === 'No partner' && (await ev(`document.getElementById('commander-2').value`)) === '' && (await ev(`document.getElementById('commander-2').querySelectorAll('optgroup').length`)) === 2);
+  check('choosing Commander makes a Commander group and says plainly that no commander is marked, what was picked and how to change it', (await ev(`document.querySelectorAll('#sections [data-group="commander"] .card-line').length`)) === 1 && /^No commander is marked in your list, so the first legendary creature was picked\. Right-click a card to change it\.$/.test(await $text('commander-note')), await $text('commander-note'));
+check('the guess is the legendary creature (Éowyn), alone in the Commander group', JSON.stringify(await ev(`[...document.querySelectorAll('#sections [data-group="commander"] .name')].map((n) => n.textContent)`)) === JSON.stringify(['Éowyn, Lady of Rohan']));
+check('there are no commander or partner boxes; the Commander heading says to right-click', (await ev(`document.getElementById('commander-1') === null && document.getElementById('commander-2') === null && document.getElementById('commander-box') === null`)) && /Right-click a card/.test(await ev(`document.querySelector('#sections [data-group="commander"] h3').title`)));
   await setFormatInPage('standard');
-  check('choosing Standard hides the pickers and clears the note', (await ev(`document.getElementById('commander-box').hidden`)) && (await $text('commander-note')) === '');
+  check('choosing Standard takes the Commander group away and clears the note', !(await ev(`Boolean(document.querySelector('#sections [data-group="commander"]'))`)) && (await $text('commander-note')) === '');
   // A list with no legendary creature: the guess is the first card, there is only one group, and the note says so.
   await load(); await paste('1 Sol Ring\n1 Island'); await press('check');
   await setFormatInPage('commander');
-  check('with no commander marked and no legendary creature the note says the first card was picked', /^No commander is marked in your list, so the first card was picked\.$/.test(await $text('commander-note')), await $text('commander-note'));
-  check('and with no likely commanders the list is one group of all the cards', JSON.stringify(await ev(`Array.from(document.getElementById('commander-1').querySelectorAll('optgroup')).map((g) => g.label)`)) === '["All cards"]');
+  check('with no commander marked and no legendary creature the note says the first card was picked', /^No commander is marked in your list, so the first card was picked\. Right-click a card to change it\.$/.test(await $text('commander-note')), await $text('commander-note'));
+  check('and that card is the commander', JSON.stringify(await ev(`[...document.querySelectorAll('#sections [data-group="commander"] .name')].map((n) => n.textContent)`)) === JSON.stringify(['Island']) || JSON.stringify(await ev(`[...document.querySelectorAll('#sections [data-group="commander"] .name')].map((n) => n.textContent)`)) === JSON.stringify(['Sol Ring']));
 
   // ---- problems: not found, ambiguous, a "did you mean" ----
   await load(); await deleteAllSaved(); // (every check below saves a deck by itself, so each part starts from none)
@@ -201,8 +199,6 @@ try {
   check('there is no Save button; the page says the deck is saved', (await ev(`document.getElementById('save')`)) === null && (await $text('save-state')) === 'Saved');
   await setField('deck-name', '');
   check('an empty name is not saved: the name box gets the deck\'s name back', (await ev(`document.getElementById('deck-name').value`)) === 'Eowyn Tokens' && (await selectedSaved()).name === 'Eowyn Tokens');
-  await ev(`(() => { const s = document.getElementById('commander-2'); s.value = document.getElementById('commander-1').value; s.dispatchEvent(new Event('change')); })()`);
-  check('the same card as commander and partner is not saved, and the page says what to do', /^Not saved: .*two different cards/.test(await $text('save-state')) && (await selectedSaved()).commander.length === 1, await $text('save-state'));
   await deleteAllSaved();
 
   // ---- exact printings: the set and number typed on a line pick the printing whose picture is shown ----
@@ -323,7 +319,7 @@ try {
   check('choosing Standard hides the commander and saves the deck for Standard with no commander', lib.decks.length === 4 && lib.decks[3].format === 'standard' && lib.decks[3].deck.commander.length === 0 && lib.decks[3].deck.cards.every((c) => c.section !== 'commander'), JSON.stringify(lib.decks.map((d) => [d.format, d.deck.commander.length])));
   await pressLoad(2); // start from the Commander deck, so loading the Standard deck has to switch the page back
   await pressLoad(3);
-  check('loading that Standard deck (its list marks a commander) brings back Standard with the commander pickers hidden', (await ev(`document.getElementById('deck-format').value`)) === 'standard' && (await ev(`document.getElementById('commander-box').hidden`)));
+  check('loading that Standard deck (its list marks a commander) brings back Standard, with no Commander group', (await ev(`document.getElementById('deck-format').value`)) === 'standard' && !(await ev(`Boolean(document.querySelector('#sections [data-group="commander"]'))`)));
   list = await rows();
   await clickSaved('delete', list.length - 1);
   lib = await library();
@@ -415,7 +411,7 @@ try {
   check('as one commander and the other 99 cards by type (the groups add up to 100)', sampleHeadings.includes('Commander (1)') && sampleHeadings.includes('Lands (24)') && sampleHeadings.reduce((sum, h) => sum + Number(/\((\d+)\)$/.exec(h)[1]), 0) === 100, JSON.stringify(sampleHeadings));
   const sampleRows = await rowsOf();
   check('all 85 lines show the exact printing the list names (the printing files cover them)', sampleRows.length === 85 && sampleRows.every((row) => row.source === 'set'), `${sampleRows.length} rows; not exact: ${sampleRows.filter((row) => row.source !== 'set').map((row) => row.name).join(', ')}`);
-  check('the commander is Krenko, Mob Boss, marked by the list, and the format is Commander', !(await ev(`document.getElementById('commander-box').hidden`)) && (await ev(`document.getElementById('commander-1').selectedOptions[0].textContent`)) === 'Krenko, Mob Boss' && (await ev(`document.getElementById('deck-format').value`)) === 'commander' && (await $text('commander-note')) === '');
+  check('the commander is Krenko, Mob Boss, marked by the list, and the format is Commander', JSON.stringify(await ev(`[...document.querySelectorAll('#sections [data-group="commander"] .name')].map((n) => n.textContent)`)) === JSON.stringify(['Krenko, Mob Boss']) && (await ev(`document.getElementById('deck-format').value`)) === 'commander' && (await $text('commander-note')) === '');
   check('the deck name is filled in', (await ev(`document.getElementById('deck-name').value`)) === 'Krenko, Mob Boss (sample)');
   check('opening the sample saves it, once, under its own name', (await savedCount()) === 1 && (await library()).decks[0].deck.name === 'Krenko, Mob Boss (sample)');
   await press('save');
@@ -515,7 +511,7 @@ try {
   const sideShape = await ev(`({ headings: Array.from(document.querySelectorAll('#sections h3')).map((h) => h.textContent), problems: !document.getElementById('problems').hidden, commanderOn: document.getElementById('deck-format').value === 'commander', note: document.getElementById('commander-note').textContent, side: Array.from(document.querySelectorAll('#sections ul')).map((ul) => Array.from(ul.querySelectorAll('.name')).map((n) => n.textContent)) })`);
   check('the groups are Commander 1, the main deck by type (14 cards) and Sideboard 2, with nothing needing attention', JSON.stringify(sideShape.headings) === JSON.stringify(['Commander (1)', 'Creatures (1)', 'Instants (1)', 'Artifacts (1)', 'Enchantments (1)', 'Lands (10)', 'Sideboard (2)']) && !sideShape.problems, JSON.stringify(sideShape));
   check('the sideboard lists its two cards and the main deck has the title match, in the Instants', sideShape.side.at(-1).join('|') === 'Annul|Swords to Plowshares' && sideShape.side[2].some((t) => t === `Arcane Denial (typed as "${katakana}")`), JSON.stringify(sideShape.side));
-  check('the commander named last is marked as the commander (turned on, and says it was marked)', sideShape.commanderOn && /Kyodai/.test(await ev(`document.getElementById('commander-1').selectedOptions[0].textContent`)), sideShape.note);
+  check('the commander named last is marked as the commander (turned on, and says it was marked)', sideShape.commanderOn && /Kyodai/.test(await ev(`document.querySelector('#sections [data-group="commander"] .name').textContent`)), sideShape.note);
   await ev(`document.getElementById('deck-name').value = 'Side'; document.getElementById('deck-name').dispatchEvent(new Event('input'))`);
   await press('save');
   const savedSide = await selectedSaved();
@@ -551,8 +547,11 @@ try {
   await ev(`document.querySelector('[data-view="text"]').click()`);
   check('the text button goes back to the list (and is remembered)', (await ev(`document.querySelectorAll('#sections .deck-list').length > 0 && document.querySelectorAll('#sections .deck-tile').length === 0 && localStorage.getItem('overloaded.deckView') === 'text'`)));
   // the commander picker decides the Commander group, and Standard has none
-  const soloId = await ev(`[...document.getElementById('commander-1').options].find((o) => o.textContent === 'Sol Ring').value`);
-  await setField('commander-1', soloId);
+  const lineMenu = () => ev(`(() => { const m = document.querySelector('.card-menu'); return m ? { title: m.querySelector('.card-menu-title').textContent, items: [...m.querySelectorAll('[role="menuitem"]')].map((b) => b.textContent) } : null; })()`);
+  const pickMenu = async (text) => { const p = await ev(`(() => { const b = [...document.querySelectorAll('.card-menu [role="menuitem"]')].find((x) => x.textContent === ${JSON.stringify(text)}); if (!b) return null; const r = b.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`); if (!p) throw new Error('no menu item ' + text); await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p.x, y: p.y }); await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: p.x, y: p.y, button: 'left', buttons: 1, clickCount: 1 }); await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: p.x, y: p.y, button: 'left', buttons: 0, clickCount: 1 }); await sleep(120); };
+  const rowCenter = (name) => ev(`(() => { const li = [...document.querySelectorAll('#sections .card-line')].find((l) => l.querySelector('.name').textContent === ${JSON.stringify(name)}); li.scrollIntoView({ block: 'center' }); const r = li.querySelector('.name').getBoundingClientRect(); return { x: Math.round(r.left + 12), y: Math.round(r.top + r.height / 2) }; })()`);
+  const rightClick = async (name) => { await sleep(150); const p = await rowCenter(name); await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p.x, y: p.y }); await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: p.x, y: p.y, button: 'right', buttons: 2, clickCount: 1 }); await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: p.x, y: p.y, button: 'right', buttons: 0, clickCount: 1 }); await sleep(150); };
+  await rightClick('Sol Ring'); await pickMenu('Make commander');
   const g1 = await groupsNow();
   check('choosing another commander moves that card into the Commander group, out of its type group, and the old one goes back to its type', g1[0].key === 'commander' && g1[0].names.join() === 'Sol Ring' && !g1.find((g) => g.key === 'artifact') && g1.find((g) => g.key === 'creature').names.includes('Éowyn, Lady of Rohan'), JSON.stringify(g1.map((g) => [g.key, g.names.length])));
   await setField('deck-format', 'standard');
@@ -574,8 +573,9 @@ try {
   check('Edit list goes to the box with the list still in it, and Cancel goes back to the deck', (await screenOf()) === 'paste' && (await ev(`document.getElementById('deck-text').value`)) === '1 Sol Ring\n1 Island' && !(await ev(`document.getElementById('cancel-paste').hidden`)));
   await ev(`document.getElementById('cancel-paste').click()`);
   check('... Cancel returns to the deck, unchanged', (await screenOf()) === 'deck' && (await $text('summary')) === '2 cards');
+  await ev(`window.__marker = 7`);
   await showList();
-  check('All decks goes to the list: the saved deck with Open, Play solo and Delete, and a New deck button', (await screenOf()) === 'list' && !(await $hidden('saved')) && /Screens/.test(await $text('saved-list')) && !(await ev(`document.getElementById('new-deck').hidden`)) && (await $hidden('preview')));
+  check('the Decks link in the header goes to the list without loading the page again (a marker set on the page is still there): the saved deck with its buttons, and a New deck button; there is no All decks button', (await screenOf()) === 'list' && (await ev(`window.__marker`)) === 7 && (await ev(`document.getElementById('back-to-decks')`)) === null && !(await $hidden('saved')) && /Screens/.test(await $text('saved-list')) && !(await ev(`document.getElementById('new-deck').hidden`)) && (await $hidden('preview')));
   await ev(`document.getElementById('new-deck').click()`);
   check('New deck goes to an empty box, and Cancel there goes back to the list (nothing is open)', (await screenOf()) === 'paste' && (await ev(`document.getElementById('deck-text').value`)) === '');
   await ev(`document.getElementById('cancel-paste').click()`);
@@ -599,11 +599,7 @@ try {
   const flow = await ev(`(() => { const box = document.getElementById('sections'); const lefts = new Set([...box.querySelectorAll('.deck-group')].map((g) => Math.round(g.getBoundingClientRect().left))); const costs = [...box.querySelectorAll('.card-line')].slice(0, 20).map((li) => { const c = li.querySelector('.cost').getBoundingClientRect(); const n = li.querySelector('.name').getBoundingClientRect(); const r = li.getBoundingClientRect(); return { rightGap: Math.round(r.right - c.right), width: Math.round(c.width) }; }); return { columns: lefts.size, columnWidth: getComputedStyle(box).columnWidth, costs }; })()`);
   check('the text view flows in columns (two on a 1280 window, with the card display beside the list), not one long list', flow.columns >= 2 && flow.columnWidth !== 'auto', JSON.stringify({ c: flow.columns, w: flow.columnWidth }));
   check('a mana cost sits at the end of its row, not stretched (each is narrower than 120 px and its menu button leaves little room beside it)', flow.costs.every((c) => c.width <= 120 && c.rightGap <= 40), JSON.stringify(flow.costs.slice(0, 5)));
-  const lineMenu = () => ev(`(() => { const m = document.querySelector('.card-menu'); return m ? { title: m.querySelector('.card-menu-title').textContent, items: [...m.querySelectorAll('[role="menuitem"]')].map((b) => b.textContent) } : null; })()`);
-  const pickMenu = async (text) => { const p = await ev(`(() => { const b = [...document.querySelectorAll('.card-menu [role="menuitem"]')].find((x) => x.textContent === ${JSON.stringify(text)}); if (!b) return null; const r = b.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`); if (!p) throw new Error('no menu item ' + text); await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p.x, y: p.y }); await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: p.x, y: p.y, button: 'left', buttons: 1, clickCount: 1 }); await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: p.x, y: p.y, button: 'left', buttons: 0, clickCount: 1 }); await sleep(120); };
-  const rowCenter = (name) => ev(`(() => { const li = [...document.querySelectorAll('#sections .card-line')].find((l) => l.querySelector('.name').textContent === ${JSON.stringify(name)}); li.scrollIntoView({ block: 'center' }); const r = li.querySelector('.name').getBoundingClientRect(); return { x: Math.round(r.left + 12), y: Math.round(r.top + r.height / 2) }; })()`);
-  const rightClick = async (name) => { await sleep(150); const p = await rowCenter(name); await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p.x, y: p.y }); await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: p.x, y: p.y, button: 'right', buttons: 2, clickCount: 1 }); await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: p.x, y: p.y, button: 'right', buttons: 0, clickCount: 1 }); await sleep(150); };
-  const commanders = () => ev(`({ group: [...document.querySelectorAll('#sections [data-group="commander"] .name')].map((n) => n.textContent), first: document.getElementById('commander-1').selectedOptions[0]?.textContent ?? '', second: document.getElementById('commander-2').selectedOptions[0]?.textContent ?? '' })`);
+  const commanders = async () => { const group = await ev(`[...document.querySelectorAll('#sections [data-group="commander"] .name')].map((n) => n.textContent)`); return { group, first: group[0] ?? '', second: group[1] ?? 'No partner' }; };
   const escapeKey = async () => { await browser.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await sleep(80); };
   check('every card has a "..." button with its own label (and the commander too)', (await ev(`document.querySelectorAll('#sections .card-line .row-menu').length`)) === 85 && (await ev(`document.querySelector('#sections .row-menu').getAttribute('aria-label')`)) === 'Options for Krenko, Mob Boss');
   await rightClick('Goblin Chieftain');

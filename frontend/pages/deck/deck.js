@@ -3,6 +3,6 @@
 import { mountDeckImporter } from '../../src/deck-importer.js';
 import { mountSiteHeader } from '../../src/site-header.js';
 
-mountSiteHeader({ current: 'deck' });
+mountSiteHeader();
 const params = new URLSearchParams(location.search);
 mountDeckImporter({ root: document.getElementById('deck-app'), sampleId: params.has('sample') ? params.get('sample') : undefined });

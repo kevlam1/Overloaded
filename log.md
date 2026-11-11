@@ -2879,6 +2879,32 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 140. A footer, a steadier header, one way to the list, no commander boxes, and what Commander Spellbook offers (2026-11-10)
+
+**What I asked for**
+- A proper footer with the disclaimer in it. The header seems to reload on every click; it should be one smooth motion, and it should not be squashed into the top left. Why an All decks button and a Decks link in the header? Why Commander and Partner boxes when a right-click picks them? Can Commander Spellbook's REST API improve this, at a low call cost, for combos and the bracket?
+
+**What changed** (`frontend/pages/deck/index.html`, `frontend/pages/lobby/index.html`, `frontend/src/site-header.js`, `deck-importer.js`, `deck-groups.js`, `style.css`)
+- **Footer.** A full-width footer on the lobby and deck pages: the places (Lobby, Decks, Solo table, Source on GitHub), a credit to Scryfall, and the fan content notice. It is written in the page, so it is there without a script. The game pages (solo, table) are unchanged; their notice stays where it was.
+- **Header.** It is now written in each page's HTML instead of added by a script, so it is there from the first paint and no longer pops in after the script loads, which I think was the "reload" you saw (the page does load again between pages; there is no single-page navigation). It also has room: a bigger wordmark, 3 rem between the logo and the places, wider links and padding. I tried cross-document view transitions to keep it perfectly still; in headless Chrome every page change logged "ViewTransition opt-in disabled" even with the rule at the top level, so I removed them rather than ship a console error on every click. Not verified: whether Chrome's own paint holding already makes the header look still when it is a real window.
+- **One way to the list.** You were right: on the deck page "All decks" repeated the header's Decks link. It is gone; the Decks link in the header now shows the list at once without loading the page (a check sets a marker on the page and finds it still there). Inside the lobby, which has no such link, a small "All decks" button stays.
+- **No Commander and Partner boxes.** You were right again: "Make commander", "Make partner" and "Remove as ..." in a card's right-click menu already did it, and the Commander group shows the result. The boxes are gone; the Commander heading says to right-click, and when the commander was guessed the note says "Right-click a card to change it". Dead CSS for the boxes is removed.
+
+**Commander Spellbook (researched, nothing built)**
+- I read the real API root and its OpenAPI schema (version 7.3.7). `POST /estimate-bracket` takes `{ commanders: [{card, quantity}], main: [...] }` and answers `bracketTag` (R S P O C E B: Ruthless, Spicy, Powerful, Oddball, Core, Exhibition, Banned), each card with `gameChanger`, `massLandDenial`, `extraTurn`, `banned`, and the combos with `definitelyTwoCard`, `lock`, `extraTurn`, `massLandDenial`, `skipTurns` and more. One real call with a 10-card test list took 0.68 s and 9.8 KB. That is exactly the information in your bracket reference.
+- **It cannot be called from the browser.** The API answers a request from another site with no `Access-Control-Allow-Origin`; its preflight allows only `https://commanderspellbook.com`. A page on our address would be blocked by the browser.
+- **The bulk file is not usable at build time.** They ask for `variants.json.gz` instead of paging the API: it is 32 MB compressed and 729 MB uncompressed (I downloaded it once into the ignored cache to measure it, then deleted it). That is more than a build can hold without a streaming parser.
+- **Their rules:** a few calls per user action, 80 per minute at most, handle 429, name the service in the User-Agent (a browser cannot set that header), and credit them with a link to commanderspellbook.com.
+- So the only way is a small server function that Overloaded calls (a Vercel Function, free on the plan we use) that makes the one POST with a proper User-Agent. That is a new kind of thing in this project (no server so far), so I did not build it; it needs Kevin's decision (plan below in the reply).
+
+**What I checked**
+- The deck page check is 273 (the commander checks now read the Commander group; new ones for the written header and footer, the footer's content, the Decks link without a reload, and no All decks button). The lobby page check (65), the live room check (26), the live lobby check (170), the importer markup check and all 57 quick suites pass. Screenshots at 1280 and 1920.
+- **Not checked:** a real page change in a real window (only headless clicks), the footer on the lobby page by eye, light mode, phone width.
+
+**My mistakes this round:** my first move of the check to the header's Decks link broke the "showList" helper; I wrote the view-transition rule inside a media query, where Chrome did not accept it, then at top level where it still logged an error.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-10, entry 132) Claude kept committing and pushing to the development branch in turns where I had only asked for a change, after I had asked for it once; my rule is to do it only when asked.
 - (2026-11-10, entry 122) Claude's first deck page started a library it could not read at the box to paste into, hiding the message about it; the old check noticed.

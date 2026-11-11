@@ -71,7 +71,7 @@ try {
   await setValue(bob, 'deck-text', 'Commander\n1 Krenko, Mob Boss\n\n1 Sol Ring\n1 Mountain');
   await click(bob, 'check');
   const checked = await waitFor(async () => (await shown(bob, 'preview')) ? true : null, 20000, 250);
-  record('pasting a list and pressing Check shows the checked deck in the lobby, with Commander picked as the format', Boolean(checked) && (await bob.eval(`document.getElementById('deck-format').value`)) === 'commander' && /Krenko/.test(await bob.eval(`document.getElementById('commander-1').selectedOptions[0].textContent`)));
+  record('pasting a list and pressing Check shows the checked deck in the lobby, with Commander picked as the format', Boolean(checked) && (await bob.eval(`document.getElementById('deck-format').value`)) === 'commander' && /Krenko/.test(await bob.eval(`document.querySelector('#sections [data-group="commander"] .name').textContent`)));
   if (process.argv.includes('--screenshot')) { await bob.eval(`document.getElementById('deck-importer').scrollIntoView()`); await sleep(500); await bob.screenshot('scratch-room-importer.png'); }
   await bob.eval(`(() => { const f = document.getElementById('deck-name'); f.value = 'Bob goblins'; f.dispatchEvent(new Event('input')); f.dispatchEvent(new Event('change')); })()`);
   const savedMessage = await waitFor(async () => ((await text(bob, 'save-state')) === 'Saved' && /Bob goblins/.test(await bob.eval(`localStorage.getItem('overloaded.decks')`)) ? true : null), 15000, 250);

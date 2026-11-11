@@ -145,7 +145,9 @@ export function renderGroups(container, groups, { view, printingCell, menuFor = 
   for (const group of groups) {
     const section = make('section', 'deck-group');
     section.dataset.group = group.key;
-    section.append(make('h3', '', `${group.title} (${group.count})`));
+    const heading = make('h3', '', `${group.title} (${group.count})`);
+    if (group.key === 'commander') heading.title = 'Right-click a card in the deck to change the commander or to add a partner.';
+    section.append(heading);
     const list = make('ul', view === 'images' ? 'deck-tiles' : view === 'stacks' ? 'deck-stack' : 'deck-list');
     list.append(...group.lines.map((line) => (view === 'text' ? textRow(line, printingCell, menuFor(line)) : tile(line, menuFor(line)))));
     section.append(list);

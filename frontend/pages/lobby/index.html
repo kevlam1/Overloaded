@@ -9,6 +9,16 @@
     <link rel="stylesheet" href="/src/style.css">
   </head>
   <body>
+    <header class="site-header">
+      <div class="site-header-inner">
+        <a class="brand has-logo" href="/" aria-label="Overloaded, home"><img class="brand-logo" src="/brand/logo.png" width="432" height="96" alt=""><span class="brand-name">Overloaded</span><span class="brand-beta">BETA</span></a>
+        <nav class="site-nav" aria-label="Main">
+          <a class="site-link" href="/" aria-current="page">Lobby</a>
+          <a class="site-link" href="/deck">Decks</a>
+          <a class="site-link" href="/solo">Solo table</a>
+        </nav>
+      </div>
+    </header>
     <main>
       <h1>Lobby</h1>
       <div id="intro">
@@ -133,8 +143,17 @@
       </form>
     </dialog>
 
-    <footer>
-      <p>Overloaded is unofficial Fan Content permitted under the Fan Content Policy. Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. &copy;Wizards of the Coast LLC.</p>
+    <footer class="site-footer">
+      <div class="site-footer-inner">
+        <nav class="footer-links" aria-label="Footer">
+          <a href="/">Lobby</a>
+          <a href="/deck">Decks</a>
+          <a href="/solo">Solo table</a>
+          <a href="https://github.com/kevlam1/Overloaded">Source on GitHub</a>
+        </nav>
+        <p class="footer-credit">Card data and pictures from <a href="https://scryfall.com">Scryfall</a>.</p>
+        <p class="footer-legal">Overloaded is unofficial Fan Content permitted under the Fan Content Policy. Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. &copy;Wizards of the Coast LLC.</p>
+      </div>
     </footer>
 
     <script type="module" src="/pages/lobby/lobby.js"></script>

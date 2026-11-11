@@ -742,9 +742,7 @@ body .battlefield > .card.tapped[data-stack-ext="3"]::before { left: -3px; top: 
 .deck-app .deck-save { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; }
 .deck-app .deck-save .choice { margin: 0; }
 .deck-app .deck-settings { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0 1rem; }
-.deck-app .deck-settings .field, .deck-app .commander-box .field { margin-bottom: 0.5rem; }
-.deck-app .commander-box { display: flex; flex-wrap: wrap; gap: 0 1rem; }
-.deck-app .commander-box[hidden], .deck-app .deck-settings [hidden] { display: none; }
+.deck-app .deck-settings .field { margin-bottom: 0.5rem; }
 .deck-app .deck-summary { margin: 0.5rem 0; }
 .deck-app .deck-summary p { margin: 0; }
 .deck-app .deck-sections { margin-top: 0.5rem; }
@@ -766,10 +764,9 @@ body .battlefield > .card.tapped[data-stack-ext="3"]::before { left: -3px; top: 
 .deck-tile.unmatched .tile-picture { border-style: dashed; border-color: var(--danger); color: var(--danger); }
 .deck-tile .tile-qty { position: absolute; right: 0.3rem; bottom: 0.3rem; padding: 0 0.4rem; border-radius: 0.8rem; background: var(--accent); color: var(--accent-text); font-size: 0.8rem; font-weight: 700; line-height: 1.4rem; }
 .deck-app section { margin: 0; padding: 0; border: 0; background: none; box-shadow: none; }
-.deck-app .deck-settings select, .deck-app .commander-box select { width: auto; min-width: 11rem; max-width: 100%; }
-.deck-app .deck-settings .field, .deck-app .commander-box .field { flex: 0 1 auto; }
+.deck-app .deck-settings select { width: auto; min-width: 11rem; max-width: 100%; }
+.deck-app .deck-settings .field { flex: 0 1 auto; }
 .deck-app .deck-settings { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); }
-.deck-app .commander-box { display: contents; }
 .deck-app .deck-settings select { width: 100%; }
 
 /* Mana costs as round symbols (frontend/src/mana-pips.js): a circle in the color, with its letter or number. Made for this site; not any publisher's symbols. */
@@ -891,15 +888,14 @@ main.wide:has(.deck-app[data-screen="deck"]) { max-width: 120rem; }
 
 /* The deck's header: one compact block. Name, format, bracket, commanders and Save share rows and wrap as the window narrows; the facts sit under them. */
 .deck-app .deck-header { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.4rem 0.75rem; padding: 0.7rem 0.9rem; }
-.deck-app .deck-head, .deck-app .deck-settings, .deck-app .commander-box { display: contents; }
+.deck-app .deck-head, .deck-app .deck-settings { display: contents; }
 .deck-app .deck-header .field { margin: 0; flex: 0 0 auto; }
 .deck-app .deck-header .deck-name-field { flex: 1 1 14rem; max-width: 24rem; }
 .deck-app .deck-header label { font-size: 0.75rem; color: var(--muted); font-weight: 600; }
 .deck-app .deck-header input, .deck-app .deck-header select { min-height: 2.25rem; padding-top: 0.2rem; padding-bottom: 0.2rem; }
 .deck-app .deck-name-field input { font-size: 1rem; }
-.deck-app .deck-settings select, .deck-app .commander-box select { width: 100%; min-width: 0; }
+.deck-app .deck-settings select { width: 100%; min-width: 0; }
 .deck-app .deck-settings .field:nth-child(1), .deck-app .deck-settings .field:nth-child(2) { width: 8.5rem; }
-.deck-app .commander-box .field { width: 15rem; }
 .deck-app .deck-header .hint { flex: 1 1 100%; margin: 0; font-size: 0.8rem; }
 .deck-app .deck-header .hint:empty { display: none; }
 .deck-facts { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 1.5rem; flex: 1 1 100%; padding-top: 0.55rem; border-top: 1px solid var(--line); }
@@ -957,17 +953,17 @@ main.wide:has(.deck-app[data-screen="deck"]) { max-width: 120rem; }
 
 /* ---- the site header (src/site-header.js), on the lobby and deck pages ---- */
 .site-header { border-bottom: 1px solid var(--line); background: var(--card); }
-.site-header-inner { display: flex; align-items: center; justify-content: space-between; gap: 1rem; max-width: 120rem; margin: 0 auto; padding: 0.55rem 1rem; }
+.site-header-inner { display: flex; align-items: center; justify-content: flex-start; gap: 3rem; max-width: 120rem; margin: 0 auto; padding: 1rem 2rem; }
 .site-header .brand { display: inline-flex; align-items: center; gap: 0.6rem; color: var(--text); text-decoration: none; }
 .site-header .brand:focus-visible, .site-header .site-link:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: 0.3rem; }
-.brand-logo { display: block; width: auto; height: 2rem; }
+.brand-logo { display: block; width: auto; height: 2.5rem; }
 .brand.has-logo .brand-name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 /* The wordmark is white: on the light theme it is turned dark. */
 @media (prefers-color-scheme: light) { .brand-logo { filter: invert(1) brightness(0.25); } }
 .brand-name { font-size: 1.2rem; font-weight: 700; letter-spacing: 0.01em; }
 .brand-beta { padding: 0 0.4rem; border: 1px solid var(--line); border-radius: 0.8rem; color: var(--muted); font-size: 0.65rem; font-weight: 700; line-height: 1.1rem; letter-spacing: 0.06em; }
-.site-nav { display: flex; flex-wrap: wrap; gap: 0.25rem 0.25rem; }
-.site-link { padding: 0.35rem 0.75rem; border-radius: 0.5rem; color: var(--muted); font-size: 0.95rem; font-weight: 600; text-decoration: none; }
+.site-nav { display: flex; flex-wrap: wrap; gap: 0.35rem 0.6rem; }
+.site-link { padding: 0.5rem 1.1rem; border-radius: 0.6rem; color: var(--muted); font-size: 1rem; font-weight: 600; text-decoration: none; }
 .site-link:hover { background: color-mix(in srgb, var(--muted) 15%, var(--card)); color: var(--text); }
 .site-link[aria-current="page"] { background: color-mix(in srgb, var(--accent) 18%, var(--card)); color: var(--text); }
 /* In the deck's header the Save button goes after the choices (the far right of the first row), and the notes and facts below them. */
@@ -998,9 +994,7 @@ main.wide:has(.deck-app[data-screen="deck"]) > h1, main.wide:has(.deck-app[data-
 .deck-app .deck-header { gap: 0.4rem 0.9rem; }
 .deck-app .deck-header .deck-name-field { flex: 1 1 14rem; max-width: 26rem; }
 .deck-app .deck-settings .field:nth-child(1), .deck-app .deck-settings .field:nth-child(2) { width: 9rem; }
-.deck-app .commander-box .field { width: 14rem; }
 /* The site header: the places to go sit next to the logo, not at the far edge. */
-.site-header-inner { justify-content: flex-start; gap: 1.75rem; }
 /* No empty message line (it left a blank band at the top), and "New deck" on the same line as the page's heading. */
 .deck-app .status:empty { display: none; }
 main.wide:has(.deck-app[data-screen="list"]) .screen-head { margin-top: -2.9rem; margin-bottom: 1rem; }
@@ -1019,3 +1013,16 @@ main.wide:has(.deck-app[data-screen="list"]) .screen-head { margin-top: -2.9rem;
 .gc-list { display: grid; grid-template-columns: 1fr 1fr; gap: 0.2rem 1rem; margin: 0.4rem 0 0; padding: 0; list-style: none; }
 .gc-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bracket-pop-foot { margin-top: 0.7rem !important; padding-top: 0.5rem; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.78rem; }
+
+/* (Moving between pages: the header and the footer are written in each page, not added by a script, so they are there from the first paint and do not flicker. Cross-document view transitions were tried and dropped: they logged an error on every page change.) */
+/* The footer: the places, the credit and the fan content notice, in the page's width. */
+.site-footer { margin-top: 3rem; border-top: 1px solid var(--line); background: var(--card); color: var(--muted); font-size: 0.85rem; }
+.site-footer-inner { display: grid; grid-template-columns: auto 1fr; gap: 0.75rem 3rem; max-width: 120rem; margin: 0 auto; padding: 1.75rem 2rem 2rem; }
+.footer-links { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; grid-column: 1 / -1; }
+.footer-links a, .footer-credit a { color: var(--text); font-weight: 600; text-decoration: none; }
+.footer-links a:hover, .footer-credit a:hover { text-decoration: underline; }
+.site-footer p { margin: 0; }
+.footer-credit { grid-column: 1 / -1; }
+.footer-legal { grid-column: 1 / -1; max-width: 60rem; font-size: 0.78rem; line-height: 1.5; }
+.deck-app .deck-settings [hidden] { display: none; }
+.site-footer { max-width: none; margin: 3rem 0 0; padding: 0; } /* (the base footer rule is a narrow centered column; this one spans the page) */

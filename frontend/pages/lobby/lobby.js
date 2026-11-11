@@ -421,7 +421,7 @@ $('leave-table').addEventListener('click', () => run(async () => {
 window.addEventListener('popstate', () => location.reload());
 
 // ---- starting ----
-mountSiteHeader({ current: 'lobby' });
+mountSiteHeader();
 nameInput.value = store.get(NAME_KEY) ?? '';
 
 // The start page: if this browser is at a table, say so and link to it (no redirect: you may want to make or join another).

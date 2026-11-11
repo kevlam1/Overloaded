@@ -192,17 +192,16 @@ function build() {
   bracketPop.setAttribute('aria-label', 'Bracket information');
   bracketField.classList.add('has-info');
   bracketField.append(infoButton, bracketPop);
-  const commanderBox = make('div', 'commander-box');
-  commanderBox.id = 'commander-box';
-  commanderBox.append(field('commander-1', 'Commander', make('select')), field('commander-2', 'Partner', make('select')));
   const settings = make('div', 'deck-settings');
-  settings.append(field('deck-format', 'Format', formatSelect), bracketField, commanderBox);
+  settings.append(field('deck-format', 'Format', formatSelect), bracketField);
   const commanderNote = make('p', 'hint');
   commanderNote.id = 'commander-note';
 
   const summaryRow = make('div', 'deck-summary');
   const deckNav = make('div', 'deck-nav');
-  deckNav.append(button('back-to-decks', '\u2039 All decks', 'link-button'), button('edit-list', 'Edit list', 'link-button'));
+  // On the deck page the header's Decks link goes back to the list; inside the lobby (which has no such link) a small button does.
+  if (!solo) deckNav.append(button('back-to-decks', '\u2039 All decks', 'link-button'));
+  deckNav.append(button('edit-list', 'Edit list', 'link-button'));
   const summary = make('p');
   summary.id = 'summary';
   const toggle = make('div', 'view-toggle');
@@ -419,7 +418,9 @@ function printingCell(line) {
 
 // The commander ids that count right now: the two pickers in a Commander deck, none otherwise.
 const isCommander = () => $('deck-format').value === 'commander';
-const commanderIds = () => (isCommander() && !$('commander-box').hidden ? [$('commander-1').value, $('commander-2').value].filter(Boolean) : []);
+// The commander and the partner are chosen from a card's right-click menu ("Make commander", "Make partner"); picks holds them (ids), and only a Commander deck has any.
+const currentPicks = () => (isCommander() && preview ? [picks[0] ?? '', picks[1] ?? ''] : ['', '']);
+const commanderIds = () => currentPicks().filter(Boolean);
 
 function renderSections() {
   const groups = groupDeck(preview.lines, { commanderIds: commanderIds(), sort, direction, grouping });
@@ -452,10 +453,9 @@ async function applyPrinting(line, row) {
 
 // ---- a card's menu: the "..." button on a card, or a right-click on it ----
 // What it offers is in shared/deck-commander.mjs (making a card the commander or the partner, or taking it out; the card that was replaced goes back to its type group).
-const currentPicks = () => (isCommander() && !$('commander-box').hidden ? [$('commander-1').value, $('commander-2').value] : ['', '']);
 function menuItemsFor(line) {
   if (!line || line.status !== 'matched' || !line.card) return [];
-  return [{ id: 'printing', label: 'Change printing...' }, ...commanderMenuItems(line, currentPicks(), { commanderFormat: isCommander() && !$('commander-box').hidden })];
+  return [{ id: 'printing', label: 'Change printing...' }, ...commanderMenuItems(line, currentPicks(), { commanderFormat: isCommander() && Boolean(preview) })];
 }
 function lineOf(element) {
   const ref = element instanceof Element ? element.closest('[data-ref]')?.dataset.ref : null;
@@ -481,9 +481,9 @@ function openLineMenu(line, x, y, returnFocus) {
 
 const CERTAINTY_NOTES = {
   marked: '',
-  unlabeled: 'Taken from after the blank line in your list. Check that it is right.',
-  legendary: 'No commander is marked in your list, so the first legendary creature was picked.',
-  first: 'No commander is marked in your list, so the first card was picked.',
+  unlabeled: 'Taken from after the blank line in your list. Right-click a card to change the commander.',
+  legendary: 'No commander is marked in your list, so the first legendary creature was picked. Right-click a card to change it.',
+  first: 'No commander is marked in your list, so the first card was picked. Right-click a card to change it.',
 };
 
 // The bracket: "Auto" is the guess from the Game Changers (shared/deck-bracket.mjs), and says what it would be; picking a number says it yourself. A Standard deck has no bracket.
@@ -535,27 +535,13 @@ function renderCommander() {
   // The likely commanders (legendary creatures) first, then every other card, each group sorted by name.
   const likely = lines.filter((line) => isLegendaryCreature(line.card));
   const ordered = [...likely, ...lines.filter((line) => !isLegendaryCreature(line.card))];
-  const groups = () => {
-    const group = (label, list) => {
-      const element = document.createElement('optgroup');
-      element.label = label;
-      element.append(...list.map((line) => new Option(line.name, line.card.i)));
-      return element;
-    };
-    const others = ordered.slice(likely.length);
-    return [likely.length ? group('Likely commanders', likely) : null, others.length ? group(likely.length ? 'Other cards' : 'All cards', others) : null].filter(Boolean);
-  };
   if (!formatTouched) $('deck-format').value = preview.commander.looksLikeCommander ? 'commander' : 'standard';
   const commander = isCommander();
   $('bracket-field').hidden = !commander;
-  $('commander-box').hidden = !commander || lines.length === 0;
-  const first = $('commander-1');
-  const second = $('commander-2');
-  first.replaceChildren(...groups());
-  second.replaceChildren(new Option('No partner', ''), ...groups());
   if (!picksTouched) picks = [preview.commander.ids[0] ?? '', preview.commander.ids[1] ?? ''];
-  first.value = ordered.some((line) => line.card.i === picks[0]) ? picks[0] : (ordered[0]?.card.i ?? '');
-  second.value = ordered.some((line) => line.card.i === picks[1]) ? picks[1] : '';
+  // A pick that is no longer in the deck is dropped; a Commander deck always has a commander (the likeliest card when none is picked).
+  if (!ordered.some((line) => line.card.i === picks[0])) picks[0] = ordered[0]?.card.i ?? '';
+  if (!ordered.some((line) => line.card.i === picks[1]) || picks[1] === picks[0]) picks[1] = '';
   $('commander-note').textContent = commander ? (CERTAINTY_NOTES[preview.commander.certainty] ?? '') : '';
 }
 
@@ -789,11 +775,16 @@ export function mountDeckImporter({ root: container, sampleId, onLibraryChange: 
   $('sample').addEventListener('click', () => useSample());
   $('new-deck').addEventListener('click', () => { currentId = null; setSaveState(''); $('deck-text').value = ''; text = ''; preview = null; choices = {}; picksTouched = false; formatTouched = false; $('deck-bracket').value = ''; $('deck-name').value = ''; checkRun++; say(''); showScreen('paste'); });
   $('cancel-paste').addEventListener('click', () => { say(''); showScreen(preview ? 'deck' : 'list'); });
-  $('back-to-decks').addEventListener('click', () => { say(''); showScreen('list'); });
+  $('back-to-decks')?.addEventListener('click', () => { say(''); showScreen('list'); });
+  // The header's Decks link, on the deck page: from a deck or the box to paste into it shows the list at once, without loading the page again.
+  if (solo) {
+    document.querySelector('header.site-header .site-nav a[href="/deck"]')?.addEventListener('click', (event) => {
+      event.preventDefault();
+      if (root.dataset.screen !== 'list') { say(''); showScreen('list'); }
+    });
+  }
   $('edit-list').addEventListener('click', () => { say(''); showScreen('paste'); });
   $('deck-text').addEventListener('keydown', (event) => { if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) runCheck(); });
-  $('commander-1').addEventListener('change', () => { picks[0] = $('commander-1').value; picksTouched = true; renderSections(); autosave(); });
-  $('commander-2').addEventListener('change', () => { picks[1] = $('commander-2').value; picksTouched = true; renderSections(); autosave(); });
   $('deck-bracket').addEventListener('change', autosave);
   $('bracket-info').addEventListener('click', () => {
     const open = $('bracket-pop').hidden;
