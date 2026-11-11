@@ -24,7 +24,7 @@ import { makePrintingLoader } from './printings.js';
 import { sampleById } from '../../shared/sample-decks.mjs';
 import { setupCardPeek } from './card-peek.js';
 import { renderGroups, mountViewToggle, VIEWS } from './deck-groups.js';
-import { guessBracket, gameChangersIn, bracketNote } from '../../shared/deck-bracket.mjs';
+import { guessBracket, gameChangersIn } from '../../shared/deck-bracket.mjs';
 import { deckFace, colorsAsCost, tintGradient, COLOR_NAMES } from '../../shared/deck-colors.mjs';
 import { manaNode } from './mana-pips.js';
 import { imageUrl } from '../../shared/card-image.mjs';
@@ -183,6 +183,15 @@ function build() {
   const bracketField = field('deck-bracket', 'Bracket', bracketSelect);
   bracketField.id = 'bracket-field';
   bracketField.title = 'How strong the deck is, for the table to see next to your commander. Auto guesses it from the Game Changers in the deck; pick a number to say it yourself.';
+  // The Game Changers are not listed in the header: a small (i) beside Bracket opens a panel that holds them, tidily.
+  const infoButton = button('bracket-info', 'i', 'info-button', { 'aria-label': 'About the bracket', 'aria-expanded': 'false', 'aria-controls': 'bracket-pop', title: 'About the bracket' });
+  const bracketPop = make('div', 'bracket-pop');
+  bracketPop.id = 'bracket-pop';
+  bracketPop.hidden = true;
+  bracketPop.setAttribute('role', 'group');
+  bracketPop.setAttribute('aria-label', 'Bracket information');
+  bracketField.classList.add('has-info');
+  bracketField.append(infoButton, bracketPop);
   const commanderBox = make('div', 'commander-box');
   commanderBox.id = 'commander-box';
   commanderBox.append(field('commander-1', 'Commander', make('select')), field('commander-2', 'Partner', make('select')));
@@ -190,8 +199,6 @@ function build() {
   settings.append(field('deck-format', 'Format', formatSelect), bracketField, commanderBox);
   const commanderNote = make('p', 'hint');
   commanderNote.id = 'commander-note';
-  const bracketNoteElement = make('p', 'hint');
-  bracketNoteElement.id = 'bracket-note';
 
   const summaryRow = make('div', 'deck-summary');
   const deckNav = make('div', 'deck-nav');
@@ -235,7 +242,7 @@ function build() {
   const info = make('section', 'deck-info');
   info.id = 'deck-info';
   const header = make('div', 'deck-header');
-  header.append(head, settings, commanderNote, bracketNoteElement, facts);
+  header.append(head, settings, commanderNote, facts);
   deck.append(deckHeading, header, summaryRow, notices, problems, body, info);
 
   root.replaceChildren(status, saved, paste, deck);
@@ -485,8 +492,30 @@ function renderBracket() {
   const found = gameChangersIn(preview.lines);
   bracketGuessNow = isCommander() ? guessBracket(found.count) : null;
   $('deck-bracket').options[0].textContent = bracketGuessNow === null ? 'Auto' : `Auto (${bracketGuessNow})`;
-  $('bracket-note').textContent = isCommander() ? bracketNote(found) : '';
-  $('bracket-note').hidden = !isCommander() || found.count === 0; // with none there is nothing to name; the choice already says what it guessed
+  renderBracketPanel(found);
+}
+
+// The panel behind the (i) beside Bracket: what the guess is and the Game Changers it came from, as a list (not a sentence in the header).
+function renderBracketPanel(found) {
+  const pop = $('bracket-pop');
+  pop.dataset.count = String(found.count);
+  const parts = [make('p', 'bracket-pop-title', 'Bracket information')];
+  if (bracketGuessNow !== null) parts.push(make('p', 'bracket-pop-line', `Auto picks bracket ${bracketGuessNow}, from the Game Changers in this deck. Choose a number yourself to override it.`));
+  parts.push(make('p', 'bracket-pop-heading', `Game Changers (${found.count})`));
+  if (found.count === 0) parts.push(make('p', 'bracket-pop-none', 'None in this deck.'));
+  else {
+    const list = make('ul', 'gc-list');
+    list.append(...found.names.map((name) => make('li', 'gc-name', name)));
+    parts.push(list);
+  }
+  parts.push(make('p', 'bracket-pop-foot', 'Mass land denial, extra turns and combos are not counted: the card list does not know them.'));
+  pop.replaceChildren(...parts);
+}
+function closeBracketPanel(returnFocus = false) {
+  if ($('bracket-pop').hidden) return;
+  $('bracket-pop').hidden = true;
+  $('bracket-info').setAttribute('aria-expanded', 'false');
+  if (returnFocus) $('bracket-info').focus();
 }
 
 function setFormat(value) {
@@ -766,6 +795,14 @@ export function mountDeckImporter({ root: container, sampleId, onLibraryChange: 
   $('commander-1').addEventListener('change', () => { picks[0] = $('commander-1').value; picksTouched = true; renderSections(); autosave(); });
   $('commander-2').addEventListener('change', () => { picks[1] = $('commander-2').value; picksTouched = true; renderSections(); autosave(); });
   $('deck-bracket').addEventListener('change', autosave);
+  $('bracket-info').addEventListener('click', () => {
+    const open = $('bracket-pop').hidden;
+    $('bracket-pop').hidden = !open;
+    $('bracket-info').setAttribute('aria-expanded', String(open));
+  });
+  $('bracket-pop').addEventListener('keydown', (event) => { if (event.key === 'Escape') closeBracketPanel(true); });
+  $('bracket-info').addEventListener('keydown', (event) => { if (event.key === 'Escape') closeBracketPanel(true); });
+  document.addEventListener('click', (event) => { if (event.target instanceof Element && !event.target.closest('#bracket-field')) closeBracketPanel(); });
   $('deck-name').addEventListener('change', () => { if (!$('deck-name').value.trim()) { $('deck-name').value = library.decks.find((entry) => entry.id === currentId)?.deck.name ?? ''; } autosave(); });
   $('sections').addEventListener('click', (event) => {
     const button = event.target instanceof Element ? event.target.closest('.row-menu') : null;

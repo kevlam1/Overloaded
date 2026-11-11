@@ -1004,3 +1004,18 @@ main.wide:has(.deck-app[data-screen="deck"]) > h1, main.wide:has(.deck-app[data-
 /* No empty message line (it left a blank band at the top), and "New deck" on the same line as the page's heading. */
 .deck-app .status:empty { display: none; }
 main.wide:has(.deck-app[data-screen="list"]) .screen-head { margin-top: -2.9rem; margin-bottom: 1rem; }
+
+/* The (i) beside Bracket and the panel of Game Changers it opens. */
+.deck-app .field.has-info { position: relative; }
+.info-button { position: absolute; top: -0.05rem; right: 0; width: 1.15rem; height: 1.15rem; min-height: 0; padding: 0; border: 1px solid var(--muted); border-radius: 50%; background: transparent; color: var(--muted); font: italic 700 0.7rem/1 Georgia, serif; }
+.info-button:hover, .info-button[aria-expanded="true"] { border-color: var(--accent); color: var(--accent); }
+.bracket-pop { position: absolute; z-index: 20; top: 100%; left: 0; width: 22rem; max-width: 90vw; margin-top: 0.35rem; padding: 0.8rem 0.9rem; border: 1px solid var(--line); border-radius: 0.7rem; background: var(--card); box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.35); font-size: 0.85rem; }
+.bracket-pop[hidden] { display: none; }
+.bracket-pop p { margin: 0; }
+.bracket-pop-title { font-weight: 700; font-size: 0.95rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--line); }
+.bracket-pop-line { margin-top: 0.5rem !important; color: var(--muted); }
+.bracket-pop-heading { margin-top: 0.7rem !important; font-weight: 700; }
+.bracket-pop-none { margin-top: 0.3rem !important; color: var(--muted); }
+.gc-list { display: grid; grid-template-columns: 1fr 1fr; gap: 0.2rem 1rem; margin: 0.4rem 0 0; padding: 0; list-style: none; }
+.gc-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bracket-pop-foot { margin-top: 0.7rem !important; padding-top: 0.5rem; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.78rem; }

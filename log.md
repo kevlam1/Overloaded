@@ -2866,6 +2866,19 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 139. The Game Changers in a panel (2026-11-10)
+
+**What I asked for**
+- The way Game Changers are listed is unorganized and messy; look at my references for how they pack it up neatly.
+
+**What changed** (`frontend/src/deck-importer.js`, `style.css`, `scripts/check-deck-ui.mjs`)
+- The sentence "7 Game Changers: Ancient Tomb, Chrome Mox, ..." under the header is gone. A small (i) beside Bracket opens a panel, like the Bracket Information box in the references: a title, one line saying what Auto picked and why, "Game Changers (7)" with the names in two columns, and a footnote that mass land denial, extra turns and combos are not counted (the card list does not know them). With none, it says "None in this deck." It closes with Escape or a click elsewhere, and the (i) is a button with `aria-expanded`.
+- `bracketNote` in `shared/deck-bracket.mjs` is no longer used by the page; I left it and its test alone.
+
+**What I checked:** the deck page check is 276 (the four Game Changer checks now read the panel's list and count, and four new ones cover it being closed at first, opening with a title, the guess line and two columns inside the window, Escape, and a click elsewhere). A 1920 screenshot of the sample deck with the panel open looks tidy. Not checked: light mode, phone width, the panel in the lobby's importer.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-10, entry 132) Claude kept committing and pushing to the development branch in turns where I had only asked for a change, after I had asked for it once; my rule is to do it only when asked.
 - (2026-11-10, entry 122) Claude's first deck page started a library it could not read at the box to paste into, hiding the message about it; the old check noticed.
