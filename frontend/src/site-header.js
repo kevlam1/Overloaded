@@ -1,10 +1,10 @@
 // The header at the top of the lobby and the deck pages: the logo and name on the left, the places to go on the right. The table pages have their own top bar (the game needs the room).
-// The logo is the file /brand/logo.svg (frontend/public/brand/logo.svg); until that file exists, or if it cannot be loaded, the name stands alone.
+// The logo is the wordmark /brand/logo.png (frontend/public/brand/logo.png, 432 by 96, made from frontend/assets/overloaded-logo-source.png); it already says the name, so the written name is kept only for screen readers and shows alone if the picture cannot be loaded.
 // "Lobby" goes to the table this browser is at (the lobby remembers it under overloaded.lastTable), else to the start page. Plain DOM, no dependencies.
 import { isValidCode } from '../../shared/table-code.mjs';
 import { makeSafeStore } from './safe-store.js';
 
-export const LOGO_URL = '/brand/logo.svg';
+export const LOGO_URL = '/brand/logo.png';
 const PLACES = [['lobby', 'Lobby'], ['deck', 'Decks'], ['solo', 'Solo table']];
 
 function make(tag, className, content) {
@@ -24,10 +24,11 @@ export function mountSiteHeader({ current } = {}) {
   const logo = new Image();
   logo.className = 'brand-logo';
   logo.alt = '';
-  logo.width = 32;
-  logo.height = 32;
+  logo.width = 432;
+  logo.height = 96;
   logo.decoding = 'async';
-  logo.addEventListener('error', () => logo.remove()); // no logo file yet: the name stands alone
+  logo.addEventListener('load', () => brand.classList.add('has-logo')); // the wordmark says the name, so the written one is hidden (it stays for screen readers)
+  logo.addEventListener('error', () => logo.remove()); // the name stands alone
   logo.src = LOGO_URL;
   brand.append(logo, make('span', 'brand-name', 'Overloaded'), make('span', 'brand-beta', 'BETA'));
 

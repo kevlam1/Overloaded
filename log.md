@@ -2827,6 +2827,23 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 137. The real logo in the header (2026-11-10)
+
+**What I asked for**
+- I added the logo; use it or rename it however you want.
+
+**What I found:** `overloaded logo.png` was 2000 by 2000 pixels and 1.5 MB, in `frontend/public` (which is served to every visitor). I measured it in a browser: a transparent background, a grainy near-white wordmark of "Overloaded" occupying only the box 1668 by 352 pixels in the middle. So it is a wordmark, not a square icon, and it is invisible on the light theme as it is.
+
+**What changed** (`frontend/public/brand/logo.png`, `frontend/assets/overloaded-logo-source.png`, `frontend/src/site-header.js`, `style.css`)
+- The original moved out of the served folder to `frontend/assets/overloaded-logo-source.png` (a lowercase name, not served; it is the source to redo the small one from). The header uses a copy cropped to the wordmark and shrunk to 432 by 96 pixels (70 KB instead of 1.5 MB, sharp up to three times the size shown), made with the browser's canvas so nothing was installed.
+- The header shows the wordmark in place of the placeholder icon and the written name; the written name stays for screen readers, and shows alone if the picture cannot be loaded. On the light theme the wordmark is turned dark with a CSS filter. The placeholder `logo.svg` is deleted.
+
+**What I checked**
+- Screenshots of the header on the dark theme (in the deck page) and the light theme (a stand-in page with the real style sheet, not the real page). The deck page check (273, with the logo check updated to the new file, its 432 pixel width and the hidden name), the lobby page check (65) and all 57 quick suites pass.
+- **Not checked:** the grain of the original is gone after shrinking, which I think is right for a header but is my call; a favicon (the wordmark is too wide for one; a square mark would be needed); phone width.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-10, entry 132) Claude kept committing and pushing to the development branch in turns where I had only asked for a change, after I had asked for it once; my rule is to do it only when asked.
 - (2026-11-10, entry 122) Claude's first deck page started a library it could not read at the box to paste into, hiding the message about it; the old check noticed.
