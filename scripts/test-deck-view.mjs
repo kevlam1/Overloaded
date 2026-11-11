@@ -1,5 +1,5 @@
 // Tests for shared/deck-view.mjs: which type group a card is in, and how a deck's lines are grouped and ordered.
-import { categoryOf, groupDeck, CATEGORY_ORDER, GROUP_TITLES, manaValue, colorOrder, SORTS, SORT_TITLES } from '../shared/deck-view.mjs';
+import { categoryOf, groupDeck, CATEGORY_ORDER, GROUP_TITLES, manaValue, colorOrder, SORTS, SORT_TITLES, DIRECTIONS, directionWords } from '../shared/deck-view.mjs';
 
 let checks = 0;
 const fail = (label, detail) => { console.log(`FAILED CHECK: ${label}: ${detail}`); process.exit(1); };
@@ -82,6 +82,12 @@ same('by mana value, the name settling ties', names('value'), ['Dark Ritual', 'F
 same('by color: white, blue, black, red, green, two colors, colorless', names('color'), ['Swords to Plowshares', 'Counterspell', 'Dark Ritual', 'Fireball', 'Lightning Bolt', 'Giant Growth', 'Boros Charm', 'Sol Ring']);
 same('an unknown sort is the name', names('nonsense'), names('name'));
 same('the commander group keeps the order they were picked in, whatever the sort', groupDeck([{ ...spells[0], section: 'main' }, { ...spells[2], section: 'main' }], { commanderIds: ['id-Swords to Plowshares', 'id-Lightning Bolt'], sort: 'value' })[0].lines.map((l) => l.name), ['Swords to Plowshares', 'Lightning Bolt']);
+same('the directions and what the button says for each sort', [DIRECTIONS, SORTS.map((sort) => [directionWords(sort, 'asc'), directionWords(sort, 'desc')]), directionWords('nonsense', 'sideways')], [['asc', 'desc'], [['A to Z', 'Z to A'], ['Low to high', 'High to low'], ['W to G', 'G to W']], 'A to Z']);
+const reversed = (sort) => groupDeck(spells, { sort, direction: 'desc' })[0].lines.map((l) => l.name);
+same('Z to A is the exact reverse of A to Z', reversed('name'), [...names('name')].reverse());
+same('high to low: the dearest first, the name still settling ties from A to Z', reversed('value'), ['Boros Charm', 'Counterspell', 'Dark Ritual', 'Fireball', 'Giant Growth', 'Lightning Bolt', 'Sol Ring', 'Swords to Plowshares']);
+same('G to W: colorless and the two-color card first, then green back to white (a tie keeps name order)', reversed('color'), ['Sol Ring', 'Boros Charm', 'Giant Growth', 'Fireball', 'Lightning Bolt', 'Dark Ritual', 'Counterspell', 'Swords to Plowshares']);
+same('ascending is the default and an unknown direction is ascending', [groupDeck(spells, { sort: 'value', direction: 'up' })[0].lines.map((l) => l.name), groupDeck(spells, { sort: 'value' })[0].lines.map((l) => l.name)], [names('value'), names('value')]);
 same('every sort keeps every card', SORTS.map((sort) => groupDeck(spells, { sort }).reduce((n, g) => n + g.count, 0)), [8, 8, 8]);
 
 console.log(`All ${checks} deck view checks passed.`);

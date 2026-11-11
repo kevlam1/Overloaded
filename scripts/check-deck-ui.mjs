@@ -880,7 +880,20 @@ try {
   await ev(`document.querySelector('[data-view="text"]').click()`);
   await load(); await paste('1 Lightning Bolt\n1 Counterspell\n1 Dark Ritual'); await press('check');
   check('after a reload the chosen sort is still in use', (await ev(`document.getElementById('deck-sort').value`)) === 'color' && JSON.stringify(await instants()) === JSON.stringify(['Counterspell', 'Dark Ritual', 'Lightning Bolt']), JSON.stringify(await instants()));
-  await setField('deck-sort', 'name'); await ev(`localStorage.removeItem('overloaded.deckSort')`);
+  // the other way round
+  await setField('deck-sort', 'value');
+  const UP = String.fromCharCode(0x2191), DOWN = String.fromCharCode(0x2193);
+  check('beside the sort is a button that is an up arrow (the usual way), with the words "Low to high" for mana value in its tooltip and for a screen reader', (await $text('deck-sort-direction')) === UP && /Sort order: Low to high/.test(await ev(`document.getElementById('deck-sort-direction').getAttribute('aria-label')`)) && /^Low to high/.test(await ev(`document.getElementById('deck-sort-direction').title`)));
+  await ev(`document.getElementById('deck-sort-direction').click()`);
+  check('pressing it turns the order round (high to low, the name still settling ties from A to Z) and the arrow points down', (await $text('deck-sort-direction')) === DOWN && /^High to low/.test(await ev(`document.getElementById('deck-sort-direction').title`)) && JSON.stringify(await instants()) === JSON.stringify(['Counterspell', 'Dark Ritual', 'Lightning Bolt']) && (await ev(`localStorage.getItem('overloaded.deckSortDirection')`)) === 'desc', JSON.stringify(await instants()));
+  await setField('deck-sort', 'name');
+  check('the tooltip\'s words follow the sort (Z to A for names), and the direction is kept when the sort changes', (await $text('deck-sort-direction')) === DOWN && /^Z to A/.test(await ev(`document.getElementById('deck-sort-direction').title`)) && JSON.stringify(await instants()) === JSON.stringify(['Lightning Bolt', 'Dark Ritual', 'Counterspell']), JSON.stringify(await instants()));
+  await setField('deck-sort', 'color');
+  check('G to W for color: green first, white last', /^G to W/.test(await ev(`document.getElementById('deck-sort-direction').title`)) && JSON.stringify(await instants()) === JSON.stringify(['Lightning Bolt', 'Dark Ritual', 'Counterspell']), JSON.stringify(await instants()));
+  await load(); await paste('1 Lightning Bolt\n1 Counterspell\n1 Dark Ritual'); await press('check');
+  check('after a reload the direction is still reversed (the arrow points down)', (await $text('deck-sort-direction')) === DOWN && JSON.stringify(await instants()) === JSON.stringify(['Lightning Bolt', 'Dark Ritual', 'Counterspell']), JSON.stringify(await instants()));
+  await ev(`document.getElementById('deck-sort-direction').click()`);
+  await setField('deck-sort', 'name'); await ev(`localStorage.removeItem('overloaded.deckSort'); localStorage.removeItem('overloaded.deckSortDirection')`);
   // the cursor stays an arrow over a card (no magnifying glass)
   const cursors = await ev(`({ row: getComputedStyle(document.querySelector('#sections .card-line[data-card-id]')).cursor, name: getComputedStyle(document.querySelector('#sections .card-line .name')).cursor })`);
   await ev(`document.querySelector('[data-view="images"]').click()`); await sleep(300);

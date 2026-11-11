@@ -142,6 +142,7 @@ These were decided with me but not yet designed. When the lobby or table pages a
 - No new dependency without showing me its license and asking.
 - Do not copy third-party code or assets with an unclear license. Card art and text belong to Wizards of the Coast; use only what the source and the fan-content rules allow, and credit it. The exact rules are unchecked (see "Open questions").
 - Do not commit, push, force-push or rewrite history unless I ask. No `Co-Authored-By` line or other Claude attribution in commit messages or pull requests.
+- **Exception (Kevin, 2026-11-10): the `development` branch.** Claude may commit and push finished work to `development` without asking, as long as the reply says so and gives the range. `main` is only ever pushed when I ask. Still no force push and no attribution line.
 - Lowercase file names for new files (`CLAUDE.md` and `README.md` keep their standard names).
 - Before using any API field, file format or library feature, print the raw data or the docs and show me the exact field.
 - Start from a clean `git status` and tell me if it is not clean.
