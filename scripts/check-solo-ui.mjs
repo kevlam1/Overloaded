@@ -687,7 +687,7 @@ try {
     await mouse('mouseMoved', startAt2.x, startAt2.y); await mouse('mousePressed', startAt2.x, startAt2.y, 1);
     const grabShift = (area.left + beforeCarry.xs[0] + beforeCarry.width / 2) - startAt2.x; // how far the middle of the card is from where it was taken
     const zoneRight = area.left + Math.max(...beforeCarry.xs) + beforeCarry.width * 1.5; // the area of the hand ends half a card past its last card
-    const endX = area.left + Math.max(...beforeCarry.xs) + beforeCarry.width * 0.5 - grabShift; // where the pointer is when the middle of the picture is on the middle of the last place
+    let endX = area.left + Math.max(...beforeCarry.xs) + beforeCarry.width * 0.5 - grabShift; // where the pointer is when the middle of the picture is on the middle of the last place
     await ev("window.__angles = []; (function loop() { if (!window.__recording) return; const g = document.querySelector('.drag-ghost'); if (g) window.__angles.push(parseFloat((g.style.transform.match(/rotate\\((-?[\\d.]+)deg/) || [0, 0])[1])); requestAnimationFrame(loop); })();");
     // first, hold the pointer ON the line between the first two places and wobble it 4 pixels either way, slowly (24 ms a step, the pace of a hand): the hole must not flip back and forth
     // (the place is decided from the MIDDLE of the picture carried, which starts on the card's own place: the hole leaves place 0 when the picture has moved 0.75 of a step, wherever on the card it was taken)
@@ -698,6 +698,9 @@ try {
     let wiggle = 0;
     for (let x = startAt2.x; x < endX; x += 2) { wiggle = wiggle === 3 ? -3 : 3; await mouse('mouseMoved', x + wiggle, startAt2.y, 1); }
     await mouse('mouseMoved', endX, startAt2.y, 1); await sleep(300);
+    // (the geometry above is an estimate: a fanned, tilted card is not where its layout box says, so walk the pointer on until the hole IS the last place, and use that spot as the end)
+    for (let n = 0; n < 60 && Number(await ev("document.getElementById('hand').dataset.hole ?? -1")) < beforeCarry.uids.length - 1; n++) { endX += 4; await mouse('mouseMoved', endX, startAt2.y, 1); await sleep(30); }
+    await sleep(300);
     // then wobble across the edge of the area of the hand, at the end of it: a few pixels in and out, 60 times
     for (let i = 0; i < 60; i++) await mouse('mouseMoved', zoneRight + (i % 2 ? 14 : -14), startAt2.y, 1);
     const stillRaised = await ev("document.getElementById('hand').classList.contains('raised')");
@@ -1713,7 +1716,9 @@ try {
     const shiftDrag = async (from, to, modifiers, during = null) => { await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: from.x, y: from.y }); await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: from.x, y: from.y, button: 'left', buttons: 1, clickCount: 1, modifiers }); for (let n = 1; n <= 8; n++) await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: from.x + (to.x - from.x) * n / 8, y: from.y + (to.y - from.y) * n / 8, buttons: 1, modifiers }); if (during) await during(); await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: to.x, y: to.y, button: 'left', buttons: 0, clickCount: 1, modifiers }); await sleep(100); };
     const from = await centerOfSelector(topCard);
     let carried = null;
-    await shiftDrag(from, { x: from.x + 30 * r.width / 112, y: from.y - 11 * r.height / 44 }, 8, async () => { carried = await ev(`(() => ({ hidden: document.querySelectorAll('#battlefield .card.dragging').length, visible: Array.from(document.querySelectorAll('#battlefield .card')).filter((c) => getComputedStyle(c).visibility !== 'hidden' && getComputedStyle(c).display !== 'none').length }))()`); });
+    let ghostInfo = null;
+    await shiftDrag(from, { x: from.x + 30 * r.width / 112, y: from.y - 11 * r.height / 44 }, 8, async () => { if (process.argv.includes('--screenshot')) { await sleep(80); await browser.screenshot('scratch-pile-ghost.png'); } ghostInfo = await ev("(() => { const g = document.querySelector('.drag-ghost'); if (!g) return null; const own = g.querySelector(':scope > img')?.getBoundingClientRect(); if (!own) return null; const round = (v) => Math.round(v * 10) / 10; const copies = [...g.querySelectorAll('.drag-ghost-copy')].map((c) => { const r = c.getBoundingClientRect(); return [round(r.left - own.left), round(r.top - own.top)]; }).sort((a, b) => a[0] - b[0] || a[1] - b[1]); const top = [...document.querySelectorAll('#battlefield .card')].find((c) => c.dataset.stackDepth === '0' && c.classList.contains('dragging')); const tr = top ? top.getBoundingClientRect() : null; const pile = [...document.querySelectorAll('#battlefield .card.dragging')].filter((c) => c.dataset.stackDepth !== '0' && !c.dataset.stackHidden).map((c) => { const r = c.getBoundingClientRect(); return [round(r.left - tr.left), round(r.top - tr.top)]; }).sort((a, b) => a[0] - b[0] || a[1] - b[1]); return { stack: g.classList.contains('stack'), count: g.dataset.count, copies, pile, layers: [...g.querySelectorAll('.drag-ghost-copy')].map((c) => c.style.zIndex) }; })()"); carried = await ev(`(() => ({ hidden: document.querySelectorAll('#battlefield .card.dragging').length, visible: Array.from(document.querySelectorAll('#battlefield .card')).filter((c) => getComputedStyle(c).visibility !== 'hidden' && getComputedStyle(c).display !== 'none').length }))()`); });
+    check('the picture carried with a whole pile IS the pile: the top card and a layer for each of the other drawn copies (2 under it) in the same offsets the pile has on the board, behind the top card, and the count 6 in its corner', ghostInfo && ghostInfo.stack === true && ghostInfo.count === '6' && ghostInfo.copies.length === 2 && JSON.stringify(ghostInfo.copies) === JSON.stringify(ghostInfo.pile) && ghostInfo.copies.every(([x, y]) => x < 0 && y < 0) && ghostInfo.layers.every((z) => z === '-1'), JSON.stringify(ghostInfo));
     check('while a whole pile is carried every card of it is hidden at the old place (not only the one that was pressed)', carried && carried.hidden === 6 && carried.visible === 0, JSON.stringify(carried));
     pile = await forestState();
     check('Shift and drag on a pile moves the whole pile: all six Forests on the new cell, still 6x', pile.cells.length === 1 && pile.cells[0] === '30,22' && pile.badge === '6x' && /^Moved the pile of 6 Forest./.test(await $text('status')), JSON.stringify({ pile, status: await $text('status') }));
@@ -1784,7 +1789,7 @@ try {
   // in the horizontal style a card tapped out of the pile goes to the side, like in the diagonal style (not up)
   await clickCard('#battlefield .card[data-stack-depth="0"]'); await clickAction('Tap');
   { const tappedCell = await ev(`(() => { const c = document.querySelector('#battlefield .card.tapped'); return c ? c.dataset.col + ',' + c.dataset.row : null; })()`);
-    check('with Horizontal piles a Forest tapped out of the pile goes to the side, like with Diagonal piles (not up)', tappedCell === '10,33', String(tappedCell)); }
+    check('with Horizontal piles a Forest tapped out of the pile goes to the side, like with Diagonal piles (not up)', tappedCell === '9,33', String(tappedCell)); }
   if (process.argv.includes('--screenshot')) await browser.screenshot('scratch-solo-stack-horizontal.png');
   await clickAction('Untap'); await clickAction('Deselect');
   check('...and untapping puts it back on the pile', (await forestState()).badge === '6x');
@@ -1810,6 +1815,27 @@ try {
     await setStyle('pile-style', 'diagonal');
     await press('untap-all'); await sleep(80);
     check('(the two tapped Forests are untapped and back on the pile of six)', (await forestState()).badge === '6x' && (await count('#battlefield .card.tapped')) === 0);
+    // E twice over a pile with the pointer still: each press is the card that is on top NOW (it used to tap and then untap the same card, which it still thought was under the pointer)
+    { const eKey = async () => { await browser.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'e', code: 'KeyE', windowsVirtualKeyCode: 69, text: 'e' }); await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'e', code: 'KeyE', windowsVirtualKeyCode: 69 }); await sleep(120); };
+      const p = await centerOfSelector('#battlefield .card[data-stack-depth="0"]:not(.tapped)');
+      await mouseAt('mouseMoved', p, 0); await sleep(80);
+      await eKey();
+      const afterOne = await ev("(() => ({ tapped: document.querySelectorAll('#battlefield .card.tapped').length, badge: document.querySelector('#battlefield .card:not(.tapped)[data-stack-depth=\"0\"] .stack-count')?.textContent ?? null }))()");
+      await eKey();
+      const afterTwo = await ev("(() => ({ tapped: document.querySelectorAll('#battlefield .card.tapped').length, badge: document.querySelector('#battlefield .card:not(.tapped)[data-stack-depth=\"0\"] .stack-count')?.textContent ?? null }))()");
+      check('E over a pile once taps the top card out of it (5x left); E again WITHOUT moving the pointer taps the next card (4x left, two tapped), not the same card again', afterOne.tapped === 1 && afterOne.badge === '5x' && afterTwo.tapped === 2 && afterTwo.badge === '4x', JSON.stringify({ afterOne, afterTwo }));
+      await press('untap-all'); await sleep(80); }
+    // the picture carried with a whole pile of TAPPED cards is the pile on its side: its copies are in the offsets the tapped pile has on the board
+    { await clickCard('#battlefield .card[data-stack-depth="0"]:not(.tapped)'); await clickAction('Tap');
+      await clickCard('#battlefield .card[data-stack-depth="0"]:not(.tapped)'); await clickAction('Tap'); await clickAction('Deselect');
+      const tp = await centerOfSelector('#battlefield .card.tapped[data-stack-depth="0"]');
+      await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: tp.x, y: tp.y });
+      await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: tp.x, y: tp.y, button: 'left', buttons: 1, clickCount: 1, modifiers: 8 });
+      for (let n = 1; n <= 6; n++) await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: tp.x + 20 * n, y: tp.y - 4 * n, buttons: 1 });
+      const tg = await ev("(() => { const g = document.querySelector('.drag-ghost'); if (!g) return null; const own = g.querySelector(':scope > img')?.getBoundingClientRect(); if (!own) return null; const round = (v) => Math.round(v * 10) / 10; const copies = [...g.querySelectorAll('.drag-ghost-copy')].map((c) => { const r = c.getBoundingClientRect(); return [round(r.left - own.left), round(r.top - own.top)]; }).sort((a, b) => a[0] - b[0] || a[1] - b[1]); const top = [...document.querySelectorAll('#battlefield .card')].find((c) => c.dataset.stackDepth === '0' && c.classList.contains('dragging')); const tr = top ? top.getBoundingClientRect() : null; const pile = [...document.querySelectorAll('#battlefield .card.dragging')].filter((c) => c.dataset.stackDepth !== '0' && !c.dataset.stackHidden).map((c) => { const r = c.getBoundingClientRect(); return [round(r.left - tr.left), round(r.top - tr.top)]; }).sort((a, b) => a[0] - b[0] || a[1] - b[1]); return { stack: g.classList.contains('stack'), count: g.dataset.count, copies, pile, layers: [...g.querySelectorAll('.drag-ghost-copy')].map((c) => c.style.zIndex) }; })()");
+      await key('Escape', 'Escape', 27); await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: tp.x + 120, y: tp.y - 24, button: 'left', buttons: 0, clickCount: 1 }); await sleep(120);
+      check('the picture carried with a whole pile of two TAPPED Forests shows the second one in the same offset the tapped pile has on the board (up and to the left, whichever way the picture is turned)', tg && tg.stack === true && tg.copies.length === 1 && tg.pile.length === 1 && Math.abs(tg.copies[0][0] - tg.pile[0][0]) <= 1.5 && Math.abs(tg.copies[0][1] - tg.pile[0][1]) <= 1.5 && tg.copies[0][0] < 0 && tg.copies[0][1] < 0, JSON.stringify(tg));
+      await press('untap-all'); await sleep(80); }
   }
 
   // a click on empty space deselects, a double click taps or untaps
@@ -1920,7 +1946,7 @@ try {
   await clickCard('#battlefield .card[data-stack-depth="0"]'); await clickAction('Tap');
   { const tappedCell = await ev(`(() => { const c = document.querySelector('#battlefield .card.tapped'); return c ? c.dataset.col + ',' + c.dataset.row : null; })()`);
     pile = await forestState();
-    check('a Forest tapped out of the pile of six steps to the right by a whole card and two more cells, and the pile is 5x', tappedCell === '10,33' && pile.badge === '5x' && pile.cells.includes('0,33'), JSON.stringify({ tappedCell, pile })); }
+    check('a Forest tapped out of the pile of six steps to the right by a whole card and one more cell, and the pile is 5x', tappedCell === '9,33' && pile.badge === '5x' && pile.cells.includes('0,33'), JSON.stringify({ tappedCell, pile })); }
   await clickAction('Untap');
   pile = await forestState();
   check('untapping it sends it back onto the pile: 6x again', pile.badge === '6x' && pile.cells.length === 1 && pile.cells[0] === '0,33', JSON.stringify(pile));
@@ -2000,7 +2026,7 @@ try {
     } });
     const holeShown = Number(seen?.hole);
     const rectBox = await ev("(() => { const h = document.getElementById('hand'); const a = getComputedStyle(h, '::after'); const r = h.getBoundingClientRect(); return { handH: Math.round(r.height), top: Math.round(parseFloat(a.top)), height: Math.round(parseFloat(a.height)), bottomGap: Math.round(parseFloat(a.bottom)) }; })()");
-    check('the rectangle is the BOTTOM HALF of the box of the hand: half as high, with its bottom edge on the bottom of the box', Math.abs(rectBox.height - rectBox.handH / 2) <= 7 && Math.abs(rectBox.top - rectBox.handH / 2) <= 7 && rectBox.bottomGap === 0, JSON.stringify(rectBox));
+    check('the rectangle is inside the box of the hand, below its top, with its bottom edge on the bottom of the box (where it starts is checked below, by where the hand rises)', rectBox.top > 20 && rectBox.top < rectBox.handH / 2 + 1 && rectBox.bottomGap === 0, JSON.stringify(rectBox));
     check('carried over the hand a card from the battlefield is shown by ONE rectangle round the whole hand (a dashed outline, as wide as the hand), and no card of the hand has an outline of its own', seen && seen.marked === true && seen.outline === '1' && seen.style === 'dashed' && seen.wide > 300 && seen.cardOutlines.every((o) => o === 'none'), JSON.stringify(seen));
     check('the hand opens a place for it: one place is open among the cards (a hole between two of them) and the cards have moved', Number.isInteger(holeShown) && holeShown >= 0 && holeShown <= 6 && JSON.stringify(seen.xs) !== JSON.stringify(before), JSON.stringify({ hole: seen?.hole, before, now: seen?.xs }));
     // away from the hand the place closes again
@@ -2012,6 +2038,18 @@ try {
     await mouseAt('mouseReleased', mid, 0); await sleep(500);
     const uidsAfter = await handUids();
     check('letting go puts the card at the place that was open: it is in the hand at that place and the other cards keep their order', uidsAfter.length === 7 && uidsAfter[holeBack] === playedUid && uidsAfter.filter((u) => u !== playedUid).join() === uidsBefore.join(), JSON.stringify({ holeBack, uidsBefore, uidsAfter, playedUid }));
+    { // the dashed rectangle starts where the hand starts to rise when the pointer comes near it: just above its top edge the hand stays down, just inside it the hand rises
+      const geo = await ev("(() => { const h = document.getElementById('hand'); const r = h.getBoundingClientRect(); const a = getComputedStyle(h, '::after'); return { top: r.top + parseFloat(a.top), left: r.left + parseFloat(a.left), width: parseFloat(a.width) }; })()");
+      const xMid = geo.left + geo.width / 2;
+      const raisedNow = () => ev("document.getElementById('hand').classList.contains('raised')");
+      await mouseAt('mouseMoved', { x: 5, y: 5 }, 0); await sleep(500);
+      await mouseAt('mouseMoved', { x: xMid, y: geo.top - 10 }, 0); await sleep(300);
+      const above = await raisedNow();
+      await mouseAt('mouseMoved', { x: xMid, y: geo.top + 10 }, 0); await sleep(300);
+      const inside = await raisedNow();
+      check('the dashed rectangle starts exactly where the hand starts to rise: 10 pixels above its top edge the hand stays down, 10 pixels inside it the hand rises', above === false && inside === true, JSON.stringify({ above, inside, top: geo.top }));
+      await mouseAt('mouseMoved', { x: 5, y: 5 }, 0); await sleep(300);
+    }
     check('nothing is left of the outline or the carry afterwards', await dragStateGone() && (await ev("document.getElementById('hand').dataset.hole === undefined")) && (await ev("getComputedStyle(document.getElementById('hand'), '::after').opacity")) === '0');
   }
 

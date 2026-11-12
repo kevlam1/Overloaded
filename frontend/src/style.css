@@ -675,8 +675,8 @@ body[data-tapped-pile-style="horizontal"] .battlefield > .card.tapped[data-stack
 /* the outline of a tapped card being dragged is a landscape card: 11 cells wide and 8 tall, on the bottom line of its block */
 .battlefield > .cell-highlight[data-tapped] { grid-column-end: span 11; grid-row-end: span 8; }
 /* the hand while a card from the battlefield is held over it */
-body.playing #hand::after { content: ''; z-index: 200; position: absolute; left: var(--zl, 0px); width: var(--zw, 0px); top: 50%; bottom: 0; border: 2px dashed var(--ring); border-radius: 0.5rem; background: color-mix(in srgb, var(--ring) 10%, transparent); opacity: 0; pointer-events: none; }
-body.dragging-card .hand-section.drop-hand #hand::after { opacity: 1; } /* one rectangle round the whole hand, its bottom half (the same area a card is dropped on), not an outline on each card */
+body.playing #hand::after { content: ''; z-index: 200; position: absolute; left: var(--zl, 0px); width: var(--zw, 0px); top: var(--zt, 50%); bottom: 0; border: 2px dashed var(--ring); border-radius: 0.5rem; background: color-mix(in srgb, var(--ring) 10%, transparent); opacity: 0; pointer-events: none; }
+body.dragging-card .hand-section.drop-hand #hand::after { opacity: 1; } /* one rectangle round the whole hand, from where the hand starts to rise down to the bottom (the same area a card is dropped on), not an outline on each card */
 .drag-ghost[data-count]::after { content: attr(data-count) 'x'; position: absolute; right: 0.15rem; top: 0.15rem; padding: 0 0.3rem; border-radius: 0.6rem; background: rgba(20, 20, 26, 0.92); color: #fff; font-size: 0.7rem; font-weight: 700; }
 /* a dashed border around a pile: the top card and the copies fanned under it (data-stack-ext is how many copies show under the top one) */
 .battlefield > .card[data-stack-ext]::before { content: ""; position: absolute; inset: -3px; border: 1px dashed color-mix(in srgb, var(--text) 45%, transparent); border-radius: 0.5rem; pointer-events: none; }
@@ -1217,3 +1217,9 @@ body.dragging-card #command.drop-target { border-radius: 0.5rem; }
 .stack-hold-ring.ready .fill { stroke-dashoffset: 0; }
 @keyframes stack-hold { from { stroke-dashoffset: 113.1; } to { stroke-dashoffset: 0; } }
 @media (prefers-reduced-motion: reduce) { .stack-hold-ring.holding { opacity: 0; } .stack-hold-ring.holding .fill { animation: none; } }
+
+/* The picture carried with a whole pile (frontend/src/board-drag.js): the card pressed and one layer for each other copy of the pile, each in the offset it has on the board; the count stays in the corner. */
+.drag-ghost.stack { overflow: visible; background: none; box-shadow: none; }
+.drag-ghost.stack > img { border-radius: 4.8% / 3.4%; box-shadow: 0 0.2rem 0.6rem rgba(0, 0, 0, 0.35); }
+.drag-ghost-copy { position: absolute; inset: 0; overflow: hidden; border-radius: 4.8% / 3.4%; background: var(--line); box-shadow: 0 0.2rem 0.6rem rgba(0, 0, 0, 0.35); pointer-events: none; }
+.drag-ghost-copy img { display: block; width: 100%; height: 100%; object-fit: cover; }

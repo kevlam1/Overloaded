@@ -3152,7 +3152,25 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 154. A higher dashed box, E on a pile, a tighter step out of a pile, and the pile you carry (2026-11-12)
+
+**What I asked for**
+- Move the dashed rectangle of the hand up to where the hand starts to rise when my cursor is near it. When I hover a pile and press E, it taps or untaps the same card if I do not move the cursor. Move the space for tapping out of an untapped pile one tile closer. When I drag a pile, show the ghost of the stack too, not just the "8x".
+
+**What changed** (`shared/board-grid.mjs`, `frontend/pages/solo/solo.js`, `frontend/pages/table/table.js`, `frontend/src/hand-view.js`, `board-drag.js`, `style.css`, tests)
+- **The dashed box** starts at the height where the hand rises (`--zt`), and the drop area is the same box (`over`).
+- **E:** the page now remembers where the pointer is and looks at what is under it when E is pressed, instead of trusting the card that was last hovered, which went stale when a card moved away from under a still pointer.
+- **The step out of a pile:** `TAP_GAP` is 1 (was 2), so a tapped card is one cell closer (9 columns away).
+- **A pile you carry** now shows its copies behind the card (up to 3), placed as they are in the pile, also for a tapped pile.
+
+**What I checked:** quick suites (60), layout 405, solo check 558; new real-mouse checks for the pile ghost (untapped and tapped), E twice over a pile, and the box starting exactly where the hand rises. I broke the E code, the ghost copies and the box position on purpose; each was caught (the box one only when run alone). Not checked: phones, touch.
+
+**My mistakes this round:** many tests assumed the old 2-cell gap and had to be updated one by one. My end-of-hand drag check failed whenever the hand had exactly 10 cards: it computed where the pointer should be from the card layout, but a tilted, overlapping hand card is not where its box says. I did not find a code bug (the picture and the hole used the same middle); the check now walks the pointer on until the hole is the last place. I did not understand the exact 48 px offset I measured, so that part is a test fix, not an explanation.
+
+---
+
 ## Where AI misread me, or I had to correct course
+- (2026-11-12, entry 154) Claude's end-of-hand drag check only worked for hands that were not exactly 10 cards, because it estimated the pointer from layout boxes of tilted cards; I never found out why the estimate was 48 px off.
 - (2026-11-12, entry 153) Claude's picture for a carried tapped card had two bugs (its size, and a CSS rotation applied before the move), which together put it off the screen, and no test looked at it.
 - (2026-11-12, entry 152) Claude's drop area for a card from the field was only the cards of the hand, so a card could not be dropped between them and the outline was drawn on each card; it is one rectangle round the whole hand now, and the hand opens a place for the card.
 - (2026-11-12, entry 151) Claude's hand gave every card a stacking number up to the size of the hand while the lifted copy sat at 6, so with more than six cards the copy was hidden behind the hand (the "bottom half hidden" complaint), and its layouts threw the lifted copy away on every click.

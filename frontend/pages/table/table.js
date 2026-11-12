@@ -768,14 +768,17 @@ $('battlefield').addEventListener('click', (event) => {
 function toggleTapped(found) {
   apply(() => { const next = setTapped(game, found.card.uid, !found.card.tapped); play('tap'); return next; }, `${found.card.tapped ? 'Untapped' : 'Tapped'} ${found.card.n}.`);
 }
-let hoveredCardUid = null;
-document.addEventListener('pointermove', (event) => { hoveredCardUid = event.target instanceof Element ? (event.target.closest('#battlefield > .card')?.dataset.uid ?? null) : null; }, { passive: true });
-document.documentElement.addEventListener('pointerleave', () => { hoveredCardUid = null; });
+// (where the pointer is, not which card it was over: a tap changes the card under a pointer that has not moved, since the pile it is over has a new top card, so the card is looked up when E is pressed)
+let pointerAt = null;
+document.addEventListener('pointermove', (event) => { pointerAt = { x: event.clientX, y: event.clientY }; }, { passive: true });
+document.documentElement.addEventListener('pointerleave', () => { pointerAt = null; });
+const cardUnderPointer = () => (pointerAt ? document.elementFromPoint(pointerAt.x, pointerAt.y)?.closest('#battlefield > .card') ?? null : null);
 document.addEventListener('keydown', (event) => {
   if (event.key.toLowerCase() !== 'e' || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || event.repeat) return;
   if (event.target instanceof Element && event.target.closest('input, select, textarea, [contenteditable]')) return; // typing a number or a search is not a tap
-  if (!game || !hoveredCardUid) return;
-  const found = findCard(hoveredCardUid);
+  const hovered = cardUnderPointer();
+  if (!game || !hovered) return;
+  const found = findCard(hovered.dataset.uid);
   if (!found || found.zone !== 'battlefield') return;
   event.preventDefault();
   toggleTapped(found);

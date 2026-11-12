@@ -283,6 +283,7 @@ export function mountHand({ container, costOf = () => '' }) {
     const z = zone();
     container.style.setProperty('--zl', `${z.left - container.getBoundingClientRect().left}px`);
     container.style.setProperty('--zw', `${z.right - z.left}px`);
+    container.style.setProperty('--zt', `${dropDistance()}px`); // where the dashed rectangle starts: where the visible cards of a lowered hand start, which is where the hand rises when the pointer comes near it
   }
 
   // ---- carrying a card of the hand ----
@@ -357,11 +358,12 @@ export function mountHand({ container, costOf = () => '' }) {
     return { left, right, top: box.top, bottom: box.bottom };
   }
 
-  // Is the point (x, y) on screen over the hand, to drop a card on it? It is the BOTTOM HALF of the box round the whole hand (the width the cards cover, half a card more at each end; Kevin, 2026-11-12: half
-  // the height it was): the same rectangle that is outlined while a card is carried over it. A hand with no cards is a few cards wide in the middle, where one would go.
+  // Is the point (x, y) on screen over the hand, to drop a card on it? It is the rectangle from where the hand starts to rise when the pointer comes near it (the top of the cards that show while it is
+  // lowered) down to the bottom of the box, the width the cards cover and half a card more at each end (Kevin, 2026-11-12): the same rectangle that is outlined while a card is carried over it. A hand with
+  // no cards is a few cards wide in the middle, where one would go.
   function over(x, y) {
     const z = zone();
-    const top = z.top + (z.bottom - z.top) / 2;
+    const top = z.top + dropDistance();
     return x >= z.left && x < z.right && y >= top && y <= z.bottom + 1;
   }
 

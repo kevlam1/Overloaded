@@ -19,7 +19,7 @@ const LAST_COL = MAX_COL;
 
 same('the board is a whole number of cards across and down, a card is 8 by 11 cells, so a cell is square (a card is 5 by 7)', [BOARD_COLS % CARD_COLS, BOARD_ROWS % CARD_ROWS, CARD_COLS, CARD_ROWS], [0, 0, 8, 11]);
 same('a card starts in columns 0 to BOARD_COLS - 8 and rows 0 to BOARD_ROWS - 11, and as many fit side by side as there are blocks', [MAX_COL, MAX_ROW, BOARD_CAPACITY], [BOARD_COLS - 8, BOARD_ROWS - 11, PER_ROW * (BOARD_ROWS / CARD_ROWS)]);
-same('the board is 14 cards across and 4 down, and a tapped card steps out by 2 cells more than a card', [PER_ROW, BOARD_ROWS / CARD_ROWS, TAP_GAP], [14, 4, 2]);
+same('the board is 14 cards across and 4 down, and a tapped card steps out by 1 cell more than a card', [PER_ROW, BOARD_ROWS / CARD_ROWS, TAP_GAP], [14, 4, 1]);
 
 // cells
 for (const [col, row] of [[0, 0], [MAX_COL, MAX_ROW], [5, 2], [0, MAX_ROW], [MAX_COL, 0], [13, 7]]) same(`(${col}, ${row}) is a cell a card can start in`, validCell(col, row), true);
@@ -93,27 +93,27 @@ same('two cards on one cell take it once (the first one holds it)', [...takenCel
   same('30 tokens with one name fill the top rows in the order they came', [...arrangeAll(sameNames, is)].slice(0, 2).map(([uid, cell]) => [uid, cell.col, cell.row]), [['c1', 0, 0], ['c2', 8, 0]]);
 }
 
-// somewhere beside a pile for a card that steps out of it (a whole card plus TAP_GAP = 2 cells to the side)
+// somewhere beside a pile for a card that steps out of it (a whole card plus TAP_GAP = 1 cell to the side)
 {
   const pile = { col: 40, row: 11 };
-  same('the block to the right plus two cells (TAP_GAP), when it is free', nearbyFreeBlock([spell(1, { px: 40, py: 11 })], pile), { col: 50, row: 11 });
-  same('...else to the left, also two cells further than a card', nearbyFreeBlock([spell(1, { px: 40, py: 11 }), spell(2, { px: 50, py: 11 })], pile), { col: 30, row: 11 });
+  same('the block to the right plus one cell (TAP_GAP), when it is free', nearbyFreeBlock([spell(1, { px: 40, py: 11 })], pile), { col: 49, row: 11 });
+  same('...else to the left, also one cell further than a card', nearbyFreeBlock([spell(1, { px: 40, py: 11 }), spell(2, { px: 50, py: 11 })], pile), { col: 31, row: 11 });
   same('...else below (a whole card, no gap)', nearbyFreeBlock([spell(1, { px: 40, py: 11 }), spell(2, { px: 50, py: 11 }), spell(3, { px: 30, py: 11 })], pile), { col: 40, row: 22 });
   same('...else above', nearbyFreeBlock([spell(1, { px: 40, py: 11 }), spell(2, { px: 50, py: 11 }), spell(3, { px: 30, py: 11 }), spell(4, { px: 40, py: 22 })], pile), { col: 40, row: 0 });
   same('...and none when all four are covered', nearbyFreeBlock([spell(2, { px: 50, py: 11 }), spell(3, { px: 30, py: 11 }), spell(4, { px: 40, py: 22 }), spell(5, { px: 40, py: 0 })], pile), null);
-  same('a card half over the right-hand place covers it', nearbyFreeBlock([spell(2, { px: 53, py: 11 })], pile), { col: 30, row: 11 });
-  same('one just a card away from the right-hand place does not cover it (50 + 8 = 58)', nearbyFreeBlock([spell(2, { px: 58, py: 11 })], pile), { col: 50, row: 11 });
-  same('the cards of the pile itself (on its cell) do not count', nearbyFreeBlock([spell(1, { px: 40, py: 11 }), spell(2, { px: 40, py: 11 })], pile), { col: 50, row: 11 });
-  same('at the right edge it goes to the left', nearbyFreeBlock([], { col: MAX_COL, row: 11 }), { col: MAX_COL - 10, row: 11 });
-  same('in the corner it goes down or up', [nearbyFreeBlock([], { col: 0, row: 0 }), nearbyFreeBlock([], { col: 0, row: MAX_ROW })], [{ col: 10, row: 0 }, { col: 10, row: MAX_ROW }]);
+  same('a card half over the right-hand place covers it', nearbyFreeBlock([spell(2, { px: 53, py: 11 })], pile), { col: 31, row: 11 });
+  same('one just a card away from the right-hand place does not cover it (49 + 8 = 57)', nearbyFreeBlock([spell(2, { px: 57, py: 11 })], pile), { col: 49, row: 11 });
+  same('the cards of the pile itself (on its cell) do not count', nearbyFreeBlock([spell(1, { px: 40, py: 11 }), spell(2, { px: 40, py: 11 })], pile), { col: 49, row: 11 });
+  same('at the right edge it goes to the left', nearbyFreeBlock([], { col: MAX_COL, row: 11 }), { col: MAX_COL - 9, row: 11 });
+  same('in the corner it goes down or up', [nearbyFreeBlock([], { col: 0, row: 0 }), nearbyFreeBlock([], { col: 0, row: MAX_ROW })], [{ col: 9, row: 0 }, { col: 9, row: MAX_ROW }]);
   // prefer 'up' (the horizontal pile style): on top of the pile, a whole card higher, with no gap; then the sides
   same("with 'up' the block above comes first (a whole card higher, in the same columns)", nearbyFreeBlock([spell(1, { px: 40, py: 11 })], pile, 'up'), { col: 40, row: 0 });
-  same('...then to the right, then to the left, then below', [nearbyFreeBlock([spell(2, { px: 40, py: 0 })], pile, 'up'), nearbyFreeBlock([spell(2, { px: 40, py: 0 }), spell(3, { px: 50, py: 11 })], pile, 'up'), nearbyFreeBlock([spell(2, { px: 40, py: 0 }), spell(3, { px: 50, py: 11 }), spell(4, { px: 30, py: 11 })], pile, 'up')], [{ col: 50, row: 11 }, { col: 30, row: 11 }, { col: 40, row: 22 }]);
-  same("with 'up' on the top row it goes to the side", nearbyFreeBlock([], { col: 40, row: 0 }, 'up'), { col: 50, row: 0 });
+  same('...then to the right, then to the left, then below', [nearbyFreeBlock([spell(2, { px: 40, py: 0 })], pile, 'up'), nearbyFreeBlock([spell(2, { px: 40, py: 0 }), spell(3, { px: 50, py: 11 })], pile, 'up'), nearbyFreeBlock([spell(2, { px: 40, py: 0 }), spell(3, { px: 50, py: 11 }), spell(4, { px: 30, py: 11 })], pile, 'up')], [{ col: 49, row: 11 }, { col: 31, row: 11 }, { col: 40, row: 22 }]);
+  same("with 'up' on the top row it goes to the side", nearbyFreeBlock([], { col: 40, row: 0 }, 'up'), { col: 49, row: 0 });
   // prefer 'left' (an untapped card leaving a tapped stack) and 'down' (the same in the horizontal style)
-  same("with 'left' the place to the left comes first, then the right", [nearbyFreeBlock([], pile, 'left'), nearbyFreeBlock([spell(2, { px: 30, py: 11 })], pile, 'left')], [{ col: 30, row: 11 }, { col: 50, row: 11 }]);
-  same("with 'left' at the left edge it goes to the right", nearbyFreeBlock([], { col: 3, row: 11 }, 'left'), { col: 13, row: 11 });
-  same("with 'down' the block below comes first, then the one above, then the sides", [nearbyFreeBlock([], pile, 'down'), nearbyFreeBlock([spell(2, { px: 40, py: 22 })], pile, 'down'), nearbyFreeBlock([spell(2, { px: 40, py: 22 }), spell(3, { px: 40, py: 0 })], pile, 'down')], [{ col: 40, row: 22 }, { col: 40, row: 0 }, { col: 50, row: 11 }]);
+  same("with 'left' the place to the left comes first, then the right", [nearbyFreeBlock([], pile, 'left'), nearbyFreeBlock([spell(2, { px: 30, py: 11 })], pile, 'left')], [{ col: 31, row: 11 }, { col: 49, row: 11 }]);
+  same("with 'left' at the left edge it goes to the right", nearbyFreeBlock([], { col: 3, row: 11 }, 'left'), { col: 12, row: 11 });
+  same("with 'down' the block below comes first, then the one above, then the sides", [nearbyFreeBlock([], pile, 'down'), nearbyFreeBlock([spell(2, { px: 40, py: 22 })], pile, 'down'), nearbyFreeBlock([spell(2, { px: 40, py: 22 }), spell(3, { px: 40, py: 0 })], pile, 'down')], [{ col: 40, row: 22 }, { col: 40, row: 0 }, { col: 49, row: 11 }]);
   same('an unknown preference is the same as right', nearbyFreeBlock([], pile, 'sideways'), nearbyFreeBlock([], pile, 'right'));
 }
 

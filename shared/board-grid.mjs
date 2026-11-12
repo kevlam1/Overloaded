@@ -13,7 +13,7 @@ export const CARD_COLS = 8;
 export const CARD_ROWS = 11; // a card is 8 cells wide and 11 tall, so a cell is square (a card is 5 by 7)
 export const MAX_COL = BOARD_COLS - CARD_COLS; // the last column a card can start in
 export const MAX_ROW = BOARD_ROWS - CARD_ROWS; // the last row a card can start in
-export const TAP_GAP = 2; // a tapped card steps out of its pile to a place this many cells further than a whole card (Kevin, 2026-11-09: one more cell to the right)
+export const TAP_GAP = 1; // a tapped card steps out of its pile to a place this many cells further than a whole card (Kevin, 2026-11-09: one more cell to the right)
 export const BOARD_CAPACITY = (BOARD_COLS / CARD_COLS) * (BOARD_ROWS / CARD_ROWS); // 48 blocks (12 by 4): how many cards fit side by side without overlapping
 
 const whole = (value) => Number.isInteger(value);

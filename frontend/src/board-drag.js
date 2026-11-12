@@ -2,7 +2,7 @@
 // your own battlefield; the cell under the pointer is outlined while you drag, and the page decides what the drop does (onDrop). Mouse and pen only: a phone has no hover and its
 // touch version is on hold. A drag starts only after the pointer has moved a few pixels, so an ordinary click still selects a card, and a press on a counter or a badge is theirs.
 // Escape, a menu, the window losing focus or letting go outside the board cancels it. This module changes nothing in the game: it reports { uid, from, col, row }.
-import { STACK_HOLD_MS } from '../../shared/stacks.mjs';
+import { STACK_HOLD_MS, STACK_VISIBLE } from '../../shared/stacks.mjs';
 import { anchorAtPoint, cellAtPoint, shiftedAnchor, BOARD_COLS, CARD_COLS, CARD_ROWS } from '../../shared/board-grid.mjs';
 
 export const DRAG_DISTANCE_PX = 6;
@@ -93,6 +93,31 @@ export function mountBoardDrag({ doc = document, board, onDrop, hand = () => nul
     press = null;
   };
 
+  // The picture carried with a whole pile: besides the card pressed, one layer for every other copy of the pile that is drawn (up to STACK_VISIBLE), each at the place it has on the board relative to the card
+  // pressed (read from the cards themselves, so the style of the pile, diagonal or horizontal, tapped or not, is the one that shows), behind it for the copies under it and in front for the copies over it.
+  // A tapped pile is carried on its side: the offsets are turned back to the picture's own direction first.
+  const addStackCopies = (ghost, pressed, carried, tapped, picture) => {
+    const shift = (card) => { const t = (getComputedStyle(card).translate || '0px 0px').split(' ').map(parseFloat); return { x: Number.isFinite(t[0]) ? t[0] : 0, y: Number.isFinite(t[1]) ? t[1] : 0 }; };
+    const base = shift(pressed);
+    const depthOf = (card) => Number(card.dataset.stackDepth);
+    const copies = carried.filter((c) => c !== pressed && Number.isInteger(depthOf(c)) && depthOf(c) < STACK_VISIBLE).sort((a, b) => depthOf(b) - depthOf(a));
+    if (copies.length === 0) return;
+    ghost.classList.add('stack');
+    for (const card of copies) {
+      const at = shift(card);
+      let dx = at.x - base.x;
+      let dy = at.y - base.y;
+      if (tapped) [dx, dy] = [dy, -dx]; // (the picture is turned a quarter turn: its own direction is the board's turned back)
+      const layer = doc.createElement('div');
+      layer.className = 'drag-ghost-copy';
+      layer.style.translate = `${dx}px ${dy}px`;
+      layer.style.zIndex = depthOf(card) < depthOf(pressed) ? '1' : '-1';
+      const art = card.querySelector('.face img');
+      if (art && !card.classList.contains('noimage')) { const copy = art.cloneNode(); copy.removeAttribute('loading'); layer.append(copy); }
+      ghost.append(layer);
+    }
+  };
+
   const startDrag = (event) => {
     const boardElement = board();
     endHold(); // (press.whole says whether the hold was long enough)
@@ -126,6 +151,7 @@ export function mountBoardDrag({ doc = document, board, onDrop, hand = () => nul
     const carried = press.zone ? [] : [press.button]; // (the pile stays where it is: only a copy of its top card is carried)
     if (press.whole) carried.push(...[...boardElement.querySelectorAll(':scope > .card')].filter((c) => c !== press.button && c.dataset.col === press.button.dataset.col && c.dataset.row === press.button.dataset.row && c.classList.contains('tapped') === press.button.classList.contains('tapped') && c.dataset.stackSize !== undefined));
     for (const c of carried) c.classList.add('dragging');
+    if (press.whole) addStackCopies(ghost, press.button, carried, tapped, picture); // the picture carried is the pile: the copies under the top card, as they are drawn on the board
     doc.body.classList.add('dragging-card');
     const grab = { x: Math.min(1, Math.max(0, (press.x - rect.left) / (rect.width || 1))), y: Math.min(1, Math.max(0, (press.y - rect.top) / (rect.height || 1))) }; // where on the card it was taken, as fractions
     if (press.whole) ghost.dataset.count = press.button.dataset.stackSize; // the picture says how many cards it carries

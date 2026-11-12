@@ -190,17 +190,17 @@ const cellOf2 = (c) => [c.px, c.py];
   const { g: three, ids } = withForests(3);
   check('three Forests are one pile before any tapping', ids.slice(0, 3).every((u) => at(three, u).join() === '0,33'));
   let g = setTapped(three, ids[2], true);
-  same('tapping a Forest out of the pile of three moves it to the place on its right (a card and two cells) (the pile keeps two)', [at(g, ids[2]), at(g, ids[0]), at(g, ids[1])], [[10, 33], [0, 33], [0, 33]]);
+  same('tapping a Forest out of the pile of three moves it to the place on its right (a card and one cell) (the pile keeps two)', [at(g, ids[2]), at(g, ids[0]), at(g, ids[1])], [[9, 33], [0, 33], [0, 33]]);
   same('...the tapped one is its own stack and the other two are still a stack of two', [...stackInfo(field(g), new Map(field(g).map((c) => [c.uid, { col: c.px, row: c.py }]))).values()].map((v) => v.size).sort(), [1, 2, 2]);
   g = setTapped(g, ids[1], true);
-  same('a second tapped Forest joins the tapped pile on the right', [at(g, ids[1]), at(g, ids[2]), at(g, ids[0])], [[10, 33], [10, 33], [0, 33]]);
+  same('a second tapped Forest joins the tapped pile on the right', [at(g, ids[1]), at(g, ids[2]), at(g, ids[0])], [[9, 33], [9, 33], [0, 33]]);
   g = setTapped(g, ids[0], true);
-  same('the last Forest, alone on its cell next to the tapped pile, joins it too (nothing is left behind)', ids.slice(0, 3).map((u) => at(g, u)), [[10, 33], [10, 33], [10, 33]]);
+  same('the last Forest, alone on its cell next to the tapped pile, joins it too (nothing is left behind)', ids.slice(0, 3).map((u) => at(g, u)), [[9, 33], [9, 33], [9, 33]]);
   g = setTapped(g, ids[1], false);
-  same('untapping one out of a stack of tapped cards with no untapped pile beside it puts it on the LEFT of the stack, a card and two cells away', at(g, ids[1]), [0, 33]);
+  same('untapping one out of a stack of tapped cards with no untapped pile beside it puts it on the LEFT of the stack, a card and one cell away', at(g, ids[1]), [0, 33]);
   let h = setTapped(setTapped(three, ids[2], true), ids[1], true);
   h = setTapped(h, ids[1], false);
-  same('with an untapped pile next to the tapped one, untapping a card puts it back on the untapped pile', [at(h, ids[1]), at(h, ids[0]), at(h, ids[2])], [[0, 33], [0, 33], [10, 33]]);
+  same('with an untapped pile next to the tapped one, untapping a card puts it back on the untapped pile', [at(h, ids[1]), at(h, ids[0]), at(h, ids[2])], [[0, 33], [0, 33], [9, 33]]);
   h = untapAll(h);
   same('Untap all puts every tapped Forest back on the pile', ids.slice(0, 3).map((u) => at(h, u)), [[0, 33], [0, 33], [0, 33]]);
   {
@@ -208,7 +208,7 @@ const cellOf2 = (c) => [c.px, c.py];
     const four = withForests(4);
     let t = four.g;
     for (const u of four.ids.slice(1)) t = setTapped(t, u, true);
-    same('the set-up: one untapped Forest on the pile and three tapped ones together beside it', [at(t, four.ids[0]), ...four.ids.slice(1).map((u) => at(t, u))], [[0, 33], [10, 33], [10, 33], [10, 33]]);
+    same('the set-up: one untapped Forest on the pile and three tapped ones together beside it', [at(t, four.ids[0]), ...four.ids.slice(1).map((u) => at(t, u))], [[0, 33], [9, 33], [9, 33], [9, 33]]);
     const all = untapAll(t);
     same('Untap all brings every tapped Forest of the stack back onto the untapped pile', four.ids.map((u) => at(all, u)), [[0, 33], [0, 33], [0, 33], [0, 33]]);
     check('...and the pile counts four', [...stackInfo(field(all), new Map(field(all).map((c) => [c.uid, { col: c.px, row: c.py }]))).values()].every((v) => v.size === 4));
@@ -238,7 +238,7 @@ const cellOf2 = (c) => [c.px, c.py];
     for (const u of x.ids) { g12 = setTapped(g12, u, true); g12 = placeCard(g12, u, 3, 11).game; } // each one steps out to the right when tapped and is then put back on (3, 11): a tapped stack there
     check('the set-up: three tapped Forests on one cell with no room on the left', x.ids.every((u) => at(g12, u).join() === '3,11'), JSON.stringify(x.ids.map((u) => at(g12, u))));
     const off = setTapped(g12, x.ids[2], false);
-    same('the card takes the cell the stack was on and the stack moves a card and two cells to the right', [at(off, x.ids[2]), at(off, x.ids[0]), at(off, x.ids[1])], [[3, 11], [13, 11], [13, 11]]);
+    same('the card takes the cell the stack was on and the stack moves a card and one cell to the right', [at(off, x.ids[2]), at(off, x.ids[0]), at(off, x.ids[1])], [[3, 11], [12, 11], [12, 11]]);
     check('...and the game is consistent', checkGame(off).length === 0);
     // a card on the right of the stack in the way: no scooching, the card goes below instead
     const wall = createToken(g12, { n: 'Spirit', i: id(70), tt: 'Token Land' }).game;
@@ -321,7 +321,7 @@ const cellOf2 = (c) => [c.px, c.py];
     t2 = moveCard(t2, top.ids[1], 'battlefield');
     t2 = setTapped(t2, top.ids[1], true);
     same('a pile on the top row has no room above, so a tapped card goes to its right instead', t2.zones.battlefield.map(cellOf2).length, 2);
-    check('...a pile that was moved to row 0 is tapped to the side (10 columns right)', (() => { const x = withForests(0, 2); let g = moveCard(x.g, x.ids[0], 'battlefield', { cell: { col: 20, row: 0 } }); g = moveCard(g, x.ids[1], 'battlefield', { cell: { col: 20, row: 0 } }); g = setTapped(g, x.ids[1], true); return at(g, x.ids[1]).join() === '30,0'; })());
+    check('...a pile that was moved to row 0 is tapped to the side (9 columns right)', (() => { const x = withForests(0, 2); let g = moveCard(x.g, x.ids[0], 'battlefield', { cell: { col: 20, row: 0 } }); g = moveCard(g, x.ids[1], 'battlefield', { cell: { col: 20, row: 0 } }); g = setTapped(g, x.ids[1], true); return at(g, x.ids[1]).join() === '29,0'; })());
   } finally { setTapStepOut('right'); }
   same('after the tests the direction is back to "right"', getTapStepOut(), 'right');
 
@@ -331,7 +331,7 @@ const cellOf2 = (c) => [c.px, c.py];
   check('a tapped card taken far from the untapped pile of its name stays where it is when untapped (a card does not jump across the board), far sideways or far up', [[50, 0], [0, 0], [8, 11]].every(([col, row]) => { const x = withForests(2); let g9 = setTapped(x.g, x.ids[1], true); g9 = placeCard(g9, x.ids[1], col, row).game; g9 = setTapped(g9, x.ids[1], false); return at(g9, x.ids[1]).join() === col + ',' + row; }));
 
   // the step out of a pile is a whole card plus one cell, and untapping rejoins from exactly there but not one cell further
-  check('a tapped card 10 columns from the untapped pile rejoins it, one at 11 columns does not', [[10, 33, '0,33'], [11, 33, '11,33']].every(([col, row, want]) => { const x = withForests(2); let g11 = setTapped(x.g, x.ids[1], true); g11 = placeCard(g11, x.ids[1], col, row).game; g11 = setTapped(g11, x.ids[1], false); return at(g11, x.ids[1]).join() === want; }));
+  check('a tapped card 9 columns from the untapped pile rejoins it, one at 10 columns does not', [[9, 33, '0,33'], [10, 33, '10,33']].every(([col, row, want]) => { const x = withForests(2); let g11 = setTapped(x.g, x.ids[1], true); g11 = placeCard(g11, x.ids[1], col, row).game; g11 = setTapped(g11, x.ids[1], false); return at(g11, x.ids[1]).join() === want; }));
 
   // order in the list: a card that joins a pile that is EARLIER in the list does not jump to the end
   {
