@@ -27,6 +27,7 @@ import { openCardMenu } from '../../src/card-menu.js';
 import { mountCounterChips } from '../../src/counter-chips.js';
 import { mountLifeControl } from '../../src/life-control.js';
 import { mountFloatingBar } from '../../src/floating-bar.js';
+import { flyAway, shuffleAnimation, gatherIntoPile, reducedMotion } from '../../src/card-fly.js';
 import { menuItems, menuAction, turnLabel, turnMessage, playBackLabel, PLAY_BACK_ZONES, noUntapLabel, sickLabel, untapMessage } from '../../../shared/card-menu.mjs';
 import { marksSentence, markClick, printedOf } from '../../../shared/marks.mjs';
 import { chipEntries, playerMenuItems, playerAction } from '../../../shared/player-counters.mjs';
@@ -95,15 +96,20 @@ const commandZone = mountCommandZone({ root: $('command'), place, showTax: true,
 const dealer = createDealer({
   onChange() {
     if (!game) return;
-    render();
     const newest = dealer.dealt();
     const dealtCard = newest ? dealer.visible(game.zones.hand)[newest - 1] : null; // (found by its uid: the hand may be shown sorted)
-    const node = dealtCard ? [...$('hand').children].find((child) => child.dataset.uid === dealtCard.uid) ?? null : null;
-    if (node) { node.classList.add('deal-in'); node.addEventListener('animationend', () => node.classList.remove('deal-in'), { once: true }); }
+    if (dealtCard) handView.noteDrop(dealtCard.uid, libraryCentre()); // the card comes out of the library into its place
+    render();
   },
   onCard: () => play('draw'),
   reducedMotion: () => globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true,
 });
+
+// Where the top of the library is on screen: a card drawn starts there and eases into the hand, as if it were taken from the pile.
+function libraryCentre() {
+  const rect = ($('pile-library').querySelector('.stack-face') ?? $('pile-library')).getBoundingClientRect();
+  return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+}
 
 function findCard(uid) {
   for (const zone of Object.keys(game.zones)) {
@@ -267,7 +273,7 @@ function deal({ pause = 0 } = {}) {
 function drawOne() {
   const result = draw(game, 1);
   game = result.game;
-  if (!result.short) play('draw');
+  if (!result.short) { play('draw'); handView.noteDrop(result.drawn[0], libraryCentre()); }
   say(result.short ? 'Your library is empty.' : `Drew ${game.zones.hand.find((c) => c.uid === result.drawn[0]).n}.`, result.short);
   render();
 }
@@ -276,17 +282,25 @@ function goNextTurn() {
   const held = heldTapped(game);
   const result = nextTurn(game);
   game = result.game;
-  if (!result.short) play('draw');
+  if (!result.short) { play('draw'); handView.noteDrop(result.drawn[0], libraryCentre()); }
   const drewName = result.short ? null : game.zones.hand.find((c) => c.uid === result.drawn[0]).n;
   const untapped = held ? `everything untapped except ${held} that do not untap` : 'everything untapped';
   say(`Turn ${game.turn}: ${untapped}${drewName ? ` and you drew ${drewName}` : '. Your library is empty, so nothing was drawn'}.`, result.short);
   render();
 }
 
-function doMulligan() {
-  play('shuffle');
+let mulliganing = false; // the animation is running: another click waits
+async function doMulligan() {
+  if (mulliganing) return;
+  mulliganing = true;
+  const nodes = [...$('hand').children].filter((child) => child.classList.contains('card'));
+  if (nodes.length && !reducedMotion()) { // the hand gathers, goes into the library and the library is shuffled, and then the new hand comes out of it
+    $('hand').style.visibility = 'hidden';
+    try { await gatherIntoPile(nodes, $('hand').getBoundingClientRect(), $('pile-library')); play('shuffle'); await shuffleAnimation($('pile-library'), cardBackUrl('small')); } finally { $('hand').style.visibility = ''; }
+  } else play('shuffle');
+  mulliganing = false;
   try { game = mulligan(game); } catch (error) { say(error.message, true); render(); return; }
-  dealer.start(game.zones.hand.length, { pause: SHUFFLE_PAUSE_MS }); // the shuffle sound, then the new hand one card at a time
+  dealer.start(game.zones.hand.length, { pause: reducedMotion() ? SHUFFLE_PAUSE_MS : 0 }); // (under reduced motion the shuffle sound still gets its pause; otherwise the animation was the pause) then the new hand one card at a time
   say(`Mulligan ${game.mulligans}: a new hand of ${plural(game.zones.hand.length, 'card', 'cards')}. Put ${plural(game.mulligans, 'card', 'cards')} on the bottom of your library with the card buttons.`);
 }
 
@@ -355,7 +369,7 @@ function pickFromPileMenu(zone, id, amount) {
   if (id === 'look') { openPile(zone, { look: amount ?? 1 }); return; }
   const action = pileAction(id, zone, amount);
   if (!action) return;
-  if (id === 'shuffle') play('shuffle'); else if (id === 'draw') play('draw');
+  if (id === 'shuffle') { play('shuffle'); if (zone === 'library') shuffleAnimation($('pile-library'), cardBackUrl('small')); } else if (id === 'draw') play('draw');
   apply(() => action.run(game), action.message);
 }
 function openPileMenu(zone, where) {
@@ -486,10 +500,11 @@ function pileAt(x, y) {
   if (stack?.dataset.zone) return { zone: stack.dataset.zone, element: stack };
   return element?.closest?.('#command, .command-zone') ? { zone: 'command', element: $('command') } : null;
 }
-function dropOnPile({ uid, from, to }) {
-  if (!game) return;
-  const found = findCard(uid);
-  if (!found || found.zone !== from || from === to || !ZONE_WORDS[to]) return;
+function dropOnPile({ uid, from, to, element = null, flying = null }) {
+  const found = game ? findCard(uid) : null;
+  if (!found || found.zone !== from || from === to || !ZONE_WORDS[to]) { flying?.remove(); return; }
+  if (flying) flyAway(flying, element ?? $(`pile-${to}`)); // the picture carried flies into the pile
+
   if (from === 'library' && to === 'hand') play('draw');
   const name = from === 'library' ? 'the top card of your library' : found.card.n;
   apply(() => moveCard(game, uid, to, to === 'command' ? {} : { position: 'top' }), `Moved ${name} to ${ZONE_WORDS[to]}.`);

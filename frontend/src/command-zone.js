@@ -37,13 +37,14 @@ export function mountCommandZone({ root, place, onTax, showTax = true }) {
     const inZone = game ? game.zones.command : [];
     const extras = inZone.filter((card) => !entries.some((entry) => entry.uid === card.uid)); // anything else a player put in the command zone (an emblem, say) stays visible
     root.parentElement.hidden = entries.length === 0 && extras.length === 0;
+    const extraSlot = Math.min(entries.length, slots.length - 1); // other cards put in the command zone sit in the first slot with no commander of its own (the slot under the commander would push them out of view)
     slots.forEach((slot, index) => {
       const entry = entries[index] ?? null;
       slot.setUid(entry ? entry.uid : null);
       slot.element.classList.toggle('empty-slot', !entry);
       slot.element.classList.toggle('away', Boolean(entry) && !entry.inZone);
       slot.element.dataset.commander = entry ? entry.name : '';
-      const cards = [...(entry && entry.inZone ? inZone.filter((card) => card.uid === entry.uid) : []), ...(index === 0 ? extras : [])];
+      const cards = [...(entry && entry.inZone ? inZone.filter((card) => card.uid === entry.uid) : []), ...(index === extraSlot ? extras : [])];
       place(slot.cards, cards);
       slot.element.title = entry && !entry.inZone ? `${entry.name} is on the ${entry.zone === 'battlefield' ? 'battlefield' : entry.zone}.` : '';
       slot.words.textContent = entry ? String(entry.tax) : '';

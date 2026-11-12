@@ -28,7 +28,6 @@
       <div id="game" hidden>
         <button id="settings-button" type="button" class="hud-menu" aria-haspopup="dialog" aria-expanded="false" aria-controls="settings-menu" aria-label="Menu and settings" title="Menu and settings"><svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor" aria-hidden="true"><rect x="2" y="4" width="14" height="2" rx="1"/><rect x="2" y="8" width="14" height="2" rx="1"/><rect x="2" y="12" width="14" height="2" rx="1"/></svg></button>
         <section class="bar" aria-label="The game">
-          <p class="stat">Turn <strong id="turn">1</strong></p>
           <div id="life-area" class="life" role="group" aria-label="Life total and counters" title="Right-click next to the number for counters (poison and so on)">
             <p class="stat">Life <span><button id="life" type="button">20</button></span></p>
             <div id="life-chips" class="counter-chips" role="group" aria-label="Your counters"></div>
@@ -48,6 +47,7 @@
         <aside id="right-column" class="right-column" aria-label="Your actions and your piles">
           <section class="actions-panel" aria-label="Your actions">
             <button id="bar-grip" type="button" class="bar-grip" aria-label="Move the action bar: drag it, or use the arrow keys (Home puts it back)" title="Drag to move the bar"><svg width="12" height="18" viewBox="0 0 12 18" fill="currentColor" aria-hidden="true"><circle cx="3" cy="3" r="1.6"/><circle cx="9" cy="3" r="1.6"/><circle cx="3" cy="9" r="1.6"/><circle cx="9" cy="9" r="1.6"/><circle cx="3" cy="15" r="1.6"/><circle cx="9" cy="15" r="1.6"/></svg></button>
+            <p class="stat turn-stat">Turn <strong id="turn">1</strong></p>
             <div class="actions" role="group" aria-label="Actions">
               <button id="draw" type="button">Draw</button>
               <button id="next-turn" type="button">Next turn</button>

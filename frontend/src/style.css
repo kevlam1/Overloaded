@@ -660,8 +660,8 @@ body.playing .card .stack-count { font-size: 0.6rem; line-height: 0.9rem; }
 /* dragging a card on the battlefield grid (src/board-drag.js): the card follows the pointer, the 8 by 8 cells it would start on are outlined */
 .battlefield { position: relative; }
 .battlefield > .cell-highlight { z-index: 2; margin: 1px; border: 2px solid var(--accent); border-radius: 0.3rem; background: color-mix(in srgb, var(--accent) 22%, transparent); pointer-events: none; }
-.drag-ghost { position: fixed; left: 0; top: 0; z-index: 50; overflow: hidden; border-radius: 0.3rem; background: var(--line); box-shadow: 0 0.4rem 1rem rgba(0, 0, 0, 0.5); opacity: 0.6; pointer-events: none; font-size: 0.6rem; }
-.drag-ghost img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.drag-ghost, .fly-ghost { position: fixed; left: 0; top: 0; z-index: 50; overflow: hidden; border-radius: 0.3rem; background: var(--line); box-shadow: 0 0.4rem 1rem rgba(0, 0, 0, 0.5); opacity: 0.6; pointer-events: none; font-size: 0.6rem; }
+.drag-ghost img, .fly-ghost img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .card.dragging { visibility: hidden; }
 body.dragging-card { cursor: grabbing; user-select: none; }
 body.playing .battlefield > .card, body.playing #hand > .card { cursor: grab; user-select: none; }
@@ -1060,7 +1060,7 @@ body.playing .topbar:not(:has(.status:not(:empty), .banner:not([hidden]), .turn-
 .cmd-slot .tax-words:disabled { cursor: default; opacity: 0.5; }
 /* Each command slot: the dotted frame is the card plus an even margin, and the card sits in the middle of it. */
 .cmd-slot .slot-cards { display: grid; place-items: center; padding: 0; }
-body.playing .cmd-slot .slot-cards .card, .cmd-slot .slot-cards .card { margin: 0; padding: 0; box-sizing: border-box; flex: none; width: var(--sw); height: calc(var(--sw) * 1.4015); }
+body.playing .cmd-slot .slot-cards .card, .cmd-slot .slot-cards .card { grid-area: 1 / 1; margin: 0; padding: 0; box-sizing: border-box; flex: none; width: var(--sw); height: calc(var(--sw) * 1.4015); }
 body.playing .cmd-slot .slot-cards .card .face, .cmd-slot .slot-cards .card .face { width: 100%; height: 100%; }
 .command-slots { justify-content: flex-start; gap: 0.5rem; }
 /* The three piles side by side, each with its name under it (below the offset layers, not over them) and a neutral count, not a blue one. */
@@ -1169,10 +1169,11 @@ body.playing.solo .right-column { display: contents; }
 
 /* the pieces that float: glass, like the control bar of MIDI Companion */
 body.playing.solo .bar { display: contents; }
-body.playing.solo #life-area, body.playing.solo .bar > .stat, body.playing.solo .hud-menu, body.playing.solo .actions-panel { position: absolute; z-index: 15; border: 1px solid var(--line); border-radius: 0.8rem; background: var(--glass); backdrop-filter: blur(8px); box-shadow: 0 0.5rem 1.4rem rgba(0, 0, 0, 0.4); }
+body.playing.solo #life-area, body.playing.solo .hud-menu, body.playing.solo .actions-panel { position: absolute; z-index: 15; border: 1px solid var(--line); border-radius: 0.8rem; background: var(--glass); backdrop-filter: blur(8px); box-shadow: 0 0.5rem 1.4rem rgba(0, 0, 0, 0.4); }
 body.playing.solo #life-area { top: 0.55rem; left: 0.6rem; display: flex; align-items: center; gap: 0.5rem; padding: 0.2rem 0.55rem; }
 body.playing.solo #life-area .stat { margin: 0; }
-body.playing.solo .bar > .stat { top: 3.5rem; right: 0.6rem; margin: 0; padding: 0.2rem 0.7rem; }
+/* the turn is the first thing in the floating bar (Kevin, 2026-11-12) */
+body.playing.solo .actions-panel .turn-stat { margin: 0; padding: 0 0.5rem 0 0.1rem; white-space: nowrap; border-right: 1px solid var(--line); }
 body.playing.solo .hud-menu { top: 0.55rem; right: 0.6rem; display: grid; place-items: center; width: 2.4rem; height: 2.4rem; min-height: 0; padding: 0; color: var(--text); cursor: pointer; }
 body.playing.solo .hud-menu:hover { border-color: var(--ring); }
 body.playing.solo .topbar { position: absolute; z-index: 14; top: 3.9rem; left: 50%; translate: -50% 0; display: block; max-width: 40rem; padding: 0; pointer-events: none; }
@@ -1219,7 +1220,7 @@ body.dragging-card #command.drop-target { border-radius: 0.5rem; }
 @media (prefers-reduced-motion: reduce) { .stack-hold-ring.holding { opacity: 0; } .stack-hold-ring.holding .fill { animation: none; } }
 
 /* The picture carried with a whole pile (frontend/src/board-drag.js): the card pressed and one layer for each other copy of the pile, each in the offset it has on the board; the count stays in the corner. */
-.drag-ghost.stack { overflow: visible; background: none; box-shadow: none; }
-.drag-ghost.stack > img { border-radius: 4.8% / 3.4%; box-shadow: 0 0.2rem 0.6rem rgba(0, 0, 0, 0.35); }
+.drag-ghost.stack, .fly-ghost.stack { overflow: visible; background: none; box-shadow: none; }
+.drag-ghost.stack > img, .fly-ghost.stack > img { border-radius: 4.8% / 3.4%; box-shadow: 0 0.2rem 0.6rem rgba(0, 0, 0, 0.35); }
 .drag-ghost-copy { position: absolute; inset: 0; overflow: hidden; border-radius: 4.8% / 3.4%; background: var(--line); box-shadow: 0 0.2rem 0.6rem rgba(0, 0, 0, 0.35); pointer-events: none; }
 .drag-ghost-copy img { display: block; width: 100%; height: 100%; object-fit: cover; }

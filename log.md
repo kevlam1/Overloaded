@@ -3183,7 +3183,26 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 156. The turn in the floating bar, cards flying to and from the piles, a shuffle riffle and a mulligan animation (2026-11-12)
+
+**What I asked for**
+- Move the turn counter into the floating bar. Dragging from the hand to the library, graveyard, exile and command zone with the same quality as the other drags. When I draw, the card should come from the top of the library as if I grabbed it. A shuffling animation. A mulligan animation: the cards gather together in the hand, move into the library, then the shuffling animation.
+
+**What changed** (`frontend/src/card-fly.js` new, `frontend/pages/solo/solo.js`, `index.html`, `frontend/src/board-drag.js`, `command-zone.js`, `style.css`, `scripts/check-solo-ui.mjs`)
+- **The turn** is the first thing in the floating bar, with a thin line after it, and no longer a piece of its own at the top right.
+- **Drags to the piles:** a card of the hand could already be dropped on the graveyard; I tested the library (on top), the exile and the command zone too, and a card put in the command zone can be taken out again. The picture carried now flies into the pile when it is let go (a copy of the picture, flown and removed; the page decides when). A card put in the command zone besides the commander used to be laid out under the commander and out of the window; it now sits in the first slot with no commander of its own.
+- **Draw (and Next turn, and each card of a deal):** the card starts over the library and eases into its place in the hand, with the same movement the hand already uses for a let-go card.
+- **Shuffle:** 8 card backs over the library part into two halves and riffle back together twice (about 1.15 s). It plays on the pile menu's Shuffle and in a mulligan.
+- **Mulligan:** the real hand is hidden and copies of its cards gather in the middle of the hand, fly into the library, the shuffle sound and the riffle play, and then the new hand comes out of the library one card at a time. The game itself changes only when the animation is over, so a click during it is ignored. Under reduced motion none of this shows and the mulligan is as it was.
+
+**What I checked:** solo check 566 (the mulligan timing checks were rewritten for the new order: no sound while the hand gathers, then the shuffle sound, the first card about 1.15 s later, a second mulligan in the middle of a deal), quick suites 60, layout 405, lobby page 65. Screenshots: the turn in the bar, the hand gathering, the two halves of the riffle apart, and a card flying out of the library in the middle of a deal. The real card back did not load in the test (stand-in pictures), so the riffle was seen as plain red backs. I did not watch the drop-into-pile flight in a screenshot (only that it ends: no flying picture is left). Not checked: the live two-browser check (the table page did not change except the drag code), phones, touch. Not built: the same animations on the table page.
+
+**My mistakes this round:** my first edit script was mangled by the shell and wrote nothing; a comment I put at the end of a line of code swallowed the rest of it and broke the file (found by the syntax check); I took the pile's flown picture class off the ghost, which would have lost its position style, and had to rename it instead. My first draw check used distances that did not fit the real distance between the hand and the library, and my first command-zone check made the later ones fail because a second card changed what was in the zone.
+
+---
+
 ## Where AI misread me, or I had to correct course
+- (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.
 - (2026-11-12, entry 154) Claude's end-of-hand drag check only worked for hands that were not exactly 10 cards, because it estimated the pointer from layout boxes of tilted cards; I never found out why the estimate was 48 px off.
 - (2026-11-12, entry 153) Claude's picture for a carried tapped card had two bugs (its size, and a CSS rotation applied before the move), which together put it off the screen, and no test looked at it.
 - (2026-11-12, entry 152) Claude's drop area for a card from the field was only the cards of the hand, so a card could not be dropped between them and the outline was drawn on each card; it is one rectangle round the whole hand now, and the hand opens a place for the card.

@@ -252,11 +252,14 @@ export function mountBoardDrag({ doc = document, board, onDrop, hand = () => nul
     if (!drag) { endHold(); press = null; return; }
     update(event);
     const { uid, from, cell, overHand, whole, pile } = drag;
+    const pileElement = drag.pileElement;
+    const flying = pile && drag.ghost ? drag.ghost.cloneNode(true) : null; // a copy of the picture carried, left where it was let go, for the page to fly into the pile
+    if (flying) { flying.classList.replace('drag-ghost', 'fly-ghost'); flying.style.pointerEvents = 'none'; doc.body.appendChild(flying); }
     const x = event.clientX - drag.holdW * (drag.grab.x - 0.5); // (the middle of the picture, as while it was carried)
     const picture = drag.smooth ? { x: drag.smooth.x, y: drag.smooth.y, angle: drag.smooth.a } : drag.pos ? { x: drag.pos.x, y: drag.pos.y, angle: 0 } : null; // where the picture is as it is let go: the card starts there
     clean();
     swallowClick();
-    if (pile) onDropPile({ uid, from, to: pile });
+    if (pile) onDropPile({ uid, from, to: pile, element: pileElement, flying });
     else if (overHand && from === 'hand') onReorderHand({ uid, x, picture });
     else if (overHand) onDropHand({ uid, from, x, picture });
     else if (cell) onDrop({ uid, from, col: cell.col, row: cell.row, whole });

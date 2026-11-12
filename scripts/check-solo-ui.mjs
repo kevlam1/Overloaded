@@ -379,7 +379,9 @@ try {
       await browser.goto(PAGE);
       await handIs(7);
       await press('mulligan');
-      await sleep(1180); // the shuffle pause is 800 ms and a card comes every 120 ms: about four cards are in
+      await sleep(600); await browser.screenshot('scratch-solo-gather.png'); // the hand gathering
+      await sleep(590); await browser.screenshot('scratch-solo-riffle.png'); // the riffle over the library, as the halves are apart
+      await sleep(1400); // the hand gathers (about 1 s), the library is shuffled (1.15 s), and a card comes every 120 ms: about three cards are in
       await browser.screenshot('scratch-solo-dealing.png');
       await handIs(7);
     }
@@ -396,32 +398,34 @@ try {
     check('the 7 cards take about 0.7 seconds (between 0.5 and 1.5)', span >= 500 && span <= 1500, `${Math.round(span)} ms`);
     check('the hand count in the page agrees with the cards shown at the end', (await $text('hand-count')) === '7' && (await count('#hand .card')) === 7);
 
-    // a mulligan: the shuffle sound first, the hand goes away, then the new hand one card at a time
+    // a mulligan: the hand gathers and goes into the library (no sound yet, the hand is hidden while its pictures fly), then the shuffle sound and the riffle, then the new hand one card at a time
     await reset();
     await press('mulligan');
     await sleep(150);
     const early = await state();
-    same('a mulligan plays the shuffle sound at once and nothing else yet', summary(early).sounds, ['shuffle']);
-    check('...and the hand is empty while the shuffle plays', (await count('#hand .card')) === 0 && (await $text('hand-count')) === '0');
-    await handIs(7);
+    same('a mulligan plays no sound while the hand is gathering', summary(early).sounds, []);
+    check('...and the real hand is hidden while its pictures fly (the copies are on top of the page)', (await ev(`getComputedStyle(document.getElementById('hand')).visibility`)) === 'hidden' && (await count('.shuffle-card, body > .card')) >= 1);
+    check('a mulligan riffles 8 card backs over the library after the hand has flown into it', (await waitFor(async () => (await count('.shuffle-card')) === 8 || null, 4000, 20)) === true);
+    await waitFor(async () => (await state()).plays.length >= 8 || null, 9000, 25);
     await sleep(300);
     seen = await state();
     sum = summary(seen);
-    same('then the 7 cards are dealt with a draw sound each', sum.sounds, ['shuffle', ...Array(7).fill('draw')]);
+    same('then the shuffle sound and the 7 cards dealt with a draw sound each', sum.sounds, ['shuffle', ...Array(7).fill('draw')]);
     const wait = seen.plays[1].t - seen.plays[0].t;
-    check('the first card comes about 0.8 seconds after the shuffle sound (between 0.6 and 1.4)', wait >= 600 && wait <= 1400, `${Math.round(wait)} ms`);
+    check('the first card comes about 1.15 seconds after the shuffle sound, when the riffle is over (between 1.0 and 1.8)', wait >= 1000 && wait <= 1800, `${Math.round(wait)} ms`);
+    check('the hand shows again and no flying picture is left behind', (await ev(`getComputedStyle(document.getElementById('hand')).visibility`)) === 'visible' && (await count('.shuffle-card, body > .card, .fly-ghost')) === 0);
     check('the new hand also fills one card at a time with the library count staying right', new Set(sum.counts).size >= 6 && sum.totals.length === 1, JSON.stringify(sum));
     check('the mulligan is counted once and the hand is 7', (await $text('mulligan')) === 'Mulligan (1 so far)' && (await count('#hand .card')) === 7);
 
     // a second mulligan in the middle of the first deal starts over: still exactly 7 cards in the end, nothing dealt twice
     await reset();
     await press('mulligan');
-    await sleep(1100); // the shuffle pause is over and a few cards are dealt
+    await sleep(2800); // the gathering and the riffle are over and a few cards are dealt
     await press('mulligan');
     await sleep(150);
-    check('pressing Mulligan again in the middle of a deal empties the hand and starts over', (await count('#hand .card')) === 0);
-    await handIs(7);
-    await sleep(400);
+    check('pressing Mulligan again in the middle of a deal gathers the hand again (hidden while it flies)', (await ev(`getComputedStyle(document.getElementById('hand')).visibility`)) === 'hidden');
+    await waitFor(async () => (await state()).plays.filter((p) => p.src.includes('shuffle')).length >= 2 || null, 12000, 25);
+    await sleep(2400); // (the second riffle is over: the new hand is dealt)
     seen = await state();
     sum = summary(seen);
     check('...and the old deal does not carry on: 2 shuffle sounds, at least 7 draw sounds, 7 cards and the second mulligan counted', sum.sounds.filter((x) => x === 'shuffle').length === 2 && sum.sounds.filter((x) => x === 'draw').length >= 7 && (await count('#hand .card')) === 7 && (await $text('mulligan')) === 'Mulligan (3 so far)', JSON.stringify(sum.sounds));
@@ -437,6 +441,27 @@ try {
     const newGameWait = seen.plays[1].t - seen.plays[0].t;
     check('...and the first card comes about 0.8 seconds after the shuffle sound (between 0.6 and 1.4)', newGameWait >= 600 && newGameWait <= 1400, `${Math.round(newGameWait)} ms`);
 
+    // a card drawn comes out of the library: it starts over the library and eases into the hand
+    await handIs(7);
+    await sleep(500);
+    const libraryAt = () => ev("(() => { const r = (document.querySelector('#pile-library .stack-face') || document.getElementById('pile-library')).getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()");
+    const uidsBefore = await ev("[...document.querySelectorAll('#hand > .card')].map((c) => c.dataset.uid)");
+    const lib = await libraryAt();
+    const newCardAt = () => ev(`(() => { const before = ${JSON.stringify(uidsBefore)}; const c = [...document.querySelectorAll('#hand > .card')].find((n) => !before.includes(n.dataset.uid)); if (!c) return null; const r = c.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
+    await press('draw');
+    await sleep(40);
+    const early1 = await newCardAt();
+    await sleep(900);
+    const late1 = await newCardAt();
+    const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+    check('a card drawn starts over the library and eases into the hand: 40 ms after the draw it is at least 40 px closer to the library than it is later', early1 && late1 && distance(early1, lib) + 40 < distance(late1, lib), JSON.stringify({ early1, late1, lib }));
+    // the library shuffle riffle: card backs over the pile in a menu shuffle, gone afterwards
+    { const p = lib; await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p.x, y: p.y }); await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: p.x, y: p.y, button: 'right', buttons: 2, clickCount: 1 }); await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: p.x, y: p.y, button: 'right', buttons: 0, clickCount: 1 }); await sleep(150); }
+    await ev("[...document.querySelectorAll('#card-menu [role=menuitem], .card-menu button')].find((b) => /^Shuffle/.test(b.textContent.trim()))?.click()");
+    await sleep(150);
+    const riffling = await count('.shuffle-card');
+    await sleep(1500);
+    check('shuffling the library from its menu riffles 8 card backs over it, and they are gone when it is over', riffling === 8 && (await count('.shuffle-card')) === 0, String(riffling));
     // prefers-reduced-motion: the whole hand at once, no card sounds
     await motion('reduce');
     await browser.goto(PAGE);
@@ -752,9 +777,9 @@ try {
     await clickCard('#hand .card', (await ev(`(() => { const imgs = [...document.querySelectorAll('#hand .card img')].map((i) => i.getAttribute('src')); return Math.max(1, imgs.findIndex((s) => s !== imgs[0])); })()`))); // (a card that is not the same picture as the first: the hand is shuffled, and two Islands would look alike)
     const second = await corner();
     check('selecting another card keeps the corner on a card (the hand is shuffled and can hold two Islands, so only the selection is checked)', !second.empty && (await count('.card.selected')) === 1, JSON.stringify([first, second]));
-    const floating = await ev(`(() => { const r = (sel) => document.querySelector(sel).getBoundingClientRect(); const bar = r('.actions-panel'); const life = r('#life-area'); const menu = r('#settings-button'); const turn = r('.bar > .stat'); const piles = r('.side-panels'); const preview = r('#spotlight'); const board = r('#my-board'); const panelBorders = ['#my-board', '.right-column', '.side-panels', '#spotlight', '.hand-section'].map((s) => getComputedStyle(document.querySelector(s)).borderTopWidth); return { barPosition: getComputedStyle(document.querySelector('.actions-panel')).position, barTop: Math.round(bar.top), grip: Boolean(document.querySelector('.actions-panel #bar-grip')), buttons: [...document.querySelectorAll('.actions-panel .actions button')].map((b) => b.id), barButtons: document.querySelectorAll('.bar .actions button').length, lifeLeft: Math.round(life.left), lifeTop: Math.round(life.top), menuRight: Math.round(innerWidth - menu.right), menuTop: Math.round(menu.top), turnRight: Math.round(innerWidth - turn.right), turnBelowMenu: turn.top >= menu.bottom, pilesRight: Math.round(innerWidth - piles.right), pilesBottom: Math.round(innerHeight - piles.bottom), previewRight: Math.round(innerWidth - preview.right), previewAbovePiles: preview.bottom <= piles.top + 2, boardFills: Math.round(board.width) === innerWidth && Math.round(board.height) === innerHeight, panelBorders, footer: document.querySelector('footer') !== null }; })()`);
+    const floating = await ev(`(() => { const r = (sel) => document.querySelector(sel).getBoundingClientRect(); const bar = r('.actions-panel'); const life = r('#life-area'); const menu = r('#settings-button'); const turn = r('.actions-panel .turn-stat'); const piles = r('.side-panels'); const preview = r('#spotlight'); const board = r('#my-board'); const panelBorders = ['#my-board', '.right-column', '.side-panels', '#spotlight', '.hand-section'].map((s) => getComputedStyle(document.querySelector(s)).borderTopWidth); return { barPosition: getComputedStyle(document.querySelector('.actions-panel')).position, barTop: Math.round(bar.top), grip: Boolean(document.querySelector('.actions-panel #bar-grip')), buttons: [...document.querySelectorAll('.actions-panel .actions button')].map((b) => b.id), barButtons: document.querySelectorAll('.bar .actions button').length, lifeLeft: Math.round(life.left), lifeTop: Math.round(life.top), menuRight: Math.round(innerWidth - menu.right), menuTop: Math.round(menu.top), turnInBar: turn.top >= bar.top && turn.bottom <= bar.bottom && turn.left >= bar.left && turn.right <= bar.right, pilesRight: Math.round(innerWidth - piles.right), pilesBottom: Math.round(innerHeight - piles.bottom), previewRight: Math.round(innerWidth - preview.right), previewAbovePiles: preview.bottom <= piles.top + 2, boardFills: Math.round(board.width) === innerWidth && Math.round(board.height) === innerHeight, panelBorders, footer: document.querySelector('footer') !== null }; })()`);
     check('no panels: the board fills the window and the board, the card preview and the piles have no border; the action buttons are a floating bar with a grip (not in the top strip); there is no footer', floating.boardFills && floating.panelBorders.every((w) => w === '0px') && floating.barPosition === 'absolute' && floating.grip && floating.buttons.includes('draw') && floating.buttons.includes('untap-all') && !floating.buttons.includes('settings-button') && floating.barButtons === 0 && !floating.footer, JSON.stringify(floating));
-    check('the pieces float where a table has them: life at the top left, the menu button and the turn at the top right (turn under the menu), the piles and the command zone at the bottom right, the card preview at the right above them', floating.lifeLeft < 40 && floating.lifeTop < 40 && floating.menuRight < 40 && floating.menuTop < 40 && floating.turnRight < 40 && floating.turnBelowMenu && floating.pilesRight < 40 && floating.pilesBottom < 40 && floating.previewRight < 40 && floating.previewAbovePiles, JSON.stringify(floating));
+    check('the pieces float where a table has them: life at the top left, the menu button at the top right and the turn inside the floating bar, the piles and the command zone at the bottom right, the card preview at the right above them', floating.lifeLeft < 40 && floating.lifeTop < 40 && floating.menuRight < 40 && floating.menuTop < 40 && floating.turnInBar && floating.pilesRight < 40 && floating.pilesBottom < 40 && floating.previewRight < 40 && floating.previewAbovePiles, JSON.stringify(floating));
     const legal = await ev(`(() => { document.getElementById('settings-button').click(); const t = document.querySelector('#settings-menu .settings-legal')?.textContent ?? ''; const shown = !document.getElementById('settings-menu').hidden; document.getElementById('settings-button').click(); return { t, shown }; })()`);
     check('Settings has a way home: a link to the home page and one to your decks', await ev("(() => { const home = document.getElementById('settings-home'); const decks = document.getElementById('settings-decks'); return Boolean(home) && Boolean(decks) && home.getAttribute('href') === '/' && decks.getAttribute('href') === '/deck' && document.getElementById('settings-menu').contains(home) && document.getElementById('settings-menu').contains(decks); })()"));
     check('the fan content notice is in Settings', legal.shown && /unofficial Fan Content/.test(legal.t) && /Not approved\/endorsed by Wizards/.test(legal.t) && /property of Wizards of the Coast/.test(legal.t), JSON.stringify(legal));
@@ -2088,8 +2113,23 @@ try {
     await dragTo(await handPoint(), await face('graveyard'));
     const c6 = await counts();
     check('a card of the hand dropped on the graveyard goes onto it', c6.hand === c5.hand - 1 && c6.graveyard === 1, JSON.stringify(c6));
+    // ...and onto the library (on top), the exile and the command zone, the same way
+    await dragTo(await handPoint(), await face('library'));
+    const c6b = await counts();
+    check('a card of the hand dropped on the library goes on top of it', c6b.hand === c6.hand - 1 && c6b.library === c6.library + 1 && /to your library./.test(await $text('status')), JSON.stringify({ c6b, status: await $text('status') }));
+    await dragTo(await handPoint(), await face('exile'));
+    const c6c = await counts();
+    check('a card of the hand dropped on the exile goes onto it', c6c.hand === c6b.hand - 1 && c6c.exile === c6b.exile + 1, JSON.stringify(c6c));
+    const commanderUids = await ev("[...document.querySelectorAll('#command .card')].map((c) => c.dataset.uid)");
+    await dragTo(await handPoint(), await centerOfSelector('#command'));
+    const c6d = await counts();
+    check('a card of the hand dropped on the command zone goes into it', c6d.hand === c6c.hand - 1 && c6d.command === c6c.command + 1, JSON.stringify(c6d));
+    const added = await ev(`(() => { const c = [...document.querySelectorAll('#command .card')].find((n) => !${JSON.stringify(commanderUids)}.includes(n.dataset.uid)); if (!c) return null; const r = c.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
+    if (added) await dragTo(added, await handPoint());
+    check('...and can be taken out of it again into the hand', Boolean(added) && (await counts()).command === c6d.command - 1 && (await counts()).hand === c6d.hand + 1, JSON.stringify({ added, now: await counts() }));
+    const c6e = await counts();
     { const g = await face('graveyard'); await dragTo(g, { x: g.x + 12, y: g.y }); } // (a few pixels within the same pile: no movement at all would be a click, which opens the pile)
-    check('a card dropped on the pile it was taken from changes nothing', JSON.stringify(await counts()) === JSON.stringify(c6));
+    check('a card dropped on the pile it was taken from changes nothing', JSON.stringify(await counts()) === JSON.stringify(c6e));
     // the command zone
     const cmdName = (await names('#command .card'))[0];
     await dragTo(await centerOfSelector('#command .card'), await cellCenter(20, 16));
