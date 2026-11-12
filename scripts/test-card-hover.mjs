@@ -16,9 +16,11 @@ same('the back face stays the back face', largeAddress(button(`https://cards.scr
 same('a card with no picture (a name only) has no larger picture', largeAddress(button(`https://cards.scryfall.io/small/front/0/0/${id}.jpg`, ['noimage'])), null);
 same('a button with no picture element has none', largeAddress(button(undefined)), null);
 same('a picture with no address has none', largeAddress(button('')), null);
-for (const [label, src] of [['another site', `https://example.com/small/front/0/0/${id}.jpg`], ['a normal picture already', `https://cards.scryfall.io/normal/front/0/0/${id}.jpg`], ['a data address', 'data:image/png;base64,AAAA'], ['a script address', 'javascript:alert(1)'], ['a lookalike host', `https://cards.scryfall.io.evil.test/small/front/0/0/${id}.jpg`]]) {
+for (const [label, src] of [['another site', `https://example.com/small/front/0/0/${id}.jpg`], ['a data address', 'data:image/png;base64,AAAA'], ['a script address', 'javascript:alert(1)'], ['a lookalike host', `https://cards.scryfall.io.evil.test/small/front/0/0/${id}.jpg`]]) {
   same(`${label} is not turned into a request (only Scryfall's small pictures are)`, largeAddress(button(src)), null);
 }
+// a card of the hand already shows the NORMAL picture (the hand is large): that is the bigger picture, as it is
+same('a normal picture already is its own bigger picture', largeAddress(button(`https://cards.scryfall.io/normal/front/0/0/${id}.jpg`)), `https://cards.scryfall.io/normal/front/0/0/${id}.jpg`);
 same('null and undefined buttons give none', [largeAddress(null), largeAddress(undefined)], [null, null]);
 
 // where the box goes: window 1366 x 650, box 272 wide and 379 high

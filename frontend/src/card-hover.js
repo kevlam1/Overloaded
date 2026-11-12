@@ -13,7 +13,9 @@ const BOX_WIDTH = 272; // px, the picture is 17rem wide
 export function largeAddress(button) {
   const picture = button?.querySelector?.('img');
   const src = picture?.getAttribute('src') ?? '';
-  if (!src.startsWith(SMALL) || button.classList.contains('noimage')) return null;
+  if (button?.classList?.contains('noimage')) return null;
+  if (src.startsWith(NORMAL)) return src; // a card of the hand already has the normal size
+  if (!src.startsWith(SMALL)) return null;
   return NORMAL + src.slice(SMALL.length);
 }
 

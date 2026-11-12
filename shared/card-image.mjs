@@ -12,3 +12,13 @@ export function imageUrl(id, size = 'small', face = 'front') {
   if (typeof id !== 'string' || !UUID.test(id) || !IMAGE_SIZES.includes(size) || !IMAGE_FACES.includes(face)) return null;
   return `${IMAGE_HOST}/${size}/${face}/${id[0]}/${id[1]}/${id}.jpg`;
 }
+
+// The back of a Magic card, for the library and for cards turned face down (Kevin, 2026-11-06 and 2026-11-12). Scryfall serves the back of a standard card from its own picture server, at an
+// address built from the back's id (checked 2026-11-12: HTTP 200, image/jpeg, small 9,222 bytes and normal 79,774 bytes, cached for a year, CORS open; the picture is the classic Magic card back).
+export const BACK_HOST = 'https://backs.scryfall.io';
+export const BACK_ID = '0aeebaf5-8c7d-4636-9e82-8c27447861f7';
+export const BACK_SIZES = ['small', 'normal', 'large'];
+export function cardBackUrl(size = 'small') {
+  if (!BACK_SIZES.includes(size)) return null;
+  return `${BACK_HOST}/${size}/${BACK_ID[0]}/${BACK_ID[1]}/${BACK_ID}.jpg`;
+}

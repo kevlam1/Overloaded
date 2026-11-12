@@ -384,7 +384,23 @@ $('battlefield').addEventListener('click', (event) => {
   lastBoardClick = { at: 0, x: 0, y: 0 };
   const found = findCard(button.dataset.uid);
   if (!found || found.zone !== 'battlefield') return;
+  toggleTapped(found);
+});
+// Press E while the pointer is over a card of yours on the battlefield and it taps or untaps (Kevin, 2026-11-12). The same change as a double click.
+function toggleTapped(found) {
   apply(() => { const next = setTapped(game, found.card.uid, !found.card.tapped); play('tap'); return next; }, `${found.card.tapped ? 'Untapped' : 'Tapped'} ${found.card.n}.`);
+}
+let hoveredCardUid = null;
+document.addEventListener('pointermove', (event) => { hoveredCardUid = event.target instanceof Element ? (event.target.closest('#battlefield > .card')?.dataset.uid ?? null) : null; }, { passive: true });
+document.documentElement.addEventListener('pointerleave', () => { hoveredCardUid = null; });
+document.addEventListener('keydown', (event) => {
+  if (event.key.toLowerCase() !== 'e' || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || event.repeat) return;
+  if (event.target instanceof Element && event.target.closest('input, select, textarea, [contenteditable]')) return; // typing a number or a search is not a tap
+  if (!game || !hoveredCardUid) return;
+  const found = findCard(hoveredCardUid);
+  if (!found || found.zone !== 'battlefield') return;
+  event.preventDefault();
+  toggleTapped(found);
 });
 document.addEventListener('click', (event) => {
   if (!selected || !game || !event.target.isConnected) return;

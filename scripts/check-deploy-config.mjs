@@ -80,7 +80,7 @@ check('the policy starts from default-src self', directive('default-src') === "d
 check('the policy forbids plugins, framing and a changed base', directive('object-src').includes("'none'") && directive('frame-ancestors').includes("'none'") && directive('base-uri').includes("'self'"));
 check('the policy allows sign-in and the database connection', /identitytoolkit\.googleapis\.com/.test(directive('connect-src')) && /securetoken\.googleapis\.com/.test(directive('connect-src')) && /wss:\/\/\*\.firebaseio\.com/.test(directive('connect-src')));
 check('no wildcard source for scripts or connections', !/(^|\s)(\*|https:|http:|data:)(\s|$)/.test(directive('script-src')) && !/(^|\s)(\*|https:|http:)(\s|$)/.test(directive('connect-src')));
-check('pictures may come from this site, data: and Scryfall\'s picture server only', directive('img-src') === "img-src 'self' data: https://cards.scryfall.io https://svgs.scryfall.io", directive('img-src'));
+check('pictures may come from this site, data: and Scryfall\'s picture servers only (cards, card backs, symbols)', directive('img-src') === "img-src 'self' data: https://cards.scryfall.io https://backs.scryfall.io https://svgs.scryfall.io", directive('img-src'));
 check('nosniff is set', page['x-content-type-options'] === 'nosniff');
 check('framing is denied', page['x-frame-options'] === 'DENY');
 check('a referrer policy is set that does not send the path to other sites', ['strict-origin-when-cross-origin', 'strict-origin', 'same-origin', 'no-referrer'].includes(page['referrer-policy']));

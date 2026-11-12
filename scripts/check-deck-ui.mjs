@@ -920,7 +920,7 @@ check('there are no commander or partner boxes; the Commander heading says to ri
   // ---- the whole session ----
   const errors = browser.logs.filter((l) => /^exception:|^console\.error|^error:/.test(l) && !/Failed to load resource|ERR_BLOCKED|net::/.test(l));
   check('no script errors', errors.length === 0, errors.slice(0, 2).join(' | '));
-  const foreign = browser.events.filter((e) => e.method === 'Network.requestWillBeSent' && !e.params.request.url.startsWith(ORIGIN) && !e.params.request.url.startsWith('data:') && !e.params.request.url.startsWith('https://cards.scryfall.io/') && !e.params.request.url.startsWith('https://svgs.scryfall.io/card-symbols/'));
+  const foreign = browser.events.filter((e) => e.method === 'Network.requestWillBeSent' && !e.params.request.url.startsWith(ORIGIN) && !e.params.request.url.startsWith('data:') && !e.params.request.url.startsWith('https://cards.scryfall.io/') && !e.params.request.url.startsWith('https://backs.scryfall.io/') && !e.params.request.url.startsWith('https://svgs.scryfall.io/card-symbols/'));
   check('nothing was requested from any other site', foreign.length === 0, foreign.slice(0, 2).map((e) => e.params.request.url).join(' | '));
 
   if (process.argv.includes('--screenshot')) {

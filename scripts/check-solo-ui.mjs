@@ -71,6 +71,7 @@ try {
   const count = (selector) => ev(`document.querySelectorAll(${JSON.stringify(selector)}).length`);
   const names = (selector) => ev(`Array.from(document.querySelectorAll(${JSON.stringify(selector)})).map((b) => b.getAttribute('aria-label') || b.textContent)`);
   const asked = await browser.fakeImages('https://cards.scryfall.io/*', cardArt);
+  const backsAsked = await browser.fakeImages('https://backs.scryfall.io/*', null); // the card back of the library
   const seed = async (json) => { await browser.goto(ORIGIN + '/pages/solo/index.html'); await ev(`localStorage.removeItem('overloaded.decks'); ` + (json === null ? `localStorage.removeItem('overloaded.deck')` : `localStorage.setItem('overloaded.deck', ${JSON.stringify(json)})`)); }; // the old single-deck key; a library, if there were one, would win over it
   const open = async (json = DECK_JSON) => { await seed(json); await browser.goto(PAGE); await waitFor(async () => (!(await $hidden('game')) || !(await $hidden('blocked'))) || null, 15000, 50); };
   const pileCount = (zone) => ev(`document.getElementById('pile-${zone}').textContent`);
@@ -124,7 +125,7 @@ try {
   check('the status says what was dealt', /Dealt 7 cards\. Your commander is in the command zone\. Life is 40\./.test(await $text('status')), await $text('status'));
   check('an empty battlefield shows no text', (await ev(`getComputedStyle(document.getElementById('battlefield'), '::before').content`)) === 'none' && (await ev(`document.getElementById('battlefield').textContent.trim()`)) === '');
   await sleep(500);
-  check('pictures are requested from Scryfall\'s picture server only, in the small size, and each once', asked.length > 0 && asked.length <= 8 && new Set(asked).size === asked.length && asked.every((u) => /^https:\/\/cards\.scryfall\.io\/small\/front\/[0-9a-f]\/[0-9a-f]\/[0-9a-f-]{36}\.jpg$/.test(u)), `${asked.length}: ${asked[0]}`);
+  check('pictures are requested from Scryfall\'s picture server only (the normal size for the large cards of the hand, small elsewhere), and each once', asked.length > 0 && asked.length <= 8 && new Set(asked).size === asked.length && asked.every((u) => /^https:\/\/cards\.scryfall\.io\/(small|normal)\/front\/[0-9a-f]\/[0-9a-f]\/[0-9a-f-]{36}\.jpg$/.test(u)), `${asked.length}: ${asked[0]}`);
   const picture = await ev(`(() => { const i = document.querySelector('#hand .card img'); return { alt: i.alt, w: i.naturalWidth, h: i.naturalHeight, referrer: i.referrerPolicy, lazy: i.loading }; })()`);
   check('a picture loaded (the stand-in is 146 by 204), sends no referrer and loads lazily', picture.w === 146 && picture.h === 204 && picture.referrer === 'no-referrer' && picture.lazy === 'lazy', JSON.stringify(picture));
   check('every card is a button with its name for a screen reader', (await ev(`Array.from(document.querySelectorAll('.card')).every((b) => b.tagName === 'BUTTON' && b.getAttribute('aria-label'))`)));
@@ -536,6 +537,10 @@ try {
     if (process.argv.includes('--screenshot')) await browser.screenshot('scratch-hand-lowered.png');
     const fan = await handFacts();
     check('the hand is a fan: the cards are placed by the page (absolute), the first leans left and the last right, the middle is straighter, the ends sit lower', fan.names.length >= 5 && fan.position === 'absolute' && fan.angles[0] < 0 && fan.angles.at(-1) > 0 && Math.abs(fan.angles[Math.floor(fan.angles.length / 2)]) < Math.abs(fan.angles[0]) + 0.01 && fan.ys[0] >= fan.ys[Math.floor(fan.ys.length / 2)], JSON.stringify(fan));
+    check('the pictures of the cards in the hand are the NORMAL size (the hand is large; the small picture was blurry)', await ev("[...document.querySelectorAll('#hand > .card .face img')].every((i) => i.getAttribute('src').includes('/normal/')) && document.querySelectorAll('#hand > .card .face img').length > 0") && asked.some((url) => url.includes('/normal/front/')), JSON.stringify(asked.slice(-3)));
+    check('the card preview\'s picture box has the shape of a card (not a taller box with the card letterboxed in it, which left the white corners unclipped)', await ev("(() => { const i = document.querySelector('#spotlight .spot-picture'); if (!i || i.hidden) return true; const r = i.getBoundingClientRect(); return Math.abs(r.width / r.height - 488 / 680) < 0.01; })()"));
+    check('a card picture is clipped with the corners of a real card (4.8% by 3.4%), so no white corner shows', await ev("(() => { const face = document.querySelector('#hand > .card .face'); const img = face.querySelector('img'); return getComputedStyle(face).borderTopLeftRadius.includes('%') && getComputedStyle(img).borderTopLeftRadius.includes('%'); })()"));
+    check('the library is the real Magic card back from Scryfall (the picture was asked for), not a drawn pattern', backsAsked.some((url) => url === 'https://backs.scryfall.io/small/0/a/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg') && (await ev("getComputedStyle(document.querySelector('#pile-library .stack-face')).backgroundImage")).includes('backs.scryfall.io'), JSON.stringify(backsAsked.slice(0, 2)));
     check('the cards sit in order from left to right, edge to edge when they fit', fan.xs.every((x, i) => i === 0 || x > fan.xs[i - 1]) && fan.xs.length < 2 || Math.abs((fan.xs[1] - fan.xs[0]) - fan.width) < 2 || (fan.xs[1] - fan.xs[0]) < fan.width, JSON.stringify([fan.xs.slice(0, 3), fan.width]));
     check('every card is inside the hand\'s box and sideways in the window, and none is lower than a quarter of its height below the bottom edge', fan.inside, JSON.stringify(fan));
     const lowered = await ev(`(() => { const cs = [...document.querySelectorAll('#hand > .card')]; const c = cs[Math.floor(cs.length / 2)]; const r = c.getBoundingClientRect(); return { hidden: Math.round((r.bottom - innerHeight) / r.height * 100) / 100, raised: document.getElementById('hand').classList.contains('raised'), count: cs.length, step: parseFloat(cs[1].style.getPropertyValue('--hx')) - parseFloat(cs[0].style.getPropertyValue('--hx')), width: cs[0].offsetWidth }; })()`);
@@ -745,6 +750,7 @@ try {
   const SIGNET_CMM_367 = '0539b83c-4459-41b5-a001-d15a1c9ddf23';
   const idOf = (name) => cards.find((c) => c.n === name).i;
   const smallUrl = (id) => `https://cards.scryfall.io/small/front/${id[0]}/${id[1]}/${id}.jpg`;
+  const normalUrl = (id) => `https://cards.scryfall.io/normal/front/${id[0]}/${id[1]}/${id}.jpg`; // (the hand is large, so its pictures are the normal size)
   const loadedSets = new Map(['cmm', 'sld'].map((set) => [set, JSON.parse(readFileSync(`frontend/public/data/printings/set-${set}.json`, 'utf8'))]));
   const PRINTING_JSON = deckFrom('1 Forest\n1 Sol Ring (cmm) 410\n1 Heart of the Mountain\n1 Arcane Signet (cmm) 367\n1 Lightning Bolt', 'Printings', loadedSets);
   const savedPrintings = JSON.parse(PRINTING_JSON).cards;
@@ -755,17 +761,17 @@ try {
   await sleep(600);
   const hand = await ev(`Array.from(document.querySelectorAll('#hand .card')).map((b) => ({ name: b.getAttribute('aria-label') || b.textContent, src: b.querySelector('img')?.getAttribute('src') ?? null, noimage: b.classList.contains('noimage') }))`);
   check('the guessed commander (the first card, a Forest) is in the command zone and the other four are in the hand under their real names (the Heart of the Mountain card is Arcane Signet)', (await count('#command .card')) === 1 && hand.length === 4 && hand.filter((c) => /Arcane Signet/.test(c.name)).length === 2 && !hand.some((c) => /Heart of the Mountain/.test(c.name)), JSON.stringify(hand.map((c) => c.name)));
-  check('each card draws the picture of its printing', [SOL_RING_CMM_410, SIGNET_SLD_916, SIGNET_CMM_367].every((id) => hand.some((c) => c.src === smallUrl(id))), JSON.stringify(hand.map((c) => c.src)));
-  check('cards with no printing draw their default picture', hand.some((c) => c.src === smallUrl(idOf('Lightning Bolt'))) && asked.includes(smallUrl(idOf('Forest'))));
-  check('and the default pictures of the cards that have a printing are not asked for at all', !asked.includes(smallUrl(idOf('Sol Ring'))) && !asked.includes(smallUrl(idOf('Arcane Signet'))) && asked.length === 5, `${asked.length}: ${asked.join(' ')}`);
+  check('each card draws the picture of its printing', [SOL_RING_CMM_410, SIGNET_SLD_916, SIGNET_CMM_367].every((id) => hand.some((c) => c.src === normalUrl(id))), JSON.stringify(hand.map((c) => c.src)));
+  check('cards with no printing draw their default picture', hand.some((c) => c.src === normalUrl(idOf('Lightning Bolt'))) && asked.includes(smallUrl(idOf('Forest'))));
+  check('and the default pictures of the cards that have a printing are not asked for at all', ![smallUrl, normalUrl].some((url) => asked.includes(url(idOf('Sol Ring'))) || asked.includes(url(idOf('Arcane Signet')))) && asked.length === 5, `${asked.length}: ${asked.join(' ')}`);
   failIds.add(SOL_RING_CMM_410);
   await open(null);
   asked.length = 0;
   await open(PRINTING_JSON);
   await sleep(700);
   const ring = await ev(`(() => { const b = Array.from(document.querySelectorAll('#hand .card')).find((x) => /Sol Ring/.test(x.getAttribute('aria-label') || x.textContent)); return { src: b.querySelector('img')?.getAttribute('src') ?? null, noimage: b.classList.contains('noimage') }; })()`);
-  check('a printing whose picture does not exist falls back to the default picture of the card', asked.includes(smallUrl(SOL_RING_CMM_410)) && ring.src === smallUrl(idOf('Sol Ring')) && !ring.noimage, JSON.stringify({ ring, asked }));
-  check('and the default picture is tried once, not over and over', asked.filter((u) => u === smallUrl(idOf('Sol Ring'))).length === 1 && asked.filter((u) => u === smallUrl(SOL_RING_CMM_410)).length === 1);
+  check('a printing whose picture does not exist falls back to the default picture of the card', asked.includes(normalUrl(SOL_RING_CMM_410)) && ring.src === normalUrl(idOf('Sol Ring')) && !ring.noimage, JSON.stringify({ ring, asked }));
+  check('and the default picture is tried once, not over and over', asked.filter((u) => u === normalUrl(idOf('Sol Ring'))).length === 1 && asked.filter((u) => u === normalUrl(SOL_RING_CMM_410)).length === 1);
   failIds.add(idOf('Sol Ring'));
   await open(PRINTING_JSON);
   await sleep(700);
@@ -1726,6 +1732,29 @@ try {
     for (const n of [1, 2]) { await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: p.x, y: p.y, button: 'left', buttons: 1, clickCount: n }); await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: p.x, y: p.y, button: 'left', buttons: 0, clickCount: n }); }
     await sleep(120); }
   check('a double click on a tapped card untaps it and it is back on the pile (6x)', (await count('#battlefield .card.tapped')) === 0 && (await forestState()).badge === '6x' && /^Untapped Forest\./.test(await $text('status')), await $text('status'));
+  // E over a card of the battlefield taps or untaps it
+  { const eKey = async (modifiers = 0, shift = false) => { await browser.send('Input.dispatchKeyEvent', { type: 'keyDown', key: shift ? 'E' : 'e', code: 'KeyE', windowsVirtualKeyCode: 69, text: shift ? 'E' : 'e', modifiers }); await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: shift ? 'E' : 'e', code: 'KeyE', windowsVirtualKeyCode: 69, modifiers }); await sleep(100); };
+    const p = await centerOfSelector('#battlefield .card[data-stack-depth="0"]');
+    const empty = await boardRect();
+    const onEmpty = { x: empty.left + empty.width * 0.6, y: empty.top + empty.height * 0.3 };
+    await mouseAt('mouseMoved', onEmpty, 0); await sleep(60);
+    const t0 = await count('#battlefield .card.tapped');
+    await eKey();
+    check('E with the pointer over empty space does nothing', (await count('#battlefield .card.tapped')) === t0);
+    await mouseAt('mouseMoved', p, 0); await sleep(60);
+    await eKey(2);
+    check('Ctrl+E does nothing (only a plain E is the shortcut)', (await count('#battlefield .card.tapped')) === t0);
+    await eKey(8, true);
+    check('Shift+E does nothing', (await count('#battlefield .card.tapped')) === t0);
+    await eKey();
+    check('E with the pointer over a card of the battlefield taps it and says so', (await count('#battlefield .card.tapped')) === t0 + 1 && /^Tapped /.test(await $text('status')), await $text('status'));
+    const q = await centerOfSelector('#battlefield .card.tapped');
+    await mouseAt('mouseMoved', q, 0); await sleep(60);
+    await eKey();
+    check('E again untaps it', (await count('#battlefield .card.tapped')) === t0 && /^Untapped /.test(await $text('status')), await $text('status'));
+    await mouseAt('mouseMoved', { x: 4, y: 4 }, 0); await sleep(60);
+    await eKey();
+    check('E with the pointer away from the battlefield does nothing', (await count('#battlefield .card.tapped')) === t0); }
   await clickAction('Deselect');
   // quick clicks are counted in pairs: six clicks are three taps (the browser's own double click would have counted only the second)
   { const p = await centerOfSelector('#battlefield .card[data-stack-depth="0"]');
@@ -1817,7 +1846,7 @@ try {
   // ---- the whole session ----
   const errors = browser.logs.filter((l) => /^exception:|^console\.error|^error:/.test(l) && !/Failed to load resource|ERR_BLOCKED|net::/.test(l));
   check('no script errors', errors.length === 0, errors.slice(0, 2).join(' | '));
-  const foreign = browser.events.filter((e) => e.method === 'Network.requestWillBeSent' && !e.params.request.url.startsWith(ORIGIN) && !e.params.request.url.startsWith('data:') && !e.params.request.url.startsWith('https://cards.scryfall.io/') && !e.params.request.url.startsWith('https://svgs.scryfall.io/card-symbols/')); // (the mana symbols above the cards of the hand)
+  const foreign = browser.events.filter((e) => e.method === 'Network.requestWillBeSent' && !e.params.request.url.startsWith(ORIGIN) && !e.params.request.url.startsWith('data:') && !e.params.request.url.startsWith('https://cards.scryfall.io/') && !e.params.request.url.startsWith('https://backs.scryfall.io/') && !e.params.request.url.startsWith('https://svgs.scryfall.io/card-symbols/')); // (the mana symbols above the cards of the hand)
   check('nothing was requested from any site but this one and the picture and symbol servers of Scryfall', foreign.length === 0, foreign.slice(0, 2).map((e) => e.params.request.url).join(' | '));
 
   if (realPictures) {
@@ -1836,6 +1865,10 @@ try {
     await clickCard('#battlefield .card[data-kind="other"]', 0); await setKind('p'); await setAmount('3'); await clickMark('Add counters'); await setAmount('2'); await clickMark('Power +');
     await sleep(2500);
     await browser.screenshot('scratch-solo-dark.png');
+    // the corners of the card preview and of a card of the hand, 4 times larger (no white may show outside the rounded card)
+    { const spots = await ev(`(() => { const a = document.querySelector('#spotlight .spot-picture')?.getBoundingClientRect(); const b = document.querySelector('#hand > .card .face')?.getBoundingClientRect(); return { a: a ? { x: a.x, y: a.y } : null, b: b ? { x: b.x, y: b.y } : null }; })()`);
+      if (spots.a) await browser.screenshot('scratch-zoom-preview.png', { clip: { x: spots.a.x - 6, y: spots.a.y - 6, width: 70, height: 70, scale: 4 } });
+      if (spots.b) await browser.screenshot('scratch-zoom-hand.png', { clip: { x: spots.b.x - 6, y: spots.b.y - 6, width: 70, height: 70, scale: 4 } }); }
     await scheme('light'); await sleep(400);
     await browser.screenshot('scratch-solo-light.png');
     await press('pile-library'); await ev(`document.getElementById('viewer').scrollIntoView()`); await sleep(400);

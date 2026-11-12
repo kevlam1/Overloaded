@@ -17,7 +17,7 @@ let nextId = 1;
 // Opens a headless Chrome with a fresh profile. Returns an object with:
 //   eval(expression)      run JavaScript in the page and return its value (awaits promises)
 //   goto(url), reload()   navigate and wait a moment
-//   screenshot(file)      save a PNG
+//   screenshot(file, options)  save a PNG (options: Page.captureScreenshot's, such as a clip with a scale)
 //   send(method, params)  any raw DevTools command, and events (an array of every DevTools event since the last reset)
 //   logs                  console messages, exceptions and browser log entries
 //   dialogs               the text of every alert/confirm that opened; they are accepted automatically
@@ -83,7 +83,7 @@ export async function openBrowser(label, { width = 1280, height = 800 } = {}) {
   };
   browser.goto = async (url) => { await send('Page.navigate', { url }); await sleep(1200); };
   browser.reload = async () => { await send('Page.reload'); await sleep(1200); };
-  browser.screenshot = async (file) => { const { data } = await send('Page.captureScreenshot', { format: 'png' }); writeFileSync(file, Buffer.from(data, 'base64')); };
+  browser.screenshot = async (file, options = {}) => { const { data } = await send('Page.captureScreenshot', { format: 'png', ...options }); writeFileSync(file, Buffer.from(data, 'base64')); }; // options: for example { clip: { x, y, width, height, scale } } for a zoomed part
   browser.close = () => { try { ws.close(); } catch {} try { child.kill(); } catch {} };
   return browser;
 }

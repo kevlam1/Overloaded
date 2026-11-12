@@ -64,6 +64,17 @@ export function mountHand({ container, costOf = () => '' }) {
     button.append(holder);
   }
 
+  // A card of the hand is drawn large, and the small picture (146 by 204 pixels) is blurry at that size: the picture of a card in the hand is the NORMAL size (488 by 680, about 70 KB, the same
+  // address with normal in place of small). The card keeps it when it is played (it has been loaded, and is sharper). A picture that cannot be loaded falls back as before (card-nodes.js).
+  function sharpen(button) {
+    const picture = button.querySelector(':scope > .face img');
+    if (!picture || picture.dataset.sharp === '1') return;
+    const src = picture.getAttribute('src') ?? '';
+    if (!src.includes('/small/')) return;
+    picture.dataset.sharp = '1';
+    picture.src = src.replace('/small/', '/normal/');
+  }
+
   // ---- movement ----
   function paint(button, m) {
     button.style.setProperty('--hx', `${round2(m.x)}px`);
@@ -164,7 +175,7 @@ export function mountHand({ container, costOf = () => '' }) {
       button.style.setProperty('--hz', String(index + 1)); // a variable, not z-index: the same button is reused on the battlefield, where an inline z-index would override its stacking
     });
     if (carriedIndex >= 0) { const m = motion.get(all[carriedIndex]); if (m) m.gen = generation; } // (it is left out of the places while it is carried, but it has not been away)
-    for (const button of all) showCost(button);
+    for (const button of all) { showCost(button); sharpen(button); }
     // the dashed outline shown while a card is carried over the hand (style.css) covers the same width as the zone
     setZoneVars();
     if (moving) startMoving();

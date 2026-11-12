@@ -2,7 +2,7 @@
 // (a picture's address from its id). Uses the small real card fixture. Run: node scripts/test-card-lookup.mjs
 import { readFileSync } from 'node:fs';
 import { makeLookup } from '../shared/card-lookup.mjs';
-import { imageUrl, IMAGE_HOST, IMAGE_SIZES, IMAGE_FACES } from '../shared/card-image.mjs';
+import { imageUrl, IMAGE_HOST, IMAGE_SIZES, IMAGE_FACES, cardBackUrl, BACK_HOST, BACK_ID, BACK_SIZES } from '../shared/card-image.mjs';
 
 let checks = 0;
 function check(label, condition, detail = '') {
@@ -29,6 +29,11 @@ check('an empty list knows nothing', makeLookup([])({ i: solRing.i, n: 'Sol Ring
   check('two cards with one name: the id picks the right one, the name picks the first', twins.length === 2 && lookup({ i: twins[1].i, n: twins[1].n }).t === twins[1].t && lookup({ i: 'x', n: twins[0].n }).t === twins[0].t);
 }
 check('the lookup does not change the list', fixture.length === 29);
+
+// ---- the card back ----
+check('the back of a card is on Scryfall\'s back server, built from the back id (checked against the real server: HTTP 200 for small and normal)', cardBackUrl('small') === 'https://backs.scryfall.io/small/0/a/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg' && cardBackUrl('normal') === 'https://backs.scryfall.io/normal/0/a/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg');
+check('the default size is small, and a size that does not exist gives nothing (no strange address)', cardBackUrl() === cardBackUrl('small') && cardBackUrl('huge') === null && cardBackUrl('art_crop') === null && cardBackUrl(undefined) === cardBackUrl('small'));
+check('the host, id and sizes are what the address is built from', BACK_HOST === 'https://backs.scryfall.io' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(BACK_ID) && BACK_SIZES.join() === 'small,normal,large');
 
 // ---- imageUrl ----
 const id = 'fc817e07-c1f3-469f-9cf7-0945dea7400f';

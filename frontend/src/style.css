@@ -1149,3 +1149,17 @@ body.playing .hand-lift-layer > .card * { pointer-events: none; }
 body.playing .hand-lift-layer > .card .hand-cost { position: absolute; left: 0; right: 0; bottom: 100%; display: flex; justify-content: center; margin-bottom: 0.15rem; pointer-events: none; white-space: nowrap; }
 body.playing .hand-lift-layer > .card .hand-cost .cost { margin: 0; gap: 1px; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.6)); }
 body.playing .hand-lift-layer > .card .hand-cost .pip, body.playing .hand-lift-layer > .card .hand-cost img { width: 1rem; height: 1rem; }
+
+/* Corners (Kevin, 2026-11-12): a card picture is square with white corners outside the rounded card, so every card picture is clipped with the radius of a real card (as the Alt picture is). */
+body.playing .card .face, body.playing .opponent .card.tapped .face { border-radius: 4.8% / 3.4%; }
+body.playing .card .face img { border-radius: 4.8% / 3.4%; }
+/* The library is the real Magic card back (Scryfall's back server, shared/card-image.mjs cardBackUrl; the address is repeated here because a style sheet cannot import it). */
+body.playing .pile-stack .stack-face.back { border: 0; border-radius: 4.8% / 3.4%; background: #1a1a1a url('https://backs.scryfall.io/small/0/a/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg') center / 100% 100% no-repeat; box-shadow: none; }
+.pile-stack .stack-layer { border-radius: 4.8% / 3.4%; }
+
+/* The card preview's picture box is exactly the shape of a card (it used to stretch to the height of the column and show the card letterboxed in it, so the rounded clip was on the box and the card's own
+   white corners showed): the corner is a size container, and the picture is as tall as the room allows and as wide as a card of that height. */
+@supports (height: 1cqh) {
+  body.playing .card-corner { container-type: size; }
+  body.playing .card-corner .spot-picture { flex: 0 0 auto; min-height: 0; width: auto; max-width: 100%; max-height: none; height: min(calc(100cqh - 2.6rem), calc(100cqw * 1.3934)); aspect-ratio: 488 / 680; object-fit: fill; }
+}

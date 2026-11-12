@@ -134,6 +134,7 @@ function showFace(button, card) {
   if (!picture || picture.dataset.side === side) return;
   picture.dataset.side = side;
   picture.dataset.tried = '';
+  picture.dataset.sharp = ''; // (the small picture again: the hand asks for the normal size when it needs it)
   button.classList.remove('noimage'); // the other face may have a picture even if this one had none
   picture.src = pictureAddress(card, side, false) ?? '';
 }
@@ -161,7 +162,8 @@ export function makeCardNodes({ onSelect = () => {}, isSelected = () => false, r
         picture.dataset.side = side;
         picture.addEventListener('error', () => {
           // The printing has no picture (or a damaged id): try the card's default picture once, then show the name.
-          const fallback = card.p && !picture.dataset.tried ? pictureAddress(card, picture.dataset.side, true) : null;
+          let fallback = card.p && !picture.dataset.tried ? pictureAddress(card, picture.dataset.side, true) : null;
+          if (fallback && picture.dataset.sharp === '1') fallback = fallback.replace('/small/', '/normal/'); // (a card of the hand stays sharp)
           picture.dataset.tried = '1';
           if (fallback) { picture.src = fallback; return; }
           button.classList.add('noimage');
