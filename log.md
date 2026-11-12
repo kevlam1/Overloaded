@@ -3220,6 +3220,21 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 158. A Vertical pile style, and tapped piles moved to the right (2026-11-12)
+
+**What I asked for**
+- Add Vertical to the piles of untapped cards and the piles of tapped cards. Move a diagonal tapped pile one tile to the right, and a horizontal tapped pile two tiles to the right.
+
+**What changed** (`shared/pile-style.mjs`, `frontend/src/style.css`, tests)
+- **Vertical:** a third choice in both Settings selects; the copies under the top card go straight up (the dashed border of the pile follows).
+- **Tapped piles:** the whole pile is drawn one cell to the right in the Diagonal style and two cells in the Horizontal style (a cell is an eighth of a card), none in Vertical. I read "tile" as a grid cell and did it as how the pile is drawn, not where its cards are stored, so nothing in the game changes. If you meant the stored place of the card (the step out of a pile), that is a different change.
+
+**What I checked:** solo check 582 (new: a tapped pile's top card moves by exactly one cell when diagonal, two when horizontal, none when vertical; vertical piles of both kinds go straight up with the same left edge; both selects list Vertical; the choice is kept), pile style unit test 40, quick suites 60, layout 405. A screenshot of both vertical piles, untapped and tapped. Not checked: the table page (same style sheet), phones.
+
+**My mistakes this round:** the old checks assumed a tapped pile's lower copy always sits left of the pile, which is no longer true with the shift; my first new check measured a hidden card of the pile (width 0) and my draw-flight check was timing-sensitive, both fixed.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

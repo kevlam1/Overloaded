@@ -653,6 +653,9 @@ body.playing .battlefield > .card.tapped .badges { top: 0.2rem; }
 .battlefield { --step-h: calc(var(--card-w) * 0.17); --step-v: calc(var(--card-w) * 0.15); }
 body[data-pile-style="horizontal"] .battlefield > .card[data-stack-depth="1"] { translate: calc(var(--step-h) * -1) 0; }
 body[data-pile-style="horizontal"] .battlefield > .card[data-stack-depth="2"] { translate: calc(var(--step-h) * -2) 0; }
+/* vertical piles: the copies under the top card go straight up */
+body[data-pile-style="vertical"] .battlefield > .card[data-stack-depth="1"] { translate: 0 calc(var(--step-v) * -1); }
+body[data-pile-style="vertical"] .battlefield > .card[data-stack-depth="2"] { translate: 0 calc(var(--step-v) * -2); }
 
 .card .stack-count { position: absolute; top: 0.15rem; right: 0.15rem; padding: 0 0.3rem; border: 1px solid rgba(255, 255, 255, 0.4); border-radius: 0.6rem; background: rgba(20, 20, 26, 0.92); color: #fff; font-size: 0.75rem; font-weight: 700; line-height: 1.1rem; pointer-events: none; }
 body.playing .card .stack-count { font-size: 0.6rem; line-height: 0.9rem; }
@@ -668,10 +671,17 @@ body.playing .battlefield > .card, body.playing #hand > .card { cursor: grab; us
 body.dragging-card .battlefield > .card, body.dragging-card #hand > .card { cursor: grabbing; }
 
 /* a pile of TAPPED cards has a style of its own (Settings, "Piles of tapped cards"): diagonal (the copies under the top one go up and to the left, the first way) or horizontal (straight to the left) */
-body[data-tapped-pile-style="diagonal"] .battlefield > .card.tapped[data-stack-depth="1"] { translate: calc(var(--step) * -1) calc(var(--step) * -1); }
-body[data-tapped-pile-style="diagonal"] .battlefield > .card.tapped[data-stack-depth="2"] { translate: calc(var(--step) * -2) calc(var(--step) * -2); }
-body[data-tapped-pile-style="horizontal"] .battlefield > .card.tapped[data-stack-depth="1"] { translate: calc(var(--step-h) * -1) 0; }
-body[data-tapped-pile-style="horizontal"] .battlefield > .card.tapped[data-stack-depth="2"] { translate: calc(var(--step-h) * -2) 0; }
+/* (Kevin, 2026-11-12) a pile of tapped cards is moved to the right so it clears what is to its left: one cell (--cell, an eighth of a card) in the diagonal style, two cells in the horizontal style, none in the vertical style */
+.battlefield { --cell: calc(var(--card-w) / 8); }
+body[data-tapped-pile-style="diagonal"] .battlefield > .card.tapped[data-stack-ext] { translate: var(--cell) 0; }
+body[data-tapped-pile-style="diagonal"] .battlefield > .card.tapped[data-stack-depth="1"] { translate: calc(var(--cell) - var(--step)) calc(var(--step) * -1); }
+body[data-tapped-pile-style="diagonal"] .battlefield > .card.tapped[data-stack-depth="2"] { translate: calc(var(--cell) - var(--step) * 2) calc(var(--step) * -2); }
+body[data-tapped-pile-style="horizontal"] .battlefield > .card.tapped[data-stack-ext] { translate: calc(var(--cell) * 2) 0; }
+body[data-tapped-pile-style="horizontal"] .battlefield > .card.tapped[data-stack-depth="1"] { translate: calc(var(--cell) * 2 - var(--step-h)) 0; }
+body[data-tapped-pile-style="horizontal"] .battlefield > .card.tapped[data-stack-depth="2"] { translate: calc(var(--cell) * 2 - var(--step-h) * 2) 0; }
+body[data-tapped-pile-style="vertical"] .battlefield > .card.tapped[data-stack-ext] { translate: none; }
+body[data-tapped-pile-style="vertical"] .battlefield > .card.tapped[data-stack-depth="1"] { translate: 0 calc(var(--step-v) * -1); }
+body[data-tapped-pile-style="vertical"] .battlefield > .card.tapped[data-stack-depth="2"] { translate: 0 calc(var(--step-v) * -2); }
 /* the outline of a tapped card being dragged is a landscape card: 11 cells wide and 8 tall, on the bottom line of its block */
 .battlefield > .cell-highlight[data-tapped] { grid-column-end: span 11; grid-row-end: span 8; }
 /* the hand while a card from the battlefield is held over it */
@@ -684,10 +694,14 @@ body.dragging-card .hand-section.drop-hand #hand::after { opacity: 1; } /* one r
 .battlefield > .card[data-stack-ext="2"]::before { top: calc(var(--step) * -2 - 3px); left: calc(var(--step) * -2 - 3px); }
 body[data-pile-style="horizontal"] .battlefield > .card[data-stack-ext="1"]::before { top: -3px; left: calc(var(--step-h) * -1 - 3px); }
 body[data-pile-style="horizontal"] .battlefield > .card[data-stack-ext="2"]::before { top: -3px; left: calc(var(--step-h) * -2 - 3px); }
+body[data-pile-style="vertical"] .battlefield > .card[data-stack-ext="1"]::before { top: calc(var(--step-v) * -1 - 3px); left: -3px; }
+body[data-pile-style="vertical"] .battlefield > .card[data-stack-ext="2"]::before { top: calc(var(--step-v) * -2 - 3px); left: -3px; }
 body[data-tapped-pile-style="diagonal"] .battlefield > .card.tapped[data-stack-ext="1"]::before { top: calc(var(--step) * -1 - 3px); left: calc(var(--step) * -1 - 3px); }
 body[data-tapped-pile-style="diagonal"] .battlefield > .card.tapped[data-stack-ext="2"]::before { top: calc(var(--step) * -2 - 3px); left: calc(var(--step) * -2 - 3px); }
 body[data-tapped-pile-style="horizontal"] .battlefield > .card.tapped[data-stack-ext="1"]::before { top: -3px; left: calc(var(--step-h) * -1 - 3px); }
 body[data-tapped-pile-style="horizontal"] .battlefield > .card.tapped[data-stack-ext="2"]::before { top: -3px; left: calc(var(--step-h) * -2 - 3px); }
+body[data-tapped-pile-style="vertical"] .battlefield > .card.tapped[data-stack-ext="1"]::before { top: calc(var(--step-v) * -1 - 3px); left: -3px; }
+body[data-tapped-pile-style="vertical"] .battlefield > .card.tapped[data-stack-ext="2"]::before { top: calc(var(--step-v) * -2 - 3px); left: -3px; }
 /* the Modify window: counters and the power/toughness change, floating next to the selected card (opened from its right-click menu) */
 .marks-popover { position: fixed; z-index: 45; width: min(22rem, calc(100vw - 1rem)); max-height: calc(100vh - 1rem); overflow: auto; padding: 0.6rem; border: 1px solid var(--line); border-radius: 0.6rem; background: var(--bg); box-shadow: 0 0.6rem 1.6rem rgba(0, 0, 0, 0.55); }
 .marks-popover[hidden] { display: none; }

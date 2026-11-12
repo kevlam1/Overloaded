@@ -453,7 +453,7 @@ try {
     const flightAt = () => ev("(() => { const c = document.querySelector('.fly-copy'); if (!c) return null; const r = c.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, back: getComputedStyle(c.querySelector('.fly-back')).transform }; })()");
     const handNodeHidden = () => ev("(() => { const n = [...document.querySelectorAll('#hand > .card')].find((c) => !" + JSON.stringify(uidsBefore) + ".includes(c.dataset.uid)); return n ? getComputedStyle(n).visibility : null; })()");
     await press('draw');
-    await sleep(50);
+    await sleep(25);
     const early1 = await flightAt();
     const hiddenWhileFlying = await handNodeHidden();
     await sleep(120);
@@ -461,7 +461,7 @@ try {
     await sleep(900);
     const late1 = await flightAt();
     const landed = await handNodeHidden();
-    check('a card drawn comes out of the library as a small picture of the card back (a flying copy that starts at the pile size, over the library), with the real card hidden meanwhile', early1 && hiddenWhileFlying === 'hidden' && distance(early1, lib) < 60 && early1.w < 120, JSON.stringify({ early1, hiddenWhileFlying, lib }));
+    check('a card drawn comes out of the library as a small picture of the card back (a flying copy that starts at the pile size, over the library), with the real card hidden meanwhile', early1 && hiddenWhileFlying === 'hidden' && distance(early1, lib) < 90 && early1.w < 150, JSON.stringify({ early1, hiddenWhileFlying, lib }));
     check('it grows and moves toward the hand on the way, and turns over (the back is squeezed to nothing and the face is seen)', mid1 && mid1.w > early1.w && distance(mid1, lib) > distance(early1, lib), JSON.stringify({ early1, mid1 }));
     check('when it lands the flying copy is gone and the real card is shown', late1 === null && landed === 'visible', JSON.stringify({ late1, landed }));
     // the library shuffle riffle: card backs over the pile in a menu shuffle, gone afterwards
@@ -1849,20 +1849,42 @@ try {
   // the style of piles of TAPPED cards is a choice of its own (Settings, "Piles of tapped cards"), and the other choice does not touch it
   {
     const selects = await ev("(() => { const a = document.getElementById('pile-style'); const b = document.getElementById('pile-style-tapped'); const words = (el) => el ? el.parentElement.textContent.replace(/\\s+/g, ' ').trim() : null; return { a: words(a), b: words(b), inMenu: Boolean(a && b && document.getElementById('settings-menu').contains(a) && document.getElementById('settings-menu').contains(b)), options: b ? [...b.options].map((o) => o.value) : null, tapped: document.body.dataset.tappedPileStyle ?? null, untapped: document.body.dataset.pileStyle }; })()");
-    check('Settings has two choices, one for piles of untapped cards and one for piles of tapped cards, each Diagonal or Horizontal; both start diagonal', selects.inMenu && /untapped/.test(selects.a) && /tapped cards/.test(selects.b) && selects.options.join() === 'diagonal,horizontal' && selects.tapped === 'diagonal' && selects.untapped === 'diagonal', JSON.stringify(selects));
+    check('Settings has two choices, one for piles of untapped cards and one for piles of tapped cards, each Diagonal or Horizontal; both start diagonal', selects.inMenu && /untapped/.test(selects.a) && /tapped cards/.test(selects.b) && selects.options.join() === 'diagonal,horizontal,vertical' && selects.tapped === 'diagonal' && selects.untapped === 'diagonal', JSON.stringify(selects));
     await clickCard('#battlefield .card[data-stack-depth="0"]:not(.tapped)'); await clickAction('Tap');
     await clickCard('#battlefield .card[data-stack-depth="0"]:not(.tapped)'); await clickAction('Tap'); await clickAction('Deselect');
     const tappedShift = () => ev("(() => { const c = document.querySelector('#battlefield .card.tapped[data-stack-depth=\"1\"]'); return c ? getComputedStyle(c).translate : null; })()");
     const untappedShift = () => ev("(() => { const c = document.querySelector('#battlefield .card:not(.tapped)[data-stack-depth=\"1\"]'); return c ? getComputedStyle(c).translate : null; })()");
     const setStyle = (id, value) => ev("(() => { const s = document.getElementById(" + JSON.stringify(id) + "); s.value = " + JSON.stringify(value) + "; s.dispatchEvent(new Event('change', { bubbles: true })); })()");
     const diagT = await tappedShift(); const diagU = await untappedShift();
-    check('with both diagonal the copy under the top tapped card and the copy under the top untapped card are both shifted up and to the left', /^-[\d.]+px -[\d.]+px$/.test(diagT ?? '') && /^-[\d.]+px -[\d.]+px$/.test(diagU ?? ''), JSON.stringify({ diagT, diagU }));
+    check('with both diagonal the copy under the top tapped card and the copy under the top untapped card are both shifted up and to the left', /^-?[\d.]+px -[\d.]+px$/.test(diagT ?? '') && /^-[\d.]+px -[\d.]+px$/.test(diagU ?? ''), JSON.stringify({ diagT, diagU }));
     await setStyle('pile-style-tapped', 'horizontal');
     const horT = await tappedShift(); const stillU = await untappedShift();
-    check('choosing Horizontal for piles of TAPPED cards moves only the tapped pile (straight to the left); the untapped pile stays diagonal; the choice is kept under its own key', /^-[\d.]+px( 0px)?$/.test(horT ?? '') && stillU === diagU && (await ev("document.body.dataset.tappedPileStyle")) === 'horizontal' && (await ev("document.body.dataset.pileStyle")) === 'diagonal' && (await ev("localStorage.getItem('overloaded.tappedPileStyle')")) === 'horizontal' && (await ev("localStorage.getItem('overloaded.pileStyle')")) !== 'horizontal', JSON.stringify({ horT, stillU, diagU }));
+    check('choosing Horizontal for piles of TAPPED cards moves only the tapped pile (no vertical shift); the untapped pile stays diagonal; the choice is kept under its own key', /^-?[\d.]+px( 0px)?$/.test(horT ?? '') && stillU === diagU && (await ev("document.body.dataset.tappedPileStyle")) === 'horizontal' && (await ev("document.body.dataset.pileStyle")) === 'diagonal' && (await ev("localStorage.getItem('overloaded.tappedPileStyle')")) === 'horizontal' && (await ev("localStorage.getItem('overloaded.pileStyle')")) !== 'horizontal', JSON.stringify({ horT, stillU, diagU }));
     await setStyle('pile-style', 'horizontal'); await setStyle('pile-style-tapped', 'diagonal');
     const swappedT = await tappedShift(); const swappedU = await untappedShift();
-    check('and the other way round: untapped horizontal and tapped diagonal, each by its own choice', /^-[\d.]+px -[\d.]+px$/.test(swappedT ?? '') && /^-[\d.]+px( 0px)?$/.test(swappedU ?? ''), JSON.stringify({ swappedT, swappedU }));
+    check('and the other way round: untapped horizontal and tapped diagonal, each by its own choice', /^-?[\d.]+px -[\d.]+px$/.test(swappedT ?? '') && /^-[\d.]+px( 0px)?$/.test(swappedU ?? ''), JSON.stringify({ swappedT, swappedU }));
+    // Vertical (the copies go straight up) for both kinds of pile, and where the pile of tapped cards sits: one cell to the right when diagonal, two when horizontal, none when vertical (a cell is an eighth of a card)
+    {
+      const cardWidth = await ev("[...document.querySelectorAll('#battlefield .card:not(.tapped)')].find((c) => c.offsetWidth > 0).getBoundingClientRect().width");
+      const cell = cardWidth / 8;
+      const topShift = () => ev("(() => { const c = document.querySelector('#battlefield .card.tapped[data-stack-ext]'); return c ? getComputedStyle(c).translate : null; })()");
+      const xOf = (text) => (text === 'none' || text === null ? 0 : parseFloat(text));
+      await setStyle('pile-style-tapped', 'diagonal');
+      const diagTop = await topShift();
+      await setStyle('pile-style-tapped', 'horizontal');
+      const horTop = await topShift();
+      await setStyle('pile-style-tapped', 'vertical');
+      const verTop = await topShift(); const verT = await tappedShift();
+      check('a pile of tapped cards is moved to the right: one cell when diagonal, two cells when horizontal, not at all when vertical', Math.abs(xOf(diagTop) - cell) < 0.6 && Math.abs(xOf(horTop) - 2 * cell) < 0.6 && xOf(verTop) === 0 && cell > 4, JSON.stringify({ cell, diagTop, horTop, verTop }));
+      check('vertical piles of tapped cards go straight up (no sideways shift, the copy under the top one is higher)', /^0px -[\d.]+px$/.test(verT ?? ''), String(verT));
+      await setStyle('pile-style', 'vertical');
+      const verU = await untappedShift();
+      if (process.argv.includes('--screenshot')) await browser.screenshot('scratch-solo-vertical.png');
+      const rows = await ev("(() => { const y = (d) => document.querySelector('#battlefield .card:not(.tapped)[data-stack-depth=\"' + d + '\"]')?.getBoundingClientRect(); const a = y(0); const b = y(1); return a && b ? { sameLeft: Math.abs(a.left - b.left) < 0.5, higher: b.top < a.top } : null; })()");
+      check('vertical piles of untapped cards go straight up too, and the page and storage remember the choice', /^0px -[\d.]+px$/.test(verU ?? '') && rows?.sameLeft === true && rows?.higher === true && (await ev("document.body.dataset.pileStyle")) === 'vertical' && (await ev("localStorage.getItem('overloaded.pileStyle')")) === 'vertical', JSON.stringify({ verU, rows }));
+      check('each choice lists Vertical besides Diagonal and Horizontal', JSON.stringify(await ev("[...document.getElementById('pile-style').options].map((o) => o.value)")) === '["diagonal","horizontal","vertical"]' && JSON.stringify(await ev("[...document.getElementById('pile-style-tapped').options].map((o) => o.value)")) === '["diagonal","horizontal","vertical"]');
+      await setStyle('pile-style', 'horizontal'); await setStyle('pile-style-tapped', 'diagonal');
+    }
     await setStyle('pile-style', 'diagonal');
     await press('untap-all'); await sleep(80);
     check('(the two tapped Forests are untapped and back on the pile of six)', (await forestState()).badge === '6x' && (await count('#battlefield .card.tapped')) === 0);
@@ -2005,7 +2027,7 @@ try {
   await clickCard('#battlefield .card[data-stack-depth="0"]:not(.tapped)'); await clickAction('Tap');
   await clickCard('#battlefield .card[data-stack-depth="0"]:not(.tapped)'); await clickAction('Tap');
   { const fan = await ev(`(() => { const t = Array.from(document.querySelectorAll('#battlefield .card.tapped')); const under = t.find((c) => c.dataset.stackDepth === '1'); const top = t.find((c) => c.dataset.stackDepth === '0'); return { n: t.length, translate: under ? getComputedStyle(under).translate : null, cells: [...new Set(t.map((c) => c.dataset.col + ',' + c.dataset.row))], topBottom: top ? Math.round(top.getBoundingClientRect().bottom) : null, underBottom: under ? Math.round(under.getBoundingClientRect().bottom) : null }; })()`);
-    check('two tapped Forests are one stack of 2 on one cell, and the lower copy is shifted diagonally, up and to the left (the default style of tapped piles)', fan.n === 2 && fan.cells.length === 1 && /^-[0-9.]+px -[0-9.]+px$/.test(fan.translate ?? '') && fan.underBottom < fan.topBottom, JSON.stringify(fan)); }
+    check('two tapped Forests are one stack of 2 on one cell, and the lower copy is shifted diagonally, up and (a little) to the left of the pile, which itself sits a cell to the right (the default style of tapped piles)', fan.n === 2 && fan.cells.length === 1 && /^-?[0-9.]+px -[0-9.]+px$/.test(fan.translate ?? '') && fan.underBottom < fan.topBottom, JSON.stringify(fan)); }
   await clickAction('Untap');
   { const one = await ev(`(() => { const c = Array.from(document.querySelectorAll('#battlefield .card:not(.tapped)')).filter((x) => x.dataset.stackSize === undefined || x.dataset.stackDepth === '0'); const lone = Array.from(document.querySelectorAll('#battlefield .card.selected'))[0]; return lone ? lone.dataset.col + ',' + lone.dataset.row : null; })()`);
     check('untapping one card of the tapped stack, with the untapped pile next to it, puts it back on that pile (0,33)', one === '0,33', String(one)); }

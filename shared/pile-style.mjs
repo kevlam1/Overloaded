@@ -2,9 +2,9 @@
 // ("horizontal", the bottom-most card on the left). Only how it is drawn changes, never the game: a pile is the same cards on the same cell either way. The choice is kept in this
 // browser (frontend/src/pile-style.js). Plain data with no browser code, so Node tests can load it (scripts/test-pile-style.mjs).
 export const PILE_STYLE_KEY = 'overloaded.pileStyle';
-export const PILE_STYLES = ['diagonal', 'horizontal'];
+export const PILE_STYLES = ['diagonal', 'horizontal', 'vertical']; // vertical (Kevin, 2026-11-12): the copies under the top card go straight up
 export const DEFAULT_PILE_STYLE = 'diagonal';
-export const PILE_STYLE_LABELS = { diagonal: 'Diagonal', horizontal: 'Horizontal' };
+export const PILE_STYLE_LABELS = { diagonal: 'Diagonal', horizontal: 'Horizontal', vertical: 'Vertical' };
 // Piles of TAPPED cards have a style of their own (Kevin, 2026-11-12): the same two ways, chosen separately, kept under another key. (A pile of tapped cards used to be drawn straight up in both.)
 export const TAPPED_PILE_STYLE_KEY = 'overloaded.tappedPileStyle';
 export const DEFAULT_TAPPED_PILE_STYLE = 'diagonal';
