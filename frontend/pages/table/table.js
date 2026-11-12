@@ -826,7 +826,7 @@ function reorderInHand({ uid, x }) {
   if (next === game) { handView.arrange(); return; }
   apply(() => next, '');
 }
-mountBoardDrag({ board: () => $('battlefield'), onDrop: dropOnBoard, hand: () => $('hand-section'), onDropHand: dropOnHand, onHandOver: (over) => handView.showGap(over ? handView.indexAt(over.x, over.uid) : null, over ? over.uid : null), onReorderHand: reorderInHand, isEnabled: () => Boolean(game) });
+mountBoardDrag({ board: () => $('battlefield'), onDrop: dropOnBoard, hand: () => $('hand-section'), onDropHand: dropOnHand, onHandOver: (over) => handView.showGap(over ? handView.indexAt(over.x, over.uid) : null, over ? over.uid : null), onReorderHand: reorderInHand, handZone: () => handView.zone(), handHit: (x, y) => handView.hit(x, y), isEnabled: () => Boolean(game) });
 
 $('mulligan').addEventListener('click', () => { if (game) doMulligan(); });
 for (const [id, delta] of [['life-minus5', -5], ['life-minus1', -1], ['life-plus1', 1], ['life-plus5', 5]]) {

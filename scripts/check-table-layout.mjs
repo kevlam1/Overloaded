@@ -101,7 +101,7 @@ try {
         check(`${label}: the ${name} is inside the window and has a size`, rect && rect.width > 20 && rect.height > 10 && rect.left >= -0.5 && rect.top >= -0.5 && rect.right <= m.win.w + 0.5 && rect.bottom <= m.win.h + 0.5, JSON.stringify(rect));
       }
       // nothing overlaps anything else
-      const boxes = Object.entries(named).filter(([name]) => name !== 'topbar');
+      const boxes = Object.entries(named).filter(([name]) => name !== 'topbar' && name !== 'your hand'); // the hand floats over the bottom of your board on purpose (checked below)
       const clashes = [];
       for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) if (overlap(boxes[i][1], boxes[j][1]) > 4) clashes.push(`${boxes[i][0]} and ${boxes[j][0]}`);
       check(`${label}: no two parts overlap`, clashes.length === 0, clashes.join('; '));
@@ -122,14 +122,16 @@ try {
       if (opponents === 0) check(`${label}: with nobody else your board fills the middle`, m.mine.height > (m.win.h - 200) * 0.6 && m.mine.width > m.win.w * 0.6, JSON.stringify(m.mine));
       // your hand runs along the whole bottom under the boards, and the controls under the top bar run across the same width
       const boardsRight = Math.max(m.mine.right, ...m.opponents.map((o) => o.right));
-      check(`${label}: your hand runs under all the boards (it ends where they end) and the controls start at the same left edge`, near(m.hand.left, m.mine.left) && near(m.hand.right, boardsRight, 3) && near(m.bar.left, m.mine.left), JSON.stringify([m.hand, boardsRight, m.bar.left, m.mine.left]));
+      // Kevin 2026-11-11: the hand has no box of its own; it floats over the bottom of YOUR battlefield, which now reaches the bottom of the window
+      check(`${label}: the hand floats over the bottom of your board (same left edge and width as it, its bottom edge on the board's) and your board reaches the bottom of the window`, near(m.hand.left, m.mine.left, 3) && near(m.hand.right, m.mine.right, 3) && near(m.hand.bottom, m.mine.bottom, 3) && m.hand.top > m.mine.top && m.mine.bottom >= m.win.h - 12 && near(m.bar.left, m.mine.left), JSON.stringify([m.hand, m.mine, m.win.h, m.bar.left]));
+      check(`${label}: the hand is no box: no border, no background, and the mouse goes through it except on the cards`, await browser.eval(`(() => { const s = getComputedStyle(document.getElementById('hand-section')); const h = getComputedStyle(document.getElementById('hand')); const c = getComputedStyle(document.querySelector('#hand > .card')); return s.borderTopWidth === '0px' && s.backgroundColor === 'rgba(0, 0, 0, 0)' && s.pointerEvents === 'none' && h.pointerEvents === 'none' && c.pointerEvents === 'auto'; })()`));
       check(`${label}: the right column is to the right of the boards and runs from below the top bar to the bottom of the window, in this order: the actions, the players, the piles, the card corner`, m.side.left >= boardsRight - 1 && m.actions.left >= boardsRight - 1 && m.corner.left >= boardsRight - 1 && m.side.bottom <= m.win.h + 1 && m.actions.top <= m.bar.bottom + 1 && m.actions.bottom <= m.players.top + 1 && m.players.bottom <= m.piles.top + 1 && m.piles.bottom <= m.corner.top + 1 && m.corner.bottom >= m.win.h - 12, JSON.stringify([m.side, m.players, boardsRight]));
       // the boards, the bar and the top show everything they hold
       check(`${label}: no board clips its content (the other players' panels and yours)`, m.opponentOverflow.every((o) => o <= 1) && m.mineOverflow <= 1, JSON.stringify([m.opponentOverflow, m.mineOverflow]));
       check(`${label}: the top bar and the controls are not cut off`, m.topbarOverflow <= 1 && m.barOverflow <= 1, JSON.stringify([m.topbarOverflow, m.barOverflow]));
       // cards big enough to see: the hand and the boards
       const minHand = Math.min(...m.handCardH); const minMine = Math.min(...m.mineCardH);
-      check(`${label}: the cards in your hand are at least 60 px tall (${Math.round(minHand)})`, minHand >= 60);
+      check(`${label}: the cards in your hand are at least 90 px tall (${Math.round(minHand)}; the hand is 50% larger than the old boxed one)`, minHand >= 90);
       check(`${label}: the cards on your battlefield are at least 36 px tall (${Math.round(minMine)})`, minMine >= 36); // measured 2026-11-06 on the 12 by 4 grid: 37 px at 1280x720 with three opponents, 40 at 1366x650; the larger picture on hover is for reading them
       if (opponents) { const minOpp = Math.min(...m.oppCardH); const needed = Math.max(24, Math.round(h * 0.035)); check(`${label}: the cards on the other players' battlefields are at least 24 px and 3.5% of the window height (${needed} px) tall (${Math.round(minOpp)})`, minOpp >= needed); } // measured 2026-11-06 with three opponents: 26 px at 1366x650, 31 at 1366x768, 55 at 1920x950; small on purpose (48 cells in each panel), and the hover picture is how they are read
       if (process.argv.includes('--screenshot') && opponents === 3 && (w === 1366 && (h === 650 || h === 768) || w === 1920)) await browser.screenshot(`scratch-layout-${w}x${h}.png`);

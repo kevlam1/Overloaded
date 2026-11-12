@@ -487,9 +487,18 @@ try {
     check('a spell shows its mana cost as symbols above it, and a land shows none', withCost >= 0 && fan.costs[withCost] >= 1 && (land < 0 || fan.costs[land] === 0), JSON.stringify({ names: fan.names, costs: fan.costs }));
     // hovering lifts and straightens a card
     const p = await cardPoint(1);
+    const restingBoxes = await ev(`(() => { const cs = [...document.querySelectorAll('#hand > .card')]; return cs.map((c) => { const r = c.getBoundingClientRect(); return [Math.round(r.left * 10) / 10, Math.round(r.top * 10) / 10, Math.round(r.width * 10) / 10, Math.round(r.height * 10) / 10]; }); })()`);
+    const faceTopBefore = await ev(`document.querySelectorAll('#hand > .card')[1].querySelector('.face').getBoundingClientRect().top`);
     await mouse('mouseMoved', p.x, p.y); await sleep(250);
-    const lifted = await ev(`(() => { const c = document.querySelector('#hand > .card:hover'); if (!c) return null; const m = new DOMMatrix(getComputedStyle(c).transform); return { dy: m.f, scale: Math.round(m.a * 100) / 100, angle: Math.abs(Math.round(Math.atan2(m.b, m.a) * 180 / Math.PI * 10) / 10) }; })()`);
-    check('the card under the pointer lifts, grows and straightens', lifted && lifted.scale >= 1.05 && lifted.angle < 0.6, JSON.stringify(lifted));
+    // the lift is drawn on the picture (the card's own box is what answers to the pointer): the card's turn and the picture's turn cancel, so the picture is straight and bigger, and higher than before
+    const lifted = await ev(`(() => { const c = document.querySelector('#hand > .card:hover'); if (!c) return null; const f = c.querySelector('.face'); const m = new DOMMatrix(getComputedStyle(c).transform).multiply(new DOMMatrix(getComputedStyle(f).transform)); return { scale: Math.round(Math.hypot(m.a, m.b) * 100) / 100, angle: Math.abs(Math.round(Math.atan2(m.b, m.a) * 180 / Math.PI * 10) / 10), rose: ${faceTopBefore} - f.getBoundingClientRect().top }; })()`);
+    check('the card under the pointer lifts, grows and straightens (its picture does: it ends up straight, 1.12 times as big and higher)', lifted && lifted.scale >= 1.05 && lifted.angle < 0.6 && lifted.rose > 10, JSON.stringify(lifted));
+    const hoveredBoxes = await ev(`(() => { const cs = [...document.querySelectorAll('#hand > .card')]; return cs.map((c) => { const r = c.getBoundingClientRect(); return [Math.round(r.left * 10) / 10, Math.round(r.top * 10) / 10, Math.round(r.width * 10) / 10, Math.round(r.height * 10) / 10]; }); })()`);
+    check('...but its own box, the place that answers to the pointer, does not move or grow, and no other card moves', JSON.stringify(hoveredBoxes) === JSON.stringify(restingBoxes), JSON.stringify([restingBoxes.slice(0, 3), hoveredBoxes.slice(0, 3)]));
+    const neighbour = await cardPoint(2);
+    check('...and the lifted card does not cover the next one: the point in the middle of the next card belongs to that card', (await ev(`document.elementFromPoint(${neighbour.x}, ${neighbour.y})?.closest('#hand > .card')?.dataset.uid`)) === (await ev(`document.querySelectorAll('#hand > .card')[2].dataset.uid`)));
+    const centres = await ev(`(() => [...document.querySelectorAll('#hand > .card')].map((c, i) => { const r = c.getBoundingClientRect(); const e = document.elementFromPoint(r.left + r.width / 2, r.top + r.height * 0.6)?.closest('#hand > .card'); return e === c ? 'ok' : i + '->' + (e ? [...e.parentElement.children].indexOf(e) : 'none'); }))()`);
+    check('pressing in the middle of any card of the hand takes that card (not its neighbour)', centres.every((c) => c === 'ok'), JSON.stringify(centres));
     await mouse('mouseMoved', 5, 5);
     // dragging a card within the hand
     const before = await handFacts();

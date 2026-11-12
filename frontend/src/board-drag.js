@@ -10,7 +10,7 @@ export const DRAG_DISTANCE_PX = 6;
 // hand (optional): () => the element of your hand; a card from the battlefield let go over it is reported to onDropHand({ uid, from }) (back into the hand), and the hand is marked while one is over it.
 // A card of the hand dragged within the hand rearranges it: while it is over the hand onHandOver({ uid, x }) is called with the pointer's x (and with null when it leaves or the drag ends), and on
 // letting go onReorderHand({ uid, x }) says where it was let go.
-export function mountBoardDrag({ doc = document, board, onDrop, hand = () => null, onDropHand = () => {}, onHandOver = () => {}, onReorderHand = () => {}, isEnabled = () => true }) {
+export function mountBoardDrag({ doc = document, board, onDrop, hand = () => null, onDropHand = () => {}, onHandOver = () => {}, onReorderHand = () => {}, handZone = () => null, handHit = null, isEnabled = () => true }) {
   let press = null; // the card the pointer went down on, before it has moved far enough to be a drag
   let drag = null; // { button, uid, from, ghost, highlight, cell }
 
@@ -78,8 +78,12 @@ export function mountBoardDrag({ doc = document, board, onDrop, hand = () => nul
     const cell = !rect || !cellAtPoint(rect, x, y) ? null : drag.start ? shiftedAnchor(rect, drag.start, x - drag.startX, y - drag.startY) : anchorAtPoint(rect, x, y);
     // a card from the battlefield can go back into the hand: over the hand there is no place on the board, and the hand is marked
     const handElement = hand();
-    const handRect = handElement ? handElement.getBoundingClientRect() : null;
-    drag.overHand = (drag.from === 'hand' || (drag.from === 'battlefield' && !drag.whole)) && Boolean(handRect) && x >= handRect.left && x < handRect.right && y >= handRect.top && y < handRect.bottom;
+    const handRect = handZone() ?? (handElement ? handElement.getBoundingClientRect() : null); // handZone: where the cards of the hand are (the hand floats over the battlefield, so its whole box is not the hand)
+    const inZone = Boolean(handRect) && x >= handRect.left && x < handRect.right && y >= handRect.top && y < handRect.bottom;
+    // a card of the hand being rearranged uses the whole zone (the gap it opens would flicker if only the cards counted); a card carried from the battlefield only returns to the hand when the pointer is over a card of it, so
+    // the rest of the bottom of the board stays the battlefield
+    const over = drag.from === 'battlefield' && handHit ? handHit(x, y) : inZone;
+    drag.overHand = (drag.from === 'hand' || (drag.from === 'battlefield' && !drag.whole)) && over;
     handElement?.classList.toggle('drop-hand', drag.overHand && drag.from === 'battlefield');
     if (drag.from === 'hand') onHandOver(drag.overHand ? { uid: drag.uid, x } : null); // the hand opens a gap where the card would go back
     // a tapped card is a landscape card, 11 cells wide, so it may not start in the last 3 columns of the board

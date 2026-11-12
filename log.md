@@ -3002,7 +3002,28 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 147. The hand as a fan with sorts (logic), then a hand with no box (2026-11-11)
+
+**What I asked for**
+- Redesign the hand: an arc like the Arena-style reference with mana costs above the cards, but as snappy as the white-cards video, where you drag a card to any spot. Three buttons that stay on and sort the hand (cost, card type, color; each click goes first sort, reverse, off; any mix, color first, then type, then cost), and a way to edit the type order in Settings.
+- After the arc was in: discard the hand box, make the hand 50% larger, let the battlefield reach the bottom of the screen, and make the hover area only the card itself (after a drag, the card now in the old place showed enlarged as if I were still hovering there).
+
+**What changed** (`shared/hand-sort.mjs`, `hand-layout.mjs`, `zones.mjs` `reorderHand`, `scripts/test-hand.mjs`; `frontend/src/hand-view.js`, `board-drag.js`, `style.css`, `solo.js`, `table.js`, `scripts/check-solo-ui.mjs`, `check-table-layout.mjs`)
+- **Logic only so far for the sorts:** `sortHand` sorts a copy for display (color, then type in my order, then cost), and the stored hand order, which is my own arrangement, is never changed by a sort. No buttons or Settings pills yet.
+- **The fan:** each card gets three numbers (across, down, turn) and the mana cost sits above it. Dragging a card out of the hand opens a gap where it would go back and the neighbours lean away; letting go puts it there.
+- **No box:** the hand section has no border or background and floats over the bottom of my own board, which now reaches the bottom of the window. Only the cards take the mouse. The hand is 50% taller. A card carried from the battlefield only goes back into the hand when the pointer is over a card of the hand (what is under the pointer is asked of the page), so the rest of the bottom stays battlefield; a card carried within the hand uses the width the cards cover, so the gap does not flicker.
+- **Hover:** a card's own resting box is what answers to the pointer. The lift is drawn on its picture and cost, so the box never moves or grows and a lifted card does not cover its neighbour.
+
+**What I checked:** hand logic 61, solo check 456 (7 clean runs in a row after the fixes below), layout 405, lobby 65, deck 273, live lobby and table 172, all quick suites; screenshots of the solo table with 5 cards and of the worst case (three opponents, 1366 by 650). Not checked: phone width, and how it feels to use.
+
+**What I did not do:** the three sort buttons, the Settings pills for the type order, their saving in the browser, and what a drag does while a sort is on (my plan: dragging is off while a sort is on, with a note). Auto-arrange puts lands at the bottom-left, so a wide hand covers them; with three opponents the hand covers more than half of my board.
+
+**My mistakes this round:** the solo check failed about half the time after the fan went in and I spent most of the session on it. The cause was mine: the hand set an inline z-index on its cards, and a card played to the battlefield is the same element, so it kept that number and the wrong card was on top. My first instrumentation changed the timing and hid the failure, a 120 second limit I put on a loop killed every run and gave no output, and an extra waiting step in the drag helper did not help. What found it was dumping the board after a failure. A `sed` command also put a stray backtick at the start of every line of `hand-sort.mjs`. Two of my new hand checks were wrong (one needed a spell in a random deal, one nudged a card further than half a card). After the box change one reorder check failed once and passed in the next seven runs; I do not know why. My first drop zone for "back into the hand" was the whole box of the hand at full height, which on a short board (four players) covered much of the battlefield, so the live two-browser check showed Alice's card going into her hand instead of moving; I changed it to "over a card of the hand". The live check's drop point also has to be clear of the hand now. The first margin I made for the fan was fixed in pixels and clipped the first card once the hand was bigger, which a screenshot showed.
+
+---
+
 ## Where AI misread me, or I had to correct course
+- (2026-11-11, entry 147) Claude's hand code left a stacking number on a card that was then played to the battlefield, which made the solo check fail at random for hours; it first guessed at timing instead of looking at the board after a failure.
 - (2026-11-10, entry 132) Claude kept committing and pushing to the development branch in turns where I had only asked for a change, after I had asked for it once; my rule is to do it only when asked.
 - (2026-11-10, entry 122) Claude's first deck page started a library it could not read at the box to paste into, hiding the message about it; the old check noticed.
 - (2026-11-10, entry 120) Claude's solo check clicked a fixed empty spot that stopped being empty once the graveyard stack moved there, and the failure first looked like a menu bug; a screenshot at the moment of the failure showed the open viewer.

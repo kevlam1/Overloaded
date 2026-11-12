@@ -348,7 +348,7 @@ dialog h2 { margin-top: 0; }
    the bottom and one column on the right. Card sizes follow the window height so everything fits; a card is read by hovering it (src/card-hover.js). ---- */
 body.playing { --cw-mine: clamp(2.6rem, 8.4vh, 6.2rem); --cw-opp: clamp(2.2rem, 6vh, 4.6rem); --cw-hand: clamp(3rem, 10.5vh, 6.6rem); height: 100vh; height: 100dvh; overflow: hidden; display: flex; flex-direction: column; font-size: 14px; line-height: 1.3; }
 body.playing main.table { flex: 1 1 auto; min-height: 0; max-width: none; margin: 0; padding: 0.35rem 0.5rem 0; display: grid; gap: 0.35rem;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 17rem; grid-template-rows: auto auto minmax(0, 1fr) minmax(0, 1fr) auto; }
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 17rem; grid-template-rows: auto auto minmax(0, 1fr) minmax(0, 1fr); }
 body.playing #game, body.playing #opponents, body.playing #opponent-list { display: contents; }
 body.playing h1 { margin: 0; font-size: 1.05rem; }
 body.playing h2 { margin: 0 0 0.2rem; font-size: 0.85rem; }
@@ -408,7 +408,10 @@ body.playing .card .marks .ptbox .pt, body.playing .opponent .card .marks .ptbox
 body.playing .card .fallback { font-size: 0.55rem; padding: 0.15rem; }
 
 /* your hand: along the bottom, one line, scrolling sideways inside itself if it is long */
-body.playing .hand-section { grid-column: 1 / 3; grid-row: 5; min-width: 0; --cw: var(--cw-hand); }
+/* The hand has no box: it floats over the bottom of your battlefield (the same grid cell as your board, at its bottom edge). Only the cards take the mouse; everything between them is the battlefield. */
+body.playing .hand-section { grid-column: 1 / 3; grid-row: 4; align-self: end; position: relative; z-index: 5; min-width: 0; margin: 0; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; pointer-events: none; --cw: var(--cw-hand); }
+body.playing main[data-opponents="3"] .hand-section { grid-column: 1; }
+body.playing .hand-section h2 { position: absolute; left: 0.5rem; bottom: 0.2rem; margin: 0; font-size: 0.7rem; line-height: 1; opacity: 0.8; text-shadow: 0 1px 2px var(--bg); pointer-events: none; }
 body.playing #hand { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; min-height: 0; padding-bottom: 0.15rem; gap: 0.3rem; }
 
 /* the right-hand column: who is at the table (and the sound and match buttons) above, your counters, the selected card and your piles below; each scrolls inside itself */
@@ -450,7 +453,7 @@ body.playing .card-corner .spot-empty[hidden], body.playing .card-corner .spot-t
    (Where container units are not supported the window-height sizes above stay.) */
 @supports (height: 1cqh) {
   body.playing .board .row, body.playing .opponent .row, body.playing #hand { container-type: size; }
-  body.playing #hand { height: clamp(4.4rem, 15.5vh, 9.5rem); }
+  body.playing #hand { height: clamp(6.6rem, 23.25vh, 14.25rem); } /* 50% taller than the old boxed hand (clamp(4.4rem, 15.5vh, 9.5rem)), Kevin 2026-11-11 */
   body.playing .board .row > .card, body.playing .opponent .row > .card, body.playing #hand > .card { height: calc(100cqh - 4px); width: calc((100cqh - 4px) / 1.4015); }
   body.playing .board .row > .card.tapped, body.playing .opponent .row > .card.tapped, body.playing #hand > .card.tapped { width: calc(100cqh - 4px); }
   body.playing .board .row > .card .face, body.playing .opponent .row > .card .face, body.playing #hand > .card .face { width: calc((100cqh - 4px) / 1.4015); height: calc(100cqh - 4px); }
@@ -674,7 +677,9 @@ body .battlefield > .card.tapped[data-stack-depth="3"] { translate: 0 calc(var(-
 /* the outline of a tapped card being dragged is a landscape card: 11 cells wide and 8 tall, on the bottom line of its block */
 .battlefield > .cell-highlight[data-tapped] { grid-column-end: span 11; grid-row-end: span 8; }
 /* the hand while a card from the battlefield is held over it */
-body.dragging-card #hand-section.drop-hand, body.dragging-card .hand-section.drop-hand { outline: 2px dashed var(--ring); outline-offset: -2px; background: color-mix(in srgb, var(--ring) 10%, transparent); }
+body.playing #hand:empty::after { content: ''; position: absolute; left: var(--zl, 0px); width: var(--zw, 0px); top: 0; bottom: 0; border: 2px dashed var(--ring); border-radius: 0.5rem; background: color-mix(in srgb, var(--ring) 10%, transparent); opacity: 0; pointer-events: none; }
+body.dragging-card .hand-section.drop-hand #hand:empty::after { opacity: 1; }
+body.dragging-card .hand-section.drop-hand #hand > .card { outline: 2px dashed var(--ring); outline-offset: 2px; }
 /* the corner handle of a pile: a small triangle at the top-left of the top card; dragging it (or Shift and drag on any card of the pile) carries the whole pile */
 .card .stack-handle { position: absolute; left: 0; top: 0; width: 0; height: 0; border-style: solid; border-width: 0.9rem 0.9rem 0 0; border-color: var(--accent) transparent transparent transparent; cursor: grab; z-index: 2; }
 body.playing .card .stack-handle { border-width: 0.8rem 0.8rem 0 0; }
@@ -1083,15 +1088,22 @@ body.playing .side-panels .pile-stack { padding: 0 0 1.9rem; }
    under the pointer, quickly. The mana cost of each card is a row of symbols above it. The hand does not scroll sideways: too many cards overlap evenly. */
 body.playing #hand { position: relative; display: block; box-sizing: border-box; overflow: visible; padding-top: 1.25rem; }
 body.playing #hand > .card { position: absolute; left: 0; bottom: 0.8rem; z-index: var(--hz, auto); transform-origin: 50% 140%; transform: translate(var(--hx, 0px), var(--hy, 0px)) rotate(var(--ha, 0deg)); transition: transform 110ms ease-out; }
-body.playing #hand > .card:hover:not(.dragging) { transform: translate(var(--hx, 0px), calc(var(--hy, 0px) - 2.4rem)) rotate(0deg) scale(1.12); z-index: 90 !important; }
+/* What takes the mouse is the card's own resting place: its children let the pointer through, and the lift under the pointer is drawn on the picture and the cost, not on the card, so the
+   place that answers to the pointer never moves or grows (a lifted card used to cover its neighbours and kept answering after the cards were rearranged). */
+body.playing #hand > .card { pointer-events: auto; }
+body.playing #hand > .card > * { pointer-events: none; }
+body.playing #hand > .card .face, body.playing #hand > .card .hand-cost { transition: transform 110ms ease-out; }
+body.playing #hand > .card .face { transform-origin: 50% 140%; }
+body.playing #hand > .card:hover:not(.dragging) { z-index: 90 !important; }
+body.playing #hand > .card:hover:not(.dragging) .face, body.playing #hand > .card:hover:not(.dragging) .hand-cost { transform: rotate(calc(var(--ha, 0deg) * -1)) translateY(-2.4rem) scale(1.12); }
 body.playing #hand > .card.dragging { visibility: hidden; }
-body.playing #hand > .card .hand-cost { position: absolute; left: 50%; bottom: 100%; display: flex; justify-content: center; margin-bottom: 0.15rem; transform: translateX(-50%); pointer-events: none; white-space: nowrap; }
+body.playing #hand > .card .hand-cost { position: absolute; left: 0; right: 0; bottom: 100%; display: flex; justify-content: center; margin-bottom: 0.15rem; transform-origin: 50% calc(100% + 0.15rem + 1.4 * var(--ch, 6rem)); pointer-events: none; white-space: nowrap; }
 body.playing #hand > .card .hand-cost .cost { margin: 0; gap: 1px; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.6)); }
 body.playing #hand > .card .hand-cost .pip, body.playing #hand > .card .hand-cost img { width: 1rem; height: 1rem; }
-@media (prefers-reduced-motion: reduce) { body.playing #hand > .card { transition: none; } }
+@media (prefers-reduced-motion: reduce) { body.playing #hand > .card, body.playing #hand > .card .face, body.playing #hand > .card .hand-cost { transition: none; } }
 
 /* The cards of the hand are a little smaller than the box so the arc and the turn of the outer cards stay inside it. */
 @supports (height: 1cqh) {
-  body.playing #hand > .card { height: calc(100cqh - 0.8rem); width: calc((100cqh - 0.8rem) / 1.4015); }
+  body.playing #hand > .card { --ch: calc(100cqh - 0.8rem); height: var(--ch); width: calc(var(--ch) / 1.4015); }
   body.playing #hand > .card .face, body.playing #hand > .card:not(.tapped) .face { width: 100%; height: 100%; }
 }
