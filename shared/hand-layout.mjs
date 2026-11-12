@@ -1,18 +1,22 @@
 // Where the cards of your hand go (Kevin, 2026-11-11): a fan, like an arena hand, but snappy like the white-cards reference. Plain numbers in and out, no browser code, so Node tests can
-// load it (scripts/test-hand-layout.mjs); frontend/src/hand-view.js puts the numbers on the cards.
+// load it (scripts/test-hand.mjs); frontend/src/hand-view.js puts the numbers on the cards.
 //
 //   - The cards sit next to each other, edge to edge up to 6 cards; from 7 they overlap like a real hand (the whole row only grows slowly with each card), and when even that is too wide
 //     for the room they overlap more, evenly. The row is centred.
 //   - Each card is turned a little, more toward the ends (a few degrees, fewer with a few cards), and the ends sit a little lower than the middle, so the row is a shallow arc.
-//   - While a card of the hand is dragged a gap opens at the place it would go back to, and the cards next to the gap lean away from it, most for the nearest (as in the reference video).
+//   - While a card of the hand is carried, the PLACES DO NOT CHANGE: the hand keeps as many places as it has cards (the carried card's own place counts), so nothing moves under the pointer when
+//     the decision changes. The carried card is over one of those places (the hole); the other cards take the remaining places in order, and the ones beside the hole lean a little away from it.
+//     Which place the carried card is over is decided from the pointer against the middles of the fixed places, with a dead zone so that a pointer resting on the line between two places
+//     does not flip between them (the cause of the jitter an earlier version had, which opened a gap by re-laying out a row with one more place and decided against a different row).
 // Positions are the card's left edge (x), how far it is dropped (y, pixels down) and its turn (angle, degrees, clockwise), for a card of cardWidth by cardHeight in a row width wide.
 
 const clamp = (value, low, high) => Math.min(high, Math.max(low, value));
 export const MAX_ANGLE = 6; // the turn of the outermost card of a full hand, degrees
-export const GAP_TILT = 12; // how far the card beside the gap leans away from it, degrees
-export const GAP_REACH = 3; // how many cards on each side of the gap lean
+export const GAP_TILT = 7; // how far the card beside the hole leans away from it, degrees
+export const GAP_REACH = 2; // how many cards on each side of the hole lean
 export const EDGE_TO_EDGE = 6; // up to this many cards the hand is edge to edge (when there is room); from one more it overlaps
 export const OVERLAP_GROWTH = 0.4; // each card past that adds this fraction of a card's width to the row (a hand of 10 is 7.6 cards wide, not 10)
+export const HOLE_DEAD_ZONE = 0.25; // the pointer must be this fraction of a step past the middle of the next place before the hole moves there
 
 // The distance from one card's left edge to the next's. Up to EDGE_TO_EDGE cards it is a card wide; with more the row is (EDGE_TO_EDGE + OVERLAP_GROWTH per extra card) cards wide, so the cards overlap;
 // and it is squeezed further if even that does not fit slots cards in width. (Continuous at the change: 6 cards is a step of one card, 7 cards a little less.)
@@ -22,38 +26,55 @@ export function cardStep({ slots, width, cardWidth }) {
   return Math.max(0, Math.min(natural, (width - cardWidth) / (slots - 1)));
 }
 
-// count: how many cards are in the row (not counting a card being dragged). gap: null, or the index (0 to count) of the place a dragged card would go: the row then has count + 1 places and
-// the cards after the gap move up by one. Returns { step, slots: [{ x, y, angle }] } with one entry per card, in order.
-export function handLayout({ count, width, cardWidth, cardHeight, gap = null }) {
+const round2 = (value) => Math.round(value * 100) / 100;
+
+// The places of a hand of `count` cards: { step, slots: [{ x, y, angle }] }, one per card, left to right.
+export function handLayout({ count, width, cardWidth, cardHeight }) {
   const n = Number.isInteger(count) && count > 0 ? count : 0;
-  const hasGap = Number.isInteger(gap) && n >= 0;
-  const gapAt = hasGap ? clamp(gap, 0, n) : null;
-  const slots = n + (hasGap ? 1 : 0);
-  const step = cardStep({ slots, width, cardWidth });
-  const rowWidth = slots > 0 ? cardWidth + step * (slots - 1) : 0;
+  const step = cardStep({ slots: n, width, cardWidth });
+  const rowWidth = n > 0 ? cardWidth + step * (n - 1) : 0;
   const startX = (width - rowWidth) / 2;
-  const fan = clamp(slots / 7, 0.25, 1); // a few cards hardly fan, a full hand fans fully
+  const fan = clamp(n / 7, 0.25, 1); // a few cards hardly fan, a full hand fans fully
   const out = [];
   for (let k = 0; k < n; k++) {
-    const slot = gapAt !== null && k >= gapAt ? k + 1 : k;
-    const t = slots > 1 ? (slot - (slots - 1) / 2) / ((slots - 1) / 2) : 0; // -1 at the left end, 1 at the right end
-    let angle = t * MAX_ANGLE * fan;
-    if (gapAt !== null) {
-      const distance = Math.abs(slot - gapAt);
-      if (distance <= GAP_REACH) angle += (slot < gapAt ? -1 : 1) * GAP_TILT * (1 - (distance - 1) / GAP_REACH) * (distance >= 1 ? 1 : 0);
-    }
-    out.push({ x: Math.round((startX + slot * step) * 100) / 100, y: Math.round(t * t * cardHeight * 0.05 * fan * 100) / 100, angle: Math.round(angle * 100) / 100 });
+    const t = n > 1 ? (k - (n - 1) / 2) / ((n - 1) / 2) : 0; // -1 at the left end, 1 at the right end
+    out.push({ x: round2(startX + k * step), y: round2(t * t * cardHeight * 0.05 * fan), angle: round2(t * MAX_ANGLE * fan) });
   }
   return { step, slots: out };
 }
 
-// Which place in the row (0 to count) a card let go at pointer x would take: the number of cards whose middle is to the left of x. count is the number of cards in the row WITHOUT the dragged one.
-export function insertionIndex({ count, width, cardWidth, x }) {
-  const n = Number.isInteger(count) && count > 0 ? count : 0;
-  if (n === 0) return 0;
+// The places for the OTHER cards while one card of a hand of `total` is carried and is over place `hole` (0 to total - 1): total - 1 entries, in order. Card k takes place k if it is before the hole and
+// k + 1 after it, so the places are exactly those of the whole hand; the cards within GAP_REACH places of the hole lean away from it, most for the nearest.
+export function layoutAround({ total, width, cardWidth, cardHeight, hole }) {
+  const all = handLayout({ count: total, width, cardWidth, cardHeight });
+  const holeAt = clamp(Number.isInteger(hole) ? hole : 0, 0, Math.max(0, total - 1));
+  const out = [];
+  for (let k = 0; k < total - 1; k++) {
+    const slot = k >= holeAt ? k + 1 : k;
+    const place = all.slots[slot];
+    const distance = Math.abs(slot - holeAt);
+    const lean = distance >= 1 && distance <= GAP_REACH ? (slot < holeAt ? -1 : 1) * GAP_TILT * (1 - (distance - 1) / GAP_REACH) : 0;
+    out.push({ x: place.x, y: place.y, angle: round2(place.angle + lean) });
+  }
+  return { step: all.step, slots: out };
+}
+
+// Which place (0 to total - 1) of a hand of `total` cards the carried card is over, for a pointer at x (in the row's coordinates). It is the place whose middle is nearest, but the hole only
+// leaves `previous` when the pointer is HOLE_DEAD_ZONE of a step beyond the middle of the next place, so a pointer on the line between two places does not make it flip back and forth.
+export function holeAt({ total, width, cardWidth, x, previous = null, deadZone = HOLE_DEAD_ZONE }) {
+  const n = Number.isInteger(total) && total > 0 ? total : 0;
+  if (n <= 1) return 0;
   const step = cardStep({ slots: n, width, cardWidth });
   const startX = (width - (cardWidth + step * (n - 1))) / 2;
-  let index = 0;
-  for (let k = 0; k < n; k++) if (x > startX + k * step + cardWidth / 2) index = k + 1;
-  return index;
+  const middle = (k) => startX + k * step + cardWidth / 2;
+  const nearest = () => {
+    let best = 0;
+    for (let k = 1; k < n; k++) if (Math.abs(x - middle(k)) < Math.abs(x - middle(best))) best = k;
+    return best;
+  };
+  if (!Number.isInteger(previous) || previous < 0 || previous >= n) return nearest();
+  // stay on `previous` while the pointer is within (half a step + the dead zone) of its middle
+  const reach = step * (0.5 + deadZone);
+  if (Math.abs(x - middle(previous)) <= reach) return previous;
+  return nearest();
 }

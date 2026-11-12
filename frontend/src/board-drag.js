@@ -10,6 +10,14 @@ export const DRAG_DISTANCE_PX = 6;
 // hand (optional): () => the element of your hand; a card from the battlefield let go over it is reported to onDropHand({ uid, from }) (back into the hand), and the hand is marked while one is over it.
 // A card of the hand dragged within the hand rearranges it: while it is over the hand onHandOver({ uid, x }) is called with the pointer's x (and with null when it leaves or the drag ends), and on
 // letting go onReorderHand({ uid, x }) says where it was let go.
+// The picture of a card carried out of the HAND does not stick to the pointer: it follows it with a little lag (every instant it closes a share of the distance, so it eases and never jerks) and
+// leans with the lag, so it swings as it is moved. It starts from where the card was, at the card's own turn. Under prefers-reduced-motion it is exactly under the pointer. (A card of the
+// battlefield is exactly under the pointer: its place is read off the pointer.)
+const FOLLOW_RATE = 30; // per second
+const LEAN_RATE = 14; // per second
+const LEAN_PER_PIXEL = 0.35; // degrees of lean for each pixel the picture is behind the pointer
+const MAX_LEAN = 18; // degrees
+
 export function mountBoardDrag({ doc = document, board, onDrop, hand = () => null, onDropHand = () => {}, onHandOver = () => {}, onReorderHand = () => {}, handZone = () => null, handHit = null, isEnabled = () => true }) {
   let press = null; // the card the pointer went down on, before it has moved far enough to be a drag
   let drag = null; // { button, uid, from, ghost, highlight, cell }
@@ -26,6 +34,7 @@ export function mountBoardDrag({ doc = document, board, onDrop, hand = () => nul
   const clean = () => {
     if (drag) {
       if (drag.from === 'hand') onHandOver(null);
+      if (drag.smooth?.frame) cancelAnimationFrame(drag.smooth.frame);
       drag.ghost.remove();
       hand()?.classList.remove('drop-hand');
       drag.highlight.remove();
@@ -66,12 +75,37 @@ export function mountBoardDrag({ doc = document, board, onDrop, hand = () => nul
     const grab = { x: Math.min(1, Math.max(0, (press.x - rect.left) / (rect.width || 1))), y: Math.min(1, Math.max(0, (press.y - rect.top) / (rect.height || 1))) }; // where on the card it was taken, as fractions
     if (press.whole) ghost.dataset.count = press.button.dataset.stackSize; // the picture says how many cards it carries
     drag = { carried, button: press.button, uid: press.uid, from: press.from, whole: press.whole, tapped, ghost, highlight, cell: null, overHand: false, width, height, grab, startX: press.x, startY: press.y, start: press.start };
+    if (press.from === 'hand' && !(typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches)) {
+      // from where the card is (the middle of its box on screen is where its middle is, whatever its turn), at its own turn
+      const turn = parseFloat(press.button.style.getPropertyValue('--ha')) || 0;
+      const x = rect.left + rect.width / 2 - width / 2;
+      const y = rect.top + rect.height / 2 - height / 2;
+      drag.smooth = { x, y, a: turn, tx: x, ty: y, frame: 0, last: performance.now() };
+      ghost.style.transform = `translate(${x}px, ${y}px) rotate(${turn}deg)`;
+      drag.smooth.frame = requestAnimationFrame(followPointer);
+    }
     press = null;
   };
 
+  // one step of the picture of a carried card of the hand toward the pointer
+  function followPointer(now) {
+    const s = drag?.smooth;
+    if (!s) return;
+    const dt = Math.min(0.05, Math.max(0, (now - s.last) / 1000));
+    s.last = now;
+    const lag = s.tx - s.x;
+    s.x += lag * (1 - Math.exp(-FOLLOW_RATE * dt));
+    s.y += (s.ty - s.y) * (1 - Math.exp(-FOLLOW_RATE * dt));
+    const lean = Math.max(-MAX_LEAN, Math.min(MAX_LEAN, lag * LEAN_PER_PIXEL));
+    s.a += (lean - s.a) * (1 - Math.exp(-LEAN_RATE * dt));
+    drag.ghost.style.transform = `translate(${s.x}px, ${s.y}px) rotate(${s.a}deg)`;
+    s.frame = requestAnimationFrame(followPointer);
+  }
+
   const update = (event) => {
     const x = event.clientX; const y = event.clientY;
-    drag.ghost.style.transform = `translate(${Math.round(x - drag.width * drag.grab.x)}px, ${Math.round(y - drag.height * drag.grab.y)}px)`; // the card is held where it was taken
+    if (drag.smooth) { drag.smooth.tx = x - drag.width * drag.grab.x; drag.smooth.ty = y - drag.height * drag.grab.y; } // (the picture follows these)
+    else drag.ghost.style.transform = `translate(${Math.round(x - drag.width * drag.grab.x)}px, ${Math.round(y - drag.height * drag.grab.y)}px)`; // the card is held where it was taken
     const boardElement = board();
     const rect = boardElement ? boardElement.getBoundingClientRect() : null;
     // a card from the battlefield moves by as many cells as the pointer has moved; a card from the hand is put with the pointer in the middle of it. Outside the board there is no place.
@@ -85,7 +119,7 @@ export function mountBoardDrag({ doc = document, board, onDrop, hand = () => nul
     const over = drag.from === 'battlefield' && handHit ? handHit(x, y) : inZone;
     drag.overHand = (drag.from === 'hand' || (drag.from === 'battlefield' && !drag.whole)) && over;
     handElement?.classList.toggle('drop-hand', drag.overHand && drag.from === 'battlefield');
-    if (drag.from === 'hand') onHandOver(drag.overHand ? { uid: drag.uid, x } : null); // the hand opens a gap where the card would go back
+    if (drag.from === 'hand') onHandOver({ uid: drag.uid, x, over: drag.overHand }); // the hand shows where the card would go back (over), or closes up when the card is away from it
     // a tapped card is a landscape card, 11 cells wide, so it may not start in the last 3 columns of the board
     if (cell && drag.tapped) cell.col = Math.min(cell.col, BOARD_COLS - CARD_ROWS);
     drag.cell = drag.overHand ? null : cell;
@@ -125,9 +159,10 @@ export function mountBoardDrag({ doc = document, board, onDrop, hand = () => nul
     update(event);
     const { uid, from, cell, overHand, whole } = drag;
     const x = event.clientX;
+    const picture = drag.smooth ? { x: drag.smooth.x, y: drag.smooth.y, angle: drag.smooth.a } : null; // where the picture is as it is let go: the card starts there
     clean();
     swallowClick();
-    if (overHand && from === 'hand') onReorderHand({ uid, x });
+    if (overHand && from === 'hand') onReorderHand({ uid, x, picture });
     else if (overHand) onDropHand({ uid, from });
     else if (cell) onDrop({ uid, from, col: cell.col, row: cell.row, whole });
   };

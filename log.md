@@ -3043,7 +3043,32 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 149. A smooth hand: cards ease to their places, the places stay still while a card is carried (2026-11-11)
+
+**What I asked for**
+- Remove the weird animation when I move a card in my hand: when I drop it somewhere else another animation shows the cards moving. Study how Balatro does it (very smooth, not jittery; I gave the Balatro-Feel repository) and take inspiration. The hand also jitters massively when I move a card toward the end of the hand.
+
+**What I found** (Claude read the repository's source: `Card.cs`, `CardVisual.cs`, `HorizontalCardHolder.cs`, through a helper; it could not read the scenes or prefabs, so the numbers are the code's defaults)
+- There is no spring and no style-sheet-like tween on the hand. Every card has a logical place and a separate visual that chases it by a per-frame lerp; the carried card follows the pointer and leans with how far it lags; the other cards are told their new place at once and glide because their visuals chase it; a let-go card tweens back in 0.15 s. The reorder is decided by comparing the carried card with the places, with no dead zone.
+- **My jitter had a clear cause.** While a card was carried I opened a gap by laying out a row with one more place (which re-centred the whole row and moved every place), but decided where the card would go against a row without it. Near the end of the hand the line between two places moved under the pointer, so the decision flipped back and forth. The weird animation was a 110 ms style-sheet transition that restarted on every change, and a let-go card slid in from where it had been picked up.
+
+**What changed** (`shared/hand-layout.mjs`, `frontend/src/hand-view.js`, `board-drag.js`, `style.css`, `solo.js`, `table.js`, `scripts/test-hand.mjs`, `check-solo-ui.mjs`)
+- **The places stay still while a card is carried.** The hand keeps as many places as it has cards; the carried card is over one of them (the hole), the other cards take the rest in order and the ones next to the hole lean 7 degrees away (was 12). Which place it is over is decided from the pointer against the middles of the places, with a dead zone (it only leaves a place when the pointer is 0.75 of a step from its middle), so a pointer on the line does not flip.
+- **One small animation loop instead of style-sheet transitions.** Each card eases toward its place by the same share of the remaining distance every instant (24 per second, whatever the frame rate), so a change of target bends the path and nothing restarts. Raising and lowering the hand is part of the same numbers. Under reduced motion cards go straight to their places.
+- **A let-go card starts where its picture was** and eases into its place, so it no longer flies in from where it was picked up.
+- **The carried picture follows with a lag and leans with it** (hand cards only; a card from the battlefield stays exactly under the pointer, as the grid needs).
+- **The edge of the hand's area no longer flickers.** Coming into the area acts at once, but leaving (the hand lowering, or the others closing up around a carried card) only takes effect after the pointer has stayed out for 150 ms. The area itself is taken from the layout of the whole hand, not from where the cards are going: it had been shrinking and growing under the pointer.
+
+**What I checked:** hand logic 74 (including a pointer shaking around a line changing the hole at most once, and the places being exactly those of the whole hand whichever place the hole is at); solo check 488, several clean runs, with new checks that run with the normal animation on: the hand rises and lowers gradually, in one direction, without overshoot; carrying a card to the end with a shaky hand and then wobbling in and out over the edge of the area 60 times makes no card move back and forth; a slow wobble on the line between two places does not flip the hole; a let-go card starts within 8 pixels of where its picture was; the picture leans while it is moved and is straight when still; under reduced motion the numbers are final at once. Four deliberately broken copies (no dead zone, no leave delay, a card not starting from its picture, instant easing) are all caught. Live check 173, layout, lobby and deck checks, and the quick suites. Not checked: how it feels (I have only measured it), touch, and phones.
+
+**What I did not do:** the sort buttons and the type-order pills (still next), a spring with overshoot on release (Balatro's tween overshoots a little; mine eases without bounce on purpose), sounds, and the same easing for cards on the battlefield.
+
+**My mistakes this round:** my first version of the dead-zone test used a shake too fast for the cards to show it (they flip several times a frame), so a broken copy survived until I added a slow wobble. My first test for jitter counted reversals by position in the document, but a let-go card is moved in the document, which made cards look like they reversed; it now counts by card. My first test window started recording before the raise had finished easing and counted its tail as a movement. The area of the hand shrank when the others closed up around a carried card, which a live check of a drop at the end of the hand showed me; it had to come from the whole hand's layout. I also first put the carried picture's end point outside the area of the hand and wondered why nothing was reordered.
+
+---
+
 ## Where AI misread me, or I had to correct course
+- (2026-11-11, entry 149) Claude's first fix for the hand opened a gap by laying out an extra place and decided the drop against a different row, which is what made it jitter near the end; the style-sheet transition it used for movement also restarted on every change.
 - (2026-11-11, entry 148) Claude made the hovered hand card win the pointer by raising its stacking number, which is the cause of the "hovering over the left" complaint, and it only found this while testing a 12-card hand; its first overlap test pressed the middle of cards that were covered.
 - (2026-11-11, entry 147) Claude's hand code left a stacking number on a card that was then played to the battlefield, which made the solo check fail at random for hours; it first guessed at timing instead of looking at the board after a failure.
 - (2026-11-10, entry 132) Claude kept committing and pushing to the development branch in turns where I had only asked for a change, after I had asked for it once; my rule is to do it only when asked.

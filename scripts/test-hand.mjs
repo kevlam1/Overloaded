@@ -1,6 +1,6 @@
-// Tests for the hand: shared/hand-sort.mjs (the three sorts, the type order), shared/hand-layout.mjs (the fan and the gap) and reorderHand in shared/zones.mjs.
+// Tests for the hand: shared/hand-sort.mjs (the three sorts, the type order), shared/hand-layout.mjs (the fan, the places while a card is carried, and which place the carried card is over) and reorderHand in shared/zones.mjs.
 import { SORT_KEYS, TYPE_KEYS, DEFAULT_TYPE_ORDER, noSorts, anySortOn, cleanSorts, nextSortState, sortWords, normalizeTypeOrder, moveType, sortKeysOf, sortHand } from '../shared/hand-sort.mjs';
-import { handLayout, insertionIndex, cardStep, MAX_ANGLE } from '../shared/hand-layout.mjs';
+import { handLayout, layoutAround, holeAt, cardStep, MAX_ANGLE } from '../shared/hand-layout.mjs';
 import { reorderHand } from '../shared/zones.mjs';
 
 let checks = 0;
@@ -101,22 +101,36 @@ same('one card is straight and centred', handLayout({ count: 1, width: W, cardWi
 same('no cards, no slots', handLayout({ count: 0, width: W, cardWidth: CW, cardHeight: CH }).slots, []);
 const full = handLayout({ count: 20, width: W, cardWidth: CW, cardHeight: CH });
 check('twenty cards overlap evenly and still fit inside the width', full.slots[0].x >= -0.01 && full.slots[19].x + CW <= W + 0.01 && full.step < CW, JSON.stringify([full.slots[0], full.slots[19], full.step]));
-const gapped = handLayout({ count: 6, width: W, cardWidth: CW, cardHeight: CH, gap: 2 });
-same('a gap at 2 opens one empty place: the cards after it move up a place (across the gap two steps, elsewhere one)', [Math.round(gapped.slots[2].x - gapped.slots[1].x), Math.round(gapped.slots[1].x - gapped.slots[0].x), Math.round(gapped.slots[3].x - gapped.slots[2].x)], [Math.round(2 * gapped.step), Math.round(gapped.step), Math.round(gapped.step)]);
-const leanLeft = handLayout({ count: 6, width: W, cardWidth: CW, cardHeight: CH, gap: 3 });
-const base = handLayout({ count: 7, width: W, cardWidth: CW, cardHeight: CH }); // the same seven places with nobody dragged
-check('beside the gap a card leans 12 degrees away from it (left of it counter-clockwise, right of it clockwise), compared with the same places and no gap', Math.abs(leanLeft.slots[2].angle - (base.slots[2].angle - 12)) < 0.02 && Math.abs(leanLeft.slots[3].angle - (base.slots[4].angle + 12)) < 0.02, JSON.stringify([leanLeft.slots.map((s) => s.angle), base.slots.map((s) => s.angle)]));
-check('three places from the gap it leans a third as much, and four places away not at all', Math.abs(leanLeft.slots[0].angle - (base.slots[0].angle - 4)) < 0.02 && Math.abs(handLayout({ count: 7, width: W, cardWidth: CW, cardHeight: CH, gap: 4 }).slots[0].angle - handLayout({ count: 8, width: W, cardWidth: CW, cardHeight: CH }).slots[0].angle) < 0.02);
-same('a gap at the end or the start is allowed and a gap past the end is clamped', [handLayout({ count: 3, width: W, cardWidth: CW, cardHeight: CH, gap: 0 }).slots.length, handLayout({ count: 3, width: W, cardWidth: CW, cardHeight: CH, gap: 3 }).slots.length, handLayout({ count: 3, width: W, cardWidth: CW, cardHeight: CH, gap: 99 }).slots.map((s) => s.x).join()], [3, 3, handLayout({ count: 3, width: W, cardWidth: CW, cardHeight: CH, gap: 3 }).slots.map((s) => s.x).join()]);
-check('every number is finite, also for bad input', [handLayout({ count: -2, width: 0, cardWidth: 0, cardHeight: 0 }), handLayout({ count: 3, width: 10, cardWidth: 80, cardHeight: 100, gap: 1 })].every((l) => l.slots.every((s) => Number.isFinite(s.x) && Number.isFinite(s.y) && Number.isFinite(s.angle))));
+// ---- carrying a card: the places never change, only which place is the hole ----
+const base = handLayout({ count: 7, width: W, cardWidth: CW, cardHeight: CH });
+const around = (hole, total = 7) => layoutAround({ total, width: W, cardWidth: CW, cardHeight: CH, hole });
+same('with a card carried the other cards are one fewer', [around(0).slots.length, around(3).slots.length, around(6).slots.length], [6, 6, 6]);
+check('the places are exactly the places of the whole hand whichever place the hole is at (so nothing moves under the pointer when the hole moves)', [0, 1, 2, 3, 4, 5, 6].every((hole) => around(hole).slots.every((s, k) => s.x === base.slots[k >= hole ? k + 1 : k].x && s.y === base.slots[k >= hole ? k + 1 : k].y)), JSON.stringify(around(3).slots.map((s) => s.x)));
+check('the step does not change either', [0, 3, 6].every((hole) => around(hole).step === base.step));
+const lean3 = around(3);
+// the hole at place 3: the card before it (place 2) is card 2, the one after it (place 4) is card 3
+same('the card beside the hole leans 7 degrees away from it (left of it counter-clockwise, right of it clockwise)', [Math.round((lean3.slots[2].angle - base.slots[2].angle) * 100) / 100, Math.round((lean3.slots[3].angle - base.slots[4].angle) * 100) / 100], [-7, 7]);
+same('two places from the hole it leans half as much', [Math.round((lean3.slots[1].angle - base.slots[1].angle) * 100) / 100, Math.round((lean3.slots[4].angle - base.slots[5].angle) * 100) / 100], [-3.5, 3.5]);
+same('three places from the hole it does not lean', [lean3.slots[0].angle - base.slots[0].angle, lean3.slots[5].angle - base.slots[6].angle], [0, 0]);
+same('a hole at the start or the end is allowed, below 0 is the start and past the end is the end', [around(-5).slots.map((s) => s.x).join() === around(0).slots.map((s) => s.x).join(), around(99).slots.map((s) => s.x).join() === around(6).slots.map((s) => s.x).join()], [true, true]);
+same('a hand of one carried card has no other cards, and nothing has none', [layoutAround({ total: 1, width: W, cardWidth: CW, cardHeight: CH, hole: 0 }).slots, layoutAround({ total: 0, width: W, cardWidth: CW, cardHeight: CH, hole: 0 }).slots], [[], []]);
+check('every number is finite, also for bad input', [handLayout({ count: -2, width: 0, cardWidth: 0, cardHeight: 0 }), layoutAround({ total: 3, width: 10, cardWidth: 80, cardHeight: 100, hole: 1 }), layoutAround({ total: 3, width: 10, cardWidth: 80, cardHeight: 100, hole: 'x' })].every((l) => l.slots.every((s) => Number.isFinite(s.x) && Number.isFinite(s.y) && Number.isFinite(s.angle))));
 
-// ---- where a dragged card goes back ----
-const at = (x, count = 5) => insertionIndex({ count, width: W, cardWidth: CW, x });
-same('left of all the cards is place 0, right of all is the end', [at(0), at(W)], [0, 5]);
-same('with five cards (middles at 240, 320, 400, 480 and 560) a pointer at 330 has passed two of them: place 2', at(330), 2);
-same('the places come in order as the pointer moves right', [0, 200, 300, 400, 500, 600, 800].map((x) => at(x)).every((v, i, all) => i === 0 || v >= all[i - 1]), true);
-same('with nothing in the row the place is 0', insertionIndex({ count: 0, width: W, cardWidth: CW, x: 400 }), 0);
-same('the pointer on the middle of a card puts the dragged card after the ones whose middle it has passed', [at(360 - 1, 1), at(441, 1)], [0, 1]);
+// ---- which place the carried card is over ----
+const over = (x, previous = null, total = 5) => holeAt({ total, width: W, cardWidth: CW, x, previous });
+// five cards in 800: the step is 80, the row starts at 200, so the middles of the places are 240, 320, 400, 480 and 560
+same('left of all the places is place 0, right of all is the last', [over(0), over(W)], [0, 4]);
+same('the pointer is over the place whose middle is nearest', [over(240), over(330), over(361), over(450), over(530)], [0, 1, 2, 3, 4]);
+same('a hand of one or none has only place 0', [holeAt({ total: 1, width: W, cardWidth: CW, x: 700 }), holeAt({ total: 0, width: W, cardWidth: CW, x: 700 })], [0, 0]);
+same('moving right one pixel at a time, the place only ever goes up, and visits every place', (() => { let previous = null; const seen = []; for (let x = 0; x <= W; x++) { previous = over(x, previous); seen.push(previous); } return [seen.every((v, i) => i === 0 || v >= seen[i - 1]), [...new Set(seen)].join()]; })(), [true, '0,1,2,3,4']);
+same('moving left one pixel at a time, the place only ever goes down', (() => { let previous = 4; const seen = []; for (let x = W; x >= 0; x--) { previous = over(x, previous); seen.push(previous); } return seen.every((v, i) => i === 0 || v <= seen[i - 1]); })(), true);
+// the line between place 1 (middle 320) and place 2 (middle 400) is at 360; a hole that is on place 1 stays there until the pointer is more than 0.75 of a step (60) from its middle, that is a quarter of a step past the line
+same('the hole stays on place 1 a little past the line (370) when it was there, but a pointer that was never there is over place 2', [over(370, 1), over(370)], [1, 2]);
+same('...and leaves it once the pointer is a quarter of a step beyond the half way line (381)', [over(380, 1), over(381, 1)], [1, 2]);
+same('...and the same going back: a hole on place 2 stays at 350 and leaves at 339', [over(350, 2), over(339, 2)], [2, 1]);
+same('a pointer shaking 3 pixels either side of the line between two places changes the hole at most once', (() => { let previous = null; let changes = 0; let last = null; for (let i = 0; i < 200; i++) { previous = over(360 + (i % 2 ? 3 : -3), previous); if (last !== null && previous !== last) changes++; last = previous; } return changes <= 1; })(), true);
+same('an old place that does not exist is ignored', [over(240, 99), over(240, -1), over(240, 1.5)], [0, 0, 0]);
+
 
 // ---- rearranging the hand ----
 const game = { zones: { hand: [{ uid: 'a' }, { uid: 'b' }, { uid: 'c' }, { uid: 'd' }], library: [{ uid: 'z' }], battlefield: [], graveyard: [], exile: [], command: [], sideboard: [] } };

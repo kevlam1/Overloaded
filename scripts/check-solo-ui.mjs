@@ -610,6 +610,76 @@ try {
       await mouse('mouseReleased', start.x, start.y, 0); await sleep(250);
       check('carrying a card out of the hand lowers it, bringing it back raises it, and letting go in the place it came from changes nothing', out === false && back === true && (await handFacts()).uids.join() === same.uids.join(), JSON.stringify({ out, back }));
     }
+    // ---- how the hand MOVES (frontend/src/hand-view.js: every card eases toward its place, one frame at a time; board-drag.js: the carried picture follows with a lag and leans) ----
+    // These run with the normal animation (the rest of the check runs with reduced motion, where cards go straight to their places).
+    await motion('no-preference');
+    await mouse('mouseMoved', 5, 5); await sleep(500);
+    const xsOf = "[...document.querySelectorAll('#hand > .card')].map((c) => parseFloat(c.style.getPropertyValue('--hx')))";
+    const sampleFrames = (script, ms) => ev("new Promise((resolve) => { const out = []; const t0 = performance.now(); " + script + " const step = () => { out.push({ t: Math.round(performance.now() - t0), xs: " + xsOf + ", ys: [...document.querySelectorAll('#hand > .card')].map((c) => parseFloat(c.style.getPropertyValue('--hy'))), as: [...document.querySelectorAll('#hand > .card')].map((c) => parseFloat(c.style.getPropertyValue('--ha'))) }); if (performance.now() - t0 < " + ms + ") requestAnimationFrame(step); else resolve(out); }; requestAnimationFrame(step); })");
+    const reversals = (series) => { let count = 0; let last = 0; for (let i = 1; i < series.length; i++) { const d = series[i] - series[i - 1]; if (Math.abs(d) < 0.05) continue; const sign = Math.sign(d); if (last !== 0 && sign !== last) count++; last = sign; } return count; };
+    // 1. raising and lowering the hand: gradual, one way, no overshoot
+    const risePoint = await cardPoint(2);
+    const riseFrames = await sampleFrames("document.dispatchEvent(new PointerEvent('pointermove', { clientX: " + risePoint.x + ", clientY: " + risePoint.y + ", bubbles: true }));", 700);
+    const hy = riseFrames.map((frame) => frame.ys[2]);
+    check('the hand rises gradually, over several frames, in one direction, and ends at its place without overshooting', new Set(hy.map((v) => Math.round(v))).size >= 5 && reversals(hy) === 0 && hy[0] - hy.at(-1) > 20 && Math.abs(hy.at(-1) - Math.min(...hy)) < 0.1, JSON.stringify(hy.slice(0, 14)));
+    const fall = await sampleFrames("document.dispatchEvent(new PointerEvent('pointermove', { clientX: 5, clientY: 5, bubbles: true }));", 700);
+    const hyFall = fall.map((frame) => frame.ys[2]);
+    check('and goes down the same way', new Set(hyFall.map((v) => Math.round(v))).size >= 5 && reversals(hyFall) === 0 && hyFall.at(-1) - hyFall[0] > 20, JSON.stringify(hyFall.slice(0, 14)));
+    // 2. carrying a card toward the end of the hand with a shaky hand: no card moves back and forth (the jitter of an earlier version)
+    await mouse('mouseMoved', 5, 5); await sleep(300);
+    const beforeCarry = await handFacts();
+    const startAt = await cardPoint(0);
+    const area = await handBox();
+    await mouse('mouseMoved', startAt.x, startAt.y); await sleep(700); // (let the hand finish rising before recording: the tail of an ease is not a movement)
+    const startAt2 = await cardPoint(0);
+    await ev("window.__frames = []; window.__recording = true; (function loop() { if (!window.__recording) return; window.__frames.push(Object.fromEntries([...document.querySelectorAll('#hand > .card')].map((c) => [c.dataset.uid, [parseFloat(c.style.getPropertyValue('--hx')), parseFloat(c.style.getPropertyValue('--hy'))]]))); requestAnimationFrame(loop); })(); window.__release = null; window.addEventListener('pointerup', () => { window.__releaseFrame = window.__frames.length; const g = document.querySelector('.drag-ghost')?.getBoundingClientRect(); window.__release = g ? { x: g.left + g.width / 2, y: g.top + g.height / 2 } : null; requestAnimationFrame(() => { const card = document.querySelector('#hand > .card[data-uid=" + JSON.stringify(beforeCarry.uids[0]).slice(1, -1) + "]'); const r = card?.getBoundingClientRect(); window.__releaseCard = r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null; }); }, { capture: true, once: true });");
+    await mouse('mouseMoved', startAt2.x, startAt2.y); await mouse('mousePressed', startAt2.x, startAt2.y, 1);
+    const zoneRight = area.left + Math.max(...beforeCarry.xs) + beforeCarry.width * 1.5; // the area of the hand ends half a card past its last card
+    const endX = area.left + Math.max(...beforeCarry.xs) + beforeCarry.width * 0.5; // the middle of the last place
+    await ev("window.__angles = []; (function loop() { if (!window.__recording) return; const g = document.querySelector('.drag-ghost'); if (g) window.__angles.push(parseFloat((g.style.transform.match(/rotate\\((-?[\\d.]+)deg/) || [0, 0])[1])); requestAnimationFrame(loop); })();");
+    // first, hold the pointer ON the line between the first two places and wobble it 4 pixels either way, slowly (24 ms a step, the pace of a hand): the hole must not flip back and forth
+    const lineX = area.left + (beforeCarry.xs[0] + beforeCarry.xs[1]) / 2 + beforeCarry.width / 2;
+    await mouse('mouseMoved', lineX - 20, startAt2.y, 1); await sleep(100);
+    for (let i = 0; i < 30; i++) { await mouse('mouseMoved', lineX + (i % 2 ? 4 : -4), startAt2.y, 1); await sleep(24); }
+    let wiggle = 0;
+    for (let x = startAt2.x; x < endX; x += 2) { wiggle = wiggle === 3 ? -3 : 3; await mouse('mouseMoved', x + wiggle, startAt2.y, 1); }
+    await mouse('mouseMoved', endX, startAt2.y, 1); await sleep(300);
+    // then wobble across the edge of the area of the hand, at the end of it: a few pixels in and out, 60 times
+    for (let i = 0; i < 60; i++) await mouse('mouseMoved', zoneRight + (i % 2 ? 14 : -14), startAt2.y, 1);
+    const stillRaised = await ev("document.getElementById('hand').classList.contains('raised')");
+    await mouse('mouseMoved', endX, startAt2.y, 1); await sleep(500);
+    const leanStill = await ev("parseFloat((document.querySelector('.drag-ghost').style.transform.match(/rotate\\((-?[\\d.]+)deg/) || [0, 0])[1])");
+    const angles = await ev("window.__angles");
+    const leanMax = Math.max(...angles.map(Math.abs));
+    await mouse('mouseReleased', endX, startAt2.y, 0);
+    await sleep(700);
+    await ev("window.__recording = false");
+    const frames = await ev("window.__frames");
+    const releaseFrame = await ev("window.__releaseFrame");
+    const carriedUid = beforeCarry.uids[0];
+    // every card but the carried one, across and up and down, from the start of the recording to the moment of the let-go (by card: the let-go puts the card in the document in its new place)
+    const reversalCounts = beforeCarry.uids.filter((uid) => uid !== carriedUid).flatMap((uid) => [0, 1].map((axis) => reversals(frames.slice(0, releaseFrame).map((frame) => frame[uid][axis]))));
+    check('carrying a card to the end of the hand with a shaky hand (3 pixels either way), and wobbling in and out over the edge of the area of the hand 60 times, makes no card move back and forth, across or up and down: every card moves one way only, and the hand stays up', Math.max(...reversalCounts) === 0 && stillRaised, JSON.stringify({ reversalCounts, stillRaised }));
+    const settle = [0, 1].map((axis) => reversals(frames.slice(releaseFrame + 1).map((frame) => frame[carriedUid][axis])));
+    check('the card that was let go eases into its place in one direction (no bounce), and the others do not move at all after it', Math.max(...settle) === 0 && beforeCarry.uids.filter((uid) => uid !== carriedUid).every((uid) => reversals(frames.slice(releaseFrame).map((frame) => frame[uid][0])) === 0), JSON.stringify(settle));
+    const afterCarry = await handFacts();
+    check('...and the card is put at the end where it was carried, the others keep their order', afterCarry.uids.at(-1) === beforeCarry.uids[0] && afterCarry.uids.slice(0, -1).join() === beforeCarry.uids.slice(1).join(), JSON.stringify([beforeCarry.uids, afterCarry.uids]));
+    // 3. a card let go starts where its picture was, not where it was picked up
+    const release = await ev("window.__release");
+    const releaseCard = await ev("window.__releaseCard");
+    check('a card let go starts exactly where its picture was let go (within 8 pixels), and eases into its place from there', release && releaseCard && Math.abs(release.x - releaseCard.x) < 8 && Math.abs(release.y - releaseCard.y) < 8, JSON.stringify({ release, releaseCard }));
+    // 4. the carried picture leans while it is moved and straightens when it is still
+    check('the carried picture leans while it is moved quickly (more than 4 degrees at some frame) and is nearly straight when the pointer is still', leanMax > 4 && Math.abs(leanStill) < 2, JSON.stringify({ leanMax: Math.round(leanMax * 10) / 10, leanStill }));
+    // 5. under reduced motion the cards go straight to their places and the picture is exactly under the pointer
+    await motion('reduce');
+    await mouse('mouseMoved', 5, 5); await sleep(300);
+    const snapStart = await handFacts();
+    const snapPoint = await cardPoint(1);
+    const snap = await sampleFrames("document.dispatchEvent(new PointerEvent('pointermove', { clientX: " + snapPoint.x + ", clientY: " + snapPoint.y + ", bubbles: true }));", 120);
+    const snapHy = snap.map((frame) => frame.ys[1]);
+    check('with reduced motion the hand is raised at once: every frame has the final numbers', new Set(snapHy.map((v) => Math.round(v * 10))).size <= 2, JSON.stringify(snapHy.slice(0, 8)));
+    await mouse('mouseMoved', 5, 5); await sleep(200);
+    void snapStart;
     await mouse('mouseMoved', 5, 5);
     // the order is the game's: a refresh would deal a new game on the solo table, so what is checked here is that the page's own list changed (the hand count and the cards are the same)
     check('the same cards are in the hand afterwards (only the order changed)', [...after.uids].sort().join() === [...before.uids].sort().join());

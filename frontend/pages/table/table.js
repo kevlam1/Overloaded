@@ -820,14 +820,15 @@ function dropOnHand({ uid, from }) {
 }
 // Your hand as a fan: the page draws the cards, the hand view places them and shows their mana costs; a card of the hand dragged within it opens a gap and is put there when let go.
 const handView = mountHand({ container: $('hand'), costOf: (uid) => { const card = game?.zones.hand.find((c) => c.uid === uid); const known = card ? lookup?.(card) : null; return known?.m ?? ''; } });
-function reorderInHand({ uid, x }) {
+function reorderInHand({ uid, x, picture }) {
   if (!game || !game.zones.hand.some((c) => c.uid === uid)) return;
-  const to = handView.indexAt(x, uid);
+  const to = handView.holeFor(uid, x); // the place it was last shown over
+  handView.noteDrop(uid, picture); // the card starts from where its picture was let go and eases into its place
   const next = reorderHand(game, uid, to);
   if (next === game) { handView.arrange(); return; }
   apply(() => next, '');
 }
-mountBoardDrag({ board: () => $('battlefield'), onDrop: dropOnBoard, hand: () => $('hand-section'), onDropHand: dropOnHand, onHandOver: (over) => handView.showGap(over ? handView.indexAt(over.x, over.uid) : null, over ? over.uid : null), onReorderHand: reorderInHand, handZone: () => handView.zone(), handHit: (x, y) => handView.hit(x, y), isEnabled: () => Boolean(game) });
+mountBoardDrag({ board: () => $('battlefield'), onDrop: dropOnBoard, hand: () => $('hand-section'), onDropHand: dropOnHand, onHandOver: (over) => handView.carry(over), onReorderHand: reorderInHand, handZone: () => handView.zone(), handHit: (x, y) => handView.hit(x, y), isEnabled: () => Boolean(game) });
 
 $('mulligan').addEventListener('click', () => { if (game) doMulligan(); });
 // the life total is the number itself: click, right-click, Shift for 5, hold to set (src/life-control.js)

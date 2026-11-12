@@ -1087,7 +1087,7 @@ body.playing .side-panels .pile-stack { padding: 0 0 1.9rem; }
 /* The cards are placed by three numbers the page sets on each (--hx across, --hy down, --ha turned) and turn about a point below them, so the row is an arc. A card lifts and straightens
    under the pointer, quickly. The mana cost of each card is a row of symbols above it. The hand does not scroll sideways: too many cards overlap evenly. */
 body.playing #hand { position: relative; display: block; box-sizing: border-box; overflow: visible; padding-top: 1.25rem; }
-body.playing #hand > .card { position: absolute; left: 0; bottom: 1.4rem; z-index: var(--hz, auto); transform-origin: 50% 140%; transform: translate(var(--hx, 0px), calc(var(--hy, 0px) + var(--hdrop, 0px))) rotate(var(--ha, 0deg)); transition: transform 110ms ease-out; }
+body.playing #hand > .card { position: absolute; left: 0; bottom: 1.4rem; z-index: var(--hz, auto); transform-origin: 50% 140%; transform: translate(var(--hx, 0px), var(--hy, 0px)) rotate(var(--ha, 0deg)); } /* (no transition: hand-view.js moves the numbers every frame, easing them itself) */
 /* What takes the mouse is the card's own resting place, and it never changes: its children let the pointer through, and the card under the pointer is shown lifted by a COPY of it in its own layer
    (.hand-lift-layer, frontend/src/hand-view.js) that takes no mouse. The real card stays where it is and keeps its stacking, so the pointer is always over the card that shows there. */
 body.playing #hand > .card { pointer-events: auto; }
@@ -1131,7 +1131,7 @@ body.playing #hand > .card:not(.selected) { background: none; border-color: tran
 @keyframes life-hold { from { stroke-dashoffset: 69.1; } to { stroke-dashoffset: 0; } }
 @media (prefers-reduced-motion: reduce) { .life-ring.holding circle { animation: none; stroke-dashoffset: 0; } }
 
-/* The hand sits lowered (--hdrop, set by frontend/src/hand-view.js: a quarter of a card's height below its place) and rises while the pointer is in its area. */
+/* The hand sits lowered (a quarter of a card's height below its place, part of the numbers frontend/src/hand-view.js puts on each card) and rises while the pointer is in its area. */
 
 /* what is lowered below the bottom of the table area is cut off there (it must not make the page scroll) */
 body.playing main.table { overflow: clip; }
@@ -1143,8 +1143,8 @@ body.playing .hand-lift-layer { position: absolute; left: 0; right: 0; bottom: 0
   body.playing .hand-lift-layer > .card { --ch: calc(100cqh - 1.4rem); height: var(--ch); width: calc(var(--ch) / 1.4015); }
   body.playing .hand-lift-layer > .card .face, body.playing .hand-lift-layer > .card:not(.tapped) .face { width: 100%; height: 100%; }
 }
-body.playing .hand-lift-layer > .card { position: absolute; left: 0; bottom: 1.4rem; margin: 0; background: none; border-color: transparent; box-shadow: none; pointer-events: none; transform-origin: 50% 140%; transform: translate(var(--hx, 0px), calc(var(--hy, 0px) + var(--hdrop, 0px))) rotate(var(--ha, 0deg)); transition: transform 110ms ease-out; }
-body.playing .hand-lift-layer > .card.up { transform: translate(var(--hx, 0px), calc(var(--hy, 0px) + var(--hdrop, 0px) - 2.4rem)) rotate(0deg) scale(1.12); }
+body.playing .hand-lift-layer > .card { position: absolute; left: 0; bottom: 1.4rem; margin: 0; background: none; border-color: transparent; box-shadow: none; pointer-events: none; transform-origin: 50% 140%; transform: translate(var(--hx, 0px), var(--hy, 0px)) rotate(var(--ha, 0deg)); transition: transform 110ms ease-out; }
+body.playing .hand-lift-layer > .card.up { transform: translate(var(--hx, 0px), calc(var(--hy, 0px) - 2.4rem)) rotate(0deg) scale(1.12); }
 body.playing .hand-lift-layer > .card * { pointer-events: none; }
 body.playing .hand-lift-layer > .card .hand-cost { position: absolute; left: 0; right: 0; bottom: 100%; display: flex; justify-content: center; margin-bottom: 0.15rem; pointer-events: none; white-space: nowrap; }
 body.playing .hand-lift-layer > .card .hand-cost .cost { margin: 0; gap: 1px; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.6)); }
