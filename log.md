@@ -3169,6 +3169,20 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 155. Thin grid lines at every cell, no thick card-block lines (2026-11-12)
+
+**What I asked for**
+- The playable area has been readjusted many times. Drop the thicker lines (they only matched card sizes) and bring back the thin gridlines throughout the snap-to-grid pattern.
+
+**What changed** (`frontend/src/style.css`)
+- The battlefield background is now thin faint lines at every cell (112 by 44, the cells cards snap to). The card-block lines (14 by 4) are gone. The rule that last set the lines only listed the block size, so I set the cell size in the same rule.
+
+**What I checked:** the solo check passes (558) and a desktop screenshot shows the thin grid across the board. The solo check run with `--screenshot` stopped at "no menu item Move to" (the screenshot mode is a different flow); I did not look into it, so it is not known whether it was already broken. Not checked: the table page's boards (same rule), phones.
+
+**My mistakes this round:** none found, but the screenshot-mode failure above is unexplained.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 154) Claude's end-of-hand drag check only worked for hands that were not exactly 10 cards, because it estimated the pointer from layout boxes of tilted cards; I never found out why the estimate was 48 px off.
 - (2026-11-12, entry 153) Claude's picture for a carried tapped card had two bugs (its size, and a CSS rotation applied before the move), which together put it off the screen, and no test looked at it.
