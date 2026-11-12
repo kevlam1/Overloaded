@@ -14,6 +14,7 @@ import { pileMenuItems, pileAction } from '../../../shared/pile-menu.mjs';
 import { mountCardHover } from '../../src/card-hover.js';
 import { createSpotlight } from '../../src/spotlight.js';
 import { mountBoardDrag } from '../../src/board-drag.js';
+import { mountHand } from '../../src/hand-view.js';
 import { stepFrom } from '../../../shared/board-grid.mjs';
 import { createDealer, SHUFFLE_PAUSE_MS } from '../../../shared/deal-sequence.mjs';
 import { loadCardList } from '../../src/card-list.js';
@@ -26,7 +27,7 @@ import { mountCounterChips } from '../../src/counter-chips.js';
 import { menuItems, menuAction, turnLabel, turnMessage, playBackLabel, PLAY_BACK_ZONES, noUntapLabel, sickLabel, untapMessage } from '../../../shared/card-menu.mjs';
 import { marksSentence, markClick, printedOf } from '../../../shared/marks.mjs';
 import { chipEntries, playerMenuItems, playerAction } from '../../../shared/player-counters.mjs';
-import { makeGame, draw, moveCard, shuffleLibrary, mulligan, setTapped, turnOver, untapAll, heldTapped, adjustLife, nextTurn, boardCells, placeCard, placeStack, arrangeBoard, zoneCounts } from '../../../shared/zones.mjs';
+import { makeGame, draw, moveCard, shuffleLibrary, mulligan, setTapped, turnOver, untapAll, heldTapped, adjustLife, nextTurn, boardCells, placeCard, placeStack, arrangeBoard, zoneCounts, reorderHand } from '../../../shared/zones.mjs';
 
 const $ = (id) => document.getElementById(id);
 const store = makeSafeStore();
@@ -93,7 +94,8 @@ const dealer = createDealer({
     if (!game) return;
     render();
     const newest = dealer.dealt();
-    const node = newest ? $('hand').children[newest - 1] : null;
+    const dealtCard = newest ? dealer.visible(game.zones.hand)[newest - 1] : null; // (found by its uid: the hand may be shown sorted)
+    const node = dealtCard ? [...$('hand').children].find((child) => child.dataset.uid === dealtCard.uid) ?? null : null;
     if (node) { node.classList.add('deal-in'); node.addEventListener('animationend', () => node.classList.remove('deal-in'), { once: true }); }
   },
   onCard: () => play('draw'),
@@ -115,6 +117,7 @@ function render() {
   lifeChips.update(chipEntries(game.pc));
   place($('battlefield'), game.zones.battlefield, { battlefield: true, cells: boardCells(game) });
   place($('hand'), dealer.visible(game.zones.hand));
+  handView.arrange();
   commandZone.update(game);
   $('hand-count').textContent = String(dealer.visible(game.zones.hand).length);
   const counts = zoneCounts(game);
@@ -436,7 +439,16 @@ function dropOnHand({ uid, from }) {
   if (!found || found.zone !== 'battlefield') return;
   apply(() => moveCard(game, uid, 'hand'), `Moved ${found.card.n} back to your hand.`);
 }
-mountBoardDrag({ board: () => $('battlefield'), onDrop: dropOnBoard, hand: () => $('hand-section'), onDropHand: dropOnHand, isEnabled: () => Boolean(game) });
+// Your hand as a fan: the page draws the cards, the hand view places them and shows their mana costs; a card of the hand dragged within it opens a gap and is put there when let go.
+const handView = mountHand({ container: $('hand'), costOf: (uid) => { const card = game?.zones.hand.find((c) => c.uid === uid); const known = card ? lookup?.(card) : null; return known?.m ?? ''; } });
+function reorderInHand({ uid, x }) {
+  if (!game || !game.zones.hand.some((c) => c.uid === uid)) return;
+  const to = handView.indexAt(x, uid);
+  const next = reorderHand(game, uid, to);
+  if (next === game) { handView.arrange(); return; }
+  apply(() => next, '');
+}
+mountBoardDrag({ board: () => $('battlefield'), onDrop: dropOnBoard, hand: () => $('hand-section'), onDropHand: dropOnHand, onHandOver: (over) => handView.showGap(over ? handView.indexAt(over.x, over.uid) : null, over ? over.uid : null), onReorderHand: reorderInHand, isEnabled: () => Boolean(game) });
 
 $('mulligan').addEventListener('click', doMulligan);
 $('new-game').addEventListener('click', () => { if (confirm('Start a new game? This one will be lost.')) { play('shuffle'); deal({ pause: SHUFFLE_PAUSE_MS }); } });

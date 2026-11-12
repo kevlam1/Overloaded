@@ -8,7 +8,9 @@ export const DRAG_DISTANCE_PX = 6;
 
 // board: () => the battlefield element of the player. onDrop({ uid, from: 'battlefield' | 'hand', col, row }). isEnabled: () => whether dragging is allowed right now.
 // hand (optional): () => the element of your hand; a card from the battlefield let go over it is reported to onDropHand({ uid, from }) (back into the hand), and the hand is marked while one is over it.
-export function mountBoardDrag({ doc = document, board, onDrop, hand = () => null, onDropHand = () => {}, isEnabled = () => true }) {
+// A card of the hand dragged within the hand rearranges it: while it is over the hand onHandOver({ uid, x }) is called with the pointer's x (and with null when it leaves or the drag ends), and on
+// letting go onReorderHand({ uid, x }) says where it was let go.
+export function mountBoardDrag({ doc = document, board, onDrop, hand = () => null, onDropHand = () => {}, onHandOver = () => {}, onReorderHand = () => {}, isEnabled = () => true }) {
   let press = null; // the card the pointer went down on, before it has moved far enough to be a drag
   let drag = null; // { button, uid, from, ghost, highlight, cell }
 
@@ -23,6 +25,7 @@ export function mountBoardDrag({ doc = document, board, onDrop, hand = () => nul
 
   const clean = () => {
     if (drag) {
+      if (drag.from === 'hand') onHandOver(null);
       drag.ghost.remove();
       hand()?.classList.remove('drop-hand');
       drag.highlight.remove();
@@ -43,8 +46,10 @@ export function mountBoardDrag({ doc = document, board, onDrop, hand = () => nul
     if (picture && !press.button.classList.contains('noimage')) { const copy = picture.cloneNode(); copy.removeAttribute('loading'); ghost.append(copy); } else ghost.textContent = press.button.getAttribute('aria-label') ?? '';
     // the picture is the card at its own size on screen (a tapped card is turned back to portrait and then turned on its side again)
     const tapped = press.button.classList.contains('tapped');
-    const height = rect.height;
-    const width = tapped ? height / 1.4015 : rect.width;
+    // the card at its own size: a card of the hand is turned and may be lifted under the pointer, which makes its box on screen bigger, so its own layout size is used
+    const own = press.from === 'hand' && press.button.offsetWidth > 0;
+    const height = own ? press.button.offsetHeight : rect.height;
+    const width = tapped ? height / 1.4015 : own ? press.button.offsetWidth : rect.width;
     if (tapped) ghost.classList.add('tapped');
     ghost.style.width = `${width}px`;
     ghost.style.height = `${height}px`;
@@ -74,8 +79,9 @@ export function mountBoardDrag({ doc = document, board, onDrop, hand = () => nul
     // a card from the battlefield can go back into the hand: over the hand there is no place on the board, and the hand is marked
     const handElement = hand();
     const handRect = handElement ? handElement.getBoundingClientRect() : null;
-    drag.overHand = drag.from === 'battlefield' && !drag.whole && Boolean(handRect) && x >= handRect.left && x < handRect.right && y >= handRect.top && y < handRect.bottom;
-    handElement?.classList.toggle('drop-hand', drag.overHand);
+    drag.overHand = (drag.from === 'hand' || (drag.from === 'battlefield' && !drag.whole)) && Boolean(handRect) && x >= handRect.left && x < handRect.right && y >= handRect.top && y < handRect.bottom;
+    handElement?.classList.toggle('drop-hand', drag.overHand && drag.from === 'battlefield');
+    if (drag.from === 'hand') onHandOver(drag.overHand ? { uid: drag.uid, x } : null); // the hand opens a gap where the card would go back
     // a tapped card is a landscape card, 11 cells wide, so it may not start in the last 3 columns of the board
     if (cell && drag.tapped) cell.col = Math.min(cell.col, BOARD_COLS - CARD_ROWS);
     drag.cell = drag.overHand ? null : cell;
@@ -114,9 +120,11 @@ export function mountBoardDrag({ doc = document, board, onDrop, hand = () => nul
     if (!drag) { press = null; return; }
     update(event);
     const { uid, from, cell, overHand, whole } = drag;
+    const x = event.clientX;
     clean();
     swallowClick();
-    if (overHand) onDropHand({ uid, from });
+    if (overHand && from === 'hand') onReorderHand({ uid, x });
+    else if (overHand) onDropHand({ uid, from });
     else if (cell) onDrop({ uid, from, col: cell.col, row: cell.row, whole });
   };
   const cancel = () => { if (drag) swallowClick(); clean(); };

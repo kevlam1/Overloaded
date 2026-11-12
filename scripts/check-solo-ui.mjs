@@ -469,6 +469,55 @@ try {
     await altUp(); await moveTo(5, 5); await sleep(80);
     check('the hover box is never in the way of the pointer (it does not take mouse events)', (await ev(`getComputedStyle(document.getElementById('card-hover')).pointerEvents`)) === 'none');
   }
+  const moveAwayFromHand = async () => { await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 5, y: 5 }); await sleep(250); };
+  // ---- the hand as a fan, with mana costs, and rearranging it by dragging (frontend/src/hand-view.js, shared/hand-layout.mjs) ----
+  {
+    const handFacts = () => ev(`(() => { const cards = [...document.querySelectorAll('#hand > .card')]; const box = document.getElementById('hand').getBoundingClientRect(); return { uids: cards.map((c) => c.dataset.uid), names: cards.map((c) => c.getAttribute('aria-label').split(',')[0]), angles: cards.map((c) => parseFloat(c.style.getPropertyValue('--ha'))), xs: cards.map((c) => parseFloat(c.style.getPropertyValue('--hx'))), ys: cards.map((c) => parseFloat(c.style.getPropertyValue('--hy'))), costs: cards.map((c) => c.querySelector(':scope > .hand-cost')?.querySelectorAll('img, .pip').length ?? 0), hidden: cards.filter((c) => getComputedStyle(c).visibility === 'hidden').length, inside: cards.every((c) => { const r = c.getBoundingClientRect(); return r.left >= box.left - 20 && r.right <= box.right + 20 && r.bottom <= innerHeight + 1; }), position: cards.map((c) => getComputedStyle(c).position)[0], width: cards[0]?.offsetWidth ?? 0 }; })()`);
+    const mouse = (type, x, y, buttons = 0) => browser.send('Input.dispatchMouseEvent', { type, x, y, button: type === 'mouseMoved' ? 'none' : 'left', buttons, clickCount: type === 'mouseMoved' ? 0 : 1 });
+    const handBox = () => ev(`(() => { const r = document.getElementById('hand').getBoundingClientRect(); return { left: r.left, right: r.right, top: r.top, bottom: r.bottom }; })()`);
+    const cardPoint = (index) => ev(`(() => { const r = document.querySelectorAll('#hand > .card')[${index}].getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height * 0.6 }; })()`);
+    await moveAwayFromHand();
+    await drawUntil((n) => /Lightning Bolt|Sol Ring|Llanowar Elves/.test(n)); await drawUntil((n) => /^(Forest|Island)$/.test(n)); await moveAwayFromHand(); // the deal is random: make sure the hand has a spell and a land
+    const fan = await handFacts();
+    check('the hand is a fan: the cards are placed by the page (absolute), the first leans left and the last right, the middle is straighter, the ends sit lower', fan.names.length >= 5 && fan.position === 'absolute' && fan.angles[0] < 0 && fan.angles.at(-1) > 0 && Math.abs(fan.angles[Math.floor(fan.angles.length / 2)]) < Math.abs(fan.angles[0]) + 0.01 && fan.ys[0] >= fan.ys[Math.floor(fan.ys.length / 2)], JSON.stringify(fan));
+    check('the cards sit in order from left to right, edge to edge when they fit', fan.xs.every((x, i) => i === 0 || x > fan.xs[i - 1]) && fan.xs.length < 2 || Math.abs((fan.xs[1] - fan.xs[0]) - fan.width) < 2 || (fan.xs[1] - fan.xs[0]) < fan.width, JSON.stringify([fan.xs.slice(0, 3), fan.width]));
+    check('every card is inside the hand\'s box and the window (none is cut off)', fan.inside, JSON.stringify(fan));
+    const withCost = fan.names.findIndex((name) => /Lightning Bolt|Sol Ring|Llanowar Elves/.test(name));
+    const land = fan.names.findIndex((name) => /^(Forest|Island)$/.test(name));
+    check('a spell shows its mana cost as symbols above it, and a land shows none', withCost >= 0 && fan.costs[withCost] >= 1 && (land < 0 || fan.costs[land] === 0), JSON.stringify({ names: fan.names, costs: fan.costs }));
+    // hovering lifts and straightens a card
+    const p = await cardPoint(1);
+    await mouse('mouseMoved', p.x, p.y); await sleep(250);
+    const lifted = await ev(`(() => { const c = document.querySelector('#hand > .card:hover'); if (!c) return null; const m = new DOMMatrix(getComputedStyle(c).transform); return { dy: m.f, scale: Math.round(m.a * 100) / 100, angle: Math.abs(Math.round(Math.atan2(m.b, m.a) * 180 / Math.PI * 10) / 10) }; })()`);
+    check('the card under the pointer lifts, grows and straightens', lifted && lifted.scale >= 1.05 && lifted.angle < 0.6, JSON.stringify(lifted));
+    await mouse('mouseMoved', 5, 5);
+    // dragging a card within the hand
+    const before = await handFacts();
+    const box = await handBox();
+    const from = await cardPoint(0);
+    await mouse('mouseMoved', from.x, from.y); await mouse('mousePressed', from.x, from.y, 1);
+    const target = { x: (box.left + box.right) / 2, y: from.y }; // the middle of the hand, so the gap opens between two cards
+    for (let step = 1; step <= 10; step++) await mouse('mouseMoved', from.x + (target.x - from.x) * step / 10, from.y + (target.y - from.y) * step / 10, 1);
+    await sleep(250);
+    const during = await handFacts();
+    const others = during.xs.filter((_, i) => during.uids[i] !== before.uids[0]); // (the dragged card keeps its old numbers while it is hidden)
+    const diffs = others.map((x, i) => (i === 0 ? null : x - others[i - 1])).filter((d) => d !== null);
+    check('while a card of the hand is dragged it is lifted out and a gap opens at the place it would go back (one step is twice as wide as the others)', during.hidden === 1 && Math.max(...diffs) >= 1.6 * Math.min(...diffs) && during.names.length === before.names.length, JSON.stringify({ hidden: during.hidden, diffs }));
+    check('the cards next to the gap lean away from it', during.angles.length > 3 && during.angles.some((angle, i) => Math.abs(angle - (before.angles[i] ?? 0)) > 2), JSON.stringify([before.angles, during.angles]));
+    await mouse('mouseReleased', target.x, target.y, 0); await sleep(250);
+    const after = await handFacts();
+    check('letting go puts the card in the middle of the hand, and the others keep their order', after.uids[0] !== before.uids[0] && after.uids.indexOf(before.uids[0]) >= 1 && after.uids.indexOf(before.uids[0]) <= after.uids.length - 2 && after.uids.filter((u) => u !== before.uids[0]).join() === before.uids.slice(1).join(), JSON.stringify([before.uids, after.uids]));
+    check('no gap is left and nothing is hidden afterwards', after.hidden === 0 && Math.abs((after.xs[1] - after.xs[0]) - (before.xs[1] - before.xs[0])) < 1.5, JSON.stringify([before.xs.slice(0, 3), after.xs.slice(0, 3)]));
+    const again = await cardPoint(2);
+    await mouse('mouseMoved', again.x, again.y); await mouse('mousePressed', again.x, again.y, 1);
+    for (let step = 1; step <= 8; step++) await mouse('mouseMoved', again.x + step * 1.5, again.y, 1); // 12 px: past the start of a drag, well under half a card
+    await mouse('mouseReleased', again.x + 12, again.y, 0); await sleep(250);
+    const same = await handFacts();
+    check('dropping a card back in about the same place changes nothing', same.uids.join() === after.uids.join(), JSON.stringify([after.uids, same.uids]));
+    await mouse('mouseMoved', 5, 5);
+    // the order is the game's: a refresh would deal a new game on the solo table, so what is checked here is that the page's own list changed (the hand count and the cards are the same)
+    check('the same cards are in the hand afterwards (only the order changed)', [...after.uids].sort().join() === [...before.uids].sort().join());
+  }
   // ---- the card corner (frontend/src/spotlight.js) and the right column ----
   {
     const corner = () => ev(`(() => { const c = document.getElementById('spotlight'); const img = c.querySelector('.spot-picture'); const r = c.getBoundingClientRect(); return { empty: c.classList.contains('is-empty'), name: c.querySelector('.spot-name').textContent, src: img.hidden ? null : img.getAttribute('src'), closeShown: !c.querySelector('.spot-close').hidden, bottomGap: Math.round(innerHeight - r.bottom), right: Math.round(innerWidth - r.right), width: Math.round(r.width) }; })()`);
@@ -1103,7 +1152,7 @@ try {
   await clickCard(cardAt('Delver'));
   await clickAction('Create copy');
   const delverCopy = await ev(`(() => { const cards = Array.from(document.querySelectorAll('.card[aria-label^="Delver of Secrets"]')); return cards.length; })()`);
-  check('a copy of Delver showing its front is a second Delver of Secrets with the front picture', delverCopy === 2 && (await ev(`Array.from(document.querySelectorAll('.card[aria-label^="Delver of Secrets"] img')).every((i) => i.getAttribute('src').includes('/front/'))`)), String(delverCopy));
+  check('a copy of Delver showing its front is a second Delver of Secrets with the front picture', delverCopy === 2 && (await ev(`Array.from(document.querySelectorAll('.card[aria-label^="Delver of Secrets"] .face img')).every((i) => i.getAttribute('src').includes('/front/'))`)), String(delverCopy));
   await clickAction('Deselect');
   await clickCard(cardAt('Aclazotz'));
   await clickAction('Turn over');
@@ -1285,6 +1334,14 @@ try {
   };
   // a card already on the battlefield moves by as many cells as the pointer travels
   const dragBy = async (name, cols, rows) => {
+    await sleep(150); // a pause like a person's: right after a drag in the hand the fan's 110 ms transitions may still be running (see log entry 147)
+    // wait until the card and the board have stopped moving (the hand's size changes the board's), then press
+    let last = '';
+    for (let tries = 0; tries < 20; tries++) {
+      const now = JSON.stringify([await boardRect(), await centerOfSelector(cardAt(name))]);
+      if (now === last) break;
+      last = now; await sleep(60);
+    }
     const r = await boardRect(); const from = await centerOfSelector(cardAt(name));
     await dragTo(from, { x: from.x + cols * r.width / 112, y: from.y + rows * r.height / 44 });
   };
@@ -1319,11 +1376,12 @@ try {
     check('...and it is held where it was taken (near its corner), not by its middle', sizes && Math.abs(sizes.held[0] - 0.2) < 0.05 && Math.abs(sizes.held[1] - 0.2) < 0.05, JSON.stringify(sizes?.held));
     check('...and Escape put everything back', (await cellOfCard('Forest')) === '60,16' && await dragStateGone()); }
   { let sizes = null; const handBefore = await handCardPoint('Lightning Bolt');
-    await dragTo(handBefore, await cellCenter(80, 4), { release: false, during: async () => { sizes = await ev(`(() => { const g = document.querySelector('.drag-ghost').getBoundingClientRect(); const c = Array.from(document.querySelectorAll('#hand .card'))[0].getBoundingClientRect(); return { ghost: [g.width, g.height], card: [c.width, c.height] }; })()`); } });
+    await dragTo(handBefore, await cellCenter(80, 4), { release: false, during: async () => { sizes = await ev(`(() => { const g = document.querySelector('.drag-ghost').getBoundingClientRect(); const c = Array.from(document.querySelectorAll('#hand .card'))[0]; return { ghost: [g.width, g.height], card: [c.offsetWidth, c.offsetHeight] }; })()`); } });
     await key('Escape', 'Escape', 27); await mouseAt('mouseReleased', await cellCenter(80, 4), 0); await sleep(80);
-    check('a card picked up from the hand keeps its size too', sizes && Math.abs(sizes.ghost[0] - sizes.card[0]) < 1.5 && Math.abs(sizes.ghost[1] - sizes.card[1]) < 1.5, JSON.stringify(sizes)); }
+    check('a card picked up from the hand keeps its size too (its own size: the card in the fan is turned, so its box on screen is not the size to compare)', sizes && Math.abs(sizes.ghost[0] - sizes.card[0]) < 1.5 && Math.abs(sizes.ghost[1] - sizes.card[1]) < 1.5, JSON.stringify(sizes)); }
   await dragBy('Forest', -60, 17);
   check('the card on top can be taken off again, and the one under it stays', (await cellOfCard('Forest')) === '0,33' && (await cellOfCard('Sol Ring')) === '60,16');
+  check('a card played from the hand carries no stacking number of the hand (the battlefield stacks by order; a left-over z-index once put the wrong card on top at random)', await ev(`[...document.querySelectorAll('#battlefield .card')].every((c) => c.style.zIndex === '')`));
 
   // a tiny movement is still a click: it selects the card and does not move it
   await dragTo(await centerOfSelector(cardAt('Forest')), { ...(await centerOfSelector(cardAt('Forest'))), x: (await centerOfSelector(cardAt('Forest'))).x + 2 });
@@ -1593,8 +1651,8 @@ try {
   // ---- the whole session ----
   const errors = browser.logs.filter((l) => /^exception:|^console\.error|^error:/.test(l) && !/Failed to load resource|ERR_BLOCKED|net::/.test(l));
   check('no script errors', errors.length === 0, errors.slice(0, 2).join(' | '));
-  const foreign = browser.events.filter((e) => e.method === 'Network.requestWillBeSent' && !e.params.request.url.startsWith(ORIGIN) && !e.params.request.url.startsWith('data:') && !e.params.request.url.startsWith('https://cards.scryfall.io/'));
-  check('nothing was requested from any site but this one and the picture server', foreign.length === 0, foreign.slice(0, 2).map((e) => e.params.request.url).join(' | '));
+  const foreign = browser.events.filter((e) => e.method === 'Network.requestWillBeSent' && !e.params.request.url.startsWith(ORIGIN) && !e.params.request.url.startsWith('data:') && !e.params.request.url.startsWith('https://cards.scryfall.io/') && !e.params.request.url.startsWith('https://svgs.scryfall.io/card-symbols/')); // (the mana symbols above the cards of the hand)
+  check('nothing was requested from any site but this one and the picture and symbol servers of Scryfall', foreign.length === 0, foreign.slice(0, 2).map((e) => e.params.request.url).join(' | '));
 
   if (realPictures) {
     // A few looks at desktop width with the REAL pictures: the page with a hand and a battlefield, dark and light.
