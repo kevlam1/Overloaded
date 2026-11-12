@@ -1,5 +1,5 @@
 // Tests for shared/pile-style.mjs: which pile styles there are and how the saved text is read.
-import { PILE_STYLE_KEY, PILE_STYLES, DEFAULT_PILE_STYLE, PILE_STYLE_LABELS, readPileStyle, stepOutFor, TAPPED_PILE_STYLE_KEY, DEFAULT_TAPPED_PILE_STYLE, readTappedPileStyle } from '../shared/pile-style.mjs';
+import { PILE_STYLE_KEY, PILE_STYLES, DEFAULT_PILE_STYLE, PILE_STYLE_LABELS, readPileStyle, stepOutFor, TAPPED_PILE_STYLE_KEY, DEFAULT_TAPPED_PILE_STYLE, readTappedPileStyle, TAPPED_PILE_STYLES, TAPPED_PILE_STYLE_LABELS } from '../shared/pile-style.mjs';
 
 let checks = 0;
 const same = (label, actual, expected) => { checks++; if (JSON.stringify(actual) !== JSON.stringify(expected)) { console.log(`FAILED CHECK: ${label}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`); process.exit(1); } };
@@ -14,7 +14,9 @@ same('a tapped card steps out to the side in both styles', PILE_STYLES.map((styl
 
 // piles of tapped cards have a style of their own
 same('the style of tapped piles is kept under its own key, in the same namespace, and diagonal is its default', [TAPPED_PILE_STYLE_KEY, TAPPED_PILE_STYLE_KEY !== PILE_STYLE_KEY, DEFAULT_TAPPED_PILE_STYLE], ['overloaded.tappedPileStyle', true, 'diagonal']);
-same('a saved style of tapped piles is read back', PILE_STYLES.map((name) => readTappedPileStyle(name)), PILE_STYLES);
+same('a saved style of tapped piles is read back', TAPPED_PILE_STYLES.map((name) => readTappedPileStyle(name)), TAPPED_PILE_STYLES);
+same('tapped piles have four styles, Horizontal (bottom, the saved text it always had) before Horizontal (top)', [TAPPED_PILE_STYLES, TAPPED_PILE_STYLES.map((name) => TAPPED_PILE_STYLE_LABELS[name])], [['diagonal', 'horizontal', 'horizontal-top', 'vertical'], ['Diagonal', '(B) Horizontal', '(T) Horizontal', 'Vertical']]);
+same('the top-showing style is for tapped piles only: untapped piles do not read it', [readPileStyle('horizontal-top'), PILE_STYLES.includes('horizontal-top')], ['diagonal', false]);
 for (const bad of [null, undefined, '', 'Diagonal', 'up', 'Vertical', ' vertical', ' horizontal', '{"style":"horizontal"}', 'toString', '__proto__', 5, true, {}, []]) same(`a saved style of tapped piles that is ${JSON.stringify(bad)} is the default`, readTappedPileStyle(bad), DEFAULT_TAPPED_PILE_STYLE);
 same('the two choices do not read each other (each has its own default and its own values)', [readPileStyle('horizontal'), readTappedPileStyle('diagonal')], ['horizontal', 'diagonal']);
 

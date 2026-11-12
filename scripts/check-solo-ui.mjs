@@ -533,7 +533,9 @@ try {
     check('with Alt held, moving off the card hides it', (await hoverState()).hidden === true);
     await moveTo(c.x, c.y); await sleep(80);
     check('and moving back on shows it again at once', (await hoverState()).hidden === false);
-    const c3 = await rectOf('#hand .card', (await ev(`(() => { const imgs = [...document.querySelectorAll('#hand .card img')].map((i) => i.getAttribute('src')); return Math.max(1, imgs.findIndex((s) => s !== imgs[0])); })()`))); await moveTo(c3.x, c3.y); await sleep(100);
+    // a point on a visible part of a card whose picture differs from the first card's (the cards overlap, and which are in front depends on the random hand)
+    const c3 = await ev(`(() => { const cards = [...document.querySelectorAll('#hand .card')]; const imgs = cards.map((c) => c.querySelector('img').getAttribute('src')); for (let n = cards.length - 1; n > 0; n--) { if (imgs[n] === imgs[0]) continue; const r = cards[n].getBoundingClientRect(); for (let x = r.left + 4; x < r.right - 4; x += 4) { const y = r.top + r.height * 0.6; if (document.elementFromPoint(x, y)?.closest('.card') === cards[n]) return { x, y }; } } return null; })()`);
+    await moveTo(c3.x, c3.y); await sleep(100);
     const other = await hoverState();
     check('with Alt held, moving to another card shows that card', other.hidden === false && other.src !== h.src, JSON.stringify(other));
     await moveTo(c.x, c.y); await sleep(80);
@@ -1849,7 +1851,7 @@ try {
   // the style of piles of TAPPED cards is a choice of its own (Settings, "Piles of tapped cards"), and the other choice does not touch it
   {
     const selects = await ev("(() => { const a = document.getElementById('pile-style'); const b = document.getElementById('pile-style-tapped'); const words = (el) => el ? el.parentElement.textContent.replace(/\\s+/g, ' ').trim() : null; return { a: words(a), b: words(b), inMenu: Boolean(a && b && document.getElementById('settings-menu').contains(a) && document.getElementById('settings-menu').contains(b)), options: b ? [...b.options].map((o) => o.value) : null, tapped: document.body.dataset.tappedPileStyle ?? null, untapped: document.body.dataset.pileStyle }; })()");
-    check('Settings has two choices, one for piles of untapped cards and one for piles of tapped cards, each Diagonal or Horizontal; both start diagonal', selects.inMenu && /untapped/.test(selects.a) && /tapped cards/.test(selects.b) && selects.options.join() === 'diagonal,horizontal,vertical' && selects.tapped === 'diagonal' && selects.untapped === 'diagonal', JSON.stringify(selects));
+    check('Settings has two choices, one for piles of untapped cards and one for piles of tapped cards, each Diagonal or Horizontal; both start diagonal', selects.inMenu && /untapped/.test(selects.a) && /tapped cards/.test(selects.b) && selects.options.join() === 'diagonal,horizontal,horizontal-top,vertical' && selects.tapped === 'diagonal' && selects.untapped === 'diagonal', JSON.stringify(selects));
     await clickCard('#battlefield .card[data-stack-depth="0"]:not(.tapped)'); await clickAction('Tap');
     await clickCard('#battlefield .card[data-stack-depth="0"]:not(.tapped)'); await clickAction('Tap'); await clickAction('Deselect');
     const tappedShift = () => ev("(() => { const c = document.querySelector('#battlefield .card.tapped[data-stack-depth=\"1\"]'); return c ? getComputedStyle(c).translate : null; })()");
@@ -1882,7 +1884,12 @@ try {
       if (process.argv.includes('--screenshot')) await browser.screenshot('scratch-solo-vertical.png');
       const rows = await ev("(() => { const y = (d) => document.querySelector('#battlefield .card:not(.tapped)[data-stack-depth=\"' + d + '\"]')?.getBoundingClientRect(); const a = y(0); const b = y(1); return a && b ? { sameLeft: Math.abs(a.left - b.left) < 0.5, higher: b.top < a.top } : null; })()");
       check('vertical piles of untapped cards go straight up too, and the page and storage remember the choice', /^0px -[\d.]+px$/.test(verU ?? '') && rows?.sameLeft === true && rows?.higher === true && (await ev("document.body.dataset.pileStyle")) === 'vertical' && (await ev("localStorage.getItem('overloaded.pileStyle')")) === 'vertical', JSON.stringify({ verU, rows }));
-      check('each choice lists Vertical besides Diagonal and Horizontal', JSON.stringify(await ev("[...document.getElementById('pile-style').options].map((o) => o.value)")) === '["diagonal","horizontal","vertical"]' && JSON.stringify(await ev("[...document.getElementById('pile-style-tapped').options].map((o) => o.value)")) === '["diagonal","horizontal","vertical"]');
+      check('each choice lists Vertical besides Diagonal and Horizontal', JSON.stringify(await ev("[...document.getElementById('pile-style').options].map((o) => o.value)")) === '["diagonal","horizontal","vertical"]' && JSON.stringify(await ev("[...document.getElementById('pile-style-tapped').options].map((o) => o.value)")) === '["diagonal","horizontal","horizontal-top","vertical"]' && JSON.stringify(await ev("[...document.getElementById('pile-style-tapped').options].map((o) => o.textContent)")) === '["Diagonal","(B) Horizontal","(T) Horizontal","Vertical"]');
+      await setStyle('pile-style-tapped', 'horizontal-top');
+      if (process.argv.includes('--screenshot')) await browser.screenshot('scratch-solo-top.png');
+      const topT = await tappedShift(); const topTop = await topShift();
+      const strips = await ev("(() => { const r = (d) => document.querySelector('#battlefield .card.tapped[data-stack-depth=\"' + d + '\"]')?.getBoundingClientRect(); const a = r(0); const b = r(1); return a && b ? { toRight: b.left > a.left, sameTop: Math.abs(a.top - b.top) < 0.5 } : null; })()");
+      check('(T) Horizontal: the copy under the top tapped card goes to the RIGHT (the top of the card shows), at the same height, and the pile is not moved over', /^[\d.]+px( 0px)?$/.test(topT ?? '') && xOf(topTop) === 0 && strips?.toRight === true && strips?.sameTop === true && (await ev('document.body.dataset.tappedPileStyle')) === 'horizontal-top' && (await ev("localStorage.getItem('overloaded.tappedPileStyle')")) === 'horizontal-top', JSON.stringify({ topT, topTop, strips }));
       await setStyle('pile-style', 'horizontal'); await setStyle('pile-style-tapped', 'diagonal');
     }
     await setStyle('pile-style', 'diagonal');

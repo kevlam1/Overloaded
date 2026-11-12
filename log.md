@@ -3235,6 +3235,21 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 159. (B) Horizontal and (T) Horizontal for piles of tapped cards (2026-11-12)
+
+**What I asked for**
+- For piles of tapped cards, rename the current Horizontal to "(B) Horizontal" and add "(T) Horizontal", where the top of the card shows instead of the bottom.
+
+**What changed** (`shared/pile-style.mjs`, `frontend/src/pile-style.js`, `style.css`, tests)
+- The tapped-pile select has four choices: Diagonal, (B) Horizontal (the old Horizontal, the same saved text so nobody's choice is lost), (T) Horizontal and Vertical. The untapped select is unchanged.
+- (T) Horizontal: a tapped card lies with its top (where its name is) to the right, so the copies under the top one go to the right, and the strip of each that shows is its top. I did not move this pile over to the right like the other two (its copies go away from what is on the left); say if you want that too.
+
+**What I checked:** the solo check 583 (new: the four labels and values in order, the saved choice, the copy under the top tapped card goes to the right at the same height, the pile is not moved over), pile style unit test 42, quick suites 60; a screenshot of the (T) pile. Not checked: the table page, phones.
+
+**My mistakes this round:** the solo check failed three times in different places while I was changing it, in the hand checks that depend on the random hand: one pointed at a card that other cards covered (I now look for a visible point on it), and one run failed two checks about the cards moving aside that did not fail again in the next two runs; I did not find the cause of that one.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.
