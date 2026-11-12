@@ -1,7 +1,13 @@
 // Puts your hand in a fan (shared/hand-layout.mjs works out where each card goes): the cards sit next to each other, turned a little like an arc, and each shows its mana cost in a
 // row of symbols above it. The buttons are the page's own card buttons (src/card-nodes.js); this only sets three numbers on each (--hx, --hy and --ha: how far across, how far down and
 // how far turned), which the style sheet turns into the card's place, with a short transition so a change of order is quick. While a card of the hand is dragged a gap opens where it
-// would go back and the cards beside it lean away (showGap). Plain DOM, no dependencies besides the layout and the mana symbols.
+// would go back and the cards beside it lean away (showGap).
+// The hand sits LOWERED: a quarter of the cards' height is below the bottom edge of the window, so the board is easier to see. When the pointer is in the area of the hand (inside the width
+// the cards cover, from the top of the visible cards down) the cards rise by that quarter (--hdrop, a distance every card adds to its place), and when the pointer leaves, also while a card is
+// being carried, they go down again.
+// The card under the pointer is shown lifted and straight by a COPY of it drawn on top in a layer of its own (.hand-lift-layer) that never takes the mouse; the real cards keep their places and
+// their stacking, so the card that answers to the pointer is always the one you can see there (a lifted card that kept a higher stacking number kept the pointer over its neighbours).
+// Plain DOM, no dependencies besides the layout and the mana symbols.
 import { handLayout, insertionIndex } from '../../shared/hand-layout.mjs';
 import { manaNode } from './mana-pips.js';
 
@@ -12,6 +18,13 @@ export function mountHand({ container, costOf = () => '' }) {
   const margin = () => Math.max(14, Math.round((container.querySelector(':scope > .card')?.offsetHeight ?? 0) * 0.2));
   let gap = null; // where the dragged card would go (0 to the number of the other cards), or null
   let dragged = null; // the uid of the card being dragged, left out of the row while it is
+  let raised = false; // the pointer is in the area of the hand: the cards are up
+  let lift = null; // { uid, card, node }: the card shown lifted under the pointer and its copy
+  const section = container.parentElement; // the hand's section: --hdrop is set here so the cards and the lifted copy share it
+  const layer = document.createElement('div');
+  layer.className = 'hand-lift-layer';
+  layer.setAttribute('aria-hidden', 'true');
+  section.append(layer);
 
   const buttons = () => [...container.querySelectorAll(':scope > .card')];
 
@@ -30,8 +43,10 @@ export function mountHand({ container, costOf = () => '' }) {
   }
 
   function arrange() {
+    clearLift(); // the cards are about to move; the next pointer movement lifts the one under the pointer again
     const all = buttons();
     if (all.length === 0) { setZoneVars(); return; }
+    applyDrop();
     const row = dragged ? all.filter((button) => button.dataset.uid !== dragged) : all;
     const sample = all[0];
     const layout = handLayout({ count: row.length, width: Math.max(0, container.clientWidth - 2 * margin()), cardWidth: sample.offsetWidth, cardHeight: sample.offsetHeight, gap });
@@ -51,6 +66,77 @@ export function mountHand({ container, costOf = () => '' }) {
     // the dashed outline shown while a card is carried over the hand (style.css) covers the same width as the zone
     setZoneVars();
   }
+
+  // How far a lowered hand is below its raised place: a quarter of the height of a card.
+  // (plus the gap the cards keep above the bottom of the box, so that exactly a quarter of a card is below the bottom edge of the window)
+  const dropDistance = () => {
+    const card = container.querySelector(':scope > .card');
+    if (!card) return 0;
+    const inset = parseFloat(getComputedStyle(card).bottom) || 0;
+    return Math.round(card.offsetHeight * 0.25 + inset);
+  };
+  function applyDrop() {
+    section.style.setProperty('--hdrop', raised ? '0px' : `${dropDistance()}px`);
+    container.classList.toggle('raised', raised);
+    if (!raised) clearLift();
+  }
+
+  // The card under the pointer: of the cards at that point, the one that is on top as they were placed (the highest --hz), not the one that is lifted.
+  function cardAt(x, y) {
+    let best = null;
+    let bestZ = -1;
+    for (const el of document.elementsFromPoint(x, y)) {
+      const card = el.closest?.('.card');
+      if (!card || card.parentElement !== container) continue;
+      const z = Number(card.style.getPropertyValue('--hz')) || 0;
+      if (z > bestZ) { best = card; bestZ = z; }
+    }
+    return best;
+  }
+  function clearLift() {
+    if (!lift) return;
+    lift.card.classList.remove('lifted');
+    lift.node.remove();
+    lift = null;
+  }
+  function showLift(card) {
+    if (lift && lift.card === card) return;
+    clearLift();
+    if (!card || card.classList.contains('dragging')) return;
+    const node = card.cloneNode(true);
+    node.removeAttribute('data-uid');
+    node.removeAttribute('aria-label');
+    node.removeAttribute('id');
+    node.setAttribute('tabindex', '-1');
+    node.setAttribute('aria-hidden', 'true');
+    node.classList.remove('selected', 'lifted');
+    node.classList.add('hand-lift');
+    for (const name of ['--hx', '--hy', '--ha']) node.style.setProperty(name, card.style.getPropertyValue(name));
+    node.style.removeProperty('transition');
+    layer.append(node);
+    void node.offsetWidth; // start from the card's own place, then rise
+    node.classList.add('up');
+    card.classList.add('lifted');
+    lift = { uid: card.dataset.uid, card, node };
+  }
+  function setRaised(value) {
+    if (raised === value) return;
+    raised = value;
+    applyDrop();
+  }
+  // Is the point (x, y) in the area of the hand? The width the cards cover; from the top of the box down while raised, from the top of the cards that show while lowered.
+  function inArea(x, y) {
+    const z = zone();
+    const top = z.top + (raised ? 0 : dropDistance());
+    return x >= z.left && x < z.right && y >= top && y <= z.bottom + 1;
+  }
+  const onPointerMove = (event) => {
+    setRaised(buttons().length > 0 && inArea(event.clientX, event.clientY));
+    // no card lifts while a card is being carried (the gap and the lean are what show), nor while the hand is down
+    if (raised && !document.body.classList.contains('dragging-card')) showLift(cardAt(event.clientX, event.clientY)); else clearLift();
+  };
+  document.addEventListener('pointermove', onPointerMove);
+  document.documentElement.addEventListener('pointerleave', () => setRaised(false));
 
   function setZoneVars() {
     const z = zone();
@@ -100,5 +186,5 @@ export function mountHand({ container, costOf = () => '' }) {
   }
 
   if (typeof ResizeObserver === 'function') new ResizeObserver(() => arrange()).observe(container);
-  return { arrange, showGap, indexAt, zone, hit };
+  return { arrange, showGap, indexAt, zone, hit, isRaised: () => raised };
 }

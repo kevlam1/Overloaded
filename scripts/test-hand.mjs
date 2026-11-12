@@ -87,8 +87,12 @@ same('the step is a card wide when the cards fit', cardStep({ slots: 5, width: W
 same('the step shrinks to fit a full hand', cardStep({ slots: 20, width: W, cardWidth: CW }), (W - CW) / 19);
 same('a single card or none has no step', [cardStep({ slots: 1, width: W, cardWidth: CW }), cardStep({ slots: 0, width: W, cardWidth: CW })], [0, 0]);
 const row = handLayout({ count: 7, width: W, cardWidth: CW, cardHeight: CH });
-same('seven cards: edge to edge', row.slots.map((s, i) => i === 0 ? 0 : Math.round(s.x - row.slots[i - 1].x)), [0, 80, 80, 80, 80, 80, 80]);
-check('the row is centred in its width', Math.abs(row.slots[0].x - (W - (CW * 7)) / 2) < 0.01 && Math.abs((W - (row.slots[6].x + CW)) - row.slots[0].x) < 0.01);
+same('seven cards: they overlap a little, like a real hand (a step of 72 of 80)', row.slots.map((s, i) => i === 0 ? 0 : Math.round(s.x - row.slots[i - 1].x)), [0, 72, 72, 72, 72, 72, 72]);
+same('six cards are still edge to edge and the step is continuous at the change', [cardStep({ slots: 6, width: W, cardWidth: CW }), cardStep({ slots: 7, width: W, cardWidth: CW }) < CW, cardStep({ slots: 7, width: W, cardWidth: CW }) > cardStep({ slots: 20, width: W, cardWidth: CW })], [CW, true, true]);
+same('ten cards are 7.6 cards wide in all, not 10', Math.round((CW + cardStep({ slots: 10, width: 2000, cardWidth: CW }) * 9) / CW * 100) / 100, 7.6);
+same('a narrow room still squeezes the overlapping row to fit', Math.round(CW + cardStep({ slots: 10, width: 400, cardWidth: CW }) * 9), 400);
+same('five cards in a narrow room are squeezed to fit too', Math.round(CW + cardStep({ slots: 5, width: 240, cardWidth: CW }) * 4), 240);
+check('the row is centred in its width', Math.abs(row.slots[0].x - (W - (CW + 72 * 6)) / 2) < 0.01 && Math.abs((W - (row.slots[6].x + CW)) - row.slots[0].x) < 0.01);
 check('the middle card is straight and the ends lean outward by the full turn', row.slots[3].angle === 0 && row.slots[0].angle === -MAX_ANGLE && row.slots[6].angle === MAX_ANGLE, JSON.stringify(row.slots.map((s) => s.angle)));
 check('the ends sit lower than the middle', row.slots[0].y > row.slots[3].y && row.slots[6].y > row.slots[3].y && row.slots[3].y === 0);
 const few = handLayout({ count: 2, width: W, cardWidth: CW, cardHeight: CH });
@@ -98,7 +102,7 @@ same('no cards, no slots', handLayout({ count: 0, width: W, cardWidth: CW, cardH
 const full = handLayout({ count: 20, width: W, cardWidth: CW, cardHeight: CH });
 check('twenty cards overlap evenly and still fit inside the width', full.slots[0].x >= -0.01 && full.slots[19].x + CW <= W + 0.01 && full.step < CW, JSON.stringify([full.slots[0], full.slots[19], full.step]));
 const gapped = handLayout({ count: 6, width: W, cardWidth: CW, cardHeight: CH, gap: 2 });
-same('a gap at 2 opens one empty place: the cards after it move up a place', [gapped.slots[1].x + 80, gapped.slots[2].x - gapped.slots[1].x], [gapped.slots[2].x - 80, 160]);
+same('a gap at 2 opens one empty place: the cards after it move up a place (across the gap two steps, elsewhere one)', [Math.round(gapped.slots[2].x - gapped.slots[1].x), Math.round(gapped.slots[1].x - gapped.slots[0].x), Math.round(gapped.slots[3].x - gapped.slots[2].x)], [Math.round(2 * gapped.step), Math.round(gapped.step), Math.round(gapped.step)]);
 const leanLeft = handLayout({ count: 6, width: W, cardWidth: CW, cardHeight: CH, gap: 3 });
 const base = handLayout({ count: 7, width: W, cardWidth: CW, cardHeight: CH }); // the same seven places with nobody dragged
 check('beside the gap a card leans 12 degrees away from it (left of it counter-clockwise, right of it clockwise), compared with the same places and no gap', Math.abs(leanLeft.slots[2].angle - (base.slots[2].angle - 12)) < 0.02 && Math.abs(leanLeft.slots[3].angle - (base.slots[4].angle + 12)) < 0.02, JSON.stringify([leanLeft.slots.map((s) => s.angle), base.slots.map((s) => s.angle)]));

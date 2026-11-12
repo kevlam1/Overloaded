@@ -1,7 +1,8 @@
 // Where the cards of your hand go (Kevin, 2026-11-11): a fan, like an arena hand, but snappy like the white-cards reference. Plain numbers in and out, no browser code, so Node tests can
 // load it (scripts/test-hand-layout.mjs); frontend/src/hand-view.js puts the numbers on the cards.
 //
-//   - The cards sit next to each other, edge to edge when they fit; when there are too many for the width they overlap evenly, and the row is centred.
+//   - The cards sit next to each other, edge to edge up to 6 cards; from 7 they overlap like a real hand (the whole row only grows slowly with each card), and when even that is too wide
+//     for the room they overlap more, evenly. The row is centred.
 //   - Each card is turned a little, more toward the ends (a few degrees, fewer with a few cards), and the ends sit a little lower than the middle, so the row is a shallow arc.
 //   - While a card of the hand is dragged a gap opens at the place it would go back to, and the cards next to the gap lean away from it, most for the nearest (as in the reference video).
 // Positions are the card's left edge (x), how far it is dropped (y, pixels down) and its turn (angle, degrees, clockwise), for a card of cardWidth by cardHeight in a row width wide.
@@ -10,11 +11,15 @@ const clamp = (value, low, high) => Math.min(high, Math.max(low, value));
 export const MAX_ANGLE = 6; // the turn of the outermost card of a full hand, degrees
 export const GAP_TILT = 12; // how far the card beside the gap leans away from it, degrees
 export const GAP_REACH = 3; // how many cards on each side of the gap lean
+export const EDGE_TO_EDGE = 6; // up to this many cards the hand is edge to edge (when there is room); from one more it overlaps
+export const OVERLAP_GROWTH = 0.4; // each card past that adds this fraction of a card's width to the row (a hand of 10 is 7.6 cards wide, not 10)
 
-// The distance from one card's left edge to the next's: edge to edge when there is room, else squeezed to fit slots cards in width.
+// The distance from one card's left edge to the next's. Up to EDGE_TO_EDGE cards it is a card wide; with more the row is (EDGE_TO_EDGE + OVERLAP_GROWTH per extra card) cards wide, so the cards overlap;
+// and it is squeezed further if even that does not fit slots cards in width. (Continuous at the change: 6 cards is a step of one card, 7 cards a little less.)
 export function cardStep({ slots, width, cardWidth }) {
   if (slots <= 1) return 0;
-  return Math.max(0, Math.min(cardWidth, (width - cardWidth) / (slots - 1)));
+  const natural = slots <= EDGE_TO_EDGE ? cardWidth : cardWidth * (EDGE_TO_EDGE - 1 + (slots - EDGE_TO_EDGE) * OVERLAP_GROWTH) / (slots - 1);
+  return Math.max(0, Math.min(natural, (width - cardWidth) / (slots - 1)));
 }
 
 // count: how many cards are in the row (not counting a card being dragged). gap: null, or the index (0 to count) of the place a dragged card would go: the row then has count + 1 places and

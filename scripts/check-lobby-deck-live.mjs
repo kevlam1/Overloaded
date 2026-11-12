@@ -270,22 +270,32 @@ try {
   record("...and her battlefield card is on the cell she stored (column 0, row 33: a land goes to the bottom-left block of the 96 by 44 grid)", JSON.stringify(bobSeesAliceBoard?.cells) === JSON.stringify(['0,33']), JSON.stringify(bobSeesAliceBoard?.cells));
   // Alice drags her card on the grid with the real mouse; the move is saved as one small write and Bob sees the new cell
   {
-    // the hand floats over the bottom of the board, so the card's exact middle may be under a card of the hand: press where the battlefield card itself is the topmost thing (log entry 147)
+    // The hand (large, overlapping from 7 cards) can cover the whole width of her board, and a land starts at the bottom-left, so it may be entirely under her hand and cannot be pressed (log entry 148).
+    // Select it with a click (a click event on the element) and lift it out with real Alt+ArrowUp key presses (the board's keyboard move) until the whole card shows, then drag it.
+    await alice.eval(`document.querySelector('#battlefield .card').click()`);
+    const wholeCardShows = () => alice.eval(`(() => { const card = document.querySelector('#battlefield .card'); const r = card.getBoundingClientRect(); return [0.1, 0.5, 0.9].every((fx) => [0.1, 0.5, 0.9].every((fy) => document.elementFromPoint(r.x + r.width * fx, r.y + r.height * fy)?.closest('.card') === card)); })()`);
+    for (let n = 0; n < 40 && !(await wholeCardShows()); n++) {
+      await alice.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'ArrowUp', code: 'ArrowUp', windowsVirtualKeyCode: 38, modifiers: 1 });
+      await alice.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'ArrowUp', code: 'ArrowUp', windowsVirtualKeyCode: 38 });
+      await sleep(80);
+    }
+    const startCell = await alice.eval(`(() => { const c = document.querySelector('#battlefield .card'); return { col: Number(c.dataset.col), row: Number(c.dataset.row) }; })()`);
+    await waitFor(async () => { const r = await rest('GET', pathOf('public/battlefield'), cleanup.bob.token); const card = r.json ? Object.values(r.json)[0] : null; return card && card.py === startCell.row ? true : null; }, 15000, 200); // (the nudges are saved before the drag starts)
     const geo = await alice.eval(`(() => { const b = document.getElementById('battlefield').getBoundingClientRect(); const card = document.querySelector('#battlefield .card'); const c = card.getBoundingClientRect(); let spot = null; for (const fy of [0.5, 0.3, 0.7, 0.15, 0.85]) for (const fx of [0.5, 0.3, 0.7, 0.15, 0.85]) { const x = c.x + c.width * fx; const y = c.y + c.height * fy; if (!spot && document.elementFromPoint(x, y)?.closest('.card') === card) spot = { x, y }; } return { cw: b.width / 112, ch: b.height / 44, x: spot?.x ?? c.x + c.width / 2, y: spot?.y ?? c.y + c.height / 2, covered: !spot }; })()`);
-    record("the land at the bottom-left of her board can be pressed somewhere (not all of it is under her hand)", !geo.covered);
-    // 16 columns right and as many rows up as it takes to be off her hand (a drop over a card of the hand puts the card back into it); the card starts on row 33
+    record("the land of her board, lifted out from under her hand with the keyboard, can be pressed", !geo.covered);
+    // 16 columns right and as many rows up as it takes to be off her hand (a drop over a card of the hand puts the card back into it)
     let up = 11;
     // (the whole card must be clear of the hand, not only its middle: its chips are at the bottom, and a click on them would hit a card of the hand)
     while (up < 33 && await alice.eval(`(() => [-4, 0, 4].some((dx) => [-5.5, 0, 5.5].some((dy) => { const e = document.elementFromPoint(${geo.x + 16 * geo.cw} + dx * ${geo.cw}, ${geo.y} - ${up} * ${geo.ch} + dy * ${geo.ch})?.closest('.card'); return Boolean(e) && e.parentElement.id === 'hand'; })))()`)) up++;
     const to = { x: geo.x + 16 * geo.cw, y: geo.y - up * geo.ch };
-    const expectedCell = `16,${33 - up}`;
+    const expectedCell = `${startCell.col + 16},${startCell.row - up}`;
     const mouse = (page, type, p, buttons) => page.send('Input.dispatchMouseEvent', { type, x: p.x, y: p.y, button: type === 'mouseMoved' ? 'none' : 'left', buttons, clickCount: 1 });
     await mouse(alice, 'mouseMoved', geo, 0); await mouse(alice, 'mousePressed', geo, 1);
     for (let step = 1; step <= 8; step++) await mouse(alice, 'mouseMoved', { x: geo.x + (to.x - geo.x) * step / 8, y: geo.y + (to.y - geo.y) * step / 8 }, 1);
     await mouse(alice, 'mouseReleased', to, 0);
     const moved = await waitFor(async () => { const p = await panelOf(bob, 'Alice'); return p && JSON.stringify(p.cells) === JSON.stringify([expectedCell]) ? p : null; }, 20000, 250);
     record("Alice drags her card with the mouse (8 cells right, 4 up) and Bob's page shows it on the new cell, without a refresh", Boolean(moved), JSON.stringify((await panelOf(bob, 'Alice'))?.cells));
-    record('...and the database holds the new cell on the public card that Bob can read', Boolean(await waitFor(async () => { const r = await rest('GET', pathOf('public/battlefield'), cleanup.bob.token); const card = r.json ? Object.values(r.json)[0] : null; return card && card.px === 16 && card.py === 33 - up ? true : null; }, 15000, 250)));
+    record('...and the database holds the new cell on the public card that Bob can read', Boolean(await waitFor(async () => { const r = await rest('GET', pathOf('public/battlefield'), cleanup.bob.token); const card = r.json ? Object.values(r.json)[0] : null; return card && card.px === startCell.col + 16 && card.py === startCell.row - up ? true : null; }, 15000, 250)));
   }
   record("...with her name and seat as a heading", /^Seat 1: Alice/.test(bobSeesAliceBoard?.heading ?? ''));
   const aliceSeesBobBoard = await waitFor(async () => { const p = await panelOf(alice, 'Bob'); return p && p.life === '40' && p.inCommandZone === 1 ? p : null; }, 30000, 250);

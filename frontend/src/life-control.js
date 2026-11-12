@@ -103,6 +103,7 @@ export function mountLifeControl({ button, onDelta, onSet, say = () => {}, holdM
     if (change !== null) onDelta(change);
   });
   button.addEventListener('keydown', (event) => {
+    if (event.altKey || event.ctrlKey || event.metaKey) return; // Alt+arrow moves the selected card on the board, and other shortcuts are not ours: the number only answers to the plain keys and Shift
     if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openEditor(); return; }
     const change = lifeKeyDelta(event.key, event.shiftKey);
     if (change !== null) { event.preventDefault(); onDelta(change); }
