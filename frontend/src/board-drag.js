@@ -2,6 +2,7 @@
 // your own battlefield; the cell under the pointer is outlined while you drag, and the page decides what the drop does (onDrop). Mouse and pen only: a phone has no hover and its
 // touch version is on hold. A drag starts only after the pointer has moved a few pixels, so an ordinary click still selects a card, and a press on a counter or a badge is theirs.
 // Escape, a menu, the window losing focus or letting go outside the board cancels it. This module changes nothing in the game: it reports { uid, from, col, row }.
+import { STACK_HOLD_MS } from '../../shared/stacks.mjs';
 import { anchorAtPoint, cellAtPoint, shiftedAnchor, BOARD_COLS, CARD_COLS, CARD_ROWS } from '../../shared/board-grid.mjs';
 
 export const DRAG_DISTANCE_PX = 6;
@@ -23,6 +24,7 @@ const MAX_LEAN = 18; // degrees
 // library, whose top card is not shown), pileAt(x, y) gives { zone, element } for the pile under a point, and onDropPile({ uid, from, to }) is called when a card is let go over one.
 export function mountBoardDrag({ doc = document, board, onDrop, hand = () => null, onDropHand = () => {}, onHandOver = () => {}, onReorderHand = () => {}, handZone = () => null, handHit = null, zoneSource = () => null, pileAt = () => null, onDropPile = () => {}, isEnabled = () => true }) {
   let press = null; // the card the pointer went down on, before it has moved far enough to be a drag
+  let hold = null; // { ring, timer, ready }: a pile of cards is being held down; when the circle is full it is ready to be moved as a whole
   let drag = null; // { button, uid, from, ghost, highlight, cell }
 
   const sourceOf = (target) => {
@@ -36,7 +38,47 @@ export function mountBoardDrag({ doc = document, board, onDrop, hand = () => nul
   // what was pressed: a card of the battlefield or the hand, or (the page says) the top of a pile or a card of the command zone
   const pressedSource = (target) => sourceOf(target) ?? zoneSource(target);
 
+  // A pile of more than one card (Kevin, 2026-11-12: this replaces the triangle in its corner): hold it down without moving and a circle fills over it; when the circle is full the whole pile is ready, and
+  // moving then carries all of it. Move before that and one card comes off the top, as before. (Shift and drag still carries the whole pile at once.)
+  const SVG = 'http://www.w3.org/2000/svg';
+  const endHold = () => {
+    if (!hold) return;
+    clearTimeout(hold.timer);
+    hold.ring.remove();
+    hold = null;
+  };
+  const startHold = () => {
+    endHold();
+    const boardElement = board();
+    if (!boardElement || !press) return;
+    const card = press.button.getBoundingClientRect();
+    const box = boardElement.getBoundingClientRect();
+    const ring = doc.createElementNS(SVG, 'svg');
+    ring.setAttribute('class', 'stack-hold-ring holding');
+    ring.setAttribute('width', '44');
+    ring.setAttribute('height', '44');
+    ring.setAttribute('viewBox', '0 0 44 44');
+    ring.setAttribute('fill', 'none');
+    ring.setAttribute('aria-hidden', 'true');
+    ring.style.left = `${card.left - box.left + card.width / 2 - 22}px`;
+    ring.style.top = `${card.top - box.top + card.height / 2 - 22}px`;
+    ring.style.setProperty('--hold', `${STACK_HOLD_MS}ms`);
+    for (const name of ['track', 'fill']) {
+      const circle = doc.createElementNS(SVG, 'circle');
+      circle.setAttribute('class', name);
+      circle.setAttribute('cx', '22');
+      circle.setAttribute('cy', '22');
+      circle.setAttribute('r', '18');
+      circle.setAttribute('fill', 'none');
+      ring.append(circle);
+    }
+    boardElement.append(ring);
+    const mine = press;
+    hold = { ring, ready: false, timer: setTimeout(() => { if (hold && press === mine) { press.whole = true; hold.ready = true; ring.setAttribute('class', 'stack-hold-ring ready'); } }, STACK_HOLD_MS) };
+  };
+
   const clean = () => {
+    endHold();
     if (drag) {
       onHandOver(null); // (the hand closes its place, whichever card was carried)
       if (drag.smooth?.frame) cancelAnimationFrame(drag.smooth.frame);
@@ -53,6 +95,7 @@ export function mountBoardDrag({ doc = document, board, onDrop, hand = () => nul
 
   const startDrag = (event) => {
     const boardElement = board();
+    endHold(); // (press.whole says whether the hold was long enough)
     if (!boardElement || !press.uid) { press = null; return; }
     // a pile is carried from its top card (the picture of the stack, not the whole button with its name under it)
     const rect = (press.zone ? press.button.querySelector('.stack-face') ?? press.button : press.button).getBoundingClientRect();
@@ -65,8 +108,12 @@ export function mountBoardDrag({ doc = document, board, onDrop, hand = () => nul
     const tapped = press.button.classList.contains('tapped');
     // the card at its own size: a card of the hand is turned and may be lifted under the pointer, which makes its box on screen bigger, so its own layout size is used
     const own = press.from === 'hand' && press.button.offsetWidth > 0;
-    const height = own ? press.button.offsetHeight : rect.height;
-    const width = tapped ? height / 1.4015 : own ? press.button.offsetWidth : rect.width;
+    // A tapped card is a landscape box on the board (rect). Its picture is drawn as a portrait card (the short side across, the long side down) and the style sheet turns it on its side, so it ends up as big
+    // as the tapped card; what is held is the landscape box.
+    const height = tapped ? rect.width : own ? press.button.offsetHeight : rect.height;
+    const width = tapped ? rect.height : own ? press.button.offsetWidth : rect.width;
+    const holdW = tapped ? rect.width : width; // the size of what is held (the box on screen)
+    const holdH = tapped ? rect.height : height;
     if (tapped) ghost.classList.add('tapped');
     ghost.style.width = `${width}px`;
     ghost.style.height = `${height}px`;
@@ -82,7 +129,7 @@ export function mountBoardDrag({ doc = document, board, onDrop, hand = () => nul
     doc.body.classList.add('dragging-card');
     const grab = { x: Math.min(1, Math.max(0, (press.x - rect.left) / (rect.width || 1))), y: Math.min(1, Math.max(0, (press.y - rect.top) / (rect.height || 1))) }; // where on the card it was taken, as fractions
     if (press.whole) ghost.dataset.count = press.button.dataset.stackSize; // the picture says how many cards it carries
-    drag = { carried, button: press.button, uid: press.uid, from: press.from, whole: press.whole, tapped, ghost, highlight, cell: null, overHand: false, pile: null, pileElement: null, width, height, grab, startX: press.x, startY: press.y, start: press.start };
+    drag = { carried, button: press.button, uid: press.uid, from: press.from, whole: press.whole, tapped, ghost, highlight, cell: null, overHand: false, pile: null, pileElement: null, width, height, holdW, holdH, grab, startX: press.x, startY: press.y, start: press.start };
     if (press.from === 'hand' && !(typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches)) {
       // from where the card is (the middle of its box on screen is where its middle is, whatever its turn), at its own turn
       const turn = parseFloat(press.button.style.getPropertyValue('--ha')) || 0;
@@ -112,8 +159,11 @@ export function mountBoardDrag({ doc = document, board, onDrop, hand = () => nul
 
   const update = (event) => {
     const x = event.clientX; const y = event.clientY;
-    if (drag.smooth) { drag.smooth.tx = x - drag.width * drag.grab.x; drag.smooth.ty = y - drag.height * drag.grab.y; } // (the picture follows these)
-    else { drag.pos = { x: Math.round(x - drag.width * drag.grab.x), y: Math.round(y - drag.height * drag.grab.y) }; drag.ghost.style.transform = `translate(${drag.pos.x}px, ${drag.pos.y}px)`; } // the card is held where it was taken
+    // the top left of the picture: the middle of what is held is where the pointer holds it (for a tapped card the box held is on its side, the picture is turned about its middle)
+    const left = x - drag.holdW * (drag.grab.x - 0.5) - drag.width / 2;
+    const top = y - drag.holdH * (drag.grab.y - 0.5) - drag.height / 2;
+    if (drag.smooth) { drag.smooth.tx = left; drag.smooth.ty = top; } // (the picture follows these)
+    else { drag.pos = { x: Math.round(left), y: Math.round(top) }; drag.ghost.style.transform = `translate(${drag.pos.x}px, ${drag.pos.y}px)${drag.tapped ? ' rotate(90deg)' : ''}`; } // (a tapped card is turned on its side about its middle, after the move) the card is held where it was taken
     const boardElement = board();
     const rect = boardElement ? boardElement.getBoundingClientRect() : null;
     // a card from the battlefield moves by as many cells as the pointer has moved; a card from the hand is put with the pointer in the middle of it. Outside the board there is no place.
@@ -135,8 +185,8 @@ export function mountBoardDrag({ doc = document, board, onDrop, hand = () => nul
     // the place the card is over is decided from the middle of the picture carried, not from the pointer: you take a card of an overlapping hand by the part that shows, which may be far from its middle, and the
     // picture starts exactly over its own place, so nothing moves until it has been carried a little
     // a card from outside the hand (the battlefield, a pile) opens a place in it while it is over it, as a card of the hand does
-    if (drag.from === 'hand') onHandOver({ uid: drag.uid, x: x - drag.width * (drag.grab.x - 0.5), over: drag.overHand });
-    else if (!drag.whole) onHandOver({ uid: drag.uid, x: x - drag.width * (drag.grab.x - 0.5), over: drag.overHand, external: true }); // the hand shows where the card would go back (over), or closes up when the card is away from it
+    if (drag.from === 'hand') onHandOver({ uid: drag.uid, x: x - drag.holdW * (drag.grab.x - 0.5), over: drag.overHand });
+    else if (!drag.whole) onHandOver({ uid: drag.uid, x: x - drag.holdW * (drag.grab.x - 0.5), over: drag.overHand, external: true }); // the hand shows where the card would go back (over), or closes up when the card is away from it
     // a tapped card is a landscape card, 11 cells wide, so it may not start in the last 3 columns of the board
     if (cell && drag.tapped) cell.col = Math.min(cell.col, BOARD_COLS - CARD_ROWS);
     drag.cell = drag.overHand || drag.pile ? null : cell;
@@ -159,23 +209,24 @@ export function mountBoardDrag({ doc = document, board, onDrop, hand = () => nul
     if (event.altKey || event.ctrlKey || event.metaKey) return; // a modified click is something else (a menu key)
     if (event.target.closest?.('[data-mark], [data-badge]')) return;
     const source = pressedSource(event.target);
-    // A pile of more than one card: Shift held while dragging, or taking the corner handle (data-stack-handle), carries the WHOLE pile; a plain drag takes one card off the top. Shift on a card
+    // A pile of more than one card: Shift held while dragging, or holding it down until the circle is full (startHold), carries the WHOLE pile; a plain drag takes one card off the top. Shift on a card
     // that is not in a pile is something else (a marks step) and starts no drag.
     const stacked = source?.from === 'battlefield' && Number(source.button.dataset.stackSize) > 1;
     if (event.shiftKey && !stacked) return;
-    const whole = stacked && (event.shiftKey || Boolean(event.target.closest?.('[data-stack-handle]')));
+    const whole = stacked && event.shiftKey;
     const own = source?.from === 'battlefield' ? { col: Number(source.button.dataset.col), row: Number(source.button.dataset.row) } : null;
     press = source ? { ...source, zone: source.from !== 'battlefield' && source.from !== 'hand', whole, x: event.clientX, y: event.clientY, start: own && Number.isInteger(own.col) && Number.isInteger(own.row) ? own : null } : null;
+    if (press && stacked && !event.shiftKey) startHold(); // a pile held down is ready to be moved as a whole
   };
   const onMove = (event) => {
     if (press && !drag && Math.hypot(event.clientX - press.x, event.clientY - press.y) > DRAG_DISTANCE_PX) startDrag(event);
     if (drag) update(event);
   };
   const onUp = (event) => {
-    if (!drag) { press = null; return; }
+    if (!drag) { endHold(); press = null; return; }
     update(event);
     const { uid, from, cell, overHand, whole, pile } = drag;
-    const x = event.clientX - drag.width * (drag.grab.x - 0.5); // (the middle of the picture, as while it was carried)
+    const x = event.clientX - drag.holdW * (drag.grab.x - 0.5); // (the middle of the picture, as while it was carried)
     const picture = drag.smooth ? { x: drag.smooth.x, y: drag.smooth.y, angle: drag.smooth.a } : drag.pos ? { x: drag.pos.x, y: drag.pos.y, angle: 0 } : null; // where the picture is as it is let go: the card starts there
     clean();
     swallowClick();

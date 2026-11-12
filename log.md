@@ -3134,7 +3134,26 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 153. A hand that stops growing at 7 cards, a tapped card you can see, stacks of 3, two pile styles, and holding a pile to move it (2026-11-12)
+
+**What I asked for**
+- When I draw past 7 cards the hand's width grows. Keep the most width at what 7 cards take, and the dashed rectangle too, and cut that rectangle in half and keep the bottom part. When I move a tapped card it is invisible. Show a stack of 3 instead of 4, for tapped and untapped. In Settings, horizontal and diagonal for tapped and untapped separately. Remove the triangle for stacked piles: holding down on the pile with a circular loading should show it is ready to be moved as a stack.
+
+**What changed** (`shared/hand-layout.mjs`, `shared/stacks.mjs`, `shared/pile-style.mjs`, `frontend/src/hand-view.js`, `board-drag.js`, `card-nodes.js`, `pile-style.js`, `style.css`, tests)
+- **The hand's width:** the row stops growing at 7 cards (6.4 cards wide); more cards overlap more instead. The dashed box is made from the same layout, so it is the same width. It is the bottom half of the box of the hand now, and that half is also where a card is dropped (it was the whole height).
+- **The tapped card you could not see:** two bugs in the picture carried. It was sized from the short side of the tapped card (87 by 62 instead of 121 by 87), and it was turned by a CSS `rotate` property, which is applied before the inline move, so the move was turned too and the picture ended up 231 pixels off the left of the screen. It is a portrait card now, moved first and turned on its side after, in one transform, and held by the box on its side. A check measures that it is visible, on its side and the size of the tapped card.
+- **Piles show 3 copies** (was 4): `STACK_VISIBLE`, the offsets, and the dashed border round a pile.
+- **Two pile styles in Settings:** "Piles of untapped cards" and "Piles of tapped cards", each Diagonal or Horizontal, kept under separate keys. A pile of tapped cards used to be drawn straight up in both; that way is gone, and the default for tapped piles is Diagonal.
+- **No triangle:** a pile held down (half a second) shows a circle filling over it, and when it is full the whole pile is ready: moving then carries all of it. Moving before that takes one card off, as before; Shift and drag still carries the whole pile at once. Under reduced motion the circle shows only when the pile is ready.
+
+**What I checked:** hand logic 87, pile style 38, stacks 122, solo check 554 (three clean runs at the end), with new real-mouse checks: the carried tapped card, the hold and its circle (still filling at 150 ms, full after 650 ms, gone on release or on moving), moving before the circle is full, no triangle, the two settings each changing only their own piles and kept under their own keys, the hand the same width with 7, 10 and 13 cards, the rectangle being the bottom half; layout, lobby, deck, live check, quick suites; screenshots of the carried tapped card and of the circle over a pile. Not checked: phones and touch (a hold needs a mouse here; touch does not start drags).
+
+**My mistakes this round:** a run of the check had a hand of 27 cards because the draws before it are random, and the hand checks, which are written for hands of 6 to 12, failed; the hand block now mulligans first if the hand is over 10. Moving the dashed box to the bottom half put the middle of the top card outside it, so two of my checks dropped cards outside the drop area. I also first read "tapped and untapped separately" as two settings with the same names as before and had to look at what the tapped drawing was (straight up) to see what I was replacing.
+
+---
+
 ## Where AI misread me, or I had to correct course
+- (2026-11-12, entry 153) Claude's picture for a carried tapped card had two bugs (its size, and a CSS rotation applied before the move), which together put it off the screen, and no test looked at it.
 - (2026-11-12, entry 152) Claude's drop area for a card from the field was only the cards of the hand, so a card could not be dropped between them and the outline was drawn on each card; it is one rectangle round the whole hand now, and the hand opens a place for the card.
 - (2026-11-12, entry 151) Claude's hand gave every card a stacking number up to the size of the hand while the lifted copy sat at 6, so with more than six cards the copy was hidden behind the hand (the "bottom half hidden" complaint), and its layouts threw the lifted copy away on every click.
 - (2026-11-12, entry 150) Claude's first change to sharpen the hand pictures broke the Alt picture (it only accepted a small address), and its first card preview fix clipped the box, not the card, which is why the white corners stayed until the box itself was made card-shaped.

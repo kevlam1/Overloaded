@@ -247,19 +247,11 @@ export function makeCardNodes({ onSelect = () => {}, isSelected = () => false, r
             badge.textContent = `${stack.size}x`;
             badge.setAttribute('aria-hidden', 'true');
             if (!count) button.append(badge);
-            if (!readOnly && !button.querySelector(':scope > .stack-handle')) { // another player's pile has no handle
-              const handle = make('span', 'stack-handle');
-              handle.dataset.stackHandle = '1';
-              handle.title = 'Drag to move the whole pile (or hold Shift and drag any card of it)';
-              handle.setAttribute('aria-hidden', 'true');
-              button.append(handle);
-            }
             button.setAttribute('aria-label', `${button.getAttribute('aria-label')}, top of a stack of ${stack.size}`);
-          } else { count?.remove(); button.querySelector(':scope > .stack-handle')?.remove(); }
+          } else { count?.remove(); }
         } else {
           delete button.dataset.stackSize; delete button.dataset.stackDepth; delete button.dataset.stackHidden; delete button.dataset.stackExt;
           count?.remove();
-          button.querySelector(':scope > .stack-handle')?.remove();
         }
         return button;
       }));

@@ -644,17 +644,15 @@ body.playing .battlefield > .card.tapped { width: var(--card-h); height: var(--c
 body.playing .battlefield > .card .face { width: 100%; height: 100%; }
 body.playing .battlefield > .card.tapped .face { width: var(--card-w); height: var(--card-h); }
 body.playing .battlefield > .card.tapped .badges { top: 0.2rem; }
-/* piles (shared/stacks.mjs): up to 4 copies, each one lower and to the right of the one above it (the top card is on its cell), the rest hidden; the top card carries the count */
+/* piles (shared/stacks.mjs): up to 3 copies, each one lower and to the right of the one above it (the top card is on its cell), the rest hidden; the top card carries the count */
 .battlefield { --step: calc(var(--card-w) * 0.11); } /* how far each copy under the top one is shifted: a tenth of a card */
 .battlefield > .card[data-stack-depth="1"] { translate: calc(var(--step) * -1) calc(var(--step) * -1); }
 .battlefield > .card[data-stack-depth="2"] { translate: calc(var(--step) * -2) calc(var(--step) * -2); }
-.battlefield > .card[data-stack-depth="3"] { translate: calc(var(--step) * -3) calc(var(--step) * -3); }
 .battlefield > .card[data-stack-hidden] { display: none; }
 /* horizontal piles (the "Piles" choice): the copies under the top card go straight to the left, the bottom-most on the far left */
 .battlefield { --step-h: calc(var(--card-w) * 0.17); --step-v: calc(var(--card-w) * 0.15); }
 body[data-pile-style="horizontal"] .battlefield > .card[data-stack-depth="1"] { translate: calc(var(--step-h) * -1) 0; }
 body[data-pile-style="horizontal"] .battlefield > .card[data-stack-depth="2"] { translate: calc(var(--step-h) * -2) 0; }
-body[data-pile-style="horizontal"] .battlefield > .card[data-stack-depth="3"] { translate: calc(var(--step-h) * -3) 0; }
 
 .card .stack-count { position: absolute; top: 0.15rem; right: 0.15rem; padding: 0 0.3rem; border: 1px solid rgba(255, 255, 255, 0.4); border-radius: 0.6rem; background: rgba(20, 20, 26, 0.92); color: #fff; font-size: 0.75rem; font-weight: 700; line-height: 1.1rem; pointer-events: none; }
 body.playing .card .stack-count { font-size: 0.6rem; line-height: 0.9rem; }
@@ -662,7 +660,6 @@ body.playing .card .stack-count { font-size: 0.6rem; line-height: 0.9rem; }
 /* dragging a card on the battlefield grid (src/board-drag.js): the card follows the pointer, the 8 by 8 cells it would start on are outlined */
 .battlefield { position: relative; }
 .battlefield > .cell-highlight { z-index: 2; margin: 1px; border: 2px solid var(--accent); border-radius: 0.3rem; background: color-mix(in srgb, var(--accent) 22%, transparent); pointer-events: none; }
-.drag-ghost.tapped { rotate: 90deg; }
 .drag-ghost { position: fixed; left: 0; top: 0; z-index: 50; overflow: hidden; border-radius: 0.3rem; background: var(--line); box-shadow: 0 0.4rem 1rem rgba(0, 0, 0, 0.5); opacity: 0.6; pointer-events: none; font-size: 0.6rem; }
 .drag-ghost img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .card.dragging { visibility: hidden; }
@@ -670,30 +667,27 @@ body.dragging-card { cursor: grabbing; user-select: none; }
 body.playing .battlefield > .card, body.playing #hand > .card { cursor: grab; user-select: none; }
 body.dragging-card .battlefield > .card, body.dragging-card #hand > .card { cursor: grabbing; }
 
-/* a stack of tapped cards goes straight up (the copies under the top one are higher), in both pile styles */
-body .battlefield > .card.tapped[data-stack-depth="1"] { translate: 0 calc(var(--step-v) * -1); }
-body .battlefield > .card.tapped[data-stack-depth="2"] { translate: 0 calc(var(--step-v) * -2); }
-body .battlefield > .card.tapped[data-stack-depth="3"] { translate: 0 calc(var(--step-v) * -3); }
+/* a pile of TAPPED cards has a style of its own (Settings, "Piles of tapped cards"): diagonal (the copies under the top one go up and to the left, the first way) or horizontal (straight to the left) */
+body[data-tapped-pile-style="diagonal"] .battlefield > .card.tapped[data-stack-depth="1"] { translate: calc(var(--step) * -1) calc(var(--step) * -1); }
+body[data-tapped-pile-style="diagonal"] .battlefield > .card.tapped[data-stack-depth="2"] { translate: calc(var(--step) * -2) calc(var(--step) * -2); }
+body[data-tapped-pile-style="horizontal"] .battlefield > .card.tapped[data-stack-depth="1"] { translate: calc(var(--step-h) * -1) 0; }
+body[data-tapped-pile-style="horizontal"] .battlefield > .card.tapped[data-stack-depth="2"] { translate: calc(var(--step-h) * -2) 0; }
 /* the outline of a tapped card being dragged is a landscape card: 11 cells wide and 8 tall, on the bottom line of its block */
 .battlefield > .cell-highlight[data-tapped] { grid-column-end: span 11; grid-row-end: span 8; }
 /* the hand while a card from the battlefield is held over it */
-body.playing #hand::after { content: ''; z-index: 200; position: absolute; left: var(--zl, 0px); width: var(--zw, 0px); top: 0; bottom: 0; border: 2px dashed var(--ring); border-radius: 0.5rem; background: color-mix(in srgb, var(--ring) 10%, transparent); opacity: 0; pointer-events: none; }
-body.dragging-card .hand-section.drop-hand #hand::after { opacity: 1; } /* one rectangle round the whole hand (the same area a card is dropped on), not an outline on each card */
-/* the corner handle of a pile: a small triangle at the top-left of the top card; dragging it (or Shift and drag on any card of the pile) carries the whole pile */
-.card .stack-handle { position: absolute; left: 0; top: 0; width: 0; height: 0; border-style: solid; border-width: 0.9rem 0.9rem 0 0; border-color: var(--accent) transparent transparent transparent; cursor: grab; z-index: 2; }
-body.playing .card .stack-handle { border-width: 0.8rem 0.8rem 0 0; }
+body.playing #hand::after { content: ''; z-index: 200; position: absolute; left: var(--zl, 0px); width: var(--zw, 0px); top: 50%; bottom: 0; border: 2px dashed var(--ring); border-radius: 0.5rem; background: color-mix(in srgb, var(--ring) 10%, transparent); opacity: 0; pointer-events: none; }
+body.dragging-card .hand-section.drop-hand #hand::after { opacity: 1; } /* one rectangle round the whole hand, its bottom half (the same area a card is dropped on), not an outline on each card */
 .drag-ghost[data-count]::after { content: attr(data-count) 'x'; position: absolute; right: 0.15rem; top: 0.15rem; padding: 0 0.3rem; border-radius: 0.6rem; background: rgba(20, 20, 26, 0.92); color: #fff; font-size: 0.7rem; font-weight: 700; }
 /* a dashed border around a pile: the top card and the copies fanned under it (data-stack-ext is how many copies show under the top one) */
 .battlefield > .card[data-stack-ext]::before { content: ""; position: absolute; inset: -3px; border: 1px dashed color-mix(in srgb, var(--text) 45%, transparent); border-radius: 0.5rem; pointer-events: none; }
 .battlefield > .card[data-stack-ext="1"]::before { top: calc(var(--step) * -1 - 3px); left: calc(var(--step) * -1 - 3px); }
 .battlefield > .card[data-stack-ext="2"]::before { top: calc(var(--step) * -2 - 3px); left: calc(var(--step) * -2 - 3px); }
-.battlefield > .card[data-stack-ext="3"]::before { top: calc(var(--step) * -3 - 3px); left: calc(var(--step) * -3 - 3px); }
 body[data-pile-style="horizontal"] .battlefield > .card[data-stack-ext="1"]::before { top: -3px; left: calc(var(--step-h) * -1 - 3px); }
 body[data-pile-style="horizontal"] .battlefield > .card[data-stack-ext="2"]::before { top: -3px; left: calc(var(--step-h) * -2 - 3px); }
-body[data-pile-style="horizontal"] .battlefield > .card[data-stack-ext="3"]::before { top: -3px; left: calc(var(--step-h) * -3 - 3px); }
-body .battlefield > .card.tapped[data-stack-ext="1"]::before { left: -3px; top: calc(var(--step-v) * -1 - 3px); }
-body .battlefield > .card.tapped[data-stack-ext="2"]::before { left: -3px; top: calc(var(--step-v) * -2 - 3px); }
-body .battlefield > .card.tapped[data-stack-ext="3"]::before { left: -3px; top: calc(var(--step-v) * -3 - 3px); }
+body[data-tapped-pile-style="diagonal"] .battlefield > .card.tapped[data-stack-ext="1"]::before { top: calc(var(--step) * -1 - 3px); left: calc(var(--step) * -1 - 3px); }
+body[data-tapped-pile-style="diagonal"] .battlefield > .card.tapped[data-stack-ext="2"]::before { top: calc(var(--step) * -2 - 3px); left: calc(var(--step) * -2 - 3px); }
+body[data-tapped-pile-style="horizontal"] .battlefield > .card.tapped[data-stack-ext="1"]::before { top: -3px; left: calc(var(--step-h) * -1 - 3px); }
+body[data-tapped-pile-style="horizontal"] .battlefield > .card.tapped[data-stack-ext="2"]::before { top: -3px; left: calc(var(--step-h) * -2 - 3px); }
 /* the Modify window: counters and the power/toughness change, floating next to the selected card (opened from its right-click menu) */
 .marks-popover { position: fixed; z-index: 45; width: min(22rem, calc(100vw - 1rem)); max-height: calc(100vh - 1rem); overflow: auto; padding: 0.6rem; border: 1px solid var(--line); border-radius: 0.6rem; background: var(--bg); box-shadow: 0 0.6rem 1.6rem rgba(0, 0, 0, 0.55); }
 .marks-popover[hidden] { display: none; }
@@ -1214,3 +1208,12 @@ body.playing.solo .piles-section .zone-stacks { display: flex; flex-wrap: nowrap
 body.playing .pile-stack:not([data-empty="true"]), body.playing #command .card { cursor: grab; }
 body.dragging-card .pile-stack.drop-target .stack-face, body.dragging-card #command.drop-target { box-shadow: 0 0 0 3px var(--ring); }
 body.dragging-card #command.drop-target { border-radius: 0.5rem; }
+
+/* A pile held down (frontend/src/board-drag.js): a circle fills over it, and when it is full the whole pile is ready to be moved. Under prefers-reduced-motion there is no filling: the circle shows only when the pile is ready. */
+.battlefield > .stack-hold-ring { position: absolute; z-index: 30; width: 44px; height: 44px; pointer-events: none; color: var(--ring); transform: rotate(-90deg); filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.7)); }
+.stack-hold-ring .track { stroke: currentColor; stroke-width: 3; opacity: 0.25; }
+.stack-hold-ring .fill { stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-dasharray: 113.1; stroke-dashoffset: 113.1; }
+.stack-hold-ring.holding .fill { animation: stack-hold var(--hold, 500ms) linear forwards; }
+.stack-hold-ring.ready .fill { stroke-dashoffset: 0; }
+@keyframes stack-hold { from { stroke-dashoffset: 113.1; } to { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) { .stack-hold-ring.holding { opacity: 0; } .stack-hold-ring.holding .fill { animation: none; } }

@@ -1,6 +1,6 @@
 // Tests for the hand: shared/hand-sort.mjs (the three sorts, the type order), shared/hand-layout.mjs (the fan, the places while a card is carried, and which place the carried card is over) and reorderHand in shared/zones.mjs.
 import { SORT_KEYS, TYPE_KEYS, DEFAULT_TYPE_ORDER, noSorts, anySortOn, cleanSorts, nextSortState, sortWords, normalizeTypeOrder, moveType, sortKeysOf, sortHand } from '../shared/hand-sort.mjs';
-import { handLayout, handLayoutSelected, layoutAround, holeAt, cardStep, MAX_ANGLE, SPREAD } from '../shared/hand-layout.mjs';
+import { handLayout, handLayoutSelected, layoutAround, holeAt, cardStep, MAX_ANGLE, SPREAD, MAX_WIDE_CARDS } from '../shared/hand-layout.mjs';
 import { reorderHand } from '../shared/zones.mjs';
 
 let checks = 0;
@@ -84,12 +84,16 @@ same('a drawn card goes where the sort puts it at once: a one-mana card drawn la
 // ---- the fan ----
 const W = 800; const CW = 80; const CH = 112;
 same('the step is a card wide when the cards fit', cardStep({ slots: 5, width: W, cardWidth: CW }), CW);
-same('the step shrinks to fit a full hand', cardStep({ slots: 20, width: W, cardWidth: CW }), (W - CW) / 19);
+same('the step shrinks to fit a hand in a narrow room', cardStep({ slots: 20, width: 300, cardWidth: CW }), (300 - CW) / 19);
 same('a single card or none has no step', [cardStep({ slots: 1, width: W, cardWidth: CW }), cardStep({ slots: 0, width: W, cardWidth: CW })], [0, 0]);
 const row = handLayout({ count: 7, width: W, cardWidth: CW, cardHeight: CH });
 same('seven cards: they overlap a little, like a real hand (a step of 72 of 80)', row.slots.map((s, i) => i === 0 ? 0 : Math.round(s.x - row.slots[i - 1].x)), [0, 72, 72, 72, 72, 72, 72]);
 same('six cards are still edge to edge and the step is continuous at the change', [cardStep({ slots: 6, width: W, cardWidth: CW }), cardStep({ slots: 7, width: W, cardWidth: CW }) < CW, cardStep({ slots: 7, width: W, cardWidth: CW }) > cardStep({ slots: 20, width: W, cardWidth: CW })], [CW, true, true]);
-same('ten cards are 7.6 cards wide in all, not 10', Math.round((CW + cardStep({ slots: 10, width: 2000, cardWidth: CW }) * 9) / CW * 100) / 100, 7.6);
+const rowOf = (n, width = 2000) => Math.round((CW + cardStep({ slots: n, width, cardWidth: CW }) * (n - 1)) / CW * 100) / 100;
+same('the hand stops growing at 7 cards: 7 cards are 6.4 cards wide, and so are 8, 10, 15 and 40 (more cards overlap more)', [rowOf(7), rowOf(8), rowOf(10), rowOf(15), rowOf(40)], [6.4, 6.4, 6.4, 6.4, 6.4]);
+same('below 7 the row still grows with each card: 4, 5, 6 and 7 cards are 4, 5, 6 and 6.4 cards wide', [rowOf(4), rowOf(5), rowOf(6), rowOf(7)], [4, 5, 6, 6.4]);
+same('the number of cards the width stops growing at is 7', MAX_WIDE_CARDS, 7);
+same('a card more or fewer than 7 does not change the width after 7, but the step gets smaller: 10 cards are squeezed to 54/90 of a card a step', Math.round(cardStep({ slots: 10, width: 2000, cardWidth: CW }) / CW * 1000) / 1000, 0.6);
 same('a narrow room still squeezes the overlapping row to fit', Math.round(CW + cardStep({ slots: 10, width: 400, cardWidth: CW }) * 9), 400);
 same('five cards in a narrow room are squeezed to fit too', Math.round(CW + cardStep({ slots: 5, width: 240, cardWidth: CW }) * 4), 240);
 check('the row is centred in its width', Math.abs(row.slots[0].x - (W - (CW + 72 * 6)) / 2) < 0.01 && Math.abs((W - (row.slots[6].x + CW)) - row.slots[0].x) < 0.01);

@@ -535,6 +535,7 @@ try {
     const mouse = (type, x, y, buttons = 0) => browser.send('Input.dispatchMouseEvent', { type, x, y, button: type === 'mouseMoved' ? 'none' : 'left', buttons, clickCount: type === 'mouseMoved' ? 0 : 1 });
     const handBox = () => ev(`(() => { const r = document.getElementById('hand').getBoundingClientRect(); return { left: r.left, right: r.right, top: r.top, bottom: r.bottom }; })()`);
     const cardPoint = (index) => ev(`(() => { const card = document.querySelectorAll('#hand > .card')[${index}]; const r = card.getBoundingClientRect(); const y = r.top + r.height * 0.45; const xs = []; for (let x = r.left + 2; x < r.right - 2; x += 3) if (document.elementFromPoint(x, y)?.closest('#hand > .card') === card) xs.push(x); return { x: xs.length ? xs[Math.floor(xs.length / 2)] : r.left + r.width / 2, y }; })()`);
+    if ((await handNames()).length > 10) { await press('mulligan'); await sleep(100); } // (the draws of the checks before this one are random: a hand of 25 cards would be strips 20 pixels wide, which these checks are not about)
     await moveAwayFromHand();
     await drawUntil((n) => /Lightning Bolt|Sol Ring|Llanowar Elves/.test(n)); await drawUntil((n) => /^(Forest|Island)$/.test(n)); await moveAwayFromHand(); // the deal is random: make sure the hand has a spell and a land
     if (process.argv.includes('--screenshot')) await browser.screenshot('scratch-hand-lowered.png');
@@ -1698,16 +1699,16 @@ try {
   for (let n = 0; n < 40 && (await names('#hand .card')).filter((x) => x.startsWith('Forest')).length < 6; n++) await press('draw');
   for (let n = 0; n < 6; n++) { await clickCard('#hand .card', (await handNames()).findIndex((x) => x.startsWith('Forest'))); await clickAction('To battlefield'); }
   await clickAction('Deselect');
-  const forestState = () => ev(`(() => { const cs = Array.from(document.querySelectorAll('#battlefield .card')).filter((c) => c.getAttribute('aria-label').startsWith('Forest')); const visible = cs.filter((c) => getComputedStyle(c).display !== 'none'); const top = cs.find((c) => c.dataset.stackDepth === '0'); return { all: cs.length, visible: visible.length, cells: [...new Set(cs.map((c) => c.dataset.col + ',' + c.dataset.row))], badge: top && top.querySelector('.stack-count') ? top.querySelector('.stack-count').textContent : null, badges: document.querySelectorAll('#battlefield .stack-count').length, depths: cs.map((c) => c.dataset.stackDepth).join(), topLabel: top ? top.getAttribute('aria-label') : null, shifted: cs.filter((c) => c.dataset.stackDepth === '1' || c.dataset.stackDepth === '2' || c.dataset.stackDepth === '3').every((c) => getComputedStyle(c).translate !== 'none'), hiddenFlag: cs.filter((c) => c.dataset.stackHidden === '1').length }; })()`);
+  const forestState = () => ev(`(() => { const cs = Array.from(document.querySelectorAll('#battlefield .card')).filter((c) => c.getAttribute('aria-label').startsWith('Forest')); const visible = cs.filter((c) => getComputedStyle(c).display !== 'none'); const top = cs.find((c) => c.dataset.stackDepth === '0'); return { all: cs.length, visible: visible.length, cells: [...new Set(cs.map((c) => c.dataset.col + ',' + c.dataset.row))], badge: top && top.querySelector('.stack-count') ? top.querySelector('.stack-count').textContent : null, badges: document.querySelectorAll('#battlefield .stack-count').length, depths: cs.map((c) => c.dataset.stackDepth).join(), topLabel: top ? top.getAttribute('aria-label') : null, shifted: cs.filter((c) => c.dataset.stackDepth === '1' || c.dataset.stackDepth === '2').every((c) => getComputedStyle(c).translate !== 'none'), hiddenFlag: cs.filter((c) => c.dataset.stackHidden === '1').length }; })()`);
   let pile = await forestState();
   check('six Forests played one after another are one pile on the first land block', pile.all === 6 && pile.cells.length === 1 && pile.cells[0] === '0,33', JSON.stringify(pile));
-  check('the pile shows 4 copies, the other 2 are hidden', pile.visible === 4 && pile.hiddenFlag === 2, JSON.stringify(pile));
+  check('the pile shows 3 copies, the other 3 are hidden', pile.visible === 3 && pile.hiddenFlag === 3, JSON.stringify(pile));
   check('the top card says "6x" and nothing else carries a count', pile.badge === '6x' && pile.badges === 1, JSON.stringify(pile));
   check('the copies under the top one are shifted so the pile can be seen', pile.shifted === true && pile.depths.split(',').sort().join() === '0,1,2,3,4,5', JSON.stringify(pile));
   check('a screen reader is told it is the top of a stack of 6', /top of a stack of 6/.test(pile.topLabel ?? ''), String(pile.topLabel));
 
   if (process.argv.includes('--screenshot')) await browser.screenshot('scratch-solo-stack.png');
-  // moving a whole pile: Shift and drag any card of it, or take the corner handle; a plain drag still takes one card
+  // moving a whole pile: Shift and drag any card of it, or hold it down until the circle is full; a plain drag still takes one card
   { const r = await boardRect(); const topCard = '#battlefield .card[data-stack-depth="0"]';
     const shiftDrag = async (from, to, modifiers, during = null) => { await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: from.x, y: from.y }); await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: from.x, y: from.y, button: 'left', buttons: 1, clickCount: 1, modifiers }); for (let n = 1; n <= 8; n++) await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: from.x + (to.x - from.x) * n / 8, y: from.y + (to.y - from.y) * n / 8, buttons: 1, modifiers }); if (during) await during(); await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: to.x, y: to.y, button: 'left', buttons: 0, clickCount: 1, modifiers }); await sleep(100); };
     const from = await centerOfSelector(topCard);
@@ -1716,11 +1717,42 @@ try {
     check('while a whole pile is carried every card of it is hidden at the old place (not only the one that was pressed)', carried && carried.hidden === 6 && carried.visible === 0, JSON.stringify(carried));
     pile = await forestState();
     check('Shift and drag on a pile moves the whole pile: all six Forests on the new cell, still 6x', pile.cells.length === 1 && pile.cells[0] === '30,22' && pile.badge === '6x' && /^Moved the pile of 6 Forest./.test(await $text('status')), JSON.stringify({ pile, status: await $text('status') }));
-    check('...and the pile has a handle at its corner on the top card only', (await count('#battlefield .stack-handle')) === 1 && (await count(topCard + ' .stack-handle')) === 1);
-    const handle = await ev(`(() => { const h = document.querySelector('#battlefield .stack-handle').getBoundingClientRect(); return { x: h.x + 3, y: h.y + 3 }; })()`);
-    await shiftDrag(handle, { x: handle.x - 30 * r.width / 112, y: handle.y + 11 * r.height / 44 }, 0);
+    check('...and there is no triangle in the corner of a pile any more', (await count('#battlefield .stack-handle')) === 0 && (await count('#battlefield [data-stack-handle]')) === 0);
+    // holding the pile down: a circle fills over it; when it is full the whole pile is ready and moving carries all of it
+    const holdAt = await centerOfSelector(topCard);
+    const holdState = () => ev("(() => { const r = document.querySelector('#battlefield > .stack-hold-ring'); if (!r) return null; const c = getComputedStyle(r); return { cls: r.getAttribute('class'), opacity: c.opacity, w: r.getAttribute('width'), h: r.getAttribute('height'), fill: r.getAttribute('fill'), parent: r.parentElement.id }; })()");
+    await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: holdAt.x, y: holdAt.y });
+    await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: holdAt.x, y: holdAt.y, button: 'left', buttons: 1, clickCount: 1 });
+    await sleep(150);
+    const filling = await holdState();
+    check('holding a pile down shows a circle over it, still filling (not ready yet); it is an inline picture with its size and fill set', filling && /holding/.test(filling.cls) && !/ready/.test(filling.cls) && filling.w === '44' && filling.h === '44' && filling.fill === 'none' && filling.parent === 'battlefield', JSON.stringify(filling));
+    await sleep(650);
+    const ready = await holdState();
+    if (process.argv.includes('--screenshot')) await browser.screenshot('scratch-stack-hold.png');
+    check('after half a second the circle is full: the pile is ready to be moved, and the circle is shown', ready && /ready/.test(ready.cls) && ready.opacity === '1', JSON.stringify(ready));
+    for (let n = 1; n <= 8; n++) await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: holdAt.x - 30 * r.width / 112 * n / 8, y: holdAt.y + 11 * r.height / 44 * n / 8, buttons: 1 });
+    await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: holdAt.x - 30 * r.width / 112, y: holdAt.y + 11 * r.height / 44, button: 'left', buttons: 0, clickCount: 1 }); await sleep(120);
     pile = await forestState();
-    check('taking the corner handle (no Shift) carries the whole pile too: back on the first land block, 6x', pile.cells.length === 1 && pile.cells[0] === '0,33' && pile.badge === '6x', JSON.stringify(pile));
+    check('holding a pile until the circle is full and then moving carries the whole pile: back on the first land block, 6x, and the circle is gone', pile.cells.length === 1 && pile.cells[0] === '0,33' && pile.badge === '6x' && (await holdState()) === null, JSON.stringify(pile));
+    // let go before the circle is full: nothing is carried, the circle goes
+    { const p2 = await centerOfSelector(topCard);
+      await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p2.x, y: p2.y });
+      await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: p2.x, y: p2.y, button: 'left', buttons: 1, clickCount: 1 });
+      await sleep(200);
+      const early = await holdState();
+      await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: p2.x, y: p2.y, button: 'left', buttons: 0, clickCount: 1 }); await sleep(100);
+      check('letting go before the circle is full changes nothing and the circle goes away at once', early && /holding/.test(early.cls) && (await holdState()) === null && (await forestState()).cells.join() === '0,33'); }
+    // moving before the circle is full takes ONE card off (the plain drag), and no circle is left
+    { const p3 = await centerOfSelector(topCard);
+      await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p3.x, y: p3.y });
+      await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: p3.x, y: p3.y, button: 'left', buttons: 1, clickCount: 1 });
+      await sleep(120);
+      for (let n = 1; n <= 8; n++) await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p3.x + 14 * r.width / 112 * n / 8, y: p3.y, buttons: 1 });
+      const midDrag = await holdState();
+      await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: p3.x + 14 * r.width / 112, y: p3.y, button: 'left', buttons: 0, clickCount: 1 }); await sleep(120);
+      const after = await forestState();
+      check('moving the pile before the circle is full takes ONE card off the top (5x and one on its own) and the circle is gone as soon as the drag starts', midDrag === null && after.badge === '5x' && after.cells.length === 2, JSON.stringify({ midDrag, after }));
+      await press('arrange'); await sleep(60); }
     const lone = await ev(`(() => { const c = document.querySelector('#battlefield .card[data-stack-depth="0"]').getBoundingClientRect(); return { x: c.x + c.width / 2, y: c.y + c.height / 2 }; })()`);
     await shiftDrag(lone, { x: lone.x + 12 * r.width / 112, y: lone.y }, 0);
     pile = await forestState();
@@ -1730,7 +1762,7 @@ try {
 
   // the dashed border around a pile, a card being dragged is not shown where it was, and the highlight of a selected card is thin
   { const border = await ev(`(() => { const c = document.querySelector('#battlefield .card[data-stack-depth="0"]'); const cs = getComputedStyle(c, '::before'); return { ext: c.dataset.stackExt, style: cs.borderTopStyle, width: cs.borderTopWidth, top: cs.top, left: cs.left, event: cs.pointerEvents }; })()`);
-    check('a pile has a dashed border around it that reaches up and left over the copies under the top card and takes no clicks', border.ext === '3' && border.style === 'dashed' && border.width === '1px' && parseFloat(border.top) < -3 && parseFloat(border.left) < -3 && border.event === 'none', JSON.stringify(border));
+    check('a pile has a dashed border around it that reaches up and left over the copies under the top card and takes no clicks', border.ext === '2' && border.style === 'dashed' && border.width === '1px' && parseFloat(border.top) < -3 && parseFloat(border.left) < -3 && border.event === 'none', JSON.stringify(border));
     await clickCard('#battlefield .card[data-stack-depth="0"]');
     const sel = await ev(`(() => { const cs = getComputedStyle(document.querySelector('#battlefield .card.selected')); return { shadow: cs.boxShadow, border: cs.borderTopColor }; })()`);
     check('the highlight of the selected card is a thin line and a faint glow (not a thick solid ring)', !/ 3px/.test(sel.shadow) && / 1px/.test(sel.shadow) && sel.border === 'rgba(0, 0, 0, 0)', JSON.stringify(sel));
@@ -1748,7 +1780,7 @@ try {
   await ev(`(() => { const s = document.getElementById('pile-style'); s.value = 'horizontal'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
   const horizontalShift = await pileShift();
   check('choosing Horizontal moves the copies straight to the left (no vertical shift) and the page and storage remember it', /^-[\d.]+px( 0px)?$/.test(horizontalShift ?? '') && (await ev(`document.body.dataset.pileStyle`)) === 'horizontal' && (await ev(`localStorage.getItem('overloaded.pileStyle')`)) === 'horizontal', String(horizontalShift));
-  check('...and in horizontal the top card is still on its cell, the others to its left in a row (depth 1 is nearer than depth 3)', await ev(`(() => { const x = (d) => document.querySelector('#battlefield .card[data-stack-depth="' + d + '"]').getBoundingClientRect().left; return x(0) > x(1) && x(1) > x(2) && x(2) > x(3); })()`));
+  check('...and in horizontal the top card is still on its cell, the others to its left in a row (depth 1 is nearer than depth 2)', await ev(`(() => { const x = (d) => document.querySelector('#battlefield .card[data-stack-depth="' + d + '"]').getBoundingClientRect().left; return x(0) > x(1) && x(1) > x(2); })()`));
   // in the horizontal style a card tapped out of the pile goes to the side, like in the diagonal style (not up)
   await clickCard('#battlefield .card[data-stack-depth="0"]'); await clickAction('Tap');
   { const tappedCell = await ev(`(() => { const c = document.querySelector('#battlefield .card.tapped'); return c ? c.dataset.col + ',' + c.dataset.row : null; })()`);
@@ -1758,6 +1790,27 @@ try {
   check('...and untapping puts it back on the pile', (await forestState()).badge === '6x');
   await ev(`(() => { const s = document.getElementById('pile-style'); s.value = 'diagonal'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
   check('choosing Diagonal again brings the diagonal back', (await pileShift()) === diagonalShift && (await ev(`document.body.dataset.pileStyle`)) === 'diagonal');
+  // the style of piles of TAPPED cards is a choice of its own (Settings, "Piles of tapped cards"), and the other choice does not touch it
+  {
+    const selects = await ev("(() => { const a = document.getElementById('pile-style'); const b = document.getElementById('pile-style-tapped'); const words = (el) => el ? el.parentElement.textContent.replace(/\\s+/g, ' ').trim() : null; return { a: words(a), b: words(b), inMenu: Boolean(a && b && document.getElementById('settings-menu').contains(a) && document.getElementById('settings-menu').contains(b)), options: b ? [...b.options].map((o) => o.value) : null, tapped: document.body.dataset.tappedPileStyle ?? null, untapped: document.body.dataset.pileStyle }; })()");
+    check('Settings has two choices, one for piles of untapped cards and one for piles of tapped cards, each Diagonal or Horizontal; both start diagonal', selects.inMenu && /untapped/.test(selects.a) && /tapped cards/.test(selects.b) && selects.options.join() === 'diagonal,horizontal' && selects.tapped === 'diagonal' && selects.untapped === 'diagonal', JSON.stringify(selects));
+    await clickCard('#battlefield .card[data-stack-depth="0"]:not(.tapped)'); await clickAction('Tap');
+    await clickCard('#battlefield .card[data-stack-depth="0"]:not(.tapped)'); await clickAction('Tap'); await clickAction('Deselect');
+    const tappedShift = () => ev("(() => { const c = document.querySelector('#battlefield .card.tapped[data-stack-depth=\"1\"]'); return c ? getComputedStyle(c).translate : null; })()");
+    const untappedShift = () => ev("(() => { const c = document.querySelector('#battlefield .card:not(.tapped)[data-stack-depth=\"1\"]'); return c ? getComputedStyle(c).translate : null; })()");
+    const setStyle = (id, value) => ev("(() => { const s = document.getElementById(" + JSON.stringify(id) + "); s.value = " + JSON.stringify(value) + "; s.dispatchEvent(new Event('change', { bubbles: true })); })()");
+    const diagT = await tappedShift(); const diagU = await untappedShift();
+    check('with both diagonal the copy under the top tapped card and the copy under the top untapped card are both shifted up and to the left', /^-[\d.]+px -[\d.]+px$/.test(diagT ?? '') && /^-[\d.]+px -[\d.]+px$/.test(diagU ?? ''), JSON.stringify({ diagT, diagU }));
+    await setStyle('pile-style-tapped', 'horizontal');
+    const horT = await tappedShift(); const stillU = await untappedShift();
+    check('choosing Horizontal for piles of TAPPED cards moves only the tapped pile (straight to the left); the untapped pile stays diagonal; the choice is kept under its own key', /^-[\d.]+px( 0px)?$/.test(horT ?? '') && stillU === diagU && (await ev("document.body.dataset.tappedPileStyle")) === 'horizontal' && (await ev("document.body.dataset.pileStyle")) === 'diagonal' && (await ev("localStorage.getItem('overloaded.tappedPileStyle')")) === 'horizontal' && (await ev("localStorage.getItem('overloaded.pileStyle')")) !== 'horizontal', JSON.stringify({ horT, stillU, diagU }));
+    await setStyle('pile-style', 'horizontal'); await setStyle('pile-style-tapped', 'diagonal');
+    const swappedT = await tappedShift(); const swappedU = await untappedShift();
+    check('and the other way round: untapped horizontal and tapped diagonal, each by its own choice', /^-[\d.]+px -[\d.]+px$/.test(swappedT ?? '') && /^-[\d.]+px( 0px)?$/.test(swappedU ?? ''), JSON.stringify({ swappedT, swappedU }));
+    await setStyle('pile-style', 'diagonal');
+    await press('untap-all'); await sleep(80);
+    check('(the two tapped Forests are untapped and back on the pile of six)', (await forestState()).badge === '6x' && (await count('#battlefield .card.tapped')) === 0);
+  }
 
   // a click on empty space deselects, a double click taps or untaps
   await clickCard('#battlefield .card[data-stack-depth="0"]');
@@ -1875,7 +1928,7 @@ try {
   await clickCard('#battlefield .card[data-stack-depth="0"]:not(.tapped)'); await clickAction('Tap');
   await clickCard('#battlefield .card[data-stack-depth="0"]:not(.tapped)'); await clickAction('Tap');
   { const fan = await ev(`(() => { const t = Array.from(document.querySelectorAll('#battlefield .card.tapped')); const under = t.find((c) => c.dataset.stackDepth === '1'); const top = t.find((c) => c.dataset.stackDepth === '0'); return { n: t.length, translate: under ? getComputedStyle(under).translate : null, cells: [...new Set(t.map((c) => c.dataset.col + ',' + c.dataset.row))], topBottom: top ? Math.round(top.getBoundingClientRect().bottom) : null, underBottom: under ? Math.round(under.getBoundingClientRect().bottom) : null }; })()`);
-    check('two tapped Forests are one stack of 2 on one cell, and the lower copy is shifted straight UP (no sideways shift)', fan.n === 2 && fan.cells.length === 1 && /^0px -[0-9.]+px$/.test(fan.translate ?? '') && fan.underBottom < fan.topBottom, JSON.stringify(fan)); }
+    check('two tapped Forests are one stack of 2 on one cell, and the lower copy is shifted diagonally, up and to the left (the default style of tapped piles)', fan.n === 2 && fan.cells.length === 1 && /^-[0-9.]+px -[0-9.]+px$/.test(fan.translate ?? '') && fan.underBottom < fan.topBottom, JSON.stringify(fan)); }
   await clickAction('Untap');
   { const one = await ev(`(() => { const c = Array.from(document.querySelectorAll('#battlefield .card:not(.tapped)')).filter((x) => x.dataset.stackSize === undefined || x.dataset.stackDepth === '0'); const lone = Array.from(document.querySelectorAll('#battlefield .card.selected'))[0]; return lone ? lone.dataset.col + ',' + lone.dataset.row : null; })()`);
     check('untapping one card of the tapped stack, with the untapped pile next to it, puts it back on that pile (0,33)', one === '0,33', String(one)); }
@@ -1889,6 +1942,42 @@ try {
   check('marking the top Forest summoning sick makes it a different stack: the other five are 5x, this one is alone', pile.badge === '5x' && pile.all === 6, JSON.stringify(pile));
   await clickAction('Deselect');
 
+  // ---- a TAPPED card carried on the battlefield: its picture is visible, on its side, as big as the tapped card (frontend/src/board-drag.js) ----
+  {
+    await open(MARKS_DECK);
+    const names0 = await handNames();
+    await dragTo(await handCardPoint(names0[2]), await cellCenter(40, 8));
+    const cardSel = '#battlefield > .card';
+    const eTap = async () => { await browser.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'e', code: 'KeyE', windowsVirtualKeyCode: 69, text: 'e' }); await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'e', code: 'KeyE', windowsVirtualKeyCode: 69 }); await sleep(120); };
+    await mouseAt('mouseMoved', await centerOfSelector(cardSel), 0); await sleep(80); await eTap();
+    const tappedBox = await ev("(() => { const c = document.querySelector('#battlefield > .card'); const r = c.getBoundingClientRect(); return { tapped: c.classList.contains('tapped'), w: Math.round(r.width), h: Math.round(r.height) }; })()");
+    check('the card is tapped (E over it) and its box is landscape', tappedBox.tapped && tappedBox.w > tappedBox.h, JSON.stringify(tappedBox));
+    let ghost = null;
+    await dragTo(await centerOfSelector(cardSel), await cellCenter(70, 14), { release: false, during: async () => {
+      ghost = await ev("(() => { const g = document.querySelector('.drag-ghost'); if (!g) return null; const r = g.getBoundingClientRect(); const cs = getComputedStyle(g); const img = g.querySelector('img'); const ir = img ? img.getBoundingClientRect() : null; return { w: Math.round(r.width), h: Math.round(r.height), left: Math.round(r.left), top: Math.round(r.top), opacity: cs.opacity, display: cs.display, visibility: cs.visibility, hasImg: Boolean(img), imgW: ir ? Math.round(ir.width) : 0, imgH: ir ? Math.round(ir.height) : 0, tapped: g.classList.contains('tapped'), inside: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight }; })()");
+      if (process.argv.includes('--screenshot')) await browser.screenshot('scratch-tapped-drag.png');
+    } });
+    check('the picture carried for a tapped card is there and visible (it is not hidden or empty)', ghost && ghost.hasImg && ghost.display !== 'none' && ghost.visibility === 'visible' && Number(ghost.opacity) > 0.3 && ghost.w > 20 && ghost.h > 20 && ghost.inside, JSON.stringify(ghost));
+    check('...it is on its side like the tapped card, and as big as it (within 4 pixels), and its picture fills it', ghost && Math.abs(ghost.w - tappedBox.w) <= 4 && Math.abs(ghost.h - tappedBox.h) <= 4 && Math.abs(ghost.imgW - ghost.w) <= 4 && Math.abs(ghost.imgH - ghost.h) <= 4, JSON.stringify({ ghost, tappedBox }));
+    await mouseAt('mouseReleased', await cellCenter(70, 14), 0); await sleep(150);
+    check('letting go puts the tapped card down where it was let go and it is still tapped', (await ev("document.querySelector('#battlefield > .card').classList.contains('tapped')")) === true && (await ev("document.querySelector('#battlefield > .card').dataset.col")) !== '40', JSON.stringify(await ev("(() => { const c = document.querySelector('#battlefield > .card'); return [c.dataset.col, c.dataset.row]; })()")));
+  }
+
+  // ---- the hand does not grow past 7 cards: more cards overlap more, and the dashed box stays the same width (shared/hand-layout.mjs) ----
+  {
+    await open(); // a hand of 7, a library
+    const span = () => ev("(() => { const h = document.getElementById('hand'); const cs = [...h.querySelectorAll(':scope > .card')]; const xs = cs.map((c) => parseFloat(c.style.getPropertyValue('--hx'))); return { n: cs.length, row: Math.round(Math.max(...xs) + cs[0].offsetWidth - Math.min(...xs)), box: Math.round(parseFloat(h.style.getPropertyValue('--zw'))), step: Math.round((xs[1] - xs[0]) * 10) / 10 }; })()");
+    const s7 = await span();
+    for (let n = 0; n < 3; n++) await press('draw');
+    await sleep(100);
+    const s10 = await span();
+    for (let n = 0; n < 3; n++) await press('draw');
+    await sleep(100);
+    const s13 = await span();
+    check('the hand is not wider with more than 7 cards: 7, 10 and 13 cards cover the same width (within 2 pixels), and the dashed box is the same width too', s7.n === 7 && s10.n === 10 && s13.n === 13 && Math.abs(s10.row - s7.row) <= 2 && Math.abs(s13.row - s7.row) <= 2 && Math.abs(s10.box - s7.box) <= 2 && Math.abs(s13.box - s7.box) <= 2, JSON.stringify({ s7, s10, s13 }));
+    check('...the cards overlap more instead: the step between cards is smaller with 10 cards than with 7, and smaller again with 13', s10.step < s7.step && s13.step < s10.step, JSON.stringify({ s7, s10, s13 }));
+  }
+
   // ---- a card carried from the battlefield over the hand: one rectangle round the whole hand, a place opens in it, and the card is put there (frontend/src/hand-view.js, board-drag.js) ----
   {
     await open(MARKS_DECK); // a hand of 7
@@ -1901,9 +1990,8 @@ try {
     check('a card of the hand played to the battlefield (the setup of the checks that follow)', (await count('#battlefield > .card')) === 1 && (await count('#hand > .card')) === 6);
     const before = await handXs();
     const uidsBefore = await handUids();
-    const box = await ev("(() => { const r = document.getElementById('hand').getBoundingClientRect(); return { left: r.left, right: r.right }; })()");
-    const first = await handCardPoint((await handNames())[0]);
-    const mid = { x: (box.left + box.right) / 2, y: first.y };
+    const box = await ev("(() => { const r = document.getElementById('hand').getBoundingClientRect(); return { left: r.left, right: r.right, bottom: r.bottom }; })()");
+    const mid = { x: (box.left + box.right) / 2, y: box.bottom - 60 }; // (in the bottom half of the box of the hand: that is the area a card is dropped on)
     let seen = null; let away = null;
     await dragTo(await centerOfSelector('#battlefield > .card'), mid, { release: false, during: async () => {
       await sleep(250);
@@ -1911,6 +1999,8 @@ try {
       seen = await ev("(() => { const h = document.getElementById('hand'); const after = getComputedStyle(h, '::after'); return { outline: after.opacity, style: after.borderTopStyle, wide: Math.round(parseFloat(after.width)), cardOutlines: [...h.querySelectorAll(':scope > .card')].map((c) => getComputedStyle(c).outlineStyle), hole: h.dataset.hole ?? null, marked: document.getElementById('hand-section').classList.contains('drop-hand'), xs: [...h.querySelectorAll(':scope > .card')].map((c) => Math.round(parseFloat(c.style.getPropertyValue('--hx')))) }; })()");
     } });
     const holeShown = Number(seen?.hole);
+    const rectBox = await ev("(() => { const h = document.getElementById('hand'); const a = getComputedStyle(h, '::after'); const r = h.getBoundingClientRect(); return { handH: Math.round(r.height), top: Math.round(parseFloat(a.top)), height: Math.round(parseFloat(a.height)), bottomGap: Math.round(parseFloat(a.bottom)) }; })()");
+    check('the rectangle is the BOTTOM HALF of the box of the hand: half as high, with its bottom edge on the bottom of the box', Math.abs(rectBox.height - rectBox.handH / 2) <= 7 && Math.abs(rectBox.top - rectBox.handH / 2) <= 7 && rectBox.bottomGap === 0, JSON.stringify(rectBox));
     check('carried over the hand a card from the battlefield is shown by ONE rectangle round the whole hand (a dashed outline, as wide as the hand), and no card of the hand has an outline of its own', seen && seen.marked === true && seen.outline === '1' && seen.style === 'dashed' && seen.wide > 300 && seen.cardOutlines.every((o) => o === 'none'), JSON.stringify(seen));
     check('the hand opens a place for it: one place is open among the cards (a hole between two of them) and the cards have moved', Number.isInteger(holeShown) && holeShown >= 0 && holeShown <= 6 && JSON.stringify(seen.xs) !== JSON.stringify(before), JSON.stringify({ hole: seen?.hole, before, now: seen?.xs }));
     // away from the hand the place closes again

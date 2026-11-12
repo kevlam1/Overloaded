@@ -5,10 +5,18 @@ export const PILE_STYLE_KEY = 'overloaded.pileStyle';
 export const PILE_STYLES = ['diagonal', 'horizontal'];
 export const DEFAULT_PILE_STYLE = 'diagonal';
 export const PILE_STYLE_LABELS = { diagonal: 'Diagonal', horizontal: 'Horizontal' };
+// Piles of TAPPED cards have a style of their own (Kevin, 2026-11-12): the same two ways, chosen separately, kept under another key. (A pile of tapped cards used to be drawn straight up in both.)
+export const TAPPED_PILE_STYLE_KEY = 'overloaded.tappedPileStyle';
+export const DEFAULT_TAPPED_PILE_STYLE = 'diagonal';
 
 // The style from the text kept in the browser, or from nothing: always one of PILE_STYLES (anything else is the default).
 export function readPileStyle(text) {
   return typeof text === 'string' && PILE_STYLES.includes(text) ? text : DEFAULT_PILE_STYLE;
+}
+
+// The style of piles of tapped cards from the text kept in the browser, or from nothing: always one of PILE_STYLES (anything else is the default).
+export function readTappedPileStyle(text) {
+  return typeof text === 'string' && PILE_STYLES.includes(text) ? text : DEFAULT_TAPPED_PILE_STYLE;
 }
 
 // Where a tapped card steps out of its pile: beside it, in both styles (Kevin, 2026-11-10: the Horizontal style first sent it up, and he wanted it to act like the Diagonal one). The 'up' way is

@@ -1,6 +1,6 @@
 // Tests for shared/stacks.mjs and how stacks work in the game logic: what makes two cards one stack, how a stack is counted, where a new card goes (onto a pile it matches), the snap
 // when a card is dropped near a pile, and tidying (a pile stays one pile).
-import { stackKey, stackInfo, stackCellFor, snapToStack, STACK_VISIBLE, SNAP_RADIUS } from '../shared/stacks.mjs';
+import { stackKey, stackInfo, stackCellFor, snapToStack, STACK_VISIBLE, STACK_HOLD_MS, SNAP_RADIUS } from '../shared/stacks.mjs';
 import { arrangeAll } from '../shared/board-grid.mjs';
 import { makeGame, moveCard, placeCard, placeStack, setTapped, setTapStepOut, getTapStepOut, untapAll, setNoUntap, changeCounter, arrangeBoard, createToken, copyAsToken, seededRandom, isLandCard, checkGame, ZONES } from '../shared/zones.mjs';
 
@@ -9,7 +9,8 @@ const fail = (label, detail) => { console.log(`FAILED CHECK: ${label}: ${detail}
 const same = (label, actual, expected) => { checks++; if (JSON.stringify(actual) !== JSON.stringify(expected)) fail(label, `expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`); };
 const check = (label, condition, detail = '') => { checks++; if (!condition) fail(label, detail); };
 
-same('a pile shows 4 copies, and a card dropped within 6 cells snaps to a pile', [STACK_VISIBLE, SNAP_RADIUS], [4, 6]);
+same('a pile shows 3 copies, and a card dropped within 6 cells snaps to a pile', [STACK_VISIBLE, SNAP_RADIUS], [3, 6]);
+same('a pile is held for half a second before it is ready to be moved as a whole', STACK_HOLD_MS, 500);
 
 // ---- what makes two cards the same stack ----
 const card = (extra = {}) => ({ uid: 'c1', n: 'Forest', px: 0, py: 0, tapped: false, ...extra });
