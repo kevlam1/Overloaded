@@ -1,6 +1,6 @@
 // Tests for the hand: shared/hand-sort.mjs (the three sorts, the type order), shared/hand-layout.mjs (the fan, the places while a card is carried, and which place the carried card is over) and reorderHand in shared/zones.mjs.
 import { SORT_KEYS, TYPE_KEYS, DEFAULT_TYPE_ORDER, noSorts, anySortOn, cleanSorts, nextSortState, sortWords, normalizeTypeOrder, moveType, sortKeysOf, sortHand } from '../shared/hand-sort.mjs';
-import { handLayout, layoutAround, holeAt, cardStep, MAX_ANGLE } from '../shared/hand-layout.mjs';
+import { handLayout, layoutAround, holeAt, cardStep, MAX_ANGLE, spreadAround, SPREAD, SPREAD_REACH } from '../shared/hand-layout.mjs';
 import { reorderHand } from '../shared/zones.mjs';
 
 let checks = 0;
@@ -96,7 +96,7 @@ check('the row is centred in its width', Math.abs(row.slots[0].x - (W - (CW + 72
 check('the middle card is straight and the ends lean outward by the full turn', row.slots[3].angle === 0 && row.slots[0].angle === -MAX_ANGLE && row.slots[6].angle === MAX_ANGLE, JSON.stringify(row.slots.map((s) => s.angle)));
 check('the ends sit lower than the middle', row.slots[0].y > row.slots[3].y && row.slots[6].y > row.slots[3].y && row.slots[3].y === 0);
 const few = handLayout({ count: 2, width: W, cardWidth: CW, cardHeight: CH });
-check('two cards hardly fan', Math.abs(few.slots[0].angle) < MAX_ANGLE / 3 && Math.abs(few.slots[1].angle) < MAX_ANGLE / 3, JSON.stringify(few.slots));
+check('two cards fan only a little (at most 40% of the full turn)', Math.abs(few.slots[0].angle) <= MAX_ANGLE * 0.4 && Math.abs(few.slots[1].angle) <= MAX_ANGLE * 0.4 && Math.abs(few.slots[0].angle) > 0, JSON.stringify(few.slots));
 same('one card is straight and centred', handLayout({ count: 1, width: W, cardWidth: CW, cardHeight: CH }).slots, [{ x: 360, y: 0, angle: 0 }]);
 same('no cards, no slots', handLayout({ count: 0, width: W, cardWidth: CW, cardHeight: CH }).slots, []);
 const full = handLayout({ count: 20, width: W, cardWidth: CW, cardHeight: CH });
@@ -145,5 +145,18 @@ let threw = false; try { reorderHand(game, 'z', 0); } catch (error) { threw = /n
 check('a card that is not in the hand is refused in words', threw);
 const frozen = JSON.parse(JSON.stringify(game)); Object.freeze(frozen.zones.hand);
 check('it works on a frozen hand (nothing is changed in place)', order(reorderHand(frozen, 'c', 0)) === 'cabd');
+
+// ---- a clicked card comes up and the cards beside it move aside ----
+const flat = Array.from({ length: 9 }, (_, k) => ({ x: 100 + k * 50, y: 3, angle: k - 4 }));
+const out = spreadAround({ spots: flat, index: 4, cardWidth: 80 });
+same('the clicked card itself does not move sideways', out[4], flat[4]);
+same('the card beside it moves aside by 0.55 of a card width (44), to the left on the left and to the right on the right', [out[3].x - flat[3].x, out[5].x - flat[5].x], [-44, 44]);
+same('two places away it moves 2/3 as much, three places away 1/3 as much', [Math.round((out[2].x - flat[2].x) * 100) / 100, Math.round((out[6].x - flat[6].x) * 100) / 100, Math.round((out[1].x - flat[1].x) * 100) / 100, Math.round((out[7].x - flat[7].x) * 100) / 100], [-29.33, 29.33, -14.67, 14.67]);
+same('four or more places away it does not move', [out[0], out[8]], [flat[0], flat[8]]);
+same('only the sideways place changes (not the height or the turn)', out.every((spot, k) => spot.y === flat[k].y && spot.angle === flat[k].angle), true);
+same('the places given are not changed', flat[3].x, 250);
+same("the clicked card at the left end pushes the others right only", [spreadAround({ spots: flat, index: 0, cardWidth: 80 }).map((spot, k) => Math.round((spot.x - flat[k].x) * 100) / 100)].map((d) => d.slice(0, 5)), [[0, 44, 29.33, 14.67, 0]]);
+same('a place that is not one of the cards changes nothing (and a list that is not a list gives none)', [spreadAround({ spots: flat, index: 99, cardWidth: 80 }).map((s2) => s2.x).join() === flat.map((s2) => s2.x).join(), spreadAround({ spots: flat, index: -1, cardWidth: 80 }).length, spreadAround({ spots: null, index: 0, cardWidth: 80 })], [true, 9, []]);
+same('the constants are what the tests assume', [SPREAD, SPREAD_REACH], [0.55, 3]);
 
 console.log(`All ${checks} hand checks passed.`);

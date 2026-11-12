@@ -14,12 +14,14 @@
 // The card under the pointer is shown lifted and straight by a COPY of it drawn on top in a layer of its own (.hand-lift-layer) that never takes the mouse; the real cards keep their places and
 // their stacking, so the card that answers to the pointer is always the one you can see there (a lifted card that kept a higher stacking number kept the pointer over its neighbours).
 // Plain DOM, no dependencies besides the layout and the mana symbols.
-import { handLayout, layoutAround, holeAt } from '../../shared/hand-layout.mjs';
+import { handLayout, layoutAround, holeAt, spreadAround } from '../../shared/hand-layout.mjs';
 import { manaNode } from './mana-pips.js';
 
 export const LEAVE_DELAY = 150; // ms the pointer must stay out of the hand before it lowers, or before a carried card is taken to be away from it (coming back is at once): the edge of the area does not flicker
 export const EASE_RATE = 24; // per second: every instant the card closes this share of the distance (about 90% in 100 ms)
-const REST = { distance: 0.05, angle: 0.02 }; // closer than this to its place a card is at it
+const REST = { distance: 0.05, angle: 0.02, scale: 0.002 };
+const LIFT_OUT = 0.45; // a clicked card comes up by this fraction of its height
+const SELECTED_SCALE = 1.1; // closer than this to its place a card is at it
 
 const round2 = (value) => Math.round(value * 100) / 100;
 const prefersReducedMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -38,7 +40,8 @@ export function mountHand({ container, costOf = () => '' }) {
   let awayTimer = null;
   let lift = null; // { uid, card, node }: the card shown lifted under the pointer and its copy
   let generation = 0; // counts the layouts, to see which cards were not in the last one (a card that has been away is placed without sliding)
-  const motion = new WeakMap(); // card button -> { x, y, a, tx, ty, ta, gen }: where it is and where it should be
+  let pointer = null; // where the pointer last was ({ x, y }), to lift the card under it again after the cards have been laid out anew
+  const motion = new WeakMap(); // card button -> { x, y, a, s, tx, ty, ta, ts, gen }: where it is and where it should be (s: its size, 1 for a card as it lies in the hand)
   const pending = new Map(); // uid -> { x, y, angle }: where the picture of a card just let go was (viewport pixels of its top left corner, degrees)
   let frame = 0;
   let lastTime = 0;
@@ -80,6 +83,7 @@ export function mountHand({ container, costOf = () => '' }) {
     button.style.setProperty('--hx', `${round2(m.x)}px`);
     button.style.setProperty('--hy', `${round2(m.y)}px`);
     button.style.setProperty('--ha', `${round2(m.a)}deg`);
+    button.style.setProperty('--hs', String(Math.round(m.s * 1000) / 1000));
   }
   function tick(now) {
     frame = 0;
@@ -90,13 +94,14 @@ export function mountHand({ container, costOf = () => '' }) {
     for (const button of buttons()) {
       const m = motion.get(button);
       if (!m) continue;
-      if (Math.abs(m.tx - m.x) < REST.distance && Math.abs(m.ty - m.y) < REST.distance && Math.abs(m.ta - m.a) < REST.angle) {
-        if (m.x !== m.tx || m.y !== m.ty || m.a !== m.ta) { m.x = m.tx; m.y = m.ty; m.a = m.ta; paint(button, m); }
+      if (Math.abs(m.tx - m.x) < REST.distance && Math.abs(m.ty - m.y) < REST.distance && Math.abs(m.ta - m.a) < REST.angle && Math.abs(m.ts - m.s) < REST.scale) {
+        if (m.x !== m.tx || m.y !== m.ty || m.a !== m.ta || m.s !== m.ts) { m.x = m.tx; m.y = m.ty; m.a = m.ta; m.s = m.ts; paint(button, m); }
         continue;
       }
       m.x += (m.tx - m.x) * share;
       m.y += (m.ty - m.y) * share;
       m.a += (m.ta - m.a) * share;
+      m.s += (m.ts - m.s) * share;
       paint(button, m);
       moving = true;
     }
@@ -129,9 +134,8 @@ export function mountHand({ container, costOf = () => '' }) {
   }
 
   function arrange() {
-    clearLift(); // the cards are about to move; the next pointer movement lifts the one under the pointer again
     const all = buttons();
-    if (all.length === 0) { setZoneVars(); return; }
+    if (all.length === 0) { clearLift(); setZoneVars(); return; }
     generation += 1;
     const sample = all[0];
     const cardWidth = sample.offsetWidth;
@@ -151,33 +155,39 @@ export function mountHand({ container, costOf = () => '' }) {
     } else {
       spots = handLayout({ count: all.length, width, cardWidth, cardHeight }).slots;
     }
+    // A card of the hand that has been clicked (it is the selected card) comes up to be read and the cards beside it move aside to make room. It does not go down with a lowered hand.
+    const selectedIndex = carriedIndex >= 0 ? -1 : row.findIndex((button) => button.classList.contains('selected'));
+    if (selectedIndex >= 0) spots = spreadAround({ spots, index: selectedIndex, cardWidth });
     const snap = prefersReducedMotion();
     let moving = false;
     row.forEach((button, index) => {
       const spot = spots[index];
       let m = motion.get(button);
       const fresh = !m || m.gen !== generation - 1; // never placed, or it has been away from the hand: it goes straight to its place, with no slide in from the corner
-      if (!m) { m = { x: 0, y: 0, a: 0, tx: 0, ty: 0, ta: 0, gen: 0 }; motion.set(button, m); }
+      if (!m) { m = { x: 0, y: 0, a: 0, s: 1, tx: 0, ty: 0, ta: 0, ts: 1, gen: 0 }; motion.set(button, m); }
+      const comesUp = index === selectedIndex;
       m.tx = spot.x + shiftX;
-      m.ty = spot.y + drop;
+      m.ty = comesUp ? spot.y - Math.round(cardHeight * LIFT_OUT) : spot.y + drop;
       m.ta = spot.angle;
+      m.ts = comesUp ? SELECTED_SCALE : 1;
       const from = pending.get(button.dataset.uid);
       if (from) {
         Object.assign(m, startFromPicture(button, from)); // a card let go starts where its picture was
         pending.delete(button.dataset.uid);
       } else if (fresh) {
-        m.x = m.tx; m.y = m.ty; m.a = m.ta;
+        m.x = m.tx; m.y = m.ty; m.a = m.ta; m.s = m.ts;
       }
-      if (snap) { m.x = m.tx; m.y = m.ty; m.a = m.ta; }
+      if (snap) { m.x = m.tx; m.y = m.ty; m.a = m.ta; m.s = m.ts; }
       m.gen = generation;
-      if (m.x !== m.tx || m.y !== m.ty || m.a !== m.ta) moving = true;
+      if (m.x !== m.tx || m.y !== m.ty || m.a !== m.ta || m.s !== m.ts) moving = true;
       paint(button, m);
-      button.style.setProperty('--hz', String(index + 1)); // a variable, not z-index: the same button is reused on the battlefield, where an inline z-index would override its stacking
+      button.style.setProperty('--hz', String(comesUp ? row.length + 5 : index + 1)); // a variable, not z-index: the same button is reused on the battlefield, where an inline z-index would override its stacking
     });
     if (carriedIndex >= 0) { const m = motion.get(all[carriedIndex]); if (m) m.gen = generation; } // (it is left out of the places while it is carried, but it has not been away)
     for (const button of all) { showCost(button); sharpen(button); }
     // the dashed outline shown while a card is carried over the hand (style.css) covers the same width as the zone
     setZoneVars();
+    syncLift();
     if (moving) startMoving();
   }
 
@@ -225,6 +235,19 @@ export function mountHand({ container, costOf = () => '' }) {
     lift = { uid: card.dataset.uid, card, node };
   }
   // The hand rises at once when the pointer comes into its area and goes down only after the pointer has been out of it for LEAVE_DELAY (so wobbling over the edge does not make it bob).
+  // After the cards are laid out again (a click, a right-click, a card drawn, a menu closing) the card still under the pointer stays lifted, instead of dropping back into the hand until the pointer
+  // moves; a card that is selected (it has come up by itself), a carried card, or a lowered hand has no lifted copy.
+  function syncLift() {
+    if (!raised || !pointer || document.body.classList.contains('dragging-card')) { clearLift(); return; }
+    const target = cardAt(pointer.x, pointer.y);
+    if (!target || target.classList.contains('selected') || target.classList.contains('dragging')) { clearLift(); return; }
+    if (lift && lift.card === target) {
+      const m = motion.get(target);
+      if (m) { lift.node.style.setProperty('--hx', `${round2(m.tx)}px`); lift.node.style.setProperty('--hy', `${round2(m.ty)}px`); lift.node.style.setProperty('--ha', `${round2(m.ta)}deg`); }
+      return;
+    }
+    showLift(target);
+  }
   function setRaised(value) {
     if (value) {
       if (lowerTimer !== null) { clearTimeout(lowerTimer); lowerTimer = null; }
@@ -245,12 +268,13 @@ export function mountHand({ container, costOf = () => '' }) {
     return x >= z.left && x < z.right && y >= top && y <= z.bottom + 1;
   }
   const onPointerMove = (event) => {
+    pointer = { x: event.clientX, y: event.clientY };
     setRaised(buttons().length > 0 && inArea(event.clientX, event.clientY));
     // no card lifts while a card is being carried (the hole and the lean are what show), nor while the hand is down
-    if (raised && !document.body.classList.contains('dragging-card')) showLift(cardAt(event.clientX, event.clientY)); else clearLift();
+    syncLift();
   };
   document.addEventListener('pointermove', onPointerMove);
-  document.documentElement.addEventListener('pointerleave', () => setRaised(false));
+  document.documentElement.addEventListener('pointerleave', () => { pointer = null; setRaised(false); });
 
   function setZoneVars() {
     const z = zone();
@@ -269,6 +293,7 @@ export function mountHand({ container, costOf = () => '' }) {
       carried = null;
       hole = null;
       away = false;
+      delete container.dataset.hole;
       arrange();
       return;
     }
@@ -286,6 +311,7 @@ export function mountHand({ container, costOf = () => '' }) {
     if (away) { away = false; changed = true; }
     const next = holeAt({ total: all.length, width: Math.max(0, container.clientWidth - 2 * margin()), cardWidth: all[0].offsetWidth, x: info.x - container.getBoundingClientRect().left - margin(), previous: hole });
     if (next !== hole) { hole = next; changed = true; }
+    container.dataset.hole = String(hole); // (the place the carried card is over: shown for the checks and for anyone looking at the page)
     if (changed) arrange();
   }
 

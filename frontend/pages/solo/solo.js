@@ -20,6 +20,7 @@ import { createDealer, SHUFFLE_PAUSE_MS } from '../../../shared/deal-sequence.mj
 import { loadCardList } from '../../src/card-list.js';
 import { LIBRARY_KEY, LEGACY_KEY, readLibrary, selectedEntry } from '../../../shared/deck-library.mjs';
 import { makeLookup } from '../../../shared/card-lookup.mjs';
+import { cardBackUrl } from '../../../shared/card-image.mjs';
 import { makeCardNodes } from '../../src/card-nodes.js';
 import { mountMarksPanel } from '../../src/marks-panel.js';
 import { openCardMenu } from '../../src/card-menu.js';
@@ -426,7 +427,7 @@ function dropOnBoard({ uid, from, col, row, whole = false }) {
       apply(() => moved.game, `Moved the pile of ${moved.moved} ${found.card.n}.`);
       return;
     }
-    if (from === 'hand') { apply(() => moveCard(game, uid, 'battlefield', { cell: { col, row } }), `Played ${found.card.n}.`); return; }
+    if (from !== 'battlefield') { apply(() => moveCard(game, uid, 'battlefield', { cell: { col, row } }), from === 'hand' ? `Played ${found.card.n}.` : `Moved ${from === 'library' ? 'the top card of your library' : found.card.n} to the battlefield.`); return; }
     const result = placeCard(game, uid, col, row);
     if (result.game === game) return; // dropped on its own cell
     const other = result.swapped ? result.game.zones.battlefield.find((card) => card.uid === result.swapped) : null;
@@ -454,10 +455,38 @@ document.addEventListener('keydown', (event) => {
 $('arrange').addEventListener('click', () => { apply(() => arrangeBoard(game), 'Tidied the battlefield: lands along the bottom, everything else along the top, cards with the same name side by side.'); });
 // A card of yours dragged from the battlefield and let go over your hand goes back into the hand (a token that leaves the battlefield stops existing, like every other way of moving it).
 function dropOnHand({ uid, from }) {
-  if (!game || from !== 'battlefield') return;
+  if (!game || from === 'hand') return;
   const found = findCard(uid);
-  if (!found || found.zone !== 'battlefield') return;
-  apply(() => moveCard(game, uid, 'hand'), `Moved ${found.card.n} back to your hand.`);
+  if (!found || found.zone !== from) return;
+  if (from === 'library') play('draw');
+  apply(() => moveCard(game, uid, 'hand'), from === 'battlefield' ? `Moved ${found.card.n} back to your hand.` : `Moved ${from === 'library' ? 'the top card of your library' : found.card.n} to your hand.`);
+}
+// The piles and the command zone are places a card can be taken from (the top card of the library, the graveyard or the exile, or a card of the command zone) and dropped on (frontend/src/board-drag.js).
+function zoneSource(target) {
+  if (!game || !(target instanceof Element)) return null;
+  const stack = target.closest('.pile-stack');
+  if (stack) {
+    const zone = stack.dataset.zone;
+    const top = ['library', 'graveyard', 'exile'].includes(zone) ? game.zones[zone][0] : null; // the top of the library is its first card; of the graveyard and the exile, the newest
+    if (!top) return null;
+    return { button: stack, uid: top.uid, from: zone, picture: zone === 'library' ? cardBackUrl('small') : null };
+  }
+  const slot = target.closest('#command .card');
+  return slot ? { button: slot, uid: slot.dataset.uid, from: 'command' } : null;
+}
+function pileAt(x, y) {
+  const element = document.elementFromPoint(x, y);
+  const stack = element?.closest?.('.pile-stack');
+  if (stack?.dataset.zone) return { zone: stack.dataset.zone, element: stack };
+  return element?.closest?.('#command, .command-zone') ? { zone: 'command', element: $('command') } : null;
+}
+function dropOnPile({ uid, from, to }) {
+  if (!game) return;
+  const found = findCard(uid);
+  if (!found || found.zone !== from || from === to || !ZONE_WORDS[to]) return;
+  if (from === 'library' && to === 'hand') play('draw');
+  const name = from === 'library' ? 'the top card of your library' : found.card.n;
+  apply(() => moveCard(game, uid, to, to === 'command' ? {} : { position: 'top' }), `Moved ${name} to ${ZONE_WORDS[to]}.`);
 }
 // Your hand as a fan: the page draws the cards, the hand view places them and shows their mana costs; a card of the hand dragged within it opens a gap and is put there when let go.
 const handView = mountHand({ container: $('hand'), costOf: (uid) => { const card = game?.zones.hand.find((c) => c.uid === uid); const known = card ? lookup?.(card) : null; return known?.m ?? ''; } });
@@ -469,7 +498,7 @@ function reorderInHand({ uid, x, picture }) {
   if (next === game) { handView.arrange(); return; }
   apply(() => next, '');
 }
-mountBoardDrag({ board: () => $('battlefield'), onDrop: dropOnBoard, hand: () => $('hand-section'), onDropHand: dropOnHand, onHandOver: (over) => handView.carry(over), onReorderHand: reorderInHand, handZone: () => handView.zone(), handHit: (x, y) => handView.hit(x, y), isEnabled: () => Boolean(game) });
+mountBoardDrag({ board: () => $('battlefield'), onDrop: dropOnBoard, hand: () => $('hand-section'), onDropHand: dropOnHand, onHandOver: (over) => handView.carry(over), onReorderHand: reorderInHand, handZone: () => handView.zone(), handHit: (x, y) => handView.hit(x, y), zoneSource, pileAt, onDropPile: dropOnPile, isEnabled: () => Boolean(game) });
 
 $('mulligan').addEventListener('click', doMulligan);
 $('new-game').addEventListener('click', () => { if (confirm('Start a new game? This one will be lost.')) { play('shuffle'); deal({ pause: SHUFFLE_PAUSE_MS }); } });

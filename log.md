@@ -3089,7 +3089,36 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 151. A hand you click to read, a stronger arc, and cards that move to and from the piles (2026-11-12)
+
+**What I asked for**
+- The hand is flat when resting but becomes an arc when the mouse goes through it. When I left or right click a card it goes straight back into the hand although I raised it by hovering. Once the hand is large, hovered cards are impossible to read because their bottom half is behind the hand: instead of hovering, bring a card up when I click it and move the cards beside it aside. A hovered card does not have to pop up and straighten; it may keep its turn on the arc.
+- Remove the white highlight while I move a card on the field. I must be able to drag cards from the top of my library, graveyard, exile, command zone and so on, and back. Add to Settings a way back to the home page and my decks.
+
+**What I found**
+- **Flat at rest:** the arc was there in both states. A lowered hand hides the bottom quarter of the cards, which is where their tilt shows most, and the ends were only 14 pixels lower across a thousand, so the visible tops looked flat. The fan turn is 9 degrees now (was 6), the ends sit 10% of a card lower (was 5%), and a hand of a few cards fans at least 35% of the full fan.
+- **Hidden bottom half:** the cards of the hand have stacking numbers 1 to the size of the hand, and the lifted copy sat at 6, so from the seventh card on the cards were in front of the copy. The hand now has a stacking context of its own, so the copy is in front of all of them.
+- **Back into the hand:** every layout threw the lifted copy away, so any click (which selects the card and lays the hand out again) dropped it until the pointer moved.
+
+**What changed** (`shared/hand-layout.mjs`, `frontend/src/hand-view.js`, `board-drag.js`, `style.css`, `solo.js`, solo `index.html`, tests)
+- **A click brings a card up** (a right click too: it opens the menu and the card comes up like a clicked one): it rises by 45% of its height and 10% bigger, in front, and the cards within three places move aside (0.55, 0.37 and 0.18 of a card width). It stays up when the hand is lowered and goes back when something else is clicked. `spreadAround` in the layout module, with tests.
+- **Hover** is a small lift (0.9rem, 5% bigger) of a copy that keeps its turn on the arc. It survives a layout: the card under the pointer stays lifted instead of dropping back.
+- **No highlight of the cell** a card is carried over (the element stays, it is not drawn).
+- **Piles are places** (solo page): you can take the top card of the library (a card back is carried), graveyard or exile, or a card of the command zone, and drop it on the battlefield, the hand, or any pile (the exile and graveyard on top); the pile under the picture is ringed; dropping on the pile it came from does nothing; Escape cancels; a plain click still opens the pile.
+- **Settings** has links to the home page and to My decks.
+- **The hole is decided from the middle of the picture carried,** not from the pointer. With an overlapping hand you take a card by the part that shows, which can be most of a step from its middle, so a 12 pixel nudge swapped it with its neighbour. The picture starts exactly over its own place now. `data-hole` on the hand says which place it is over.
+- **The bottom inset of the hand is 2.8rem** (it was 1.4rem) so the stronger arc stays inside the window; the cards are the same size.
+
+**What I checked:** hand logic 83, solo check 532 (three clean runs), with real clicks, right clicks and drags for the click-raise, the lift surviving a right click, every move between the piles, the hand, the battlefield and the command zone, the Settings links, the field highlight; layout, lobby, deck, live check and the quick suites; screenshots of the hand at rest and raised. Not checked: the table page (it keeps the old behaviour of the hand but gets the new stacking, arc and hole rules, since they are shared), phones, touch, how it feels.
+
+**What I did not do:** pile dragging on the table page, dragging from the pile viewer window, the sideboard as a place to drop on, Scry or Surveil, and a hand-shaped preview of the clicked card.
+
+**My mistakes this round:** my tests aimed at 60% of a card's height while the hand was lowered; when the hand rose the point was below the card by two pixels (they aim at 45% now). A test of mine dragged from a point to the same point, which is a click and opened the pile viewer, which then covered the next test. A right click selects the card, so it comes up; I first wrote the test as if the lift stayed on the copy. The stronger arc put the ends of a raised hand below the window until I raised the inset. The end-of-hand drop test failed once with a hand of 10 cards and did not fail in the next five runs; I do not know why.
+
+---
+
 ## Where AI misread me, or I had to correct course
+- (2026-11-12, entry 151) Claude's hand gave every card a stacking number up to the size of the hand while the lifted copy sat at 6, so with more than six cards the copy was hidden behind the hand (the "bottom half hidden" complaint), and its layouts threw the lifted copy away on every click.
 - (2026-11-12, entry 150) Claude's first change to sharpen the hand pictures broke the Alt picture (it only accepted a small address), and its first card preview fix clipped the box, not the card, which is why the white corners stayed until the box itself was made card-shaped.
 - (2026-11-11, entry 149) Claude's first fix for the hand opened a gap by laying out an extra place and decided the drop against a different row, which is what made it jitter near the end; the style-sheet transition it used for movement also restarted on every change.
 - (2026-11-11, entry 148) Claude made the hovered hand card win the pointer by raising its stacking number, which is the cause of the "hovering over the left" complaint, and it only found this while testing a 12-card hand; its first overlap test pressed the middle of cards that were covered.

@@ -453,7 +453,7 @@ body.playing .card-corner .spot-empty[hidden], body.playing .card-corner .spot-t
    (Where container units are not supported the window-height sizes above stay.) */
 @supports (height: 1cqh) {
   body.playing .board .row, body.playing .opponent .row, body.playing #hand { container-type: size; }
-  body.playing #hand { height: clamp(8.85rem, calc(29.06vh + 0.6rem), 18.4rem); } /* 50% taller than the old boxed hand (clamp(4.4rem, 15.5vh, 9.5rem)), then 25% more (Kevin, 2026-11-11, round 2) */
+  body.playing #hand { height: clamp(10.25rem, calc(29.06vh + 2rem), 19.8rem); } /* 50% taller than the old boxed hand (clamp(4.4rem, 15.5vh, 9.5rem)), then 25% more (Kevin, 2026-11-11, round 2) */
   body.playing .board .row > .card, body.playing .opponent .row > .card, body.playing #hand > .card { height: calc(100cqh - 4px); width: calc((100cqh - 4px) / 1.4015); }
   body.playing .board .row > .card.tapped, body.playing .opponent .row > .card.tapped, body.playing #hand > .card.tapped { width: calc(100cqh - 4px); }
   body.playing .board .row > .card .face, body.playing .opponent .row > .card .face, body.playing #hand > .card .face { width: calc((100cqh - 4px) / 1.4015); height: calc(100cqh - 4px); }
@@ -1086,8 +1086,8 @@ body.playing .side-panels .pile-stack { padding: 0 0 1.9rem; }
 /* ---- your hand as a fan (frontend/src/hand-view.js, shared/hand-layout.mjs) ---- */
 /* The cards are placed by three numbers the page sets on each (--hx across, --hy down, --ha turned) and turn about a point below them, so the row is an arc. A card lifts and straightens
    under the pointer, quickly. The mana cost of each card is a row of symbols above it. The hand does not scroll sideways: too many cards overlap evenly. */
-body.playing #hand { position: relative; display: block; box-sizing: border-box; overflow: visible; padding-top: 1.25rem; }
-body.playing #hand > .card { position: absolute; left: 0; bottom: 1.4rem; z-index: var(--hz, auto); transform-origin: 50% 140%; transform: translate(var(--hx, 0px), var(--hy, 0px)) rotate(var(--ha, 0deg)); } /* (no transition: hand-view.js moves the numbers every frame, easing them itself) */
+body.playing #hand { position: relative; z-index: 0; display: block; box-sizing: border-box; overflow: visible; padding-top: 1.25rem; } /* z-index 0: the cards' own stacking numbers (1 to the size of the hand) stay inside the hand, so the lifted copy (above) is over all of them however many there are */
+body.playing #hand > .card { position: absolute; left: 0; bottom: 2.8rem; z-index: var(--hz, auto); transform-origin: 50% 140%; transform: translate(var(--hx, 0px), var(--hy, 0px)) rotate(var(--ha, 0deg)) scale(var(--hs, 1)); } /* (no transition: hand-view.js moves the numbers every frame, easing them itself) */
 /* What takes the mouse is the card's own resting place, and it never changes: its children let the pointer through, and the card under the pointer is shown lifted by a COPY of it in its own layer
    (.hand-lift-layer, frontend/src/hand-view.js) that takes no mouse. The real card stays where it is and keeps its stacking, so the pointer is always over the card that shows there. */
 body.playing #hand > .card { pointer-events: auto; }
@@ -1101,7 +1101,7 @@ body.playing #hand > .card .hand-cost .pip, body.playing #hand > .card .hand-cos
 
 /* The cards of the hand are a little smaller than the box so the arc and the turn of the outer cards stay inside it. */
 @supports (height: 1cqh) {
-  body.playing #hand > .card { --ch: calc(100cqh - 1.4rem); height: var(--ch); width: calc(var(--ch) / 1.4015); }
+  body.playing #hand > .card { --ch: calc(100cqh - 2.8rem); height: var(--ch); width: calc(var(--ch) / 1.4015); }
   body.playing #hand > .card .face, body.playing #hand > .card:not(.tapped) .face { width: 100%; height: 100%; }
 }
 
@@ -1137,14 +1137,14 @@ body.playing #hand > .card:not(.selected) { background: none; border-color: tran
 body.playing main.table { overflow: clip; }
 
 /* The lifted copy of the card under the pointer: a layer the size of the hand, on top of it, that takes no mouse. The copy starts in the card's own place and rises, straight and a little bigger. */
-body.playing .hand-lift-layer { position: absolute; left: 0; right: 0; bottom: 0; z-index: 6; height: clamp(8.85rem, calc(29.06vh + 0.6rem), 18.4rem); pointer-events: none; }
+body.playing .hand-lift-layer { position: absolute; left: 0; right: 0; bottom: 0; z-index: 6; height: clamp(10.25rem, calc(29.06vh + 2rem), 19.8rem); pointer-events: none; }
 @supports (height: 1cqh) {
   body.playing .hand-lift-layer { container-type: size; }
-  body.playing .hand-lift-layer > .card { --ch: calc(100cqh - 1.4rem); height: var(--ch); width: calc(var(--ch) / 1.4015); }
+  body.playing .hand-lift-layer > .card { --ch: calc(100cqh - 2.8rem); height: var(--ch); width: calc(var(--ch) / 1.4015); }
   body.playing .hand-lift-layer > .card .face, body.playing .hand-lift-layer > .card:not(.tapped) .face { width: 100%; height: 100%; }
 }
-body.playing .hand-lift-layer > .card { position: absolute; left: 0; bottom: 1.4rem; margin: 0; background: none; border-color: transparent; box-shadow: none; pointer-events: none; transform-origin: 50% 140%; transform: translate(var(--hx, 0px), var(--hy, 0px)) rotate(var(--ha, 0deg)); transition: transform 110ms ease-out; }
-body.playing .hand-lift-layer > .card.up { transform: translate(var(--hx, 0px), calc(var(--hy, 0px) - 2.4rem)) rotate(0deg) scale(1.12); }
+body.playing .hand-lift-layer > .card { position: absolute; left: 0; bottom: 2.8rem; margin: 0; background: none; border-color: transparent; box-shadow: none; pointer-events: none; transform-origin: 50% 140%; transform: translate(var(--hx, 0px), var(--hy, 0px)) rotate(var(--ha, 0deg)); transition: transform 110ms ease-out; }
+body.playing .hand-lift-layer > .card.up { transform: translate(var(--hx, 0px), calc(var(--hy, 0px) - 0.9rem)) rotate(var(--ha, 0deg)) scale(1.05); } /* the card under the pointer comes up a little and keeps its turn on the arc; a click is what brings a card fully up */
 body.playing .hand-lift-layer > .card * { pointer-events: none; }
 body.playing .hand-lift-layer > .card .hand-cost { position: absolute; left: 0; right: 0; bottom: 100%; display: flex; justify-content: center; margin-bottom: 0.15rem; pointer-events: none; white-space: nowrap; }
 body.playing .hand-lift-layer > .card .hand-cost .cost { margin: 0; gap: 1px; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.6)); }
@@ -1206,3 +1206,12 @@ body.playing.solo .side-panels { position: absolute; z-index: 9; right: 0.8rem; 
 body.playing.solo .side-panels > section { padding: 0; }
 body.playing.solo .piles-section { display: flex; flex-direction: row; align-items: flex-end; gap: 1rem; }
 body.playing.solo .piles-section .zone-stacks { display: flex; flex-wrap: nowrap; gap: 0.5rem 0.9rem; }
+
+/* Kevin, 2026-11-12: no highlight of the cell a card is carried over on the battlefield (the picture that follows the pointer shows where it will land). The element stays: the drag code and the checks use it. */
+.battlefield > .cell-highlight { visibility: hidden; }
+.settings-nav { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
+
+/* Piles you can take a card from and drop a card on (frontend/src/board-drag.js): the top card is grabbed, and the pile a card is carried over is ringed in the neutral ring colour. */
+body.playing .pile-stack:not([data-empty="true"]), body.playing #command .card { cursor: grab; }
+body.dragging-card .pile-stack.drop-target .stack-face, body.dragging-card #command.drop-target { box-shadow: 0 0 0 3px var(--ring); }
+body.dragging-card #command.drop-target { border-radius: 0.5rem; }

@@ -11,7 +11,9 @@
 // Positions are the card's left edge (x), how far it is dropped (y, pixels down) and its turn (angle, degrees, clockwise), for a card of cardWidth by cardHeight in a row width wide.
 
 const clamp = (value, low, high) => Math.min(high, Math.max(low, value));
-export const MAX_ANGLE = 6; // the turn of the outermost card of a full hand, degrees
+export const MAX_ANGLE = 9; // the turn of the outermost card of a full hand, degrees (6 until 2026-11-12: a lowered hand hides the bottom of the cards, where the turn shows most, and looked flat)
+export const ARC_DROP = 0.1; // how far the ends of a full hand sit lower than the middle, as a fraction of a card's height (0.05 until 2026-11-12)
+export const MIN_FAN = 0.35; // a hand of a few cards fans at least this much of the full fan
 export const GAP_TILT = 7; // how far the card beside the hole leans away from it, degrees
 export const GAP_REACH = 2; // how many cards on each side of the hole lean
 export const EDGE_TO_EDGE = 6; // up to this many cards the hand is edge to edge (when there is room); from one more it overlaps
@@ -34,11 +36,11 @@ export function handLayout({ count, width, cardWidth, cardHeight }) {
   const step = cardStep({ slots: n, width, cardWidth });
   const rowWidth = n > 0 ? cardWidth + step * (n - 1) : 0;
   const startX = (width - rowWidth) / 2;
-  const fan = clamp(n / 7, 0.25, 1); // a few cards hardly fan, a full hand fans fully
+  const fan = clamp(n / 7, MIN_FAN, 1); // a few cards fan a little, a full hand fans fully
   const out = [];
   for (let k = 0; k < n; k++) {
     const t = n > 1 ? (k - (n - 1) / 2) / ((n - 1) / 2) : 0; // -1 at the left end, 1 at the right end
-    out.push({ x: round2(startX + k * step), y: round2(t * t * cardHeight * 0.05 * fan), angle: round2(t * MAX_ANGLE * fan) });
+    out.push({ x: round2(startX + k * step), y: round2(t * t * cardHeight * ARC_DROP * fan), angle: round2(t * MAX_ANGLE * fan) });
   }
   return { step, slots: out };
 }
@@ -77,4 +79,19 @@ export function holeAt({ total, width, cardWidth, x, previous = null, deadZone =
   const reach = step * (0.5 + deadZone);
   if (Math.abs(x - middle(previous)) <= reach) return previous;
   return nearest();
+}
+
+// A card of the hand that has been clicked comes up to be read, and the cards beside it move aside to make room (Kevin, 2026-11-12): the places of the others, with the cards within SPREAD_REACH
+// places of the clicked one pushed away from it, most for the nearest. spots: the places in order, index: which of them is the clicked card (its own place does not change here: the page lifts it),
+// cardWidth: how wide a card is. Returns new places; nothing is changed in place.
+export const SPREAD = 0.55; // how far the nearest card moves aside, as a fraction of a card's width
+export const SPREAD_REACH = 3; // how many cards on each side move aside
+export function spreadAround({ spots, index, cardWidth }) {
+  if (!Array.isArray(spots) || !Number.isInteger(index) || index < 0 || index >= spots.length) return Array.isArray(spots) ? spots.map((spot) => ({ ...spot })) : [];
+  return spots.map((spot, k) => {
+    const distance = Math.abs(k - index);
+    if (distance < 1 || distance > SPREAD_REACH) return { ...spot };
+    const push = cardWidth * SPREAD * (1 - (distance - 1) / SPREAD_REACH);
+    return { ...spot, x: round2(spot.x + (k < index ? -push : push)) };
+  });
 }
