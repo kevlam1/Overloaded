@@ -1163,3 +1163,46 @@ body.playing .pile-stack .stack-face.back { border: 0; border-radius: 4.8% / 3.4
   body.playing .card-corner { container-type: size; }
   body.playing .card-corner .spot-picture { flex: 0 0 auto; min-height: 0; width: auto; max-width: 100%; max-height: none; height: min(calc(100cqh - 2.6rem), calc(100cqw * 1.3934)); aspect-ratio: 488 / 680; object-fit: fill; }
 }
+
+/* ================= The solo table: a full-screen board with floating pieces (Kevin, 2026-11-12) =================
+   No panels. The board fills the window (under a strip kept free at the top for the floating pieces); the life is a small floating piece at the top left, the menu button and the turn at the top right,
+   the action bar floats where you put it (frontend/src/floating-bar.js), the card preview floats under the turn, and the piles and the command zone are a row at the bottom right. The hand is at the
+   bottom, as before. Only the solo page: the table page keeps its layout until this one is right. */
+body.playing.solo main.table { display: block; position: fixed; inset: 0; margin: 0; padding: 0; overflow: hidden; }
+body.playing.solo { --glass: rgba(22, 22, 30, 0.78); }
+body.playing.solo #my-board { position: absolute; inset: 0; padding: 3.7rem 0 0 2.8rem; border: 0; border-radius: 0; background: none; }
+body.playing.solo .hand-section { position: absolute; left: 0; right: 30rem; bottom: 0; grid-row: auto; grid-column: auto; } /* the hand is centred in the room left of the piles (30rem: the row of piles and the command zone) */
+body.playing.solo .right-column { display: contents; }
+
+/* the pieces that float: glass, like the control bar of MIDI Companion */
+body.playing.solo .bar { display: contents; }
+body.playing.solo #life-area, body.playing.solo .bar > .stat, body.playing.solo .hud-menu, body.playing.solo .actions-panel { position: absolute; z-index: 15; border: 1px solid var(--line); border-radius: 0.8rem; background: var(--glass); backdrop-filter: blur(8px); box-shadow: 0 0.5rem 1.4rem rgba(0, 0, 0, 0.4); }
+body.playing.solo #life-area { top: 0.55rem; left: 0.6rem; display: flex; align-items: center; gap: 0.5rem; padding: 0.2rem 0.55rem; }
+body.playing.solo #life-area .stat { margin: 0; }
+body.playing.solo .bar > .stat { top: 3.5rem; right: 0.6rem; margin: 0; padding: 0.2rem 0.7rem; }
+body.playing.solo .hud-menu { top: 0.55rem; right: 0.6rem; display: grid; place-items: center; width: 2.4rem; height: 2.4rem; min-height: 0; padding: 0; color: var(--text); cursor: pointer; }
+body.playing.solo .hud-menu:hover { border-color: var(--ring); }
+body.playing.solo .topbar { position: absolute; z-index: 14; top: 3.9rem; left: 50%; translate: -50% 0; display: block; max-width: 40rem; padding: 0; pointer-events: none; }
+body.playing.solo .topbar h1 { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+body.playing.solo .topbar .status:not(:empty) { margin: 0; padding: 0.2rem 0.8rem; border: 1px solid var(--line); border-radius: 1rem; background: var(--glass); font-size: 0.8rem; text-align: center; }
+
+/* the floating action bar: one row, a grip at its left */
+body.playing.solo .actions-panel { top: 0.55rem; left: 50%; translate: -50% 0; display: flex; align-items: center; gap: 0.35rem; padding: 0.25rem 0.5rem 0.25rem 0.2rem; transition: left 0.25s ease, top 0.25s ease, border-color 0.2s ease, box-shadow 0.2s ease; }
+body.playing.solo .actions-panel.dragging { transition: none; border-color: var(--ring); box-shadow: 0 0.8rem 1.8rem rgba(0, 0, 0, 0.55); }
+body.playing.solo .actions-panel .actions { display: flex; flex-wrap: nowrap; gap: 0.35rem; }
+body.playing.solo .actions-panel .actions button { width: auto; white-space: nowrap; padding: 0.1rem 0.7rem; }
+body.playing.solo .bar-grip { display: grid; place-items: center; width: 1.4rem; min-height: 1.9rem; padding: 0; border: 0; background: none; color: var(--muted); cursor: grab; touch-action: none; user-select: none; }
+body.playing.solo .bar-grip:hover, body.playing.solo .bar-grip:focus-visible { color: var(--text); }
+body.playing.solo .actions-panel.dragging .bar-grip { cursor: grabbing; color: var(--ring); }
+@media (prefers-reduced-motion: reduce) { body.playing.solo .actions-panel { transition: none; } }
+
+/* the card preview floats under the turn, with no frame; it takes no mouse (except the Close of a pinged card) */
+body.playing.solo #spotlight { position: absolute; z-index: 8; top: 6.4rem; right: 0.8rem; width: 16rem; height: calc(16rem * 1.3934 + 2.6rem); flex: none; padding: 0; pointer-events: none; }
+body.playing.solo #spotlight .spot-close { pointer-events: auto; }
+body.playing.solo #spotlight.is-empty { display: none; }
+
+/* the piles and the command zone: a row at the bottom right */
+body.playing.solo .side-panels { position: absolute; z-index: 9; right: 0.8rem; bottom: 0.5rem; display: block; }
+body.playing.solo .side-panels > section { padding: 0; }
+body.playing.solo .piles-section { display: flex; flex-direction: row; align-items: flex-end; gap: 1rem; }
+body.playing.solo .piles-section .zone-stacks { display: flex; flex-wrap: nowrap; gap: 0.5rem 0.9rem; }

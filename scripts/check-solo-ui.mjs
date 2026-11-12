@@ -528,7 +528,7 @@ try {
   const moveAwayFromHand = async () => { await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 5, y: 5 }); await sleep(250); };
   // ---- the hand as a fan, with mana costs, and rearranging it by dragging (frontend/src/hand-view.js, shared/hand-layout.mjs) ----
   {
-    const handFacts = () => ev(`(() => { const cards = [...document.querySelectorAll('#hand > .card')]; const box = document.getElementById('hand').getBoundingClientRect(); return { uids: cards.map((c) => c.dataset.uid), names: cards.map((c) => c.getAttribute('aria-label').split(',')[0]), angles: cards.map((c) => parseFloat(c.style.getPropertyValue('--ha'))), xs: cards.map((c) => parseFloat(c.style.getPropertyValue('--hx'))), ys: cards.map((c) => parseFloat(c.style.getPropertyValue('--hy'))), costs: cards.map((c) => c.querySelector(':scope > .hand-cost')?.querySelectorAll('img, .pip').length ?? 0), hidden: cards.filter((c) => getComputedStyle(c).visibility === 'hidden').length, inside: cards.every((c) => { const r = c.getBoundingClientRect(); return r.left >= box.left - 20 && r.right <= box.right + 20 && r.bottom <= innerHeight + r.height * 0.3; }), position: cards.map((c) => getComputedStyle(c).position)[0], width: cards[0]?.offsetWidth ?? 0 }; })()`);
+    const handFacts = () => ev(`(() => { const cards = [...document.querySelectorAll('#hand > .card')]; const box = document.getElementById('hand').getBoundingClientRect(); return { uids: cards.map((c) => c.dataset.uid), names: cards.map((c) => c.getAttribute('aria-label').split(',')[0]), angles: cards.map((c) => parseFloat(c.style.getPropertyValue('--ha'))), xs: cards.map((c) => parseFloat(c.style.getPropertyValue('--hx'))), ys: cards.map((c) => parseFloat(c.style.getPropertyValue('--hy'))), costs: cards.map((c) => c.querySelector(':scope > .hand-cost')?.querySelectorAll('img, .pip').length ?? 0), hidden: cards.filter((c) => getComputedStyle(c).visibility === 'hidden').length, inside: cards.every((c) => { const r = c.getBoundingClientRect(); return r.left >= box.left - 20 && r.right <= box.right + 20 && r.bottom <= innerHeight + r.height * 0.36; }), position: cards.map((c) => getComputedStyle(c).position)[0], width: cards[0]?.offsetWidth ?? 0 }; })()`);
     const mouse = (type, x, y, buttons = 0) => browser.send('Input.dispatchMouseEvent', { type, x, y, button: type === 'mouseMoved' ? 'none' : 'left', buttons, clickCount: type === 'mouseMoved' ? 0 : 1 });
     const handBox = () => ev(`(() => { const r = document.getElementById('hand').getBoundingClientRect(); return { left: r.left, right: r.right, top: r.top, bottom: r.bottom }; })()`);
     const cardPoint = (index) => ev(`(() => { const card = document.querySelectorAll('#hand > .card')[${index}]; const r = card.getBoundingClientRect(); const y = r.top + r.height * 0.6; const xs = []; for (let x = r.left + 2; x < r.right - 2; x += 3) if (document.elementFromPoint(x, y)?.closest('#hand > .card') === card) xs.push(x); return { x: xs.length ? xs[Math.floor(xs.length / 2)] : r.left + r.width / 2, y }; })()`);
@@ -542,7 +542,7 @@ try {
     check('a card picture is clipped with the corners of a real card (4.8% by 3.4%), so no white corner shows', await ev("(() => { const face = document.querySelector('#hand > .card .face'); const img = face.querySelector('img'); return getComputedStyle(face).borderTopLeftRadius.includes('%') && getComputedStyle(img).borderTopLeftRadius.includes('%'); })()"));
     check('the library is the real Magic card back from Scryfall (the picture was asked for), not a drawn pattern', backsAsked.some((url) => url === 'https://backs.scryfall.io/small/0/a/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg') && (await ev("getComputedStyle(document.querySelector('#pile-library .stack-face')).backgroundImage")).includes('backs.scryfall.io'), JSON.stringify(backsAsked.slice(0, 2)));
     check('the cards sit in order from left to right, edge to edge when they fit', fan.xs.every((x, i) => i === 0 || x > fan.xs[i - 1]) && fan.xs.length < 2 || Math.abs((fan.xs[1] - fan.xs[0]) - fan.width) < 2 || (fan.xs[1] - fan.xs[0]) < fan.width, JSON.stringify([fan.xs.slice(0, 3), fan.width]));
-    check('every card is inside the hand\'s box and sideways in the window, and none is lower than a quarter of its height below the bottom edge', fan.inside, JSON.stringify(fan));
+    check('every card is inside the hand\'s box and sideways in the window, and none is lower than about a third of its height below the bottom edge (the ends of the fan sit lower)', fan.inside, JSON.stringify(fan));
     const lowered = await ev(`(() => { const cs = [...document.querySelectorAll('#hand > .card')]; const c = cs[Math.floor(cs.length / 2)]; const r = c.getBoundingClientRect(); return { hidden: Math.round((r.bottom - innerHeight) / r.height * 100) / 100, raised: document.getElementById('hand').classList.contains('raised'), count: cs.length, step: parseFloat(cs[1].style.getPropertyValue('--hx')) - parseFloat(cs[0].style.getPropertyValue('--hx')), width: cs[0].offsetWidth }; })()`);
     check('with the pointer away the hand is lowered: about a quarter of the cards is below the bottom edge of the window', !lowered.raised && lowered.hidden >= 0.2 && lowered.hidden <= 0.3, JSON.stringify(lowered));
     check('the cards never sit further apart than a card is wide (edge to edge at most) and from 7 cards on they overlap', lowered.step <= lowered.width + 1 && (lowered.count < 7 || lowered.step < lowered.width - 2), JSON.stringify(lowered)); // (up to 6 cards they are edge to edge only when the window is wide enough: the cards are large)
@@ -695,12 +695,13 @@ try {
     const sel = await ev(`document.querySelector('.card.selected')?.querySelector('img')?.getAttribute('src') ?? null`);
     await ev(`document.querySelector('#battlefield').click()`); await sleep(100);
     const first = await corner();
-    check('the card corner is at the right of the window (above the piles); it shows the selected card (the normal size) and keeps it after you click away', first.right <= 12 && first.width > 150 && !first.empty && /\/normal\//.test(first.src ?? '') && !first.closeShown, JSON.stringify(first));
+    check('the card preview floats at the right of the window; it shows the selected card (the normal size) and keeps it after you click away', first.right <= 24 && first.width > 150 && !first.empty && /\/normal\//.test(first.src ?? '') && !first.closeShown, JSON.stringify(first));
     await clickCard('#hand .card', (await ev(`(() => { const imgs = [...document.querySelectorAll('#hand .card img')].map((i) => i.getAttribute('src')); return Math.max(1, imgs.findIndex((s) => s !== imgs[0])); })()`))); // (a card that is not the same picture as the first: the hand is shuffled, and two Islands would look alike)
     const second = await corner();
     check('selecting another card keeps the corner on a card (the hand is shuffled and can hold two Islands, so only the selection is checked)', !second.empty && (await count('.card.selected')) === 1, JSON.stringify([first, second]));
-    const column = await ev(`(() => { const r = (sel) => document.querySelector(sel).getBoundingClientRect(); const a = r('.actions-panel'); const p = r('.side-panels'); const c = r('#spotlight'); const bar = r('.bar'); return { actionsRight: Math.round(innerWidth - a.right), actionsTop: Math.round(a.top - bar.top), buttons: [...document.querySelectorAll('.actions-panel button')].map((b) => b.id), barButtons: document.querySelectorAll('.bar .actions button').length, order: a.bottom <= c.top && c.bottom <= p.top && innerHeight - p.bottom <= 12, footer: document.querySelector('footer') !== null }; })()`);
-    check('the action buttons are at the top of the right column (not in the bar), the card corner under those and the piles at the very bottom, and the page has no footer', column.actionsRight <= 12 && Math.abs(column.actionsTop) <= 4 && column.barButtons === 0 && column.buttons.includes('draw') && column.buttons.includes('settings-button') && column.order && !column.footer, JSON.stringify(column));
+    const floating = await ev(`(() => { const r = (sel) => document.querySelector(sel).getBoundingClientRect(); const bar = r('.actions-panel'); const life = r('#life-area'); const menu = r('#settings-button'); const turn = r('.bar > .stat'); const piles = r('.side-panels'); const preview = r('#spotlight'); const board = r('#my-board'); const panelBorders = ['#my-board', '.right-column', '.side-panels', '#spotlight', '.hand-section'].map((s) => getComputedStyle(document.querySelector(s)).borderTopWidth); return { barPosition: getComputedStyle(document.querySelector('.actions-panel')).position, barTop: Math.round(bar.top), grip: Boolean(document.querySelector('.actions-panel #bar-grip')), buttons: [...document.querySelectorAll('.actions-panel .actions button')].map((b) => b.id), barButtons: document.querySelectorAll('.bar .actions button').length, lifeLeft: Math.round(life.left), lifeTop: Math.round(life.top), menuRight: Math.round(innerWidth - menu.right), menuTop: Math.round(menu.top), turnRight: Math.round(innerWidth - turn.right), turnBelowMenu: turn.top >= menu.bottom, pilesRight: Math.round(innerWidth - piles.right), pilesBottom: Math.round(innerHeight - piles.bottom), previewRight: Math.round(innerWidth - preview.right), previewAbovePiles: preview.bottom <= piles.top + 2, boardFills: Math.round(board.width) === innerWidth && Math.round(board.height) === innerHeight, panelBorders, footer: document.querySelector('footer') !== null }; })()`);
+    check('no panels: the board fills the window and the board, the card preview and the piles have no border; the action buttons are a floating bar with a grip (not in the top strip); there is no footer', floating.boardFills && floating.panelBorders.every((w) => w === '0px') && floating.barPosition === 'absolute' && floating.grip && floating.buttons.includes('draw') && floating.buttons.includes('untap-all') && !floating.buttons.includes('settings-button') && floating.barButtons === 0 && !floating.footer, JSON.stringify(floating));
+    check('the pieces float where a table has them: life at the top left, the menu button and the turn at the top right (turn under the menu), the piles and the command zone at the bottom right, the card preview at the right above them', floating.lifeLeft < 40 && floating.lifeTop < 40 && floating.menuRight < 40 && floating.menuTop < 40 && floating.turnRight < 40 && floating.turnBelowMenu && floating.pilesRight < 40 && floating.pilesBottom < 40 && floating.previewRight < 40 && floating.previewAbovePiles, JSON.stringify(floating));
     const legal = await ev(`(() => { document.getElementById('settings-button').click(); const t = document.querySelector('#settings-menu .settings-legal')?.textContent ?? ''; const shown = !document.getElementById('settings-menu').hidden; document.getElementById('settings-button').click(); return { t, shown }; })()`);
     check('the fan content notice is in Settings', legal.shown && /unofficial Fan Content/.test(legal.t) && /Not approved\/endorsed by Wizards/.test(legal.t) && /property of Wizards of the Coast/.test(legal.t), JSON.stringify(legal));
     await ev(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))`); await sleep(60);
@@ -1494,7 +1495,7 @@ try {
   // the point where the middle of a card dropped from the hand starts on cell (col, row): the card's top-left cell is four cells left and five up of the middle
   const cellCenter = async (col, row) => { const r = await boardRect(); return { x: r.left + (col + 4.5) * r.width / 112, y: r.top + (row + 5.5) * r.height / 44 }; };
   const centerOfSelector = (selector) => ev(`(() => { const r = document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`);
-  const handCardPoint = async (name) => centerOfSelector(`#hand .card:nth-child(${(await handNames()).findIndex((x) => x.startsWith(name)) + 1})`);
+  const handCardPoint = async (name) => { const index = (await handNames()).findIndex((x) => x.startsWith(name)); return ev(`(() => { const card = document.querySelectorAll('#hand > .card')[${index}]; const r = card.getBoundingClientRect(); const y = r.top + r.height * 0.6; const xs = []; for (let x = r.left + 2; x < r.right - 2; x += 3) if (document.elementFromPoint(x, y)?.closest('#hand > .card') === card) xs.push(x); return { x: xs.length ? xs[Math.floor(xs.length / 2)] : r.left + r.width / 2, y }; })()`); }; // (a point that shows on the card: the cards of the hand overlap)
   const mouseAt = (type, p, buttons) => browser.send('Input.dispatchMouseEvent', { type, x: p.x, y: p.y, button: type === 'mouseMoved' ? 'none' : 'left', buttons, clickCount: 1 });
   // press on `from`, move to `to` in steps, then (by default) let go; `during` runs with the button still down
   const dragTo = async (from, to, { release = true, during = null } = {}) => {
@@ -1836,6 +1837,55 @@ try {
   pile = await forestState();
   check('marking the top Forest summoning sick makes it a different stack: the other five are 5x, this one is alone', pile.badge === '5x' && pile.all === 6, JSON.stringify(pile));
   await clickAction('Deselect');
+
+  // ---- the floating action bar (frontend/src/floating-bar.js, shared/bar-place.mjs): real mouse and key input ----
+  {
+    const barBox = () => ev("(() => { const r = document.querySelector('.actions-panel').getBoundingClientRect(); return { left: Math.round(r.left), top: Math.round(r.top), right: Math.round(r.right), bottom: Math.round(r.bottom), w: Math.round(r.width), h: Math.round(r.height) }; })()");
+    const stored = () => ev("localStorage.getItem('overloaded.actionBar')");
+    const dragGrip = async (dx, dy) => {
+      const p = await centerOfSelector('#bar-grip');
+      await mouseAt('mouseMoved', p, 0); await mouseAt('mousePressed', p, 1);
+      for (let step = 1; step <= 6; step++) await mouseAt('mouseMoved', { x: p.x + dx * step / 6, y: p.y + dy * step / 6 }, 1);
+      await mouseAt('mouseReleased', { x: p.x + dx, y: p.y + dy }, 0); await sleep(450); // (it glides to where it snaps)
+    };
+    const gripKey = async (name) => { const vk = { ArrowRight: 39, ArrowLeft: 37, ArrowDown: 40, Home: 36 }[name]; await browser.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: name, code: name, windowsVirtualKeyCode: vk }); await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: name, code: name, windowsVirtualKeyCode: vk }); await sleep(450); };
+    await ev("localStorage.removeItem('overloaded.actionBar')");
+    await open(MARKS_DECK);
+    const b0 = await barBox();
+    const boardTop = await ev("Math.round(document.getElementById('battlefield').getBoundingClientRect().top)");
+    check('the action bar starts in the middle of the top, and the board starts under it (a card in the first cell is not covered)', Math.abs((b0.left + b0.right) / 2 - 640) <= 3 && b0.top <= 12 && boardTop >= b0.bottom, JSON.stringify({ b0, boardTop }));
+    await dragGrip(-300, 200);
+    const b1 = await barBox();
+    check('dragging the grip moves the bar by as much as the pointer moved (when it lands away from the edges)', Math.abs(b1.left - (b0.left - 300)) <= 3 && Math.abs(b1.top - (b0.top + 200)) <= 3, JSON.stringify({ b0, b1 }));
+    const saved = JSON.parse((await stored()) ?? 'null');
+    check('where it was let go is kept in the browser as two fractions of the room it has', saved && saved.fx > 0 && saved.fx < 1 && saved.fy > 0 && saved.fy < 1, JSON.stringify(saved));
+    const statusBefore = await $text('status');
+    await ev("document.getElementById('untap-all').click()");
+    check('the buttons on the moved bar still work (Untap all says what it did)', /Untapped/.test(await $text('status')) && statusBefore !== (await $text('status')) || /Untapped/.test(await $text('status')), await $text('status'));
+    await dragGrip(-(b1.left - 5), 0);
+    check('let go within 12 px of the left edge it snaps flush to it (8 px from the edge)', (await barBox()).left === 8, JSON.stringify(await barBox()));
+    { const p = await centerOfSelector("#bar-grip"); await dragGrip(1279 - p.x, 999 - p.y); } // (to the very corner of the window: the browser sends no mouse events from outside it)
+    const far = await barBox();
+    check('dragged far outside the window it is brought back inside it, into the corner', far.right <= 1280 && far.bottom <= 1000 && far.right >= 1280 - 12 && far.bottom >= 1000 - 12, JSON.stringify(far));
+    await ev("document.getElementById('bar-grip').focus()");
+    await gripKey('ArrowLeft'); await gripKey('ArrowLeft');
+    const keyed = await barBox();
+    check('with the keyboard the arrow keys move it by 10 pixels', keyed.left === far.left - 20, JSON.stringify({ far, keyed }));
+    await gripKey('Home');
+    const home = await barBox();
+    check('Home puts it back in the middle of the top', Math.abs((home.left + home.right) / 2 - 640) <= 3 && home.top <= 12, JSON.stringify(home));
+    await dragGrip(-250, 120);
+    const placed = await barBox();
+    await open(MARKS_DECK);
+    const again = await barBox();
+    check('after the page is loaded again the bar is where it was left', Math.abs(again.left - placed.left) <= 2 && Math.abs(again.top - placed.top) <= 2, JSON.stringify({ placed, again }));
+    await ev("localStorage.setItem('overloaded.actionBar', '{\"fx\":\"left\",\"fy\":99}')");
+    await open(MARKS_DECK);
+    const damaged = await barBox();
+    check('a damaged stored place is ignored: the bar is in the default place', Math.abs((damaged.left + damaged.right) / 2 - 640) <= 3 && damaged.top <= 12, JSON.stringify(damaged));
+    await ev("localStorage.removeItem('overloaded.actionBar')");
+    await open(MARKS_DECK);
+  }
 
   // ---- storage blocked ----
   await browser.send('Page.addScriptToEvaluateOnNewDocument', { source: `Object.defineProperty(window, 'localStorage', { get() { throw new DOMException('blocked', 'SecurityError'); } });` });

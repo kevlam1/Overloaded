@@ -3067,7 +3067,30 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 150. Sharp hand, real card back, E to tap, and the solo table with no panels and a floating action bar (2026-11-12)
+
+**What I asked for**
+- The hand is blurry (elsewhere is fine, especially the card preview). The card back should be the Magic card back (the library). Pressing E while hovering a card taps it. White is still showing in the corners of cards in the hand and in the card preview (not the Alt picture).
+- Move away from the limiting panels that make up the UI. Focus on the single-player solo board; once that is good, bring it to multiplayer. Add a floating bar that holds the actions (draw, untap, and so on), like the control bar of MIDI Companion. I gave four screenshots of another table as a reference for the layout (life top left, menu and turn top right, piles and commander bottom right, a floating bar of actions).
+
+**What changed** (`shared/card-image.mjs`, `shared/bar-place.mjs`, `frontend/src/hand-view.js`, `card-nodes.js`, `card-hover.js`, `floating-bar.js`, `style.css`, `solo.js`, `table.js`, solo `index.html`, `vercel.json`, tests)
+- **Blurry hand:** the hand used Scryfall's small picture (146 by 204) on cards that are now about 180 pixels wide. A card in the hand now uses the normal size (488 by 680); the Alt picture accepts it as it is.
+- **White corners:** a card picture is square with white outside the rounded card. The Alt picture was already clipped with a 4.8% by 3.4% radius; the hand's pictures were not. The preview was clipped too, but its box was 272 by 526 with the card (272 by 379) letterboxed inside it, so the clip was on the box and the card's own corners still showed. The preview box is now exactly card-shaped, with a check for it, and I looked at 4 times zoomed crops of both corners.
+- **Card back:** the library shows the real Magic card back from Scryfall's back server (checked: HTTP 200, 9 KB small, cached for a year; I looked at both candidate backs and chose the classic one). The content policy and the tests allow the new host.
+- **E:** over a card of yours on the battlefield it taps or untaps, like a double click. Not with Ctrl, Alt or Shift, not while typing, not over empty space.
+- **The solo table has no panels:** the board fills the window; the life is a small floating piece at the top left, the menu button and the turn at the top right, the card preview floats under the turn with no frame, and the piles and the command zone are a row at the bottom right. The hand is centred in the room left of the piles. The table page keeps its layout until the solo page is right.
+- **The floating action bar:** Draw, Next turn, Untap all, Auto-arrange, Mulligan and New game in one glass bar with a grip. You drag it by the grip; it snaps flush to an edge within 12 pixels or to the middle of one within 16, stays inside the window, and is remembered (two fractions of the room it has, so it is in the same place on another window size; a damaged stored value is ignored). The arrow keys on the grip move it, Home puts it back. The logic is in `shared/bar-place.mjs` (34 checks).
+
+**What I checked:** solo check 509, hand logic 74, bar placement 34, card pictures 44, layout 405, lobby 65, deck 273, live two-browser check 173, all quick suites; screenshots at 1280 by 1000, 1366 by 768 and 1920 by 1080. Not checked: phones, touch, how the bar feels to drag.
+
+**What I did not do:** snap hints while dragging (MIDI Companion shows an orange strip and a corner triangle); the table page (multiplayer) is unchanged on purpose; a right-click menu on the library like the reference (Draw X, Move top X, Reveal...), though the library already has its own menu; Scry, Surveil, Mill and Reveal hand as bar actions; a dropdown of actions on the bar.
+
+**My mistakes this round:** my first sharpening of the hand pictures broke the Alt picture, which turned a small address into a normal one and so refused an address that already was normal; the tests found it. My first drag of the bar did nothing, because I relied on capturing the pointer on the grip, which the test browser does not honour; it now follows the pointer on the whole page, as the card drag does. A test I wrote to drag the bar 5000 pixels outside the window sent events the browser does not deliver; it drags to the corner now. My first bar tests reloaded the page in the middle of the check and wiped the state that the next section needed, and a later position hit a section where storage is blocked on purpose; I moved them. The hand overlapped the piles at 1280 pixels wide until I centred it in the room left of them. A test of the fan's ends used a 0.3 limit that the tilted outer cards pass by a little. I also found no explanation for why the deck page requested the card back before I scoped the rule: it turned out the deck check visits the solo table, which now loads it.
+
+---
+
 ## Where AI misread me, or I had to correct course
+- (2026-11-12, entry 150) Claude's first change to sharpen the hand pictures broke the Alt picture (it only accepted a small address), and its first card preview fix clipped the box, not the card, which is why the white corners stayed until the box itself was made card-shaped.
 - (2026-11-11, entry 149) Claude's first fix for the hand opened a gap by laying out an extra place and decided the drop against a different row, which is what made it jitter near the end; the style-sheet transition it used for movement also restarted on every change.
 - (2026-11-11, entry 148) Claude made the hovered hand card win the pointer by raising its stacking number, which is the cause of the "hovering over the left" complaint, and it only found this while testing a 12-card hand; its first overlap test pressed the middle of cards that were covered.
 - (2026-11-11, entry 147) Claude's hand code left a stacking number on a card that was then played to the battlefield, which made the solo check fail at random for hours; it first guessed at timing instead of looking at the board after a failure.
