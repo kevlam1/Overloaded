@@ -31,7 +31,7 @@ export function mountPileStack(button, { zone, label }) {
     face.replaceChildren();
     delete face.dataset.name;
     if (!top) return;
-    const url = imageUrl(top.p ?? top.i, 'small');
+    const url = imageUrl(top.p ?? top.i, 'normal');
     if (!url) { face.dataset.name = String(top.n ?? ''); return; }
     const picture = new Image();
     picture.alt = '';

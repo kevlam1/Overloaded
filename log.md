@@ -3201,7 +3201,27 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 157. Cards fly into the right pile, either command slot, a redone mulligan and draw, larger zones, and Flip (2026-11-12)
+
+**What I asked for**
+- A card dragged to a bottom-right zone showed an animation going to the middle of the screen before it went to the zone. I should be able to drag my commander into whichever command zone I wish, and the second one gets its tax and lights up like the first. The mulligan animation was too awkward: the cards should flip over after they come together, and the cards coming out of the library need adjusting. Make the zones larger and sharper. Add flipping to battlefield cards: F while hovering, like E for tapping, shows the back (the sleeve, also for two-faced cards), and the menu has "Flip" and "Flip double-faced card" (the second only for cards with two faces).
+
+**What changed** (`frontend/src/card-fly.js` rewritten, `solo.js`, `table.js`, `board-drag.js`, `command-zone.js`, `card-nodes.js`, `pile-stack.js`, `style.css`, `shared/card-menu.mjs`, tests)
+- **The flight to the middle of the screen:** the picture carried was moved with the `translate` and `scale` properties, and `scale` also shrank the move its own transform had made, so it ended up pulled toward a corner. It is only moved and faded now.
+- **Command zone:** the page remembers which slot a commander was dragged into (kept for the game, not saved); a commander can go to either slot, and from one slot to the other. A slot is ringed while a card is over it, its tax shows when it holds a commander and it is lit like the first one. Other cards put in the command zone sit in the first slot with no commander.
+- **Draw and deal:** a card comes out of the library as a small card back at the pile's size, flies to its place in the hand and turns face up on the way. The real card is hidden until it lands, and the flying copy follows it as the hand lays itself out, so it lands exactly on it.
+- **Mulligan:** the hand gathers into a loose stack, turns over (the backs show), the stack flies into the library, the shuffle plays, and the new hand comes out of the library as above. The old version flew the face-up cards into the library.
+- **Zones:** the piles and command zone are about 35% larger (5.4rem, was 4rem), and their pictures are the normal size, so they are sharp (the library back too). The hand makes room for them (its right margin is 36rem).
+- **Flip:** F over a card on the battlefield flips it face down (the card back shows, the name does not), F again flips it back; the menu has Flip, and "Flip double-faced card" (the old Turn over, same action, one fixed label) only for cards with a back face. A face-down card shows the same to other players on the table page (it was already stored as `f`).
+
+**What I checked:** solo check 578, quick suites 60, layout 405, lobby 65, deck 273, the two-browser live check 173; broken copies of the three new silent-risk pieces (the scale in the flight, the command slot choice, the face-down picture), each caught. Screenshots: the hand turning over, a mulligan deal with a card flying out, the stack flying to the library and the riffle, a card flipped face down, the commander in the second slot. The pictures were stand-ins (no real card art), so I did not see real art flip. Not checked: the flights on the table page (draw, mulligan and the pile drops are the solo page only), phones, touch. Not done: moving a card between command slots on the live table (the second slot is only on the solo page's logic).
+
+**My mistakes this round:** my first flight for a drop to a pile was the cause of what you saw (the scale property). My first guess at why the end-of-hand check failed after making the zones larger was wrong: the hand's edge had moved over the piles, so the check dropped cards on a pile; I moved the hand's margin. A test in the pile block counted the cards of the command zone before and after, and a second card there broke the later checks (fixed in the previous round, again here when I added slots).
+
+---
+
 ## Where AI misread me, or I had to correct course
+- (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.
 - (2026-11-12, entry 154) Claude's end-of-hand drag check only worked for hands that were not exactly 10 cards, because it estimated the pointer from layout boxes of tilted cards; I never found out why the estimate was 48 px off.
 - (2026-11-12, entry 153) Claude's picture for a carried tapped card had two bugs (its size, and a CSS rotation applied before the move), which together put it off the screen, and no test looked at it.

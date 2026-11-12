@@ -380,7 +380,8 @@ try {
       await handIs(7);
       await press('mulligan');
       await sleep(600); await browser.screenshot('scratch-solo-gather.png'); // the hand gathering
-      await sleep(590); await browser.screenshot('scratch-solo-riffle.png'); // the riffle over the library, as the halves are apart
+      await sleep(1000); await browser.screenshot('scratch-solo-riffle.png'); // the stack of backs flying to the library
+      await sleep(380); await browser.screenshot('scratch-solo-riffle2.png'); // the halves apart
       await sleep(1400); // the hand gathers (about 1 s), the library is shuffled (1.15 s), and a card comes every 120 ms: about three cards are in
       await browser.screenshot('scratch-solo-dealing.png');
       await handIs(7);
@@ -404,7 +405,7 @@ try {
     await sleep(150);
     const early = await state();
     same('a mulligan plays no sound while the hand is gathering', summary(early).sounds, []);
-    check('...and the real hand is hidden while its pictures fly (the copies are on top of the page)', (await ev(`getComputedStyle(document.getElementById('hand')).visibility`)) === 'hidden' && (await count('.shuffle-card, body > .card')) >= 1);
+    check('...and the real hand is hidden while its pictures fly (the copies are on top of the page)', (await ev(`getComputedStyle(document.getElementById('hand')).visibility`)) === 'hidden' && (await count('.shuffle-card, .fly-copy')) >= 1);
     check('a mulligan riffles 8 card backs over the library after the hand has flown into it', (await waitFor(async () => (await count('.shuffle-card')) === 8 || null, 4000, 20)) === true);
     await waitFor(async () => (await state()).plays.length >= 8 || null, 9000, 25);
     await sleep(300);
@@ -413,7 +414,8 @@ try {
     same('then the shuffle sound and the 7 cards dealt with a draw sound each', sum.sounds, ['shuffle', ...Array(7).fill('draw')]);
     const wait = seen.plays[1].t - seen.plays[0].t;
     check('the first card comes about 1.15 seconds after the shuffle sound, when the riffle is over (between 1.0 and 1.8)', wait >= 1000 && wait <= 1800, `${Math.round(wait)} ms`);
-    check('the hand shows again and no flying picture is left behind', (await ev(`getComputedStyle(document.getElementById('hand')).visibility`)) === 'visible' && (await count('.shuffle-card, body > .card, .fly-ghost')) === 0);
+    await sleep(800); // (the last card is still flying out of the library)
+    check('the hand shows again and no flying picture is left behind', (await ev(`getComputedStyle(document.getElementById('hand')).visibility`)) === 'visible' && (await count('.shuffle-card, .fly-copy, .fly-ghost')) === 0);
     check('the new hand also fills one card at a time with the library count staying right', new Set(sum.counts).size >= 6 && sum.totals.length === 1, JSON.stringify(sum));
     check('the mulligan is counted once and the hand is 7', (await $text('mulligan')) === 'Mulligan (1 so far)' && (await count('#hand .card')) === 7);
 
@@ -447,14 +449,21 @@ try {
     const libraryAt = () => ev("(() => { const r = (document.querySelector('#pile-library .stack-face') || document.getElementById('pile-library')).getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()");
     const uidsBefore = await ev("[...document.querySelectorAll('#hand > .card')].map((c) => c.dataset.uid)");
     const lib = await libraryAt();
-    const newCardAt = () => ev(`(() => { const before = ${JSON.stringify(uidsBefore)}; const c = [...document.querySelectorAll('#hand > .card')].find((n) => !before.includes(n.dataset.uid)); if (!c) return null; const r = c.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
-    await press('draw');
-    await sleep(40);
-    const early1 = await newCardAt();
-    await sleep(900);
-    const late1 = await newCardAt();
     const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
-    check('a card drawn starts over the library and eases into the hand: 40 ms after the draw it is at least 40 px closer to the library than it is later', early1 && late1 && distance(early1, lib) + 40 < distance(late1, lib), JSON.stringify({ early1, late1, lib }));
+    const flightAt = () => ev("(() => { const c = document.querySelector('.fly-copy'); if (!c) return null; const r = c.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, back: getComputedStyle(c.querySelector('.fly-back')).transform }; })()");
+    const handNodeHidden = () => ev("(() => { const n = [...document.querySelectorAll('#hand > .card')].find((c) => !" + JSON.stringify(uidsBefore) + ".includes(c.dataset.uid)); return n ? getComputedStyle(n).visibility : null; })()");
+    await press('draw');
+    await sleep(50);
+    const early1 = await flightAt();
+    const hiddenWhileFlying = await handNodeHidden();
+    await sleep(120);
+    const mid1 = await flightAt();
+    await sleep(900);
+    const late1 = await flightAt();
+    const landed = await handNodeHidden();
+    check('a card drawn comes out of the library as a small picture of the card back (a flying copy that starts at the pile size, over the library), with the real card hidden meanwhile', early1 && hiddenWhileFlying === 'hidden' && distance(early1, lib) < 60 && early1.w < 120, JSON.stringify({ early1, hiddenWhileFlying, lib }));
+    check('it grows and moves toward the hand on the way, and turns over (the back is squeezed to nothing and the face is seen)', mid1 && mid1.w > early1.w && distance(mid1, lib) > distance(early1, lib), JSON.stringify({ early1, mid1 }));
+    check('when it lands the flying copy is gone and the real card is shown', late1 === null && landed === 'visible', JSON.stringify({ late1, landed }));
     // the library shuffle riffle: card backs over the pile in a menu shuffle, gone afterwards
     { const p = lib; await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p.x, y: p.y }); await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: p.x, y: p.y, button: 'right', buttons: 2, clickCount: 1 }); await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: p.x, y: p.y, button: 'right', buttons: 0, clickCount: 1 }); await sleep(150); }
     await ev("[...document.querySelectorAll('#card-menu [role=menuitem], .card-menu button')].find((b) => /^Shuffle/.test(b.textContent.trim()))?.click()");
@@ -462,6 +471,22 @@ try {
     const riffling = await count('.shuffle-card');
     await sleep(1500);
     check('shuffling the library from its menu riffles 8 card backs over it, and they are gone when it is over', riffling === 8 && (await count('.shuffle-card')) === 0, String(riffling));
+    // a card dropped on a pile flies INTO that pile (it once flew to the middle of the screen)
+    {
+      const centreOfBox = (selector) => ev("(() => { const r = document.querySelector(" + JSON.stringify(selector) + ").getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()");
+      const send = (type, p, buttons = 1) => browser.send('Input.dispatchMouseEvent', { type, x: p.x, y: p.y, button: type === 'mouseMoved' ? 'none' : 'left', buttons, clickCount: 1 });
+      const grave = await centreOfBox('#pile-graveyard .stack-face');
+      const handCards = await count('#hand .card');
+      const cardAt = await centreOfBox('#hand > .card:last-child');
+      await send('mouseMoved', cardAt, 0); await send('mousePressed', cardAt);
+      for (let step = 1; step <= 8; step++) await send('mouseMoved', { x: cardAt.x + (grave.x - cardAt.x) * step / 8, y: cardAt.y + (grave.y - cardAt.y) * step / 8 });
+      await send('mouseReleased', { x: grave.x - 20, y: grave.y }, 0);
+      await sleep(130);
+      const flying = await ev("(() => { const g = document.querySelector('.fly-ghost'); if (!g) return null; const r = g.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()");
+      await sleep(700);
+      check('a card dropped on the graveyard flies into the graveyard: partway through, its picture is still near the pile (within 200 px), not on its way to the middle of the screen', flying && Math.hypot(flying.x - grave.x, flying.y - grave.y) < 200, JSON.stringify({ flying, grave }));
+      check('...it is gone afterwards, and the card is in the graveyard', (await count('.fly-ghost')) === 0 && (await count('#hand .card')) === handCards - 1 && /to your graveyard/.test(await $text('status')));
+    }
     // prefers-reduced-motion: the whole hand at once, no card sounds
     await motion('reduce');
     await browser.goto(PAGE);
@@ -530,8 +555,9 @@ try {
     await altDown(); await sleep(100);
     check('a touch never shows it (a phone has no Alt or hover)', (await hoverState()).hidden === true);
     await altUp(); await moveTo(5, 5); await sleep(60);
-    await ev(`document.querySelectorAll('#hand .card')[1].classList.add('noimage')`);
-    const c2 = await rectOf('#hand .card', 1); await moveTo(c2.x, c2.y); await altDown(); await sleep(100);
+    const lastIndex = (await count('#hand .card')) - 1; // (the last card is the one on top where the cards overlap)
+    await ev(`document.querySelectorAll('#hand .card')[${lastIndex}].classList.add('noimage')`);
+    const c2 = await rectOf('#hand .card', lastIndex); await moveTo(c2.x, c2.y); await altDown(); await sleep(100);
     check('a card that shows only its name has no larger picture', (await hoverState()).hidden === true);
     await altUp();
     await ev(`document.querySelectorAll('#hand .card')[1].classList.remove('noimage')`);
@@ -569,7 +595,7 @@ try {
     check('the pictures of the cards in the hand are the NORMAL size (the hand is large; the small picture was blurry)', await ev("[...document.querySelectorAll('#hand > .card .face img')].every((i) => i.getAttribute('src').includes('/normal/')) && document.querySelectorAll('#hand > .card .face img').length > 0") && asked.some((url) => url.includes('/normal/front/')), JSON.stringify(asked.slice(-3)));
     check('the card preview\'s picture box has the shape of a card (not a taller box with the card letterboxed in it, which left the white corners unclipped)', await ev("(() => { const i = document.querySelector('#spotlight .spot-picture'); if (!i || i.hidden) return true; const r = i.getBoundingClientRect(); return Math.abs(r.width / r.height - 488 / 680) < 0.01; })()"));
     check('a card picture is clipped with the corners of a real card (4.8% by 3.4%), so no white corner shows', await ev("(() => { const face = document.querySelector('#hand > .card .face'); const img = face.querySelector('img'); return getComputedStyle(face).borderTopLeftRadius.includes('%') && getComputedStyle(img).borderTopLeftRadius.includes('%'); })()"));
-    check('the library is the real Magic card back from Scryfall (the picture was asked for), not a drawn pattern', backsAsked.some((url) => url === 'https://backs.scryfall.io/small/0/a/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg') && (await ev("getComputedStyle(document.querySelector('#pile-library .stack-face')).backgroundImage")).includes('backs.scryfall.io'), JSON.stringify(backsAsked.slice(0, 2)));
+    check('the library is the real Magic card back from Scryfall (the picture was asked for), not a drawn pattern', backsAsked.some((url) => url === 'https://backs.scryfall.io/normal/0/a/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg') && (await ev("getComputedStyle(document.querySelector('#pile-library .stack-face')).backgroundImage")).includes('backs.scryfall.io'), JSON.stringify(backsAsked.slice(0, 2)));
     check('the cards sit in order from left to right, edge to edge when they fit', fan.xs.every((x, i) => i === 0 || x > fan.xs[i - 1]) && fan.xs.length < 2 || Math.abs((fan.xs[1] - fan.xs[0]) - fan.width) < 2 || (fan.xs[1] - fan.xs[0]) < fan.width, JSON.stringify([fan.xs.slice(0, 3), fan.width]));
     check('every card is inside the hand\'s box and sideways in the window, and none is lower than about a third of its height below the bottom edge (the ends of the fan sit lower)', fan.inside, JSON.stringify(fan));
     const lowered = await ev(`(() => { const cs = [...document.querySelectorAll('#hand > .card')]; const c = cs[Math.floor(cs.length / 2)]; const r = c.getBoundingClientRect(); return { hidden: Math.round((r.bottom - innerHeight) / r.height * 100) / 100, raised: document.getElementById('hand').classList.contains('raised'), count: cs.length, step: parseFloat(cs[1].style.getPropertyValue('--hx')) - parseFloat(cs[0].style.getPropertyValue('--hx')), width: cs[0].offsetWidth }; })()`);
@@ -842,7 +868,7 @@ try {
   const hand = await ev(`Array.from(document.querySelectorAll('#hand .card')).map((b) => ({ name: b.getAttribute('aria-label') || b.textContent, src: b.querySelector('img')?.getAttribute('src') ?? null, noimage: b.classList.contains('noimage') }))`);
   check('the guessed commander (the first card, a Forest) is in the command zone and the other four are in the hand under their real names (the Heart of the Mountain card is Arcane Signet)', (await count('#command .card')) === 1 && hand.length === 4 && hand.filter((c) => /Arcane Signet/.test(c.name)).length === 2 && !hand.some((c) => /Heart of the Mountain/.test(c.name)), JSON.stringify(hand.map((c) => c.name)));
   check('each card draws the picture of its printing', [SOL_RING_CMM_410, SIGNET_SLD_916, SIGNET_CMM_367].every((id) => hand.some((c) => c.src === normalUrl(id))), JSON.stringify(hand.map((c) => c.src)));
-  check('cards with no printing draw their default picture', hand.some((c) => c.src === normalUrl(idOf('Lightning Bolt'))) && asked.includes(smallUrl(idOf('Forest'))));
+  check('cards with no printing draw their default picture', hand.some((c) => c.src === normalUrl(idOf('Lightning Bolt'))) && asked.includes(normalUrl(idOf('Forest')))); // (the commander in the command zone is shown at the normal size, which is larger than a battlefield card)
   check('and the default pictures of the cards that have a printing are not asked for at all', ![smallUrl, normalUrl].some((url) => asked.includes(url(idOf('Sol Ring'))) || asked.includes(url(idOf('Arcane Signet')))) && asked.length === 5, `${asked.length}: ${asked.join(' ')}`);
   failIds.add(SOL_RING_CMM_410);
   await open(null);
@@ -1119,7 +1145,7 @@ try {
   check('there is no menu before a right click', (await menuState()) === null);
   await mouse('#battlefield .card[data-kind="other"]', { button: 'right', dy: 30 });
   let menu = await menuState();
-  check('a right click on a creature opens its menu: its name, then Modify, Tap, the counter with 2 3 5, Create copy and Move to (with the two marks after Tap: Elves came in sick)', menu && menu.title === 'Llanowar Elves' && menu.role === 'menu' && JSON.stringify(menu.items) === JSON.stringify(['Modify...', 'Tap', "Doesn't untap", 'Not summoning sick', '+1/+1 counter', '2', '3', '5', 'Create copy', 'Move to']), JSON.stringify(menu));
+  check('a right click on a creature opens its menu: its name, then Modify, Tap, the counter with 2 3 5, Create copy and Move to (with the two marks after Tap: Elves came in sick)', menu && menu.title === 'Llanowar Elves' && menu.role === 'menu' && JSON.stringify(menu.items) === JSON.stringify(['Modify...', 'Tap', 'Flip', "Doesn't untap", 'Not summoning sick', '+1/+1 counter', '2', '3', '5', 'Create copy', 'Move to']), JSON.stringify(menu));
   check('the menu is inside the window and the first item has the focus', menu.inside && menu.focused === 'Modify...', JSON.stringify(menu));
   check('the right click also selected the card', (await $text('selected-line')).startsWith('Llanowar Elves'), await $text('selected-line'));
   await ev(`window.__plays = []; HTMLMediaElement.prototype.play = function () { window.__plays.push({ src: new URL(this.src).pathname, volume: Math.round(this.volume * 10000) / 10000 }); return Promise.resolve(); };`);
@@ -1168,7 +1194,7 @@ try {
   await mouse(cardSelector, { button: 'right', dy: 30 });
   check('the card on the battlefield again offers Tap', (await menuState()).items.includes('Tap'));
   {
-    for (let n = 0; n < 4; n++) await key('ArrowDown', 'ArrowDown', 40); // Tap, the two marks, then the counter
+    for (let n = 0; n < 5; n++) await key('ArrowDown', 'ArrowDown', 40); // Tap, Flip, the two marks, then the counter
     await key('ArrowRight', 'ArrowRight', 39);
     check('Right moves along the counter row to its first amount', (await menuState()).focused === '2', JSON.stringify(await menuState()));
     await key('ArrowRight', 'ArrowRight', 39);
@@ -1249,14 +1275,14 @@ try {
   }
   check('before any turn: the Forest is the only land, the other six are in the other row', (await count('#battlefield .card[data-kind="land"]')) === 1 && (await count('#battlefield .card[data-kind="other"]')) === 6, `${await count('#battlefield .card[data-kind="land"]')} and ${await count('#battlefield .card[data-kind="other"]')}`);
   const offers = async (prefix) => { await clickCard(cardAt(prefix)); const labels = await actionLabels(); await clickAction('Deselect'); return labels; };
-  check('Turn over is offered for Sephiroth, Valakut Awakening, Delver and Aclazotz', (await Promise.all(['Sephiroth', 'Valakut Awakening', 'Delver', 'Aclazotz'].map(async (n) => (await offers(n)).includes('Turn over')))).every(Boolean));
-  check('and not for Fire // Ice (one picture for both halves), Sol Ring or the Forest', (await Promise.all(['Fire', 'Sol Ring', 'Forest'].map(async (n) => (await offers(n)).includes('Turn over')))).every((has) => !has));
+  check('Flip double-faced card is offered for Sephiroth, Valakut Awakening, Delver and Aclazotz', (await Promise.all(['Sephiroth', 'Valakut Awakening', 'Delver', 'Aclazotz'].map(async (n) => (await offers(n)).includes('Flip double-faced card')))).every(Boolean));
+  check('and not for Fire // Ice (one picture for both halves), Sol Ring or the Forest', (await Promise.all(['Fire', 'Sol Ring', 'Forest'].map(async (n) => (await offers(n)).includes('Flip double-faced card')))).every((has) => !has));
   check('the front pictures were asked for, and no back picture yet', asked.some((u) => u.includes(`/front/`) && u.includes(defaultId('Valakut Awakening'))) && !asked.some((u) => u.includes('/back/')), asked.filter((u) => u.includes('/back/')).join(' '));
 
   // Valakut Awakening: an Instant on the front and a land on the back.
   await clickCard(cardAt('Valakut Awakening'));
   check('its selected line gives both type lines and does not say turned over', /Instant \/\/ Land/.test(await $text('selected-line')) && !/turned over/.test(await $text('selected-line')));
-  await clickAction('Turn over');
+  await clickAction('Flip double-faced card');
   check('turned over, it moves to the land row (now two lands), and the other row has five', (await rowOf('Valakut Awakening')) === 'row-lands' && (await count('#battlefield .card[data-kind="land"]')) === 2 && (await count('#battlefield .card[data-kind="other"]')) === 5);
   check('its label says it is turned over, and so does the selected line and the status', /, turned over/.test(await labelOf('Valakut Awakening')) && /\(turned over\)/.test(await $text('selected-line')) && /Turned .*Valakut Awakening.* over\./.test(await $text('status')), await $text('status'));
   await waitFor(async () => (await srcOf('Valakut Awakening'))?.includes('/back/') || null, 3000, 50).catch(() => null);
@@ -1264,8 +1290,8 @@ try {
   check('the picture is now the BACK face of the same printing', Boolean(backUrl) && backUrl.includes(`/back/`) && backUrl.includes(defaultId('Valakut Awakening')), String(backUrl));
   check('and that back picture was asked for (the stand-in answered it)', asked.some((u) => u.includes('/back/') && u.includes(defaultId('Valakut Awakening'))));
   check('the card has no power and toughness box (a land has no numbers, and the front has none either)', (await box(cardAt('Valakut Awakening'))) === null);
-  check('the action button now says how to turn it back', (await actionLabels()).includes('Turn back to front') && !(await actionLabels()).includes('Turn over'));
-  await clickAction('Turn back to front');
+  check('the action is still called Flip double-faced card when the card is turned over', (await actionLabels()).includes('Flip double-faced card'));
+  await clickAction('Flip double-faced card');
   check('turned back, it is in the other row again and shows its front picture', (await rowOf('Valakut Awakening')) === 'row-other' && (await count('#battlefield .card[data-kind="land"]')) === 1 && /\/front\//.test(await srcOf('Valakut Awakening')) && !/turned over/.test(await labelOf('Valakut Awakening')));
   await clickAction('Deselect');
 
@@ -1274,14 +1300,14 @@ try {
   await clickCard(cardAt('Sephiroth'));
   const front = await box(seph);
   check('Sephiroth shows his printed 3/3 while selected', front && front.visibility === 'visible' && front.power === '3' && front.toughness === '3', JSON.stringify(front));
-  await clickAction('Turn over');
+  await clickAction('Flip double-faced card');
   const back = await box(seph);
   check('turned over, the box says 5/5 (the back face\'s numbers) and he is still in the other row', back && back.power === '5' && back.toughness === '5' && (await rowOf('Sephiroth')) === 'row-other', JSON.stringify(back));
   await clickAction('Modify');
   await setAmount('2'); await clickMark('Add counters'); // the default kind is +1/+1
   await sleep(120);
   check('a +1/+1 counter change adds to the back face\'s 5/5 (shown as 7/7 once changed)', await (async () => { const b = await box(seph); return b && b.power === '7' && b.toughness === '7'; })(), JSON.stringify(await box(seph)));
-  await clickAction('Turn back to front');
+  await clickAction('Flip double-faced card');
   const frontAgain = await box(seph);
   check('turned back, the counters stay and the numbers are the front\'s 3/3 plus them: 5/5', frontAgain && frontAgain.power === '5' && frontAgain.toughness === '5', JSON.stringify(frontAgain));
   await clickAction('Deselect');
@@ -1289,15 +1315,15 @@ try {
   // Aclazotz: a 4/4 creature that turns into a land.
   await clickCard(cardAt('Aclazotz'));
   check('Aclazotz shows 4/4 on the front', (await box('#battlefield ' + cardAt('Aclazotz'))).power === '4');
-  await clickAction('Turn over');
+  await clickAction('Flip double-faced card');
   check('turned over it is a land: in the land row, with no numbers, never the front\'s 4/4', (await rowOf('Aclazotz')) === 'row-lands' && (await box(cardAt('Aclazotz'))) === null && (await count('#battlefield .card[data-kind="land"]')) === 2);
   const noImage = (prefix) => ev(`document.querySelector(${JSON.stringify(cardAt(prefix))}).classList.contains('noimage')`);
   await waitFor(async () => (await noImage('Aclazotz')) || null, 3000, 50).catch(() => null);
   check('its back picture does not exist (404), so the card shows its name instead of a broken picture', await noImage('Aclazotz'));
-  await clickAction('Turn back to front');
+  await clickAction('Flip double-faced card');
   await waitFor(async () => !(await noImage('Aclazotz')) || null, 3000, 50).catch(() => null);
   check('turned back, the front picture is shown again and the name fallback is gone', !(await noImage('Aclazotz')) && /\/front\//.test(await srcOf('Aclazotz')));
-  await clickAction('Turn over');
+  await clickAction('Flip double-faced card');
   await clickAction('Deselect');
 
   // The right-click menu offers it too, and a click with the real mouse does it.
@@ -1306,17 +1332,17 @@ try {
   await clickCard(cardAt('Sephiroth'));
   await mouse(cardAt('Delver'), { button: 'right', dy: 30 });
   const delverMenu = await menuState();
-  check('the menu for Delver lists Turn over between Tap and the counter', delverMenu && JSON.stringify(delverMenu.items.slice(0, 4)) === JSON.stringify(['Modify...', 'Tap', 'Turn over', "Doesn't untap"]), JSON.stringify(delverMenu?.items));
+  check('the menu for Delver lists Flip double-faced card between Tap and the counter', delverMenu && JSON.stringify(delverMenu.items.slice(0, 5)) === JSON.stringify(['Modify...', 'Tap', 'Flip', 'Flip double-faced card', "Doesn't untap"]), JSON.stringify(delverMenu?.items));
   await sleep(500);
   check('the menu is still open half a second later (it must not close by itself after a right click on a card that was not selected)', Boolean(await menuState()), JSON.stringify(await menuState()));
-  await clickMenuItem('Turn over');
+  await clickMenuItem('Flip double-faced card');
   check('choosing it turns Delver (the menu closes, the label says so, the box says 3/2)', !(await menuState()) && /, turned over/.test(await labelOf('Delver')) && (await box('#battlefield ' + cardAt('Delver'))) !== null, await labelOf('Delver'));
   await clickCard(cardAt('Delver'));
   check('and the selected-card box shows the back face\'s 3/2', await (async () => { const b = await box('#battlefield ' + cardAt('Delver')); return b && b.power === '3' && b.toughness === '2'; })(), JSON.stringify(await box('#battlefield ' + cardAt('Delver'))));
   await clickAction('Deselect');
   await mouse(cardAt('Sol Ring'), { button: 'right', dy: 30 });
   const solMenu = await menuState();
-  check('the menu of a card with no back has no Turn over', solMenu && !solMenu.items.includes('Turn over') && solMenu.items.includes('Tap'), JSON.stringify(solMenu?.items));
+  check('the menu of a card with no back has no Flip double-faced card', solMenu && !solMenu.items.includes('Flip double-faced card') && solMenu.items.includes('Tap'), JSON.stringify(solMenu?.items));
   await key('Escape', 'Escape', 27);
 
   // A turned card that leaves the battlefield comes back showing its front.
@@ -1324,7 +1350,7 @@ try {
   await clickAction('To hand');
   const aclazotzInHand = await srcOf('Aclazotz');
   check('Aclazotz, sent to the hand while turned over, is a front-face card there (not turned, front picture)', (await count('#hand ' + cardAt('Aclazotz'))) === 1 && !/turned over/.test(await labelOf('Aclazotz')) && /\/front\//.test(aclazotzInHand), String(aclazotzInHand));
-  check('and in the hand it has no Turn over button', !(await actionLabels()).includes('Turn over') && !(await actionLabels()).includes('Turn back to front'));
+  check('and in the hand it has no Flip double-faced card button', !(await actionLabels()).includes('Flip double-faced card') && !(await actionLabels()).includes('Flip double-faced card'));
   await clickAction('To battlefield');
   check('played again it shows its front: a 4/4 creature in the other row', (await rowOf('Aclazotz')) === 'row-other' && !/turned over/.test(await labelOf('Aclazotz')));
   await clickAction('Deselect');
@@ -1341,7 +1367,7 @@ try {
   await clickAction('To battlefield');
   await waitFor(async () => asked.some((u) => u.includes(`/front/`) && u.includes(defaultId('Delver'))) || null, 3000, 50).catch(() => null);
   check('the named printing has no picture, so the card shows the default printing\'s FRONT picture', asked.some((u) => u.includes(NO_SUCH_PRINTING)) && /\/front\/.*/.test(await srcOf('Delver')) && (await srcOf('Delver')).includes(defaultId('Delver')), String(await srcOf('Delver')));
-  await clickAction('Turn over');
+  await clickAction('Flip double-faced card');
   // Wait for the END of the fallback (the default printing's back), not for any back picture: the printing's own back comes first, then it 404s.
   await waitFor(async () => { const s = (await srcOf('Delver')) ?? ''; return s.includes('/back/') && s.includes(defaultId('Delver')) ? true : null; }, 5000, 50).catch(() => null);
   check('turned over, the missing printing falls back to the default printing\'s BACK picture (not its front), with no name fallback', ((await srcOf('Delver')) ?? '').includes(`/back/`) && (await srcOf('Delver')).includes(defaultId('Delver')) && !(await noImage('Delver')), String(await srcOf('Delver')));
@@ -1376,7 +1402,7 @@ try {
 
   // Create copy: Sephiroth turned over, with two counters on him; the copy is the BACK face and has none of his counters.
   await clickCard(cardAt('Sephiroth'));
-  await clickAction('Turn over');
+  await clickAction('Flip double-faced card');
   await clickAction('Modify');
   await setAmount('2'); await clickMark('Add counters');
   await clickAction('Modify');
@@ -1407,7 +1433,7 @@ try {
   check('a copy of Delver showing its front is a second Delver of Secrets with the front picture', delverCopy === 2 && (await ev(`Array.from(document.querySelectorAll('.card[aria-label^="Delver of Secrets"] .face img')).every((i) => i.getAttribute('src').includes('/front/'))`)), String(delverCopy));
   await clickAction('Deselect');
   await clickCard(cardAt('Aclazotz'));
-  await clickAction('Turn over');
+  await clickAction('Flip double-faced card');
   await clickAction('Create copy');
   await clickAction('Deselect');
   const landCopies = await ev(`Array.from(document.querySelectorAll('#battlefield .card[data-kind="land"][aria-label^="Temple of the Dead"]')).map((c) => c.getAttribute('aria-label'))`);
@@ -1522,7 +1548,7 @@ try {
   check('the card no longer says summoning sick', !/summoning sick/.test(await labelOf('Llanowar Elves')));
   await mouse(cardAt('Goblin Guide'), { button: 'right', dy: 30 });
   const guideMenu = await menuState();
-  check('a card that is not sick offers "Summoning sick" (for haste lost, or control gained), and "Doesn\'t untap"', guideMenu && guideMenu.items[2] === "Doesn't untap" && guideMenu.items[3] === 'Summoning sick', JSON.stringify(guideMenu?.items));
+  check('a card that is not sick offers "Summoning sick" (for haste lost, or control gained), and "Doesn\'t untap"', guideMenu && guideMenu.items[3] === "Doesn't untap" && guideMenu.items[4] === 'Summoning sick', JSON.stringify(guideMenu?.items));
   await clickMenuItem('Summoning sick');
   check('choosing it marks the Goblin Guide (a mark by hand is never refused)', (await count(`${cardAt('Goblin Guide')} .badge-sick`)) === 1 && (await $text('status')) === 'Goblin Guide is marked summoning sick.', await $text('status'));
   await clickAction('Create copy');
@@ -2109,6 +2135,24 @@ try {
     await dragTo(await face('exile'), await cellCenter(60, 10));
     const c5 = await counts();
     check('the top card of the exile dropped on the battlefield is put there', c5.exile === 0 && c5.field === 1 && (await cellOfCard((await names('#battlefield > .card'))[0].split(',')[0])) === '60,10', JSON.stringify(c5));
+    // F flips the card under the pointer face down (the sleeve shows), and flips it back; the menu says Flip; it is not offered for a card in a pile
+    {
+      const at = await centerOfSelector('#battlefield > .card');
+      await mouseAt('mouseMoved', at, 0); await sleep(80);
+      const picture = () => ev("(() => { const c = document.querySelector('#battlefield > .card'); return { down: c.classList.contains('face-down'), src: c.querySelector('img')?.getAttribute('src') ?? '', label: c.getAttribute('aria-label') }; })()");
+      const before = await picture();
+      await key('f', 'KeyF', 70); await sleep(150);
+      const flipped = await picture();
+      if (realPictures) await browser.screenshot('scratch-solo-flipped.png');
+      check('pressing F over a card on the battlefield flips it face down: it shows the card back (the sleeve) and says so', before.down === false && flipped.down === true && /backs.scryfall.io/.test(flipped.src) && /face down/.test(flipped.label), JSON.stringify({ before, flipped }));
+      check('...and the message line says it', /face down./.test(await $text('status')), await $text('status'));
+      await key('f', 'KeyF', 70); await sleep(150);
+      const back = await picture();
+      check('pressing F again turns it face up with its own picture', back.down === false && !/backs.scryfall.io/.test(back.src) && /Flipped .* face up./.test(await $text('status')), JSON.stringify(back));
+      await mouseAt('mouseMoved', { x: 5, y: 5 }, 0); await sleep(80);
+      await key('f', 'KeyF', 70); await sleep(100);
+      check('F with the pointer over no card does nothing', (await picture()).down === false);
+    }
     // a card of the hand onto the exile, and then dropped on the pile it came from: nothing
     await dragTo(await handPoint(), await face('graveyard'));
     const c6 = await counts();
@@ -2139,6 +2183,25 @@ try {
     await dragTo(await centerOfSelector('#battlefield > .card[aria-label^="' + cmdName.split(',')[0].replace(/"/g, '') + '"]'), slotAt);
     const c8 = await counts();
     check('a card of the battlefield dropped on the command zone goes back into it', c8.command === 1 && c8.field === c7.field - 1, JSON.stringify(c8));
+    // the commander can be put in either slot of the command zone, and the second slot has its own tax and lights up like the first
+    {
+      const slotBox = (n) => centerOfSelector('.cmd-slot[data-slot="' + n + '"] .slot-cards');
+      const slotState = () => ev("(() => { const f = (n) => { const slot = document.querySelector('.cmd-slot[data-slot=\"' + n + '\"]'); const tax = slot.querySelector('.tax-words'); return { cards: slot.querySelectorAll('.card').length, empty: slot.classList.contains('empty-slot'), tax: slot.querySelector('.tax').hidden ? null : tax.textContent, border: getComputedStyle(slot.querySelector('.slot-cards')).borderTopColor }; }; return [f(1), f(2)]; })()");
+      const start = await slotState();
+      check('at first the commander is in the first slot: lit, with its tax, and the second slot is dim with no tax', start[0].cards === 1 && !start[0].empty && start[0].tax === '0' && start[1].cards === 0 && start[1].empty && start[1].tax === null && start[0].border !== start[1].border, JSON.stringify(start));
+      let ringed = null;
+      await dragTo(await centerOfSelector('#command .card'), await slotBox(2), { during: async () => { ringed = await ev("[...document.querySelectorAll('.cmd-slot.drop-target')].map((e) => e.dataset.slot)"); } });
+      const moved = await slotState();
+      if (realPictures) await browser.screenshot('scratch-solo-slot2.png');
+      check('dragging the commander onto the second slot puts it there (that slot is ringed while the card is over it), lit and with its tax, and the first slot is dim', JSON.stringify(ringed) === '["2"]' && moved[1].cards === 1 && !moved[1].empty && moved[1].tax === '0' && moved[0].cards === 0 && moved[0].empty && moved[0].tax === null && moved[1].border === start[0].border, JSON.stringify({ ringed, moved }));
+      const taxButton = await centerOfSelector('.cmd-slot[data-slot="2"] .tax-words');
+      await mouseAt('mouseMoved', taxButton, 0); await mouseAt('mousePressed', taxButton, 1); await mouseAt('mouseReleased', taxButton, 0); await sleep(120);
+      check('the tax of the second slot counts casts like the first one (a click adds one cast, 2 more mana)', (await slotState())[1].tax === '2', JSON.stringify(await slotState()));
+      await dragTo(await centerOfSelector('#command .card'), await slotBox(1));
+      const home = await slotState();
+      check('and it can be dragged back to the first slot, keeping its tax', home[0].cards === 1 && home[0].tax === '2' && home[1].cards === 0, JSON.stringify(home));
+      await mouseAt('mouseMoved', await centerOfSelector('.cmd-slot[data-slot="1"] .tax-words'), 0); await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', ...(await centerOfSelector('.cmd-slot[data-slot="1"] .tax-words')), button: 'right', buttons: 2, clickCount: 1 }); await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...(await centerOfSelector('.cmd-slot[data-slot="1"] .tax-words')), button: 'right', buttons: 0, clickCount: 1 }); await sleep(120);
+    }
     // Escape while carrying a card from a pile puts nothing anywhere
     const before = await counts();
     await dragTo(await face('graveyard'), await cellCenter(70, 20), { release: false });
@@ -2254,8 +2317,8 @@ try {
       await clickCard('#hand .card', (await handNames()).findIndex((x) => x.startsWith(name)));
       await clickAction('To battlefield'); await clickAction('Deselect');
     }
-    for (const name of ['Valakut Awakening', 'Aclazotz']) { await clickCard(cardAt(name)); await clickAction('Turn over'); await clickAction('Deselect'); }
-    await clickCard(cardAt('Sephiroth')); await clickAction('Turn over');
+    for (const name of ['Valakut Awakening', 'Aclazotz']) { await clickCard(cardAt(name)); await clickAction('Flip double-faced card'); await clickAction('Deselect'); }
+    await clickCard(cardAt('Sephiroth')); await clickAction('Flip double-faced card');
     await sleep(3000);
     await browser.screenshot('scratch-solo-twosided-dark.png');
     await scheme('light'); await sleep(400);
@@ -2272,11 +2335,11 @@ try {
       await clickAction('To battlefield'); await clickAction('Deselect');
     }
     await clickCard('#hand .card', 0); await clickAction('Play Valakut Stoneforge'); await clickAction('Deselect');
-    await clickCard(cardAt('Sephiroth')); await clickAction('Turn over'); await clickAction('Modify'); await setAmount('2'); await clickMark('Add counters'); await clickAction('Modify');
+    await clickCard(cardAt('Sephiroth')); await clickAction('Flip double-faced card'); await clickAction('Modify'); await setAmount('2'); await clickMark('Add counters'); await clickAction('Modify');
     await clickAction('Create copy'); await clickAction('Create copy');
     await clickAction('Deselect');
     await clickCard(cardAt('Delver')); await clickAction('Create copy'); await clickAction('Deselect');
-    await clickCard(cardAt('Aclazotz')); await clickAction('Turn over'); await clickAction('Create copy');
+    await clickCard(cardAt('Aclazotz')); await clickAction('Flip double-faced card'); await clickAction('Create copy');
     await clickCard('.card[aria-label^="Sephiroth, One-Winged"]');
     await sleep(3000);
     await ev(`window.scrollTo(0, 0)`); await sleep(200);

@@ -34,20 +34,20 @@ same('every zone has words', ZONES.every((zone) => typeof ZONE_NAMES[zone] === '
 
 // ---- what is offered ----
 const ids = (items) => items.map((item) => item.id);
-same('on the battlefield: Modify, Tap, the two marks (does not untap, summoning sick), the counter, Create copy, Move to', ids(menuItems({ tapped: false }, 'battlefield')), ['modify', 'tap', 'nountap', 'sick', 'counter', 'copy', 'move']);
+same('on the battlefield: Modify, Tap, the two marks (does not untap, summoning sick), the counter, Create copy, Move to', ids(menuItems({ tapped: false }, 'battlefield')), ['modify', 'tap', 'flip', 'nountap', 'sick', 'counter', 'copy', 'move']);
 same('an untapped card offers Tap, a tapped one Untap', [menuItems({ tapped: false }, 'battlefield')[1].label, menuItems({ tapped: true }, 'battlefield')[1].label], ['Tap', 'Untap']);
-same('the counter item has the quick amounts and its own copy of the list', (() => { const item = menuItems({}, 'battlefield')[4]; item.amounts.push(99); return [item.label, menuItems({}, 'battlefield')[4].amounts]; })(), ['+1/+1 counter', [2, 3, 5]]);
+same('the counter item has the quick amounts and its own copy of the list', (() => { const item = menuItems({}, 'battlefield')[5]; item.amounts.push(99); return [item.label, menuItems({}, 'battlefield')[5].amounts]; })(), ['+1/+1 counter', [2, 3, 5]]);
 for (const zone of ['hand', 'graveyard', 'exile', 'command', 'sideboard', 'library']) same(`in ${zone} only Move to is offered`, ids(menuItems({}, zone)), ['move']);
-same('moves from the battlefield: every zone but the battlefield, then the two library places', ids(menuItems({}, 'battlefield')[6].items), ['move:hand', 'move:graveyard', 'move:exile', 'move:command', 'move:sideboard', 'move:library-top', 'move:library-bottom']);
+same('moves from the battlefield: every zone but the battlefield, then the two library places', ids(menuItems({}, 'battlefield')[7].items), ['move:hand', 'move:graveyard', 'move:exile', 'move:command', 'move:sideboard', 'move:library-top', 'move:library-bottom']);
 same('moves from the hand: not to the hand', ids(menuItems({}, 'hand')[0].items), ['move:battlefield', 'move:graveyard', 'move:exile', 'move:command', 'move:sideboard', 'move:library-top', 'move:library-bottom']);
 same('from the library you can still put it on the top or bottom of it', ids(menuItems({}, 'library')[0].items).slice(-2), ['move:library-top', 'move:library-bottom']);
-same('a card that is not there still gets a menu', ids(menuItems(null, 'battlefield')), ['modify', 'tap', 'nountap', 'sick', 'counter', 'copy', 'move']);
+same('a card that is not there still gets a menu', ids(menuItems(null, 'battlefield')), ['modify', 'tap', 'flip', 'nountap', 'sick', 'counter', 'copy', 'move']);
 // Ping card (shared/ping.mjs): only on a live table (other players to ping), only for a card in a public zone, and the page sends it (menuAction has nothing to run)
 for (const zone of ['battlefield', 'graveyard', 'exile', 'command', 'hand', 'library', 'sideboard']) same('the solo menu never offers Ping card (' + zone + ')', ids(menuItems({}, zone)).includes('ping'), false);
 for (const zone of ['battlefield', 'graveyard', 'exile', 'command']) same('a live table offers Ping card for a card in the ' + zone + ', just before Move to', (() => { const list = ids(menuItems({}, zone, { live: true })); return [list.includes('ping'), list.at(-2), list.at(-1)]; })(), [true, 'ping', 'move']);
 for (const zone of ['hand', 'library', 'sideboard']) same('a live table does not offer Ping card for a card in the ' + zone + ' (it is hidden: a ping would reveal it)', ids(menuItems({}, zone, { live: true })).includes('ping'), false);
 same('the label is plain words', menuItems({}, 'battlefield', { live: true }).find((item) => item.id === 'ping').label, 'Ping card');
-same('on the battlefield of a live table the order is the old one with Ping card before Move to', ids(menuItems({}, 'battlefield', { live: true })), ['modify', 'tap', 'nountap', 'sick', 'counter', 'copy', 'ping', 'move']);
+same('on the battlefield of a live table the order is the old one with Ping card before Move to', ids(menuItems({}, 'battlefield', { live: true })), ['modify', 'tap', 'flip', 'nountap', 'sick', 'counter', 'copy', 'ping', 'move']);
 same('the options object may be left out or empty', [ids(menuItems({}, 'graveyard', {})).includes('ping'), ids(menuItems({}, 'graveyard', undefined)).includes('ping')], [false, false]);
 same('menuAction has nothing to run for ping (the page sends it)', menuAction('ping', { uid: 'c1', n: 'X' }), null);
 same('labels are plain words', menuItems({}, 'hand')[0].items.map((item) => item.label), ['Battlefield', 'Graveyard', 'Exile', 'Command zone', 'Sideboard', 'Top of library', 'Bottom of library']);
@@ -109,11 +109,11 @@ same('no card, no action', [menuAction('tap', null), menuAction('tap', undefined
   const delverUid = game.zones.hand.find((card) => card.b === 1)?.uid ?? game.zones.library.find((card) => card.b === 1).uid;
   game = deepFreeze(moveCard(game, delverUid, 'battlefield'));
   const delver = cardOf(game, delverUid);
-  same('a card with a back face offers Turn over, after Tap and before the counter', ids(menuItems(delver, 'battlefield')), ['modify', 'tap', 'turn', 'nountap', 'sick', 'counter', 'copy', 'move']);
-  same('its label says what it will do', [menuItems(delver, 'battlefield')[2].label, menuItems({ ...delver, turned: true }, 'battlefield')[2].label], ['Turn over', 'Turn back to front']);
-  same('the label function says the same', [turnLabel(delver), turnLabel({ ...delver, turned: true })], ['Turn over', 'Turn back to front']);
+  same('a card with a back face offers Turn over, after Tap and before the counter', ids(menuItems(delver, 'battlefield')), ['modify', 'tap', 'flip', 'turn', 'nountap', 'sick', 'counter', 'copy', 'move']);
+  same('its label says what it will do', [menuItems(delver, 'battlefield')[3].label, menuItems({ ...delver, turned: true }, 'battlefield')[3].label], ['Flip double-faced card', 'Flip double-faced card']);
+  same('the label function says the same', [turnLabel(delver), turnLabel({ ...delver, turned: true })], ['Flip double-faced card', 'Flip double-faced card']);
   for (const zone of ['hand', 'graveyard', 'exile', 'command', 'sideboard', 'library']) same(`in ${zone} it is not offered, even for a card with a back`, ids(menuItems(delver, zone)), ['move']);
-  for (const bad of [0, true, '1', 2, null]) same(`b that is ${JSON.stringify(bad)} offers no Turn over`, ids(menuItems({ ...delver, b: bad }, 'battlefield')), ['modify', 'tap', 'nountap', 'sick', 'counter', 'copy', 'move']);
+  for (const bad of [0, true, '1', 2, null]) same(`b that is ${JSON.stringify(bad)} offers no Turn over`, ids(menuItems({ ...delver, b: bad }, 'battlefield')), ['modify', 'tap', 'flip', 'nountap', 'sick', 'counter', 'copy', 'move']);
   same('a card with no back, and no card, offer none', [ids(menuItems(onBattlefield().card, 'battlefield')).includes('turn'), ids(menuItems(null, 'battlefield')).includes('turn')], [false, false]);
   const turn = menuAction('turn', delver);
   same('Turn over says what it did', turn.message, `Turned ${delver.n} over.`);
@@ -127,6 +127,16 @@ same('no card, no action', [menuAction('tap', null), menuAction('tap', undefined
   refused('Turn over on a card with no back is refused in words, and the game is as it was', () => menuAction('turn', plain.card).run(plain.game), /no back face/);
   const inHand = fresh();
   refused('Turn over on a card that is not on the battlefield is refused', () => menuAction('turn', { ...delver, uid: inHand.zones.hand[0].uid }).run(inHand), /battlefield|no back face/);
+  // Flip: face down (the sleeve shows), for every card on the battlefield, two-sided or not
+  const flip = menuAction('flip', delver);
+  same('Flip says it turned the card face down', flip.message, `Flipped ${delver.n} face down.`);
+  const down = flip.run(game);
+  check('and the card is face down', cardOf(down, delverUid).faceDown === true);
+  same('flipped again it goes face up and says so', [menuAction('flip', cardOf(down, delverUid)).message, 'faceDown' in cardOf(menuAction('flip', cardOf(down, delverUid)).run(down), delverUid)], [`Flipped ${delver.n} face up.`, false]);
+  same('the flipped game is consistent, and the frozen game it came from is unchanged', [checkGame(down), 'faceDown' in cardOf(game, delverUid)], [[], false]);
+  same('a card with no back face also offers Flip, and the label is plain', [ids(menuItems(plain.card, 'battlefield')).includes('flip'), menuItems(plain.card, 'battlefield').find((item) => item.id === 'flip').label], [true, 'Flip']);
+  same('Flip is offered only on the battlefield', ['hand', 'graveyard', 'exile', 'command', 'sideboard', 'library'].map((zone) => ids(menuItems(delver, zone)).includes('flip')), Array(6).fill(false));
+  refused('Flip on a card that is not on the battlefield is refused', () => menuAction('flip', { ...delver, uid: inHand.zones.hand[0].uid }).run(inHand), /battlefield|face-down/);
 }
 
 // ---- Create copy, and playing a modal card as its back face (list format 6, md) ----
@@ -229,8 +239,8 @@ same('no card, no action', [menuAction('tap', null), menuAction('tap', undefined
   const byName = (game, name) => ZONES.flatMap((zone) => game.zones[zone]).find((card) => card.n === name);
   let game = moveCard(moveCard(start, byName(start, 'Elf').uid, 'battlefield'), byName(start, 'Ring').uid, 'battlefield');
   const elf = byName(game, 'Elf'), ring = byName(game, 'Ring');
-  same('a creature that came in is offered "Not summoning sick" and the other card "Summoning sick"', [menuItems(elf, 'battlefield')[3].label, menuItems(ring, 'battlefield')[3].label], ['Not summoning sick', 'Summoning sick']);
-  same('both cards offer "Doesn\'t untap" until it is set', [menuItems(elf, 'battlefield')[2].label, menuItems({ ...ring, noUntap: true }, 'battlefield')[2].label], ["Doesn't untap", 'Untaps normally']);
+  same('a creature that came in is offered "Not summoning sick" and the other card "Summoning sick"', [menuItems(elf, 'battlefield')[4].label, menuItems(ring, 'battlefield')[4].label], ['Not summoning sick', 'Summoning sick']);
+  same('both cards offer "Doesn\'t untap" until it is set', [menuItems(elf, 'battlefield')[3].label, menuItems({ ...ring, noUntap: true }, 'battlefield')[3].label], ["Doesn't untap", 'Untaps normally']);
   same('the label functions say the same', [noUntapLabel(ring), noUntapLabel({ ...ring, noUntap: true }), sickLabel(ring), sickLabel(elf)], ["Doesn't untap", 'Untaps normally', 'Summoning sick', 'Not summoning sick']);
   for (const zone of ['hand', 'graveyard', 'exile', 'command', 'sideboard', 'library']) check(`neither is offered in ${zone}`, !ids(menuItems(elf, zone)).includes('nountap') && !ids(menuItems(elf, zone)).includes('sick'));
   const held = menuAction('nountap', ring);

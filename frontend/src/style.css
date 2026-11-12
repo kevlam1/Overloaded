@@ -1147,7 +1147,7 @@ body.playing .hand-lift-layer > .card .hand-cost .pip, body.playing .hand-lift-l
 body.playing .card .face, body.playing .opponent .card.tapped .face { border-radius: 4.8% / 3.4%; }
 body.playing .card .face img { border-radius: 4.8% / 3.4%; }
 /* The library is the real Magic card back (Scryfall's back server, shared/card-image.mjs cardBackUrl; the address is repeated here because a style sheet cannot import it). */
-body.playing .pile-stack .stack-face.back { border: 0; border-radius: 4.8% / 3.4%; background: #1a1a1a url('https://backs.scryfall.io/small/0/a/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg') center / 100% 100% no-repeat; box-shadow: none; }
+body.playing .pile-stack .stack-face.back { border: 0; border-radius: 4.8% / 3.4%; background: #1a1a1a url('https://backs.scryfall.io/normal/0/a/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg') center / 100% 100% no-repeat; box-shadow: none; }
 .pile-stack .stack-layer { border-radius: 4.8% / 3.4%; }
 
 /* The card preview's picture box is exactly the shape of a card (it used to stretch to the height of the column and show the card letterboxed in it, so the rounded clip was on the box and the card's own
@@ -1164,7 +1164,8 @@ body.playing .pile-stack .stack-face.back { border: 0; border-radius: 4.8% / 3.4
 body.playing.solo main.table { display: block; position: fixed; inset: 0; margin: 0; padding: 0; overflow: hidden; }
 body.playing.solo { --glass: rgba(22, 22, 30, 0.78); }
 body.playing.solo #my-board { position: absolute; inset: 0; padding: 3.7rem 0 0 2.8rem; border: 0; border-radius: 0; background: none; }
-body.playing.solo .hand-section { position: absolute; left: 0; right: 30rem; bottom: 0; grid-row: auto; grid-column: auto; } /* the hand is centred in the room left of the piles (30rem: the row of piles and the command zone) */
+body.playing.solo .zones { --sw: 5.4rem; } /* the piles and the command zone are larger (Kevin, 2026-11-12); their pictures are the normal size so they stay sharp */
+body.playing.solo .hand-section { position: absolute; left: 0; right: 36rem; bottom: 0; grid-row: auto; grid-column: auto; } /* the hand is centred in the room left of the piles (30rem: the row of piles and the command zone) */
 body.playing.solo .right-column { display: contents; }
 
 /* the pieces that float: glass, like the control bar of MIDI Companion */
@@ -1207,7 +1208,7 @@ body.playing.solo .piles-section .zone-stacks { display: flex; flex-wrap: nowrap
 
 /* Piles you can take a card from and drop a card on (frontend/src/board-drag.js): the top card is grabbed, and the pile a card is carried over is ringed in the neutral ring colour. */
 body.playing .pile-stack:not([data-empty="true"]), body.playing #command .card { cursor: grab; }
-body.dragging-card .pile-stack.drop-target .stack-face, body.dragging-card #command.drop-target { box-shadow: 0 0 0 3px var(--ring); }
+body.dragging-card .pile-stack.drop-target .stack-face, body.dragging-card #command.drop-target, body.dragging-card .cmd-slot.drop-target .slot-cards { box-shadow: 0 0 0 3px var(--ring); }
 body.dragging-card #command.drop-target { border-radius: 0.5rem; }
 
 /* A pile held down (frontend/src/board-drag.js): a circle fills over it, and when it is full the whole pile is ready to be moved. Under prefers-reduced-motion there is no filling: the circle shows only when the pile is ready. */

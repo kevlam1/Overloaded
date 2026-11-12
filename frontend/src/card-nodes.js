@@ -6,7 +6,7 @@
 // that is not on a counter or a number (your own cards: the menu is src/card-menu.js). onMark(uid, hit) is called for a click on a counter or on
 // the power/toughness numbers and returns false when the change was refused; printedStats(card) gives a card's printed power and
 // toughness as text ("2/2") or null.
-import { imageUrl } from '../../shared/card-image.mjs';
+import { imageUrl, cardBackUrl } from '../../shared/card-image.mjs';
 import { isLandCard } from '../../shared/zones.mjs';
 import { stackInfo, STACK_VISIBLE } from '../../shared/stacks.mjs';
 import { changeParts, counterChips, marksSentence, markToast, shortNumber, statsOf } from '../../shared/marks.mjs';
@@ -125,12 +125,15 @@ function showToast(button, toast) {
 
 // The picture of the face that shows: the printing the deck named (else the card's default printing), or with `tried` the default
 // one. A card turned over shows the back face's picture of the same printing (Scryfall keeps both under the one id).
-const pictureAddress = (card, side, tried) => imageUrl(tried ? card.i : (card.p ?? card.i), 'small', side);
+// A card flipped face down shows the sleeve (the card back), whatever its faces are; otherwise the front, or the back face of a two-sided card turned over.
+const sideShown = (card) => (card.faceDown === true ? 'sleeve' : card.turned === true ? 'back' : 'front');
+const pictureAddress = (card, side, tried) => side === 'sleeve' ? cardBackUrl('small') : imageUrl(tried ? card.i : (card.p ?? card.i), 'small', side);
 
 // Shows the face the card has now. A card button is built once and reused, so a turn changes the picture in place.
 function showFace(button, card) {
   const picture = button.querySelector('img');
-  const side = card.turned === true ? 'back' : 'front';
+  const side = sideShown(card);
+  button.classList.toggle('face-down', card.faceDown === true);
   if (!picture || picture.dataset.side === side) return;
   picture.dataset.side = side;
   picture.dataset.tried = '';
@@ -149,7 +152,7 @@ export function makeCardNodes({ onSelect = () => {}, isSelected = () => false, r
       button.type = 'button';
       button.dataset.uid = card.uid;
       const face = make('span', 'face');
-      const side = card.turned === true ? 'back' : 'front';
+      const side = sideShown(card);
       const url = pictureAddress(card, side, false);
       if (url) {
         const picture = document.createElement('img');
@@ -214,7 +217,7 @@ export function makeCardNodes({ onSelect = () => {}, isSelected = () => false, r
     showFace(button, card);
     const printed = printedStats(card);
     const marks = marksSentence(card, printed);
-    button.setAttribute('aria-label', `${card.n}${card.turned && !card.tok ? ', turned over' : ''}${card.tapped ? ', tapped' : ''}${card.noUntap ? ", doesn't untap" : ''}${card.sick ? ', summoning sick' : ''}${marks ? `. ${marks}` : ''}`);
+    button.setAttribute('aria-label', `${card.n}${card.faceDown ? ', face down' : ''}${card.turned && !card.tok ? ', turned over' : ''}${card.tapped ? ', tapped' : ''}${card.noUntap ? ", doesn't untap" : ''}${card.sick ? ', summoning sick' : ''}${marks ? `. ${marks}` : ''}`);
     updateBadges(button, card, Boolean(onBadge) && !readOnly);
     updateMarks(button, card, Boolean(onMark) && !readOnly, printed, onBattlefield);
     return button;

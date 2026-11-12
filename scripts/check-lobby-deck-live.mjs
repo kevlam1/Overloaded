@@ -407,7 +407,7 @@ try {
   await alice.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: cardAt.x, y: cardAt.y, button: 'right', buttons: 0, clickCount: 1 });
   await sleep(150);
   const aliceMenu = await menuOf(alice);
-  record("a right click on Alice's card opens its menu on the table page (Modify, Tap, the two marks, the counter with its amounts, Create copy, Ping card, Move to)", Boolean(aliceMenu) && JSON.stringify(aliceMenu.items) === JSON.stringify(['Modify...', 'Tap', "Doesn't untap", 'Summoning sick', '+1/+1 counter', '2', '3', '5', 'Create copy', 'Ping card', 'Move to']), JSON.stringify(aliceMenu));
+  record("a right click on Alice's card opens its menu on the table page (Modify, Tap, Flip, the two marks, the counter with its amounts, Create copy, Ping card, Move to)", Boolean(aliceMenu) && JSON.stringify(aliceMenu.items) === JSON.stringify(['Modify...', 'Tap', 'Flip', "Doesn't untap", 'Summoning sick', '+1/+1 counter', '2', '3', '5', 'Create copy', 'Ping card', 'Move to']), JSON.stringify(aliceMenu));
   await clickMenuText(alice, 'Tap');
   record('Tap from the menu is saved: the card is tapped in the database that Bob can read', Boolean(await waitFor(async () => (await tappedInDb()) === true ? true : null, 15000, 250)));
   record("...and Bob's page shows Alice's card tapped, without a refresh", Boolean(await waitFor(async () => (await bob.eval(`Array.from(document.querySelectorAll('#opponent-list .opponent')).some((p) => p.querySelector('h3').textContent.includes('Alice') && p.querySelector('.card.tapped'))`)) ? true : null, 20000, 250)));
@@ -529,16 +529,16 @@ try {
   await act(alice, 'To battlefield');
   const delverPlayed = await waitFor(async () => (await delverInDb()) ? true : null, 15000, 250);
   record('playing it puts it on the public battlefield, showing its front: no turned-over mark in the database', Boolean(delverPlayed) && (await delverInDb()).bk === undefined, JSON.stringify(await delverInDb()));
-  record('her right-click menu offers Turn over for it (the page found its back face by name in the card list)', (await buttonLabels()).includes('Turn over'), (await buttonLabels()).join(' | '));
-  await act(alice, 'Turn over');
+  record('her right-click menu offers Flip double-faced card for it (the page found its back face by name in the card list)', (await buttonLabels()).includes('Flip double-faced card'), (await buttonLabels()).join(' | '));
+  await act(alice, 'Flip double-faced card');
   const delverTurned = await waitFor(async () => (await delverInDb())?.bk === 1 ? await delverInDb() : null, 15000, 250);
   record('turning it over saves exactly one small mark on that card: bk is 1, and no back-face field (b) is stored', Boolean(delverTurned) && delverTurned.bk === 1 && !('b' in delverTurned) && !('turned' in delverTurned), JSON.stringify(delverTurned));
   const aliceDelver = await delverOf(alice, '#battlefield .card');
-  record("on Alice's page it shows the back picture, says it is turned over, and button now says how to turn it back", Boolean(aliceDelver) && aliceDelver.src.includes('/back/') && /turned over/.test(aliceDelver.label) && (await buttonLabels()).includes('Turn back to front'), JSON.stringify(aliceDelver));
+  record("on Alice's page it shows the back picture, says it is turned over, and button now says how to turn it back", Boolean(aliceDelver) && aliceDelver.src.includes('/back/') && /turned over/.test(aliceDelver.label) && (await buttonLabels()).includes('Flip double-faced card'), JSON.stringify(aliceDelver));
   const bobDelver = await waitFor(async () => { const d = await delverOf(bob, '#opponent-list .opponent .card'); return d && d.src?.includes('/back/') ? d : null; }, 20000, 250);
   record("Bob's page, without a refresh, shows the BACK picture and the label turned over on Alice's card, and the card is read-only", Boolean(bobDelver) && /turned over/.test(bobDelver.label) && bobDelver.disabled === true, JSON.stringify(bobDelver));
   const bobLabelsFor = await bob.eval(`Array.from(document.querySelectorAll('#opponent-list .opponent button')).map((b) => b.textContent).join('|')`);
-  record("Bob's page offers no Turn over button for Alice's card", !/Turn over|Turn back/.test(bobLabelsFor), bobLabelsFor);
+  record("Bob's page offers no Flip double-faced card button for Alice's card", !/Flip double-faced card|Turn back/.test(bobLabelsFor), bobLabelsFor);
   // Create copy: a copy copies only the face that shows. Alice's Delver is turned over, so the copy is Insectile Aberration, a 3/2 with the
   // back picture. What is stored must be small and valid: the type line of ONE face (a whole "A // B" line is over the 60 characters a
   // stored token may have for 93 cards, which would make the copy vanish for everyone who reads it).
@@ -558,7 +558,7 @@ try {
   const delverAfterRefresh = await waitFor(async () => { const d = await delverOf(alice, '#battlefield .card'); return d && d.src?.includes('/back/') ? d : null; }, 30000, 250);
   record('after a refresh Alice\'s Delver is still turned over (read back from the database)', Boolean(delverAfterRefresh) && /turned over/.test(delverAfterRefresh.label), JSON.stringify(delverAfterRefresh));
   await alice.eval(`Array.from(document.querySelectorAll('#battlefield .card')).find((c) => (c.getAttribute('aria-label') || '').startsWith('Delver')).click()`);
-  await act(alice, 'Turn back to front');
+  await act(alice, 'Flip double-faced card');
   const delverBack = await waitFor(async () => { const d = await delverInDb(); return d && d.bk === undefined ? d : null; }, 15000, 250);
   record('turning it back removes the mark from the database (nothing is stored for a card showing its front)', Boolean(delverBack), JSON.stringify(await delverInDb()));
   const bobFront = await waitFor(async () => { const d = await delverOf(bob, '#opponent-list .opponent .card'); return d && d.src?.includes('/front/') ? d : null; }, 20000, 250);

@@ -27,11 +27,11 @@ import { openCardMenu } from '../../src/card-menu.js';
 import { mountCounterChips } from '../../src/counter-chips.js';
 import { mountLifeControl } from '../../src/life-control.js';
 import { mountFloatingBar } from '../../src/floating-bar.js';
-import { flyAway, shuffleAnimation, gatherIntoPile, reducedMotion } from '../../src/card-fly.js';
+import { flyAway, flyDraw, shuffleAnimation, gatherIntoPile, reducedMotion } from '../../src/card-fly.js';
 import { menuItems, menuAction, turnLabel, turnMessage, playBackLabel, PLAY_BACK_ZONES, noUntapLabel, sickLabel, untapMessage } from '../../../shared/card-menu.mjs';
 import { marksSentence, markClick, printedOf } from '../../../shared/marks.mjs';
 import { chipEntries, playerMenuItems, playerAction } from '../../../shared/player-counters.mjs';
-import { makeGame, draw, moveCard, shuffleLibrary, mulligan, setTapped, turnOver, untapAll, heldTapped, adjustLife, nextTurn, boardCells, placeCard, placeStack, arrangeBoard, zoneCounts, reorderHand } from '../../../shared/zones.mjs';
+import { setFaceDown, makeGame, draw, moveCard, shuffleLibrary, mulligan, setTapped, turnOver, untapAll, heldTapped, adjustLife, nextTurn, boardCells, placeCard, placeStack, arrangeBoard, zoneCounts, reorderHand } from '../../../shared/zones.mjs';
 
 const $ = (id) => document.getElementById(id);
 const store = makeSafeStore();
@@ -89,6 +89,7 @@ const cardNodes = makeCardNodes({ onSelect: (uid) => select(uid), isSelected: (u
 const place = cardNodes.place;
 // The piles as stacks of cards (src/pile-stack.js) and the command zone with its two outlined slots and the commander tax (src/command-zone.js).
 const stacks = Object.fromEntries([['library', 'Library'], ['graveyard', 'Graveyard'], ['exile', 'Exile']].map(([zone, label]) => [zone, mountPileStack($(`pile-${zone}`), { zone, label })]));
+const commandSlots = new Map(); // uid -> 1 or 2: the slot of the command zone a commander was dragged into (not saved: a refresh puts them in order)
 const commandZone = mountCommandZone({ root: $('command'), place, showTax: true, onTax: (uid, delta) => { if (!game) return; const action = taxAction(game, uid, delta); if (action) apply(() => action.run(game), action.message); } });
 
 // The hand is shown one card at a time with the draw sound for each (shared/deal-sequence.mjs). Only what is SHOWN is staged: the game was dealt all at once, so
@@ -98,17 +99,17 @@ const dealer = createDealer({
     if (!game) return;
     const newest = dealer.dealt();
     const dealtCard = newest ? dealer.visible(game.zones.hand)[newest - 1] : null; // (found by its uid: the hand may be shown sorted)
-    if (dealtCard) handView.noteDrop(dealtCard.uid, libraryCentre()); // the card comes out of the library into its place
     render();
+    if (dealtCard) flyDrawn(dealtCard.uid); // the card comes out of the library and turns face up as it lands
   },
   onCard: () => play('draw'),
   reducedMotion: () => globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true,
 });
 
-// Where the top of the library is on screen: a card drawn starts there and eases into the hand, as if it were taken from the pile.
-function libraryCentre() {
-  const rect = ($('pile-library').querySelector('.stack-face') ?? $('pile-library')).getBoundingClientRect();
-  return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+// A card just put in the hand (a draw, a deal) flies out of the library and turns face up on the way (src/card-fly.js); the real card is hidden until it lands.
+function flyDrawn(uid) {
+  const node = [...$('hand').children].find((child) => child.dataset.uid === uid);
+  if (node) flyDraw(node, $('pile-library'), cardBackUrl('small'));
 }
 
 function findCard(uid) {
@@ -127,7 +128,10 @@ function render() {
   place($('battlefield'), game.zones.battlefield, { battlefield: true, cells: boardCells(game) });
   place($('hand'), dealer.visible(game.zones.hand));
   handView.arrange();
-  commandZone.update(game);
+  commandZone.update(game, { slotOf: (uid) => commandSlots.get(uid) ?? null });
+  for (const picture of $('command').querySelectorAll('.card .face img')) { // the command zone cards are larger than a battlefield card: the normal size, so they stay sharp
+    if (picture.dataset.sharp !== '1' && (picture.getAttribute('src') ?? '').includes('/small/')) { picture.dataset.sharp = '1'; picture.src = picture.getAttribute('src').replace('/small/', '/normal/'); }
+  }
   $('hand-count').textContent = String(dealer.visible(game.zones.hand).length);
   const counts = zoneCounts(game);
   for (const zone of ['library', 'graveyard', 'exile']) {
@@ -261,6 +265,7 @@ function deal({ pause = 0 } = {}) {
   game = makeGame(deck, lookup);
   selected = null;
   viewing = null;
+  commandSlots.clear();
   cardNodes.clear();
   $('game').hidden = false;
   document.body.classList.add('playing', 'solo'); // the one-screen layout (src/style.css)
@@ -273,20 +278,22 @@ function deal({ pause = 0 } = {}) {
 function drawOne() {
   const result = draw(game, 1);
   game = result.game;
-  if (!result.short) { play('draw'); handView.noteDrop(result.drawn[0], libraryCentre()); }
+  if (!result.short) play('draw');
   say(result.short ? 'Your library is empty.' : `Drew ${game.zones.hand.find((c) => c.uid === result.drawn[0]).n}.`, result.short);
   render();
+  if (!result.short) flyDrawn(result.drawn[0]);
 }
 
 function goNextTurn() {
   const held = heldTapped(game);
   const result = nextTurn(game);
   game = result.game;
-  if (!result.short) { play('draw'); handView.noteDrop(result.drawn[0], libraryCentre()); }
+  if (!result.short) play('draw');
   const drewName = result.short ? null : game.zones.hand.find((c) => c.uid === result.drawn[0]).n;
   const untapped = held ? `everything untapped except ${held} that do not untap` : 'everything untapped';
   say(`Turn ${game.turn}: ${untapped}${drewName ? ` and you drew ${drewName}` : '. Your library is empty, so nothing was drawn'}.`, result.short);
   render();
+  if (!result.short) flyDrawn(result.drawn[0]);
 }
 
 let mulliganing = false; // the animation is running: another click waits
@@ -296,7 +303,7 @@ async function doMulligan() {
   const nodes = [...$('hand').children].filter((child) => child.classList.contains('card'));
   if (nodes.length && !reducedMotion()) { // the hand gathers, goes into the library and the library is shuffled, and then the new hand comes out of it
     $('hand').style.visibility = 'hidden';
-    try { await gatherIntoPile(nodes, $('hand').getBoundingClientRect(), $('pile-library')); play('shuffle'); await shuffleAnimation($('pile-library'), cardBackUrl('small')); } finally { $('hand').style.visibility = ''; }
+    try { await gatherIntoPile(nodes, $('hand').getBoundingClientRect(), $('pile-library'), cardBackUrl('small')); play('shuffle'); await shuffleAnimation($('pile-library'), cardBackUrl('small')); } finally { $('hand').style.visibility = ''; }
   } else play('shuffle');
   mulliganing = false;
   try { game = mulligan(game); } catch (error) { say(error.message, true); render(); return; }
@@ -413,15 +420,20 @@ let pointerAt = null;
 document.addEventListener('pointermove', (event) => { pointerAt = { x: event.clientX, y: event.clientY }; }, { passive: true });
 document.documentElement.addEventListener('pointerleave', () => { pointerAt = null; });
 const cardUnderPointer = () => (pointerAt ? document.elementFromPoint(pointerAt.x, pointerAt.y)?.closest('#battlefield > .card') ?? null : null);
+// F flips the card face down (to the sleeve) or face up again, the same way (Kevin, 2026-11-12)
+function flipFaceDown(found) {
+  apply(() => setFaceDown(game, found.card.uid, !found.card.faceDown), found.card.faceDown ? `Flipped ${found.card.n} face up.` : `Flipped ${found.card.n} face down.`);
+}
 document.addEventListener('keydown', (event) => {
-  if (event.key.toLowerCase() !== 'e' || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || event.repeat) return;
+  const key = event.key.toLowerCase();
+  if ((key !== 'e' && key !== 'f') || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || event.repeat) return;
   if (event.target instanceof Element && event.target.closest('input, select, textarea, [contenteditable]')) return; // typing a number or a search is not a tap
   const hovered = cardUnderPointer();
   if (!game || !hovered) return;
   const found = findCard(hovered.dataset.uid);
   if (!found || found.zone !== 'battlefield') return;
   event.preventDefault();
-  toggleTapped(found);
+  if (key === 'f') flipFaceDown(found); else toggleTapped(found);
 });
 document.addEventListener('click', (event) => {
   if (!selected || !game || !event.target.isConnected) return;
@@ -498,10 +510,14 @@ function pileAt(x, y) {
   const element = document.elementFromPoint(x, y);
   const stack = element?.closest?.('.pile-stack');
   if (stack?.dataset.zone) return { zone: stack.dataset.zone, element: stack };
+  const slot = element?.closest?.('.cmd-slot'); // a commander can be put in either slot of the command zone
+  if (slot) return { zone: 'command', slot: Number(slot.dataset.slot), element: slot };
   return element?.closest?.('#command, .command-zone') ? { zone: 'command', element: $('command') } : null;
 }
-function dropOnPile({ uid, from, to, element = null, flying = null }) {
+function dropOnPile({ uid, from, to, slot = null, element = null, flying = null }) {
   const found = game ? findCard(uid) : null;
+  if (found && to === 'command' && (slot === 1 || slot === 2)) commandSlots.set(uid, slot);
+  if (found && from === 'command' && to === 'command') { flying?.remove(); render(); say(slot ? `Put ${found.card.n} in command zone slot ${slot}.` : ''); return; } // (moved from one slot to the other)
   if (!found || found.zone !== from || from === to || !ZONE_WORDS[to]) { flying?.remove(); return; }
   if (flying) flyAway(flying, element ?? $(`pile-${to}`)); // the picture carried flies into the pile
 

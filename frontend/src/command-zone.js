@@ -32,14 +32,22 @@ export function mountCommandZone({ root, place, onTax, showTax = true }) {
   root.replaceChildren(...slots.map((slot) => slot.element));
 
   // game: the player's game (or null). The command zone is hidden when there is no commander and nothing in it (a Standard game).
-  function update(game) {
+  // slotOf(uid) (optional): the slot, 1 or 2, a commander is to be in (the player dragged it there); a commander with no choice, or whose slot is taken, goes in the first free one.
+  function update(game, { slotOf = null } = {}) {
     const entries = game ? taxEntries(game) : [];
+    const placed = [null, null];
+    const rest = [];
+    for (const entry of entries) {
+      const want = slotOf ? slotOf(entry.uid) : null;
+      if ((want === 1 || want === 2) && !placed[want - 1]) placed[want - 1] = entry; else rest.push(entry);
+    }
+    for (const entry of rest) { const free = placed.indexOf(null); if (free >= 0) placed[free] = entry; }
     const inZone = game ? game.zones.command : [];
     const extras = inZone.filter((card) => !entries.some((entry) => entry.uid === card.uid)); // anything else a player put in the command zone (an emblem, say) stays visible
     root.parentElement.hidden = entries.length === 0 && extras.length === 0;
-    const extraSlot = Math.min(entries.length, slots.length - 1); // other cards put in the command zone sit in the first slot with no commander of its own (the slot under the commander would push them out of view)
+    const extraSlot = Math.max(0, placed.indexOf(null)); // other cards put in the command zone sit in the first slot with no commander of its own (the slot under the commander would push them out of view)
     slots.forEach((slot, index) => {
-      const entry = entries[index] ?? null;
+      const entry = placed[index] ?? null;
       slot.setUid(entry ? entry.uid : null);
       slot.element.classList.toggle('empty-slot', !entry);
       slot.element.classList.toggle('away', Boolean(entry) && !entry.inZone);

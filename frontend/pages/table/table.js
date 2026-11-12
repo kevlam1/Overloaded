@@ -36,7 +36,7 @@ import { seatDeckText, defaultDeckFor, hasConceded } from '../../../shared/lobby
 import { LIBRARY_KEY, LEGACY_KEY, readLibrary } from '../../../shared/deck-library.mjs';
 import { makeLookup } from '../../../shared/card-lookup.mjs';
 import { friendlyMessage } from '../../../shared/friendly-error.mjs';
-import { makeGame, draw, moveCard, shuffleLibrary, mulligan, setTapped, turnOver, untapAll, beginTurn, adjustLife, boardCells, settleBoard, isLandCard, placeCard, placeStack, arrangeBoard, zoneCounts, reorderHand } from '../../../shared/zones.mjs';
+import { setFaceDown, makeGame, draw, moveCard, shuffleLibrary, mulligan, setTapped, turnOver, untapAll, beginTurn, adjustLife, boardCells, settleBoard, isLandCard, placeCard, placeStack, arrangeBoard, zoneCounts, reorderHand } from '../../../shared/zones.mjs';
 import { gameWrites, joinGame, readPublic } from '../../../shared/game-sync.mjs';
 import { placeAll, stepFrom } from '../../../shared/board-grid.mjs';
 
@@ -773,15 +773,20 @@ let pointerAt = null;
 document.addEventListener('pointermove', (event) => { pointerAt = { x: event.clientX, y: event.clientY }; }, { passive: true });
 document.documentElement.addEventListener('pointerleave', () => { pointerAt = null; });
 const cardUnderPointer = () => (pointerAt ? document.elementFromPoint(pointerAt.x, pointerAt.y)?.closest('#battlefield > .card') ?? null : null);
+// F flips the card face down (to the sleeve) or face up again, the same way (Kevin, 2026-11-12)
+function flipFaceDown(found) {
+  apply(() => setFaceDown(game, found.card.uid, !found.card.faceDown), found.card.faceDown ? `Flipped ${found.card.n} face up.` : `Flipped ${found.card.n} face down.`);
+}
 document.addEventListener('keydown', (event) => {
-  if (event.key.toLowerCase() !== 'e' || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || event.repeat) return;
+  const key = event.key.toLowerCase();
+  if ((key !== 'e' && key !== 'f') || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || event.repeat) return;
   if (event.target instanceof Element && event.target.closest('input, select, textarea, [contenteditable]')) return; // typing a number or a search is not a tap
   const hovered = cardUnderPointer();
   if (!game || !hovered) return;
   const found = findCard(hovered.dataset.uid);
   if (!found || found.zone !== 'battlefield') return;
   event.preventDefault();
-  toggleTapped(found);
+  if (key === 'f') flipFaceDown(found); else toggleTapped(found);
 });
 document.addEventListener('click', (event) => {
   if (!selected || !game || !event.target.isConnected) return;
