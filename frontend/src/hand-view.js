@@ -14,7 +14,7 @@
 // The card under the pointer is shown lifted and straight by a COPY of it drawn on top in a layer of its own (.hand-lift-layer) that never takes the mouse; the real cards keep their places and
 // their stacking, so the card that answers to the pointer is always the one you can see there (a lifted card that kept a higher stacking number kept the pointer over its neighbours).
 // Plain DOM, no dependencies besides the layout and the mana symbols.
-import { handLayout, layoutAround, holeAt, spreadAround } from '../../shared/hand-layout.mjs';
+import { handLayout, handLayoutSelected, layoutAround, holeAt } from '../../shared/hand-layout.mjs';
 import { manaNode } from './mana-pips.js';
 
 export const LEAVE_DELAY = 150; // ms the pointer must stay out of the hand before it lowers, or before a carried card is taken to be away from it (coming back is at once): the edge of the area does not flicker
@@ -27,11 +27,12 @@ const round2 = (value) => Math.round(value * 100) / 100;
 const prefersReducedMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // container: the #hand element. costOf(uid): the mana cost text of the hand card with this uid ('' for none, a land has none).
-// Returns { arrange(), carry(info | null), holeFor(uid, x), noteDrop(uid, from), zone(), hit(x, y), isRaised() }.
+// Returns { arrange(), carry(info | null), holeFor(uid, x, external), noteDrop(uid, from), zone(), over(x, y), isRaised() }.
 export function mountHand({ container, costOf = () => '' }) {
   // px kept free at each side for the turn of the outer cards: they swing out by about a fifth of a card's height, so it grows with the cards (a fixed 14 px clipped the first card once the hand was 50% larger)
   const margin = () => Math.max(14, Math.round((container.querySelector(':scope > .card')?.offsetHeight ?? 0) * 0.2));
   let carried = null; // the uid of the card being carried (it is over `hole` and is left out of the places of the others)
+  let carriedExternal = false; // the carried card is not one of the hand (it comes from the battlefield or a pile): the hand opens a place for it, and nothing is left out
   let hole = null; // the place (0 to the number of cards - 1) the carried card is over
   let lastCarry = null; // { uid, hole } of the carry that has just ended, so a let-go lands where it was last shown
   let raised = false; // the pointer is in the area of the hand: the cards are up
@@ -152,12 +153,14 @@ export function mountHand({ container, costOf = () => '' }) {
     } else if (carriedIndex >= 0) {
       row = all.filter((_, index) => index !== carriedIndex);
       spots = layoutAround({ total: all.length, width, cardWidth, cardHeight, hole: hole ?? carriedIndex }).slots;
+    } else if (carried && carriedExternal && !away && hole !== null) {
+      spots = layoutAround({ total: all.length + 1, width, cardWidth, cardHeight, hole }).slots; // a place is open for the card that is carried over the hand
     } else {
       spots = handLayout({ count: all.length, width, cardWidth, cardHeight }).slots;
     }
-    // A card of the hand that has been clicked (it is the selected card) comes up to be read and the cards beside it move aside to make room. It does not go down with a lowered hand.
-    const selectedIndex = carriedIndex >= 0 ? -1 : row.findIndex((button) => button.classList.contains('selected'));
-    if (selectedIndex >= 0) spots = spreadAround({ spots, index: selectedIndex, cardWidth });
+    // A card of the hand that has been clicked (it is the selected card) comes up to be read and each side moves aside to make room. It does not go down with a lowered hand.
+    const selectedIndex = carried ? -1 : row.findIndex((button) => button.classList.contains('selected'));
+    if (selectedIndex >= 0) spots = handLayoutSelected({ count: row.length, width, cardWidth, cardHeight, index: selectedIndex }).slots; // the whole of each side moves aside
     const snap = prefersReducedMotion();
     let moving = false;
     row.forEach((button, index) => {
@@ -283,14 +286,17 @@ export function mountHand({ container, costOf = () => '' }) {
   }
 
   // ---- carrying a card of the hand ----
-  // info: { uid, x, over } while the card with this uid is carried (x: the pointer, over: whether it is over the hand), or null when the carry is over (let go, or cancelled). The hole moves only when it
-  // must (a dead zone). A card carried away from the hand makes the others close up, but only after it has been away for LEAVE_DELAY; over the hand again, the hole opens at once.
+  // info: { uid, x, over, external } while the card with this uid is carried (x: the middle of the picture carried, over: whether it is over the hand, external: it is not a card of the hand: it comes from the
+  // battlefield or a pile), or null when the carry is over (let go, or cancelled). The hole moves only when it must (a dead zone). A card of the hand carried away from it makes the others close up, only
+  // after it has been away for LEAVE_DELAY; over the hand again, the hole opens at once. A card from outside opens a place in the hand while it is over it (one more place than there are cards) and closes it
+  // again when it is away.
   function carry(info) {
     if (!info) {
       if (awayTimer !== null) { clearTimeout(awayTimer); awayTimer = null; }
       if (carried === null) return;
-      lastCarry = { uid: carried, hole };
+      lastCarry = { uid: carried, hole, external: carriedExternal };
       carried = null;
+      carriedExternal = false;
       hole = null;
       away = false;
       delete container.dataset.hole;
@@ -298,30 +304,32 @@ export function mountHand({ container, costOf = () => '' }) {
       return;
     }
     const all = buttons();
-    const index = all.findIndex((button) => button.dataset.uid === info.uid);
-    if (index < 0) return;
+    const external = info.external === true;
+    const index = external ? -1 : all.findIndex((button) => button.dataset.uid === info.uid);
+    if (!external && index < 0) return;
+    const total = all.length + (external ? 1 : 0);
     let changed = false;
-    if (carried !== info.uid) { carried = info.uid; hole = index; away = false; lastCarry = null; changed = true; } // it starts over its own place: nothing moves
+    if (carried !== info.uid) { carried = info.uid; carriedExternal = external; hole = external ? null : index; away = false; lastCarry = null; changed = true; } // a card of the hand starts over its own place: nothing moves
     if (info.over === false) {
-      if (!away && awayTimer === null) awayTimer = setTimeout(() => { awayTimer = null; if (carried === info.uid) { away = true; arrange(); } }, LEAVE_DELAY);
+      if (!away && awayTimer === null && (!external || hole !== null)) awayTimer = setTimeout(() => { awayTimer = null; if (carried === info.uid) { away = true; arrange(); } }, LEAVE_DELAY);
       if (changed) arrange();
       return;
     }
     if (awayTimer !== null) { clearTimeout(awayTimer); awayTimer = null; }
     if (away) { away = false; changed = true; }
-    const next = holeAt({ total: all.length, width: Math.max(0, container.clientWidth - 2 * margin()), cardWidth: all[0].offsetWidth, x: info.x - container.getBoundingClientRect().left - margin(), previous: hole });
+    const next = holeAt({ total, width: Math.max(0, container.clientWidth - 2 * margin()), cardWidth: all[0] ? all[0].offsetWidth : 0, x: info.x - container.getBoundingClientRect().left - margin(), previous: hole });
     if (next !== hole) { hole = next; changed = true; }
     container.dataset.hole = String(hole); // (the place the carried card is over: shown for the checks and for anyone looking at the page)
     if (changed) arrange();
   }
 
   // The place the card with this uid takes when let go with the pointer at x: the hole as it was last shown (so the card lands where it was shown), else worked out from x.
-  function holeFor(uid, x) {
+  function holeFor(uid, x, external = false) {
     if (carried === uid && hole !== null) return hole;
     if (lastCarry && lastCarry.uid === uid && lastCarry.hole !== null) return lastCarry.hole;
     const all = buttons();
     if (all.length === 0) return 0;
-    return holeAt({ total: all.length, width: Math.max(0, container.clientWidth - 2 * margin()), cardWidth: all[0].offsetWidth, x: x - container.getBoundingClientRect().left - margin() });
+    return holeAt({ total: all.length + (external ? 1 : 0), width: Math.max(0, container.clientWidth - 2 * margin()), cardWidth: all[0].offsetWidth, x: x - container.getBoundingClientRect().left - margin() });
   }
 
   // The picture of the card with this uid was let go at `from` ({ x, y, angle }: its top left corner in viewport pixels and its turn in degrees): its card starts there and eases into its place.
@@ -349,14 +357,13 @@ export function mountHand({ container, costOf = () => '' }) {
     return { left, right, top: box.top, bottom: box.bottom };
   }
 
-  // Is the point (x, y) on screen over a card of the hand? (With no cards in it, over the few cards' width in the middle where one would go.) What is under the pointer is asked of the page, so
-  // the tilt of the cards and the gaps between them count exactly.
-  function hit(x, y) {
+  // Is the point (x, y) on screen over the hand? It is the rectangle round the whole hand (the width the cards cover, half a card more at each end, from the top of the cards that show down): the same
+  // rectangle that is outlined while a card is carried over it. A hand with no cards is a few cards wide in the middle, where one would go.
+  function over(x, y) {
     if (buttons().length === 0) { const z = zone(); return x >= z.left && x < z.right && y >= z.top && y < z.bottom; }
-    const el = document.elementFromPoint(x, y)?.closest('.card');
-    return Boolean(el) && el.parentElement === container;
+    return inArea(x, y);
   }
 
   if (typeof ResizeObserver === 'function') new ResizeObserver(() => arrange()).observe(container);
-  return { arrange, carry, holeFor, noteDrop, zone, hit, isRaised: () => raised };
+  return { arrange, carry, holeFor, noteDrop, zone, over, isRaised: () => raised };
 }

@@ -3117,7 +3117,25 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 152. One rectangle round the hand, the hand opens for a card from the field, and each side moves aside (2026-11-12)
+
+**What I asked for**
+- When I drag a card from the battlefield to the hand, instead of a dotted outline on each card of the hand, one rectangular outline of the entire hand. I also want the cards in the hand to move for a card from the battlefield. And instead of only the three cards beside a clicked card spreading aside, have it affect the entirety of each side, separately.
+
+**What changed** (`shared/hand-layout.mjs`, `frontend/src/hand-view.js`, `board-drag.js`, `style.css`, `solo.js`, `table.js`, tests)
+- **One outline:** the dashed outline on each card is gone. A card carried over the hand (from the battlefield or, on the solo page, from a pile) shows one dashed rectangle round the whole hand, as wide as the hand and half a card more at each end. That same rectangle is where the card is dropped; before, only the cards themselves counted, which made the place a card could be dropped hard to see.
+- **The hand opens for a card from outside:** while it is over the hand the hand has one more place than it has cards, opened where the picture is (decided from the middle of the picture, with the same dead zone as for a card of the hand), the cards lean away from it, and it closes again 150 ms after the card leaves. Letting go puts the card at that place instead of at the end, and it eases in from where the picture was let go (the same way a card of the hand does). A token that goes to the hand stops existing, as before, and nothing is left to put in a place (that case would have thrown).
+- **The clicked card:** the whole of each side moves aside, separately: every card to its left moves left and every card to its right moves right, by 0.55 of a card, and the row is laid out again in the width left (`handLayoutSelected`). When the hand already fills its width the cards at its ends cannot move further out, so each side closes up toward its end and the cards next to the clicked one open up to at least three quarters of a card from it.
+- The table page gets the same hand: the outline, the place for a card from the field, and the spread.
+
+**What I checked:** hand logic 84 (the spread with room, at the left end, and in a hand that fills its width), solo check 538 with new real-mouse checks (one dashed rectangle as wide as the hand and no outline on any card; a place opens among the cards; it closes again when the card is carried away, exactly to the plain layout; letting go puts the card at that place and the others keep their order; nothing is left of the outline afterwards), the old checks adapted, live check, layout, lobby, deck and quick suites; a screenshot of the outline with a place open in a 7 card hand. Not checked: phones and touch.
+
+**My mistakes this round:** the point where an old check let a card go "outside the hand" is inside the rectangle now, so the Forest went back into the hand there and the checks after it found no Forest; I had first read that as a break in the drag. My first test of the spread wanted every card to move farther from the clicked card, which a hand that fills its width cannot do (its end cards are pinned), so I changed it to what holds. The count of "every card is somewhere" counted the lifted hover copy once the lift survived a click. One of my own test lines for the left end was a convoluted expression that happened to pass; it is plain now.
+
+---
+
 ## Where AI misread me, or I had to correct course
+- (2026-11-12, entry 152) Claude's drop area for a card from the field was only the cards of the hand, so a card could not be dropped between them and the outline was drawn on each card; it is one rectangle round the whole hand now, and the hand opens a place for the card.
 - (2026-11-12, entry 151) Claude's hand gave every card a stacking number up to the size of the hand while the lifted copy sat at 6, so with more than six cards the copy was hidden behind the hand (the "bottom half hidden" complaint), and its layouts threw the lifted copy away on every click.
 - (2026-11-12, entry 150) Claude's first change to sharpen the hand pictures broke the Alt picture (it only accepted a small address), and its first card preview fix clipped the box, not the card, which is why the white corners stayed until the box itself was made card-shaped.
 - (2026-11-11, entry 149) Claude's first fix for the hand opened a gap by laying out an extra place and decided the drop against a different row, which is what made it jitter near the end; the style-sheet transition it used for movement also restarted on every change.

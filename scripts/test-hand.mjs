@@ -1,6 +1,6 @@
 // Tests for the hand: shared/hand-sort.mjs (the three sorts, the type order), shared/hand-layout.mjs (the fan, the places while a card is carried, and which place the carried card is over) and reorderHand in shared/zones.mjs.
 import { SORT_KEYS, TYPE_KEYS, DEFAULT_TYPE_ORDER, noSorts, anySortOn, cleanSorts, nextSortState, sortWords, normalizeTypeOrder, moveType, sortKeysOf, sortHand } from '../shared/hand-sort.mjs';
-import { handLayout, layoutAround, holeAt, cardStep, MAX_ANGLE, spreadAround, SPREAD, SPREAD_REACH } from '../shared/hand-layout.mjs';
+import { handLayout, handLayoutSelected, layoutAround, holeAt, cardStep, MAX_ANGLE, SPREAD } from '../shared/hand-layout.mjs';
 import { reorderHand } from '../shared/zones.mjs';
 
 let checks = 0;
@@ -146,17 +146,27 @@ check('a card that is not in the hand is refused in words', threw);
 const frozen = JSON.parse(JSON.stringify(game)); Object.freeze(frozen.zones.hand);
 check('it works on a frozen hand (nothing is changed in place)', order(reorderHand(frozen, 'c', 0)) === 'cabd');
 
-// ---- a clicked card comes up and the cards beside it move aside ----
-const flat = Array.from({ length: 9 }, (_, k) => ({ x: 100 + k * 50, y: 3, angle: k - 4 }));
-const out = spreadAround({ spots: flat, index: 4, cardWidth: 80 });
-same('the clicked card itself does not move sideways', out[4], flat[4]);
-same('the card beside it moves aside by 0.55 of a card width (44), to the left on the left and to the right on the right', [out[3].x - flat[3].x, out[5].x - flat[5].x], [-44, 44]);
-same('two places away it moves 2/3 as much, three places away 1/3 as much', [Math.round((out[2].x - flat[2].x) * 100) / 100, Math.round((out[6].x - flat[6].x) * 100) / 100, Math.round((out[1].x - flat[1].x) * 100) / 100, Math.round((out[7].x - flat[7].x) * 100) / 100], [-29.33, 29.33, -14.67, 14.67]);
-same('four or more places away it does not move', [out[0], out[8]], [flat[0], flat[8]]);
-same('only the sideways place changes (not the height or the turn)', out.every((spot, k) => spot.y === flat[k].y && spot.angle === flat[k].angle), true);
-same('the places given are not changed', flat[3].x, 250);
-same("the clicked card at the left end pushes the others right only", [spreadAround({ spots: flat, index: 0, cardWidth: 80 }).map((spot, k) => Math.round((spot.x - flat[k].x) * 100) / 100)].map((d) => d.slice(0, 5)), [[0, 44, 29.33, 14.67, 0]]);
-same('a place that is not one of the cards changes nothing (and a list that is not a list gives none)', [spreadAround({ spots: flat, index: 99, cardWidth: 80 }).map((s2) => s2.x).join() === flat.map((s2) => s2.x).join(), spreadAround({ spots: flat, index: -1, cardWidth: 80 }).length, spreadAround({ spots: null, index: 0, cardWidth: 80 })], [true, 9, []]);
-same('the constants are what the tests assume', [SPREAD, SPREAD_REACH], [0.55, 3]);
+// ---- a clicked card comes up and the whole of each side moves aside ----
+const sel = (n, index, width = 1200) => handLayoutSelected({ count: n, width, cardWidth: 80, cardHeight: 112, index });
+const plain5 = handLayout({ count: 5, width: 1200, cardWidth: 80, cardHeight: 112 });
+const sel5 = sel(5, 2);
+same('with room, every card to the left of the clicked one moves left by 0.55 of a card (44) and every card to the right moves right by 44; the clicked one stays where it was', sel5.slots.map((spot, k) => Math.round((spot.x - plain5.slots[k].x) * 100) / 100), [-44, -44, 0, 44, 44]);
+same('the heights and the turns are those of the same places in the plain hand', sel5.slots.every((spot, k) => spot.y === plain5.slots[k].y && spot.angle === plain5.slots[k].angle), true);
+same('the clicked card at the left end: it stays and all the others move right by 44', sel(5, 0).slots.map((spot, k) => Math.round((spot.x - plain5.slots[k].x) * 100) / 100), [0, 44, 44, 44, 44]);
+{ // the whole hand is wider by two shifts when there is room, and stays centred
+  const xs = sel5.slots.map((spot) => spot.x);
+  same('the hand stays centred: the room left of the first card and right of the last card are the same', Math.round((xs[0] - (1200 - (xs.at(-1) + 80))) * 100) / 100, 0);
+}
+{ // a hand that fills the width: nothing leaves it, the sides close up, and the clicked card has a full gap on each side
+  const full = sel(12, 5, 900); const cw = 80;
+  const xs = full.slots.map((spot) => spot.x);
+  same('in a hand that fills its width every card stays inside it (the sides close up to make the room)', xs[0] >= -0.01 && xs.at(-1) + cw <= 900.01, true);
+  const stepAside = xs[5] - xs[4]; const stepAfter = xs[6] - xs[5];
+  same('the clicked card is at least 0.9 of a card from each neighbour (it can be read)', [stepAside >= cw * 0.9, stepAfter >= cw * 0.9], [true, true]);
+  same('the cards on each side keep one step between them (the whole side moves, not a few)', [Math.round((xs[1] - xs[0]) * 100) / 100 === Math.round((xs[4] - xs[3]) * 100) / 100, Math.round((xs[8] - xs[7]) * 100) / 100 === Math.round((xs[11] - xs[10]) * 100) / 100], [true, true]);
+  same('the order of the cards never changes', xs.every((x, k) => k === 0 || x > xs[k - 1]), true);
+}
+same('a place that is not one of the cards, or a hand of one, is the plain hand', [sel(5, 99).slots.map((s2) => s2.x).join() === plain5.slots.map((s2) => s2.x).join(), sel(5, -1).slots.length, sel(1, 0).slots.length, sel(0, 0).slots.length], [true, 5, 1, 0]);
+same('the constant is what the tests assume', SPREAD, 0.55);
 
 console.log(`All ${checks} hand checks passed.`);

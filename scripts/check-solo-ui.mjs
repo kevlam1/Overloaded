@@ -593,7 +593,12 @@ try {
       const selectedUid = await ev("document.querySelector('#hand > .card.selected')?.dataset.uid ?? null");
       const zs = await ev("[...document.querySelectorAll('#hand > .card')].map((c) => Number(c.style.getPropertyValue('--hz')))");
       check('a click on a card of the hand selects it and brings it up by almost half its height', selectedUid === base.uids[idx] && base.ys[idx] - up.ys[idx] > cardH * 0.4, JSON.stringify({ selectedUid, was: base.ys[idx], now: up.ys[idx], cardH }));
-      check('the cards beside it move aside to make room: the one before goes left and the one after goes right, by about half a card', base.xs[idx - 1] - up.xs[idx - 1] > base.width * 0.4 && up.xs[idx + 1] - base.xs[idx + 1] > base.width * 0.4, JSON.stringify({ before: [base.xs[idx - 1], base.xs[idx + 1]], after: [up.xs[idx - 1], up.xs[idx + 1]] }));
+      // The whole of each side moves aside, separately: nothing on its left moves right and nothing on its right moves left (the cards at the ends of a hand that fills its width cannot go further, so the side closes up
+      // toward its end), and the cards next to it open up to at least 3/4 of a card from it.
+      const sideLeft = base.xs.slice(0, idx).every((x, k) => up.xs[k] <= x + 1);
+      const sideRight = base.xs.slice(idx + 1).every((x, k) => up.xs[idx + 1 + k] >= x - 1);
+      const nearer = (base.xs[idx] - base.xs[idx - 1]) + 20 < up.xs[idx] - up.xs[idx - 1] && (base.xs[idx + 1] - base.xs[idx]) + 20 < up.xs[idx + 1] - up.xs[idx];
+      check('the whole of each side moves aside, separately: nothing to its left moves right, nothing to its right moves left, and each neighbour opens up to at least 3/4 of a card from it', sideLeft && sideRight && nearer && up.xs[idx] - up.xs[idx - 1] >= base.width * 0.75 && up.xs[idx + 1] - up.xs[idx] >= base.width * 0.75, JSON.stringify({ before: base.xs, after: up.xs, sideLeft, sideRight, nearer }));
       check('the brought-up card is in front of all the others, and it has no lifted copy (it is up by itself)', zs[idx] === Math.max(...zs) && zs.filter((z) => z === zs[idx]).length === 1 && (await count('.hand-lift-layer > .card')) === 0, JSON.stringify(zs));
       await mouse('mouseMoved', 5, 5); await sleep(500);
       const lowered = await handFacts();
@@ -755,7 +760,7 @@ try {
   }
   await clickCard('#hand .card', 0);
   check('Escape deselects', (await count('.card.selected')) === 1 && await (async () => { await ev(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))`); return (await count('.card.selected')) === 0 && (await actionLabels()).length === 0; })());
-  check('every card is somewhere: 61 cards in the game', await (async () => { const n = async (s) => parseInt((await $text(s)).split(': ').at(-1), 10); return ((await count('.card')) - (await count('#viewer-list .card'))) + (await n('pile-library')) + (await n('pile-graveyard')) + (await n('pile-exile')) + (await n('pile-sideboard')) === 61; })());
+  check('every card is somewhere: 61 cards in the game', await (async () => { const n = async (s) => parseInt((await $text(s)).split(': ').at(-1), 10); return ((await count('.card:not(.hand-lift)')) - (await count('#viewer-list .card'))) + (await n('pile-library')) + (await n('pile-graveyard')) + (await n('pile-exile')) + (await n('pile-sideboard')) === 61; })());
 
   // ---- a new game ----
   await press('new-game');
@@ -786,7 +791,7 @@ try {
   await press('viewer-close');
   await press('new-game');
   check('a new game keeps the sideboard whole', (await pileCount('sideboard')) === 'Sideboard: 2' && (await count('#hand .card')) === 7 && (await pileCount('library')) === 'Library: 45');
-  check('every one of the 55 cards is somewhere', await (async () => { const n = async (s) => parseInt((await $text(s)).split(': ').at(-1), 10); return ((await count('.card')) - (await count('#viewer-list .card'))) + (await n('pile-library')) + (await n('pile-graveyard')) + (await n('pile-exile')) + (await n('pile-sideboard')) === 55; })());
+  check('every one of the 55 cards is somewhere', await (async () => { const n = async (s) => parseInt((await $text(s)).split(': ').at(-1), 10); return ((await count('.card:not(.hand-lift)')) - (await count('#viewer-list .card'))) + (await n('pile-library')) + (await n('pile-graveyard')) + (await n('pile-exile')) + (await n('pile-sideboard')) === 55; })());
 
   // ---- printings: a card is drawn with the printing its deck named, then the default picture, then its name ----
   // Real data (checked against Scryfall's own records on 2026-10-29): Sol Ring cmm 410 is 46ca0b66..., Arcane Signet sld 916 is
@@ -1629,8 +1634,8 @@ try {
   await key('Escape', 'Escape', 27);
   await mouseAt('mouseReleased', await cellCenter(6, 4), 0); await sleep(80);
   check('Escape during a drag cancels it: the card stays, the picture and the outline are gone', (await cellOfCard('Forest')) === '0,33' && await dragStateGone());
-  await dragTo(await centerOfSelector(cardAt('Forest')), { x: 8, y: 985 }); // (below the grid, at the left edge: not on the board, not on a card of the hand, not on a pile)
-  check('letting go outside the battlefield and the hand (in the empty corner below the board) does nothing', (await cellOfCard('Forest')) === '0,33' && await dragStateGone());
+  await dragTo(await centerOfSelector(cardAt('Forest')), { x: 640, y: 650 }); // (below the grid and above the hand: not on the board, not in the rectangle of the hand, not on a pile)
+  check('letting go outside the battlefield and the hand (in the empty space between them) does nothing', (await cellOfCard('Forest')) === '0,33' && await dragStateGone());
 
   // a card dragged from the battlefield and let go over the hand goes back into the hand
   { let marked = null; const handBefore = (await handNames()).length;
@@ -1883,6 +1888,42 @@ try {
   pile = await forestState();
   check('marking the top Forest summoning sick makes it a different stack: the other five are 5x, this one is alone', pile.badge === '5x' && pile.all === 6, JSON.stringify(pile));
   await clickAction('Deselect');
+
+  // ---- a card carried from the battlefield over the hand: one rectangle round the whole hand, a place opens in it, and the card is put there (frontend/src/hand-view.js, board-drag.js) ----
+  {
+    await open(MARKS_DECK); // a hand of 7
+    const handUids = () => ev("[...document.querySelectorAll('#hand > .card')].map((c) => c.dataset.uid)");
+    const handXs = () => ev("[...document.querySelectorAll('#hand > .card')].map((c) => Math.round(parseFloat(c.style.getPropertyValue('--hx'))))");
+    // play the card in the middle of the hand onto the board, and then carry it back to a place in the middle
+    const names7 = await handNames();
+    const playedUid = (await handUids())[3];
+    await dragTo(await handCardPoint(names7[3]), await cellCenter(40, 8));
+    check('a card of the hand played to the battlefield (the setup of the checks that follow)', (await count('#battlefield > .card')) === 1 && (await count('#hand > .card')) === 6);
+    const before = await handXs();
+    const uidsBefore = await handUids();
+    const box = await ev("(() => { const r = document.getElementById('hand').getBoundingClientRect(); return { left: r.left, right: r.right }; })()");
+    const first = await handCardPoint((await handNames())[0]);
+    const mid = { x: (box.left + box.right) / 2, y: first.y };
+    let seen = null; let away = null;
+    await dragTo(await centerOfSelector('#battlefield > .card'), mid, { release: false, during: async () => {
+      await sleep(250);
+      if (process.argv.includes('--screenshot')) await browser.screenshot('scratch-hand-outline.png');
+      seen = await ev("(() => { const h = document.getElementById('hand'); const after = getComputedStyle(h, '::after'); return { outline: after.opacity, style: after.borderTopStyle, wide: Math.round(parseFloat(after.width)), cardOutlines: [...h.querySelectorAll(':scope > .card')].map((c) => getComputedStyle(c).outlineStyle), hole: h.dataset.hole ?? null, marked: document.getElementById('hand-section').classList.contains('drop-hand'), xs: [...h.querySelectorAll(':scope > .card')].map((c) => Math.round(parseFloat(c.style.getPropertyValue('--hx')))) }; })()");
+    } });
+    const holeShown = Number(seen?.hole);
+    check('carried over the hand a card from the battlefield is shown by ONE rectangle round the whole hand (a dashed outline, as wide as the hand), and no card of the hand has an outline of its own', seen && seen.marked === true && seen.outline === '1' && seen.style === 'dashed' && seen.wide > 300 && seen.cardOutlines.every((o) => o === 'none'), JSON.stringify(seen));
+    check('the hand opens a place for it: one place is open among the cards (a hole between two of them) and the cards have moved', Number.isInteger(holeShown) && holeShown >= 0 && holeShown <= 6 && JSON.stringify(seen.xs) !== JSON.stringify(before), JSON.stringify({ hole: seen?.hole, before, now: seen?.xs }));
+    // away from the hand the place closes again
+    await mouseAt('mouseMoved', { x: mid.x, y: mid.y - 420 }, 1); await sleep(450);
+    away = await handXs();
+    check('carried away from the hand the place closes: the cards close up again', away.length === 6 && away.join() === before.join(), JSON.stringify({ before, away, shown: seen?.xs }));
+    await mouseAt('mouseMoved', mid, 1); await sleep(300);
+    const holeBack = Number(await ev("document.getElementById('hand').dataset.hole ?? -1"));
+    await mouseAt('mouseReleased', mid, 0); await sleep(500);
+    const uidsAfter = await handUids();
+    check('letting go puts the card at the place that was open: it is in the hand at that place and the other cards keep their order', uidsAfter.length === 7 && uidsAfter[holeBack] === playedUid && uidsAfter.filter((u) => u !== playedUid).join() === uidsBefore.join(), JSON.stringify({ holeBack, uidsBefore, uidsAfter, playedUid }));
+    check('nothing is left of the outline or the carry afterwards', await dragStateGone() && (await ev("document.getElementById('hand').dataset.hole === undefined")) && (await ev("getComputedStyle(document.getElementById('hand'), '::after').opacity")) === '0');
+  }
 
   // ---- the piles and the command zone: cards are taken from them and dropped on them (frontend/src/board-drag.js, real mouse input) ----
   {

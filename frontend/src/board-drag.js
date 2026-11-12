@@ -38,7 +38,7 @@ export function mountBoardDrag({ doc = document, board, onDrop, hand = () => nul
 
   const clean = () => {
     if (drag) {
-      if (drag.from === 'hand') onHandOver(null);
+      onHandOver(null); // (the hand closes its place, whichever card was carried)
       if (drag.smooth?.frame) cancelAnimationFrame(drag.smooth.frame);
       drag.ghost.remove();
       hand()?.classList.remove('drop-hand');
@@ -113,7 +113,7 @@ export function mountBoardDrag({ doc = document, board, onDrop, hand = () => nul
   const update = (event) => {
     const x = event.clientX; const y = event.clientY;
     if (drag.smooth) { drag.smooth.tx = x - drag.width * drag.grab.x; drag.smooth.ty = y - drag.height * drag.grab.y; } // (the picture follows these)
-    else drag.ghost.style.transform = `translate(${Math.round(x - drag.width * drag.grab.x)}px, ${Math.round(y - drag.height * drag.grab.y)}px)`; // the card is held where it was taken
+    else { drag.pos = { x: Math.round(x - drag.width * drag.grab.x), y: Math.round(y - drag.height * drag.grab.y) }; drag.ghost.style.transform = `translate(${drag.pos.x}px, ${drag.pos.y}px)`; } // the card is held where it was taken
     const boardElement = board();
     const rect = boardElement ? boardElement.getBoundingClientRect() : null;
     // a card from the battlefield moves by as many cells as the pointer has moved; a card from the hand is put with the pointer in the middle of it. Outside the board there is no place.
@@ -134,7 +134,9 @@ export function mountBoardDrag({ doc = document, board, onDrop, hand = () => nul
     handElement?.classList.toggle('drop-hand', drag.overHand && drag.from !== 'hand');
     // the place the card is over is decided from the middle of the picture carried, not from the pointer: you take a card of an overlapping hand by the part that shows, which may be far from its middle, and the
     // picture starts exactly over its own place, so nothing moves until it has been carried a little
-    if (drag.from === 'hand') onHandOver({ uid: drag.uid, x: x - drag.width * (drag.grab.x - 0.5), over: drag.overHand }); // the hand shows where the card would go back (over), or closes up when the card is away from it
+    // a card from outside the hand (the battlefield, a pile) opens a place in it while it is over it, as a card of the hand does
+    if (drag.from === 'hand') onHandOver({ uid: drag.uid, x: x - drag.width * (drag.grab.x - 0.5), over: drag.overHand });
+    else if (!drag.whole) onHandOver({ uid: drag.uid, x: x - drag.width * (drag.grab.x - 0.5), over: drag.overHand, external: true }); // the hand shows where the card would go back (over), or closes up when the card is away from it
     // a tapped card is a landscape card, 11 cells wide, so it may not start in the last 3 columns of the board
     if (cell && drag.tapped) cell.col = Math.min(cell.col, BOARD_COLS - CARD_ROWS);
     drag.cell = drag.overHand || drag.pile ? null : cell;
@@ -174,12 +176,12 @@ export function mountBoardDrag({ doc = document, board, onDrop, hand = () => nul
     update(event);
     const { uid, from, cell, overHand, whole, pile } = drag;
     const x = event.clientX - drag.width * (drag.grab.x - 0.5); // (the middle of the picture, as while it was carried)
-    const picture = drag.smooth ? { x: drag.smooth.x, y: drag.smooth.y, angle: drag.smooth.a } : null; // where the picture is as it is let go: the card starts there
+    const picture = drag.smooth ? { x: drag.smooth.x, y: drag.smooth.y, angle: drag.smooth.a } : drag.pos ? { x: drag.pos.x, y: drag.pos.y, angle: 0 } : null; // where the picture is as it is let go: the card starts there
     clean();
     swallowClick();
     if (pile) onDropPile({ uid, from, to: pile });
     else if (overHand && from === 'hand') onReorderHand({ uid, x, picture });
-    else if (overHand) onDropHand({ uid, from });
+    else if (overHand) onDropHand({ uid, from, x, picture });
     else if (cell) onDrop({ uid, from, col: cell.col, row: cell.row, whole });
   };
   const cancel = () => { if (drag) swallowClick(); clean(); };

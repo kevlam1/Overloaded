@@ -81,17 +81,17 @@ export function holeAt({ total, width, cardWidth, x, previous = null, deadZone =
   return nearest();
 }
 
-// A card of the hand that has been clicked comes up to be read, and the cards beside it move aside to make room (Kevin, 2026-11-12): the places of the others, with the cards within SPREAD_REACH
-// places of the clicked one pushed away from it, most for the nearest. spots: the places in order, index: which of them is the clicked card (its own place does not change here: the page lifts it),
-// cardWidth: how wide a card is. Returns new places; nothing is changed in place.
-export const SPREAD = 0.55; // how far the nearest card moves aside, as a fraction of a card's width
-export const SPREAD_REACH = 3; // how many cards on each side move aside
-export function spreadAround({ spots, index, cardWidth }) {
-  if (!Array.isArray(spots) || !Number.isInteger(index) || index < 0 || index >= spots.length) return Array.isArray(spots) ? spots.map((spot) => ({ ...spot })) : [];
-  return spots.map((spot, k) => {
-    const distance = Math.abs(k - index);
-    if (distance < 1 || distance > SPREAD_REACH) return { ...spot };
-    const push = cardWidth * SPREAD * (1 - (distance - 1) / SPREAD_REACH);
-    return { ...spot, x: round2(spot.x + (k < index ? -push : push)) };
-  });
+// A card of the hand that has been clicked comes up to be read, and the cards beside it make room (Kevin, 2026-11-12): the WHOLE of each side moves aside, separately: every card to its left moves
+// left by SPREAD of a card's width and every card to its right moves right by as much, so the row opens around it. The row is laid out again in the width left after the two shifts (the cards on each side
+// close up a little when there is no room, so nothing leaves the width) and centred. Heights and turns are those of the same place in the plain hand. index: the clicked card.
+export const SPREAD = 0.55; // how far each side moves aside, as a fraction of a card's width
+export function handLayoutSelected({ count, width, cardWidth, cardHeight, index }) {
+  const plain = handLayout({ count, width, cardWidth, cardHeight });
+  const n = plain.slots.length;
+  if (!Number.isInteger(index) || index < 0 || index >= n || n < 2) return plain;
+  const shift = cardWidth * SPREAD;
+  const step = cardStep({ slots: n, width: Math.max(0, width - 2 * shift), cardWidth });
+  const total = cardWidth + step * (n - 1) + 2 * shift;
+  const x0 = (width - total) / 2;
+  return { step, slots: plain.slots.map((spot, k) => ({ ...spot, x: round2(x0 + k * step + (k < index ? 0 : k === index ? shift : 2 * shift)) })) };
 }

@@ -677,9 +677,8 @@ body .battlefield > .card.tapped[data-stack-depth="3"] { translate: 0 calc(var(-
 /* the outline of a tapped card being dragged is a landscape card: 11 cells wide and 8 tall, on the bottom line of its block */
 .battlefield > .cell-highlight[data-tapped] { grid-column-end: span 11; grid-row-end: span 8; }
 /* the hand while a card from the battlefield is held over it */
-body.playing #hand:empty::after { content: ''; position: absolute; left: var(--zl, 0px); width: var(--zw, 0px); top: 0; bottom: 0; border: 2px dashed var(--ring); border-radius: 0.5rem; background: color-mix(in srgb, var(--ring) 10%, transparent); opacity: 0; pointer-events: none; }
-body.dragging-card .hand-section.drop-hand #hand:empty::after { opacity: 1; }
-body.dragging-card .hand-section.drop-hand #hand > .card { outline: 2px dashed var(--ring); outline-offset: 2px; }
+body.playing #hand::after { content: ''; z-index: 200; position: absolute; left: var(--zl, 0px); width: var(--zw, 0px); top: 0; bottom: 0; border: 2px dashed var(--ring); border-radius: 0.5rem; background: color-mix(in srgb, var(--ring) 10%, transparent); opacity: 0; pointer-events: none; }
+body.dragging-card .hand-section.drop-hand #hand::after { opacity: 1; } /* one rectangle round the whole hand (the same area a card is dropped on), not an outline on each card */
 /* the corner handle of a pile: a small triangle at the top-left of the top card; dragging it (or Shift and drag on any card of the pile) carries the whole pile */
 .card .stack-handle { position: absolute; left: 0; top: 0; width: 0; height: 0; border-style: solid; border-width: 0.9rem 0.9rem 0 0; border-color: var(--accent) transparent transparent transparent; cursor: grab; z-index: 2; }
 body.playing .card .stack-handle { border-width: 0.8rem 0.8rem 0 0; }
