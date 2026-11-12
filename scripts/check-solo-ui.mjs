@@ -138,11 +138,64 @@ try {
   check('Draw adds a card to the hand and takes one from the library', (await count('#hand .card')) === 8 && (await pileCount('library')) === 'Library: 52' && /^Drew .+\.$/.test(await $text('status')), await $text('status'));
   await press('next-turn');
   check('Next turn: turn 2, one more card, and the status says so', (await $text('turn')) === '2' && (await count('#hand .card')) === 9 && /^Turn 2: everything untapped and you drew .+\.$/.test(await $text('status')), await $text('status'));
-  await press('life-plus1'); await press('life-plus5');
-  check('life goes up by 1 and 5', (await $text('life')) === '46');
-  await press('life-minus5'); await press('life-minus1'); await press('life-minus5'); await press('life-minus5');
-  check('and down, one click at a time', (await $text('life')) === '30');
-  check('the life buttons say what they do for a screen reader', (await ev(`Array.from(document.querySelectorAll('.life button')).map((b) => b.getAttribute('aria-label')).join('|')`)) === 'Lose 5 life|Lose 1 life|Gain 1 life|Gain 5 life');
+  // the life total is the number itself (frontend/src/life-control.js): real mouse input and real key presses
+  const lifeAt = () => ev("(() => { const r = document.getElementById('life').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()");
+  const lifeClick = async (button = 'left', shift = false, holdMs = 0) => {
+    const p = await lifeAt();
+    const base = { x: p.x, y: p.y, button, modifiers: shift ? 8 : 0, clickCount: 1 };
+    await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p.x, y: p.y });
+    await browser.send('Input.dispatchMouseEvent', { ...base, type: 'mousePressed', buttons: button === 'left' ? 1 : 2 });
+    if (holdMs) await sleep(holdMs);
+    await browser.send('Input.dispatchMouseEvent', { ...base, type: 'mouseReleased', buttons: 0 });
+    await sleep(80);
+  };
+  const lifeKey = async (name, shift = false) => { const vk = { ArrowUp: 38, ArrowDown: 40, ArrowLeft: 37, ArrowRight: 39, Enter: 13, Escape: 27 }[name]; await browser.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: name, code: name, windowsVirtualKeyCode: vk, modifiers: shift ? 8 : 0 }); await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: name, code: name, windowsVirtualKeyCode: vk }); await sleep(60); };
+  const editorOpen = () => ev("Boolean(document.querySelector('.life-input'))");
+  const typeLife = (text) => ev("(() => { const i = document.querySelector('.life-input'); i.value = " + JSON.stringify(text) + "; })()");
+  check('the four old life buttons are gone: the number is the only button in the life area', (await ev("document.querySelectorAll('#life-area button').length")) === 1 && (await ev("document.getElementById('life').tagName")) === 'BUTTON');
+  await lifeClick('left');
+  check('a left click on the number gains 1', (await $text('life')) === '41', await $text('life'));
+  await lifeClick('left', true);
+  check('Shift and a left click gains 5', (await $text('life')) === '46', await $text('life'));
+  await lifeClick('right');
+  check('a right click loses 1 (and does not open the menu of counters)', (await $text('life')) === '45' && (await count('.card-menu')) === 0, await $text('life'));
+  await lifeClick('right', true); await lifeClick('right', true); await lifeClick('right', true);
+  check('Shift and a right click loses 5, three times: 30', (await $text('life')) === '30', await $text('life'));
+  check('the number says how to use it (a tooltip) and a right click NEXT to it is still the menu of counters', /right-click/.test(await ev("document.getElementById('life').title")) && /counters/.test(await ev("document.getElementById('life-area').title")));
+  // holding: a circle fills, and the number opens a box to type the new total in
+  { const p = await lifeAt();
+    const base = { x: p.x, y: p.y, button: 'left', clickCount: 1 };
+    await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p.x, y: p.y });
+    await browser.send('Input.dispatchMouseEvent', { ...base, type: 'mousePressed', buttons: 1 });
+    await sleep(200);
+    const filling = await ev("document.querySelector('.life-ring').classList.contains('holding') && getComputedStyle(document.querySelector('.life-ring')).opacity === '1'");
+    check('while the number is held a circle is shown, filling', filling === true && !(await editorOpen()));
+    await sleep(700);
+    check('when it is full the circle goes and a box to type the new total opens, with the number in it, and the number itself is hidden', (await editorOpen()) && (await ev("document.querySelector('.life-input').value")) === '30' && (await ev("document.getElementById('life').hidden")) === true && !(await ev("document.querySelector('.life-ring').classList.contains('holding')")));
+    await browser.send('Input.dispatchMouseEvent', { ...base, type: 'mouseReleased', buttons: 0 }); await sleep(80);
+    check('letting go after the hold is not also a click: life is still 30 and the box stays open', (await $text('life')) === '30' && (await editorOpen()));
+  }
+  await typeLife('abc'); await lifeKey('Enter');
+  check('a total that is not a whole number is refused in words and the box stays open', (await editorOpen()) && /whole number/.test(await $text('status')), await $text('status'));
+  await typeLife('12'); await lifeKey('Enter');
+  check('typing 12 and Enter sets the life total to 12 and closes the box', (await $text('life')) === '12' && !(await editorOpen()) && (await ev("document.getElementById('life').hidden")) === false, await $text('life'));
+  await lifeClick('left', false, 0);
+  await lifeClick('left', false, 150); // a short press is a click, not a hold
+  check('pressing for less than the hold is a click: two clicks gained 2 and no box opened', (await $text('life')) === '14' && !(await editorOpen()), await $text('life'));
+  await lifeClick('left', false, 800);
+  check('holding again opens the box', await editorOpen());
+  await typeLife('99'); await lifeKey('Escape');
+  check('Escape closes the box and changes nothing', (await $text('life')) === '14' && !(await editorOpen()));
+  await ev("document.getElementById('life').focus()");
+  await lifeKey('ArrowUp'); await lifeKey('ArrowRight'); await lifeKey('ArrowUp', true);
+  check('with the keyboard: arrow up and right gain 1 each and Shift gains 5', (await $text('life')) === '21', await $text('life'));
+  await lifeKey('ArrowDown'); await lifeKey('ArrowLeft'); await lifeKey('ArrowDown', true);
+  check('arrow down and left lose 1 each and Shift loses 5', (await $text('life')) === '14', await $text('life'));
+  await lifeKey('Enter');
+  check('Enter opens the box to type in', await editorOpen());
+  await typeLife('30'); await lifeKey('Enter');
+  check('and 30 puts life back to 30 for the rest of the checks', (await $text('life')) === '30' && !(await editorOpen()));
+  await ev("document.activeElement?.blur?.()");
 
   // ---- selecting and moving ----
   check('before anything is selected there are no actions', (await actionLabels()).length === 0 && /Click a card/.test(await $text('selected-line')));
@@ -533,12 +586,12 @@ try {
     const sel = await ev(`document.querySelector('.card.selected')?.querySelector('img')?.getAttribute('src') ?? null`);
     await ev(`document.querySelector('#battlefield').click()`); await sleep(100);
     const first = await corner();
-    check('the card corner is at the bottom right of the window; it shows the selected card (the normal size) and keeps it after you click away', first.bottomGap <= 12 && first.right <= 12 && first.width > 150 && !first.empty && /\/normal\//.test(first.src ?? '') && !first.closeShown, JSON.stringify(first));
+    check('the card corner is at the right of the window (above the piles); it shows the selected card (the normal size) and keeps it after you click away', first.right <= 12 && first.width > 150 && !first.empty && /\/normal\//.test(first.src ?? '') && !first.closeShown, JSON.stringify(first));
     await clickCard('#hand .card', (await ev(`(() => { const imgs = [...document.querySelectorAll('#hand .card img')].map((i) => i.getAttribute('src')); return Math.max(1, imgs.findIndex((s) => s !== imgs[0])); })()`))); // (a card that is not the same picture as the first: the hand is shuffled, and two Islands would look alike)
     const second = await corner();
     check('selecting another card keeps the corner on a card (the hand is shuffled and can hold two Islands, so only the selection is checked)', !second.empty && (await count('.card.selected')) === 1, JSON.stringify([first, second]));
-    const column = await ev(`(() => { const r = (sel) => document.querySelector(sel).getBoundingClientRect(); const a = r('.actions-panel'); const p = r('.side-panels'); const c = r('#spotlight'); const bar = r('.bar'); return { actionsRight: Math.round(innerWidth - a.right), actionsTop: Math.round(a.top - bar.top), buttons: [...document.querySelectorAll('.actions-panel button')].map((b) => b.id), barButtons: document.querySelectorAll('.bar .actions button').length, order: a.bottom <= p.top && p.bottom <= c.top, footer: document.querySelector('footer') !== null }; })()`);
-    check('the action buttons are at the top of the right column (not in the bar), the piles below them and the corner under those, and the page has no footer', column.actionsRight <= 12 && Math.abs(column.actionsTop) <= 4 && column.barButtons === 0 && column.buttons.includes('draw') && column.buttons.includes('settings-button') && column.order && !column.footer, JSON.stringify(column));
+    const column = await ev(`(() => { const r = (sel) => document.querySelector(sel).getBoundingClientRect(); const a = r('.actions-panel'); const p = r('.side-panels'); const c = r('#spotlight'); const bar = r('.bar'); return { actionsRight: Math.round(innerWidth - a.right), actionsTop: Math.round(a.top - bar.top), buttons: [...document.querySelectorAll('.actions-panel button')].map((b) => b.id), barButtons: document.querySelectorAll('.bar .actions button').length, order: a.bottom <= c.top && c.bottom <= p.top && innerHeight - p.bottom <= 12, footer: document.querySelector('footer') !== null }; })()`);
+    check('the action buttons are at the top of the right column (not in the bar), the card corner under those and the piles at the very bottom, and the page has no footer', column.actionsRight <= 12 && Math.abs(column.actionsTop) <= 4 && column.barButtons === 0 && column.buttons.includes('draw') && column.buttons.includes('settings-button') && column.order && !column.footer, JSON.stringify(column));
     const legal = await ev(`(() => { document.getElementById('settings-button').click(); const t = document.querySelector('#settings-menu .settings-legal')?.textContent ?? ''; const shown = !document.getElementById('settings-menu').hidden; document.getElementById('settings-button').click(); return { t, shown }; })()`);
     check('the fan content notice is in Settings', legal.shown && /unofficial Fan Content/.test(legal.t) && /Not approved\/endorsed by Wizards/.test(legal.t) && /property of Wizards of the Coast/.test(legal.t), JSON.stringify(legal));
     await ev(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))`); await sleep(60);
@@ -717,9 +770,9 @@ try {
 
   // ---- clicking the chips and the change label on the card itself (real mouse input) ----
   await open();
-  const mouse = async (selector, { button = 'left', shift = false, dy = null } = {}) => {
+  const mouse = async (selector, { button = 'left', shift = false, dy = null, dx = null } = {}) => {
     await ev(`document.querySelector(${JSON.stringify(selector)}).scrollIntoView({ block: 'center' })`);
-    const p = await ev(`(() => { const r = document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + ${dy === null ? 'r.height / 2' : String(dy)} }; })()`);
+    const p = await ev(`(() => { const r = document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect(); return { x: r.x + ${dx === null ? 'r.width / 2' : String(dx)}, y: r.y + ${dy === null ? 'r.height / 2' : String(dy)} }; })()`);
     const base = { x: p.x, y: p.y, button, modifiers: shift ? 8 : 0, clickCount: 1 };
     await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p.x, y: p.y });
     await browser.send('Input.dispatchMouseEvent', { ...base, type: 'mousePressed', buttons: button === 'left' ? 1 : 2 });
@@ -1173,9 +1226,9 @@ try {
   // ---- what a player has on them: chips next to the life total, set from a right-click on the life (real mouse input) ----
   await open();
   const chips = () => ev(`[...document.querySelectorAll('#life-chips .counter-chip')].map((c) => ({ id: c.dataset.id, label: c.getAttribute('aria-label'), number: c.querySelector('.chip-count').hidden ? null : c.querySelector('.chip-count').textContent, icon: (() => { const s = c.querySelector('svg'); return Boolean(s) && s.getAttribute('width') === '16' && s.getAttribute('height') === '16' && s.getAttribute('fill') === 'currentColor'; })(), lethal: c.classList.contains('lethal'), word: !c.querySelector('.chip-lethal').hidden, title: c.title }))`);
-  const lifeMenu = async (...path) => { await mouse('#life', { button: 'right' }); for (const step of path) await clickMenuItem(step); };
+  const lifeMenu = async (...path) => { await mouse('#life-area > .stat', { button: 'right', dx: 6 }); for (const step of path) await clickMenuItem(step); };
   check('a new game shows no chips, and the old counters section and the commander damage block are gone', !(await $hidden('game')) && (await chips()).length === 0 && (await count('#counters, #player-counters, #commander-damage')) === 0);
-  await mouse('#life', { button: 'right' });
+  await mouse('#life-area > .stat', { button: 'right', dx: 6 }); // the word Life: a right-click on the NUMBER lowers life
   const lifeItems = await menuState();
   check('a right-click on the life opens a menu of every counter a player can have: six counts and three marks', lifeItems && lifeItems.title === 'Your counters' && JSON.stringify(lifeItems.items) === JSON.stringify(['Poison: 0', 'Energy: 0', 'Experience: 0', 'Rad: 0', 'Ticket: 0', 'Speed: 0', 'The Ring tempts you: 0', 'Monarch: off', 'Initiative: off', "City's blessing: off"]), JSON.stringify(lifeItems));
   await escapeKey();
@@ -1199,7 +1252,7 @@ try {
   await lifeMenu('Monarch: off');
   const monarch = await chips();
   check('a mark is one choice: the monarch is a chip with its icon and no number, and the menu now says it is on', monarch.length === 1 && monarch[0].id === 'counter:monarch' && monarch[0].number === null && monarch[0].icon && monarch[0].label === 'Monarch' && (await $text('status')) === 'Monarch: on.', JSON.stringify(monarch));
-  await mouse('#life', { button: 'right' });
+  await mouse('#life-area > .stat', { button: 'right', dx: 6 });
   check('and says "Monarch: on" now', (await menuState()).items.includes('Monarch: on'));
   await escapeKey();
   await lifeMenu('Rad: 0', 'Add 5'); await lifeMenu('Initiative: off'); await lifeMenu('Energy: 0', 'Add 1');

@@ -51,18 +51,14 @@
         <section class="bar" aria-label="Your game">
           <p class="stat">Turn <strong id="turn">1</strong></p>
           <p id="turn-whose" class="stat"></p>
-          <div id="life-area" class="life" role="group" aria-label="Life total and counters" title="Right-click for counters">
-            <button id="life-minus5" type="button" class="secondary" aria-label="Lose 5 life">-5</button>
-            <button id="life-minus1" type="button" class="secondary" aria-label="Lose 1 life">-1</button>
-            <p class="stat">Life <strong id="life">20</strong></p>
+          <div id="life-area" class="life" role="group" aria-label="Life total and counters" title="Right-click next to the number for counters (poison and so on)">
+            <p class="stat">Life <span><button id="life" type="button">20</button></span></p>
             <div id="life-chips" class="counter-chips" role="group" aria-label="Your counters"></div>
-            <button id="life-plus1" type="button" class="secondary" aria-label="Gain 1 life">+1</button>
-            <button id="life-plus5" type="button" class="secondary" aria-label="Gain 5 life">+5</button>
           </div>
         </section>
 
         <section id="my-board" class="board mine" aria-labelledby="battlefield-heading">
-          <h2 id="battlefield-heading">Your battlefield</h2>
+          <h2 id="battlefield-heading" class="sr-only">Your battlefield</h2>
           <div id="battlefield" class="battlefield"></div>
         </section>
 

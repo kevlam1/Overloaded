@@ -24,6 +24,7 @@ import { makeCardNodes } from '../../src/card-nodes.js';
 import { mountMarksPanel } from '../../src/marks-panel.js';
 import { openCardMenu } from '../../src/card-menu.js';
 import { mountCounterChips } from '../../src/counter-chips.js';
+import { mountLifeControl } from '../../src/life-control.js';
 import { menuItems, menuAction, turnLabel, turnMessage, playBackLabel, PLAY_BACK_ZONES, noUntapLabel, sickLabel, untapMessage } from '../../../shared/card-menu.mjs';
 import { marksSentence, markClick, printedOf } from '../../../shared/marks.mjs';
 import { chipEntries, playerMenuItems, playerAction } from '../../../shared/player-counters.mjs';
@@ -452,9 +453,8 @@ mountBoardDrag({ board: () => $('battlefield'), onDrop: dropOnBoard, hand: () =>
 
 $('mulligan').addEventListener('click', doMulligan);
 $('new-game').addEventListener('click', () => { if (confirm('Start a new game? This one will be lost.')) { play('shuffle'); deal({ pause: SHUFFLE_PAUSE_MS }); } });
-for (const [id, delta] of [['life-minus5', -5], ['life-minus1', -1], ['life-plus1', 1], ['life-plus5', 5]]) {
-  $(id).addEventListener('click', () => apply(() => adjustLife(game, delta), ''));
-}
+// the life total is the number itself: click, right-click, Shift for 5, hold to set (src/life-control.js)
+mountLifeControl({ button: $('life'), say, onDelta: (delta) => apply(() => adjustLife(game, delta), ''), onSet: (value) => apply(() => adjustLife(game, value - game.life), `Life is ${value}.`) });
 for (const zone of ['library', 'graveyard', 'exile', 'sideboard']) $(`pile-${zone}`).addEventListener('click', () => togglePile(zone));
 $('retry').addEventListener('click', start);
 document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && selected) { selected = null; if (game) render(); } });

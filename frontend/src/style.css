@@ -1107,3 +1107,29 @@ body.playing #hand > .card .hand-cost .pip, body.playing #hand > .card .hand-cos
   body.playing #hand > .card { --ch: calc(100cqh - 0.8rem); height: var(--ch); width: calc(var(--ch) / 1.4015); }
   body.playing #hand > .card .face, body.playing #hand > .card:not(.tapped) .face { width: 100%; height: 100%; }
 }
+
+/* Round 2 (Kevin, 2026-11-11): no panels. Your battlefield and the whole right column have no border, background or padding of their own; the right column runs from the top: the buttons, the
+   players (the table page), the card preview (it takes the room that is left) and, at the bottom, your piles and command zone. A mana cost on a card is only ever drawn in the hand: the same button
+   is reused when a card is played, and the cost row used to stay on it, unstyled and enormous. A card of the hand has no background of its own, so nothing is left behind where its picture lifts. */
+body.playing #my-board { border: 0; border-radius: 0; background: none; }
+body.playing .actions-panel, body.playing .players-section, body.playing .side-panels > section, body.playing .card-corner, body.playing .card-corner:not(.is-empty) { border: 0; border-radius: 0; background: none; padding: 0; }
+body.playing .right-column > .actions-panel { order: 1; }
+body.playing .right-column > .players-slot { order: 2; }
+body.playing .right-column > .card-corner { order: 3; }
+body.playing .right-column > .side-panels { order: 4; }
+.card .hand-cost { display: none; }
+body.playing #hand > .card .hand-cost { display: flex; }
+body.playing #hand > .card:not(.selected) { background: none; border-color: transparent; box-shadow: none; }
+
+/* The life total is one control (frontend/src/life-control.js): click, right-click, Shift for 5, and hold to set it, with a circle that fills while it is held. */
+.life-number-wrap { position: relative; display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; }
+.life .life-number, .life-number-wrap .life-number { min-width: 2.6rem; padding: 0.1rem 0.5rem; border: 1px solid var(--line); border-radius: 0.5rem; background: var(--card); color: var(--text); font: inherit; font-size: 1rem; font-weight: 700; line-height: 1.15; cursor: pointer; user-select: none; touch-action: manipulation; }
+.life .life-number:hover { border-color: var(--ring); }
+.life .life-number:focus-visible, .life-input:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.life-input { width: 4.5rem; padding: 0.1rem 0.4rem; border: 1px solid var(--ring); border-radius: 0.5rem; background: var(--card); color: var(--text); font: inherit; font-size: 1rem; line-height: 1.15; font-weight: 700; text-align: center; }
+.life-ring { position: absolute; left: 50%; top: 50%; width: 26px; height: 26px; margin: -13px 0 0 -13px; opacity: 0; pointer-events: none; color: var(--ring); transform: rotate(-90deg); }
+.life-ring circle { stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-dasharray: 69.1; stroke-dashoffset: 69.1; }
+.life-ring.holding { opacity: 1; }
+.life-ring.holding circle { animation: life-hold var(--hold, 600ms) linear forwards; }
+@keyframes life-hold { from { stroke-dashoffset: 69.1; } to { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) { .life-ring.holding circle { animation: none; stroke-dashoffset: 0; } }

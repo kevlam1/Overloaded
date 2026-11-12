@@ -241,7 +241,15 @@ try {
   const played = await waitFor(async () => { const r = await rest('GET', pathOf('public/battlefield'), cleanup.bob.token); return r.json && Object.keys(r.json).length === 1 ? r.json : null; }, 15000, 250);
   record('playing a card puts it on her battlefield on the page and in the public branch that Bob can read', Boolean(played) && (await count(alice, '#battlefield .card')) === 1 && (await count(alice, '#hand .card')) === 7, JSON.stringify(played));
   record('the played card is no longer in her private hand', Object.keys((await rest('GET', pathOf('private/hand'), cleanup.alice.token)).json).length === 7);
-  await click(alice, 'life-minus5');
+  // the life total is the number itself (a real click on it): left +1, right -1, Shift for 5
+  const lifeClick = async (page, button = 'left', shift = false) => {
+    const p = await page.eval(`(() => { const r = document.getElementById('life').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`);
+    await page.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p.x, y: p.y });
+    await page.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: p.x, y: p.y, button, buttons: button === 'left' ? 1 : 2, clickCount: 1, modifiers: shift ? 8 : 0 });
+    await page.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: p.x, y: p.y, button, buttons: 0, clickCount: 1, modifiers: shift ? 8 : 0 });
+    await sleep(120);
+  };
+  await lifeClick(alice, 'right', true);
   const lifeSaved = await waitFor(async () => (await rest('GET', pathOf('public/life'), cleanup.bob.token)).json === 35 ? true : null, 15000, 250);
   record('losing 5 life saves 35, and only the life changed', Boolean(lifeSaved) && (await text(alice, 'life')) === '35');
   record('the page says the moves are saved', Boolean(await waitFor(async () => (await text(alice, 'save-state')) === 'Saved.' ? true : null, 10000, 200)), await text(alice, 'save-state'));
@@ -283,10 +291,10 @@ try {
   const aliceSeesBobBoard = await waitFor(async () => { const p = await panelOf(alice, 'Bob'); return p && p.life === '40' && p.inCommandZone === 1 ? p : null; }, 30000, 250);
   record("Alice's page shows Bob's board too: life 40, his commander in the command zone, hand 7", Boolean(aliceSeesBobBoard) && /Hand: 7 cards/.test(aliceSeesBobBoard.stats), JSON.stringify(aliceSeesBobBoard ?? await panelOf(alice, 'Bob')));
   record("...and nobody sees themselves in the list of other players", (await panelOf(alice, 'Alice')) === null && (await panelOf(bob, 'Bob')) === null);
-  await click(alice, 'life-plus1');
+  await lifeClick(alice, 'left');
   const liveUpdate = await waitFor(async () => { const p = await panelOf(bob, 'Alice'); return p && p.life === '36' ? p : null; }, 20000, 250);
   record("when Alice gains a life, Bob's page shows 36 without a refresh", Boolean(liveUpdate));
-  await click(alice, 'life-minus1'); // back to 35 for the refresh checks below
+  await lifeClick(alice, 'right'); // back to 35 for the refresh checks below
   await waitFor(async () => (await panelOf(bob, 'Alice'))?.life === '35' ? true : null, 20000, 250);
   if (process.argv.includes('--screenshot')) { await bob.eval(`document.getElementById('opponents').scrollIntoView()`); await sleep(400); await bob.screenshot('scratch-table-opponent.png'); }
 
@@ -549,7 +557,7 @@ try {
   // damage for every seat with a commander (hers and Bob's). The damage is stored as one number per seat on HER public branch (she took it), and Bob's page shows it as chips on her panel, read-only.
   // Only the counters the PUBLISHED rules accept are offered on this table (poison, energy, experience); the rest are for the solo table until the rules are changed.
   const rightClickLife = async (page) => {
-    const p = await page.eval(`(() => { const r = document.getElementById('life').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`);
+    const p = await page.eval(`(() => { const r = document.querySelector('#life-area > .stat').getBoundingClientRect(); return { x: r.x + 6, y: r.y + r.height / 2 }; })()`); // the word Life: a right-click on the NUMBER lowers life
     await page.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p.x, y: p.y });
     await page.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: p.x, y: p.y, button: 'right', buttons: 2, clickCount: 1 });
     await page.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: p.x, y: p.y, button: 'right', buttons: 0, clickCount: 1 });

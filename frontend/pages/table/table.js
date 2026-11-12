@@ -25,6 +25,7 @@ import { makeCardNodes } from '../../src/card-nodes.js';
 import { mountMarksPanel } from '../../src/marks-panel.js';
 import { openCardMenu } from '../../src/card-menu.js';
 import { mountCounterChips } from '../../src/counter-chips.js';
+import { mountLifeControl } from '../../src/life-control.js';
 import { menuItems, menuAction, turnLabel, turnMessage, playBackLabel, PLAY_BACK_ZONES, noUntapLabel, sickLabel, untapMessage } from '../../../shared/card-menu.mjs';
 import { marksSentence, markClick, printedOf } from '../../../shared/marks.mjs';
 import { currentTurn, passAction, takeBackAction, canTakeBack, turnToStart, whoseWords, turnWords } from '../../../shared/turn-order.mjs';
@@ -829,9 +830,8 @@ function reorderInHand({ uid, x }) {
 mountBoardDrag({ board: () => $('battlefield'), onDrop: dropOnBoard, hand: () => $('hand-section'), onDropHand: dropOnHand, onHandOver: (over) => handView.showGap(over ? handView.indexAt(over.x, over.uid) : null, over ? over.uid : null), onReorderHand: reorderInHand, handZone: () => handView.zone(), handHit: (x, y) => handView.hit(x, y), isEnabled: () => Boolean(game) });
 
 $('mulligan').addEventListener('click', () => { if (game) doMulligan(); });
-for (const [id, delta] of [['life-minus5', -5], ['life-minus1', -1], ['life-plus1', 1], ['life-plus5', 5]]) {
-  $(id).addEventListener('click', () => { if (game) apply(() => adjustLife(game, delta), ''); });
-}
+// the life total is the number itself: click, right-click, Shift for 5, hold to set (src/life-control.js)
+mountLifeControl({ button: $('life'), say, onDelta: (delta) => { if (game) apply(() => adjustLife(game, delta), ''); }, onSet: (value) => { if (game) apply(() => adjustLife(game, value - game.life), `Life is ${value}.`); } });
 for (const zone of ['library', 'graveyard', 'exile', 'sideboard']) $(`pile-${zone}`).addEventListener('click', () => { if (!game) return; if (viewing === zone && !viewTop) viewer.close(); else openPile(zone); });
 $('retry').addEventListener('click', () => { if (meta?.status === 'playing' && !begun) beginGame(); });
 document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && selected && game) { selected = null; render(); } });
