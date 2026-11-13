@@ -3351,6 +3351,20 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 167. A faster turn-over in the mulligan (2026-11-13)
+
+**What I asked for**
+- Make the flip of the mulligan about 33% faster, rounded well.
+
+**What changed** (`frontend/src/card-fly.js`)
+- The stack turns over in 570 ms (it was 760; 760 divided by 1.33 is 571).
+
+**What I checked:** the solo check passed on 4 of 5 runs and quick suites 60. One run failed 9 checks, all in the hand section (the first was "carrying a card out of the hand lowers it": the hand did not lower in time), and the four runs after it passed; the section runs a long time before the mulligan code is used, and it depends on 150 ms timers, so I think it is a timing flake on a busy machine, but I did not prove that. I did not watch the flip at full speed.
+
+**My mistakes this round:** none found; the flaky hand checks are still open (this is the third kind of failure I have seen in that section).
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

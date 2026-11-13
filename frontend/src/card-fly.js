@@ -129,7 +129,7 @@ export async function gatherIntoPile(handNodes, handBox, pile, backUrl) {
   await tween(190, (p) => copies.forEach((c, i) => { const at = stackAt(); c.set({ x: c.centre.x + (at.x - c.centre.x) * p, y: c.centre.y + (at.y - c.centre.y) * p, a: c.angle * (1 - p), s: c.scale, flip: 0 }); }));
   await wait(60);
   // the whole stack turns over as one (Kevin, 2026-11-12), slowly enough to see
-  await tween(760, (p) => copies.forEach((c, i) => { const at = stackAt(); c.set({ x: at.x, y: at.y, a: 0, s: c.scale, flip: smooth(p) }); }), (p) => p);
+  await tween(570, (p) => copies.forEach((c, i) => { const at = stackAt(); c.set({ x: at.x, y: at.y, a: 0, s: c.scale, flip: smooth(p) }); }), (p) => p);
   await wait(120);
   const end = target.width / Math.max(1, copies[0].w);
   await tween(480, (p) => copies.forEach((c, i) => {
