@@ -133,6 +133,7 @@ function render() {
     if (picture.dataset.sharp !== '1' && (picture.getAttribute('src') ?? '').includes('/small/')) { picture.dataset.sharp = '1'; picture.src = picture.getAttribute('src').replace('/small/', '/normal/'); }
   }
   $('hand-count').textContent = String(dealer.visible(game.zones.hand).length);
+  $('hand').classList.toggle('is-empty', game.zones.hand.length === 0); // (the hint "Your hand is empty" is for a hand that really is empty, not for one that is being dealt or gathered)
   const counts = zoneCounts(game);
   for (const zone of ['library', 'graveyard', 'exile']) {
     stacks[zone].update({ count: counts[zone] + (zone === 'library' ? dealer.waiting(game.zones.hand) : 0), top: zone === 'library' ? null : game.zones[zone][0] ?? null }); // cards not yet dealt still count as library; the top of the graveyard and exile is the newest card

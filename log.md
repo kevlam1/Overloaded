@@ -3408,6 +3408,21 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 171. The "Your hand is empty" note (2026-11-13)
+
+**What I asked for**
+- Move or rework the "Your hand is empty" text.
+
+**What changed** (`frontend/pages/solo/solo.js`, `frontend/src/style.css`, `scripts/check-solo-ui.mjs`)
+- On the solo table the note was drawn inside the hand's box and showed for a moment whenever the shown hand was empty, for example during the pause before a new game is dealt. It is now a small pill above the middle of the bottom edge of the hand area, and it shows only when the game's hand really is empty (a class set by the page from the game). It does not take the mouse.
+- I chose this over deleting it because an empty hand with no word looks like a bug; if you would rather have no note at all, it is one line to turn off. The table page (the live game) still has the old note.
+
+**What I checked:** solo check 588 (new: while a new game is being dealt the note is not drawn; with a really empty hand it is a pill with no mouse and in the bottom middle), and a screenshot of the pill. In that screenshot the hand was emptied by hand in the test, so two leftover card pictures from the deal are beside it; the note itself is in the right place.
+
+**My mistakes this round:** my first version of the new check emptied the hand's cards by hand and broke the draw check after it, which I found from its failure; the check now reloads the page afterwards.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

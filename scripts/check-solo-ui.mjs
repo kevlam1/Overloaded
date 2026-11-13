@@ -445,11 +445,22 @@ try {
     // New game: the same, with the shuffle sound first
     await reset();
     await press('new-game');
+    await sleep(250); // (the hand is not shown yet: the shuffle pause, 800 ms)
+    const hintWhileDealing = await ev("({ shown: document.querySelectorAll('#hand .card').length, content: getComputedStyle(document.getElementById('hand'), '::before').content, empty: document.getElementById('hand').classList.contains('is-empty') })");
+    check('while a new hand is being dealt the "Your hand is empty" note is not shown (it flashed there before)', hintWhileDealing.shown === 0 && hintWhileDealing.content === 'none' && hintWhileDealing.empty === false, JSON.stringify(hintWhileDealing));
     await handIs(7);
     await sleep(300);
     seen = await state();
     same('New game plays the shuffle sound and then the 7 draw sounds', summary(seen).sounds, ['shuffle', ...Array(7).fill('draw')]);
     const newGameWait = seen.plays[1].t - seen.plays[0].t;
+    {
+      // a hand that really is empty shows the note as a small pill above the middle of the bottom edge (the cards are taken out and the state set by hand: this tests the drawing, the page sets the state from the game)
+      await ev("(() => { const h = document.getElementById('hand'); h.replaceChildren(); h.classList.add('is-empty'); })()");
+      const note = await ev("(() => { const c = getComputedStyle(document.getElementById('hand'), '::before'); return { content: c.content, position: c.position, bottom: parseFloat(c.bottom), left: c.left, events: c.pointerEvents }; })()");
+      check('with a really empty hand the note is a pill that does not take the mouse, in the bottom middle', note.content === '"Your hand is empty."' && note.position === 'absolute' && note.events === 'none' && note.bottom > 20, JSON.stringify(note));
+      if (process.argv.includes('--screenshot')) await browser.screenshot('scratch-solo-emptyhand.png');
+      await browser.goto(PAGE); await handIs(7); await sleep(1500); // (the page is dealt again: the hand was emptied by hand above)
+    }
     check('...and the first card comes about 0.8 seconds after the shuffle sound (between 0.6 and 1.4)', newGameWait >= 600 && newGameWait <= 1400, `${Math.round(newGameWait)} ms`);
 
     // a card drawn comes out of the library: it starts over the library and eases into the hand
