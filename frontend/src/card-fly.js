@@ -125,7 +125,8 @@ export async function gatherIntoPile(handNodes, handBox, pile, backUrl) {
   const copies = handNodes.map((node) => makeCopy(node, backUrl));
   const count = copies.length;
   const stackAt = () => ({ x: middle.x, y: middle.y }); // one neat, upright stack: every card exactly on the same spot (Kevin, 2026-11-12: not a slanted or diagonal pile)
-  await tween(380, (p) => copies.forEach((c, i) => { const at = stackAt(); c.set({ x: c.centre.x + (at.x - c.centre.x) * p, y: c.centre.y + (at.y - c.centre.y) * p, a: c.angle * (1 - p), s: c.scale, flip: 0 }); }));
+  // (the hand comes together in 190 ms: twice as fast as before, Kevin 2026-11-13)
+  await tween(190, (p) => copies.forEach((c, i) => { const at = stackAt(); c.set({ x: c.centre.x + (at.x - c.centre.x) * p, y: c.centre.y + (at.y - c.centre.y) * p, a: c.angle * (1 - p), s: c.scale, flip: 0 }); }));
   await wait(60);
   // the whole stack turns over as one (Kevin, 2026-11-12), slowly enough to see
   await tween(760, (p) => copies.forEach((c, i) => { const at = stackAt(); c.set({ x: at.x, y: at.y, a: 0, s: c.scale, flip: smooth(p) }); }), (p) => p);
