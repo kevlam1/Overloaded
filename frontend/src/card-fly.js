@@ -26,7 +26,8 @@ function tween(ms, step, ease = easeInOut) {
 }
 
 // A picture drawn from a card node that is on the page: its centre, size and turn are read from the screen, and it can be put anywhere, turned and shrunk, and flipped to show the card back.
-// flip: 0 shows the face, 1 shows the back; the picture is squeezed to nothing at one half, like a card turning over.
+// flip: 0 shows the face, 1 shows the back; the card turns about its upright middle line (a real 3D turn to the right, 0 to 180 degrees, the side that turns away hidden), and
+// grows a little at the middle of the turn, as if it were lifted for it.
 function makeCopy(node, backUrl) {
   const rect = node.getBoundingClientRect();
   const matrix = new DOMMatrixReadOnly(getComputedStyle(node).transform === 'none' ? undefined : getComputedStyle(node).transform);
@@ -37,10 +38,10 @@ function makeCopy(node, backUrl) {
   holder.style.cssText = `position: fixed; left: 0; top: 0; width: ${w}px; height: ${h}px; margin: 0; pointer-events: none; z-index: 60; transform-origin: 50% 50%;`;
   const inner = node.cloneNode(true);
   inner.removeAttribute('id');
-  inner.style.cssText = `position: absolute; left: 0; top: 0; width: 100%; height: 100%; margin: 0; padding: 0; transform: none; translate: none; scale: none; rotate: none; opacity: 1; visibility: visible; pointer-events: none;`;
+  inner.style.cssText = `position: absolute; left: 0; top: 0; width: 100%; height: 100%; margin: 0; padding: 0; transform: none; translate: none; scale: none; rotate: none; opacity: 1; visibility: visible; pointer-events: none; backface-visibility: hidden;`;
   const back = document.createElement('span');
   back.className = 'fly-back';
-  back.style.cssText = `position: absolute; left: 0; top: 0; width: 100%; height: 100%; border-radius: 4.8% / 3.4%; background: #1a1a1a url('${backUrl}') center / 100% 100% no-repeat; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5); transform: scaleX(0);`;
+  back.style.cssText = `position: absolute; left: 0; top: 0; width: 100%; height: 100%; border-radius: 4.8% / 3.4%; background: #1a1a1a url('${backUrl}') center / 100% 100% no-repeat; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5); backface-visibility: hidden; transform: rotateY(180deg);`;
   holder.append(inner, back);
   document.body.appendChild(holder);
   const angle = (Math.atan2(matrix.b, matrix.a) * 180) / Math.PI;
@@ -48,9 +49,11 @@ function makeCopy(node, backUrl) {
   const copy = {
     holder, w, h, centre: centreOf(rect), angle, scale,
     set({ x, y, a = 0, s = 1, flip = 0 }) {
-      holder.style.transform = `translate(${x - w / 2}px, ${y - h / 2}px) rotate(${a}deg) scale(${s})`;
-      inner.style.transform = flip < 0.5 ? `scaleX(${1 - 2 * flip})` : 'scaleX(0)';
-      back.style.transform = flip > 0.5 ? `scaleX(${2 * flip - 1})` : 'scaleX(0)';
+      const lift = 1 + 0.12 * Math.sin(Math.PI * flip); // biggest halfway through the turn
+      const turn = flip * 180;
+      holder.style.transform = `translate(${x - w / 2}px, ${y - h / 2}px) rotate(${a}deg) scale(${s * lift})`;
+      inner.style.transform = `perspective(${Math.round(w * 6)}px) rotateY(${turn}deg)`;
+      back.style.transform = `perspective(${Math.round(w * 6)}px) rotateY(${turn + 180}deg)`;
     },
     remove() { holder.remove(); },
   };
@@ -124,8 +127,9 @@ export async function gatherIntoPile(handNodes, handBox, pile, backUrl) {
   const stackAt = (i) => ({ x: middle.x + (i - (count - 1) / 2) * 1.5, y: middle.y - i * 0.8 }); // a loose pile, each card a little higher than the one under it
   await tween(380, (p) => copies.forEach((c, i) => { const at = stackAt(i); c.set({ x: c.centre.x + (at.x - c.centre.x) * p, y: c.centre.y + (at.y - c.centre.y) * p, a: c.angle * (1 - p), s: c.scale, flip: 0 }); }));
   await wait(60);
-  await tween(320, (p) => copies.forEach((c, i) => { const at = stackAt(i); c.set({ x: at.x, y: at.y, a: 0, s: c.scale, flip: p }); }), smooth);
-  await wait(90);
+  // the cards turn over one after another, the top one first, each through a whole turn (the flip is slow enough to see)
+  await tween(760, (p) => copies.forEach((c, i) => { const at = stackAt(i); c.set({ x: at.x, y: at.y, a: 0, s: c.scale, flip: smooth(clamp01((p - ((count - 1 - i) / count) * 0.4) / 0.6)) }); }), (p) => p);
+  await wait(120);
   const end = target.width / Math.max(1, copies[0].w);
   await tween(480, (p) => copies.forEach((c, i) => {
     const q = easeOut(clamp01((p - (i / count) * 0.3) / 0.7)); // the cards leave one after the other, the top one first

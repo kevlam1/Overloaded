@@ -379,7 +379,7 @@ try {
       await browser.goto(PAGE);
       await handIs(7);
       await press('mulligan');
-      await sleep(600); await browser.screenshot('scratch-solo-gather.png'); // the hand gathering
+      await sleep(900); await browser.screenshot('scratch-solo-gather.png'); // the stack of cards turning over
       await waitFor(async () => (await count('.shuffle-card')) === 14 || null, 4000, 10);
       await ev("document.getAnimations().filter((a) => a.effect?.target?.classList?.contains('shuffle-card')).forEach((a) => { a.pause(); a.currentTime = 330; })");
       await browser.screenshot('scratch-solo-riffle.png'); // the riffle, halfway through (the animation held at 330 ms for the picture)
@@ -425,7 +425,7 @@ try {
     // a second mulligan in the middle of the first deal starts over: still exactly 7 cards in the end, nothing dealt twice
     await reset();
     await press('mulligan');
-    await sleep(2800); // the gathering and the riffle are over and a few cards are dealt
+    await sleep(3300); // the gathering, the turning over and the riffle are over and a few cards are dealt
     await press('mulligan');
     await sleep(150);
     check('pressing Mulligan again in the middle of a deal gathers the hand again (hidden while it flies)', (await ev(`getComputedStyle(document.getElementById('hand')).visibility`)) === 'hidden');

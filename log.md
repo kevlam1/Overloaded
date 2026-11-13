@@ -3293,6 +3293,21 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 163. A real, slower flip in the mulligan (2026-11-12)
+
+**What I asked for**
+- When mulliganing, the cards in hand should come together and then flip "to the right instead of right" (I think I meant a turn to a side, not in place), and the flip should be more obvious.
+
+**What changed** (`frontend/src/card-fly.js`, `scripts/check-solo-ui.mjs`)
+- The flip was a card squeezed flat and widened again about its middle. It is now a 3D turn about the card's upright middle line (0 to 180 degrees, with perspective, to the right), the card grows a little at the middle of the turn, and the cards turn one after another from the top of the stack, each through a whole turn, over 760 ms (it was 320). A card drawn out of the library turns the same way on its way into the hand.
+- The mulligan takes about 0.4 s longer; the check that presses Mulligan again in the middle of a deal waits longer.
+
+**What I checked:** solo check 584, quick suites 60, and a screenshot of the stack part-way through the turns (some cards turned, some edge-on). I read "to the right" as the turn going to the right; if you meant that the stack should also move to the right while it turns, or the other direction, say so. Not watched at full speed.
+
+**My mistakes this round:** I could not tell what "flip to the right instead of right" meant and chose a reading instead of asking, since a wrong guess costs one small change.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.
