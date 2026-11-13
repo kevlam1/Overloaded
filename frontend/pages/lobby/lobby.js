@@ -61,9 +61,12 @@ function busy(isBusy) {
   $('room-join-button').disabled = isBusy;
 }
 
+const START_TITLE = 'Play your deck, alone or with friends';
 // Which screen shows: 'start' (make a table, join by code), 'room-join' (a table's address, you are not at it yet) or 'room' (you are
 // at the table). The name box is shared: it is on the start screen and on the join screen, not once you are at the table.
 function setScreen(screen) {
+  document.body.dataset.screen = screen; // (the style sheet gives the start page its larger title)
+  $('page-title').textContent = screen === 'start' ? START_TITLE : 'Overloaded (BETA)';
   $('intro').hidden = screen !== 'start';
   $('who').hidden = screen === 'room';
   $('make-section').hidden = screen !== 'start';

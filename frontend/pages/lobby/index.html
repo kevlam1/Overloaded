@@ -8,12 +8,22 @@
     <!-- Root-based paths, not ./ ones: this page is also served at /lobby/CODE, where a relative path would point into /lobby/. -->
     <link rel="stylesheet" href="/src/style.css">
   </head>
-  <body>
+  <body data-screen="start">
     <main>
-      <h1>Overloaded (BETA)</h1>
-      <div id="intro">
-        <p class="lede">Make a table, or join your friends' table with its code.</p>
-        <p class="hint"><a href="/deck">Import a deck</a> from Moxfield, Archidekt or ManaBox, then <a href="/solo">play it alone</a> at the solo table.</p>
+      <h1 id="page-title">Play your deck, alone or with friends</h1>
+      <div id="intro" class="hero">
+        <p class="lede">Paste a decklist, shuffle up and play. It is free, there is nothing to install and no account to make.</p>
+        <div class="hero-actions">
+          <a id="play-solo" class="button-link big" href="/solo">Play solo</a>
+          <a id="try-sample" class="button-link quiet" href="/deck?sample">Try a sample deck</a>
+          <a id="import-deck" class="button-link quiet" href="/deck">Import your deck</a>
+        </div>
+        <ul class="hero-points">
+          <li><strong>Bring your own deck</strong>Paste a list from Moxfield, Archidekt or ManaBox.</li>
+          <li><strong>Test it alone</strong>Draw, mulligan, tap and move cards on the solo table.</li>
+          <li><strong>Then play together</strong>Make a private table and share its code.</li>
+        </ul>
+        <p class="friends-lede">Want company? Make a table below and send the code, or join your friends' table with theirs.</p>
         <p id="resume" class="hint" hidden>You are at table <strong id="resume-code"></strong>. <a id="resume-link" href="/">Go to your table</a></p>
       </div>
 
