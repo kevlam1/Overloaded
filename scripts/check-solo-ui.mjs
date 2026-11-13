@@ -409,6 +409,9 @@ try {
     const early = await state();
     same('a mulligan plays no sound while the hand is gathering', summary(early).sounds, []);
     check('...and the real hand is hidden while its pictures fly (the copies are on top of the page)', (await ev(`getComputedStyle(document.getElementById('hand')).visibility`)) === 'hidden' && (await count('.shuffle-card, .fly-copy')) >= 1);
+    await sleep(250); // (the cards are now together: about 0.4 s after the click)
+    const together = await ev("(() => { const rows = [...document.querySelectorAll('.fly-copy')].map((c) => { const r = c.getBoundingClientRect(); const m = new DOMMatrixReadOnly(getComputedStyle(c).transform); return { x: r.left + r.width / 2, y: r.top + r.height / 2, angle: Math.round(Math.atan2(m.b, m.a) * 180 / Math.PI * 10) / 10 }; }); return rows; })()");
+    check('while the hand comes together the cards form one neat upright stack: all on the same spot (within 2 px) and none turned or slanted', together.length >= 5 && together.every((c) => Math.abs(c.x - together[0].x) < 2 && Math.abs(c.y - together[0].y) < 2 && c.angle === 0), JSON.stringify(together.slice(0, 3)));
     check('a mulligan riffles 14 card backs over the library after the hand has flown into it', (await waitFor(async () => (await count('.shuffle-card')) === 14 || null, 4000, 20)) === true);
     await waitFor(async () => (await state()).plays.length >= 8 || null, 9000, 25);
     await sleep(300);

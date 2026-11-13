@@ -52,8 +52,8 @@ function makeCopy(node, backUrl) {
       const lift = 1 + 0.12 * Math.sin(Math.PI * flip); // biggest halfway through the turn
       const turn = flip * 180;
       holder.style.transform = `translate(${x - w / 2}px, ${y - h / 2}px) rotate(${a}deg) scale(${s * lift})`;
-      inner.style.transform = `perspective(${Math.round(w * 6)}px) rotateY(${turn}deg)`;
-      back.style.transform = `perspective(${Math.round(w * 6)}px) rotateY(${turn + 180}deg)`;
+      inner.style.transform = `perspective(${Math.round(w * 10)}px) rotateY(${turn}deg)`;
+      back.style.transform = `perspective(${Math.round(w * 10)}px) rotateY(${turn + 180}deg)`;
     },
     remove() { holder.remove(); },
   };
@@ -124,16 +124,16 @@ export async function gatherIntoPile(handNodes, handBox, pile, backUrl) {
   const middle = centreOf(handBox);
   const copies = handNodes.map((node) => makeCopy(node, backUrl));
   const count = copies.length;
-  const stackAt = (i) => ({ x: middle.x + (i - (count - 1) / 2) * 1.5, y: middle.y - i * 0.8 }); // a loose pile, each card a little higher than the one under it
-  await tween(380, (p) => copies.forEach((c, i) => { const at = stackAt(i); c.set({ x: c.centre.x + (at.x - c.centre.x) * p, y: c.centre.y + (at.y - c.centre.y) * p, a: c.angle * (1 - p), s: c.scale, flip: 0 }); }));
+  const stackAt = () => ({ x: middle.x, y: middle.y }); // one neat, upright stack: every card exactly on the same spot (Kevin, 2026-11-12: not a slanted or diagonal pile)
+  await tween(380, (p) => copies.forEach((c, i) => { const at = stackAt(); c.set({ x: c.centre.x + (at.x - c.centre.x) * p, y: c.centre.y + (at.y - c.centre.y) * p, a: c.angle * (1 - p), s: c.scale, flip: 0 }); }));
   await wait(60);
   // the cards turn over one after another, the top one first, each through a whole turn (the flip is slow enough to see)
-  await tween(760, (p) => copies.forEach((c, i) => { const at = stackAt(i); c.set({ x: at.x, y: at.y, a: 0, s: c.scale, flip: smooth(clamp01((p - ((count - 1 - i) / count) * 0.4) / 0.6)) }); }), (p) => p);
+  await tween(760, (p) => copies.forEach((c, i) => { const at = stackAt(); c.set({ x: at.x, y: at.y, a: 0, s: c.scale, flip: smooth(clamp01((p - ((count - 1 - i) / count) * 0.4) / 0.6)) }); }), (p) => p);
   await wait(120);
   const end = target.width / Math.max(1, copies[0].w);
   await tween(480, (p) => copies.forEach((c, i) => {
-    const q = easeOut(clamp01((p - (i / count) * 0.3) / 0.7)); // the cards leave one after the other, the top one first
-    const at = stackAt(i);
+    const q = easeInOut(p); // the whole stack slides into the library together, in a straight line
+    const at = stackAt();
     c.set({ x: at.x + (goal.x - at.x) * q, y: at.y + (goal.y - at.y) * q, a: 0, s: c.scale + (end - c.scale) * q, flip: 1 });
   }), (p) => p);
   for (const c of copies) c.remove();

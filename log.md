@@ -3308,6 +3308,20 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 164. The mulligan stack is one neat stack that slides into the library (2026-11-12)
+
+**What I asked for**
+- In a mulligan all the cards in hand should come together, then slide into the library, then the shuffle. The cards came together but diagonal and slanted; I did not like that.
+
+**What changed** (`frontend/src/card-fly.js`, `scripts/check-solo-ui.mjs`)
+- The cards no longer gather in a loose pile with each card a little higher and to the side of the one under it: every card goes to exactly the same spot, upright, so it is one neat stack. The stack then slides into the library together in a straight line (the cards used to leave one after another, which made it look slanted). The turn-over stays between the two, and its perspective is flatter (10 card widths away, it was 6) so the cards skew less.
+
+**What I checked:** solo check 585 with a new check that, as the hand comes together, all the flying cards are on the same spot (within 2 px) and none is turned; quick suites 60; a screenshot part-way through the turning shows one upright stack, with the cards still to turn peeking a little at the top and bottom. I did not break the code to prove the new check fails on the old pile (its 1.5 px and 0.8 px offsets are well outside the 2 px it allows, but I did not run it).
+
+**My mistakes this round:** none found, but I took "diagonal and shifted" to be the pile's offsets and the staggered leaving, not the turn-over's perspective; if the slant you saw is the turn itself, say so.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.
