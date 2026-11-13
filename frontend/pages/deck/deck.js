@@ -3,4 +3,5 @@
 import { mountDeckImporter } from '../../src/deck-importer.js';
 
 const params = new URLSearchParams(location.search);
-mountDeckImporter({ sampleId: params.has('sample') ? params.get('sample') : undefined });
+// /deck?sample opens the page with the sample deck in the box; /deck?sample&play also saves it and goes straight to the solo table (the demo path from the home page).
+mountDeckImporter({ sampleId: params.has('sample') ? params.get('sample') : undefined, autoPlay: params.has('play'), playButtons: true });

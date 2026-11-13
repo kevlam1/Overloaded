@@ -418,6 +418,29 @@ try {
   await load();
   check('a plain visit does not load a sample by itself', (await ev(`document.getElementById('deck-text').value`)) === '' && (await $hidden('preview')));
 
+  // ---- the quickest way in (the demo path): the sample deck is one click from the solo table, from the deck page and from a link ----
+  {
+    const onSolo = () => waitFor(async () => (await ev('location.pathname')) === '/solo' || null, 20000, 100);
+    const handSize = () => waitFor(async () => ((await ev("document.querySelectorAll('#hand .card').length")) === 7) || null, 20000, 100);
+    const savedName = () => ev("(() => { const l = JSON.parse(localStorage.getItem('overloaded.decks') || 'null'); return l ? l.decks.map((d) => d.deck.name) : null; })()");
+    await deleteAllSaved();
+    await load();
+    check('the deck page has a big "Play the sample deck" box at the top, enabled once the card list has loaded', await ev("(() => { const b = document.getElementById('quick-sample'); const q = document.getElementById('quick-start'); return Boolean(b && q && !b.disabled && /Play the sample deck/.test(b.textContent) && q.getBoundingClientRect().top < document.getElementById('paste-heading').getBoundingClientRect().top); })()"));
+    await ev("document.getElementById('quick-sample').click()");
+    check('one click on it opens the solo table', Boolean(await onSolo()));
+    check('...with the sample deck saved and dealt (7 cards in hand)', Boolean(await handSize()) && JSON.stringify(await savedName()) === '["Krenko, Mob Boss (sample)"]', JSON.stringify(await savedName()));
+    await browser.goto(`${PAGE}?sample&play`);
+    check('a link with ?sample&play goes straight to the solo table with the deck dealt, without a click', Boolean(await onSolo()) && Boolean(await handSize()));
+    await load();
+    await ev("document.getElementById('sample').click()"); await settled();
+    check('on a deck that is checked, a "Save and play" button is the main button, beside a plainer Save deck', await ev("(() => { const p = document.getElementById('save-play'); const s = document.getElementById('save'); return Boolean(p && s && !p.classList.contains('secondary') && s.classList.contains('secondary') && p.compareDocumentPosition(s) & Node.DOCUMENT_POSITION_FOLLOWING); })()"));
+    await ev("document.getElementById('save-play').click()");
+    check('Save and play saves the deck and opens the solo table', Boolean(await onSolo()) && Boolean(await handSize()));
+    await load();
+    await deleteAllSaved();
+    pictureRequests.length = 0; // (the solo table asked for the pictures of the hand: the hover checks below count only their own requests)
+  }
+
   // ---- cards pasted under another title they were printed under (real cases from a real export, 2026-10-29) ----
   // These need the list built with the alternate titles (format 2); an older cached list would fail here, on purpose.
   const katakana = String.fromCharCode(0x30d5, 0x30a7, 0x30a4, 0x30bf, 0x30ea, 0x30ba, 0x30e0);

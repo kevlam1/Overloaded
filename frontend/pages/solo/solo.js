@@ -287,7 +287,7 @@ async function start() {
   deck = selectedEntry(saved.library)?.deck ?? null;
   if (!deck) {
     $('deck-line').textContent = 'No deck.';
-    showBlocked(saved.source === 'damaged' || saved.skipped > 0 ? 'Your saved deck could not be read, so it was ignored. Import it again.' : 'You have no saved deck yet. Import one first, then come back to play it.');
+    showBlocked(saved.source === 'damaged' || saved.skipped > 0 ? 'Your saved deck could not be read, so it was ignored. Import it again.' : 'You have no deck yet. Play the sample deck to try the table right away, or import your own.');
     return;
   }
   const total = deck.cards.reduce((sum, card) => sum + card.qty, 0);

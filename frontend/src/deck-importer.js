@@ -52,6 +52,7 @@ const totalCards = (deck) => deck.cards.reduce((sum, card) => sum + card.qty, 0)
 // ('' is the first one; a /deck?sample address asks for it). statusId: the element that shows messages. onLibraryChange: called
 // after the saved decks change, so a page that lists them can look again.
 let pendingSample;
+let pendingPlay = false; // /deck?sample&play: after the sample deck is checked it is saved and the solo table opens
 let statusId = 'status';
 let onLibraryChange = () => {};
 let mounted = false;
@@ -59,6 +60,8 @@ let mounted = false;
 async function loadCards() {
   $('check').disabled = true;
   $('sample').disabled = true;
+  const quickNow = document.getElementById('quick-sample');
+  if (quickNow) quickNow.disabled = true;
   $('retry').hidden = true;
   $('list-state').textContent = 'Loading the card list...';
   try {
@@ -67,10 +70,13 @@ async function loadCards() {
     $('list-state').textContent = `${cards.length.toLocaleString('en-US')} cards loaded. Cards newer than the list show as not found; the list is refreshed every week.`;
     $('check').disabled = false;
     $('sample').disabled = false;
+    quickEnable();
     if (pendingSample !== undefined) {
       const id = pendingSample;
       pendingSample = undefined;
-      await useSample(id);
+      const play = pendingPlay;
+      pendingPlay = false;
+      await useSample(id, { play });
     }
   } catch {
     index = null;
@@ -81,7 +87,7 @@ async function loadCards() {
 
 // Puts a sample deck (shared/sample-decks.mjs) in the paste box with its name, checks it like any pasted list, and offers its
 // format. Nothing is saved: the player looks at it and saves it if they like.
-async function useSample(id) {
+async function useSample(id, { play = false } = {}) {
   if (!index) return;
   const sample = sampleById(id);
   $('deck-text').value = sample.text;
@@ -89,7 +95,41 @@ async function useSample(id) {
   await runCheck();
   if (!preview || $('deck-text').value !== sample.text) return; // another check came in while the printings loaded
   setFormat(sample.format);
+  if (play) playNow(); // (Kevin, 2026-11-13, for the demo: one click from the sample deck to the solo table)
 }
+
+// Saves the deck that is checked on the page and opens the solo table with it (saving makes it the selected deck). If it cannot be saved the page stays and says why.
+function playNow() {
+  if (!save()) return;
+  say('Opening the solo table with this deck...');
+  location.assign('/solo');
+}
+
+// The page's quick ways in (the deck page only): a big box at the top that plays the sample deck in one click, and a Save and play button beside Save deck.
+function addPlayControls() {
+  const saveButton = $('save');
+  saveButton.classList.add('secondary');
+  const savePlay = make('button', '', 'Save and play at the solo table');
+  savePlay.type = 'button';
+  savePlay.id = 'save-play';
+  savePlay.addEventListener('click', playNow);
+  saveButton.before(savePlay);
+  const quick = make('section', 'quick-start');
+  quick.id = 'quick-start';
+  quick.setAttribute('aria-labelledby', 'quick-heading');
+  const heading = make('h2', '', 'Just want to try it?');
+  heading.id = 'quick-heading';
+  const words = make('p', 'hint', 'Play right away with a ready-made sample deck. One click, nothing to paste.');
+  const quickButton = make('button', 'big', 'Play the sample deck');
+  quickButton.type = 'button';
+  quickButton.id = 'quick-sample';
+  quickButton.disabled = !index;
+  quickButton.addEventListener('click', () => { quickButton.disabled = true; useSample(undefined, { play: true }).finally(() => { quickButton.disabled = false; }); });
+  quick.append(heading, words, quickButton);
+  $('saved').before(quick);
+  quickEnable = () => { quickButton.disabled = false; };
+}
+let quickEnable = () => {};
 
 // ---- checking a pasted list ----
 // Only a list that names sets and numbers waits for anything: it fetches the printing files of those sets (our own static
@@ -356,25 +396,27 @@ async function loadSaved(id) {
 }
 
 function save() {
-  if (!preview) return;
+  if (!preview) return false;
   const ids = isCommander() ? [$('commander-1').value, $('commander-2').value].filter(Boolean) : [];
   const result = buildSavedDeck(preview, { name: $('deck-name').value, text, commanderIds: ids, allowMissing: $('allow-missing').checked });
-  if (!result.ok) { say(result.error, true); return; }
+  if (!result.ok) { say(result.error, true); return false; }
   const bracket = isCommander() && $('deck-bracket').value ? Number($('deck-bracket').value) : null; // brackets are a Commander idea
   const added = addDeck(library, result.deck, { format: $('deck-format').value, bracket });
-  if (!added.ok) { say(added.error, true); return; }
-  commit(added.library, `${added.replaced ? 'Replaced' : 'Saved'} "${result.deck.name}": ${plural(totalCards(result.deck), 'card', 'cards')}.`);
+  if (!added.ok) { say(added.error, true); return false; }
+  return commit(added.library, `${added.replaced ? 'Replaced' : 'Saved'} "${result.deck.name}": ${plural(totalCards(result.deck), 'card', 'cards')}.`);
 }
 
 // ---- starting ----
 // Options: statusId (the element that shows messages, "status" on the deck page), sampleId (undefined, or the sample deck a
 // /deck?sample address asks for: '' is the first), onLibraryChange (called after the saved decks change), backLink (point the
 // page's #back link at the table this browser is at). Call it once; a second call does nothing.
-export function mountDeckImporter({ statusId: messageId = 'status', sampleId, onLibraryChange: onChange = () => {}, backLink = true } = {}) {
+export function mountDeckImporter({ statusId: messageId = 'status', sampleId, autoPlay = false, playButtons = false, onLibraryChange: onChange = () => {}, backLink = true } = {}) {
   if (mounted) return;
   mounted = true;
   statusId = messageId;
   pendingSample = sampleId;
+  pendingPlay = autoPlay;
+  if (playButtons) addPlayControls();
   onLibraryChange = onChange;
   // If you are at a table (the lobby remembers the last one in this browser), "Back to the lobby" goes to that table's address, not the start page.
   const lastTable = store.get('overloaded.lastTable');
