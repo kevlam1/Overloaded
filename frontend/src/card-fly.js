@@ -72,12 +72,11 @@ export async function flyAway(node, target, { duration = 260 } = {}) {
   node.remove();
 }
 
-// The library is shuffled: card backs over its top are split into 7 narrow parts that fan out side by side and then riffle back together one part after another, twice (Kevin, 2026-11-12: it was
-// two halves, which looked chunky, and slower). Each part is 2 card backs. Resolves when it is over.
-export const SHUFFLE_ANIMATION_MS = 700;
-export const SHUFFLE_PARTS = 7;
-export const SHUFFLE_CARDS = SHUFFLE_PARTS * 2;
-const RETURN_ORDER = [3, 0, 6, 1, 5, 2, 4]; // the order the parts drop back onto the pile: from the middle outwards, left and right in turn, like the cards of a riffle
+// The library is shuffled as a riffle (Kevin chose it from three styles, 2026-11-12, and asked for it a little toned down): the pile is split in two halves that part a little, the cards of the
+// two halves drop into the middle one by one, each side in turn, interleaving, and the stack squares up with a small bounce. Resolves when it is over.
+export const SHUFFLE_ANIMATION_MS = 900;
+export const SHUFFLE_CARDS = 14;
+const jitter = (n) => { const x = Math.sin(n * 9301 + 49297) * 233280; return x - Math.floor(x); }; // the same small mess every time
 export async function shuffleAnimation(pile, backUrl) {
   const face = pile?.querySelector?.('.stack-face') ?? pile;
   if (!face || reducedMotion()) return;
@@ -91,22 +90,23 @@ export async function shuffleAnimation(pile, backUrl) {
     document.body.appendChild(node);
     cards.push(node);
   }
-  const animations = [];
-  cards.forEach((node, i) => {
-    const part = i % SHUFFLE_PARTS; // 0 to 6, left to right
-    const middle = part - (SHUFFLE_PARTS - 1) / 2; // -3 to 3
-    const rank = RETURN_ORDER.indexOf(part);
-    const out = (reach) => ({ translate: `${middle * rect.width * 0.34 * reach}px ${-rect.height * 0.05 * (part % 2) * reach}px`, rotate: `${middle * 3 * reach}deg` });
-    const home = { translate: '0px 0px', rotate: '0deg' };
-    const back = (from) => from + rank * 0.03; // when a part drops back
+  const total = SHUFFLE_ANIMATION_MS;
+  const animations = cards.map((node, i) => {
+    const side = i % 2 === 0 ? -1 : 1; // even cards are the left half, odd the right one
+    const apart = { transform: `translate(${side * rect.width * 0.46}px, ${-(i >> 1) * 0.5}px) rotate(${side * 4}deg)` };
+    const drop = 140 + i * 36; // the cards fall in turn: left, right, left, right ...
+    const settle = { transform: `translate(${(jitter(i) - 0.5) * 2.5}px, ${-i * 0.5}px) rotate(${(jitter(i + 20) - 0.5) * 1.6}deg)` };
     const keys = [
-      { ...home, offset: 0 }, { ...out(1), offset: 0.16, easing: 'ease-out' },
-      { ...out(1), offset: 0.2 }, { ...home, offset: back(0.24) + 0.1, easing: 'ease-in' },
-      { ...home, offset: 0.56 }, { ...out(0.7), offset: 0.68, easing: 'ease-out' },
-      { ...out(0.7), offset: 0.7 }, { ...home, offset: back(0.7) + 0.08, easing: 'ease-in' }, { ...home, offset: 1 },
+      { transform: 'translate(0px, 0px) rotate(0deg)', offset: 0 },
+      { ...apart, offset: 0.15, easing: 'ease-out' },
+      { ...apart, offset: drop / total },
+      { transform: `translate(${side * rect.width * 0.16}px, ${-rect.height * 0.16}px) rotate(${side * 2}deg)`, offset: (drop + 50) / total, easing: 'ease-in' },
+      { ...settle, offset: (drop + 105) / total },
+      { ...settle, offset: 0.86 },
+      { transform: `translate(0px, ${-i * 0.5 - 3}px) rotate(0deg)`, offset: 0.93, easing: 'ease-out' },
+      { transform: 'translate(0px, 0px) rotate(0deg)', offset: 1 },
     ];
-    keys.sort((a, b) => a.offset - b.offset);
-    animations.push(node.animate(keys, { duration: SHUFFLE_ANIMATION_MS, fill: 'both' }).finished.catch(() => {}));
+    return node.animate(keys, { duration: total, fill: 'both' }).finished.catch(() => {});
   });
   await Promise.all(animations);
   for (const node of cards) node.remove();

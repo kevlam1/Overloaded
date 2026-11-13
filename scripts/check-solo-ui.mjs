@@ -381,8 +381,8 @@ try {
       await press('mulligan');
       await sleep(600); await browser.screenshot('scratch-solo-gather.png'); // the hand gathering
       await waitFor(async () => (await count('.shuffle-card')) === 14 || null, 4000, 10);
-      await ev("document.getAnimations().filter((a) => a.effect?.target?.classList?.contains('shuffle-card')).forEach((a) => { a.pause(); a.currentTime = 115; })");
-      await browser.screenshot('scratch-solo-riffle.png'); // the 7 parts fanned out over the library (the animation held at 115 ms for the picture)
+      await ev("document.getAnimations().filter((a) => a.effect?.target?.classList?.contains('shuffle-card')).forEach((a) => { a.pause(); a.currentTime = 330; })");
+      await browser.screenshot('scratch-solo-riffle.png'); // the riffle, halfway through (the animation held at 330 ms for the picture)
       await ev("document.getAnimations().filter((a) => a.effect?.target?.classList?.contains('shuffle-card')).forEach((a) => a.play())");
       await sleep(0);
       await sleep(1400); // the hand gathers (about 1 s), the library is shuffled (1.15 s), and a card comes every 120 ms: about three cards are in
@@ -409,14 +409,14 @@ try {
     const early = await state();
     same('a mulligan plays no sound while the hand is gathering', summary(early).sounds, []);
     check('...and the real hand is hidden while its pictures fly (the copies are on top of the page)', (await ev(`getComputedStyle(document.getElementById('hand')).visibility`)) === 'hidden' && (await count('.shuffle-card, .fly-copy')) >= 1);
-    check('a mulligan riffles 14 card backs (7 parts of 2) over the library after the hand has flown into it', (await waitFor(async () => (await count('.shuffle-card')) === 14 || null, 4000, 20)) === true);
+    check('a mulligan riffles 14 card backs over the library after the hand has flown into it', (await waitFor(async () => (await count('.shuffle-card')) === 14 || null, 4000, 20)) === true);
     await waitFor(async () => (await state()).plays.length >= 8 || null, 9000, 25);
     await sleep(300);
     seen = await state();
     sum = summary(seen);
     same('then the shuffle sound and the 7 cards dealt with a draw sound each', sum.sounds, ['shuffle', ...Array(7).fill('draw')]);
     const wait = seen.plays[1].t - seen.plays[0].t;
-    check('the first card comes about 0.7 seconds after the shuffle sound, when the riffle is over (between 0.55 and 1.3)', wait >= 550 && wait <= 1300, `${Math.round(wait)} ms`);
+    check('the first card comes about 0.9 seconds after the shuffle sound, when the riffle is over (between 0.7 and 1.5)', wait >= 700 && wait <= 1500, `${Math.round(wait)} ms`);
     await sleep(800); // (the last card is still flying out of the library)
     check('the hand shows again and no flying picture is left behind', (await ev(`getComputedStyle(document.getElementById('hand')).visibility`)) === 'visible' && (await count('.shuffle-card, .fly-copy, .fly-ghost')) === 0);
     check('the new hand also fills one card at a time with the library count staying right', new Set(sum.counts).size >= 6 && sum.totals.length === 1, JSON.stringify(sum));
@@ -473,7 +473,7 @@ try {
     await sleep(150);
     const riffling = await count('.shuffle-card');
     await sleep(1000);
-    check('shuffling the library from its menu riffles 14 card backs (7 parts of 2) over it, and they are gone when it is over', riffling === 14 && (await count('.shuffle-card')) === 0, String(riffling));
+    check('shuffling the library from its menu riffles 14 card backs over it, and they are gone when it is over', riffling === 14 && (await count('.shuffle-card')) === 0, String(riffling));
     // a card dropped on a pile flies INTO that pile (it once flew to the middle of the screen)
     {
       const centreOfBox = (selector) => ev("(() => { const r = document.querySelector(" + JSON.stringify(selector) + ").getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()");

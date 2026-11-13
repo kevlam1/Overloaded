@@ -3278,6 +3278,21 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 162. The library shuffle is a riffle (2026-11-12)
+
+**What I asked for**
+- Rework the library shuffle again. Claude asked what style I wanted and I asked to see each one, so it made a preview page with a riffle, an overhand and a cascade. I picked the riffle, a little toned down.
+
+**What changed** (`frontend/src/card-fly.js`, `scripts/check-solo-ui.mjs`)
+- The shuffle is a riffle: 14 card backs over the library are split in two halves that part a little (less than in the preview: 0.46 of a card width and 4 degrees, not 0.62 and 7), then the cards drop into the middle one by one, each side in turn, and the stack squares up with a small bounce. It takes 900 ms. It plays for the pile menu's Shuffle and in a mulligan.
+- The 7-part version (entry 161) is gone. The preview page was a scratch file and is deleted.
+
+**What I checked:** solo check 584 (14 backs over the library, none left after, the first card of the new hand 0.7 to 1.5 s after the shuffle sound), quick suites 60, and a screenshot with the animation held at 330 ms, which shows the two halves interleaving close to the pile. I did not watch it at full speed.
+
+**My mistakes this round:** the first cascade in the preview page had keyframes in the wrong order, so the browser refused it and the cards did not move; I found it from the screenshot, not from an error, and fixed it before showing it to you.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.
