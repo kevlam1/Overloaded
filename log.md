@@ -3365,6 +3365,21 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 168. A front page that leads with solo play, and the commander name on a saved deck (2026-11-13)
+
+**What I asked for**
+- Change the front page so solo mode is more prominent and less hidden, because it is the most important show of progress; rework the page a bit so it is more inviting and less of a proof of concept. And on the deck cards in the deck list, put the commander's name just above the mana symbols and the bracket line.
+
+**What changed** (`frontend/pages/lobby/index.html`, `lobby.js`, `frontend/src/style.css`, tests)
+- **Front page:** a large title ("Play your deck, alone or with friends"), a short line (free, nothing to install, no account), and then a big Play solo button with two quieter ones beside it (Try a sample deck, Import your deck), three small boxes (bring your own deck, test it alone, then play together), and only after a rule the part for friends: "Want company?", the name box, Make a table and Join. The table and join screens keep their own title, "Lobby" (the page sets the title by the screen). Nothing about making or joining a table changed. The header's Lobby link still says Lobby.
+- **Deck cards:** the commander's name now sits right above the mana symbols and the bracket (it used to float in the middle of the card, with the space spread between the three lines). A deck with no commander still has its colors at the bottom.
+
+**What I checked:** the lobby page check (66, with a new one that Play solo links to /solo, is above the name box and the make box, is taller than the Make table button and has the sample and import links beside it), the deck page check (274, with a new one for the gap between the commander and the colors row; I put the old spacing back as a broken copy and it was caught), the deploy config check against the real project (56, two lines updated for the new title). Screenshots of the start page and the saved deck cards. Not checked: phone width, the light theme of the start page, the room screens after the title change beyond the existing checks.
+
+**My mistakes this round:** my first broken copy of the deck card check did not apply (a string appeared twice), so nothing was proven until I used longer text. The three boxes first showed two and one in a row, which I saw in the screenshot and narrowed.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.
