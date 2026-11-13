@@ -126,11 +126,11 @@ export async function gatherIntoPile(handNodes, handBox, pile, backUrl) {
   const count = copies.length;
   const stackAt = () => ({ x: middle.x, y: middle.y }); // one neat, upright stack: every card exactly on the same spot (Kevin, 2026-11-12: not a slanted or diagonal pile)
   // (the hand comes together in 190 ms: twice as fast as before, Kevin 2026-11-13)
-  await tween(190, (p) => copies.forEach((c, i) => { const at = stackAt(); c.set({ x: c.centre.x + (at.x - c.centre.x) * p, y: c.centre.y + (at.y - c.centre.y) * p, a: c.angle * (1 - p), s: c.scale, flip: 0 }); }));
-  await wait(60);
+  await tween(110, (p) => copies.forEach((c, i) => { const at = stackAt(); c.set({ x: c.centre.x + (at.x - c.centre.x) * p, y: c.centre.y + (at.y - c.centre.y) * p, a: c.angle * (1 - p), s: c.scale, flip: 0 }); }));
+  await wait(40);
   // the whole stack turns over as one (Kevin, 2026-11-12), slowly enough to see
-  await tween(570, (p) => copies.forEach((c, i) => { const at = stackAt(); c.set({ x: at.x, y: at.y, a: 0, s: c.scale, flip: smooth(p) }); }), (p) => p);
-  await wait(120);
+  await tween(380, (p) => copies.forEach((c, i) => { const at = stackAt(); c.set({ x: at.x, y: at.y, a: 0, s: c.scale, flip: smooth(p) }); }), (p) => p);
+  await wait(80);
   const end = target.width / Math.max(1, copies[0].w);
   await tween(480, (p) => copies.forEach((c, i) => {
     const q = easeOut(clamp01((p - (i / count) * 0.3) / 0.7)); // the cards leave the stack one after the other, the top one first (as Kevin liked it)

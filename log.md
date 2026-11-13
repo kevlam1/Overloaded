@@ -3380,6 +3380,20 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 169. A faster come-together and flip in the mulligan (2026-11-13)
+
+**What I asked for**
+- Make the flip animation when mulliganing, where the cards come together, faster.
+
+**What changed** (`frontend/src/card-fly.js`, `scripts/check-solo-ui.mjs`)
+- I read this as the whole first part of the mulligan (the cards coming together and turning over), not only the turn. The cards come together in 110 ms (was 190), the turn takes 380 ms (was 570), and the two short pauses around them are 40 and 80 ms (were 60 and 120). The slide into the library and the riffle are as they were. The first part is about 0.4 s shorter.
+
+**What I checked:** the solo check once (586); the check that the stack is together and the one that the whole stack turns as one were moved to the new timings (the second one reads the turn halfway through, not after it is over). I did not watch it at full speed. I did not run the quick suites, since only the animation timing changed.
+
+**My mistakes this round:** none found. If you meant only the turn, or only the coming together, say which and I will put the other back.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.
