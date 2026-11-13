@@ -127,12 +127,12 @@ export async function gatherIntoPile(handNodes, handBox, pile, backUrl) {
   const stackAt = () => ({ x: middle.x, y: middle.y }); // one neat, upright stack: every card exactly on the same spot (Kevin, 2026-11-12: not a slanted or diagonal pile)
   await tween(380, (p) => copies.forEach((c, i) => { const at = stackAt(); c.set({ x: c.centre.x + (at.x - c.centre.x) * p, y: c.centre.y + (at.y - c.centre.y) * p, a: c.angle * (1 - p), s: c.scale, flip: 0 }); }));
   await wait(60);
-  // the cards turn over one after another, the top one first, each through a whole turn (the flip is slow enough to see)
-  await tween(760, (p) => copies.forEach((c, i) => { const at = stackAt(); c.set({ x: at.x, y: at.y, a: 0, s: c.scale, flip: smooth(clamp01((p - ((count - 1 - i) / count) * 0.4) / 0.6)) }); }), (p) => p);
+  // the whole stack turns over as one (Kevin, 2026-11-12), slowly enough to see
+  await tween(760, (p) => copies.forEach((c, i) => { const at = stackAt(); c.set({ x: at.x, y: at.y, a: 0, s: c.scale, flip: smooth(p) }); }), (p) => p);
   await wait(120);
   const end = target.width / Math.max(1, copies[0].w);
   await tween(480, (p) => copies.forEach((c, i) => {
-    const q = easeInOut(p); // the whole stack slides into the library together, in a straight line
+    const q = easeOut(clamp01((p - (i / count) * 0.3) / 0.7)); // the cards leave the stack one after the other, the top one first (as Kevin liked it)
     const at = stackAt();
     c.set({ x: at.x + (goal.x - at.x) * q, y: at.y + (goal.y - at.y) * q, a: 0, s: c.scale + (end - c.scale) * q, flip: 1 });
   }), (p) => p);
