@@ -3264,6 +3264,20 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 161. A finer, faster shuffle (2026-11-12)
+
+**What I asked for**
+- The shuffle of the library is only in three parts, which feels too chunky; make it finer, in 7. Make it faster too.
+
+**What changed** (`frontend/src/card-fly.js`, `scripts/check-solo-ui.mjs`)
+- The shuffle is 7 narrow parts of 2 card backs each (14 in all), fanned out side by side over the library, each tilting a little more towards the ends, and dropped back one after another from the middle outwards, twice. It takes 700 ms (it was 1150). The mulligan's wait for the shuffle is shorter by the same amount.
+
+**What I checked:** solo check 584 (14 backs over the library in a menu shuffle and in a mulligan, none left afterwards, the first card of the new hand 0.55 to 1.3 s after the shuffle sound), quick suites 60, and a screenshot with the animation held at 115 ms, which shows the 7 parts fanned out. I did not watch it at full speed, so how fast it feels is for you to say. The picture used a stand-in colour for the card back.
+
+**My mistakes this round:** my first screenshot timings were guesses and caught the pile at rest, so I held the animation at a chosen time instead.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.
