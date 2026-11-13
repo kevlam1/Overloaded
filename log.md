@@ -3250,6 +3250,20 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 160. The dashed border of a (T) Horizontal pile fits (2026-11-12)
+
+**What I asked for**
+- The dotted border of a (T) Horizontal pile goes past the bottom of it; refit it.
+
+**What changed** (`frontend/src/style.css`)
+- The border of a pile with one or two copies under the top card still took its top and left from the Diagonal rule (a step higher and a step to the left), because my (T) rule only set the right side. It now sets top and left to 3 px outside the card, like the other tapped styles, so it hugs the card at the top, left and bottom and reaches out to the right over the copies.
+
+**What I checked:** a new check reads the border's top, left and bottom (all -3px) and that it reaches past the right edge; the solo check passes (584); a screenshot of the pile. Not checked: the same border for a pile of three (same rule, other number), the table page.
+
+**My mistakes this round:** this was my miss in entry 159: I gave the new style one side of the border and did not look at it closely in the screenshot, where it was visible. My first check compared the border's computed height with the card's and was wrong by 2 px (the border is drawn inside its box), so I check the offsets instead.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

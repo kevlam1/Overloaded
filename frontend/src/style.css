@@ -683,8 +683,8 @@ body[data-tapped-pile-style="vertical"] .battlefield > .card.tapped[data-stack-e
 /* (T) Horizontal: the copies under the top one go to the RIGHT, so the top of each card (a tapped card lies with its top to the right) shows; the pile needs no move to the right */
 body[data-tapped-pile-style="horizontal-top"] .battlefield > .card.tapped[data-stack-depth="1"] { translate: var(--step-h) 0; }
 body[data-tapped-pile-style="horizontal-top"] .battlefield > .card.tapped[data-stack-depth="2"] { translate: calc(var(--step-h) * 2) 0; }
-body[data-tapped-pile-style="horizontal-top"] .battlefield > .card.tapped[data-stack-ext="1"]::before { right: calc(var(--step-h) * -1 - 3px); }
-body[data-tapped-pile-style="horizontal-top"] .battlefield > .card.tapped[data-stack-ext="2"]::before { right: calc(var(--step-h) * -2 - 3px); }
+body[data-tapped-pile-style="horizontal-top"] .battlefield > .card.tapped[data-stack-ext="1"]::before { top: -3px; left: -3px; right: calc(var(--step-h) * -1 - 3px); }
+body[data-tapped-pile-style="horizontal-top"] .battlefield > .card.tapped[data-stack-ext="2"]::before { top: -3px; left: -3px; right: calc(var(--step-h) * -2 - 3px); }
 body[data-tapped-pile-style="vertical"] .battlefield > .card.tapped[data-stack-depth="1"] { translate: 0 calc(var(--step-v) * -1); }
 body[data-tapped-pile-style="vertical"] .battlefield > .card.tapped[data-stack-depth="2"] { translate: 0 calc(var(--step-v) * -2); }
 /* the outline of a tapped card being dragged is a landscape card: 11 cells wide and 8 tall, on the bottom line of its block */
