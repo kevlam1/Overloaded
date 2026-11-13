@@ -3423,6 +3423,20 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 172. The test browsers are muted (2026-11-13)
+
+**What I asked for**
+- After the empty-hand note I asked whether so many test runs were needed, because I kept hearing tapping and untapping from them. I asked for the sound to be muted.
+
+**What changed** (`scripts/lib/browser.mjs`)
+- Every headless Chrome the checks open now starts with `--mute-audio`. The checks drive a real browser, so the tap, draw and shuffle sounds played out loud from my speakers; the sound checks record which file would play and do not need to be heard.
+
+**What I checked:** the flag is on the command line of a browser the helper starts (read from the process list), and the solo check passed once (588), including its sound checks. I did not listen for silence while it ran.
+
+**My mistakes this round:** for the empty-hand note I ran the solo check three times, which was more than the change needed, and I had not told you the checks make noise. I will run one targeted check for small changes from now on.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

@@ -27,7 +27,7 @@ export async function openBrowser(label, { width = 1280, height = 800 } = {}) {
   const port = 9300 + Math.floor(Math.random() * 600);
   const child = spawn(chromePath, [
     '--headless=new', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`,
-    '--no-first-run', '--no-default-browser-check', '--disable-extensions', 'about:blank',
+    '--no-first-run', '--no-default-browser-check', '--disable-extensions', '--mute-audio', 'about:blank', // (--mute-audio: the checks play the real tap and draw sounds otherwise, out loud)
   ], { stdio: 'ignore', windowsHide: true });
   const browser = { label, profile, child, logs: [], dialogs: [], events: [], listeners: [] };
   browsers.push(browser);
