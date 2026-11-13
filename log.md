@@ -3394,6 +3394,20 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 170. Holding a pile takes 350 ms (2026-11-13)
+
+**What I asked for**
+- Change the time it takes to hold a pile down before it can be moved as a whole to 350 ms.
+
+**What changed** (`shared/stacks.mjs`, `scripts/test-stacks.mjs`, `scripts/check-solo-ui.mjs`)
+- `STACK_HOLD_MS` is 350 (it was 500). The unit test and the wording of one browser check say 350.
+
+**What I checked:** the stacks unit test (122) and the solo check once (586): its hold test looks at 150 ms (still filling) and 800 ms (full), which fit the new time. I did not feel the new time with a mouse.
+
+**My mistakes this round:** none found.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

@@ -10,7 +10,7 @@ const same = (label, actual, expected) => { checks++; if (JSON.stringify(actual)
 const check = (label, condition, detail = '') => { checks++; if (!condition) fail(label, detail); };
 
 same('a pile shows 3 copies, and a card dropped within 6 cells snaps to a pile', [STACK_VISIBLE, SNAP_RADIUS], [3, 6]);
-same('a pile is held for half a second before it is ready to be moved as a whole', STACK_HOLD_MS, 500);
+same('a pile is held for 350 ms before it is ready to be moved as a whole', STACK_HOLD_MS, 350);
 
 // ---- what makes two cards the same stack ----
 const card = (extra = {}) => ({ uid: 'c1', n: 'Forest', px: 0, py: 0, tapped: false, ...extra });

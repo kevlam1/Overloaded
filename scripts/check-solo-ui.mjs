@@ -1796,7 +1796,7 @@ try {
     await sleep(650);
     const ready = await holdState();
     if (process.argv.includes('--screenshot')) await browser.screenshot('scratch-stack-hold.png');
-    check('after half a second the circle is full: the pile is ready to be moved, and the circle is shown', ready && /ready/.test(ready.cls) && ready.opacity === '1', JSON.stringify(ready));
+    check('after more than 350 ms the circle is full: the pile is ready to be moved, and the circle is shown', ready && /ready/.test(ready.cls) && ready.opacity === '1', JSON.stringify(ready));
     for (let n = 1; n <= 8; n++) await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: holdAt.x - 30 * r.width / 112 * n / 8, y: holdAt.y + 11 * r.height / 44 * n / 8, buttons: 1 });
     await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: holdAt.x - 30 * r.width / 112, y: holdAt.y + 11 * r.height / 44, button: 'left', buttons: 0, clickCount: 1 }); await sleep(120);
     pile = await forestState();

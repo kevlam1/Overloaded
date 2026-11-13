@@ -8,7 +8,7 @@
 import { cellOf, CARD_COLS, CARD_ROWS } from './board-grid.mjs';
 
 export const STACK_VISIBLE = 3; // how many copies of a pile are drawn (4 until 2026-11-12)
-export const STACK_HOLD_MS = 500; // how long a pile is held down before it is ready to be moved as a whole (frontend/src/board-drag.js)
+export const STACK_HOLD_MS = 350; // how long a pile is held down before it is ready to be moved as a whole (frontend/src/board-drag.js)
 export const SNAP_RADIUS = 6; // a card dropped within this many cells of a card it could stack with goes onto it (three quarters of a card wide)
 
 // A plain-text form with the object keys in order, so the same state always gives the same text.
