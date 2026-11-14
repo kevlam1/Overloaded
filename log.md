@@ -3455,6 +3455,22 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 174. The type order runs the other way, every land is sorted by colour, and an A-Z sort (2026-11-13)
+
+**What I asked for**
+- The left-most type pill in the hand type order in Settings should be the right-most in my hand. Basic lands and most lands have no colour as cards, but sort them too when the colour sort is on, and consider the many land types. Add an A to Z sort too.
+
+**What changed** (`shared/hand-sort.mjs`, `frontend/src/hand-sort-ui.js`, tests)
+- **Type order:** the first type in the order is the right-most in the hand with the Type button's first click, and the left-most with the second click. The Settings heading says so. (It was the other way round.)
+- **Lands:** a land is sorted by its colour identity from the card list, joined with the basic land types in its type line (Plains, Island, Swamp, Mountain, Forest). So Forest, a Swamp Mountain dual, a three-colour triome, a pain or check land (they have an identity), Dryad Arbor and an artifact land all go where their colours put them: one colour with that colour, two or more with the many-colour cards, none with the colourless ones. I read the real card list first: Command Tower, Evolving Wilds and Reliquary Tower have no identity there (it comes from symbols in the rules text, which the list does not have), and Wastes and Ancient Tomb are really colourless, so these go with the colourless cards. When only the colour sort is on, the lands of a colour come after the spells of that colour.
+- **A-Z:** a fourth button, with the same three clicks (A to Z, Z to A, off). Capitals and accents do not matter. It is the finest sort: it settles a tie in colour, type and cost.
+
+**What I checked:** the hand unit test (99: the type direction, every kind of land above, the order of lands and spells, A to Z and Z to A with accents, and the name settling a tie) and one solo check run (598, with a new check for the A-Z button). Not done: lands that make any colour are colourless, because the list cannot tell them apart; if you want them as their own group I would need the rules text.
+
+**My mistakes this round:** my first land test expected the many-colour lands in the wrong order when reversed (the existing rule orders their colour letters backwards too), and my first edit of the sort file did not match the text (it had backslashes in front of its backticks). The solo check failed on a hand of 9 or 10 cards in the two "cards move aside" checks again; I found the checks need a hand of 7, so they now start from a freshly dealt one, which should also stop the failures I called flaky in entries 159 to 167.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

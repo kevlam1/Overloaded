@@ -1,15 +1,20 @@
 // Sorting your hand (Kevin, 2026-11-11). Plain data in, plain data out, no browser code, so Node tests can load it (scripts/test-hand-sort.mjs).
 //
-// Three sorts, each a button with three states: 0 off, 1 the first way, 2 the other way round (clicking again goes back to off). Any mix can be on at once; when more than one is on the
-// colour decides first, then the card type, then the mana value, and a tie keeps the order the player gave the hand by hand. The sort is a VIEW: the hand's stored order is the player's
+// Four sorts, each a button with three states: 0 off, 1 the first way, 2 the other way round (clicking again goes back to off). Any mix can be on at once; when more than one is on the
+// colour decides first, then the card type, then the mana value, then the name, and a tie keeps the order the player gave the hand by hand. The sort is a VIEW: the hand's stored order is the player's
 // own and is never changed by it (turn the sorts off and the hand is as they left it), and a card drawn while a sort is on is placed by it at once, because the hand is sorted every time it is shown.
-//   colour: white, blue, black, red, green, then more than one colour, then colourless (lands have no cost, so they are colourless), W to G the first way
-//   type:   the player's own order of the types (DEFAULT_TYPE_ORDER, changed in Settings), the first way in that order
+//   colour: white, blue, black, red, green, then more than one colour, then colourless, W to G the first way. A land has no cost, so it goes by its colour identity (the card list's ci, which
+//           covers basic lands, the dual and triome lands, the pain, check and fast lands and so on) joined with the basic land types in its type line (Plains, Island, Swamp, Mountain,
+//           Forest); a land that names no colour at all (Wastes, Ancient Tomb, and a land that makes any colour, which the list cannot tell from rules text) is colourless. When only the colour
+//           is on, the lands of a colour come after the spells of it.
+//   type:   the player's own order of the types (DEFAULT_TYPE_ORDER, changed in Settings). The FIRST type in that order is the RIGHT-most in the hand the first way (Kevin, 2026-11-13: the
+//           left-most pill in Settings is the right-most in the hand); the other way round it is the left-most.
 //   cost:   the mana value, low to high the first way
+//   name:   A to Z the first way (accents and capitals do not matter)
 import { categoryOf, colorOrder, manaValue } from './deck-view.mjs';
 
-export const SORT_KEYS = ['color', 'type', 'cost'];
-export const SORT_TITLES = { color: 'Color', type: 'Type', cost: 'Cost' };
+export const SORT_KEYS = ['color', 'type', 'cost', 'name'];
+export const SORT_TITLES = { color: 'Color', type: 'Type', cost: 'Cost', name: 'A-Z' };
 
 // The types the player can order (Settings shows these as pills), and the two that are always last, in this order, when a card is a battle or has none of the types.
 export const TYPE_KEYS = ['creature', 'instant', 'sorcery', 'enchantment', 'artifact', 'planeswalker', 'land'];
@@ -17,7 +22,7 @@ export const TYPE_TITLES = { creature: 'Creatures', instant: 'Instants', sorcery
 export const DEFAULT_TYPE_ORDER = [...TYPE_KEYS];
 const AFTER_TYPES = ['battle', 'other'];
 
-export const noSorts = () => ({ color: 0, type: 0, cost: 0 });
+export const noSorts = () => ({ color: 0, type: 0, cost: 0, name: 0 });
 export const anySortOn = (state) => SORT_KEYS.some((key) => state?.[key] === 1 || state?.[key] === 2);
 
 // The sorts as a saved object: only a whole number 0 to 2 for each of the three keys counts, anything else is off.
@@ -37,7 +42,7 @@ export function nextSortState(state, key) {
 // The words for a button's state, for its tooltip and a screen reader.
 export function sortWords(key, value) {
   const title = SORT_TITLES[key] ?? key;
-  const ways = { color: ['white to green', 'green to white'], type: ['in your type order', 'the type order reversed'], cost: ['low to high', 'high to low'] }[key] ?? ['', ''];
+  const ways = { color: ['white to green', 'green to white'], type: ['your first type on the right', 'your first type on the left'], cost: ['low to high', 'high to low'], name: ['A to Z', 'Z to A'] }[key] ?? ['', ''];
   if (value === 1) return `${title}: ${ways[0]}. Click for ${ways[1]}.`;
   if (value === 2) return `${title}: ${ways[1]}. Click to turn it off.`;
   return `Sort by ${title.toLowerCase()} (${ways[0]}). Click again to reverse it, and again to turn it off.`;
@@ -61,12 +66,27 @@ export function moveType(order, from, to) {
   return list;
 }
 
-// What a hand card is sorted by: its colour group, its type's place in the order, and its mana value, from its card-list entry (type line \`t\` and cost \`m\`, as the card list has them).
-export function sortKeysOf(info, typeOrder) {
+// Is this a land (the front face's type line has the word Land before any dash)? A land creature (Dryad Arbor) is one, and so is an artifact land.
+const DASH_SPLIT = /\s[\u2014-]\s/;
+const frontOf = (typeLine) => String(typeLine ?? '').split(' // ')[0];
+export const isLandLine = (typeLine) => /\bLand\b/.test(frontOf(typeLine).split(DASH_SPLIT)[0]);
+const BASIC_TYPE_COLORS = { Plains: 'W', Island: 'U', Swamp: 'B', Mountain: 'R', Forest: 'G' };
+
+// The colours of a land: its colour identity and the basic land types it has (a land that is both a Swamp and a Mountain is black and red), as the letters WUBRG with no repeats.
+export function landColors(info) {
+  const letters = new Set(String(info?.ci ?? '').split('').filter((letter) => 'WUBRG'.includes(letter)));
+  const subtypes = frontOf(info?.t).split(DASH_SPLIT)[1] ?? '';
+  for (const word of subtypes.split(/\s+/)) if (BASIC_TYPE_COLORS[word]) letters.add(BASIC_TYPE_COLORS[word]);
+  return [...letters].sort((a, b) => 'WUBRG'.indexOf(a) - 'WUBRG'.indexOf(b)).join('');
+}
+
+// What a hand card is sorted by: its colour group, its type's place in the order, its mana value and its name, from its card-list entry (type line t, cost m and colour identity ci, as the card list has them).
+export function sortKeysOf(info, typeOrder, name = '') {
   const order = [...normalizeTypeOrder(typeOrder), ...AFTER_TYPES];
   const type = categoryOf(info?.t);
-  const [colorRank, letters] = colorOrder(type === 'land' ? '' : info?.m);
-  return { color: colorRank, colors: letters, type: Math.max(0, order.indexOf(type)), cost: type === 'land' ? 0 : manaValue(info?.m) };
+  const land = isLandLine(info?.t);
+  const [colorRank, letters] = land ? colorOrder(landColors(info).split('').map((letter) => '{' + letter + '}').join('')) : colorOrder(info?.m);
+  return { color: colorRank, colors: letters, land: land ? 1 : 0, type: Math.max(0, order.indexOf(type)), cost: land ? 0 : manaValue(info?.m), name: String(name ?? '') };
 }
 
 // The hand in the order to show: a new array, the cards themselves unchanged. info(card) gives { t, m } for a card (or nothing for one the card list does not know, which sorts as colourless,
@@ -75,12 +95,17 @@ export function sortHand(cards, state, { typeOrder = DEFAULT_TYPE_ORDER, info = 
   const list = Array.isArray(cards) ? [...cards] : [];
   const sorts = cleanSorts(state);
   if (!anySortOn(sorts)) return list;
-  const keyed = list.map((card, index) => ({ card, index, keys: sortKeysOf(info(card), typeOrder) }));
+  const keyed = list.map((card, index) => ({ card, index, keys: sortKeysOf(info(card), typeOrder, card?.n) }));
   const sign = (key) => (sorts[key] === 2 ? -1 : 1);
   keyed.sort((a, b) => {
-    if (sorts.color) { const d = (a.keys.color - b.keys.color) || (a.keys.colors < b.keys.colors ? -1 : a.keys.colors > b.keys.colors ? 1 : 0); if (d) return d * sign('color'); }
-    if (sorts.type) { const d = a.keys.type - b.keys.type; if (d) return d * sign('type'); }
+    if (sorts.color) {
+      let d = (a.keys.color - b.keys.color) || (a.keys.colors < b.keys.colors ? -1 : a.keys.colors > b.keys.colors ? 1 : 0);
+      if (!d && !sorts.type) d = a.keys.land - b.keys.land; // (with the type sort off, the lands of a colour come after its spells)
+      if (d) return d * sign('color');
+    }
+    if (sorts.type) { const d = b.keys.type - a.keys.type; if (d) return d * sign('type'); } // (the first type of the order is on the right the first way)
     if (sorts.cost) { const d = a.keys.cost - b.keys.cost; if (d) return d * sign('cost'); }
+    if (sorts.name) { const d = a.keys.name.localeCompare(b.keys.name, 'en', { sensitivity: 'base' }); if (d) return d * sign('name'); }
     return a.index - b.index;
   });
   return keyed.map((entry) => entry.card);

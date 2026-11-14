@@ -552,6 +552,15 @@ try {
     const after = await order();
     const sorted = (list, sign) => list.every((n, i) => i === 0 || (n - list[i - 1]) * sign >= 0);
     check('the Cost button sorts the hand low to high, then high to low, and a third click puts the hand back as it was', state1 === '1' && sorted(up, 1) && sorted(down, -1) && up.some((n, i) => n !== up[0]) && JSON.stringify(after) === JSON.stringify(before), JSON.stringify({ up, down, state1 }));
+    // A-Z: the names run A to Z, then Z to A, then the hand is as it was
+    const handNames = () => ev("[...document.querySelectorAll('#hand > .card .fallback')].map((n) => n.textContent)");
+    const az = (list, sign) => list.every((n, i) => i === 0 || n.localeCompare(list[i - 1], 'en', { sensitivity: 'base' }) * sign >= 0);
+    await click(await rectOf('.hand-bar .hand-sort[data-sort="name"]'));
+    const aToZ = await handNames();
+    await click(await rectOf('.hand-bar .hand-sort[data-sort="name"]'));
+    const zToA = await handNames();
+    await click(await rectOf('.hand-bar .hand-sort[data-sort="name"]'));
+    check('the A-Z button sorts the hand by name A to Z, then Z to A, and a third click puts it back as it was', az(aToZ, 1) && az(zToA, -1) && JSON.stringify(await order()) === JSON.stringify(before) && new Set(aToZ).size > 1, JSON.stringify({ aToZ, zToA }));
     await click(await rectOf('.hand-bar .hand-sort[data-sort="color"]'));
     check('a sort is kept as a choice (pressed, and kept in the browser) and a card cannot be dropped by hand into a sorted hand: its note says why', (await ev("document.querySelector('.hand-sort[data-sort=\"color\"]').getAttribute('aria-pressed')")) === 'true' && (await ev("localStorage.getItem('overloaded.handSort')")).includes('"color":1'));
     await click(await rectOf('.hand-bar .hand-sort[data-sort="color"]')); await click(await rectOf('.hand-bar .hand-sort[data-sort="color"]')); // back to off
@@ -678,7 +687,7 @@ try {
     const mouse = (type, x, y, buttons = 0) => browser.send('Input.dispatchMouseEvent', { type, x, y, button: type === 'mouseMoved' ? 'none' : 'left', buttons, clickCount: type === 'mouseMoved' ? 0 : 1 });
     const handBox = () => ev(`(() => { const r = document.getElementById('hand').getBoundingClientRect(); return { left: r.left, right: r.right, top: r.top, bottom: r.bottom }; })()`);
     const cardPoint = (index) => ev(`(() => { const card = document.querySelectorAll('#hand > .card')[${index}]; const r = card.getBoundingClientRect(); const y = r.top + r.height * 0.45; const xs = []; for (let x = r.left + 2; x < r.right - 2; x += 3) if (document.elementFromPoint(x, y)?.closest('#hand > .card') === card) xs.push(x); return { x: xs.length ? xs[Math.floor(xs.length / 2)] : r.left + r.width / 2, y }; })()`);
-    if ((await handNames()).length > 10) { await press('mulligan'); await sleep(100); } // (the draws of the checks before this one are random: a hand of 25 cards would be strips 20 pixels wide, which these checks are not about)
+    if ((await handNames()).length !== 7) { await browser.goto(PAGE); await waitFor(async () => (await count('#hand .card')) === 7 || null, 8000, 25); await sleep(1500); } // (the draws of the checks before this one are random: a hand of 25 cards would be strips 20 pixels wide, and a hand of exactly 10 failed the next two checks, which are about seven cards; so every run starts these checks with 7)
     await moveAwayFromHand();
     await drawUntil((n) => /Lightning Bolt|Sol Ring|Llanowar Elves/.test(n)); await drawUntil((n) => /^(Forest|Island)$/.test(n)); await moveAwayFromHand(); // the deal is random: make sure the hand has a spell and a land
     if (process.argv.includes('--screenshot')) await browser.screenshot('scratch-hand-lowered.png');

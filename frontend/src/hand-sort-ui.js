@@ -51,7 +51,7 @@ export function createHandSort({ onChange = () => {} } = {}) {
   // The order of the card types, as a row of pills in Settings, each with a button to move it one place earlier or later.
   function mountTypeOrder(host) {
     host.replaceChildren();
-    const heading = make('p', 'type-order-title', 'Hand type order');
+    const heading = make('p', 'type-order-title', 'Hand type order (the first one is the right-most in your hand)');
     const list = make('ol', 'type-order');
     list.setAttribute('aria-label', 'The order of the card types when the hand is sorted by type');
     const redraw = () => {
