@@ -561,6 +561,34 @@ try {
     const zToA = await handNames();
     await click(await rectOf('.hand-bar .hand-sort[data-sort="name"]'));
     check('the A-Z button sorts the hand by name A to Z, then Z to A, and a third click puts it back as it was', az(aToZ, 1) && az(zToA, -1) && JSON.stringify(await order()) === JSON.stringify(before) && new Set(aToZ).size > 1, JSON.stringify({ aToZ, zToA }));
+    // the switch next to the buttons turns sorting off (the hand as it was) and on again (the buttons keep their states)
+    await click(await costButton());
+    const sortedUids = await order();
+    const switchState = () => ev("document.querySelector('.hand-sort-toggle').getAttribute('aria-checked')");
+    await click(await rectOf('.hand-bar .hand-sort-toggle'));
+    const withSwitchOff = await order();
+    const offState = await switchState();
+    await click(await rectOf('.hand-bar .hand-sort-toggle'));
+    const withSwitchOn = await order();
+    check('the Sort switch turns the sorting off (the hand as it was, the Cost button still pressed) and on again', offState === 'false' && JSON.stringify(withSwitchOff) === JSON.stringify(before) && JSON.stringify(withSwitchOn) === JSON.stringify(sortedUids) && (await switchState()) === 'true', JSON.stringify({ offState }));
+    // a card dragged to another place in a sorted hand stays there; the others stay sorted; changing the sorts lets it go
+    {
+      const first = await rectOf('#hand > .card', 0);
+      const last = await rectOf('#hand > .card', sortedUids.length - 1);
+      const from = { x: first.left + 22, y: first.y };
+      const to = { x: last.right - 16, y: last.y };
+      await move(from);
+      await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: from.x, y: from.y, button: 'left', buttons: 1, clickCount: 1 });
+      for (let n = 1; n <= 12; n++) await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: from.x + ((to.x - from.x) * n) / 12, y: from.y, buttons: 1 });
+      await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: to.x, y: to.y, button: 'left', buttons: 0, clickCount: 1 });
+      await sleep(250);
+      const pinned = await order();
+      const restSorted = sorted((await costs()).slice(0, -1), 1);
+      await click(await rectOf('.hand-bar .hand-sort-toggle')); await click(await rectOf('.hand-bar .hand-sort-toggle')); // (off and on: the sorts are changed)
+      const released = await order();
+      check('in a sorted hand a card moved by hand stays where it was put (the others stay sorted), and changing the sorts sorts it again', pinned.at(-1) === sortedUids[0] && JSON.stringify(pinned) !== JSON.stringify(sortedUids) && restSorted && JSON.stringify(released) === JSON.stringify(sortedUids), JSON.stringify({ pinned, sortedUids, released }));
+    }
+    await click(await costButton()); await click(await costButton()); // (the Cost button back to off)
     await click(await rectOf('.hand-bar .hand-sort[data-sort="color"]'));
     check('a sort is kept as a choice (pressed, and kept in the browser) and a card cannot be dropped by hand into a sorted hand: its note says why', (await ev("document.querySelector('.hand-sort[data-sort=\"color\"]').getAttribute('aria-pressed')")) === 'true' && (await ev("localStorage.getItem('overloaded.handSort')")).includes('"color":1'));
     await click(await rectOf('.hand-bar .hand-sort[data-sort="color"]')); await click(await rectOf('.hand-bar .hand-sort[data-sort="color"]')); // back to off
@@ -576,6 +604,7 @@ try {
       await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: to.x, y: to.y, button: 'left', buttons: 0, clickCount: 1 });
       await sleep(200);
     };
+    check('Settings also has the land order: non-basic lands, then basic lands', JSON.stringify(await row(2)) === '["nonbasic","basic"]');
     const typesBefore = await row(0);
     const colorsBefore = await row(1);
     await dragPill(await pillAt(0, 0, 'name'), await pillAt(0, 2, 'right'));
@@ -586,7 +615,7 @@ try {
     await ev("document.querySelectorAll('#hand-order-settings .type-order')[0].children[0].querySelector('.type-move:last-child').click()");
     check('the small arrow on a pill moves it one place later', (await row(0))[1] === typesAfter[0]);
     await click(await rectOf('#settings-button')); // (closes Settings)
-    await ev("localStorage.removeItem('overloaded.handTypeOrder'); localStorage.removeItem('overloaded.handColorOrder'); localStorage.removeItem('overloaded.handSort')");
+    await ev("['overloaded.handTypeOrder', 'overloaded.handColorOrder', 'overloaded.handLandOrder', 'overloaded.handSort', 'overloaded.handSortOn'].forEach((key) => localStorage.removeItem(key))");
     // the names of the piles are above them, each with an arrow that opens the pile's menu
     const heads = await ev("['library', 'graveyard', 'exile'].map((zone) => { const head = document.querySelector('#pile-' + zone).parentElement.querySelector('.pile-head'); const pile = document.getElementById('pile-' + zone); const caret = head.querySelector('.pile-caret'); return { name: head.querySelector('.pile-name').textContent, above: head.getBoundingClientRect().bottom <= pile.getBoundingClientRect().top + 2, caretRight: caret.getBoundingClientRect().left >= head.querySelector('.pile-name').getBoundingClientRect().right - 1, labelOnPile: getComputedStyle(pile, '::after').content }; })");
     check('the library, graveyard and exile are named above their piles with an arrow beside each name (and no name under them)', JSON.stringify(heads.map((h) => h.name)) === '["Library","Graveyard","Exile"]' && heads.every((h) => h.above && h.caretRight && h.labelOnPile === 'none'), JSON.stringify(heads));
@@ -599,6 +628,79 @@ try {
     const area = await ev("(() => { const h = document.getElementById('hand'); const zt = parseFloat(h.style.getPropertyValue('--zt')); return { top: h.getBoundingClientRect().top + zt, field: document.getElementById('battlefield').getBoundingClientRect().bottom }; })()");
     check('with an empty hand the white dotted drop area starts under the bottom of the battlefield', area.top >= area.field - 1, JSON.stringify(area));
     await browser.goto(PAGE); await waitFor(async () => (await count('#hand .card')) === 7 || null, 8000, 25); await sleep(1200); // (dealt again: the hand was emptied by hand above)
+  }
+  // ---- Q and E tap, D draws, Tab opens Settings, a rectangle picks several cards, costs show on hover, and the command zone's words ----
+  {
+    await browser.goto(PAGE); await waitFor(async () => (await count('#hand .card')) === 7 || null, 8000, 25); await sleep(1500);
+    const keyDown = async (key, code, vk) => { await browser.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key, code, windowsVirtualKeyCode: vk }); await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key, code, windowsVirtualKeyCode: vk }); await sleep(120); };
+    const move = (p) => browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p.x, y: p.y });
+    const rectOfEl = (selector, index = 0) => ev(`(() => { const r = document.querySelectorAll(${JSON.stringify(selector)})[${index}].getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, left: r.left, right: r.right, top: r.top, bottom: r.bottom }; })()`);
+    const drag = async (from, to) => {
+      await move(from);
+      await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: from.x, y: from.y, button: 'left', buttons: 1, clickCount: 1 });
+      for (let n = 1; n <= 10; n++) await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: from.x + ((to.x - from.x) * n) / 10, y: from.y + ((to.y - from.y) * n) / 10, buttons: 1 });
+      await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: to.x, y: to.y, button: 'left', buttons: 0, clickCount: 1 });
+      await sleep(250);
+    };
+    const field = await rectOfEl('#battlefield');
+    // the cost of a card in the hand shows only on the card the pointer is on
+    {
+      for (let n = 0; n < 12 && !(await ev("Boolean(document.querySelector('#hand > .card .hand-cost'))")); n++) { await press('draw'); await sleep(80); } // (the hand is random: draw until there is a card with a cost)
+      const costIndex = await ev("[...document.querySelectorAll('#hand > .card')].findIndex((c) => c.querySelector('.hand-cost'))");
+      const restingCost = await ev("(() => { const c = document.querySelector('#hand > .card .hand-cost'); return c ? getComputedStyle(c).visibility : 'none found'; })()");
+      await move({ x: 5, y: 5 }); await sleep(300);
+      const quiet = await ev("[...document.querySelectorAll('#hand > .card .hand-cost')].every((c) => getComputedStyle(c).visibility === 'hidden')");
+      let hovered = null;
+      if (costIndex >= 0) {
+        const pointOn = () => ev(`(() => { const cards = [...document.querySelectorAll('#hand > .card')]; const card = cards[${costIndex}]; const r = card.getBoundingClientRect(); for (let x = r.left + 4; x < r.right - 4; x += 4) { const y = r.top + r.height * 0.6; if (document.elementFromPoint(x, y)?.closest('.card') === card) return { x, y }; } return null; })()`);
+        const p0 = await pointOn();
+        if (p0) { await move(p0); await sleep(350); const p = await pointOn(); if (p) { await move(p); await sleep(400); hovered = await ev("(() => { const c = document.querySelector('.hand-lift-layer > .card .hand-cost'); return c ? getComputedStyle(c).visibility : null; })()"); } }
+      }
+      check('the mana costs of the cards in the hand are hidden, and show only on the card the pointer is on', restingCost === 'hidden' && quiet && costIndex >= 0 && hovered === 'visible', JSON.stringify({ restingCost, quiet, costIndex, hovered }));
+      await move({ x: 5, y: 5 }); await sleep(300);
+    }
+    check('cards are not reached with Tab (tabindex -1) and cannot be picked up as text', await ev("[...document.querySelectorAll('.card')].every((c) => c.tabIndex === -1 && getComputedStyle(c).userSelect === 'none') && getComputedStyle(document.body).userSelect === 'none'"));
+    await keyDown('Tab', 'Tab', 9);
+    check('Tab opens Settings', (await ev("document.getElementById('settings-menu').hidden")) === false);
+    await browser.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await sleep(150);
+    const handBefore = await count('#hand .card');
+    await keyDown('d', 'KeyD', 68);
+    check('D draws a card', (await count('#hand .card')) === handBefore + 1 && /^Drew /.test(await $text('status')), await $text('status'));
+    // three cards on the battlefield, then Q taps the one under the pointer
+    for (const [fx, fy] of [[0.15, 0.3], [0.3, 0.3], [0.45, 0.3]]) {
+      const firstPoint = () => ev("(() => { const c = document.querySelector('#hand > .card'); const r = c.getBoundingClientRect(); for (let x = Math.max(2, r.left + 2); x < r.right - 2; x += 3) { for (const f of [0.5, 0.4, 0.6]) { const y = r.top + r.height * f; if (y < innerHeight - 4 && document.elementFromPoint(x, y)?.closest('.card') === c) return { x, y }; } } return null; })()");
+      await move(await firstPoint()); await sleep(350); // (the hand rises: the card is where it is now)
+      const card = await firstPoint();
+      await drag(card, { x: field.left + field.right * 0 + (field.right - field.left) * fx, y: field.top + (field.bottom - field.top) * fy });
+    }
+    const onField = await count('#battlefield > .card');
+    const cardOnField = await rectOfEl('#battlefield > .card', 0);
+    await move({ x: cardOnField.x, y: cardOnField.y }); await sleep(100);
+    await keyDown('q', 'KeyQ', 81);
+    const tappedByQ = await ev("document.querySelectorAll('#battlefield > .card.tapped').length");
+    await keyDown('q', 'KeyQ', 81);
+    const tappedAfter = await ev("document.querySelectorAll('#battlefield > .card.tapped').length");
+    check('Q taps the card under the pointer, like E, and taps it again to untap', onField >= 3 && tappedByQ === 1 && tappedAfter === 0, JSON.stringify({ onField, tappedByQ, tappedAfter }));
+    // a rectangle dragged over empty battlefield picks up the cards it touches; E taps them all, Escape lets them go
+    const start = { x: field.left + 6, y: field.top + 6 };
+    const end = { x: field.left + (field.right - field.left) * 0.62, y: field.top + (field.bottom - field.top) * 0.5 };
+    await move(start);
+    await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: start.x, y: start.y, button: 'left', buttons: 1, clickCount: 1 });
+    let boxShown = false;
+    for (let n = 1; n <= 10; n++) { await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: start.x + ((end.x - start.x) * n) / 10, y: start.y + ((end.y - start.y) * n) / 10, buttons: 1 }); if (n === 6) boxShown = (await count('.marquee')) === 1; }
+    await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: end.x, y: end.y, button: 'left', buttons: 0, clickCount: 1 });
+    await sleep(250);
+    const picked = await ev("document.querySelectorAll('#battlefield > .card.selected').length");
+    await move({ x: field.left + 8, y: field.bottom - 8 });
+    await keyDown('e', 'KeyE', 69);
+    const tappedGroup = await ev("document.querySelectorAll('#battlefield > .card.tapped').length");
+    check('dragging a rectangle over the battlefield picks up the cards it touches (the box shows while dragging and is gone after), and E taps all of them at once', boxShown && (await count('.marquee')) === 0 && picked === onField && tappedGroup === picked, JSON.stringify({ boxShown, picked, onField, tappedGroup }));
+    await browser.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await sleep(150);
+    check('Escape lets the group go', (await ev("document.querySelectorAll('#battlefield > .card.selected').length")) === 0);
+    // the command zone: the tax counter above each commander and the words below and between the two slots
+    const layout = await ev("(() => { const r = (s) => document.querySelector(s).getBoundingClientRect(); const one = document.querySelector('.cmd-slot[data-slot=\"1\"]'); const tax = one.querySelector('.tax').getBoundingClientRect(); const cards = one.querySelector('.slot-cards').getBoundingClientRect(); const words = r('#command-zone h3'); const a = r('.cmd-slot[data-slot=\"1\"] .slot-cards'); const b = r('.cmd-slot[data-slot=\"2\"] .slot-cards'); return { taxAbove: tax.bottom <= cards.top + 1, wordsBelow: words.top >= Math.max(a.bottom, b.bottom) - 1, between: Math.abs((words.left + words.right) / 2 - (a.left + b.right) / 2) < 12 }; })()");
+    check('in the command zone the tax is above its commander and the words "Command zone" are below, between the two slots', layout.taxAbove && layout.wordsBelow && layout.between, JSON.stringify(layout));
+    await browser.goto(PAGE); await waitFor(async () => (await count('#hand .card')) === 7 || null, 8000, 25); await sleep(1500);
   }
   // ---- the larger picture of a card while Alt is held over it (frontend/src/card-hover.js): real mouse movement and real Alt key events ----
   {
@@ -1876,6 +1978,10 @@ try {
   check('six Forests played one after another are one pile on the first land block', pile.all === 6 && pile.cells.length === 1 && pile.cells[0] === '0,33', JSON.stringify(pile));
   check('the pile shows 3 copies, the other 3 are hidden', pile.visible === 3 && pile.hiddenFlag === 3, JSON.stringify(pile));
   check('the top card says "6x" and nothing else carries a count', pile.badge === '6x' && pile.badges === 1, JSON.stringify(pile));
+  {
+    const badge = await ev("(() => { const top = document.querySelector('#battlefield .card[data-stack-depth=\"0\"][aria-label^=\"Forest\"]'); const b = top.querySelector(':scope > .stack-count'); const c = top.getBoundingClientRect(); const r = b.getBoundingClientRect(); return { off: Math.abs((r.left + r.width / 2) - (c.left + c.width / 2)), gap: c.bottom - r.bottom, font: parseFloat(getComputedStyle(b).fontSize) }; })()");
+    check('the number of a pile is twice as large (at least 19 px) and sits at the bottom of the top card, in the middle of it', badge.font >= 19 && badge.off < 3 && badge.gap >= 0 && badge.gap < 14, JSON.stringify(badge));
+  }
   check('the copies under the top one are shifted so the pile can be seen', pile.shifted === true && pile.depths.split(',').sort().join() === '0,1,2,3,4,5', JSON.stringify(pile));
   check('a screen reader is told it is the top of a stack of 6', /top of a stack of 6/.test(pile.topLabel ?? ''), String(pile.topLabel));
 
@@ -2154,6 +2260,10 @@ try {
   await clickCard('#battlefield .card[data-stack-depth="0"]:not(.tapped)'); await clickAction('Tap');
   { const fan = await ev(`(() => { const t = Array.from(document.querySelectorAll('#battlefield .card.tapped')); const under = t.find((c) => c.dataset.stackDepth === '1'); const top = t.find((c) => c.dataset.stackDepth === '0'); return { n: t.length, translate: under ? getComputedStyle(under).translate : null, cells: [...new Set(t.map((c) => c.dataset.col + ',' + c.dataset.row))], topBottom: top ? Math.round(top.getBoundingClientRect().bottom) : null, underBottom: under ? Math.round(under.getBoundingClientRect().bottom) : null }; })()`);
     check('two tapped Forests are one stack of 2 on one cell, and the lower copy is shifted diagonally, up and (a little) to the left of the pile, which itself sits a cell to the right (the default style of tapped piles)', fan.n === 2 && fan.cells.length === 1 && /^-?[0-9.]+px -[0-9.]+px$/.test(fan.translate ?? '') && fan.underBottom < fan.topBottom, JSON.stringify(fan)); }
+    {
+      const badge = await ev("(() => { const top = document.querySelector('#battlefield .card.tapped .stack-count'); if (!top) return null; const card = top.parentElement.getBoundingClientRect(); const r = top.getBoundingClientRect(); return { right: card.right - r.right, bottom: card.bottom - r.bottom, font: parseFloat(getComputedStyle(top).fontSize) }; })()");
+      check('on a pile of tapped cards the number is at the bottom right', badge && badge.font >= 19 && badge.right >= 0 && badge.right < 14 && badge.bottom >= 0 && badge.bottom < 14, JSON.stringify(badge));
+    }
   await clickAction('Untap');
   { const one = await ev(`(() => { const c = Array.from(document.querySelectorAll('#battlefield .card:not(.tapped)')).filter((x) => x.dataset.stackSize === undefined || x.dataset.stackDepth === '0'); const lone = Array.from(document.querySelectorAll('#battlefield .card.selected'))[0]; return lone ? lone.dataset.col + ',' + lone.dataset.row : null; })()`);
     check('untapping one card of the tapped stack, with the untapped pile next to it, puts it back on that pile (0,33)', one === '0,33', String(one)); }

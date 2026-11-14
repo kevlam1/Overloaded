@@ -3490,6 +3490,28 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 176. Eleven changes: Q, D and Tab, a rectangle to pick cards, the command zone, pile numbers, costs on hover, a sort switch, pinned cards and the land order (2026-11-13)
+
+**What I asked for**
+- (1) Q also taps and untaps. (2) The command zone tax above each commander. (3) The words "Command zone" below and between the two slots. (4) The pile number twice as large, at the bottom of the top card (untapped) and the bottom right (tapped). (5) Drag to pick several things at once. (6) Mana costs only when hovering over a card. (7) An on/off toggle next to the sort filters. (8) A card dragged by hand in a sorted hand loses its sorted place until the filters are reset. (9) Settings for the order of lands: non-basic and basic. (10) Cards cannot be picked up like text or reached with Tab; Tab opens Settings. (11) D draws.
+
+**What changed** (`solo.js`, `table.js`, `card-nodes.js`, `command-zone.js`, `hand-sort-ui.js`, `shared/hand-sort.mjs`, `style.css`, tests)
+- **Keys:** Q does what E does; D draws a card (both pages); Tab opens Settings on both tables (inside Settings, or in a box you type in, Tab moves between controls as usual, and Escape closes it).
+- **Cards and Tab:** cards have tabindex -1, so Tab no longer goes to them, and nothing on the table can be picked up as text (the boxes you type in still can).
+- **Rectangle:** dragging from empty battlefield draws a box and picks up every card it touches; E, Q and F act on all of them (the whole group is set the way the first one is not), Escape or a click on empty space lets them go, Shift adds to the group. Solo page only. **Moving the group together is not built**: dragging a card moves that card.
+- **Command zone:** the tax counter is above each commander; the words are below, centred between the slots.
+- **Pile number:** twice as large (1.2 rem), at the bottom middle of the top card, and at the bottom right of a tapped pile.
+- **Costs:** the cost of a card in the hand shows only on the card under the pointer (its lifted copy) or the clicked card; it is hidden on the others.
+- **Switch:** "Sort: On / Off" in the bar before the four buttons. Off shows the hand as you arranged it; the buttons keep their states; pressing a button while it is off turns it on.
+- **Pinned cards:** in a sorted hand a card you drag to another place stays there; the others stay sorted round it; changing any sort or the switch lets it go back (it replaces the old note that refused the drag).
+- **Land order:** a third row of pills in Settings: Non-basic lands and Basic lands (non-basic first). With the type sort the lands are ordered by it; with only the colour sort it orders the lands of one colour.
+
+**What I checked:** the hand unit test (116: the land kinds, the pins), the quick suites (60), the layout check (405), the solo check once (613: one new block of about 12 checks for Q, D, Tab, the tab index and text selection, the costs on hover, the rectangle with E and Escape, the command zone words and tax, and in the sort block the switch and the pinned card; plus the pile number in both places and the land order row), and the two-browser live check (173). Not checked: touch, phones, how the rectangle feels with many cards. Not done: moving a picked group together.
+
+**My mistakes this round:** my first versions of two checks pressed at a point on the bounding box of a tilted hand card that was not on the card, so nothing was dragged, and one hovered a card after the hand had risen so another card was under the pointer; I fixed both from the failures. I wrote a placeholder test file by mistake and deleted it before using it.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

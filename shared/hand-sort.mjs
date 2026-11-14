@@ -20,6 +20,11 @@ export const TYPE_KEYS = ['creature', 'instant', 'sorcery', 'enchantment', 'arti
 export const TYPE_TITLES = { creature: 'Creatures', instant: 'Instants', sorcery: 'Sorceries', enchantment: 'Enchantments', artifact: 'Artifacts', planeswalker: 'Planeswalkers', land: 'Lands' };
 export const DEFAULT_TYPE_ORDER = [...TYPE_KEYS];
 
+// The two kinds of land the player can order (Kevin, 2026-11-13): basic lands, and every other land. In the type sort they are ordered inside the lands, and with only the colour sort on inside each colour.
+export const LAND_KEYS = ['nonbasic', 'basic'];
+export const LAND_TITLES = { nonbasic: 'Non-basic lands', basic: 'Basic lands' };
+export const DEFAULT_LAND_ORDER = [...LAND_KEYS];
+
 // The colour groups the player can order (Settings shows these as pills): the five colours, cards of more than one colour, and colourless cards (and lands that name no colour).
 export const COLOR_KEYS = ['W', 'U', 'B', 'R', 'G', 'multi', 'none'];
 export const COLOR_TITLES = { W: 'White', U: 'Blue', B: 'Black', R: 'Red', G: 'Green', multi: 'Multicolor', none: 'Colorless' };
@@ -72,6 +77,15 @@ function moveIn(list, from, to) {
 }
 export const moveType = (order, from, to) => moveIn(normalizeTypeOrder(order), from, to);
 
+export function normalizeLandOrder(order) {
+  const seen = new Set();
+  const out = [];
+  for (const key of Array.isArray(order) ? order : []) if (LAND_KEYS.includes(key) && !seen.has(key)) { seen.add(key); out.push(key); }
+  for (const key of DEFAULT_LAND_ORDER) if (!seen.has(key)) out.push(key);
+  return out;
+}
+export const moveLand = (order, from, to) => moveIn(normalizeLandOrder(order), from, to);
+
 // The same for the order of the colour groups: a saved order made whole (known keys in the order given, no repeats, the missing ones at the end in the default order), and a pill moved.
 export function normalizeColorOrder(order) {
   const seen = new Set();
@@ -86,6 +100,8 @@ export const moveColor = (order, from, to) => moveIn(normalizeColorOrder(order),
 const DASH_SPLIT = /\s[\u2014-]\s/;
 const frontOf = (typeLine) => String(typeLine ?? '').split(' // ')[0];
 export const isLandLine = (typeLine) => /\bLand\b/.test(frontOf(typeLine).split(DASH_SPLIT)[0]);
+// A basic land has the word Basic before any dash in its type line (Basic Land, Basic Snow Land).
+export const isBasicLandLine = (typeLine) => /\bBasic\b/.test(frontOf(typeLine).split(DASH_SPLIT)[0]);
 const BASIC_TYPE_COLORS = { Plains: 'W', Island: 'U', Swamp: 'B', Mountain: 'R', Forest: 'G' };
 
 // The colours of a land: its colour identity and the basic land types it has (a land that is both a Swamp and a Mountain is black and red), as the letters WUBRG with no repeats.
@@ -97,28 +113,33 @@ export function landColors(info) {
 }
 
 // What a hand card is sorted by: its colour group, its type's place in the order, its mana value and its name, from its card-list entry (type line t, cost m and colour identity ci, as the card list has them).
-export function sortKeysOf(info, typeOrder, name = '', colorOrder = DEFAULT_COLOR_ORDER) {
+export function sortKeysOf(info, typeOrder, name = '', colorOrder = DEFAULT_COLOR_ORDER, landOrder = DEFAULT_LAND_ORDER) {
   const order = [...normalizeTypeOrder(typeOrder), ...AFTER_TYPES];
   const colors = normalizeColorOrder(colorOrder);
+  const lands = normalizeLandOrder(landOrder);
   const type = categoryOf(info?.t);
   const land = isLandLine(info?.t);
   const [colorRank, letters] = land ? colorOrderOf(landColors(info).split('').map((letter) => '{' + letter + '}').join('')) : colorOrderOf(info?.m);
-  return { color: colors.indexOf(RANK_KEYS[colorRank]), colors: letters, land: land ? 1 : 0, type: Math.max(0, order.indexOf(type)), cost: land ? 0 : manaValue(info?.m), name: String(name ?? '') };
+  return { color: colors.indexOf(RANK_KEYS[colorRank]), colors: letters, land: land ? 1 : 0, landKind: land ? lands.indexOf(isBasicLandLine(info?.t) ? 'basic' : 'nonbasic') : 0, type: Math.max(0, order.indexOf(type)), cost: land ? 0 : manaValue(info?.m), name: String(name ?? '') };
 }
 
 // The hand in the order to show: a new array, the cards themselves unchanged. info(card) gives { t, m } for a card (or nothing for one the card list does not know, which sorts as colourless,
 // typeless and free). With no sort on, the hand is returned in the player's own order.
-export function sortHand(cards, state, { typeOrder = DEFAULT_TYPE_ORDER, colorOrder = DEFAULT_COLOR_ORDER, info = () => null } = {}) {
+export function sortHand(cards, state, { typeOrder = DEFAULT_TYPE_ORDER, colorOrder = DEFAULT_COLOR_ORDER, landOrder = DEFAULT_LAND_ORDER, info = () => null } = {}) {
   const list = Array.isArray(cards) ? [...cards] : [];
   const sorts = cleanSorts(state);
   if (!anySortOn(sorts)) return list;
-  const keyed = list.map((card, index) => ({ card, index, keys: sortKeysOf(info(card), typeOrder, card?.n, colorOrder) }));
+  const keyed = list.map((card, index) => ({ card, index, keys: sortKeysOf(info(card), typeOrder, card?.n, colorOrder, landOrder) }));
   const sign = (key) => (sorts[key] === 2 ? -1 : 1);
   keyed.sort((a, b) => {
-    if (sorts.type) { const d = a.keys.type - b.keys.type; if (d) return d * sign('type'); }
+    if (sorts.type) {
+      let d = a.keys.type - b.keys.type;
+      if (!d && a.keys.land && b.keys.land) d = a.keys.landKind - b.keys.landKind; // (inside the lands: basic and non-basic in the player's order)
+      if (d) return d * sign('type');
+    }
     if (sorts.color) {
       let d = (a.keys.color - b.keys.color) || (a.keys.colors < b.keys.colors ? -1 : a.keys.colors > b.keys.colors ? 1 : 0);
-      if (!d && !sorts.type) d = a.keys.land - b.keys.land; // (with the type sort off, the lands of a colour come after its spells)
+      if (!d && !sorts.type) { d = a.keys.land - b.keys.land; if (!d && a.keys.land) d = a.keys.landKind - b.keys.landKind; } // (with the type sort off, the lands of a colour come after its spells, basic and non-basic in the player's order)
       if (d) return d * sign('color');
     }
     if (sorts.cost) { const d = a.keys.cost - b.keys.cost; if (d) return d * sign('cost'); }
@@ -126,4 +147,15 @@ export function sortHand(cards, state, { typeOrder = DEFAULT_TYPE_ORDER, colorOr
     return a.index - b.index;
   });
   return keyed.map((entry) => entry.card);
+}
+
+// A card moved by hand in a sorted hand keeps the place it was put until the sorts are changed (Kevin, 2026-11-13). pins: a Map from a card's uid to the place (0 is the left-most) it was put at. The sorted cards
+// without the pinned ones keep their order; the pinned cards are put back at their places, the left-most place first. A place past the end is the end. The list given is not changed.
+export function applyPins(cards, pins) {
+  const list = Array.isArray(cards) ? [...cards] : [];
+  if (!(pins instanceof Map) || pins.size === 0) return list;
+  const free = list.filter((card) => !pins.has(card.uid));
+  const pinned = list.filter((card) => pins.has(card.uid)).sort((a, b) => (pins.get(a.uid) - pins.get(b.uid)) || (list.indexOf(a) - list.indexOf(b)));
+  for (const card of pinned) free.splice(Math.min(Math.max(0, Number(pins.get(card.uid)) || 0), free.length), 0, card);
+  return free;
 }

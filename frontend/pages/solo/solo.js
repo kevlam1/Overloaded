@@ -8,7 +8,7 @@ import { mountPileStyle } from '../../src/pile-style.js';
 import { mountPileViewer } from '../../src/pile-viewer.js';
 import { mountSettingsMenu } from '../../src/settings-menu.js';
 import { createHandSort } from '../../src/hand-sort-ui.js';
-import { sortHand, anySortOn } from '../../../shared/hand-sort.mjs';
+import { sortHand, anySortOn, applyPins } from '../../../shared/hand-sort.mjs';
 import { mountPileStack } from '../../src/pile-stack.js';
 import { mountCommandZone } from '../../src/command-zone.js';
 import { taxAction } from '../../../shared/commander-zone.mjs';
@@ -42,6 +42,7 @@ let deck = null;
 let lookup = null;
 let game = null;
 let selected = null; // the uid of the selected card
+const multi = new Set(); // the uids of the cards picked up by dragging a rectangle over the battlefield (E, Q and F then act on all of them)
 const spotlight = createSpotlight($('spotlight'), { persistent: true, emptyText: 'Select a card to see it here.' });
 
 // ---- the card corner (frontend/src/spotlight.js): the selected card stays there, after you click away, until you select another ----
@@ -87,7 +88,7 @@ $('life-area').addEventListener('contextmenu', (event) => {
   openCardMenu({ title: 'Your counters', items: playerMenuItems(game), x: fromKeyboard ? box.left + box.width / 2 : event.clientX, y: fromKeyboard ? box.top + box.height / 2 : event.clientY, returnFocus: event.currentTarget, onPick: (id) => { const action = playerAction(id, game); if (action) apply(() => action.run(game), action.message); } });
 });
 
-const cardNodes = makeCardNodes({ onSelect: (uid) => select(uid), isSelected: (uid) => uid === selected, onMark: (uid, hit) => markOnCard(uid, hit), onMenu: (uid, where) => openMenuFor(uid, where), onBadge: (uid, kind) => clearBadge(uid, kind), printedStats: (card) => printedOf(card, lookup) });
+const cardNodes = makeCardNodes({ onSelect: (uid) => select(uid), isSelected: (uid) => uid === selected || multi.has(uid), onMark: (uid, hit) => markOnCard(uid, hit), onMenu: (uid, where) => openMenuFor(uid, where), onBadge: (uid, kind) => clearBadge(uid, kind), printedStats: (card) => printedOf(card, lookup) });
 const place = cardNodes.place;
 // The piles as stacks of cards (src/pile-stack.js) and the command zone with its two outlined slots and the commander tax (src/command-zone.js).
 const stacks = Object.fromEntries([['library', 'Library'], ['graveyard', 'Graveyard'], ['exile', 'Exile']].map(([zone, label]) => [zone, mountPileStack($(`pile-${zone}`), { zone, label })]));
@@ -123,8 +124,14 @@ function findCard(uid) {
 }
 
 // The hand as it is shown: the cards dealt so far, in the order of the sorts that are on (a view: the hand's own order is not changed, shared/hand-sort.mjs).
+// A card moved by hand in a sorted hand is pinned where it was put (pins: uid to place) until the sorts are changed: it no longer follows them, the others do.
+const pins = new Map();
 function shownHand() {
-  return sortHand(dealer.visible(game.zones.hand), handSort.sorts(), { typeOrder: handSort.typeOrder(), colorOrder: handSort.colorOrder(), info: (card) => lookup?.(card) ?? null });
+  const cards = dealer.visible(game.zones.hand);
+  const sorts = handSort.sorts();
+  if (!anySortOn(sorts)) return cards;
+  for (const uid of [...pins.keys()]) if (!cards.some((card) => card.uid === uid)) pins.delete(uid); // (a card that has left the hand is not pinned any more)
+  return applyPins(sortHand(cards, sorts, { typeOrder: handSort.typeOrder(), colorOrder: handSort.colorOrder(), landOrder: handSort.landOrder(), info: (card) => lookup?.(card) ?? null }), pins);
 }
 
 // ---- drawing the whole table ----
@@ -219,6 +226,7 @@ function apply(run, message = '') {
 
 function select(uid) {
   if (uid !== selected) modifyOpen = false;
+  if (!multi.has(uid)) multi.clear(); // (a click on a card that is not in the group leaves the group)
   selected = uid;
   render();
 }
@@ -442,9 +450,18 @@ $('battlefield').addEventListener('click', (event) => {
   if (!found || found.zone !== 'battlefield') return;
   toggleTapped(found);
 });
-// Press E while the pointer is over a card of yours on the battlefield and it taps or untaps (Kevin, 2026-11-12). The same change as a double click.
+// The cards a key acts on: the group picked with a rectangle when the pointer is on one of them (or on no card), else just the card under the pointer.
+function keyTargets(found) {
+  if (multi.size > 0 && (!found || multi.has(found.card.uid))) return [...multi].map((uid) => findCard(uid)).filter((entry) => entry && entry.zone === 'battlefield');
+  return found ? [found] : [];
+}
+// Press E or Q while the pointer is over a card of yours on the battlefield and it taps or untaps (Kevin, 2026-11-12 and 13). The same change as a double click. With a group picked it is the whole group,
+// all set the way the first one is not.
 function toggleTapped(found) {
-  apply(() => { const next = setTapped(game, found.card.uid, !found.card.tapped); play('tap'); return next; }, `${found.card.tapped ? 'Untapped' : 'Tapped'} ${found.card.n}.`);
+  const targets = keyTargets(found);
+  if (targets.length === 0) return;
+  const want = !targets[0].card.tapped;
+  apply(() => { const next = targets.reduce((game_, entry) => setTapped(game_, entry.card.uid, want), game); play('tap'); return next; }, targets.length > 1 ? `${want ? 'Tapped' : 'Untapped'} ${targets.length} cards.` : `${want ? 'Tapped' : 'Untapped'} ${targets[0].card.n}.`);
 }
 // (where the pointer is, not which card it was over: a tap changes the card under a pointer that has not moved, since the pile it is over has a new top card, so the card is looked up when E is pressed)
 let pointerAt = null;
@@ -453,20 +470,76 @@ document.documentElement.addEventListener('pointerleave', () => { pointerAt = nu
 const cardUnderPointer = () => (pointerAt ? document.elementFromPoint(pointerAt.x, pointerAt.y)?.closest('#battlefield > .card') ?? null : null);
 // F flips the card face down (to the sleeve) or face up again, the same way (Kevin, 2026-11-12)
 function flipFaceDown(found) {
-  apply(() => setFaceDown(game, found.card.uid, !found.card.faceDown), found.card.faceDown ? `Flipped ${found.card.n} face up.` : `Flipped ${found.card.n} face down.`);
+  const targets = keyTargets(found);
+  if (targets.length === 0) return;
+  const down = !targets[0].card.faceDown;
+  apply(() => targets.reduce((game_, entry) => setFaceDown(game_, entry.card.uid, down), game), targets.length > 1 ? `Flipped ${targets.length} cards face ${down ? 'down' : 'up'}.` : `Flipped ${targets[0].card.n} face ${down ? 'down' : 'up'}.`);
 }
 document.addEventListener('keydown', (event) => {
   const key = event.key.toLowerCase();
-  if ((key !== 'e' && key !== 'f') || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || event.repeat) return;
+  if ((key !== 'e' && key !== 'q' && key !== 'f' && key !== 'd') || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || event.repeat) return;
   if (event.target instanceof Element && event.target.closest('input, select, textarea, [contenteditable]')) return; // typing a number or a search is not a tap
+  if (key === 'd') { if (game) { event.preventDefault(); drawOne(); } return; } // D draws a card (Kevin, 2026-11-13)
   const hovered = cardUnderPointer();
-  if (!game || !hovered) return;
-  const found = findCard(hovered.dataset.uid);
-  if (!found || found.zone !== 'battlefield') return;
+  const found = hovered ? findCard(hovered.dataset.uid) : null;
+  if (!game || (!found && multi.size === 0)) return;
+  if (found && found.zone !== 'battlefield') return;
   event.preventDefault();
-  if (key === 'f') flipFaceDown(found); else toggleTapped(found);
+  if (key === 'f') flipFaceDown(found); else toggleTapped(found); // (E and Q do the same)
+});
+// Tab opens Settings (Kevin, 2026-11-13: the cards are not reached with Tab any more). Inside Settings, and in a box you type in, Tab moves between the controls as usual.
+document.addEventListener('keydown', (event) => {
+  if (event.key !== 'Tab' || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || !game) return;
+  if (event.target instanceof Element && event.target.closest('input, select, textarea, [contenteditable], #settings-menu')) return;
+  if (!$('settings-menu').hidden) return;
+  event.preventDefault();
+  $('settings-button').click();
+});
+
+// Dragging a rectangle over the empty part of the battlefield picks up every card it touches (Kevin, 2026-11-13). E, Q and F then act on all of them; a click on empty space, Escape or a click on another card lets the group go.
+// (Moving the group together is not built.)
+let marquee = null;
+let marqueeEnded = false;
+$('battlefield').addEventListener('pointerdown', (event) => {
+  if (!game || event.button !== 0 || event.pointerType === 'touch' || event.target.closest('.card, .stack-hold-ring')) return;
+  marquee = { x: event.clientX, y: event.clientY, box: null, hits: new Set(), more: event.shiftKey ? new Set(multi) : new Set() };
+});
+document.addEventListener('pointermove', (event) => {
+  if (!marquee) return;
+  if (!marquee.box) {
+    if (Math.hypot(event.clientX - marquee.x, event.clientY - marquee.y) < 6) return;
+    marquee.box = document.createElement('div');
+    marquee.box.className = 'marquee';
+    document.body.append(marquee.box);
+  }
+  const left = Math.min(marquee.x, event.clientX); const top = Math.min(marquee.y, event.clientY);
+  const right = Math.max(marquee.x, event.clientX); const bottom = Math.max(marquee.y, event.clientY);
+  Object.assign(marquee.box.style, { left: `${left}px`, top: `${top}px`, width: `${right - left}px`, height: `${bottom - top}px` });
+  marquee.hits = new Set(marquee.more);
+  for (const card of $('battlefield').querySelectorAll(':scope > .card')) {
+    const r = card.getBoundingClientRect();
+    const touches = r.width > 0 && r.left < right && r.right > left && r.top < bottom && r.bottom > top;
+    if (touches) marquee.hits.add(card.dataset.uid);
+    card.classList.toggle('selected', marquee.hits.has(card.dataset.uid)); // (shown at once; the page draws them again when the rectangle is let go)
+  }
+});
+document.addEventListener('pointerup', () => {
+  if (!marquee) return;
+  const done = marquee;
+  marquee = null;
+  if (!done.box) return;
+  done.box.remove();
+  marqueeEnded = true;
+  setTimeout(() => { marqueeEnded = false; }, 0);
+  multi.clear();
+  for (const uid of done.hits) multi.add(uid);
+  selected = null;
+  say(multi.size > 1 ? `${multi.size} cards picked. E or Q taps them, F flips them.` : '');
+  render();
 });
 document.addEventListener('click', (event) => {
+  if (marqueeEnded) return;
+  if (multi.size > 0 && game && event.target.isConnected && !event.target.closest('.card, button, a, input, select, textarea, summary, label, details, .side-panels, .card-menu, .spotlight, .marks-popover')) { multi.clear(); render(); }
   if (!selected || !game || !event.target.isConnected) return;
   if (event.target.closest('.card, button, a, input, select, textarea, summary, label, details, .side-panels, .card-menu, .spotlight, .marks-popover')) return;
   selected = null;
@@ -559,15 +632,15 @@ function dropOnPile({ uid, from, to, slot = null, element = null, flying = null 
 const handView = mountHand({ container: $('hand'), costOf: (uid) => { const card = game?.zones.hand.find((c) => c.uid === uid); const known = card ? lookup?.(card) : null; return known?.m ?? ''; } });
 function reorderInHand({ uid, x, picture }) {
   if (!game || !game.zones.hand.some((c) => c.uid === uid)) return;
-  if (anySortOn(handSort.sorts())) { handView.arrange(); say('The hand is sorted: turn the sorts off to arrange it by hand.'); return; } // (what place the card was dropped at has no meaning in a sorted hand)
   const to = handView.holeFor(uid, x); // the place it was last shown over
+  if (anySortOn(handSort.sorts())) { pins.set(uid, to); render(); say('That card stays where you put it until you change the sorts.'); return; } // (in a sorted hand a card moved by hand is pinned there)
   handView.noteDrop(uid, picture); // the card starts from where its picture was let go and eases into its place
   const next = reorderHand(game, uid, to);
   if (next === game) { handView.arrange(); return; }
   apply(() => next, '');
 }
 // The sort buttons are in the bar under the hand, the order of the card types is in Settings (src/hand-sort-ui.js).
-const handSort = createHandSort({ onChange: () => { if (game) render(); } });
+const handSort = createHandSort({ onChange: () => { pins.clear(); if (game) render(); } }); // (changing the sorts lets the cards moved by hand go back to being sorted)
 handSort.mountButtons(handView.bar);
 handSort.mountOrders($('hand-order-settings'));
 mountBoardDrag({ board: () => $('battlefield'), onDrop: dropOnBoard, hand: () => $('hand-section'), onDropHand: dropOnHand, onHandOver: (over) => handView.carry(over), onReorderHand: reorderInHand, handZone: () => handView.zone(), handHit: (x, y) => handView.over(x, y), zoneSource, pileAt, onDropPile: dropOnPile, isEnabled: () => Boolean(game) });
@@ -578,6 +651,6 @@ $('new-game').addEventListener('click', () => { if (confirm('Start a new game? T
 mountLifeControl({ button: $('life'), say, onDelta: (delta) => apply(() => adjustLife(game, delta), ''), onSet: (value) => apply(() => adjustLife(game, value - game.life), `Life is ${value}.`) });
 for (const zone of ['library', 'graveyard', 'exile', 'sideboard']) $(`pile-${zone}`).addEventListener('click', () => togglePile(zone));
 $('retry').addEventListener('click', start);
-document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && selected) { selected = null; if (game) render(); } });
+document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && (selected || multi.size > 0)) { selected = null; multi.clear(); if (game) render(); } });
 
 start();

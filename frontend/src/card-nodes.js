@@ -150,6 +150,7 @@ export function makeCardNodes({ onSelect = () => {}, isSelected = () => false, r
     if (!button) {
       button = make('button', 'card');
       button.type = 'button';
+      button.tabIndex = -1; // a card is not reached with Tab (Kevin, 2026-11-13: Tab opens Settings); it is clicked, dragged and right-clicked
       button.dataset.uid = card.uid;
       const face = make('span', 'face');
       const side = sideShown(card);

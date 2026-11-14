@@ -23,7 +23,7 @@ export function mountCommandZone({ root, place, onTax, showTax = true }) {
     words.type = 'button';
     tax.append(words);
     tax.hidden = !showTax;
-    element.append(cards, tax);
+    element.append(tax, cards); // the tax counter is above its commander (Kevin, 2026-11-13)
     let uid = null;
     words.addEventListener('click', () => { if (uid) onTax(uid, 1); });
     words.addEventListener('contextmenu', (event) => { event.preventDefault(); if (uid) onTax(uid, -1); });

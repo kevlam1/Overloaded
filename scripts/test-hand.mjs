@@ -1,5 +1,5 @@
 // Tests for the hand: shared/hand-sort.mjs (the three sorts, the type order), shared/hand-layout.mjs (the fan, the places while a card is carried, and which place the carried card is over) and reorderHand in shared/zones.mjs.
-import { SORT_KEYS, TYPE_KEYS, DEFAULT_TYPE_ORDER, noSorts, anySortOn, cleanSorts, nextSortState, sortWords, normalizeTypeOrder, moveType, sortKeysOf, sortHand, landColors, isLandLine, COLOR_KEYS, DEFAULT_COLOR_ORDER, normalizeColorOrder, moveColor } from '../shared/hand-sort.mjs';
+import { SORT_KEYS, TYPE_KEYS, DEFAULT_TYPE_ORDER, noSorts, anySortOn, cleanSorts, nextSortState, sortWords, normalizeTypeOrder, moveType, sortKeysOf, sortHand, landColors, isLandLine, COLOR_KEYS, DEFAULT_COLOR_ORDER, normalizeColorOrder, moveColor, LAND_KEYS, DEFAULT_LAND_ORDER, normalizeLandOrder, moveLand, isBasicLandLine, applyPins } from '../shared/hand-sort.mjs';
 import { handLayout, handLayoutSelected, layoutAround, holeAt, cardStep, MAX_ANGLE, SPREAD, MAX_WIDE_CARDS } from '../shared/hand-layout.mjs';
 import { reorderHand } from '../shared/zones.mjs';
 
@@ -96,8 +96,8 @@ const lands = [
   land('Blood Crypt', 'Land ' + DASH + ' Swamp Mountain', 'BR'), land('Plains', 'Basic Land ' + DASH + ' Plains', 'W'), land('Arcane Sanctum', 'Land', 'WUB'), land('Swamp', 'Basic Land ' + DASH + ' Swamp', 'B'),
   land('Mountain', 'Basic Land ' + DASH + ' Mountain', 'R'), land('Dryad Arbor', 'Land Creature ' + DASH + ' Forest Dryad', 'G'),
 ];
-same('with the colour sort on, every land is sorted: white, blue, black, red, green, then the lands of several colours, then colourless ones (the one the list has no colours for, too); ties keep the hand\'s order', landView(lands, { color: 1, type: 0, cost: 0, name: 0 }), 'Plains Island Swamp Mountain Forest Dryad Arbor Blood Crypt Arcane Sanctum Command Tower Wastes');
-same('and the other way round', landView(lands, { color: 2, type: 0, cost: 0, name: 0 }), 'Command Tower Wastes Arcane Sanctum Blood Crypt Forest Dryad Arbor Mountain Swamp Island Plains');
+same('with the colour sort on, every land is sorted: white, blue, black, red, green, then the lands of several colours, then colourless ones (the one the list has no colours for, too); ties keep the hand\'s order', landView(lands, { color: 1, type: 0, cost: 0, name: 0 }), 'Plains Island Swamp Mountain Dryad Arbor Forest Blood Crypt Arcane Sanctum Command Tower Wastes');
+same('and the other way round', landView(lands, { color: 2, type: 0, cost: 0, name: 0 }), 'Wastes Command Tower Arcane Sanctum Blood Crypt Forest Dryad Arbor Mountain Swamp Island Plains');
 const mixed = [land('Forest', 'Basic Land ' + DASH + ' Forest', 'G'), card('Elf', 'Creature ' + DASH + ' Elf', '{G}'), land('Island', 'Basic Land ' + DASH + ' Island', 'U'), card('Growth', 'Instant', '{G}')];
 same('a land comes after the spells of its colour when only the colour is on', names(sortHand(mixed, { color: 1, type: 0, cost: 0, name: 0 }, { info: landInfo })), 'Island Elf Growth Forest');
 
@@ -108,6 +108,25 @@ same('moving a colour pill (colorless to the front), and a bad move changes noth
 same('by color in the player\'s own order: colorless first, then two colors, then green, red, black, blue, white', view({ color: 1, type: 0, cost: 0 }, undefined, ['none', 'multi', 'G', 'R', 'B', 'U', 'W']), 'Ring Charm Growth Elf Forest Bolt Dragon Ritual Jace Counter Wrath Aura');
 same('and the other way round', view({ color: 2, type: 0, cost: 0 }, undefined, ['none', 'multi', 'G', 'R', 'B', 'U', 'W']), 'Wrath Aura Jace Counter Ritual Bolt Dragon Forest Growth Elf Charm Ring');
 same('the colour order is not changed by sorting', DEFAULT_COLOR_ORDER, ['W', 'U', 'B', 'R', 'G', 'multi', 'none']);
+
+// ---- basic and non-basic lands ----
+same('a basic land is one with Basic before the dash (snow basics too), and no other land is', [isBasicLandLine('Basic Land ' + DASH + ' Forest'), isBasicLandLine('Basic Snow Land ' + DASH + ' Island'), isBasicLandLine('Basic Land'), isBasicLandLine('Land'), isBasicLandLine('Land ' + DASH + ' Swamp Mountain'), isBasicLandLine('Legendary Land'), isBasicLandLine(undefined)], [true, true, true, false, false, false, false]);
+same('the land order: non-basic first, then basic, made whole and moved like the others', [LAND_KEYS, DEFAULT_LAND_ORDER, normalizeLandOrder(['basic']), normalizeLandOrder('x'), moveLand(DEFAULT_LAND_ORDER, 1, 0), moveLand(DEFAULT_LAND_ORDER, 5, 0)], [['nonbasic', 'basic'], ['nonbasic', 'basic'], ['basic', 'nonbasic'], ['nonbasic', 'basic'], ['basic', 'nonbasic'], ['nonbasic', 'basic']]);
+const kinds = [land('Forest', 'Basic Land ' + DASH + ' Forest', 'G'), land('Command Tower', 'Land'), land('Island', 'Basic Land ' + DASH + ' Island', 'U'), land('Blood Crypt', 'Land ' + DASH + ' Swamp Mountain', 'BR'), card('Elf', 'Creature ' + DASH + ' Elf', '{G}')];
+const kindView = (sorts, landOrder) => names(sortHand(kinds, sorts, { landOrder, info: landInfo }));
+same('with the type sort on, the lands are ordered non-basic then basic (each in the hand\'s order), after the creature', kindView({ color: 0, type: 1, cost: 0, name: 0 }), 'Elf Command Tower Blood Crypt Forest Island');
+same('...and basic first when the player puts them that way', kindView({ color: 0, type: 1, cost: 0, name: 0 }, ['basic', 'nonbasic']), 'Elf Forest Island Command Tower Blood Crypt');
+same('with type and color on, the basic and non-basic lands are split first and each group goes by color', kindView({ color: 1, type: 1, cost: 0, name: 0 }), 'Elf Blood Crypt Command Tower Island Forest');
+same('with only the color on, the kind orders the lands of one color (a green non-basic before the Forest)', names(sortHand([land('Forest', 'Basic Land ' + DASH + ' Forest', 'G'), land('Dryad Arbor', 'Land Creature ' + DASH + ' Forest Dryad', 'G')], { color: 1, type: 0, cost: 0, name: 0 }, { info: landInfo })), 'Dryad Arbor Forest');
+
+// ---- a card moved by hand in a sorted hand stays where it was put ----
+const row5 = ['a', 'b', 'c', 'd', 'e'].map((n) => ({ uid: n, n }));
+const ids = (list) => list.map((c) => c.uid).join('');
+same('no pins: the list as it is', [ids(applyPins(row5, new Map())), ids(applyPins(row5, undefined)), ids(applyPins(null, new Map([['a', 2]])))], ['abcde', 'abcde', '']);
+same('a pinned card goes to its place and the others keep their order round it', [ids(applyPins(row5, new Map([['a', 3]]))), ids(applyPins(row5, new Map([['e', 0]]))), ids(applyPins(row5, new Map([['c', 4]])))], ['bcdae', 'eabcd', 'abdec']);
+same('two pinned cards each at their place (the left-most place first)', [ids(applyPins(row5, new Map([['a', 4], ['e', 0]]))), ids(applyPins(row5, new Map([['b', 3], ['d', 1]])))], ['ebcda', 'adcbe']);
+same('a place past the end is the end, a bad place is the start, and the list given is not changed', [ids(applyPins(row5, new Map([['a', 99]]))), ids(applyPins(row5, new Map([['c', -3]]))), ids(applyPins(row5, new Map([['c', 'x']]))), ids(row5)], ['bcdea', 'cabde', 'cabde', 'abcde']);
+same('a pin for a card that is not in the list does nothing', ids(applyPins(row5, new Map([['z', 1]]))), 'abcde');
 
 // ---- A to Z ----
 const abc = [card('Zap', 'Instant', '{R}'), card('apple', 'Instant', '{G}'), card('\u00c9owyn', 'Creature', '{W}'), card('Bolt', 'Instant', '{R}'), card('Bolt', 'Instant', '{R}')];

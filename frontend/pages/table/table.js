@@ -779,8 +779,9 @@ function flipFaceDown(found) {
 }
 document.addEventListener('keydown', (event) => {
   const key = event.key.toLowerCase();
-  if ((key !== 'e' && key !== 'f') || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || event.repeat) return;
+  if ((key !== 'e' && key !== 'q' && key !== 'f' && key !== 'd') || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || event.repeat) return;
   if (event.target instanceof Element && event.target.closest('input, select, textarea, [contenteditable]')) return; // typing a number or a search is not a tap
+  if (key === 'd') { if (game) { event.preventDefault(); drawOne(); } return; } // D draws a card
   const hovered = cardUnderPointer();
   if (!game || !hovered) return;
   const found = findCard(hovered.dataset.uid);

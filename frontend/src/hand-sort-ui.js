@@ -3,11 +3,13 @@
 // is SHOWN changes: the hand's own order is never touched. The choices are kept in this browser. This module holds the choices and draws the controls; the page calls `sorts()`, `typeOrder()` and
 // `colorOrder()` whenever it shows the hand, and `onChange` tells it to show it again.
 import { makeSafeStore } from './safe-store.js';
-import { SORT_KEYS, SORT_TITLES, TYPE_TITLES, COLOR_TITLES, cleanSorts, nextSortState, sortWords, normalizeTypeOrder, normalizeColorOrder, moveType, moveColor } from '../../shared/hand-sort.mjs';
+import { SORT_KEYS, SORT_TITLES, TYPE_TITLES, COLOR_TITLES, LAND_TITLES, cleanSorts, noSorts, nextSortState, sortWords, normalizeTypeOrder, normalizeColorOrder, normalizeLandOrder, moveType, moveColor, moveLand } from '../../shared/hand-sort.mjs';
 
 export const SORTS_KEY = 'overloaded.handSort';
 export const TYPE_ORDER_KEY = 'overloaded.handTypeOrder';
 export const COLOR_ORDER_KEY = 'overloaded.handColorOrder';
+export const LAND_ORDER_KEY = 'overloaded.handLandOrder';
+export const SORT_ON_KEY = 'overloaded.handSortOn';
 const DRAG_START_PX = 4; // a pill pressed and moved this far starts to be dragged (less is a click)
 
 const store = makeSafeStore();
@@ -97,9 +99,13 @@ export function createHandSort({ onChange = () => {} } = {}) {
   let sortState = cleanSorts(parse(store.get(SORTS_KEY)));
   let order = normalizeTypeOrder(parse(store.get(TYPE_ORDER_KEY)));
   let colors = normalizeColorOrder(parse(store.get(COLOR_ORDER_KEY)));
+  let lands = normalizeLandOrder(parse(store.get(LAND_ORDER_KEY)));
+  let enabled = store.get(SORT_ON_KEY) !== '0'; // the on/off switch next to the buttons: off shows the hand as it is, and the buttons keep their states
+  let toggle = null;
   const buttons = new Map();
 
   function draw() {
+    if (toggle) { toggle.setAttribute('aria-checked', String(enabled)); toggle.dataset.state = enabled ? 'on' : 'off'; toggle.textContent = enabled ? 'Sort: On' : 'Sort: Off'; toggle.title = enabled ? 'Sorting is on. Click to show the hand as you arranged it.' : 'Sorting is off. Click to sort the hand with the buttons.'; }
     for (const [key, button] of buttons) {
       const value = sortState[key];
       button.setAttribute('aria-pressed', value === 0 ? 'false' : 'true');
@@ -112,6 +118,11 @@ export function createHandSort({ onChange = () => {} } = {}) {
 
   // The four buttons, put into `host` (the bar under the hand).
   function mountButtons(host) {
+    toggle = make('button', 'hand-sort-toggle', '');
+    toggle.type = 'button';
+    toggle.setAttribute('role', 'switch');
+    toggle.addEventListener('click', () => { enabled = !enabled; store.set(SORT_ON_KEY, enabled ? '1' : '0'); draw(); onChange(); });
+    host.append(toggle);
     for (const key of SORT_KEYS) {
       const button = make('button', 'hand-sort', '');
       button.type = 'button';
@@ -120,6 +131,7 @@ export function createHandSort({ onChange = () => {} } = {}) {
       button.addEventListener('click', () => {
         sortState = nextSortState(sortState, key);
         store.set(SORTS_KEY, JSON.stringify(sortState));
+        if (!enabled) { enabled = true; store.set(SORT_ON_KEY, '1'); } // (a button pressed while sorting is off turns it on)
         draw();
         onChange();
       });
@@ -142,7 +154,13 @@ export function createHandSort({ onChange = () => {} } = {}) {
       order: () => colors,
       move: (from, to) => { colors = moveColor(colors, from, to); store.set(COLOR_ORDER_KEY, JSON.stringify(colors)); colorRow.draw(); onChange(); },
     });
+    const landRow = pillRow({
+      host, title: 'Hand land order (left to right)', label: 'The order of basic and non-basic lands when the hand is sorted', names: LAND_TITLES,
+      order: () => lands,
+      move: (from, to) => { lands = moveLand(lands, from, to); store.set(LAND_ORDER_KEY, JSON.stringify(lands)); landRow.draw(); onChange(); },
+    });
   }
 
-  return { sorts: () => sortState, typeOrder: () => order, colorOrder: () => colors, mountButtons, mountOrders };
+  // sorts(): the sorts that are in force now (none while the switch is off); buttons(): the states of the buttons whatever the switch says.
+  return { sorts: () => (enabled ? sortState : noSorts()), buttons: () => sortState, enabled: () => enabled, typeOrder: () => order, colorOrder: () => colors, landOrder: () => lands, mountButtons, mountOrders };
 }

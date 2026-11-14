@@ -403,6 +403,16 @@ body.playing .board .row:empty::before, body.playing .opponent .row:empty::befor
 /* under the middle of the hand while its cards are up: the count and the sort buttons (src/hand-view.js, src/hand-sort-ui.js) */
 body.playing.solo .hand-bar:not([hidden]) { position: absolute; z-index: 8; bottom: 0.55rem; translate: -50% 0; display: flex; align-items: center; gap: 0.5rem; padding: 0.15rem 0.5rem; border: 1px solid var(--line); border-radius: 1rem; background: var(--glass); backdrop-filter: blur(6px); font-size: 0.8rem; white-space: nowrap; pointer-events: auto; }
 body.playing.solo .hand-count { font-weight: 600; color: var(--text); }
+/* the mana cost of a card in the hand shows only while the pointer is on it (its lifted copy) or it is the clicked card (Kevin, 2026-11-13) */
+body.playing #hand > .card .hand-cost { visibility: hidden; }
+body.playing #hand > .card.selected .hand-cost { visibility: visible; }
+/* nothing on the table can be picked up as text, and a rectangle dragged over the battlefield picks up cards */
+body.playing { user-select: none; -webkit-user-select: none; }
+body.playing input, body.playing textarea, body.playing [contenteditable] { user-select: text; -webkit-user-select: text; }
+.marquee { position: fixed; z-index: 40; border: 1px solid var(--ring); background: color-mix(in srgb, var(--ring) 14%, transparent); pointer-events: none; }
+/* the command zone's words are below and between the two slots */
+body.playing.solo .command-zone { display: flex; flex-direction: column; align-items: center; }
+body.playing.solo .command-zone h3 { order: 2; margin: 0.35rem 0 0; text-align: center; }
 /* the bar comes in as the hand rises (the cards ease up in about a tenth of a second and settle in a few more), not before it: a short wait, then a fade and a small rise (Kevin, 2026-11-13) */
 @keyframes hand-bar-in { from { opacity: 0; transform: translateY(0.7rem); } to { opacity: 1; transform: none; } }
 body.playing.solo .hand-bar:not([hidden]) { animation: hand-bar-in 0.28s ease-out 0.12s backwards; }
@@ -680,7 +690,10 @@ body[data-pile-style="vertical"] .battlefield > .card[data-stack-depth="1"] { tr
 body[data-pile-style="vertical"] .battlefield > .card[data-stack-depth="2"] { translate: 0 calc(var(--step-v) * -2); }
 
 .card .stack-count { position: absolute; top: 0.15rem; right: 0.15rem; padding: 0 0.3rem; border: 1px solid rgba(255, 255, 255, 0.4); border-radius: 0.6rem; background: rgba(20, 20, 26, 0.92); color: #fff; font-size: 0.75rem; font-weight: 700; line-height: 1.1rem; pointer-events: none; }
-body.playing .card .stack-count { font-size: 0.6rem; line-height: 0.9rem; }
+body.playing .card .stack-count { font-size: 1.2rem; line-height: 1.7rem; padding: 0 0.55rem; border-radius: 1rem; }
+/* (Kevin, 2026-11-13) the number of a pile is twice as large: at the bottom of the top card of an untapped pile, at the bottom right of a tapped one */
+body.playing .battlefield > .card .stack-count { top: auto; right: auto; bottom: 0.3rem; left: 50%; translate: -50% 0; }
+body.playing .battlefield > .card.tapped .stack-count { left: auto; right: 0.3rem; translate: none; }
 
 /* dragging a card on the battlefield grid (src/board-drag.js): the card follows the pointer, the 8 by 8 cells it would start on are outlined */
 .battlefield { position: relative; }
@@ -1249,6 +1262,9 @@ body.playing.solo .pile-caret { display: grid; place-items: center; width: 1.3re
 body.playing.solo .pile-caret:hover, body.playing.solo .pile-caret:focus-visible { background: color-mix(in srgb, var(--ring) 16%, transparent); color: var(--text); }
 body.playing.solo .side-panels .pile-stack { padding: 0; }
 body.playing.solo .pile-stack::after { content: none; }
+.hand-sort-toggle { min-height: 0; padding: 0 0.6rem; border: 1px solid var(--line); border-radius: 1rem; background: transparent; color: var(--text); font-size: 0.75rem; font-weight: 700; line-height: 1.45rem; cursor: pointer; }
+.hand-sort-toggle[data-state="on"] { border-color: var(--ok, #3aa56b); color: var(--ok, #3aa56b); }
+.hand-sort-toggle[data-state="off"] { color: var(--muted); }
 .hand-sort { min-height: 0; padding: 0 0.6rem; border: 1px solid var(--line); border-radius: 1rem; background: transparent; color: var(--text); font-size: 0.75rem; font-weight: 600; line-height: 1.45rem; cursor: pointer; }
 .hand-sort:hover { background: color-mix(in srgb, var(--accent) 14%, transparent); }
 .hand-sort[aria-pressed="true"] { border-color: var(--accent); background: var(--accent); color: var(--accent-text); }
