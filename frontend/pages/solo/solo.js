@@ -124,7 +124,7 @@ function findCard(uid) {
 
 // The hand as it is shown: the cards dealt so far, in the order of the sorts that are on (a view: the hand's own order is not changed, shared/hand-sort.mjs).
 function shownHand() {
-  return sortHand(dealer.visible(game.zones.hand), handSort.sorts(), { typeOrder: handSort.typeOrder(), info: (card) => lookup?.(card) ?? null });
+  return sortHand(dealer.visible(game.zones.hand), handSort.sorts(), { typeOrder: handSort.typeOrder(), colorOrder: handSort.colorOrder(), info: (card) => lookup?.(card) ?? null });
 }
 
 // ---- drawing the whole table ----
@@ -541,9 +541,8 @@ function pileAt(x, y) {
   const element = document.elementFromPoint(x, y);
   const stack = element?.closest?.('.pile-stack');
   if (stack?.dataset.zone) return { zone: stack.dataset.zone, element: stack };
-  const slot = element?.closest?.('.cmd-slot'); // a commander can be put in either slot of the command zone
-  if (slot) return { zone: 'command', slot: Number(slot.dataset.slot), element: slot };
-  return element?.closest?.('#command, .command-zone') ? { zone: 'command', element: $('command') } : null;
+  const slot = element?.closest?.('.cmd-slot'); // a commander can be put in either slot of the command zone; each slot is its own place to drop on (there is no larger box round both: Kevin, 2026-11-13)
+  return slot ? { zone: 'command', slot: Number(slot.dataset.slot), element: slot } : null;
 }
 function dropOnPile({ uid, from, to, slot = null, element = null, flying = null }) {
   const found = game ? findCard(uid) : null;
@@ -570,7 +569,7 @@ function reorderInHand({ uid, x, picture }) {
 // The sort buttons are in the bar under the hand, the order of the card types is in Settings (src/hand-sort-ui.js).
 const handSort = createHandSort({ onChange: () => { if (game) render(); } });
 handSort.mountButtons(handView.bar);
-handSort.mountTypeOrder($('type-order-settings'));
+handSort.mountOrders($('hand-order-settings'));
 mountBoardDrag({ board: () => $('battlefield'), onDrop: dropOnBoard, hand: () => $('hand-section'), onDropHand: dropOnHand, onHandOver: (over) => handView.carry(over), onReorderHand: reorderInHand, handZone: () => handView.zone(), handHit: (x, y) => handView.over(x, y), zoneSource, pileAt, onDropPile: dropOnPile, isEnabled: () => Boolean(game) });
 
 $('mulligan').addEventListener('click', doMulligan);

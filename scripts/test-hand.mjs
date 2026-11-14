@@ -1,5 +1,5 @@
 // Tests for the hand: shared/hand-sort.mjs (the three sorts, the type order), shared/hand-layout.mjs (the fan, the places while a card is carried, and which place the carried card is over) and reorderHand in shared/zones.mjs.
-import { SORT_KEYS, TYPE_KEYS, DEFAULT_TYPE_ORDER, noSorts, anySortOn, cleanSorts, nextSortState, sortWords, normalizeTypeOrder, moveType, sortKeysOf, sortHand, landColors, isLandLine } from '../shared/hand-sort.mjs';
+import { SORT_KEYS, TYPE_KEYS, DEFAULT_TYPE_ORDER, noSorts, anySortOn, cleanSorts, nextSortState, sortWords, normalizeTypeOrder, moveType, sortKeysOf, sortHand, landColors, isLandLine, COLOR_KEYS, DEFAULT_COLOR_ORDER, normalizeColorOrder, moveColor } from '../shared/hand-sort.mjs';
 import { handLayout, handLayoutSelected, layoutAround, holeAt, cardStep, MAX_ANGLE, SPREAD, MAX_WIDE_CARDS } from '../shared/hand-layout.mjs';
 import { reorderHand } from '../shared/zones.mjs';
 
@@ -21,7 +21,7 @@ same('an unknown key changes nothing', nextSortState({ color: 1, type: 0, cost: 
 same('a damaged saved state is cleaned: only 1 and 2 count', cleanSorts({ color: 3, type: '1', cost: 2, name: 1, extra: 1 }), { color: 0, type: 0, cost: 2, name: 1 });
 same('nothing, a string and null are all off', [cleanSorts(undefined), cleanSorts('x'), cleanSorts(null)], [noSorts(), noSorts(), noSorts()]);
 same('any sort on', [anySortOn(noSorts()), anySortOn({ color: 0, type: 0, cost: 2 }), anySortOn(null)], [false, true, false]);
-check('the words say what a click does in each state', /Click again to reverse/.test(sortWords('cost', 0)) && /low to high/.test(sortWords('cost', 1)) && /Click for high to low/.test(sortWords('cost', 1)) && /Click to turn it off/.test(sortWords('cost', 2)) && /white to green/.test(sortWords('color', 1)));
+check('the words say what a click does in each state', /Click again to reverse/.test(sortWords('cost', 0)) && /low to high/.test(sortWords('cost', 1)) && /Click for high to low/.test(sortWords('cost', 1)) && /Click to turn it off/.test(sortWords('cost', 2)) && /your color order/.test(sortWords('color', 1)));
 
 // ---- the type order ----
 same('the default order is the one Kevin listed', DEFAULT_TYPE_ORDER, ['creature', 'instant', 'sorcery', 'enchantment', 'artifact', 'planeswalker', 'land']);
@@ -54,27 +54,27 @@ const hand = [
   card('Ritual', 'Instant', '{B}'),
 ];
 const names = (cards) => cards.map((c) => c.n).join(' ');
-const view = (sorts, typeOrder) => names(sortHand(hand, sorts, { typeOrder, info }));
+const view = (sorts, typeOrder, colorOrder) => names(sortHand(hand, sorts, { typeOrder, colorOrder, info }));
 same('no sort leaves the hand in the player\'s own order', view(noSorts()), names(hand));
 same('by cost: low to high, a tie keeps the hand\'s own order, lands are 0', view({ color: 0, type: 0, cost: 1 }), 'Forest Bolt Growth Elf Ring Ritual Charm Aura Counter Wrath Jace Dragon');
 same('by cost the other way round: high to low, ties still in the hand\'s own order', view({ color: 0, type: 0, cost: 2 }), 'Dragon Wrath Jace Charm Aura Counter Bolt Growth Elf Ring Ritual Forest');
-same('by type: the FIRST type of the order (creatures) is the right-most, then instants, sorceries, enchantments, artifacts, planeswalkers, and lands are the left-most; ties keep the hand\'s order', view({ color: 0, type: 1, cost: 0 }), 'Forest Jace Ring Aura Wrath Bolt Growth Charm Counter Ritual Elf Dragon');
-same('by type the other way round: creatures are the left-most', view({ color: 0, type: 2, cost: 0 }), 'Elf Dragon Bolt Growth Charm Counter Ritual Wrath Aura Ring Jace Forest');
-same('by type with the player\'s own order (lands first, then planeswalkers): lands are the right-most, then planeswalkers', view({ color: 0, type: 1, cost: 0 }, ['land', 'planeswalker']), 'Ring Aura Wrath Bolt Growth Charm Counter Ritual Elf Dragon Jace Forest');
+same('by type, in the default order (creatures, instants, sorceries, enchantments, artifacts, planeswalkers, lands: the first is the left-most), ties in the hand\'s order', view({ color: 0, type: 1, cost: 0 }), 'Elf Dragon Bolt Growth Charm Counter Ritual Wrath Aura Ring Jace Forest');
+same('by type reversed', view({ color: 0, type: 2, cost: 0 }), 'Forest Jace Ring Aura Wrath Bolt Growth Charm Counter Ritual Elf Dragon');
+same('by type with the player\'s own order (lands first, then planeswalkers)', view({ color: 0, type: 1, cost: 0 }, ['land', 'planeswalker']), 'Forest Jace Elf Dragon Bolt Growth Charm Counter Ritual Wrath Aura Ring');
 same('by color: white, blue, black, red, green, two colors, colorless; the Forest is a green land, so it is with the green cards, after them; ties keep the hand\'s order', view({ color: 1, type: 0, cost: 0 }), 'Wrath Aura Jace Counter Ritual Bolt Dragon Growth Elf Forest Charm Ring');
-same('color decides first, then type, then cost: all three on', view({ color: 1, type: 1, cost: 1 }), 'Aura Wrath Jace Counter Ritual Bolt Dragon Forest Growth Elf Charm Ring');
+same('type decides first, then color, then cost: all three on (creatures: red before green; instants: blue, black, red, green, then two colors)', view({ color: 1, type: 1, cost: 1 }), 'Dragon Elf Counter Ritual Bolt Growth Charm Wrath Aura Ring Jace Forest');
 const first = sortHand(hand, { color: 1, type: 1, cost: 1 }, { info });
 const rank = (c) => sortKeysOf(info(c), DEFAULT_TYPE_ORDER);
 let ordered = true;
 for (let i = 1; i < first.length; i++) {
   const a = rank(first[i - 1]); const b = rank(first[i]);
-  const ka = [a.color, a.colors, -a.type, a.cost]; const kb = [b.color, b.colors, -b.type, b.cost]; // (the type runs from the last of the order to the first)
+  const ka = [a.type, a.color, a.colors, a.cost]; const kb = [b.type, b.color, b.colors, b.cost];
   for (let k = 0; k < ka.length; k++) { if (ka[k] < kb[k]) break; if (ka[k] > kb[k]) { ordered = false; break; } }
 }
-check('with all three on, every card is no later than the next by (color, then type, then cost)', ordered, names(first));
+check('with all three on, every card is no later than the next by (type, then color, then cost)', ordered, names(first));
 const reversedColor = sortHand(hand, { color: 2, type: 1, cost: 1 }, { info });
-check('color the other way round puts colorless first, green next, and the type and cost sorts still work inside each color', rank(reversedColor[0]).color === 6 && rank(reversedColor.at(-1)).color === 0 && names(reversedColor).split(' ').indexOf('Forest') < names(reversedColor).split(' ').indexOf('Growth'), names(reversedColor));
-same('a card the card list does not know sorts as colorless, typeless and free (the first type is the right-most: it is the left-most, as the types after the list)', names(sortHand([{ uid: 'x', n: 'Mystery' }, card('Elf', 'Creature', '{G}')], { color: 0, type: 1, cost: 0 }, { info: (c) => (c.n === 'Mystery' ? null : info(c)) })), 'Mystery Elf');
+same('color the other way round runs the colors backwards inside each type (two colors, green, red, black, blue), and the types stay in their order', names(reversedColor), 'Elf Dragon Charm Growth Bolt Ritual Counter Wrath Aura Ring Jace Forest');
+same('a card the card list does not know sorts as colorless, typeless and free (after the other types)', names(sortHand([{ uid: 'x', n: 'Mystery' }, card('Elf', 'Creature', '{G}')], { color: 0, type: 1, cost: 0 }, { info: (c) => (c.n === 'Mystery' ? null : info(c)) })), 'Elf Mystery');
 const copy = [...hand];
 sortHand(hand, { color: 1, type: 1, cost: 1 }, { info });
 same('the hand given is never changed', hand, copy);
@@ -101,11 +101,19 @@ same('and the other way round', landView(lands, { color: 2, type: 0, cost: 0, na
 const mixed = [land('Forest', 'Basic Land ' + DASH + ' Forest', 'G'), card('Elf', 'Creature ' + DASH + ' Elf', '{G}'), land('Island', 'Basic Land ' + DASH + ' Island', 'U'), card('Growth', 'Instant', '{G}')];
 same('a land comes after the spells of its colour when only the colour is on', names(sortHand(mixed, { color: 1, type: 0, cost: 0, name: 0 }, { info: landInfo })), 'Island Elf Growth Forest');
 
+// ---- the order of the colour groups ----
+same('the default colour order is the five colours, then more than one colour, then colourless', [COLOR_KEYS, DEFAULT_COLOR_ORDER], [['W', 'U', 'B', 'R', 'G', 'multi', 'none'], ['W', 'U', 'B', 'R', 'G', 'multi', 'none']]);
+same('a saved colour order keeps its order and gets the missing groups at the end; junk and repeats are dropped', [normalizeColorOrder(['none', 'W']), normalizeColorOrder(['G', 'G', 'X', 7, null]), normalizeColorOrder('x'), normalizeColorOrder(undefined)], [['none', 'W', 'U', 'B', 'R', 'G', 'multi'], ['G', 'W', 'U', 'B', 'R', 'multi', 'none'], DEFAULT_COLOR_ORDER, DEFAULT_COLOR_ORDER]);
+same('moving a colour pill (colorless to the front), and a bad move changes nothing', [moveColor(DEFAULT_COLOR_ORDER, 6, 0), moveColor(DEFAULT_COLOR_ORDER, 9, 0), moveColor(DEFAULT_COLOR_ORDER, 2, 2)], [['none', 'W', 'U', 'B', 'R', 'G', 'multi'], DEFAULT_COLOR_ORDER, DEFAULT_COLOR_ORDER]);
+same('by color in the player\'s own order: colorless first, then two colors, then green, red, black, blue, white', view({ color: 1, type: 0, cost: 0 }, undefined, ['none', 'multi', 'G', 'R', 'B', 'U', 'W']), 'Ring Charm Growth Elf Forest Bolt Dragon Ritual Jace Counter Wrath Aura');
+same('and the other way round', view({ color: 2, type: 0, cost: 0 }, undefined, ['none', 'multi', 'G', 'R', 'B', 'U', 'W']), 'Wrath Aura Jace Counter Ritual Bolt Dragon Forest Growth Elf Charm Ring');
+same('the colour order is not changed by sorting', DEFAULT_COLOR_ORDER, ['W', 'U', 'B', 'R', 'G', 'multi', 'none']);
+
 // ---- A to Z ----
 const abc = [card('Zap', 'Instant', '{R}'), card('apple', 'Instant', '{G}'), card('\u00c9owyn', 'Creature', '{W}'), card('Bolt', 'Instant', '{R}'), card('Bolt', 'Instant', '{R}')];
 same('A to Z: capitals and accents do not matter, and the same name keeps the hand\'s order', names(sortHand(abc, { color: 0, type: 0, cost: 0, name: 1 }, { info })), 'apple Bolt Bolt \u00c9owyn Zap');
 same('Z to A', names(sortHand(abc, { color: 0, type: 0, cost: 0, name: 2 }, { info })), 'Zap \u00c9owyn Bolt Bolt apple');
-same('the name is the finest sort: it settles a tie in colour, type and cost', names(sortHand([card('Zap', 'Instant', '{R}'), card('Bolt', 'Instant', '{R}'), card('Elf', 'Creature', '{R}'), card('Arc', 'Instant', '{G}')], { color: 1, type: 1, cost: 1, name: 1 }, { info })), 'Bolt Zap Elf Arc');
+same('the name is the finest sort: it settles a tie in type, colour and cost', names(sortHand([card('Zap', 'Instant', '{R}'), card('Bolt', 'Instant', '{R}'), card('Elf', 'Creature', '{R}'), card('Arc', 'Instant', '{G}')], { color: 1, type: 1, cost: 1, name: 1 }, { info })), 'Elf Bolt Zap Arc');
 same('the words for the A-Z button', [sortWords('name', 0), sortWords('name', 1), sortWords('name', 2)], ['Sort by a-z (A to Z). Click again to reverse it, and again to turn it off.', 'A-Z: A to Z. Click for Z to A.', 'A-Z: Z to A. Click to turn it off.']);
 
 // ---- the fan ----

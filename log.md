@@ -3471,6 +3471,25 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 175. Type first, a color order in Settings, draggable pills, a calmer sort bar and no box round the command slots (2026-11-13)
+
+**What I asked for**
+- Sorting priority: type first, then color (colorless with the colors), then cost, then alphabetical. Take back my request that the left-most type pill is the right-most in the hand. Add a way to order colorless and WUBRG in Settings like the type order. Make the pills draggable. The sort buttons appear faster than the hand does: slow them to match. Remove the larger command zone drop box and keep each slot its own.
+
+**What changed** (`shared/hand-sort.mjs`, `frontend/src/hand-sort-ui.js`, `solo.js`, `index.html`, `style.css`, tests)
+- **Priority:** type, color, cost, A-Z. With the type sort on, the colors are ordered inside each type; with only the color sort on, the lands of a color still come after its spells.
+- **Type direction:** back as it was (the first pill is the left-most in the hand with the Type button's first click).
+- **Color order:** a second row of pills in Settings: White, Blue, Black, Red, Green, Multicolor and Colorless. You asked for colorless and WUBRG; I added Multicolor as a seventh pill because the cards of more than one color need a place in the order too, and it was a group before. The Color button follows that order (and its other way round).
+- **Dragging:** both rows of pills can be dragged: the pill follows the pointer, the others make way, and it is put where it is let go (Escape cancels). The small arrows on each pill still work, for the keyboard. Settings now holds both rows (the old row's element is renamed).
+- **The sort bar:** it waits a moment (0.12 s) and then fades in with a small rise, so it comes in with the cards rising and not before them. Under reduced motion it is not animated.
+- **Command zone:** a card must be let go over one of the two slots; the larger box round both is gone (its ring too), and the checks that dropped in the middle now drop on a slot.
+
+**What I checked:** the hand unit test (105: the new priority with all four sorts on, the colors reversed inside each type, a color order of your own, normalizing and moving the colors) and one solo run (600): the pills of both rows are dragged with a real mouse (a type pill two places along, the colorless pill to the front, the order kept), the arrow still moves a pill, a card let go in the gap between the slots goes into neither. I did not watch the sort bar's fade in, so whether it now matches the hand is for you to say; the delay and the length are in `style.css` (`hand-bar-in`). Not done: dragging with touch (the pills are set up for it, untested); the table page has none of this.
+
+**My mistakes this round:** my first pill dragging listened on both the pill and its row, which would have moved a pill twice (I rewrote it before the first run), my edit of the color words did not match the one-line text it was in, and my first locator for the pills in the check had a variable that did not exist in the page (found by the first run).
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

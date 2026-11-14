@@ -564,12 +564,29 @@ try {
     await click(await rectOf('.hand-bar .hand-sort[data-sort="color"]'));
     check('a sort is kept as a choice (pressed, and kept in the browser) and a card cannot be dropped by hand into a sorted hand: its note says why', (await ev("document.querySelector('.hand-sort[data-sort=\"color\"]').getAttribute('aria-pressed')")) === 'true' && (await ev("localStorage.getItem('overloaded.handSort')")).includes('"color":1'));
     await click(await rectOf('.hand-bar .hand-sort[data-sort="color"]')); await click(await rectOf('.hand-bar .hand-sort[data-sort="color"]')); // back to off
-    // the order of the card types is in Settings: a pill moves one place later
+    // Settings has two rows of pills, the card types and the colors; a pill is dragged to another place (or moved a place with its arrow)
     await move({ x: 5, y: 5 });
-    const typeFirst = await ev("document.querySelector('#type-order-settings .type-pill').dataset.type");
-    await ev("document.querySelector('#type-order-settings .type-pill .type-move:last-child').click()");
-    check('Settings has the card types as pills and one can be moved later (the order is kept in the browser)', (await ev("document.querySelectorAll('#type-order-settings .type-pill').length")) === 7 && (await ev("document.querySelectorAll('#type-order-settings .type-pill')[1].dataset.type")) === typeFirst && (await ev("localStorage.getItem('overloaded.handTypeOrder')")).includes(typeFirst));
-    await ev("localStorage.removeItem('overloaded.handTypeOrder'); localStorage.removeItem('overloaded.handSort')");
+    await click(await rectOf('#settings-button'));
+    const row = (n) => ev("[...document.querySelectorAll('#hand-order-settings .type-order')[" + n + "].children].map((p) => p.dataset.type)");
+    const pillAt = (n, i, part) => ev(`(() => { const part = ${JSON.stringify(part)}; const p = document.querySelectorAll('#hand-order-settings .type-order')[${n}].children[${i}]; const r = p.getBoundingClientRect(); const name = p.querySelector('.type-name').getBoundingClientRect(); return { x: part === 'right' ? r.right - 3 : part === 'left' ? r.left + 3 : (name.left + name.right) / 2, y: r.top + r.height / 2 }; })()`);
+    const dragPill = async (from, to) => {
+      await move(from);
+      await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: from.x, y: from.y, button: 'left', buttons: 1, clickCount: 1 });
+      for (let n = 1; n <= 10; n++) await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: from.x + ((to.x - from.x) * n) / 10, y: from.y, buttons: 1 });
+      await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: to.x, y: to.y, button: 'left', buttons: 0, clickCount: 1 });
+      await sleep(200);
+    };
+    const typesBefore = await row(0);
+    const colorsBefore = await row(1);
+    await dragPill(await pillAt(0, 0, 'name'), await pillAt(0, 2, 'right'));
+    const typesAfter = await row(0);
+    await dragPill(await pillAt(1, 6, 'name'), await pillAt(1, 0, 'left'));
+    const colorsAfter = await row(1);
+    check('Settings has the card types and the colors (white, blue, black, red, green, more than one, colorless) as pills: seven each, and a pill can be dragged to another place in its row, the order is kept in the browser', typesBefore.length === 7 && colorsBefore.join() === 'W,U,B,R,G,multi,none' && typesAfter.join() === [typesBefore[1], typesBefore[2], typesBefore[0], ...typesBefore.slice(3)].join() && colorsAfter.join() === 'none,W,U,B,R,G,multi' && (await ev("localStorage.getItem('overloaded.handTypeOrder')")).startsWith('["' + typesBefore[1] + '"') && (await ev("localStorage.getItem('overloaded.handColorOrder')")).startsWith('["none"'), JSON.stringify({ typesBefore, typesAfter, colorsAfter }));
+    await ev("document.querySelectorAll('#hand-order-settings .type-order')[0].children[0].querySelector('.type-move:last-child').click()");
+    check('the small arrow on a pill moves it one place later', (await row(0))[1] === typesAfter[0]);
+    await click(await rectOf('#settings-button')); // (closes Settings)
+    await ev("localStorage.removeItem('overloaded.handTypeOrder'); localStorage.removeItem('overloaded.handColorOrder'); localStorage.removeItem('overloaded.handSort')");
     // the names of the piles are above them, each with an arrow that opens the pile's menu
     const heads = await ev("['library', 'graveyard', 'exile'].map((zone) => { const head = document.querySelector('#pile-' + zone).parentElement.querySelector('.pile-head'); const pile = document.getElementById('pile-' + zone); const caret = head.querySelector('.pile-caret'); return { name: head.querySelector('.pile-name').textContent, above: head.getBoundingClientRect().bottom <= pile.getBoundingClientRect().top + 2, caretRight: caret.getBoundingClientRect().left >= head.querySelector('.pile-name').getBoundingClientRect().right - 1, labelOnPile: getComputedStyle(pile, '::after').content }; })");
     check('the library, graveyard and exile are named above their piles with an arrow beside each name (and no name under them)', JSON.stringify(heads.map((h) => h.name)) === '["Library","Graveyard","Exile"]' && heads.every((h) => h.above && h.caretRight && h.labelOnPile === 'none'), JSON.stringify(heads));
@@ -2296,7 +2313,7 @@ try {
     const c6c = await counts();
     check('a card of the hand dropped on the exile goes onto it', c6c.hand === c6b.hand - 1 && c6c.exile === c6b.exile + 1, JSON.stringify(c6c));
     const commanderUids = await ev("[...document.querySelectorAll('#command .card')].map((c) => c.dataset.uid)");
-    await dragTo(await handPoint(), await centerOfSelector('#command'));
+    await dragTo(await handPoint(), await centerOfSelector('.cmd-slot[data-slot="2"] .slot-cards'));
     const c6d = await counts();
     check('a card of the hand dropped on the command zone goes into it', c6d.hand === c6c.hand - 1 && c6d.command === c6c.command + 1, JSON.stringify(c6d));
     const added = await ev(`(() => { const c = [...document.querySelectorAll('#command .card')].find((n) => !${JSON.stringify(commanderUids)}.includes(n.dataset.uid)); if (!c) return null; const r = c.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
@@ -2310,10 +2327,18 @@ try {
     await dragTo(await centerOfSelector('#command .card'), await cellCenter(20, 16));
     const c7 = await counts();
     check('the commander dragged from the command zone onto the battlefield is cast there, and the command zone is empty', c7.command === 0 && c7.field === c6.field + 1 && (await names('#battlefield > .card')).some((n) => n.startsWith(cmdName)), JSON.stringify({ c7, cmdName }));
-    const slotAt = await centerOfSelector('#command');
+    const slotAt = await centerOfSelector('.cmd-slot[data-slot="1"] .slot-cards');
     await dragTo(await centerOfSelector('#battlefield > .card[aria-label^="' + cmdName.split(',')[0].replace(/"/g, '') + '"]'), slotAt);
     const c8 = await counts();
     check('a card of the battlefield dropped on the command zone goes back into it', c8.command === 1 && c8.field === c7.field - 1, JSON.stringify(c8));
+    {
+      // there is no larger box round both slots: a card let go between them (or beside them) is not put in the command zone
+      const gap = await ev("(() => { const a = document.querySelector('.cmd-slot[data-slot=\"1\"] .slot-cards').getBoundingClientRect(); const b = document.querySelector('.cmd-slot[data-slot=\"2\"] .slot-cards').getBoundingClientRect(); return { x: (a.right + b.left) / 2, y: a.top + a.height / 2, gap: b.left - a.right }; })()");
+      const beforeGap = await counts();
+      await dragTo(await handPoint(), { x: gap.x, y: gap.y });
+      const afterGap = await counts();
+      check('a card let go in the gap between the two command slots is not put in either (each slot is its own place to drop on)', gap.gap > 2 && afterGap.command === beforeGap.command && afterGap.hand === beforeGap.hand, JSON.stringify({ gap, beforeGap, afterGap }));
+    }
     // the commander can be put in either slot of the command zone, and the second slot has its own tax and lights up like the first
     {
       const slotBox = (n) => centerOfSelector('.cmd-slot[data-slot="' + n + '"] .slot-cards');
