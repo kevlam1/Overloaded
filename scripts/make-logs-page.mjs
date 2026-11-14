@@ -157,16 +157,16 @@ ${d.sections.map((s) => entryHtml({ id: `entry-${s.number}`, badge: String(s.num
 </div>
 </div>`).join('\n');
   return `<section class="week" id="${weekId(w.week)}" aria-labelledby="${weekId(w.week)}-title">
-<div class="week-head"><h2 id="${weekId(w.week)}-title">${weekName(w.week)}</h2><span class="range">${esc(weekRange(w.week))}</span><span class="week-count">${count} ${count === 1 ? 'entry' : 'entries'}</span></div>
-<div class="days">
+<h2 class="week-head" id="${weekId(w.week)}-title"><button type="button" aria-expanded="true" aria-controls="${weekId(w.week)}-days"><span class="wname">${weekName(w.week)}</span><span class="range">${esc(weekRange(w.week))}</span><span class="week-count">${count} ${count === 1 ? 'entry' : 'entries'}</span><span class="caret" aria-hidden="true"></span></button></h2>
+<div class="days" id="${weekId(w.week)}-days">
 ${daysHtml}
 </div>
 </section>`;
 }).join('\n');
 
 const reflectionHtml = `<section class="week" id="reflection" aria-labelledby="reflection-title">
-<div class="week-head"><h2 id="reflection-title">Reflection</h2><span class="range">the whole project</span></div>
-<div class="days"><div class="day"><div class="entries">
+<h2 class="week-head" id="reflection-title"><button type="button" aria-expanded="true" aria-controls="reflection-days"><span class="wname">Reflection</span><span class="range">the whole project</span><span class="caret" aria-hidden="true"></span></button></h2>
+<div class="days" id="reflection-days"><div class="day"><div class="entries">
 ${entryHtml({ id: 'reflection-misread', badge: '•', title: misread.title, summary: REFLECTION_SUMMARIES.misread, lines: misread.lines })}
 ${entryHtml({ id: 'reflection-decisions', badge: '•', title: decisions.title, summary: REFLECTION_SUMMARIES.decisions, lines: decisions.lines })}
 </div></div></div>

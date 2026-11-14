@@ -18,20 +18,34 @@
     });
   });
 
+  // Weeks fold too: the button in a week's heading hides or shows its days.
+  var weekEls = Array.prototype.slice.call(document.querySelectorAll('.week'));
+  function setWeek(week, open) {
+    week.classList.toggle('collapsed', !open);
+    week.querySelector('.week-head button').setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+  weekEls.forEach(function (week) {
+    week.querySelector('.week-head button').addEventListener('click', function () { setWeek(week, week.classList.contains('collapsed')); markCurrent(); });
+  });
+  function openWeekOf(el) { var week = el.closest('.week'); if (week) setWeek(week, true); }
+
   function openFromHash() {
     var id = decodeURIComponent(location.hash.slice(1));
     if (!id) return;
     var target = document.getElementById(id);
-    if (target && target.classList.contains('entry')) { setOpen(target, true); target.scrollIntoView(); }
+    if (target && target.classList.contains('entry')) { openWeekOf(target); setOpen(target, true); target.scrollIntoView(); }
+    else if (target && target.classList.contains('week')) { setWeek(target, true); target.scrollIntoView(); }
   }
   openFromHash();
   window.addEventListener('hashchange', openFromHash);
 
   document.getElementById('expand-all').addEventListener('click', function () {
+    weekEls.forEach(function (week) { setWeek(week, true); });
     entries.forEach(function (entry) { if (!entry.hidden) setOpen(entry, true); });
   });
   document.getElementById('collapse-all').addEventListener('click', function () {
     entries.forEach(function (entry) { setOpen(entry, false); });
+    weekEls.forEach(function (week) { setWeek(week, false); });
   });
 
   // Search: hides entries that do not contain every typed word, then hides days and weeks left empty.
@@ -70,6 +84,7 @@
       if (match) shown += 1;
       if (words.length > 0 && match) {
         setOpen(entry, true);
+        openWeekOf(entry);
         markWords(entry.querySelector('.body-pad'), words);
       }
     });
@@ -89,6 +104,7 @@
 
   // The week bar marks the week that is on screen.
   var links = Array.prototype.slice.call(document.querySelectorAll('.week-link'));
+  links.forEach(function (link) { link.addEventListener('click', function () { var week = document.getElementById(link.getAttribute('data-target')); if (week) setWeek(week, true); }); });
   function markCurrent() {
     var current = null;
     links.forEach(function (link) {

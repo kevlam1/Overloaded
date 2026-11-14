@@ -60,8 +60,18 @@ try {
   await ev(`document.getElementById('expand-all').click()`);
   check('Expand all opens every entry', await ev(`Array.from(document.querySelectorAll('.entry')).every((e) => e.classList.contains('open'))`));
   await ev(`document.getElementById('collapse-all').click()`);
-  check('Collapse all closes them again', await ev(`Array.from(document.querySelectorAll('.entry')).every((e) => !e.classList.contains('open'))`));
+  check('Collapse all closes them again, and folds every week', await ev(`Array.from(document.querySelectorAll('.entry')).every((e) => !e.classList.contains('open')) && Array.from(document.querySelectorAll('.week')).every((w) => w.classList.contains('collapsed') && getComputedStyle(w.querySelector('.days')).display === 'none')`));
+  await ev(`document.querySelector('#week-0 .week-head button').click()`);
+  check('a click on a week heading opens that week only, and sets aria-expanded', await ev(`getComputedStyle(document.querySelector('#week-0 .days')).display !== 'none' && document.querySelector('#week-0 .week-head button').getAttribute('aria-expanded') === 'true' && document.getElementById('week-1').classList.contains('collapsed') && document.querySelector('#week-1 .week-head button').getAttribute('aria-expanded') === 'false'`));
+  await ev(`document.querySelector('#week-0 .week-head button').click()`);
+  check('a second click folds it again', await ev(`document.getElementById('week-0').classList.contains('collapsed')`));
+  await ev(`document.querySelector('.week-link[data-target="week-1"]').click()`);
+  check('the week bar link for a folded week opens it', await ev(`!document.getElementById('week-1').classList.contains('collapsed')`));
+  await ev(`document.getElementById('expand-all').click()`);
+  check('Expand all opens the weeks again', await ev(`Array.from(document.querySelectorAll('.week')).every((w) => !w.classList.contains('collapsed'))`));
+  await ev(`document.getElementById('collapse-all').click()`);
 
+  check('a search opens a folded week that holds a match', await (async () => { await ev(`(() => { const s = document.getElementById('log-search'); s.value = 'riffle'; s.dispatchEvent(new Event('input', { bubbles: true })); })()`); await sleep(500); return ev(`!document.getElementById('week-1').classList.contains('collapsed') && getComputedStyle(document.querySelector('#week-1 .days')).display !== 'none'`); })());
   await ev(`(() => { const s = document.getElementById('log-search'); s.value = 'riffle'; s.dispatchEvent(new Event('input', { bubbles: true })); })()`);
   await sleep(500);
   const found = await ev(`({ shown: document.querySelectorAll('.entry:not([hidden])').length, marks: document.querySelectorAll('mark').length, note: document.getElementById('search-note').textContent, hiddenWeeks: document.querySelectorAll('.week[hidden]').length })`);
@@ -78,6 +88,12 @@ try {
   await browser.goto(`${ORIGIN}/logs/#entry-100`);
   await sleep(500);
   check('an address ending in #entry-100 opens that entry', await ev(`document.getElementById('entry-100').classList.contains('open')`));
+  await ev(`document.getElementById('collapse-all').click()`);
+  await browser.goto(`${ORIGIN}/logs/#entry-100`);
+  await ev(`document.getElementById('collapse-all').click()`);
+  await ev(`location.hash = ''; location.hash = '#entry-100'`);
+  await sleep(400);
+  check('a link to an entry inside a folded week opens the week too', await ev(`!document.getElementById('week-0').classList.contains('collapsed') && document.getElementById('entry-100').classList.contains('open')`));
   if (shots) await browser.screenshot('scratch-logs-deeplink.png');
 
   await browser.goto(`${ORIGIN}/logs/`);
