@@ -3570,6 +3570,23 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 181. Test bots for a full lobby, and Home is the first page (2026-11-14)
+
+**What I asked for**
+- Bots, so I can test full lobbies by myself: they do nothing, they just hold seat space; in the lobby page, for each seat I may add a bot. And the first page you see is called Home, not Lobby; the lobby is the page where you are with other people.
+
+**What changed** (`frontend/src/db.js`, `frontend/pages/lobby/lobby.js` and `index.html`, `shared/table-ops.mjs`, `site-header.js`, `style.css`, tests)
+- **Bots:** on your table's screen the empty seats are listed ("Seat 3: empty") with an Add bot button each (host only, while the table is in the lobby). A bot is a second anonymous sign-in of this browser, in its own Firebase app named for the seat, so to the database it is an ordinary player: it takes that seat, is named "Bot 3", readies up, and has a presence so it does not show as disconnected. Remove bot takes it away again. A bot readies up again for each new match. The database rules did not change, so nothing has to be pasted into Firebase. The bot's account is kept in the browser, so after a refresh the page finds its bots again (a member named for the seat whose account is this browser's bot for that seat). To ask for one seat, `joinTable` takes an optional `seat`.
+- **Home:** the first link in the header is Home (always the start page). The Lobby link now appears only when you are at a table and goes to it. The page of a table is still called Lobby.
+
+**What I checked:** a new live check against the real project (9: four seats with Add bot on the empty three, three bots added each in its own seat with its own account and ready, Start saying 3 of 4 are ready, Remove bot, the page knowing its bots after a refresh, four accounts in the browser, all bots removed, the table and every account deleted afterwards), it is in the live suite; three new emulator checks for asking for one seat (the table logic test is 229 checks); the two-browser live check (173); the room live check (26, its Lobby link lines updated); the lobby (66) and deck (274) page checks (the header lines updated); the quick suites (60). Not checked: a screenshot of the seat list, Start with a host who has a deck (I could not ready the host without one), and what the table page does with seats whose bot cannot take a turn.
+
+**Things to know:** the bots live in the page that made them: when the match starts the host goes to the table page and the bots' connections close, so there they show as disconnected, have no game ("has not been dealt a game yet") and cannot pass a turn (use Skip on their turn). Bots also do not keep the table alive. Seats of bots are only taken away in the lobby, with Remove bot from the host's own browser.
+
+**My mistakes this round:** my first edit script stopped halfway on a rule I had written wrongly (the first file was already changed), so I applied the rest in a second script.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

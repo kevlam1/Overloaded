@@ -126,4 +126,4 @@ export const text = (browser, id) => browser.eval(`document.getElementById(${JSO
 export const tableShown = (browser) => browser.eval(`!document.getElementById('table').hidden`);
 export const setValue = (browser, id, value) => browser.eval(`(() => { const el = document.getElementById(${JSON.stringify(id)}); el.value = ${JSON.stringify(value)}; el.dispatchEvent(new Event('input')); })()`);
 export const click = (browser, id) => browser.eval(`document.getElementById(${JSON.stringify(id)}).click()`);
-export const players = (browser) => browser.eval(`Array.from(document.querySelectorAll('#players li')).map((li) => li.textContent)`);
+export const players = (browser) => browser.eval(`Array.from(document.querySelectorAll('#players li:not(.empty-seat)')).map((li) => li.textContent)`);

@@ -78,6 +78,16 @@ check('joining again from the same person is a rejoin: same seat, name unchanged
 check('rejoinTable finds a member and returns null for an outsider', (await bo.ops.rejoinTable(made.code))?.seat === '2' && (await di.ops.rejoinTable(made.code)) === null);
 check('rejoinTable on a malformed code is null without a request', (await bo.ops.rejoinTable('nope')) === null);
 await throwsWith('joining a malformed code is refused', bo.ops.joinTable({ code: 'abc', name: 'Bo' }));
+// a joiner can ask for one seat (the host's test bots each hold the seat they were added to)
+const gus = person('gus');
+const hal = person('hal');
+await throwsWith('asking for a seat that is taken (seat 1 is the host\'s) is refused, and nothing is left behind', gus.ops.joinTable({ code: standardTable.code, name: 'Gus', seat: 1 }), 'TableUnavailableError');
+check('...nothing was written for it', (await readAdmin(`tables/${standardTable.code}/members/gus`)) === null);
+const gusJoined = await gus.ops.joinTable({ code: standardTable.code, name: 'Gus', seat: 2 });
+check('asking for seat 2 of a free table gives exactly seat 2', gusJoined.seat === '2' && gusJoined.rejoined === false && (await readAdmin(`tables/${standardTable.code}/seats/2`)) === 'gus');
+await throwsWith('asking for a seat the table does not have (3 of 2) is refused', hal.ops.joinTable({ code: standardTable.code, name: 'Hal', seat: 3 }), 'TableUnavailableError');
+const gusAgain = await gus.ops.joinTable({ code: standardTable.code, name: 'Gus', seat: 2 });
+check('asking again for the seat you hold is a rejoin', gusAgain.rejoined === true && gusAgain.seat === '2');
 await throwsWith('joining a table that does not exist is "unavailable"', di.ops.joinTable({ code: 'ZZZZZZ', name: 'Di' }), 'TableUnavailableError');
 check('findMyTable counts all 3 players', (await ann.ops.findMyTable()).players === 3);
 

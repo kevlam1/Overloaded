@@ -187,7 +187,8 @@ export function createTableOps({ sdk, db, getUid, makeCode = makeTableCode }) {
   }
 
   // Joins a table by code: takes the first free seat. Returns { code, uid, seat, rejoined }.
-  async function joinTable({ code, name }) {
+  // seat (optional): take only that seat (the host's test bots each hold the seat they were added to); with none, the first free one.
+  async function joinTable({ code, name, seat: onlySeat }) {
     if (!isValidCode(code)) throw new Error('That does not look like a table code.');
     const playerName = cleanPlayerName(name);
     const existing = await rejoinTable(code);
@@ -195,6 +196,7 @@ export function createTableOps({ sdk, db, getUid, makeCode = makeTableCode }) {
     const uid = await getUid();
     for (let n = 1; n <= MAX_SEATS; n++) {
       const seat = String(n);
+      if (onlySeat !== undefined && String(onlySeat) !== seat) continue;
       try {
         await update(ref(db), {
           [`tables/${code}/members/${uid}`]: { name: playerName, seat },
@@ -209,6 +211,7 @@ export function createTableOps({ sdk, db, getUid, makeCode = makeTableCode }) {
     // crashed mid-match keeps their seat reserved. The rules accept a member entry only for a seat the person holds.
     for (let n = 1; n <= MAX_SEATS; n++) {
       const seat = String(n);
+      if (onlySeat !== undefined && String(onlySeat) !== seat) continue;
       try {
         await update(ref(db), { [`tables/${code}/members/${uid}`]: { name: playerName, seat } });
         return { code, uid, seat, rejoined: true };

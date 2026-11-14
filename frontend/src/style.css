@@ -1031,6 +1031,7 @@ main.wide:has(.deck-app[data-screen="deck"]) { max-width: 120rem; }
 .brand-name { font-size: 1.2rem; font-weight: 700; letter-spacing: 0.01em; }
 .brand-beta { padding: 0 0.4rem; border: 1px solid var(--line); border-radius: 0.8rem; color: var(--muted); font-size: 0.65rem; font-weight: 700; line-height: 1.1rem; letter-spacing: 0.06em; }
 .site-nav { display: flex; flex-wrap: wrap; gap: 0.35rem 0.6rem; }
+.site-link[hidden] { display: none; }
 .site-link { padding: 0.4rem 1rem; border-radius: 0.6rem; color: var(--muted); font-size: 1rem; font-weight: 600; text-decoration: none; }
 .site-link:hover { background: color-mix(in srgb, var(--muted) 15%, var(--card)); color: var(--text); }
 .site-link[aria-current="page"] { background: color-mix(in srgb, var(--accent) 18%, var(--card)); color: var(--text); }

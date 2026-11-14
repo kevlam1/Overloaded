@@ -1,7 +1,7 @@
 // The lobby page. It has two screens, chosen by the address: the start page (/) where you make a table or type a code to join one,
 // and a table's own screen (/lobby/CODE) with only that table: joining it (one button, or no click at all when this browser has a
 // saved name), the seats, your deck, Ready and Start. All database calls live in ../../src/db.js.
-import { createTable, joinTable, rejoinTable, findMyTable, watchMembers, heartbeat, watchActivity, watchMeta, watchServerOffset, startPresence, watchPresence, watchConnection, takeOverHost, setDeck, setReady, clearReady, startMatch, leaveTable } from '../../src/db.js';
+import { botClient, createTable, joinTable, rejoinTable, findMyTable, watchMembers, heartbeat, watchActivity, watchMeta, watchServerOffset, startPresence, watchPresence, watchConnection, takeOverHost, setDeck, setReady, clearReady, startMatch, leaveTable } from '../../src/db.js';
 import { presenceStatus, presenceText, ownConnectionText, hostIsGone } from '../../../shared/presence.mjs';
 import { startKeepAlive } from '../../src/keep-alive.js';
 import { mountSiteHeader } from '../../src/site-header.js';
@@ -96,8 +96,89 @@ let chosenDeckId = null; // the saved deck (an id in this browser's library) you
 let restoringDeck = null; // the promise of putting the remembered deck back (a database write), while it is still going
 let restoredFor = null; // the table whose remembered deck has been looked at already
 let currentPresence = {};
+// The host's test bots (Kevin, 2026-11-13): seats held by a second sign-in of this browser so one person can try a full table. botSeats: the seats whose bot this page can act for; botStops: their presence.
+const botSeats = new Set();
+const botStops = new Map();
+const botWorking = new Set();
+const botName = (seat) => `Bot ${seat}`;
 let serverOffset = null; // until the database's clock is known, no one is judged disconnected
 const REDRAW_MS = 10000;
+
+function botButton(action, seat, label) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'secondary bot-button';
+  button.dataset.bot = action;
+  button.dataset.seat = seat;
+  button.textContent = label;
+  button.setAttribute('aria-label', `${label} for seat ${seat}`);
+  button.disabled = botWorking.has(seat);
+  return button;
+}
+
+// A bot seat that this page has not met yet (the page was refreshed): if the member is named for the seat and the account of this browser's bot for that seat is the same account, it is that bot again.
+function adoptBots() {
+  for (const [uid, member] of Object.entries(currentMembers)) {
+    const seat = String(member.seat);
+    if (botSeats.has(seat) || botWorking.has(seat) || member.name !== botName(seat) || uid === myUid) continue;
+    botWorking.add(seat);
+    botClient(seat).uid().then((botUid) => {
+      if (botUid === uid && currentCode) { botSeats.add(seat); if (!botStops.has(seat)) botStops.set(seat, botClient(seat).startPresence(currentCode)); }
+    }).catch(() => {}).finally(() => { botWorking.delete(seat); renderPlayers(); });
+  }
+}
+
+// A new match needs everyone ready again, bots too: whenever a bot is not ready for the match the table is on, it readies up.
+function readyBots() {
+  if (currentMeta?.status !== 'lobby') return;
+  for (const [uid, member] of Object.entries(currentMembers)) {
+    const seat = String(member.seat);
+    if (!botSeats.has(seat) || botWorking.has(seat) || member.ready === currentMeta.match) continue;
+    botWorking.add(seat);
+    botClient(seat).ready(currentCode).catch(() => {}).finally(() => { botWorking.delete(seat); });
+  }
+}
+
+async function addBot(seat) {
+  botWorking.add(seat);
+  renderPlayers();
+  try {
+    const bot = botClient(seat);
+    await bot.join(currentCode, botName(seat));
+    botSeats.add(seat);
+    botStops.set(seat, bot.startPresence(currentCode));
+    await bot.ready(currentCode);
+    say(`Bot ${seat} is at seat ${seat}, ready.`);
+  } catch (error) {
+    say(friendlyMessage(error), true);
+  } finally {
+    botWorking.delete(seat);
+    renderPlayers();
+  }
+}
+
+async function removeBot(seat) {
+  botWorking.add(seat);
+  renderPlayers();
+  try {
+    botStops.get(seat)?.();
+    botStops.delete(seat);
+    await botClient(seat).leave(currentCode);
+    botSeats.delete(seat);
+    say(`Bot ${seat} left seat ${seat}.`);
+  } catch (error) {
+    say(friendlyMessage(error), true);
+  } finally {
+    botWorking.delete(seat);
+    renderPlayers();
+  }
+}
+
+$('players').addEventListener('click', (event) => {
+  const button = event.target instanceof Element ? event.target.closest('button[data-bot]') : null;
+  if (!button || button.disabled || !currentCode) return;
+  if (button.dataset.bot === 'add') addBot(button.dataset.seat); else removeBot(button.dataset.seat);
+});
 
 function renderPlayers() {
   const list = $('players');
@@ -109,6 +190,7 @@ function renderPlayers() {
     const deckText = seatDeckText(member); // the commander(s) and bracket the player told the table; never the list itself
     item.textContent = `Seat ${member.seat}: ${member.name}${uid === currentHost ? ' (host)' : ''}${deckText ? `, ${deckText}` : ''}`;
     item.dataset.uid = uid;
+    item.dataset.seat = String(member.seat);
     if (isReady(member, currentMeta)) {
       const mark = document.createElement('span');
       mark.className = 'ready-mark';
@@ -126,6 +208,26 @@ function renderPlayers() {
     }
     list.append(item);
   }
+  // Empty seats and the bots: the host (in the lobby) can add a bot to an empty seat and take a bot away again.
+  const seatsTotal = Number(currentMeta?.seats) || 0;
+  const canManageBots = Boolean(myUid) && currentHost === myUid && currentMeta?.status === 'lobby';
+  const taken = new Set(Object.values(currentMembers).map((member) => String(member.seat)));
+  for (let n = 1; n <= seatsTotal; n++) {
+    const seat = String(n);
+    const member = Object.entries(currentMembers).find(([, m]) => String(m.seat) === seat);
+    if (member) {
+      const item = [...list.children].find((li) => li.dataset.uid === member[0]);
+      if (item && canManageBots && botSeats.has(seat)) item.append(' ', botButton('remove', seat, 'Remove bot'));
+    } else if (!taken.has(seat)) {
+      const item = document.createElement('li');
+      item.className = 'empty-seat';
+      item.dataset.seat = seat;
+      item.append(`Seat ${seat}: empty`);
+      if (canManageBots) item.append(' ', botButton('add', seat, 'Add bot'));
+      list.append(item);
+    }
+  }
+  [...list.children].sort((a, b) => Number(a.dataset.seat) - Number(b.dataset.seat)).forEach((li) => list.append(li)); // (seats in order, the empty ones where they are)
   // Offer the takeover only to someone else at the table, and only when the host has really been gone for 5 minutes
   // (the database makes the same judgement and refuses otherwise).
   const canTakeOver = Boolean(currentHost) && currentHost !== myUid && myUid in currentMembers && hostIsGone(currentPresence[currentHost], now);
@@ -154,6 +256,8 @@ function stopPresenceParts() {
   for (const stop of [stopPresence, stopPresenceWatch, stopConnectionWatch, stopOffsetWatch, stopHostWatch]) if (stop) stop();
   stopPresence = stopPresenceWatch = stopConnectionWatch = stopOffsetWatch = stopHostWatch = null;
   if (redrawTimer !== null) { clearInterval(redrawTimer); redrawTimer = null; }
+  for (const stop of botStops.values()) stop();
+  botStops.clear(); botSeats.clear();
   currentMembers = {}; currentPresence = {}; serverOffset = null; currentHost = null; currentMeta = null; chosenDeckId = null; restoredFor = null;
   $('connection').hidden = true;
   $('take-over').hidden = true;
@@ -169,6 +273,7 @@ function startPresenceParts(code, uid) {
     const formatChanged = meta?.format !== currentMeta?.format;
     currentMeta = meta ?? null;
     currentHost = meta?.host ?? null;
+    readyBots();
     $('table-format').textContent = formatTitle(meta?.format); // text, never markup: another client could have written any string
     renderPlayers();
     if (formatChanged || restoredFor !== currentCode) refreshDeckPicker();
@@ -349,7 +454,9 @@ function show(table) {
       return;
     }
     currentMembers = members;
+    adoptBots();
     renderPlayers();
+    readyBots();
   });
 }
 

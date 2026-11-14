@@ -76,6 +76,26 @@ function tableOps() {
   return ops;
 }
 
+// A test bot (the host's "Add bot" in the lobby): a second, separate sign-in that holds a seat and readies up, so one person can try a full table. Each seat has its own Firebase app (named for the seat) with the
+// same kind of anonymous account as a player, kept in the browser, so a refresh finds the same bot again. It is an ordinary player to the database: no rule is changed for it.
+const bots = new Map();
+export function botClient(seat) {
+  let bot = bots.get(String(seat));
+  if (!bot) {
+    const app = initializeApp(__FIREBASE_CONFIG__, `bot-seat-${seat}`);
+    const auth = initializeAuth(app, { persistence: [indexedDBLocalPersistence, browserLocalPersistence, inMemoryPersistence] });
+    const uid = async () => {
+      await auth.authStateReady();
+      if (auth.currentUser) return auth.currentUser.uid;
+      return (await signInAnonymously(auth)).user.uid;
+    };
+    const botOps = createTableOps({ sdk: { ref, get, update, onValue, onDisconnect, serverTimestamp }, db: getDatabase(app), getUid: uid });
+    bot = { uid, join: (code, name) => botOps.joinTable({ code, name, seat }), ready: (code) => botOps.setReady(code), leave: (code) => botOps.leaveTable(code), startPresence: (code) => botOps.startPresence(code, { onProblem: () => {} }) };
+    bots.set(String(seat), bot);
+  }
+  return bot;
+}
+
 export const findMyTable = (...args) => tableOps().findMyTable(...args);
 export const createTable = (...args) => tableOps().createTable(...args);
 export const rejoinTable = (...args) => tableOps().rejoinTable(...args);

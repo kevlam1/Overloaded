@@ -85,8 +85,8 @@ try {
     };
   })()`);
   check('the page has a title, a language and one h1', /decks/i.test(facts.title) && facts.lang === 'en' && facts.h1s === 1);
-  const siteHeader = await ev(`(() => { const h = document.querySelector('body > header.site-header'); return h ? { brand: h.querySelector('.brand')?.getAttribute('href'), name: h.querySelector('.brand-name')?.textContent, links: [...h.querySelectorAll('.site-nav a')].map((a) => a.textContent + ' ' + a.getAttribute('href')), current: [...h.querySelectorAll('[aria-current="page"]')].map((a) => a.textContent), logo: h.querySelectorAll('img.brand-logo').length, first: document.body.firstElementChild === h, headings: h.querySelectorAll('h1,h2,h3').length } : null; })()`);
-  check('the site header is the first thing on the page: the name linking home, Lobby, Decks and Solo table, the current page marked, no heading of its own', siteHeader && siteHeader.first && siteHeader.brand === '/' && siteHeader.name === 'Overloaded' && JSON.stringify(siteHeader.links) === JSON.stringify(['Lobby /', 'Decks /deck', 'Solo table /solo']) && JSON.stringify(siteHeader.current) === JSON.stringify(['Decks']) && siteHeader.headings === 0, JSON.stringify(siteHeader));
+  const siteHeader = await ev(`(() => { const h = document.querySelector('body > header.site-header'); return h ? { brand: h.querySelector('.brand')?.getAttribute('href'), name: h.querySelector('.brand-name')?.textContent, links: [...h.querySelectorAll('.site-nav a:not([hidden])')].map((a) => a.textContent + ' ' + a.getAttribute('href')), current: [...h.querySelectorAll('[aria-current="page"]')].map((a) => a.textContent), logo: h.querySelectorAll('img.brand-logo').length, first: document.body.firstElementChild === h, headings: h.querySelectorAll('h1,h2,h3').length } : null; })()`);
+  check('the site header is the first thing on the page: the name linking home, Home, Decks and Solo table (Lobby only appears when you are at a table), the current page marked, no heading of its own', siteHeader && siteHeader.first && siteHeader.brand === '/' && siteHeader.name === 'Overloaded' && JSON.stringify(siteHeader.links) === JSON.stringify(['Home /', 'Decks /deck', 'Solo table /solo']) && JSON.stringify(siteHeader.current) === JSON.stringify(['Decks']) && siteHeader.headings === 0, JSON.stringify(siteHeader));
   check('the logo (frontend/public/brand/logo.png, a wordmark) is shown and loaded, and the written name is then hidden from the eye (kept for screen readers)', siteHeader && siteHeader.logo === 1 && (await ev(`(() => { const i = document.querySelector('.site-header img.brand-logo'); return i.complete && i.naturalWidth === 432 && document.querySelector('.brand-name').getBoundingClientRect().width <= 1; })()`)), JSON.stringify(siteHeader));
   const htmlSource = await (await fetch(PAGE)).text();
   check('the header and the footer are written in the page itself (not added by a script), so they are there from the first paint', /<header class="site-header">[\s\S]*<nav class="site-nav"/.test(htmlSource) && /<footer class="site-footer">[\s\S]*Fan Content Policy/.test(htmlSource) && /aria-current="page"[^>]*>Decks</.test(htmlSource));
@@ -264,15 +264,16 @@ check('there are no commander or partner boxes; the Commander heading says to ri
   check('a set our data does not have is "not found" (the server answers 404), not "not loaded"', /ZZZ 1 \(not found\)/.test((await rowsOf())[0].printing), JSON.stringify(await rowsOf()));
   check('and that check left the earlier result alone (nothing to compare was lost)', firstResult.length === 1);
 
-  // ---- the header's Lobby link goes to the table you are at, not the start page ----
-  const backHref = () => ev(`document.querySelector('.site-nav a').getAttribute('href')`);
+  // ---- the header: Home always goes to the start page; the Lobby link (the page with other people) shows only when you are at a table, and goes to it ----
+  const backHref = () => ev(`(() => { const l = document.getElementById('site-lobby'); return l.hidden ? '' : l.getAttribute('href'); })()`);
+  const homeLink = () => ev(`(() => { const a = document.querySelector('.site-nav a'); return a.textContent + ' ' + a.getAttribute('href'); })()`);
   await ev(`localStorage.removeItem('overloaded.lastTable')`); await load();
-  check('the Lobby link goes to the start page when you are not at a table', (await backHref()) === '/', await backHref());
+  check('the first link in the header is Home and goes to the start page, and there is no Lobby link when you are not at a table', (await homeLink()) === 'Home /' && (await backHref()) === '', await homeLink() + ' / ' + await backHref());
   await ev(`localStorage.setItem('overloaded.lastTable', 'ABC234')`); await load();
-  check('...and to that table\'s own address (/lobby/CODE) when you are at one', (await backHref()) === '/lobby/ABC234', await backHref());
+  check('...and when you are at a table a Lobby link appears and goes to that table\'s own address (/lobby/CODE), while Home still goes to the start page', (await backHref()) === '/lobby/ABC234' && (await homeLink()) === 'Home /', await backHref());
   for (const bad of ['<script>', 'abc234', 'ABC23', 'ABC230', '/lobby/x', '']) {
     await ev(`localStorage.setItem('overloaded.lastTable', ${JSON.stringify(bad)})`); await load();
-    check(`...but a remembered value that is not a table code (${JSON.stringify(bad)}) is ignored`, (await backHref()) === '/', await backHref());
+    check(`...but a remembered value that is not a table code (${JSON.stringify(bad)}) is ignored (no Lobby link)`, (await backHref()) === '', await backHref());
   }
   await ev(`localStorage.removeItem('overloaded.lastTable')`);
 
