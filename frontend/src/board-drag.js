@@ -11,7 +11,7 @@ export const DRAG_DISTANCE_PX = 6;
 // hand (optional): () => the element of your hand; a card from the battlefield let go over it is reported to onDropHand({ uid, from }) (back into the hand), and the hand is marked while one is over it.
 // A card of the hand dragged within the hand rearranges it: while it is over the hand onHandOver({ uid, x }) is called with the pointer's x (and with null when it leaves or the drag ends), and on
 // letting go onReorderHand({ uid, x }) says where it was let go.
-// The picture of a card carried out of the HAND does not stick to the pointer: it follows it with a little lag (every instant it closes a share of the distance, so it eases and never jerks) and
+// The picture of a card carried out of the HAND (or taken from a pile or the command zone) does not stick to the pointer: it follows it with a little lag (every instant it closes a share of the distance, so it eases and never jerks) and
 // leans with the lag, so it swings as it is moved. It starts from where the card was, at the card's own turn. Under prefers-reduced-motion it is exactly under the pointer. (A card of the
 // battlefield is exactly under the pointer: its place is read off the pointer.)
 const FOLLOW_RATE = 30; // per second
@@ -159,9 +159,10 @@ export function mountBoardDrag({ doc = document, board, onDrop, hand = () => nul
     const grab = { x: Math.min(1, Math.max(0, (press.x - rect.left) / (rect.width || 1))), y: Math.min(1, Math.max(0, (press.y - rect.top) / (rect.height || 1))) }; // where on the card it was taken, as fractions
     if (press.whole) ghost.dataset.count = press.button.dataset.stackSize; // the picture says how many cards it carries
     drag = { carried, button: press.button, uid: press.uid, from: press.from, whole: press.whole, tapped, ghost, highlight, cell: null, overHand: false, pile: null, pileElement: null, width, height, holdW, holdH, grab, startX: press.x, startY: press.y, start: press.start };
-    if (press.from === 'hand' && !(typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches)) {
+    // the picture of a card taken from the hand OR from a pile or the command zone eases after the pointer and leans (Kevin, 2026-11-13: the same for all of them); a card of the battlefield stays under the pointer
+    if ((press.from === 'hand' || press.zone) && !(typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches)) {
       // from where the card is (the middle of its box on screen is where its middle is, whatever its turn), at its own turn
-      const turn = parseFloat(press.button.style.getPropertyValue('--ha')) || 0;
+      const turn = press.from === 'hand' ? parseFloat(press.button.style.getPropertyValue('--ha')) || 0 : 0;
       const x = rect.left + rect.width / 2 - width / 2;
       const y = rect.top + rect.height / 2 - height / 2;
       drag.smooth = { x, y, a: turn, tx: x, ty: y, frame: 0, last: performance.now() };

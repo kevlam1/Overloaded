@@ -756,7 +756,8 @@ try {
     check('the hover box exists and starts hidden', (await hoverState())?.hidden === true);
     await moveTo(c.x, c.y);
     await sleep(700);
-    c = await rectOf('#hand .card', 0); // (the hand has risen and taken its arc since the pointer came in: the first card is somewhere else now)
+    // (the hand has risen and taken its arc since the pointer came in: the first card is somewhere else now, and the next card may cover its middle, so take a point on the part of it that shows)
+    c = await ev(`(() => { const card = document.querySelector('#hand .card'); const r = card.getBoundingClientRect(); const y = r.top + r.height * 0.45; for (let x = r.left + 2; x < r.right - 2; x += 3) if (document.elementFromPoint(x, y)?.closest('#hand > .card') === card) return { x, y, left: r.left, right: r.right, top: r.top, bottom: r.bottom }; return null; })()`);
     await moveTo(c.x, c.y); await sleep(200);
     check('with the pointer resting on a card and no Alt held, no larger picture shows (however long it rests)', (await hoverState()).hidden === true);
     await altDown();
@@ -2447,6 +2448,21 @@ try {
     await dragTo(await face('graveyard'), await face('exile'));
     const c4 = await counts();
     check('the top card of the graveyard dropped on the exile goes there', c4.graveyard === 0 && c4.exile === 1, JSON.stringify(c4));
+    // a card taken from the library, the exile or the command zone moves like a card taken from the hand: its picture eases after the pointer and leans with the lag (and is straight when it stands still)
+    await motion('no-preference'); // (the rest of the check runs with reduced motion, where the picture is exactly under the pointer)
+    for (const [label, selector] of [['library', '#pile-library .stack-face'], ['exile', '#pile-exile .stack-face'], ['command zone', '#command .card']]) {
+      const start = await centerOfSelector(selector);
+      await mouseAt('mouseMoved', start, 0); await mouseAt('mousePressed', start, 1);
+      await mouseAt('mouseMoved', { x: start.x - 40, y: start.y - 40 }, 1); await sleep(50);
+      const target = { x: start.x - 340, y: start.y - 120 };
+      await mouseAt('mouseMoved', target, 1); // (a jump of 300 pixels: a picture stuck to the pointer would be there at once)
+      const quick = await ev("(() => { const g = document.querySelector('.drag-ghost'); if (!g) return null; const m = new DOMMatrix(g.style.transform); const r = g.getBoundingClientRect(); return { angle: Math.round(Math.atan2(m.b, m.a) * 1800 / Math.PI) / 10, x: m.e, w: r.width }; })()");
+      await sleep(900);
+      const still = await ev("(() => { const g = document.querySelector('.drag-ghost'); if (!g) return null; const m = new DOMMatrix(g.style.transform); return { angle: Math.round(Math.atan2(m.b, m.a) * 1800 / Math.PI) / 10, x: m.e }; })()");
+      check('a card taken from the ' + label + ' eases after the pointer and leans while it catches up, and is straight and under the pointer once it stands still', quick && still && Math.abs(quick.angle) > 1 && quick.x > still.x + 20 && Math.abs(still.angle) < 1, JSON.stringify({ quick, still }));
+      await escapeKey(); await sleep(150);
+    }
+    await motion('reduce');
     await dragTo(await face('exile'), await cellCenter(60, 10));
     const c5 = await counts();
     check('the top card of the exile dropped on the battlefield is put there', c5.exile === 0 && c5.field === 1 && (await cellOfCard((await names('#battlefield > .card'))[0].split(',')[0])) === '60,10', JSON.stringify(c5));

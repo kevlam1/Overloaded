@@ -3826,6 +3826,22 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 **My mistakes this round:** the solo check was already broken before this change, crashing near the end with a SecurityError: the blocked-storage scenario removed its script by the number 1, which stopped being its number when I added other scripts to every page for the silent test browsers (entry 180). It now uses the number it was given.
 
+
+---
+
+## 189. A card from a pile moves like a card from the hand (2026-11-13)
+
+**What I asked for**
+- Dragging a card from the library, graveyard, exile and command zone should have the same animations as dragging from the hand.
+
+**What changed** (`frontend/src/board-drag.js`, `scripts/check-solo-ui.mjs`)
+- The picture of a card taken from a pile or the command zone now eases after the pointer and leans with the lag, as a card from the hand does, instead of sticking to the pointer. It starts from where the pile's picture was and is straight when it stands still; under reduced motion it is exactly under the pointer. It is the same code path: the hand-only condition in `startDrag` also accepts a pile or command zone source. When such a card is dropped on the hand, the hand card starts from where the picture was let go, which it did not do from a standstill before, and a card dropped on a pile flies in from where the leaning picture was.
+- A card of the battlefield still stays exactly under the pointer; that was my choice earlier and you did not ask to change it. The mana cost still goes only with a hand card, since a card in a pile or the command zone has no cost drawn above it.
+
+**What I checked:** the solo check (622). New: for the library, the exile and the command zone, a jump of 300 pixels leaves the picture behind the pointer and leaning, and after a moment it is straight and settled. I did not test the graveyard separately: it takes the same path as the exile. The check runs with normal motion for this part, since reduced motion turns the easing off. I did not feel how it looks, only measured the lean and the lag, and I did not look at a recording.
+
+**My mistakes this round:** my first version of the new check ran under reduced motion, so it measured no lean and failed (the code was fine); and the two Alt-picture checks I changed earlier today failed again by chance, because the hand's next card could cover the middle of the first card where I put the pointer. They now take a point on the part of the card that shows.
+
 ---
 
 ## Where AI misread me, or I had to correct course
