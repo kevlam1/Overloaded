@@ -3556,6 +3556,20 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 180. The test browsers make no sound at all (2026-11-13)
+
+**What I asked for**
+- In the headless Chrome, turn off sounds in general: I could still hear the drawing sounds.
+
+**What changed** (`scripts/lib/browser.mjs`)
+- Entry 172 added Chrome's `--mute-audio` flag, which was on the browser's command line but did not keep the draw sounds quiet for you. Two more layers: the flag `--disable-audio-output`, and a script run in every page of the test browsers that makes each sound silent as it starts (muted, volume 0) before the page's own play() runs. The check that records which sound would play replaces play() and plays nothing, as before.
+
+**What I checked:** in a test browser, a sound with volume 0.8 played through the page's Audio ends up muted at volume 0, and the solo check passed once (613) with its sound checks. I cannot hear the machine, so whether it is silent now is for you to say. Two scripts start Chrome on their own (`check-two-tabs-live.mjs` and `measure-lobby-load.mjs`): they do not use this helper, they do not play game sounds, and I did not change them.
+
+**My mistakes this round:** in entry 172 I checked that the flag was on the command line and called it done; that showed the flag was passed, not that the sound was off. I did not know why the flag did not work here, so I added a page-level mute that does not depend on it.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

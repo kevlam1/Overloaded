@@ -27,7 +27,7 @@ export async function openBrowser(label, { width = 1280, height = 800 } = {}) {
   const port = 9300 + Math.floor(Math.random() * 600);
   const child = spawn(chromePath, [
     '--headless=new', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`,
-    '--no-first-run', '--no-default-browser-check', '--disable-extensions', '--mute-audio', 'about:blank', // (--mute-audio: the checks play the real tap and draw sounds otherwise, out loud)
+    '--no-first-run', '--no-default-browser-check', '--disable-extensions', '--mute-audio', '--disable-audio-output', 'about:blank', // (--mute-audio: the checks play the real tap and draw sounds otherwise, out loud)
   ], { stdio: 'ignore', windowsHide: true });
   const browser = { label, profile, child, logs: [], dialogs: [], events: [], listeners: [] };
   browsers.push(browser);
@@ -51,6 +51,9 @@ export async function openBrowser(label, { width = 1280, height = 800 } = {}) {
     else if (data.method === 'Log.entryAdded') browser.logs.push(`${data.params.entry.level}: ${data.params.entry.text}`);
   };
   await send('Page.enable'); await send('Runtime.enable'); await send('Log.enable'); await send('Network.enable');
+  // The checks play the page's real sounds (tap, draw, shuffle) in a window nobody looks at: every sound the page starts is made silent as it starts (muted, volume 0), whatever the browser does with its own
+  // mute switch. (A check that records the sounds replaces play() itself and plays nothing at all.)
+  await send('Page.addScriptToEvaluateOnNewDocument', { source: 'const __play = HTMLMediaElement.prototype.play; HTMLMediaElement.prototype.play = function () { this.muted = true; this.volume = 0; return __play.apply(this, arguments); };' });
   await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
   browser.send = send;
   // Calls fn(params) for every DevTools event with this method name (for example 'Fetch.requestPaused').
