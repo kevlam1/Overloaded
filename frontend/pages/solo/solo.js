@@ -637,7 +637,7 @@ const handView = mountHand({ container: $('hand'), costOf: (uid) => { const card
 function reorderInHand({ uid, x, picture }) {
   if (!game || !game.zones.hand.some((c) => c.uid === uid)) return;
   const to = handView.holeFor(uid, x); // the place it was last shown over
-  if (anySortOn(handSort.sorts())) { pins.set(uid, to); render(); say('That card stays where you put it until you change the sorts.'); return; } // (in a sorted hand a card moved by hand is pinned there)
+  if (anySortOn(handSort.sorts())) { handView.noteDrop(uid, picture); pins.set(uid, to); render(); say('That card stays where you put it until you change the sorts.'); return; } // (in a sorted hand a card moved by hand is pinned there)
   handView.noteDrop(uid, picture); // the card starts from where its picture was let go and eases into its place
   const next = reorderHand(game, uid, to);
   if (next === game) { handView.arrange(); return; }

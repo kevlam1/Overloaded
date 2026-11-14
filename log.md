@@ -3587,6 +3587,21 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 182. A card moved in a sorted hand no longer travels from its old place again (2026-11-14)
+
+**What I asked for**
+- When I drag a card to move it from point A to point B, after I let go it plays an animation of it moving from A to B again, which is confusing. Stop that.
+
+**What changed** (`frontend/pages/solo/solo.js`, `scripts/check-solo-ui.mjs`)
+- I could not make a card on the battlefield do this: a probe with motion on, dragging a card from A to B, found it at B in the first frame after the release, with no picture left over. What I could reproduce is the hand with a sort on (entry 176 made a card moved by hand stay where it was put): the moved card was drawn at its old place and slid across the hand to the new one (x from 69 to 493 over about a third of a second). The unsorted hand did not do it, because there the card starts from where its picture was let go (`noteDrop`); I left that call out of the new sorted path. It is there now. After the fix the card starts near where it was let go (x 395) and only settles the last bit (about 100 px, the same short settle the unsorted hand has).
+- If you saw it on the battlefield, or without a sort on, tell me where and I will look again: I could not make that happen.
+
+**What I checked:** the probe before and after (numbers above) and the solo check once (614) with a new check that, with motion on, a card let go in a sorted hand is already near its new place right after it is let go. I did not break the code again to see that check fail; the probe showed the old behaviour failing the same measure (it started at the old place, 69, with 493 as the end).
+
+**My mistakes this round:** this was my miss in entry 176: I wrote the new path for a card moved in a sorted hand and did not look at how it moves, and the checks run with reduced motion on, where cards snap and nothing travels, so they could not see it. The new check turns motion on for that one drag.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

@@ -582,7 +582,15 @@ try {
       await move(from);
       await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: from.x, y: from.y, button: 'left', buttons: 1, clickCount: 1 });
       for (let n = 1; n <= 12; n++) await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: from.x + ((to.x - from.x) * n) / 12, y: from.y, buttons: 1 });
+      await motion('no-preference'); // (the cards move on their own now: watch where the moved card starts from after it is let go)
+      const movedLeft = () => ev(`document.querySelector('#hand > .card[data-uid="${sortedUids[0]}"]').getBoundingClientRect().left`);
+      const startLeft = first.left;
       await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: to.x, y: to.y, button: 'left', buttons: 0, clickCount: 1 });
+      const firstLeft = await movedLeft();
+      await sleep(600);
+      const endLeft = await movedLeft();
+      await motion('reduce');
+      check('a card let go in a sorted hand does not travel from its old place to the new one again: right after it is let go it is already near the new place (it only settles the last bit)', Math.abs(firstLeft - endLeft) < Math.abs(startLeft - endLeft) * 0.6, JSON.stringify({ startLeft, firstLeft, endLeft }));
       await sleep(250);
       const pinned = await order();
       const restSorted = sorted((await costs()).slice(0, -1), 1);
