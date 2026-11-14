@@ -1259,8 +1259,10 @@ body.playing.solo .side-panels { position: absolute; z-index: 9; right: 0.8rem; 
 body.playing.solo .side-panels > section { padding: 0; }
 body.playing.solo .piles-section { display: flex; flex-direction: row; align-items: flex-start; gap: 1rem; }
 /* the name of each pile is above it like the command zone's, with a small arrow that opens its menu (Kevin, 2026-11-13) */
-body.playing.solo .pile-slot { display: flex; flex-direction: column; align-items: flex-start; gap: 0.3rem; }
-body.playing.solo .pile-head { display: flex; align-items: center; gap: 0.1rem; min-height: 1.3rem; font-size: 0.85rem; font-weight: 600; color: var(--muted); }
+body.playing.solo .pile-slot { display: flex; flex-direction: column; align-items: flex-start; gap: 0.25rem; }
+/* the piles line up with the command zone: the name row is as high as the tax row above a commander, and the pile starts where a commander's card does inside its frame (the frame's border and 0.2rem more) */
+body.playing.solo .pile-slot .pile-stack { margin-top: 0.2rem; }
+body.playing.solo .pile-head { display: flex; align-items: center; gap: 0.1rem; height: 1.7rem; min-height: 0; font-size: 0.85rem; font-weight: 600; color: var(--muted); }
 body.playing.solo .pile-caret { display: grid; place-items: center; width: 1.3rem; min-height: 0; height: 1.3rem; padding: 0; border: 0; border-radius: 0.3rem; background: transparent; color: var(--muted); cursor: pointer; }
 body.playing.solo .pile-caret:hover, body.playing.solo .pile-caret:focus-visible { background: color-mix(in srgb, var(--ring) 16%, transparent); color: var(--text); }
 body.playing.solo .side-panels .pile-stack { padding: 0; }

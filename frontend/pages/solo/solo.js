@@ -126,12 +126,23 @@ function findCard(uid) {
 // The hand as it is shown: the cards dealt so far, in the order of the sorts that are on (a view: the hand's own order is not changed, shared/hand-sort.mjs).
 // A card moved by hand in a sorted hand is pinned where it was put (pins: uid to place) until the sorts are changed: it no longer follows them, the others do.
 const pins = new Map();
+let shownSorted = null; // the cards of the hand as they were last shown while a sort was in force (null when none was): turning the sort off keeps that order
 function shownHand() {
   const cards = dealer.visible(game.zones.hand);
   const sorts = handSort.sorts();
-  if (!anySortOn(sorts)) return cards;
+  if (!anySortOn(sorts)) { shownSorted = null; return cards; }
   for (const uid of [...pins.keys()]) if (!cards.some((card) => card.uid === uid)) pins.delete(uid); // (a card that has left the hand is not pinned any more)
-  return applyPins(sortHand(cards, sorts, { typeOrder: handSort.typeOrder(), colorOrder: handSort.colorOrder(), landOrder: handSort.landOrder(), info: (card) => lookup?.(card) ?? null }), pins);
+  const shown = applyPins(sortHand(cards, sorts, { typeOrder: handSort.typeOrder(), colorOrder: handSort.colorOrder(), landOrder: handSort.landOrder(), info: (card) => lookup?.(card) ?? null }), pins);
+  shownSorted = shown.map((card) => card.uid);
+  return shown;
+}
+// The sort has been turned off (the switch, or the last button): the hand keeps the order it was shown in, it is not put back the way it was before the sorting (Kevin, 2026-11-13).
+function keepShownOrder() {
+  if (!game || !shownSorted || shownSorted.length !== game.zones.hand.length) return;
+  let next = game;
+  shownSorted.forEach((uid, index) => { if (next.zones.hand.some((card) => card.uid === uid)) next = reorderHand(next, uid, index); });
+  game = next;
+  say('The hand stays in the order it was sorted in.');
 }
 
 // ---- drawing the whole table ----
@@ -640,7 +651,7 @@ function reorderInHand({ uid, x, picture }) {
   apply(() => next, '');
 }
 // The sort buttons are in the bar under the hand, the order of the card types is in Settings (src/hand-sort-ui.js).
-const handSort = createHandSort({ onChange: () => { pins.clear(); if (game) render(); } }); // (changing the sorts lets the cards moved by hand go back to being sorted)
+const handSort = createHandSort({ onChange: () => { if (!anySortOn(handSort.sorts())) keepShownOrder(); pins.clear(); if (game) render(); } }); // (changing the sorts lets the cards moved by hand go back to being sorted)
 handSort.mountButtons(handView.bar);
 handSort.mountOrders($('hand-order-settings'));
 mountBoardDrag({ board: () => $('battlefield'), onDrop: dropOnBoard, hand: () => $('hand-section'), onDropHand: dropOnHand, onHandOver: (over) => handView.carry(over), onReorderHand: reorderInHand, handZone: () => handView.zone(), handHit: (x, y) => handView.over(x, y), zoneSource, pileAt, onDropPile: dropOnPile, isEnabled: () => Boolean(game) });

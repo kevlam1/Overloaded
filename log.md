@@ -3526,6 +3526,21 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 178. Turning the sort off keeps the order, and the piles line up with the command zone (2026-11-13)
+
+**What I asked for**
+- Turning sort off should maintain its previous order. The library, exile and graveyard should also align with the command zone.
+
+**What changed** (`frontend/pages/solo/solo.js`, `style.css`, `scripts/check-solo-ui.mjs`)
+- **Sort off:** I read "previous order" as the order the hand was shown in while it was sorted. When the sort stops applying (the Sort switch, or the last button turned off) the hand keeps that order, including a card you had moved by hand, and says so. Before, turning it off put the hand back the way it was before the sorting. If you meant the old behaviour, tell me and I will put it back (it was one line).
+- **Piles:** the name row above the library, graveyard and exile is now as high as the tax row above a commander, and the piles start where a commander's card starts inside its frame, so the tops and bottoms of the piles line up with the command slots.
+
+**What I checked:** the solo check once (613). The sort checks now expect the hand to stay in the order it was shown in when a sort or the switch goes off; the pinned-card check now expects the card to be sorted again with the others (and no longer last) after the sorts are changed, not the exact earlier order (a tie keeps the order the hand was left in). The command zone check also asks that each pile's picture has the same top and bottom as the card inside a command slot's frame (within 2 px). I did not look at a screenshot of the piles.
+
+**My mistakes this round:** a quote in the text of a check broke the file (the syntax check found it) and the pinned-card check, which had passed for the old behaviour, failed once for a reason that follows from the new one.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

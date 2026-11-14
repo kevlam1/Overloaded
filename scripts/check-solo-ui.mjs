@@ -548,10 +548,11 @@ try {
     const state1 = await ev("document.querySelector('.hand-sort[data-sort=\"cost\"]').dataset.state");
     await click(await costButton());
     const down = await costs();
+    const downUids = await order();
     await click(await costButton());
     const after = await order();
     const sorted = (list, sign) => list.every((n, i) => i === 0 || (n - list[i - 1]) * sign >= 0);
-    check('the Cost button sorts the hand low to high, then high to low, and a third click puts the hand back as it was', state1 === '1' && sorted(up, 1) && sorted(down, -1) && up.some((n, i) => n !== up[0]) && JSON.stringify(after) === JSON.stringify(before), JSON.stringify({ up, down, state1 }));
+    check('the Cost button sorts the hand low to high, then high to low, and a third click turns it off and the hand stays in the order it was shown in', state1 === '1' && sorted(up, 1) && sorted(down, -1) && up.some((n, i) => n !== up[0]) && JSON.stringify(after) === JSON.stringify(downUids), JSON.stringify({ up, down, state1 }));
     // A-Z: the names run A to Z, then Z to A, then the hand is as it was
     const handNames = () => ev("[...document.querySelectorAll('#hand > .card .fallback')].map((n) => n.textContent)");
     const az = (list, sign) => list.every((n, i) => i === 0 || n.localeCompare(list[i - 1], 'en', { sensitivity: 'base' }) * sign >= 0);
@@ -559,8 +560,9 @@ try {
     const aToZ = await handNames();
     await click(await rectOf('.hand-bar .hand-sort[data-sort="name"]'));
     const zToA = await handNames();
+    const zToAUids = await order();
     await click(await rectOf('.hand-bar .hand-sort[data-sort="name"]'));
-    check('the A-Z button sorts the hand by name A to Z, then Z to A, and a third click puts it back as it was', az(aToZ, 1) && az(zToA, -1) && JSON.stringify(await order()) === JSON.stringify(before) && new Set(aToZ).size > 1, JSON.stringify({ aToZ, zToA }));
+    check('the A-Z button sorts the hand by name A to Z, then Z to A, and a third click turns it off and the hand stays in that order', az(aToZ, 1) && az(zToA, -1) && JSON.stringify(await order()) === JSON.stringify(zToAUids) && new Set(aToZ).size > 1, JSON.stringify({ aToZ, zToA }));
     // the switch next to the buttons turns sorting off (the hand as it was) and on again (the buttons keep their states)
     await click(await costButton());
     const sortedUids = await order();
@@ -570,7 +572,7 @@ try {
     const offState = await switchState();
     await click(await rectOf('.hand-bar .hand-sort-toggle'));
     const withSwitchOn = await order();
-    check('the Sort switch turns the sorting off (the hand as it was, the Cost button still pressed) and on again', offState === 'false' && JSON.stringify(withSwitchOff) === JSON.stringify(before) && JSON.stringify(withSwitchOn) === JSON.stringify(sortedUids) && (await switchState()) === 'true', JSON.stringify({ offState }));
+    check('the Sort switch turns the sorting off (the hand stays in the order it was sorted in, the Cost button still pressed) and on again', offState === 'false' && JSON.stringify(withSwitchOff) === JSON.stringify(sortedUids) && JSON.stringify(withSwitchOn) === JSON.stringify(sortedUids) && (await switchState()) === 'true', JSON.stringify({ offState }));
     // a card dragged to another place in a sorted hand stays there; the others stay sorted; changing the sorts lets it go
     {
       const first = await rectOf('#hand > .card', 0);
@@ -586,7 +588,8 @@ try {
       const restSorted = sorted((await costs()).slice(0, -1), 1);
       await click(await rectOf('.hand-bar .hand-sort-toggle')); await click(await rectOf('.hand-bar .hand-sort-toggle')); // (off and on: the sorts are changed)
       const released = await order();
-      check('in a sorted hand a card moved by hand stays where it was put (the others stay sorted), and changing the sorts sorts it again', pinned.at(-1) === sortedUids[0] && JSON.stringify(pinned) !== JSON.stringify(sortedUids) && restSorted && JSON.stringify(released) === JSON.stringify(sortedUids), JSON.stringify({ pinned, sortedUids, released }));
+      const releasedSorted = sorted(await costs(), 1);
+      check('in a sorted hand a card moved by hand stays where it was put (the others stay sorted), and changing the sorts sorts it again with the others (the card is no longer last)', pinned.at(-1) === sortedUids[0] && JSON.stringify(pinned) !== JSON.stringify(sortedUids) && restSorted && releasedSorted && released.at(-1) !== sortedUids[0], JSON.stringify({ pinned, sortedUids, released }));
     }
     await click(await costButton()); await click(await costButton()); // (the Cost button back to off)
     await click(await rectOf('.hand-bar .hand-sort[data-sort="color"]'));
@@ -698,8 +701,8 @@ try {
     await browser.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await sleep(150);
     check('Escape lets the group go', (await ev("document.querySelectorAll('#battlefield > .card.selected').length")) === 0);
     // the command zone: the tax counter above each commander and the words below and between the two slots
-    const layout = await ev("(() => { const r = (s) => document.querySelector(s).getBoundingClientRect(); const one = document.querySelector('.cmd-slot[data-slot=\"1\"]'); const tax = one.querySelector('.tax').getBoundingClientRect(); const cards = one.querySelector('.slot-cards').getBoundingClientRect(); const words = r('#command-zone h3'); const a = r('.cmd-slot[data-slot=\"1\"] .slot-cards'); const b = r('.cmd-slot[data-slot=\"2\"] .slot-cards'); return { aligned: Math.abs(a.top - b.top) < 1 && Math.abs(a.bottom - b.bottom) < 1, taxAbove: tax.bottom <= cards.top + 1, wordsBelow: words.top >= Math.max(a.bottom, b.bottom) - 1, between: Math.abs((words.left + words.right) / 2 - (a.left + b.right) / 2) < 12 }; })()");
-    check('in the command zone the two slots line up (the empty one too), the tax is above its commander and the words "Command zone" are below, between the two slots', layout.aligned && layout.taxAbove && layout.wordsBelow && layout.between, JSON.stringify(layout));
+    const layout = await ev("(() => { const r = (s) => document.querySelector(s).getBoundingClientRect(); const one = document.querySelector('.cmd-slot[data-slot=\"1\"]'); const tax = one.querySelector('.tax').getBoundingClientRect(); const cards = one.querySelector('.slot-cards').getBoundingClientRect(); const words = r('#command-zone h3'); const a = r('.cmd-slot[data-slot=\"1\"] .slot-cards'); const b = r('.cmd-slot[data-slot=\"2\"] .slot-cards'); return { pilesAligned: ['library', 'graveyard', 'exile'].map((zone) => { const f = document.querySelector('#pile-' + zone + ' .stack-face').getBoundingClientRect(); return [Math.round((f.top - a.top) * 10) / 10, Math.round((a.bottom - f.bottom) * 10) / 10]; }), aligned: Math.abs(a.top - b.top) < 1 && Math.abs(a.bottom - b.bottom) < 1, taxAbove: tax.bottom <= cards.top + 1, wordsBelow: words.top >= Math.max(a.bottom, b.bottom) - 1, between: Math.abs((words.left + words.right) / 2 - (a.left + b.right) / 2) < 12 }; })()");
+    check('in the command zone the two slots line up (the empty one too), the library, graveyard and exile line up with them (same top and bottom as the card inside a slot frame), the tax is above its commander and the words "Command zone" are below, between the two slots', layout.pilesAligned.every(([top, bottom]) => Math.abs(top - 3.2) < 2 && Math.abs(bottom - 3.2) < 2) && layout.aligned && layout.taxAbove && layout.wordsBelow && layout.between, JSON.stringify(layout));
     await browser.goto(PAGE); await waitFor(async () => (await count('#hand .card')) === 7 || null, 8000, 25); await sleep(1500);
   }
   // ---- the larger picture of a card while Alt is held over it (frontend/src/card-hover.js): real mouse movement and real Alt key events ----
