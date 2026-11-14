@@ -32,7 +32,7 @@ import { flyAway, flyDraw, shuffleAnimation, gatherIntoPile, reducedMotion } fro
 import { menuItems, menuAction, turnLabel, turnMessage, playBackLabel, PLAY_BACK_ZONES, noUntapLabel, sickLabel, untapMessage } from '../../../shared/card-menu.mjs';
 import { marksSentence, markClick, printedOf } from '../../../shared/marks.mjs';
 import { chipEntries, playerMenuItems, playerAction } from '../../../shared/player-counters.mjs';
-import { setFaceDown, makeGame, draw, moveCard, shuffleLibrary, mulligan, setTapped, turnOver, untapAll, heldTapped, adjustLife, nextTurn, boardCells, placeCard, placeStack, zoneCounts, reorderHand } from '../../../shared/zones.mjs';
+import { setFaceDown, makeGame, draw, moveCard, shuffleLibrary, mulligan, setTapped, turnOver, untapAll, heldTapped, adjustLife, nextTurn, boardCells, placeCard, placeStack, placeGroup, zoneCounts, reorderHand } from '../../../shared/zones.mjs';
 
 const $ = (id) => document.getElementById(id);
 const store = makeSafeStore();
@@ -536,11 +536,17 @@ document.addEventListener('click', (event) => {
 mountCardHover(); // a larger picture of any card the pointer is on while Alt is held (the cards are small on the one-screen layout)
 // ---- the battlefield grid: drag and drop and Alt+arrow keys (the Auto-arrange button was taken out on 2026-11-14) (shared/board-grid.mjs, src/board-drag.js) ----
 // A card dropped on a cell of your battlefield: from the hand it is played there (a taken cell is refused); from the battlefield it moves there, or swaps places with the card that is there.
-function dropOnBoard({ uid, from, col, row, whole = false }) {
+function dropOnBoard({ uid, from, col, row, whole = false, group = null }) {
   if (!game) return;
   const found = findCard(uid);
   if (!found || found.zone !== from) return;
   try {
+    if (group && from === 'battlefield') { // the cards picked up with a rectangle, moved together: each keeps its place relative to the others
+      const moved = placeGroup(game, group, uid, col, row);
+      if (moved.moved === 0) return;
+      apply(() => moved.game, `Moved ${moved.moved} cards.`);
+      return;
+    }
     if (whole && from === 'battlefield') { // a whole pile (Shift while dragging, or the corner handle)
       const moved = placeStack(game, uid, col, row);
       if (moved.game === game) return;
@@ -640,7 +646,7 @@ function sortNow() {
 const handSort = createHandSort({ onSortNow: sortNow, onChange: () => { if (!anySortOn(handSort.sorts())) keepShownOrder(); pins.clear(); if (game) render(); } }); // (changing the sorts lets the cards moved by hand go back to being sorted)
 handSort.mountButtons(handView.bar);
 handSort.mountOrders($('hand-order-settings'));
-mountBoardDrag({ board: () => $('battlefield'), onDrop: dropOnBoard, hand: () => $('hand-section'), onDropHand: dropOnHand, onHandOver: (over) => handView.carry(over), onReorderHand: reorderInHand, handZone: () => handView.zone(), handHit: (x, y) => handView.over(x, y), zoneSource, pileAt, onDropPile: dropOnPile, isEnabled: () => Boolean(game) });
+mountBoardDrag({ board: () => $('battlefield'), onDrop: dropOnBoard, groupOf: (uid) => (multi.size > 1 && multi.has(uid) ? [...multi] : null), hand: () => $('hand-section'), onDropHand: dropOnHand, onHandOver: (over) => handView.carry(over), onReorderHand: reorderInHand, handZone: () => handView.zone(), handHit: (x, y) => handView.over(x, y), zoneSource, pileAt, onDropPile: dropOnPile, isEnabled: () => Boolean(game) });
 
 $('mulligan').addEventListener('click', doMulligan);
 $('new-game').addEventListener('click', () => { if (confirm('Start a new game? This one will be lost.')) { play('shuffle'); deal({ pause: SHUFFLE_PAUSE_MS }); } });

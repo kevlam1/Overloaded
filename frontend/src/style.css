@@ -1344,3 +1344,8 @@ body.dragging-card .pile-stack.drop-target .stack-face, body.dragging-card .cmd-
 .drag-ghost.stack > img, .fly-ghost.stack > img { border-radius: 4.8% / 3.4%; box-shadow: 0 0.2rem 0.6rem rgba(0, 0, 0, 0.35); }
 .drag-ghost-copy { position: absolute; inset: 0; overflow: hidden; border-radius: 4.8% / 3.4%; background: var(--line); box-shadow: 0 0.2rem 0.6rem rgba(0, 0, 0, 0.35); pointer-events: none; }
 .drag-ghost-copy img { display: block; width: 100%; height: 100%; object-fit: cover; }
+/* the cards of a group carried together (src/board-drag.js): the card pressed is the usual picture, and each of the others is drawn where it is on the board relative to it */
+.drag-group { position: fixed; left: 0; top: 0; z-index: 49; pointer-events: none; }
+.drag-group-part { position: absolute; overflow: hidden; border-radius: 0.3rem; background: var(--line); box-shadow: 0 0.4rem 1rem rgba(0, 0, 0, 0.5); opacity: 0.6; }
+.drag-group-part img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.drag-group-part img.on-its-side { position: absolute; left: 50%; top: 50%; width: auto; height: auto; translate: -50% -50%; rotate: 90deg; }

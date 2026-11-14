@@ -24,7 +24,9 @@ const AXIS_STICK_PX = 12; // ...and it changes from the row to the column (or ba
 // Piles and the command zone (Kevin, 2026-11-12): a card can be taken from the top of the library, the graveyard or the exile, or from the command zone, and a card can be dropped on any of them. The page says
 // what is a pile: zoneSource(target) gives { button, uid, from, picture? } for the element pressed (the top card of a pile, or a card of the command zone; picture: an address for the picture carried, for a
 // library, whose top card is not shown), pileAt(x, y) gives { zone, element } for the pile under a point, and onDropPile({ uid, from, to }) is called when a card is let go over one.
-export function mountBoardDrag({ doc = document, board, onDrop, hand = () => null, onDropHand = () => {}, onHandOver = () => {}, onReorderHand = () => {}, handZone = () => null, handHit = null, zoneSource = () => null, pileAt = () => null, onDropPile = () => {}, isEnabled = () => true }) {
+export function mountBoardDrag({ doc = document, board, onDrop, hand = () => null, onDropHand = () => {}, onHandOver = () => {}, onReorderHand = () => {}, handZone = () => null, handHit = null, zoneSource = () => null, pileAt = () => null, onDropPile = () => {}, groupOf = () => null, isEnabled = () => true }) {
+  // groupOf(uid) (optional): the uids of the cards picked up together (by a rectangle) when the card pressed is one of them, or null. Pressing one of them carries all of them, each keeping its place relative to
+  // the others, and onDrop is called with { group } (Kevin, 2026-11-14). A group is carried over the board only: not into the hand or onto a pile.
   let press = null; // the card the pointer went down on, before it has moved far enough to be a drag
   let hold = null; // { ring, timer, ready }: a pile of cards is being held down; when the circle is full it is ready to be moved as a whole
   let drag = null; // { button, uid, from, ghost, highlight, cell }
@@ -85,6 +87,7 @@ export function mountBoardDrag({ doc = document, board, onDrop, hand = () => nul
       onHandOver(null); // (the hand closes its place, whichever card was carried)
       if (drag.smooth?.frame) cancelAnimationFrame(drag.smooth.frame);
       drag.ghost.remove();
+      drag.groupBox?.remove();
       hand()?.classList.remove('drop-hand');
       drag.pileElement?.classList.remove('drop-target');
       drag.highlight.remove();
@@ -155,12 +158,38 @@ export function mountBoardDrag({ doc = document, board, onDrop, hand = () => nul
     // the cards being carried are not shown where they were: the one pressed, and for a whole pile every card of it (the same cell, tapped or not like it)
     const carried = press.zone ? [] : [press.button]; // (the pile stays where it is: only a copy of its top card is carried)
     if (press.whole) carried.push(...[...boardElement.querySelectorAll(':scope > .card')].filter((c) => c !== press.button && c.dataset.col === press.button.dataset.col && c.dataset.row === press.button.dataset.row && c.classList.contains('tapped') === press.button.classList.contains('tapped') && c.dataset.stackSize !== undefined));
+    // a group: every card of it is carried (and the rest of each pile it picked from), and the others are drawn beside the one pressed, each where it is on the board relative to it
+    let groupBox = null;
+    if (press.group) {
+      const members = new Set(press.group);
+      const mates = (card) => [...boardElement.querySelectorAll(':scope > .card')].filter((c) => c !== card && c.dataset.col === card.dataset.col && c.dataset.row === card.dataset.row && c.classList.contains('tapped') === card.classList.contains('tapped') && c.dataset.stackSize !== undefined && c.dataset.stackSize === card.dataset.stackSize); // (the rest of its pile)
+      const picked = [...boardElement.querySelectorAll(':scope > .card')].filter((c) => members.has(c.dataset.uid));
+      for (const c of picked) { if (!carried.includes(c)) carried.push(c); for (const m of mates(c)) if (!carried.includes(m)) carried.push(m); }
+      groupBox = doc.createElement('div');
+      groupBox.className = 'drag-group';
+      for (const c of carried) {
+        if (c === press.button) continue;
+        const r = c.getBoundingClientRect();
+        if (r.width === 0 || r.height === 0) continue; // (a card of a pile that is not drawn)
+        const part = doc.createElement('div');
+        part.className = 'drag-group-part';
+        part.style.left = `${r.left - rect.left}px`; part.style.top = `${r.top - rect.top}px`; part.style.width = `${r.width}px`; part.style.height = `${r.height}px`;
+        const art = c.querySelector('.face img');
+        if (art && !c.classList.contains('noimage')) {
+          const copy = art.cloneNode(); copy.removeAttribute('loading');
+          if (c.classList.contains('tapped')) { copy.style.width = `${r.height}px`; copy.style.height = `${r.width}px`; copy.classList.add('on-its-side'); } // (the picture is a portrait card turned on its side in its landscape box)
+          part.append(copy);
+        } else part.textContent = c.getAttribute('aria-label') ?? '';
+        groupBox.append(part);
+      }
+      doc.body.append(groupBox);
+    }
     for (const c of carried) c.classList.add('dragging');
     if (press.whole) addStackCopies(ghost, press.button, carried, tapped, picture); // the picture carried is the pile: the copies under the top card, as they are drawn on the board
     doc.body.classList.add('dragging-card');
     const grab = { x: Math.min(1, Math.max(0, (press.x - rect.left) / (rect.width || 1))), y: Math.min(1, Math.max(0, (press.y - rect.top) / (rect.height || 1))) }; // where on the card it was taken, as fractions
     if (press.whole) ghost.dataset.count = press.button.dataset.stackSize; // the picture says how many cards it carries
-    drag = { carried, button: press.button, uid: press.uid, from: press.from, whole: press.whole, tapped, ghost, highlight, cell: null, overHand: false, pile: null, pileElement: null, width, height, holdW, holdH, grab, startX: press.x, startY: press.y, start: press.start, axis: null, last: { x: press.x, y: press.y } };
+    drag = { carried, button: press.button, uid: press.uid, from: press.from, whole: press.whole, tapped, ghost, highlight, cell: null, overHand: false, pile: null, pileElement: null, width, height, holdW, holdH, grab, startX: press.x, startY: press.y, start: press.start, group: press.group, groupBox, axis: null, last: { x: press.x, y: press.y } };
     // the picture of a card taken from the hand OR from a pile or the command zone eases after the pointer and leans (Kevin, 2026-11-13: the same for all of them); a card of the battlefield stays under the pointer
     if ((press.from === 'hand' || press.zone) && !(typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches)) {
       // from where the card is (the middle of its box on screen is where its middle is, whatever its turn), at its own turn
@@ -206,6 +235,7 @@ export function mountBoardDrag({ doc = document, board, onDrop, hand = () => nul
     // the top left of the picture: the middle of what is held is where the pointer holds it (for a tapped card the box held is on its side, the picture is turned about its middle)
     const left = x - drag.holdW * (drag.grab.x - 0.5) - drag.width / 2;
     const top = y - drag.holdH * (drag.grab.y - 0.5) - drag.height / 2;
+    if (drag.groupBox) drag.groupBox.style.transform = `translate(${Math.round(left + drag.width / 2 - drag.holdW / 2)}px, ${Math.round(top + drag.height / 2 - drag.holdH / 2)}px)`; // (the box of the card pressed: for a card on its side it is not the box of the picture)
     if (drag.smooth) { drag.smooth.tx = left; drag.smooth.ty = top; } // (the picture follows these)
     else { drag.pos = { x: Math.round(left), y: Math.round(top) }; drag.ghost.style.transform = `translate(${drag.pos.x}px, ${drag.pos.y}px)${drag.tapped ? ' rotate(90deg)' : ''}`; } // (a tapped card is turned on its side about its middle, after the move) the card is held where it was taken
     const boardElement = board();
@@ -221,17 +251,17 @@ export function mountBoardDrag({ doc = document, board, onDrop, hand = () => nul
     const over = drag.from !== 'hand' && handHit ? handHit(x, y) : inZone;
     // over a pile (the library, the graveyard, the exile or the command zone) the card goes onto it: the hand and the board are not under the pointer then
     const pileHere = pileAt(x, y);
-    const pile = pileHere && (pileHere.zone !== drag.from || pileHere.zone === 'command') ? pileHere : null; // (a commander may be moved from one slot of the command zone to the other)
+    const pile = pileHere && !drag.group && (pileHere.zone !== drag.from || pileHere.zone === 'command') ? pileHere : null; // (a commander may be moved from one slot of the command zone to the other)
     if ((pile?.element ?? null) !== drag.pileElement) { drag.pileElement?.classList.remove('drop-target'); pile?.element.classList.add('drop-target'); drag.pileElement = pile?.element ?? null; }
     drag.pile = pile ? pile.zone : null;
     drag.slot = pile?.slot ?? null;
-    drag.overHand = !pile && (drag.from === 'hand' || !drag.whole) && over;
+    drag.overHand = !pile && !drag.group && (drag.from === 'hand' || !drag.whole) && over;
     handElement?.classList.toggle('drop-hand', drag.overHand && drag.from !== 'hand');
     // the place the card is over is decided from the middle of the picture carried, not from the pointer: you take a card of an overlapping hand by the part that shows, which may be far from its middle, and the
     // picture starts exactly over its own place, so nothing moves until it has been carried a little
     // a card from outside the hand (the battlefield, a pile) opens a place in it while it is over it, as a card of the hand does
     if (drag.from === 'hand') onHandOver({ uid: drag.uid, x: x - drag.holdW * (drag.grab.x - 0.5), over: drag.overHand });
-    else if (!drag.whole) onHandOver({ uid: drag.uid, x: x - drag.holdW * (drag.grab.x - 0.5), over: drag.overHand, external: true }); // the hand shows where the card would go back (over), or closes up when the card is away from it
+    else if (!drag.whole && !drag.group) onHandOver({ uid: drag.uid, x: x - drag.holdW * (drag.grab.x - 0.5), over: drag.overHand, external: true }); // the hand shows where the card would go back (over), or closes up when the card is away from it
     // a tapped card is a landscape card, 11 cells wide, so it may not start in the last 3 columns of the board
     if (cell && drag.tapped) cell.col = Math.min(cell.col, BOARD_COLS - CARD_ROWS);
     drag.cell = drag.overHand || drag.pile ? null : cell;
@@ -257,10 +287,11 @@ export function mountBoardDrag({ doc = document, board, onDrop, hand = () => nul
     // A pile of more than one card: Shift held when the drag starts, or holding it down until the circle is full (startHold), carries the WHOLE pile; a plain drag takes one card off the top. (Shift also holds a
     // carried card to a row or a column: pointOf.)
     const stacked = source?.from === 'battlefield' && Number(source.button.dataset.stackSize) > 1;
-    const whole = stacked && event.shiftKey;
+    const group = source?.from === 'battlefield' ? groupOf(source.uid) : null;
+    const whole = stacked && event.shiftKey && !group;
     const own = source?.from === 'battlefield' ? { col: Number(source.button.dataset.col), row: Number(source.button.dataset.row) } : null;
-    press = source ? { ...source, zone: source.from !== 'battlefield' && source.from !== 'hand', whole, x: event.clientX, y: event.clientY, start: own && Number.isInteger(own.col) && Number.isInteger(own.row) ? own : null } : null;
-    if (press && stacked && !event.shiftKey) startHold(); // a pile held down is ready to be moved as a whole
+    press = source ? { ...source, group: Array.isArray(group) && group.length > 1 ? group : null, zone: source.from !== 'battlefield' && source.from !== 'hand', whole, x: event.clientX, y: event.clientY, start: own && Number.isInteger(own.col) && Number.isInteger(own.row) ? own : null } : null;
+    if (press && stacked && !event.shiftKey && !press.group) startHold(); // a pile held down is ready to be moved as a whole
   };
   const onMove = (event) => {
     if (press && !drag && Math.hypot(event.clientX - press.x, event.clientY - press.y) > DRAG_DISTANCE_PX) startDrag(event);
@@ -269,7 +300,7 @@ export function mountBoardDrag({ doc = document, board, onDrop, hand = () => nul
   const onUp = (event) => {
     if (!drag) { endHold(); press = null; return; }
     update(event);
-    const { uid, from, cell, overHand, whole, pile } = drag;
+    const { uid, from, cell, overHand, whole, pile, group } = drag;
     const pileElement = drag.pileElement;
     const slot = drag.slot;
     const flying = pile && drag.ghost ? drag.ghost.cloneNode(true) : null; // a copy of the picture carried, left where it was let go, for the page to fly into the pile
@@ -281,7 +312,7 @@ export function mountBoardDrag({ doc = document, board, onDrop, hand = () => nul
     if (pile) onDropPile({ uid, from, to: pile, slot, element: pileElement, flying });
     else if (overHand && from === 'hand') onReorderHand({ uid, x, picture });
     else if (overHand) onDropHand({ uid, from, x, picture });
-    else if (cell) onDrop({ uid, from, col: cell.col, row: cell.row, whole });
+    else if (cell) onDrop({ uid, from, col: cell.col, row: cell.row, whole, group });
   };
   const cancel = () => { if (drag) swallowClick(); clean(); };
   const onKey = (event) => {

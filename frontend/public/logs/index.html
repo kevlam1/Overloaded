@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.195</span></h1>
-    <p class="lede">195 entries, Oct 25 to Nov 14, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
+    <h1>Build log <span class="version">Version 0.196</span></h1>
+    <p class="lede">196 entries, Oct 25 to Nov 14, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
   </div>
 </header>
 
@@ -23,7 +23,7 @@
     <div class="weeks-row">
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
-<a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">85</span></a>
+<a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">86</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
     </div>
     <div class="tools">
@@ -1961,7 +1961,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-1" aria-labelledby="week-1-title">
-<h2 class="week-head" id="week-1-title"><button type="button" aria-expanded="false" aria-controls="week-1-days"><span class="wname">Week 1</span><span class="range">Nov 9 to Nov 15</span><span class="week-count">85 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-1-title"><button type="button" aria-expanded="false" aria-controls="week-1-days"><span class="wname">Week 1</span><span class="range">Nov 9 to Nov 15</span><span class="week-count">86 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-1-days">
 <div class="day">
 <h3 class="day-title">Monday 9 November <span class="day-count">4</span></h3>
@@ -3258,7 +3258,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Saturday 14 November <span class="day-count">4</span></h3>
+<h3 class="day-title">Saturday 14 November <span class="day-count">5</span></h3>
 <div class="entries">
 <article class="entry" id="entry-192" data-n="192">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-192-body">
@@ -3318,6 +3318,21 @@
 <ul><li><strong>Line:</strong> 2 px (it was 4).</li><li><strong>Shift:</strong> the first version picked a line once and kept it until Shift was let go, which is why only one of the two worked. Now both are open in one drag: the card follows the row while the pointer has moved further across, the column while it has moved further up or down, and switches when the pointer goes the other way (with 12 px of give so it does not flip back and forth near the diagonal). A Shift held when the card is taken counts too, which also means a single card can be taken with Shift held; before, Shift on a card that was not in a pile started no drag. A whole pile taken with Shift is held to a line while Shift stays down, so to move a pile freely let go of Shift once it is picked up.</li><li><strong>Tapped cards:</strong> greyed a little (grayscale 0.6 and brightness 0.78 on the picture) with the tap symbol in the middle of the card, white with a dark shadow, a third of the card wide. In a pile of tapped cards only the top card shows it. It is a small element with the icon as a mask over the text colour, so any colour or size works.</li><li><strong>Mana icons:</strong> I read the project before using it. Its README says the symbol images are copyright Wizards of the Coast, the font is SIL OFL 1.1 and its CSS is MIT; the repository has no licence file and GitHub shows none. It has 308 separate svg files. I did not add it as a dependency: I copied the one file I need (<code>tap.svg</code>, 534 bytes, unchanged) into <code>frontend/public/icons/mana/</code> with a <code>credits.md</code> saying where it is from and what the licence says, and wrote <code>shared/mana-icons.mjs</code> (the list of icons we have, so a name made from other text can never point at another file) and <code>frontend/src/mana-icon.js</code> (draws one). More icons are added by copying their svg and adding the name to the list. <strong>Open:</strong> Wizards' Fan Content Policy has only been read through a summary, so whether it covers these symbol pictures is not settled; the credits file says to take them out and draw plain ones if Wizards objects.</li><li><strong>Handle:</strong> the dots of the bar's handle turn a quarter turn when the bar is a column.</li><li><strong>Auto-arrange:</strong> the button is gone from the solo table (and its handler). The table page still has it, since you only named the floating bar; <code>arrangeBoard</code> is still in the code and its unit tests still run.</li></ul>
 <p><strong>What I checked:</strong> the solo check (639), <code>test-mana-icons.mjs</code> (7) and the whole run of the quick suites. New checks: the 2 px line and the centred battlefield, the grip turned 90 degrees when docked and not in a row, the tapped card greyed with the symbol in its middle (the mask is the Mana file, the file is served as an svg), only the top card of a tapped pile showing it, no symbol or grey on an untapped card, Shift going from the row to the column and back in one drag, and with Shift held when the card is taken. Screenshots of a tapped Island and of the bar docked to the right as a column. Old checks that used the Auto-arrange button now put a card back on its pile by dragging it. I did not look at the symbol on a pile of tapped cards, on the table page, or in light mode.</p>
 <p><strong>My mistakes this round:</strong> my first Shift lock chose a line once and kept it, which is not what was asked, and it left Shift on a card that was not in a pile unable to start a drag. Two old checks failed because of the new behaviour (a press with Shift starting no drag, and a whole-pile drag with Shift held all the way now being held to a row); I changed them on purpose and said so here.</p>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-196" data-n="196">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-196-body">
+    <span class="num">196</span>
+    <span class="head-text"><span class="title">The cards picked up with a rectangle move together</span><span class="sum">Picking up several cards by dragging: build the moving group together.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-196-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>Picking up several cards by dragging: build the moving group together. (What was left open in entry 176: the group could be tapped and flipped with the keys but not moved.)</li></ul>
+<p><strong>What changed</strong> (<code>shared/zones.mjs</code>, <code>frontend/src/board-drag.js</code>, <code>frontend/pages/solo/solo.js</code>, <code>frontend/src/style.css</code>, <code>scripts/test-place-group.mjs</code>, <code>scripts/check-solo-ui.mjs</code>)</p>
+<ul><li>Pressing one of the picked cards and dragging carries all of them. <code>placeGroup(game, uids, anchor, col, row)</code> in <code>shared/zones.mjs</code> moves the card pressed to the cell it was dropped on and every other card of the group by the same number of cells, so they keep their places relative to each other. The move is cut short for the whole group where its first card would leave the board (a tapped card needs the room of its landscape shape), so the group never changes shape. If a picked card is in a pile, the rest of that pile goes with it (the rectangle only reaches the cards that are drawn, three of a pile). The group goes on top of the others only if it lands on a card that is drawn above it, as a single card does. It does not snap onto a pile.</li><li>While carried, the card pressed is the usual picture and each of the others is drawn beside it where it is on the board (a tapped card on its side), at the same see-through look, and every card of the group is hidden where it was. A group is carried over the board only: not into the hand, and not onto a pile or the command zone. Shift still holds it to a row or a column, as for one card. After the drop the group is still picked.</li><li>Only the solo table has the rectangle, so only it has this; the table page does not call it.</li></ul>
+<p><strong>What I checked:</strong> <code>test-place-group.mjs</code> (20: the shape is kept, nothing to do, each edge, a tapped card, a pile, going on top or not, bad input, and 400 random moves that never lose a card or leave the board) and the solo check (642): with the whole table's cards picked by a rectangle, pressing one and moving 5 cells carries all (a picture for each other card, none left unhidden, the hand not marked) and moves every card by exactly 5 cells across with its row unchanged, says how many moved, keeps the group picked and leaves no carry behind. A screenshot of a group being carried (a pile of three Islands, a Forest and a tapped Forest on its side). I did not try a group dropped at the right edge in the browser (the logic is tested), a group that holds a pile of more than three, or a group on the table page.</p>
+<p><strong>My mistakes this round:</strong> I used a variable before declaring it in the press code (<code>group</code> was read one line before it was made), which broke every drag from a card and made the pile checks fail; my first check also called a helper that does not exist in that part of the test file and crashed the whole run, and my wait for the run took the first error line in the log for the end of the run.</p>
   </div></div></div>
 </article>
 </div>

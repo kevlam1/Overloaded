@@ -37,6 +37,7 @@ const suites = [
   { name: 'lobby decks: what is sent, offered and shown', cmd: node, args: ['scripts/test-lobby-deck.mjs'] },
   { name: 'mount points of the deck manager: deck page and lobby', cmd: node, args: ['scripts/test-importer-markup.mjs'] },
   { name: 'game zones: draw, move, tap, shuffle', cmd: node, args: ['scripts/test-zones.mjs'] },
+  { name: 'moving a group of cards together', cmd: node, args: ['scripts/test-place-group.mjs'] },
   { name: 'the Mana icons and their credits', cmd: node, args: ['scripts/test-mana-icons.mjs'] },
   { name: 'the version number from log.md', cmd: node, args: ['scripts/test-version.mjs'] },
   { name: 'sound settings', cmd: node, args: ['scripts/test-sound-settings.mjs'] },

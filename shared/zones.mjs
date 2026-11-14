@@ -22,7 +22,7 @@
 // pc (poison, energy, experience) and cd (commander damage by seat). docs/tokens-counters.md explains them.
 
 import { scrubText } from './player-name.mjs';
-import { validCell, cellOf, cellOrder, firstEmptyCell, placeAll, arrangeAll, overlaps, nearbyFreeBlock, CARD_COLS, CARD_ROWS, TAP_GAP } from './board-grid.mjs';
+import { validCell, cellOf, cellOrder, firstEmptyCell, placeAll, arrangeAll, overlaps, nearbyFreeBlock, CARD_COLS, CARD_ROWS, TAP_GAP, BOARD_COLS, MAX_COL, MAX_ROW } from './board-grid.mjs';
 import { stackKey, stackCellFor, snapToStack } from './stacks.mjs';
 
 const SCRYFALL_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -540,6 +540,34 @@ export function placeStack(game, uid, col, row) {
   const firstIndex = list.findIndex((c) => members.has(c.uid));
   const coversALaterCard = list.some((c, i) => i > firstIndex && !members.has(c.uid) && overlaps(at, { col: c.px, row: c.py }));
   const movedCards = group.map((c) => ({ ...c, px: at.col, py: at.row }));
+  const battlefield = coversALaterCard ? [...list.filter((c) => !members.has(c.uid)), ...movedCards] : list.map((c) => (members.has(c.uid) ? movedCards.find((m) => m.uid === c.uid) : c));
+  return { game: { ...settled, zones: { ...settled.zones, battlefield } }, moved: group.length };
+}
+
+// Moves a group of cards together (Kevin, 2026-11-14: the cards picked up by dragging a rectangle over the battlefield move as one): the card `anchorUid` goes to (col, row) and every card of the group
+// moves by the same number of cells, so they keep their places relative to each other. The move is cut short, for the whole group, where the first card of it would leave the board (a tapped card needs
+// the room of its landscape shape): the group never changes shape. A card that shares a cell with a card of the group and has the same stack key (shared/stacks.mjs) is part of the group, so a pile
+// picked by its top card moves whole. The cards go to the end of the list (drawn on top) only if they land on a card that is not in the group and comes after them. Returns { game, moved } where moved is
+// how many cards moved (0 when nothing changed). Cards that are not on the battlefield are ignored; the anchor must be on it.
+export function placeGroup(game, uids, anchorUid, col, row) {
+  if (!validCell(col, row)) throw new Error('That is not a space on the battlefield.');
+  const settled = settleBoard(game);
+  const { card: anchor } = onBattlefield(settled, anchorUid, 'a place on the grid');
+  const list = settled.zones.battlefield;
+  const picked = new Set((Array.isArray(uids) ? uids : []).concat(anchorUid));
+  const chosen = list.filter((c) => picked.has(c.uid));
+  const members = new Set(chosen.map((c) => c.uid));
+  for (const c of list) if (!members.has(c.uid) && chosen.some((m) => m.px === c.px && m.py === c.py && stackKey(m) === stackKey(c))) members.add(c.uid); // the rest of a pile
+  const group = list.filter((c) => members.has(c.uid));
+  const here = cellOf(anchor);
+  const limit = (c) => (c.tapped ? BOARD_COLS - CARD_ROWS : MAX_COL);
+  const wantCols = col - here.col; const wantRows = row - here.row;
+  const dCol = Math.min(Math.max(wantCols, Math.max(...group.map((c) => -c.px))), Math.min(...group.map((c) => limit(c) - c.px)));
+  const dRow = Math.min(Math.max(wantRows, Math.max(...group.map((c) => -c.py))), Math.min(...group.map((c) => MAX_ROW - c.py)));
+  if (dCol === 0 && dRow === 0) return { game: settled, moved: 0 };
+  const movedCards = group.map((c) => ({ ...c, px: c.px + dCol, py: c.py + dRow }));
+  const firstIndex = list.findIndex((c) => members.has(c.uid));
+  const coversALaterCard = list.some((c, i) => i > firstIndex && !members.has(c.uid) && movedCards.some((m) => overlaps({ col: m.px, row: m.py }, { col: c.px, row: c.py })));
   const battlefield = coversALaterCard ? [...list.filter((c) => !members.has(c.uid)), ...movedCards] : list.map((c) => (members.has(c.uid) ? movedCards.find((m) => m.uid === c.uid) : c));
   return { game: { ...settled, zones: { ...settled.zones, battlefield } }, moved: group.length };
 }

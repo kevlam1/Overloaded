@@ -3943,6 +3943,24 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 **My mistakes this round:** my first Shift lock chose a line once and kept it, which is not what was asked, and it left Shift on a card that was not in a pile unable to start a drag. Two old checks failed because of the new behaviour (a press with Shift starting no drag, and a whole-pile drag with Shift held all the way now being held to a row); I changed them on purpose and said so here.
 
+
+---
+
+## 196. The cards picked up with a rectangle move together (2026-11-14)
+
+**What I asked for**
+- Picking up several cards by dragging: build the moving group together. (What was left open in entry 176: the group could be tapped and flipped with the keys but not moved.)
+
+**What changed** (`shared/zones.mjs`, `frontend/src/board-drag.js`, `frontend/pages/solo/solo.js`, `frontend/src/style.css`, `scripts/test-place-group.mjs`, `scripts/check-solo-ui.mjs`)
+- Pressing one of the picked cards and dragging carries all of them. `placeGroup(game, uids, anchor, col, row)` in `shared/zones.mjs` moves the card pressed to the cell it was dropped on and every other card of the group by the same number of cells, so they keep their places relative to each other. The move is cut short for the whole group where its first card would leave the board (a tapped card needs the room of its landscape shape), so the group never changes shape. If a picked card is in a pile, the rest of that pile goes with it (the rectangle only reaches the cards that are drawn, three of a pile). The group goes on top of the others only if it lands on a card that is drawn above it, as a single card does. It does not snap onto a pile.
+- While carried, the card pressed is the usual picture and each of the others is drawn beside it where it is on the board (a tapped card on its side), at the same see-through look, and every card of the group is hidden where it was. A group is carried over the board only: not into the hand, and not onto a pile or the command zone. Shift still holds it to a row or a column, as for one card. After the drop the group is still picked.
+- Only the solo table has the rectangle, so only it has this; the table page does not call it.
+
+**What I checked:** `test-place-group.mjs` (20: the shape is kept, nothing to do, each edge, a tapped card, a pile, going on top or not, bad input, and 400 random moves that never lose a card or leave the board) and the solo check (642): with the whole table's cards picked by a rectangle, pressing one and moving 5 cells carries all (a picture for each other card, none left unhidden, the hand not marked) and moves every card by exactly 5 cells across with its row unchanged, says how many moved, keeps the group picked and leaves no carry behind. A screenshot of a group being carried (a pile of three Islands, a Forest and a tapped Forest on its side).
+I did not try a group dropped at the right edge in the browser (the logic is tested), a group that holds a pile of more than three, or a group on the table page.
+
+**My mistakes this round:** I used a variable before declaring it in the press code (`group` was read one line before it was made), which broke every drag from a card and made the pile checks fail; my first check also called a helper that does not exist in that part of the test file and crashed the whole run, and my wait for the run took the first error line in the log for the end of the run.
+
 ---
 
 ## Where AI misread me, or I had to correct course

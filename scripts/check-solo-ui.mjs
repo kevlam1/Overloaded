@@ -758,6 +758,22 @@ try {
     await keyDown('e', 'KeyE', 69);
     const tappedGroup = await ev("document.querySelectorAll('#battlefield > .card.tapped').length");
     check('dragging a rectangle over the battlefield picks up the cards it touches (the box shows while dragging and is gone after), and E taps all of them at once', boxShown && (await count('.marquee')) === 0 && picked === onField && tappedGroup === picked, JSON.stringify({ boxShown, picked, onField, tappedGroup }));
+    { // the cards picked up with a rectangle move together: take one of them and every one goes by as much, keeping its place relative to the others
+      const cellsNow = () => ev("[...document.querySelectorAll('#battlefield > .card')].map((c) => [c.getAttribute('aria-label').split(',')[0], Number(c.dataset.col), Number(c.dataset.row)])");
+      const beforeMove = await cellsNow();
+      const cell = (await ev("document.getElementById('battlefield').getBoundingClientRect().width")) / 112;
+      const grab = await ev("(() => { const r = document.querySelector('#battlefield > .card').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()");
+      await move(grab);
+      await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: grab.x, y: grab.y, button: 'left', buttons: 1, clickCount: 1 });
+      for (let n = 1; n <= 8; n++) await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: grab.x + (cell * 5 * n) / 8, y: grab.y, buttons: 1 });
+      await sleep(60);
+      const carry = await ev("({ parts: document.querySelectorAll('.drag-group-part').length, ghosts: document.querySelectorAll('.drag-ghost').length, hidden: [...document.querySelectorAll('#battlefield > .card.dragging')].length, handMarked: document.getElementById('hand-section').classList.contains('drop-hand') })");
+      await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: grab.x + cell * 5, y: grab.y, button: 'left', buttons: 0, clickCount: 1 }); await sleep(150);
+      const afterMove = await cellsNow();
+      check('carrying one card of the group carries them all: a picture for each of the others beside the one pressed, every card of the group hidden where it was, and the hand is not marked', carry.ghosts === 1 && carry.parts === onField - 1 && carry.hidden === onField && !carry.handMarked, JSON.stringify({ carry, onField }));
+      check('letting go moves every card of the group by the same 5 cells across, none up or down, and says how many moved', beforeMove.length === onField && afterMove.length === onField && beforeMove.every((b, i) => afterMove[i][0] === b[0] && afterMove[i][1] === b[1] + 5 && afterMove[i][2] === b[2]) && new RegExp('^Moved ' + onField + ' cards\.').test(await $text('status')), JSON.stringify({ beforeMove, afterMove, status: await $text('status') }));
+      check('the group is still picked after it is moved, and nothing is left of the carry', (await ev("document.querySelectorAll('#battlefield > .card.selected').length")) === onField && (await count('.drag-ghost')) === 0 && (await count('.drag-group')) === 0 && (await count('#battlefield > .card.dragging')) === 0);
+    }
     await browser.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await sleep(150);
     check('Escape lets the group go', (await ev("document.querySelectorAll('#battlefield > .card.selected').length")) === 0);
     // the command zone: the tax counter above each commander and the words below and between the two slots
