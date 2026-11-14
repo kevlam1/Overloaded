@@ -9,6 +9,7 @@
 import { imageUrl, cardBackUrl } from '../../shared/card-image.mjs';
 import { isLandCard } from '../../shared/zones.mjs';
 import { stackInfo, STACK_VISIBLE } from '../../shared/stacks.mjs';
+import { manaIcon } from './mana-icon.js';
 import { changeParts, counterChips, marksSentence, markToast, shortNumber, statsOf } from '../../shared/marks.mjs';
 
 function make(tag, className, content) {
@@ -213,6 +214,9 @@ export function makeCardNodes({ onSelect = () => {}, isSelected = () => false, r
     }
     const selected = !readOnly && isSelected(card.uid);
     button.classList.toggle('tapped', card.tapped);
+    // a tapped card is greyed (the style sheet) and has the tap symbol in the middle of it; in a pile of tapped cards only the top one shows it (the style sheet hides the others')
+    const tapMark = button.querySelector(':scope > .tap-mark');
+    if (card.tapped && !tapMark) { const mark = manaIcon('tap', { className: 'tap-mark' }); if (mark) button.append(mark); } else if (!card.tapped) tapMark?.remove();
     button.classList.toggle('selected', selected);
     if (!readOnly) button.setAttribute('aria-pressed', String(selected));
     showFace(button, card);

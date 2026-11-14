@@ -251,6 +251,12 @@ main.table { max-width: 80rem; }
 .card.tapped .face { position: absolute; top: 50%; left: 50%; width: 6.6rem; height: 9.25rem; transform: translate(-50%, -50%) rotate(90deg); }
 .card.selected { border-color: transparent; box-shadow: 0 0 0 1px color-mix(in srgb, var(--ring) 80%, transparent), 0 0 0.45rem color-mix(in srgb, var(--ring) 35%, transparent); } /* a thin line and a faint glow: it is easy to find without shouting */
 /* The state badges at the top-left of a card: the lock ("doesn't untap") and SICK. Only the badges of your own cards take clicks (they clear). */
+/* the Mana icons (shared/mana-icons.mjs): the svg is a mask over the text colour, so one file serves every colour and size */
+.mana-icon { display: inline-block; width: 1em; height: 1em; background: currentColor; -webkit-mask: var(--icon) center / contain no-repeat; mask: var(--icon) center / contain no-repeat; }
+/* a tapped card is greyed a little, and has the tap symbol in the middle of it (in a pile of tapped cards only the top card shows it) */
+.card.tapped .face { filter: grayscale(0.6) brightness(0.78); }
+.card .tap-mark { position: absolute; top: 50%; left: 50%; width: 32%; height: auto; aspect-ratio: 1; translate: -50% -50%; z-index: 1; pointer-events: none; color: #fff; filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.9)) drop-shadow(0 0 5px rgba(0, 0, 0, 0.6)); }
+.card[data-stack-depth]:not([data-stack-depth="0"]) .tap-mark { display: none; }
 .card .badges { position: absolute; top: 0.25rem; left: 0.25rem; z-index: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 0.15rem; pointer-events: none; }
 .card .badge { display: inline-flex; align-items: center; justify-content: center; border: 1px solid rgba(255, 255, 255, 0.4); background: rgba(20, 20, 26, 0.92); color: #fff; font-size: 0.65rem; font-weight: 700; letter-spacing: 0.04em; line-height: 1.1rem; }
 .card.tapped .badges { top: 1.575rem; } /* a tapped card is turned on its side inside a square button: keep the badges on the card's own corner */
@@ -1231,8 +1237,8 @@ body.playing .pile-stack .stack-face.back { border: 0; border-radius: 4.8% / 3.4
 body.playing.solo main.table { display: block; position: fixed; inset: 0; margin: 0; padding: 0; overflow: hidden; }
 body.playing.solo { --glass: rgba(22, 22, 30, 0.78); }
 body.playing.solo #my-board { position: absolute; inset: 0; padding: 3.7rem 2.8rem 0; border: 0; border-radius: 0; background: none; } /* the same room at both sides: the battlefield is in the middle of the window (it was flush with the right edge, Kevin 2026-11-14) */
-/* a thick line round the battlefield, drawn outside it so the cells and the places of the cards do not move */
-body.playing.solo .board.mine > .battlefield { align-self: center; outline: 4px solid color-mix(in srgb, var(--text) 40%, transparent); outline-offset: 0; }
+/* a line round the battlefield (2 px: 4 was too thick, Kevin 2026-11-14), drawn outside it so the cells and the places of the cards do not move */
+body.playing.solo .board.mine > .battlefield { align-self: center; outline: 2px solid color-mix(in srgb, var(--text) 40%, transparent); outline-offset: 0; }
 body.playing.solo .zones { --sw: 5.4rem; } /* the piles and the command zone are larger (Kevin, 2026-11-12); their pictures are the normal size so they stay sharp */
 body.playing.solo .hand-section { position: absolute; left: 0; right: 36rem; bottom: 0; grid-row: auto; grid-column: auto; } /* the hand is centred in the room left of the piles (30rem: the row of piles and the command zone) */
 body.playing.solo .right-column { display: contents; }
@@ -1265,6 +1271,7 @@ body.playing.solo .actions-panel[data-vertical="true"] .actions { flex-direction
 body.playing.solo .actions-panel[data-vertical="true"] .actions button { width: 100%; }
 body.playing.solo .actions-panel[data-vertical="true"] .turn-stat { padding: 0 0 0.3rem; text-align: center; border-right: 0; border-bottom: 1px solid var(--line); }
 body.playing.solo .actions-panel[data-vertical="true"] .bar-grip { width: 100%; min-height: 1.3rem; }
+body.playing.solo .actions-panel[data-vertical="true"] .bar-grip svg { rotate: 90deg; } /* the dots of the handle lie down when the bar stands up */
 /* what letting go would do, shown while the bar is dragged: a strip along the edge it would dock to, a dotted line through the middle when it is lined up with the middle of the edge, a dotted triangle in the corner it would go into */
 .bar-snap-hint, .bar-center-hint, .bar-corner-hint { position: fixed; z-index: 14; pointer-events: none; animation: bar-hint-in 0.15s ease; }
 .bar-snap-hint { border-radius: 2px; background: var(--accent); box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 70%, transparent); opacity: 0.85; }

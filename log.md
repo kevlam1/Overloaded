@@ -3923,6 +3923,26 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 **My mistakes this round:** my first Shift check pushed the pointer below the bottom of the window, where the browser sends no mouse events, so it read the wrong place (I had been told about this before); two hand checks failed on the first run because the hand was down when they measured it, and a check of the area of the hand pointed at the top of a resting card, which is outside the area now that it is smaller.
 
+
+---
+
+## 195. A 2 px line, Shift on both lines, greyed tapped cards with the tap symbol, the Mana icons, a handle that turns, and no Auto-arrange (2026-11-14)
+
+**What I asked for**
+- The battlefield line is too thick: 2 px is fine. While dragging with Shift both the X and the Y line should be active, not just one. Tapped cards should be somewhat greyed with a tapped symbol in the middle of the topmost card. Consider using the icons of https://github.com/andrewgioia/Mana, because many more Magic icons will be used. The handle of the vertical floating bar should rotate too. Remove the Auto-arrange button.
+
+**What changed** (`frontend/src/style.css`, `board-drag.js`, `card-nodes.js`, `mana-icon.js`, `shared/mana-icons.mjs`, `frontend/public/icons/mana/`, `frontend/pages/solo/index.html` and `solo.js`, `scripts/`)
+- **Line:** 2 px (it was 4).
+- **Shift:** the first version picked a line once and kept it until Shift was let go, which is why only one of the two worked. Now both are open in one drag: the card follows the row while the pointer has moved further across, the column while it has moved further up or down, and switches when the pointer goes the other way (with 12 px of give so it does not flip back and forth near the diagonal). A Shift held when the card is taken counts too, which also means a single card can be taken with Shift held; before, Shift on a card that was not in a pile started no drag. A whole pile taken with Shift is held to a line while Shift stays down, so to move a pile freely let go of Shift once it is picked up.
+- **Tapped cards:** greyed a little (grayscale 0.6 and brightness 0.78 on the picture) with the tap symbol in the middle of the card, white with a dark shadow, a third of the card wide. In a pile of tapped cards only the top card shows it. It is a small element with the icon as a mask over the text colour, so any colour or size works.
+- **Mana icons:** I read the project before using it. Its README says the symbol images are copyright Wizards of the Coast, the font is SIL OFL 1.1 and its CSS is MIT; the repository has no licence file and GitHub shows none. It has 308 separate svg files. I did not add it as a dependency: I copied the one file I need (`tap.svg`, 534 bytes, unchanged) into `frontend/public/icons/mana/` with a `credits.md` saying where it is from and what the licence says, and wrote `shared/mana-icons.mjs` (the list of icons we have, so a name made from other text can never point at another file) and `frontend/src/mana-icon.js` (draws one). More icons are added by copying their svg and adding the name to the list. **Open:** Wizards' Fan Content Policy has only been read through a summary, so whether it covers these symbol pictures is not settled; the credits file says to take them out and draw plain ones if Wizards objects.
+- **Handle:** the dots of the bar's handle turn a quarter turn when the bar is a column.
+- **Auto-arrange:** the button is gone from the solo table (and its handler). The table page still has it, since you only named the floating bar; `arrangeBoard` is still in the code and its unit tests still run.
+
+**What I checked:** the solo check (639), `test-mana-icons.mjs` (7) and the whole run of the quick suites. New checks: the 2 px line and the centred battlefield, the grip turned 90 degrees when docked and not in a row, the tapped card greyed with the symbol in its middle (the mask is the Mana file, the file is served as an svg), only the top card of a tapped pile showing it, no symbol or grey on an untapped card, Shift going from the row to the column and back in one drag, and with Shift held when the card is taken. Screenshots of a tapped Island and of the bar docked to the right as a column. Old checks that used the Auto-arrange button now put a card back on its pile by dragging it. I did not look at the symbol on a pile of tapped cards, on the table page, or in light mode.
+
+**My mistakes this round:** my first Shift lock chose a line once and kept it, which is not what was asked, and it left Shift on a card that was not in a pile unable to start a drag. Two old checks failed because of the new behaviour (a press with Shift starting no drag, and a whole-pile drag with Shift held all the way now being held to a row); I changed them on purpose and said so here.
+
 ---
 
 ## Where AI misread me, or I had to correct course

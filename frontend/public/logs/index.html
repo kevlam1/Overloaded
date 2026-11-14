@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.194</span></h1>
-    <p class="lede">194 entries, Oct 25 to Nov 14, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
+    <h1>Build log <span class="version">Version 0.195</span></h1>
+    <p class="lede">195 entries, Oct 25 to Nov 14, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
   </div>
 </header>
 
@@ -23,7 +23,7 @@
     <div class="weeks-row">
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
-<a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">84</span></a>
+<a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">85</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
     </div>
     <div class="tools">
@@ -1961,7 +1961,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-1" aria-labelledby="week-1-title">
-<h2 class="week-head" id="week-1-title"><button type="button" aria-expanded="false" aria-controls="week-1-days"><span class="wname">Week 1</span><span class="range">Nov 9 to Nov 15</span><span class="week-count">84 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-1-title"><button type="button" aria-expanded="false" aria-controls="week-1-days"><span class="wname">Week 1</span><span class="range">Nov 9 to Nov 15</span><span class="week-count">85 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-1-days">
 <div class="day">
 <h3 class="day-title">Monday 9 November <span class="day-count">4</span></h3>
@@ -3258,7 +3258,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Saturday 14 November <span class="day-count">3</span></h3>
+<h3 class="day-title">Saturday 14 November <span class="day-count">4</span></h3>
 <div class="entries">
 <article class="entry" id="entry-192" data-n="192">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-192-body">
@@ -3303,6 +3303,21 @@
 <ul><li><strong>Preview:</strong> the card preview (the &quot;card corner&quot;) is gone from the solo page: its section, its styles and the code that filled it. The table page still has its own, and <code>frontend/src/spotlight.js</code> is untouched. The card is still read from the large picture on hover, with Alt.</li><li><strong>Battlefield:</strong> a 4 px line round it, drawn as an outline so the cells and the places of the cards do not move, and the same room (2.8rem) at both sides instead of only at the left, so it is in the middle of the window (it was 45 px from the left and touching the right edge; now 45 and 45 at 1366 wide).</li><li><strong>Floating bar:</strong> it now docks like the control bar of MIDI Companion, with its numbers (10 px to an edge, 15 px to the middle of one, 20 px to a corner). Let go near an edge and it docks there (top, bottom, left or right), near the middle of an edge it goes exactly to the middle, near a corner into the corner. On the left or the right it turns into a column. While dragging, a strip along the edge, a dotted line through the middle and a dotted triangle in the corner show what letting go would do. The place is kept as the edge and two fractions (a place stored before this, with no edge, is a free place). The arrow keys still move it by 10 px (then it is free, a row), and Home puts it back docked to the middle of the top. <code>shared/bar-place.mjs</code> has the rules in plain numbers (<code>dockPlan</code>, <code>nearestDock</code>, <code>anchored</code>, <code>isVertical</code>) and the old <code>snap</code> is gone.</li><li><strong>Shift:</strong> holding Shift while a card or a pile is carried keeps it on one line: along the row or down the column, whichever the pointer has moved along more since the drag began (it decides once the pointer is 8 px away), and it stays on that line until Shift is let go. Pressing or letting go of Shift moves the card at once without moving the mouse. How I read a clash: Shift when you press already means &quot;carry the whole pile&quot;, so a drag started with Shift is held to a line only after Shift has been let go and pressed again.</li></ul>
 <p><strong>What I checked:</strong> the solo check (634) and the bar place unit test (43), with new checks for each part: no <code>#spotlight</code> on the page, the bar docking left as a column, the strip and dotted line while it is held at the middle of the left edge, the triangle at the top left corner, the corner at the bottom right, Home, a docked bar surviving a reload; and for Shift: along the row with the same height, staying there, freed when Shift is let go, held to the column when pressed again. Screenshots of the page as it starts, with the bar docked left as a column, and with the bar dragged to the top left corner. I did not look at the bar docked to the top, bottom or right in a screenshot, did not check Shift on the table page (it has no drag changes yet) or on a phone, and the hints are only checked by whether they show.</p>
 <p><strong>My mistakes this round:</strong> my first Shift check pushed the pointer below the bottom of the window, where the browser sends no mouse events, so it read the wrong place (I had been told about this before); two hand checks failed on the first run because the hand was down when they measured it, and a check of the area of the hand pointed at the top of a resting card, which is outside the area now that it is smaller.</p>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-195" data-n="195">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-195-body">
+    <span class="num">195</span>
+    <span class="head-text"><span class="title">A 2 px line, Shift on both lines, greyed tapped cards with the tap symbol, the Mana icons, a handle that turns, and no Auto-arrange</span><span class="sum">The battlefield line is too thick: 2 px is fine.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-195-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>The battlefield line is too thick: 2 px is fine. While dragging with Shift both the X and the Y line should be active, not just one. Tapped cards should be somewhat greyed with a tapped symbol in the middle of the topmost card. Consider using the icons of https://github.com/andrewgioia/Mana, because many more Magic icons will be used. The handle of the vertical floating bar should rotate too. Remove the Auto-arrange button.</li></ul>
+<p><strong>What changed</strong> (<code>frontend/src/style.css</code>, <code>board-drag.js</code>, <code>card-nodes.js</code>, <code>mana-icon.js</code>, <code>shared/mana-icons.mjs</code>, <code>frontend/public/icons/mana/</code>, <code>frontend/pages/solo/index.html</code> and <code>solo.js</code>, <code>scripts/</code>)</p>
+<ul><li><strong>Line:</strong> 2 px (it was 4).</li><li><strong>Shift:</strong> the first version picked a line once and kept it until Shift was let go, which is why only one of the two worked. Now both are open in one drag: the card follows the row while the pointer has moved further across, the column while it has moved further up or down, and switches when the pointer goes the other way (with 12 px of give so it does not flip back and forth near the diagonal). A Shift held when the card is taken counts too, which also means a single card can be taken with Shift held; before, Shift on a card that was not in a pile started no drag. A whole pile taken with Shift is held to a line while Shift stays down, so to move a pile freely let go of Shift once it is picked up.</li><li><strong>Tapped cards:</strong> greyed a little (grayscale 0.6 and brightness 0.78 on the picture) with the tap symbol in the middle of the card, white with a dark shadow, a third of the card wide. In a pile of tapped cards only the top card shows it. It is a small element with the icon as a mask over the text colour, so any colour or size works.</li><li><strong>Mana icons:</strong> I read the project before using it. Its README says the symbol images are copyright Wizards of the Coast, the font is SIL OFL 1.1 and its CSS is MIT; the repository has no licence file and GitHub shows none. It has 308 separate svg files. I did not add it as a dependency: I copied the one file I need (<code>tap.svg</code>, 534 bytes, unchanged) into <code>frontend/public/icons/mana/</code> with a <code>credits.md</code> saying where it is from and what the licence says, and wrote <code>shared/mana-icons.mjs</code> (the list of icons we have, so a name made from other text can never point at another file) and <code>frontend/src/mana-icon.js</code> (draws one). More icons are added by copying their svg and adding the name to the list. <strong>Open:</strong> Wizards' Fan Content Policy has only been read through a summary, so whether it covers these symbol pictures is not settled; the credits file says to take them out and draw plain ones if Wizards objects.</li><li><strong>Handle:</strong> the dots of the bar's handle turn a quarter turn when the bar is a column.</li><li><strong>Auto-arrange:</strong> the button is gone from the solo table (and its handler). The table page still has it, since you only named the floating bar; <code>arrangeBoard</code> is still in the code and its unit tests still run.</li></ul>
+<p><strong>What I checked:</strong> the solo check (639), <code>test-mana-icons.mjs</code> (7) and the whole run of the quick suites. New checks: the 2 px line and the centred battlefield, the grip turned 90 degrees when docked and not in a row, the tapped card greyed with the symbol in its middle (the mask is the Mana file, the file is served as an svg), only the top card of a tapped pile showing it, no symbol or grey on an untapped card, Shift going from the row to the column and back in one drag, and with Shift held when the card is taken. Screenshots of a tapped Island and of the bar docked to the right as a column. Old checks that used the Auto-arrange button now put a card back on its pile by dragging it. I did not look at the symbol on a pile of tapped cards, on the table page, or in light mode.</p>
+<p><strong>My mistakes this round:</strong> my first Shift lock chose a line once and kept it, which is not what was asked, and it left Shift on a card that was not in a pile unable to start a drag. Two old checks failed because of the new behaviour (a press with Shift starting no drag, and a whole-pile drag with Shift held all the way now being held to a row); I changed them on purpose and said so here.</p>
   </div></div></div>
 </article>
 </div>

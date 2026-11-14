@@ -1099,6 +1099,7 @@ try {
   {
     const floating = await ev(`(() => { const r = (sel) => document.querySelector(sel).getBoundingClientRect(); const bar = r('.actions-panel'); const life = r('#life-area'); const menu = r('#settings-button'); const turn = r('.actions-panel .turn-stat'); const piles = r('.side-panels'); const board = r('#my-board'); const panelBorders = ['#my-board', '.right-column', '.side-panels', '.hand-section'].map((s) => getComputedStyle(document.querySelector(s)).borderTopWidth); return { barPosition: getComputedStyle(document.querySelector('.actions-panel')).position, barTop: Math.round(bar.top), grip: Boolean(document.querySelector('.actions-panel #bar-grip')), buttons: [...document.querySelectorAll('.actions-panel .actions button')].map((b) => b.id), barButtons: document.querySelectorAll('.bar .actions button').length, lifeLeft: Math.round(life.left), lifeTop: Math.round(life.top), menuRight: Math.round(innerWidth - menu.right), menuTop: Math.round(menu.top), turnInBar: turn.top >= bar.top && turn.bottom <= bar.bottom && turn.left >= bar.left && turn.right <= bar.right, pilesRight: Math.round(innerWidth - piles.right), pilesBottom: Math.round(innerHeight - piles.bottom), boardFills: Math.round(board.width) === innerWidth && Math.round(board.height) === innerHeight, panelBorders, footer: document.querySelector('footer') !== null }; })()`);
     check('no panels: the board fills the window and the board and the piles have no border; the action buttons are a floating bar with a grip (not in the top strip); there is no footer', floating.boardFills && floating.panelBorders.every((w) => w === '0px') && floating.barPosition === 'absolute' && floating.grip && floating.buttons.includes('draw') && floating.buttons.includes('untap-all') && !floating.buttons.includes('settings-button') && floating.barButtons === 0 && !floating.footer, JSON.stringify(floating));
+    check('the battlefield has a 2 px line round it, drawn outside it (an outline: it takes no room), and it is in the middle of the window: as much room on the left as on the right', await ev("(() => { const b = document.getElementById('battlefield'); const r = b.getBoundingClientRect(); const o = getComputedStyle(b); return o.outlineWidth === '2px' && o.outlineStyle === 'solid' && Math.abs(r.left - (innerWidth - r.right)) <= 1; })()"));
     check('the pieces float where a table has them: life at the top left, the menu button at the top right and the turn inside the floating bar, the piles and the command zone at the bottom right', floating.lifeLeft < 40 && floating.lifeTop < 40 && floating.menuRight < 40 && floating.menuTop < 40 && floating.turnInBar && floating.pilesRight < 40 && floating.pilesBottom < 40, JSON.stringify(floating));
     const legal = await ev(`(() => { document.getElementById('settings-button').click(); const t = document.querySelector('#settings-menu .settings-legal')?.textContent ?? ''; const shown = !document.getElementById('settings-menu').hidden; document.getElementById('settings-button').click(); return { t, shown }; })()`);
     check('Settings has a way home: a link to the home page and one to your decks', await ev("(() => { const home = document.getElementById('settings-home'); const decks = document.getElementById('settings-decks'); return Boolean(home) && Boolean(decks) && home.getAttribute('href') === '/' && decks.getAttribute('href') === '/deck' && document.getElementById('settings-menu').contains(home) && document.getElementById('settings-menu').contains(decks); })()"));
@@ -1961,14 +1962,15 @@ try {
   // a drag of a few pixels that ends on the card it started on is not a click either (the click that follows is swallowed), and the card does not shift a cell
   { const here = await centerOfSelector(cardAt('Forest')); await dragTo(here, { x: here.x + 40, y: here.y }, { release: false }); await mouseAt('mouseMoved', here, 1); await mouseAt('mouseReleased', here, 0); await sleep(80);
     check('a drag that goes out and comes back to the same card leaves it on its cell and does not select it', (await cellOfCard('Forest')) === '0,33' && /^Click a card/.test(await $text('selected-line')) && await dragStateGone(), `${await cellOfCard('Forest')} | ${await $text('selected-line')}`); }
-  // a press with Shift held is a marks click (10 at a time), not the start of a drag
+  // a press with Shift held on a card starts a drag too (held to a row or a column, 2026-11-14); on a number or a counter it is still a marks click (10 at a time)
   { const here = await centerOfSelector(cardAt('Forest')); const away = await cellCenter(16, 4);
     await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: here.x, y: here.y });
     await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: here.x, y: here.y, button: 'left', buttons: 1, clickCount: 1, modifiers: 8 });
     for (let step = 1; step <= 6; step++) await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: here.x + (away.x - here.x) * step / 6, y: here.y + (away.y - here.y) * step / 6, buttons: 1, modifiers: 8 });
     const shiftGhost = await count('.drag-ghost');
+    await escapeKey(); await sleep(60); // (cancelled: the card stays)
     await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: away.x, y: away.y, button: 'left', buttons: 0, clickCount: 1, modifiers: 8 }); await sleep(80);
-    check('pressing with Shift held and moving does not drag the card', shiftGhost === 0 && (await cellOfCard('Forest')) === '0,33', `${shiftGhost} ${await cellOfCard('Forest')}`);
+    check('pressing with Shift held and moving drags the card (it is held to a row or a column), and Escape cancels it', shiftGhost === 1 && (await cellOfCard('Forest')) === '0,33' && await dragStateGone(), `${shiftGhost} ${await cellOfCard('Forest')}`);
     await clickAction('Deselect'); }
   // the outline is only shown over the battlefield
   { let over = null;
@@ -2033,11 +2035,7 @@ try {
   check('Alt and the up arrow move it one row up', (await cellOfCard('Forest')) === '0,32');
   await clickAction('Deselect');
 
-  // Auto-arrange: lands along the bottom from the left, everything else along the top from the left, a card apart
-  await press('arrange');
-  const arranged = await ev(`Array.from(document.querySelectorAll('#battlefield .card')).map((c) => c.getAttribute('aria-label').split(',')[0] + '@' + c.dataset.col + ',' + c.dataset.row + ':' + c.dataset.kind).sort()`);
-  check('Auto-arrange puts the land at the bottom-left and the others along the top from the left (by name), a card apart, and says so', JSON.stringify(arranged) === JSON.stringify(['Forest@0,33:land', 'Llanowar Elves@0,0:other', 'Sol Ring@8,0:other']) && /^Tidied the battlefield/.test(await $text('status')), JSON.stringify(arranged));
-  check('the battlefield is one grid that does not scroll the page, and after tidying no card covers another', await ev(`(() => { const cs = Array.from(document.querySelectorAll('#battlefield .card')).map((c) => [Number(c.dataset.col), Number(c.dataset.row)]); const clash = cs.some((a, i) => cs.some((b, j) => i !== j && Math.abs(a[0] - b[0]) < 8 && Math.abs(a[1] - b[1]) < 11)); return !clash && document.documentElement.scrollHeight <= innerHeight + 1; })()`));
+  check('the battlefield is one grid that does not scroll the page, and there is no Auto-arrange button on the solo table (it was taken out on 2026-11-14)', await ev(`document.documentElement.scrollHeight <= innerHeight + 1 && document.getElementById('arrange') === null`));
 
   // ---- stacks: same-name cards on one cell are drawn as a pile with a count (real mouse input; the Solo test deck is half Forests) ----
   await open();
@@ -2059,12 +2057,16 @@ try {
   if (process.argv.includes('--screenshot')) await browser.screenshot('scratch-solo-stack.png');
   // moving a whole pile: Shift and drag any card of it, or hold it down until the circle is full; a plain drag still takes one card
   { const r = await boardRect(); const topCard = '#battlefield .card[data-stack-depth="0"]';
-    const shiftDrag = async (from, to, modifiers, during = null) => { await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: from.x, y: from.y }); await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: from.x, y: from.y, button: 'left', buttons: 1, clickCount: 1, modifiers }); for (let n = 1; n <= 8; n++) await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: from.x + (to.x - from.x) * n / 8, y: from.y + (to.y - from.y) * n / 8, buttons: 1, modifiers }); if (during) await during(); await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: to.x, y: to.y, button: 'left', buttons: 0, clickCount: 1, modifiers }); await sleep(100); };
+    const shiftDrag = async (from, to, modifiers, during = null, moveModifiers = modifiers) => { await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: from.x, y: from.y }); await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: from.x, y: from.y, button: 'left', buttons: 1, clickCount: 1, modifiers }); for (let n = 1; n <= 8; n++) await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: from.x + (to.x - from.x) * n / 8, y: from.y + (to.y - from.y) * n / 8, buttons: 1, modifiers: moveModifiers }); if (during) await during(); await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: to.x, y: to.y, button: 'left', buttons: 0, clickCount: 1, modifiers: moveModifiers }); await sleep(100); }; // (moveModifiers: what is held while it moves and when it is let go; Shift held while moving holds the card to a row or a column)
+    const joinLone = async () => { // drags the card that is on its own back onto the pile (within 6 cells it joins it)
+      const lonePoint = await ev(`(() => { const c = document.querySelector('#battlefield .card:not([data-stack-depth])'); if (!c) return null; const r = c.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`);
+      if (lonePoint) { await shiftDrag(lonePoint, await centerOfSelector('#battlefield .card[data-stack-depth="0"]'), 0); await sleep(120); }
+    };
     const from = await centerOfSelector(topCard);
     let carried = null;
     let ghostInfo = null;
     let ghostBadge = null;
-    await shiftDrag(from, { x: from.x + 30 * r.width / 112, y: from.y - 11 * r.height / 44 }, 8, async () => { if (process.argv.includes('--screenshot')) { await sleep(80); await browser.screenshot('scratch-pile-ghost.png'); } ghostBadge = await ev("(() => { const g = document.querySelector('.drag-ghost'); const b = document.querySelector('#battlefield > .card .stack-count'); return g ? { ghost: parseFloat(getComputedStyle(g, '::after').fontSize), board: b ? parseFloat(getComputedStyle(b).fontSize) : null } : null; })()"); ghostInfo = await ev("(() => { const g = document.querySelector('.drag-ghost'); if (!g) return null; const own = g.querySelector(':scope > img')?.getBoundingClientRect(); if (!own) return null; const round = (v) => Math.round(v * 10) / 10; const copies = [...g.querySelectorAll('.drag-ghost-copy')].map((c) => { const r = c.getBoundingClientRect(); return [round(r.left - own.left), round(r.top - own.top)]; }).sort((a, b) => a[0] - b[0] || a[1] - b[1]); const top = [...document.querySelectorAll('#battlefield .card')].find((c) => c.dataset.stackDepth === '0' && c.classList.contains('dragging')); const tr = top ? top.getBoundingClientRect() : null; const pile = [...document.querySelectorAll('#battlefield .card.dragging')].filter((c) => c.dataset.stackDepth !== '0' && !c.dataset.stackHidden).map((c) => { const r = c.getBoundingClientRect(); return [round(r.left - tr.left), round(r.top - tr.top)]; }).sort((a, b) => a[0] - b[0] || a[1] - b[1]); return { stack: g.classList.contains('stack'), count: g.dataset.count, copies, pile, layers: [...g.querySelectorAll('.drag-ghost-copy')].map((c) => c.style.zIndex) }; })()"); carried = await ev(`(() => ({ hidden: document.querySelectorAll('#battlefield .card.dragging').length, visible: Array.from(document.querySelectorAll('#battlefield .card')).filter((c) => getComputedStyle(c).visibility !== 'hidden' && getComputedStyle(c).display !== 'none').length }))()`); });
+    await shiftDrag(from, { x: from.x + 30 * r.width / 112, y: from.y - 11 * r.height / 44 }, 8, async () => { if (process.argv.includes('--screenshot')) { await sleep(80); await browser.screenshot('scratch-pile-ghost.png'); } ghostBadge = await ev("(() => { const g = document.querySelector('.drag-ghost'); const b = document.querySelector('#battlefield > .card .stack-count'); return g ? { ghost: parseFloat(getComputedStyle(g, '::after').fontSize), board: b ? parseFloat(getComputedStyle(b).fontSize) : null } : null; })()"); ghostInfo = await ev("(() => { const g = document.querySelector('.drag-ghost'); if (!g) return null; const own = g.querySelector(':scope > img')?.getBoundingClientRect(); if (!own) return null; const round = (v) => Math.round(v * 10) / 10; const copies = [...g.querySelectorAll('.drag-ghost-copy')].map((c) => { const r = c.getBoundingClientRect(); return [round(r.left - own.left), round(r.top - own.top)]; }).sort((a, b) => a[0] - b[0] || a[1] - b[1]); const top = [...document.querySelectorAll('#battlefield .card')].find((c) => c.dataset.stackDepth === '0' && c.classList.contains('dragging')); const tr = top ? top.getBoundingClientRect() : null; const pile = [...document.querySelectorAll('#battlefield .card.dragging')].filter((c) => c.dataset.stackDepth !== '0' && !c.dataset.stackHidden).map((c) => { const r = c.getBoundingClientRect(); return [round(r.left - tr.left), round(r.top - tr.top)]; }).sort((a, b) => a[0] - b[0] || a[1] - b[1]); return { stack: g.classList.contains('stack'), count: g.dataset.count, copies, pile, layers: [...g.querySelectorAll('.drag-ghost-copy')].map((c) => c.style.zIndex) }; })()"); carried = await ev(`(() => ({ hidden: document.querySelectorAll('#battlefield .card.dragging').length, visible: Array.from(document.querySelectorAll('#battlefield .card')).filter((c) => getComputedStyle(c).visibility !== 'hidden' && getComputedStyle(c).display !== 'none').length }))()`); }, 0); // (Shift held when the pile is taken, then let go: with Shift held all the way it would be held to a row)
     check('the picture carried with a whole pile IS the pile: the top card and a layer for each of the other drawn copies (2 under it) in the same offsets the pile has on the board, behind the top card, and the count 6 in its corner', ghostInfo && ghostInfo.stack === true && ghostInfo.count === '6' && ghostInfo.copies.length === 2 && JSON.stringify(ghostInfo.copies) === JSON.stringify(ghostInfo.pile) && ghostInfo.copies.every(([x, y]) => x < 0 && y < 0) && ghostInfo.layers.every((z) => z === '-1'), JSON.stringify(ghostInfo));
     check('the number of a pile carried is the size of the number on the board (1.5 times what it was, 0.9 rem), not the old small one', ghostBadge && ghostBadge.board !== null && Math.abs(ghostBadge.ghost - ghostBadge.board) < 0.5 && ghostBadge.ghost >= 14, JSON.stringify(ghostBadge));
     check('while a whole pile is carried every card of it is hidden at the old place (not only the one that was pressed)', carried && carried.hidden === 6 && carried.visible === 0, JSON.stringify(carried));
@@ -2105,13 +2107,13 @@ try {
       await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: p3.x + 14 * r.width / 112, y: p3.y, button: 'left', buttons: 0, clickCount: 1 }); await sleep(120);
       const after = await forestState();
       check('moving the pile before the circle is full takes ONE card off the top (5x and one on its own) and the circle is gone as soon as the drag starts', midDrag === null && after.badge === '5x' && after.cells.length === 2, JSON.stringify({ midDrag, after }));
-      await press('arrange'); await sleep(60); }
+      await joinLone(); }
     const lone = await ev(`(() => { const c = document.querySelector('#battlefield .card[data-stack-depth="0"]').getBoundingClientRect(); return { x: c.x + c.width / 2, y: c.y + c.height / 2 }; })()`);
     await shiftDrag(lone, { x: lone.x + 12 * r.width / 112, y: lone.y }, 0);
     pile = await forestState();
     check('a plain drag of a card of a pile still takes ONE card off (5x here and one on its own)', pile.badge === '5x' && pile.cells.length === 2, JSON.stringify(pile));
-    await press('arrange'); await sleep(60);
-    check('(Auto-arrange puts the six together again)', (await forestState()).badge === '6x'); }
+    await joinLone();
+    check('(dragging the card on its own back onto the pile puts the six together again)', (await forestState()).badge === '6x'); }
 
   // the dashed border around a pile, a card being dragged is not shown where it was, and the highlight of a selected card is thin
   { const border = await ev(`(() => { const c = document.querySelector('#battlefield .card[data-stack-depth="0"]'); const cs = getComputedStyle(c, '::before'); return { ext: c.dataset.stackExt, style: cs.borderTopStyle, width: cs.borderTopWidth, top: cs.top, left: cs.left, event: cs.pointerEvents }; })()`);
@@ -2315,10 +2317,6 @@ try {
   pile = await forestState();
   check('a Forest dropped within 6 cells of the pile joins it: the pile is 6x again', pile.badge === '6x' && pile.cells.length === 1 && pile.cells[0] === '0,33', JSON.stringify(pile));
 
-  // a pile stays a pile when the battlefield is tidied
-  await press('arrange');
-  pile = await forestState();
-  check('Auto-arrange keeps the six Forests in one pile at the first land block', pile.cells.length === 1 && pile.cells[0] === '0,33' && pile.badge === '6x', JSON.stringify(pile));
 
   // tapping a card takes it out of the pile and puts it beside it, as its own stack; untapping sends it back
   await clickCard('#battlefield .card[data-stack-depth="0"]'); await clickAction('Tap');
@@ -2336,6 +2334,14 @@ try {
     {
       const badge = await ev("(() => { const top = document.querySelector('#battlefield .card.tapped .stack-count'); if (!top) return null; const card = top.parentElement.getBoundingClientRect(); const r = top.getBoundingClientRect(); return { right: card.right - r.right, bottom: card.bottom - r.bottom, font: parseFloat(getComputedStyle(top).fontSize) }; })()");
       check('on a pile of tapped cards the number is at the bottom right', badge && badge.font >= 14 && badge.font <= 15 && badge.right >= 0 && badge.right < 14 && badge.bottom >= 0 && badge.bottom < 14, JSON.stringify(badge));
+    }
+    { // a tapped card is greyed and has the tap symbol (from the Mana icons) in the middle of it; in a pile of tapped cards only the top one shows it
+      const tapped = await ev("(() => { const cards = [...document.querySelectorAll('#battlefield .card.tapped')]; return cards.map((c) => { const mark = c.querySelector(':scope > .tap-mark'); const m = mark ? mark.getBoundingClientRect() : null; const r = c.getBoundingClientRect(); const cs = mark ? getComputedStyle(mark) : null; return { depth: c.dataset.stackDepth ?? null, marks: c.querySelectorAll(':scope > .tap-mark').length, shown: cs ? cs.display !== 'none' : false, mask: cs ? (cs.maskImage || cs.webkitMaskImage) : null, filter: getComputedStyle(c.querySelector('.face')).filter, centred: m ? Math.abs(m.left + m.width / 2 - (r.left + r.width / 2)) < 2 && Math.abs(m.top + m.height / 2 - (r.top + r.height / 2)) < 2 : false, size: m ? Math.round(m.width) : 0 }; }); })()");
+      const top = tapped.find((c) => c.depth === '0'); const under = tapped.find((c) => c.depth === '1');
+      const file = await ev("fetch('/icons/mana/tap.svg').then((r) => ({ ok: r.ok, type: r.headers.get('content-type') }))");
+      check('a tapped card is greyed a little and has the tap symbol in the middle of it: the Mana tap icon, as a mask over white, a third of the card wide', top && /grayscale\(0\.6\)/.test(top.filter) && /brightness\(0\.78\)/.test(top.filter) && top.marks === 1 && top.shown && top.centred && top.size > 20 && /\/icons\/mana\/tap\.svg/.test(top.mask ?? ''), JSON.stringify(tapped));
+      check('in a stack of tapped cards only the top one shows the symbol (the one under it has it, hidden), and the icon file is served as an svg', under && under.marks === 1 && under.shown === false && file.ok && /svg/.test(file.type ?? ''), JSON.stringify({ under, file }));
+      check('an untapped card has no tap symbol and is not greyed', await ev("(() => { const c = document.querySelector('#battlefield .card:not(.tapped)'); return c ? c.querySelectorAll('.tap-mark').length === 0 && getComputedStyle(c.querySelector('.face')).filter === 'none' : true; })()"));
     }
   await clickAction('Untap');
   { const one = await ev(`(() => { const c = Array.from(document.querySelectorAll('#battlefield .card:not(.tapped)')).filter((x) => x.dataset.stackSize === undefined || x.dataset.stackDepth === '0'); const lone = Array.from(document.querySelectorAll('#battlefield .card.selected'))[0]; return lone ? lone.dataset.col + ',' + lone.dataset.row : null; })()`);
@@ -2493,14 +2499,26 @@ try {
       const along = await ghostAt();
       check('with Shift held the card moves along the row only: the pointer went 150 across and 40 down and the card went across with the same height', first && along && along.x - first.x >= 140 && along.y === first.y, JSON.stringify({ first, along }));
       await at('mouseMoved', start.x + 150, start.y - 200, 1, 8); await sleep(60); // (up: the piles are near the bottom of the window, and the browser sends no mouse events from outside it)
-      const stays = await ghostAt();
-      check('it stays on that row while Shift is held, however far up the pointer goes', stays && stays.y === first.y && stays.x === along.x, JSON.stringify({ stays, along }));
+      const switched = await ghostAt();
+      check('both lines are open in the same drag: pushing the pointer further up than across switches to the column: the card is back at its first place across and follows the pointer up (200 up)', switched && Math.abs(switched.x - (first.x - 10)) <= 1 && first.y - switched.y >= 190, JSON.stringify({ switched, first }));
+      await at('mouseMoved', start.x + 400, start.y - 220, 1, 8); await sleep(60);
+      const back = await ghostAt();
+      check('and pushing it further across than up switches back to the row: the same height as the first place', back && back.y === first.y && back.x - first.x >= 380, JSON.stringify({ back, first, switched }));
       await shiftKey('keyUp', 0); await sleep(60);
       const freed = await ghostAt();
       check('letting go of Shift frees it at once, with no mouse movement: the card is under the pointer again (200 up)', freed && first.y - freed.y >= 190 && freed.x - first.x >= 140, JSON.stringify({ freed, first }));
       await shiftKey('rawKeyDown', 8); await sleep(60);
       const column = await ghostAt();
-      check('pressing Shift again holds it to the column it moved along most (the pointer is further up than across): the card is back at its first place across and 200 up', column && Math.abs(column.x - (first.x - 10)) <= 1 && column.y === freed.y, JSON.stringify({ column, first, freed }));
+      check('pressing Shift again holds it to the row (the pointer is further across than up): the card goes back to its first height and stays under the pointer across', column && column.y === first.y && column.x === freed.x, JSON.stringify({ column, first, freed }));
+      await shiftKey('keyUp', 0);
+      await escapeKey(); await sleep(150);
+      // Shift already held when the card is taken counts too
+      await at('mouseMoved', start.x, start.y, 0, 8); await at('mousePressed', start.x, start.y, 1, 8);
+      await at('mouseMoved', start.x + 12, start.y, 1, 8); await sleep(60);
+      const heldFirst = await ghostAt();
+      await at('mouseMoved', start.x + 160, start.y - 50, 1, 8); await sleep(60);
+      const heldMoved = await ghostAt();
+      check('Shift held when the card is taken holds it to a line too: 160 across and 50 up goes across at the same height', heldFirst && heldMoved && heldMoved.y === heldFirst.y && heldMoved.x - heldFirst.x >= 140, JSON.stringify({ heldFirst, heldMoved }));
       await shiftKey('keyUp', 0);
       await escapeKey(); await sleep(150);
     }
@@ -2633,6 +2651,8 @@ try {
     await dragGrip(-(b1.left - 5), 0);
     const left = await barBox();
     check('let go within 10 px of the left edge the bar docks to it (8 px from the edge) and turns into a column, and that is kept', left.left === 8 && left.h > left.w && (await dockOf()) === 'true' && JSON.parse(await stored()).dock === 'left', JSON.stringify({ left, vertical: await dockOf(), stored: await stored() }));
+    const gripTurn = () => ev("getComputedStyle(document.querySelector('#bar-grip svg')).rotate");
+    check('docked to the left the handle of the bar is turned a quarter turn too (the dots lie down when the bar stands up)', (await gripTurn()) === '90deg', await gripTurn());
     const hidden = await hints();
     check('the hints are gone once it is let go', !hidden.snap && !hidden.center && !hidden.corner, JSON.stringify(hidden));
     { const mid = (left.top + left.bottom) / 2; const seen = await hold(0, 506 - mid); const m = await barBox();
@@ -2645,7 +2665,7 @@ try {
     await ev("document.getElementById('bar-grip').focus()");
     await gripKey('Home');
     const home = await barBox();
-    check('Home puts it back in the middle of the top, as a row again', Math.abs((home.left + home.right) / 2 - 640) <= 3 && home.top <= 12 && (await dockOf()) === 'false', JSON.stringify(home));
+    check('Home puts it back in the middle of the top, as a row again, with the handle standing up again', Math.abs((home.left + home.right) / 2 - 640) <= 3 && home.top <= 12 && (await dockOf()) === 'false' && ['none', '0deg'].includes(await gripTurn()), JSON.stringify(home));
     await dragGrip(-250, 120);
     await ev("document.getElementById('bar-grip').focus()");
     const before = await barBox();

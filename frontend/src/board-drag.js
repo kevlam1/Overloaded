@@ -18,7 +18,8 @@ const FOLLOW_RATE = 30; // per second
 const LEAN_RATE = 14; // per second
 const LEAN_PER_PIXEL = 0.35; // degrees of lean for each pixel the picture is behind the pointer
 const MAX_LEAN = 18; // degrees
-const AXIS_LOCK_PX = 8; // holding Shift while carrying: once the pointer is this far from where the drag began, the card is held to the line along which it moved most (Kevin, 2026-11-14, like the Shift of an image editor)
+const AXIS_LOCK_PX = 8; // holding Shift while carrying: once the pointer is this far from where the drag began, the card is held to a line (Kevin, 2026-11-14, like the Shift of an image editor)
+const AXIS_STICK_PX = 12; // ...and it changes from the row to the column (or back) only when the pointer is this much further along the other one, so near the diagonal it does not flip back and forth
 
 // Piles and the command zone (Kevin, 2026-11-12): a card can be taken from the top of the library, the graveyard or the exile, or from the command zone, and a card can be dropped on any of them. The page says
 // what is a pile: zoneSource(target) gives { button, uid, from, picture? } for the element pressed (the top card of a pile, or a card of the command zone; picture: an address for the picture carried, for a
@@ -159,7 +160,7 @@ export function mountBoardDrag({ doc = document, board, onDrop, hand = () => nul
     doc.body.classList.add('dragging-card');
     const grab = { x: Math.min(1, Math.max(0, (press.x - rect.left) / (rect.width || 1))), y: Math.min(1, Math.max(0, (press.y - rect.top) / (rect.height || 1))) }; // where on the card it was taken, as fractions
     if (press.whole) ghost.dataset.count = press.button.dataset.stackSize; // the picture says how many cards it carries
-    drag = { carried, button: press.button, uid: press.uid, from: press.from, whole: press.whole, tapped, ghost, highlight, cell: null, overHand: false, pile: null, pileElement: null, width, height, holdW, holdH, grab, startX: press.x, startY: press.y, start: press.start, shiftAtPress: press.shift, shiftUp: false, axis: null, last: { x: press.x, y: press.y } };
+    drag = { carried, button: press.button, uid: press.uid, from: press.from, whole: press.whole, tapped, ghost, highlight, cell: null, overHand: false, pile: null, pileElement: null, width, height, holdW, holdH, grab, startX: press.x, startY: press.y, start: press.start, axis: null, last: { x: press.x, y: press.y } };
     // the picture of a card taken from the hand OR from a pile or the command zone eases after the pointer and leans (Kevin, 2026-11-13: the same for all of them); a card of the battlefield stays under the pointer
     if ((press.from === 'hand' || press.zone) && !(typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches)) {
       // from where the card is (the middle of its box on screen is where its middle is, whatever its turn), at its own turn
@@ -188,18 +189,16 @@ export function mountBoardDrag({ doc = document, board, onDrop, hand = () => nul
     s.frame = requestAnimationFrame(followPointer);
   }
 
-  // Shift held while a card or a pile is carried keeps it on one line: along the row (the same height) or down the column (the same place across), whichever the pointer has moved along more since the drag began; it
-  // stays on that line until Shift is let go. A drag that was started with Shift (it carries a whole pile) is only held to a line after Shift has been let go and pressed again. The place the pointer really is
-  // is kept in drag.last, so pressing or letting go of Shift moves the card at once, with no mouse movement.
+  // Shift held while a card or a pile is carried keeps it on one line, and both lines are open in the same drag: along the row (the same height as where the drag began) while the pointer has moved further across,
+  // down the column (the same place across) while it has moved further up or down, switching when the pointer goes the other way (with AXIS_STICK_PX of give). Shift held when the drag is started counts
+  // too (a pile is then carried whole and held to a line). The place the pointer really is is kept in drag.last, so pressing or letting go of Shift moves the card at once, with no mouse movement.
   const pointOf = (event) => {
     const x = event.clientX; const y = event.clientY;
-    if (!event.shiftKey) { drag.shiftUp = true; drag.axis = null; return { x, y }; }
-    if (drag.shiftAtPress && !drag.shiftUp) return { x, y };
-    const dx = x - drag.startX; const dy = y - drag.startY;
-    if (!drag.axis && Math.max(Math.abs(dx), Math.abs(dy)) >= AXIS_LOCK_PX) drag.axis = Math.abs(dx) >= Math.abs(dy) ? 'x' : 'y';
-    if (drag.axis === 'x') return { x, y: drag.startY };
-    if (drag.axis === 'y') return { x: drag.startX, y };
-    return { x, y };
+    if (!event.shiftKey) { drag.axis = null; return { x, y }; }
+    const ax = Math.abs(x - drag.startX); const ay = Math.abs(y - drag.startY);
+    if (Math.max(ax, ay) < AXIS_LOCK_PX) return { x, y };
+    drag.axis = drag.axis === 'x' ? (ax >= ay - AXIS_STICK_PX ? 'x' : 'y') : drag.axis === 'y' ? (ay >= ax - AXIS_STICK_PX ? 'y' : 'x') : (ax >= ay ? 'x' : 'y');
+    return drag.axis === 'x' ? { x, y: drag.startY } : { x: drag.startX, y };
   };
   const update = (event) => {
     drag.last = { x: event.clientX, y: event.clientY };
@@ -255,13 +254,12 @@ export function mountBoardDrag({ doc = document, board, onDrop, hand = () => nul
     if (event.altKey || event.ctrlKey || event.metaKey) return; // a modified click is something else (a menu key)
     if (event.target.closest?.('[data-mark], [data-badge]')) return;
     const source = pressedSource(event.target);
-    // A pile of more than one card: Shift held while dragging, or holding it down until the circle is full (startHold), carries the WHOLE pile; a plain drag takes one card off the top. Shift on a card
-    // that is not in a pile is something else (a marks step) and starts no drag.
+    // A pile of more than one card: Shift held when the drag starts, or holding it down until the circle is full (startHold), carries the WHOLE pile; a plain drag takes one card off the top. (Shift also holds a
+    // carried card to a row or a column: pointOf.)
     const stacked = source?.from === 'battlefield' && Number(source.button.dataset.stackSize) > 1;
-    if (event.shiftKey && !stacked) return;
     const whole = stacked && event.shiftKey;
     const own = source?.from === 'battlefield' ? { col: Number(source.button.dataset.col), row: Number(source.button.dataset.row) } : null;
-    press = source ? { ...source, shift: event.shiftKey, zone: source.from !== 'battlefield' && source.from !== 'hand', whole, x: event.clientX, y: event.clientY, start: own && Number.isInteger(own.col) && Number.isInteger(own.row) ? own : null } : null;
+    press = source ? { ...source, zone: source.from !== 'battlefield' && source.from !== 'hand', whole, x: event.clientX, y: event.clientY, start: own && Number.isInteger(own.col) && Number.isInteger(own.row) ? own : null } : null;
     if (press && stacked && !event.shiftKey) startHold(); // a pile held down is ready to be moved as a whole
   };
   const onMove = (event) => {
