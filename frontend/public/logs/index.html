@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.190</span></h1>
-    <p class="lede">190 entries, Oct 25 to Nov 13, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
+    <h1>Build log <span class="version">Version 0.191</span></h1>
+    <p class="lede">191 entries, Oct 25 to Nov 13, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
   </div>
 </header>
 
@@ -23,7 +23,7 @@
     <div class="weeks-row">
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
-<a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">80</span></a>
+<a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">81</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
     </div>
     <div class="tools">
@@ -1961,7 +1961,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-1" aria-labelledby="week-1-title">
-<h2 class="week-head" id="week-1-title"><button type="button" aria-expanded="false" aria-controls="week-1-days"><span class="wname">Week 1</span><span class="range">Nov 9 to Nov 15</span><span class="week-count">80 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-1-title"><button type="button" aria-expanded="false" aria-controls="week-1-days"><span class="wname">Week 1</span><span class="range">Nov 9 to Nov 15</span><span class="week-count">81 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-1-days">
 <div class="day">
 <h3 class="day-title">Monday 9 November <span class="day-count">4</span></h3>
@@ -2861,7 +2861,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Friday 13 November <span class="day-count">25</span></h3>
+<h3 class="day-title">Friday 13 November <span class="day-count">26</span></h3>
 <div class="entries">
 <article class="entry" id="entry-166" data-n="166">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-166-body">
@@ -3239,6 +3239,20 @@
 <ul><li>How I read it: the existing On/Off switch becomes the choice between the two versions. <strong>Auto sort: On</strong> is exactly what there was: the hand is kept sorted all the time, as a view. <strong>Auto sort: Off</strong> leaves the hand alone and shows a new <strong>Sort now</strong> button next to it; one click puts the hand in the order the Type, Color, Cost and A-Z buttons say, for good (the cards ease to their places), and cards drawn later are not sorted until it is pressed again. Pressing Sort now when the hand is already in that order says so, and with no sort chosen the button cannot be pressed and says why in its tooltip. It is hidden while Auto sort is on, since there is nothing to press.</li><li><strong>One thing changed for the old Off:</strong> before, pressing Type, Color, Cost or A-Z while the switch was off turned sorting back on. With Auto sort off the buttons now only choose how Sort now will sort; otherwise the manual version would sort by itself. Tell me if you would rather keep the old behaviour.</li><li>The switch says &quot;Auto sort: On&quot; / &quot;Auto sort: Off&quot; now (it said &quot;Sort: On&quot; / &quot;Sort: Off&quot;). Only the solo page has the hand sorting; the table page does not yet.</li></ul>
 <p><strong>What I checked:</strong> the solo check (628), with 6 new checks (no Sort now while Auto sort is on; with it off the button is there but disabled until a sort is chosen; choosing A-Z sorts nothing by itself; Sort now sorts A to Z with the same cards and Auto sort still off; pressing it again says nothing changed; turning Auto sort on hides it), and a screenshot of the bar with Auto sort off, Sort now and Type pressed. I did not check it at phone width or on a long hand.</p>
 <p><strong>My mistakes this round:</strong> none found. (I left the three new sound files in <code>frontend/public/sfx/</code> that are not mine out of the commit.)</p>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-191" data-n="191">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-191-body">
+    <span class="num">191</span>
+    <span class="head-text"><span class="title">The two sort buttons are called Auto and Sort</span><span class="sum">Call the two sort buttons (Auto) and (Sort).</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-191-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>Call the two sort buttons (Auto) and (Sort).</li></ul>
+<p><strong>What changed</strong> (<code>frontend/src/hand-sort-ui.js</code>, <code>scripts/check-solo-ui.mjs</code>)</p>
+<ul><li>The switch that keeps the hand sorted all the time is now just <strong>Auto</strong> (it said &quot;Auto sort: On&quot; or &quot;Auto sort: Off&quot;), and the button that sorts once is <strong>Sort</strong> (it said &quot;Sort now&quot;). Whether Auto is on is shown by its colour (green when on, grey when off) and its tooltip, and by <code>aria-checked</code> for a screen reader; the words no longer say it. Nothing else changed, so entry 190 describes what they do under their old names.</li></ul>
+<p><strong>What I checked:</strong> the solo check (628), with the checks that looked for the old words changed to the new ones, and the checks that Auto is on or off now read the switch state instead of the words. I did not look at a new screenshot of the bar.</p>
   </div></div></div>
 </article>
 </div>

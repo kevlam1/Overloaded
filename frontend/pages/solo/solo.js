@@ -644,7 +644,7 @@ function reorderInHand({ uid, x, picture }) {
   apply(() => next, '');
 }
 // The sort buttons are in the bar under the hand, the order of the card types is in Settings (src/hand-sort-ui.js).
-// "Sort now" (Auto sort off): the hand is put in the order the buttons say, once. The cards ease to their new places; cards drawn later are not sorted until it is pressed again.
+// "Sort" (the Auto button off): the hand is put in the order the buttons say, once. The cards ease to their new places; cards drawn later are not sorted until it is pressed again.
 function sortNow() {
   if (!game) return;
   const sorts = handSort.buttons();

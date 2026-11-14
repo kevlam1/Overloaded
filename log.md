@@ -3859,6 +3859,19 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 **My mistakes this round:** none found. (I left the three new sound files in `frontend/public/sfx/` that are not mine out of the commit.)
 
+
+---
+
+## 191. The two sort buttons are called Auto and Sort (2026-11-13)
+
+**What I asked for**
+- Call the two sort buttons (Auto) and (Sort).
+
+**What changed** (`frontend/src/hand-sort-ui.js`, `scripts/check-solo-ui.mjs`)
+- The switch that keeps the hand sorted all the time is now just **Auto** (it said "Auto sort: On" or "Auto sort: Off"), and the button that sorts once is **Sort** (it said "Sort now"). Whether Auto is on is shown by its colour (green when on, grey when off) and its tooltip, and by `aria-checked` for a screen reader; the words no longer say it. Nothing else changed, so entry 190 describes what they do under their old names.
+
+**What I checked:** the solo check (628), with the checks that looked for the old words changed to the new ones, and the checks that Auto is on or off now read the switch state instead of the words. I did not look at a new screenshot of the bar.
+
 ---
 
 ## Where AI misread me, or I had to correct course
