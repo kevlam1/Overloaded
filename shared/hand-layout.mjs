@@ -19,6 +19,7 @@ export const GAP_REACH = 2; // how many cards on each side of the hole lean
 export const EDGE_TO_EDGE = 6; // up to this many cards the hand is edge to edge (when there is room); from one more it overlaps
 export const OVERLAP_GROWTH = 0.4; // each card past that adds this fraction of a card's width to the row, up to MAX_WIDE_CARDS cards
 export const MAX_WIDE_CARDS = 7; // the hand is never wider than a hand of this many cards (Kevin, 2026-11-12: it used to keep growing with every card drawn): more cards overlap more instead
+export const STEP_SHARE = 0.75; // the cards sit this share of the old distance apart, so the hand takes about a quarter less width (Kevin, 2026-11-13); 1 until then
 export const HOLE_DEAD_ZONE = 0.25; // the pointer must be this fraction of a step past the middle of the next place before the hole moves there
 
 // The distance from one card's left edge to the next's. Up to EDGE_TO_EDGE cards it is a card wide; with more the row is (EDGE_TO_EDGE + OVERLAP_GROWTH per extra card) cards wide, so the cards overlap, but
@@ -26,7 +27,7 @@ export const HOLE_DEAD_ZONE = 0.25; // the pointer must be this fraction of a st
 // change: 6 cards is a step of one card, 7 cards a little less.)
 export function cardStep({ slots, width, cardWidth }) {
   if (slots <= 1) return 0;
-  const natural = slots <= EDGE_TO_EDGE ? cardWidth : cardWidth * (EDGE_TO_EDGE - 1 + (Math.min(slots, MAX_WIDE_CARDS) - EDGE_TO_EDGE) * OVERLAP_GROWTH) / (slots - 1);
+  const natural = STEP_SHARE * (slots <= EDGE_TO_EDGE ? cardWidth : cardWidth * (EDGE_TO_EDGE - 1 + (Math.min(slots, MAX_WIDE_CARDS) - EDGE_TO_EDGE) * OVERLAP_GROWTH) / (slots - 1));
   return Math.max(0, Math.min(natural, (width - cardWidth) / (slots - 1)));
 }
 

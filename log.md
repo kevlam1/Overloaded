@@ -3872,6 +3872,24 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 **What I checked:** the solo check (628), with the checks that looked for the old words changed to the new ones, and the checks that Auto is on or off now read the switch state instead of the words. I did not look at a new screenshot of the bar.
 
+
+---
+
+## 192. A shorter lift for the selected card, which goes down with a resting hand, and a narrower hand (2026-11-14)
+
+**What I asked for**
+- The selected card of the hand should go down a bit when the cards rest, and it goes up too much when selected, so cut that by 50%.
+- Reduce the width of the space the cards in the hand take by 25%, including the dotted rectangle area (and what do I call that?).
+
+**What changed** (`frontend/src/hand-view.js`, `shared/hand-layout.mjs`, `scripts/test-hand.mjs`, `scripts/check-solo-ui.mjs`)
+- **Selected card:** it comes up by 0.225 of its height (it was 0.45) from where the hand is, and it now goes down with a resting hand and stays up the same distance above its neighbours. Before, it stayed at the raised height while the others went down a quarter, so it stood about 0.7 of a card above them. How I read "go down a bit": it moves down with the hand by the whole distance the hand goes down, and I did not give it a smaller drop of its own.
+- **Narrower hand:** the distance between cards is three quarters of what it was (`STEP_SHARE` in `shared/hand-layout.mjs`). A hand of 7 or more is 5.05 cards wide instead of 6.4, which is 21% narrower, not 25%: a quarter off the whole width would have put a hand of 2 or 3 cards half on top of each other, so I scaled the step and not the width. A hand of 4 goes from 4 to 3.25 cards. The dashed outline and the drop area are worked out from where the cards are, so they are narrower by the same amount. I called that outline the hand's drop area in my answer; there is no name for it in the code beyond the dashed rectangle. The room beside the selected card is unchanged, so in a crowded hand it is a bit smaller (0.64 of a card, was 0.71).
+- Not done: I did not change how wide the room is for the hand on the page; only the cards are closer together.
+
+**What I checked:** the hand unit test (116) with the step and width numbers changed, the solo check (628), with the selected card checks changed (it comes up about a fifth of its height, and a lowered hand takes it down), and screenshots of the selected card with the hand raised and resting. I did not look at the drop area with a card carried over it after the change, only the numbers, and not at a hand of 12 or more.
+
+**My mistakes this round:** I changed the width in the layout first and found the other tests that hold the old numbers (the hole under a carried card, the step beside the selected card) only by running the hand test, one failure at a time.
+
 ---
 
 ## Where AI misread me, or I had to correct course

@@ -1,6 +1,6 @@
 // Tests for the hand: shared/hand-sort.mjs (the three sorts, the type order), shared/hand-layout.mjs (the fan, the places while a card is carried, and which place the carried card is over) and reorderHand in shared/zones.mjs.
 import { SORT_KEYS, TYPE_KEYS, DEFAULT_TYPE_ORDER, noSorts, anySortOn, cleanSorts, nextSortState, sortWords, normalizeTypeOrder, moveType, sortKeysOf, sortHand, landColors, isLandLine, COLOR_KEYS, DEFAULT_COLOR_ORDER, normalizeColorOrder, moveColor, LAND_KEYS, DEFAULT_LAND_ORDER, normalizeLandOrder, moveLand, isBasicLandLine, applyPins } from '../shared/hand-sort.mjs';
-import { handLayout, handLayoutSelected, layoutAround, holeAt, cardStep, MAX_ANGLE, SPREAD, MAX_WIDE_CARDS } from '../shared/hand-layout.mjs';
+import { handLayout, handLayoutSelected, layoutAround, holeAt, cardStep, MAX_ANGLE, SPREAD, MAX_WIDE_CARDS, STEP_SHARE } from '../shared/hand-layout.mjs';
 import { reorderHand } from '../shared/zones.mjs';
 
 let checks = 0;
@@ -137,20 +137,20 @@ same('the words for the A-Z button', [sortWords('name', 0), sortWords('name', 1)
 
 // ---- the fan ----
 const W = 800; const CW = 80; const CH = 112;
-same('the step is a card wide when the cards fit', cardStep({ slots: 5, width: W, cardWidth: CW }), CW);
+same('the step is three quarters of a card when the cards fit (the hand takes a quarter less room: Kevin, 2026-11-13)', [cardStep({ slots: 5, width: W, cardWidth: CW }), STEP_SHARE], [CW * 0.75, 0.75]);
 same('the step shrinks to fit a hand in a narrow room', cardStep({ slots: 20, width: 300, cardWidth: CW }), (300 - CW) / 19);
 same('a single card or none has no step', [cardStep({ slots: 1, width: W, cardWidth: CW }), cardStep({ slots: 0, width: W, cardWidth: CW })], [0, 0]);
 const row = handLayout({ count: 7, width: W, cardWidth: CW, cardHeight: CH });
-same('seven cards: they overlap a little, like a real hand (a step of 72 of 80)', row.slots.map((s, i) => i === 0 ? 0 : Math.round(s.x - row.slots[i - 1].x)), [0, 72, 72, 72, 72, 72, 72]);
-same('six cards are still edge to edge and the step is continuous at the change', [cardStep({ slots: 6, width: W, cardWidth: CW }), cardStep({ slots: 7, width: W, cardWidth: CW }) < CW, cardStep({ slots: 7, width: W, cardWidth: CW }) > cardStep({ slots: 20, width: W, cardWidth: CW })], [CW, true, true]);
+same('seven cards: they overlap a little, like a real hand (a step of 54 of 80, three quarters of 72)', row.slots.map((s, i) => i === 0 ? 0 : Math.round(s.x - row.slots[i - 1].x)), [0, 54, 54, 54, 54, 54, 54]);
+same('six cards are spaced evenly (a step of 0.75 of a card) and the step is continuous at the change', [cardStep({ slots: 6, width: W, cardWidth: CW }), cardStep({ slots: 7, width: W, cardWidth: CW }) < CW * 0.75, cardStep({ slots: 7, width: W, cardWidth: CW }) > cardStep({ slots: 20, width: W, cardWidth: CW })], [CW * 0.75, true, true]);
 const rowOf = (n, width = 2000) => Math.round((CW + cardStep({ slots: n, width, cardWidth: CW }) * (n - 1)) / CW * 100) / 100;
-same('the hand stops growing at 7 cards: 7 cards are 6.4 cards wide, and so are 8, 10, 15 and 40 (more cards overlap more)', [rowOf(7), rowOf(8), rowOf(10), rowOf(15), rowOf(40)], [6.4, 6.4, 6.4, 6.4, 6.4]);
-same('below 7 the row still grows with each card: 4, 5, 6 and 7 cards are 4, 5, 6 and 6.4 cards wide', [rowOf(4), rowOf(5), rowOf(6), rowOf(7)], [4, 5, 6, 6.4]);
+same('the hand stops growing at 7 cards: 7 cards are 5.05 cards wide (6.4 until 2026-11-13), and so are 8, 10, 15 and 40 (more cards overlap more)', [rowOf(7), rowOf(8), rowOf(10), rowOf(15), rowOf(40)], [5.05, 5.05, 5.05, 5.05, 5.05]);
+same('below 7 the row still grows with each card: 4, 5, 6 and 7 cards are 3.25, 4, 4.75 and 5.05 cards wide', [rowOf(4), rowOf(5), rowOf(6), rowOf(7)], [3.25, 4, 4.75, 5.05]);
 same('the number of cards the width stops growing at is 7', MAX_WIDE_CARDS, 7);
-same('a card more or fewer than 7 does not change the width after 7, but the step gets smaller: 10 cards are squeezed to 54/90 of a card a step', Math.round(cardStep({ slots: 10, width: 2000, cardWidth: CW }) / CW * 1000) / 1000, 0.6);
+same('a card more or fewer than 7 does not change the width after 7, but the step gets smaller: 10 cards are squeezed to 0.45 of a card a step', Math.round(cardStep({ slots: 10, width: 2000, cardWidth: CW }) / CW * 1000) / 1000, 0.45);
 same('a narrow room still squeezes the overlapping row to fit', Math.round(CW + cardStep({ slots: 10, width: 400, cardWidth: CW }) * 9), 400);
 same('five cards in a narrow room are squeezed to fit too', Math.round(CW + cardStep({ slots: 5, width: 240, cardWidth: CW }) * 4), 240);
-check('the row is centred in its width', Math.abs(row.slots[0].x - (W - (CW + 72 * 6)) / 2) < 0.01 && Math.abs((W - (row.slots[6].x + CW)) - row.slots[0].x) < 0.01);
+check('the row is centred in its width', Math.abs(row.slots[0].x - (W - (CW + 54 * 6)) / 2) < 0.01 && Math.abs((W - (row.slots[6].x + CW)) - row.slots[0].x) < 0.01);
 check('the middle card is straight and the ends lean outward by the full turn', row.slots[3].angle === 0 && row.slots[0].angle === -MAX_ANGLE && row.slots[6].angle === MAX_ANGLE, JSON.stringify(row.slots.map((s) => s.angle)));
 check('the ends sit lower than the middle', row.slots[0].y > row.slots[3].y && row.slots[6].y > row.slots[3].y && row.slots[3].y === 0);
 const few = handLayout({ count: 2, width: W, cardWidth: CW, cardHeight: CH });
@@ -176,16 +176,16 @@ check('every number is finite, also for bad input', [handLayout({ count: -2, wid
 
 // ---- which place the carried card is over ----
 const over = (x, previous = null, total = 5) => holeAt({ total, width: W, cardWidth: CW, x, previous });
-// five cards in 800: the step is 80, the row starts at 200, so the middles of the places are 240, 320, 400, 480 and 560
+// five cards in 800: the step is 60, the row is 320 wide and starts at 240, so the middles of the places are 280, 340, 400, 460 and 520
 same('left of all the places is place 0, right of all is the last', [over(0), over(W)], [0, 4]);
-same('the pointer is over the place whose middle is nearest', [over(240), over(330), over(361), over(450), over(530)], [0, 1, 2, 3, 4]);
+same('the pointer is over the place whose middle is nearest', [over(280), over(330), over(395), over(450), over(530)], [0, 1, 2, 3, 4]);
 same('a hand of one or none has only place 0', [holeAt({ total: 1, width: W, cardWidth: CW, x: 700 }), holeAt({ total: 0, width: W, cardWidth: CW, x: 700 })], [0, 0]);
 same('moving right one pixel at a time, the place only ever goes up, and visits every place', (() => { let previous = null; const seen = []; for (let x = 0; x <= W; x++) { previous = over(x, previous); seen.push(previous); } return [seen.every((v, i) => i === 0 || v >= seen[i - 1]), [...new Set(seen)].join()]; })(), [true, '0,1,2,3,4']);
 same('moving left one pixel at a time, the place only ever goes down', (() => { let previous = 4; const seen = []; for (let x = W; x >= 0; x--) { previous = over(x, previous); seen.push(previous); } return seen.every((v, i) => i === 0 || v <= seen[i - 1]); })(), true);
-// the line between place 1 (middle 320) and place 2 (middle 400) is at 360; a hole that is on place 1 stays there until the pointer is more than 0.75 of a step (60) from its middle, that is a quarter of a step past the line
-same('the hole stays on place 1 a little past the line (370) when it was there, but a pointer that was never there is over place 2', [over(370, 1), over(370)], [1, 2]);
-same('...and leaves it once the pointer is a quarter of a step beyond the half way line (381)', [over(380, 1), over(381, 1)], [1, 2]);
-same('...and the same going back: a hole on place 2 stays at 350 and leaves at 339', [over(350, 2), over(339, 2)], [2, 1]);
+// the line between place 1 (middle 340) and place 2 (middle 400) is at 370; a hole that is on place 1 stays there until the pointer is more than 0.75 of a step (45) from its middle, that is a quarter of a step past the line
+same('the hole stays on place 1 a little past the line (380) when it was there, but a pointer that was never there is over place 2', [over(380, 1), over(380)], [1, 2]);
+same('...and leaves it once the pointer is a quarter of a step beyond the half way line (386)', [over(385, 1), over(386, 1)], [1, 2]);
+same('...and the same going back: a hole on place 2 stays at 360 and leaves at 354', [over(360, 2), over(354, 2)], [2, 1]);
 same('a pointer shaking 3 pixels either side of the line between two places changes the hole at most once', (() => { let previous = null; let changes = 0; let last = null; for (let i = 0; i < 200; i++) { previous = over(360 + (i % 2 ? 3 : -3), previous); if (last !== null && previous !== last) changes++; last = previous; } return changes <= 1; })(), true);
 same('an old place that does not exist is ignored', [over(240, 99), over(240, -1), over(240, 1.5)], [0, 0, 0]);
 
@@ -220,8 +220,8 @@ same('the clicked card at the left end: it stays and all the others move right b
   const xs = full.slots.map((spot) => spot.x);
   same('in a hand that fills its width every card stays inside it (the sides close up to make the room)', xs[0] >= -0.01 && xs.at(-1) + cw <= 900.01, true);
   const stepAside = xs[5] - xs[4]; const stepAfter = xs[6] - xs[5];
-  same('the clicked card is at least 0.7 of a card from each neighbour (it can be read; the gap beside it is half what it was)', [stepAside >= cw * 0.7, stepAfter >= cw * 0.7], [true, true]);
-  same('the cards on each side keep one step between them (the whole side moves, not a few)', [Math.round((xs[1] - xs[0]) * 100) / 100 === Math.round((xs[4] - xs[3]) * 100) / 100, Math.round((xs[8] - xs[7]) * 100) / 100 === Math.round((xs[11] - xs[10]) * 100) / 100], [true, true]);
+  same('the clicked card is at least 0.6 of a card from each neighbour in a crowded hand (it can be read; 0.7 until the hand took a quarter less width on 2026-11-13, as the step between cards is smaller)', [stepAside >= cw * 0.6, stepAfter >= cw * 0.6], [true, true]);
+  same('the cards on each side keep one step between them (the whole side moves, not a few)', [Math.abs((xs[1] - xs[0]) - (xs[4] - xs[3])) < 0.02, Math.abs((xs[8] - xs[7]) - (xs[11] - xs[10])) < 0.02], [true, true]);
   same('the order of the cards never changes', xs.every((x, k) => k === 0 || x > xs[k - 1]), true);
 }
 same('a place that is not one of the cards, or a hand of one, is the plain hand', [sel(5, 99).slots.map((s2) => s2.x).join() === plain5.slots.map((s2) => s2.x).join(), sel(5, -1).slots.length, sel(1, 0).slots.length, sel(0, 0).slots.length], [true, 5, 1, 0]);

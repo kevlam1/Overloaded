@@ -943,7 +943,7 @@ try {
       const up = await handFacts();
       const selectedUid = await ev("document.querySelector('#hand > .card.selected')?.dataset.uid ?? null");
       const zs = await ev("[...document.querySelectorAll('#hand > .card')].map((c) => Number(c.style.getPropertyValue('--hz')))");
-      check('a click on a card of the hand selects it and brings it up by almost half its height', selectedUid === base.uids[idx] && base.ys[idx] - up.ys[idx] > cardH * 0.4, JSON.stringify({ selectedUid, was: base.ys[idx], now: up.ys[idx], cardH }));
+      check('a click on a card of the hand selects it and brings it up by about a fifth of its height and a bit (a quarter less a little; it was almost half)', selectedUid === base.uids[idx] && base.ys[idx] - up.ys[idx] > cardH * 0.18 && base.ys[idx] - up.ys[idx] < cardH * 0.3, JSON.stringify({ selectedUid, was: base.ys[idx], now: up.ys[idx], cardH }));
       // The whole of each side moves aside, separately: nothing on its left moves right and nothing on its right moves left (the cards at the ends of a hand that fills its width cannot go further, so the side closes up
       // toward its end), and the cards next to it open up to at least 3/4 of a card from it.
       const sideLeft = base.xs.slice(0, idx).every((x, k) => up.xs[k] <= x + 1);
@@ -953,7 +953,7 @@ try {
       check('the brought-up card is in front of all the others, and it has no lifted copy of its own (it is up by itself; with the neighbours opened less, the pointer may be over a neighbour, which is lifted like any card under the pointer)', zs[idx] === Math.max(...zs) && zs.filter((z) => z === zs[idx]).length === 1 && (await ev("document.querySelector('#hand > .card.selected').classList.contains('lifted')")) === false, JSON.stringify(zs));
       await mouse('mouseMoved', 5, 5); await sleep(500);
       const lowered = await handFacts();
-      check('a lowered hand does not take the brought-up card down with it: it stays up', up.ys[idx] - lowered.ys[idx] < 8 && lowered.ys[idx + 1] - lowered.ys[idx] > cardH * 0.4, JSON.stringify({ up: up.ys[idx], lowered: lowered.ys[idx], next: lowered.ys[idx + 1] }));
+      check('a lowered hand takes the brought-up card down with it (Kevin, 2026-11-13) and it stays up by the same distance above its neighbours (about a fifth of a card, not the almost half of before)', lowered.ys[idx] - up.ys[idx] > cardH * 0.2 && lowered.ys[idx + 1] - lowered.ys[idx] > cardH * 0.15 && lowered.ys[idx + 1] - lowered.ys[idx] < cardH * 0.3, JSON.stringify({ up: up.ys[idx], lowered: lowered.ys[idx], next: lowered.ys[idx + 1] }));
       const empty = await ev("(() => { const r = document.getElementById('battlefield').getBoundingClientRect(); return { left: r.left, top: r.top, width: r.width, height: r.height }; })()");
       const away = { x: empty.left + empty.width * 0.6, y: empty.top + empty.height * 0.3 };
       await mouseBtn('mousePressed', away, 'left', 1); await mouseBtn('mouseReleased', away, 'left', 0); await sleep(300);

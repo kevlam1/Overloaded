@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.191</span></h1>
-    <p class="lede">191 entries, Oct 25 to Nov 13, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
+    <h1>Build log <span class="version">Version 0.192</span></h1>
+    <p class="lede">192 entries, Oct 25 to Nov 14, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
   </div>
 </header>
 
@@ -23,7 +23,7 @@
     <div class="weeks-row">
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
-<a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">81</span></a>
+<a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">82</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
     </div>
     <div class="tools">
@@ -1961,7 +1961,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-1" aria-labelledby="week-1-title">
-<h2 class="week-head" id="week-1-title"><button type="button" aria-expanded="false" aria-controls="week-1-days"><span class="wname">Week 1</span><span class="range">Nov 9 to Nov 15</span><span class="week-count">81 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-1-title"><button type="button" aria-expanded="false" aria-controls="week-1-days"><span class="wname">Week 1</span><span class="range">Nov 9 to Nov 15</span><span class="week-count">82 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-1-days">
 <div class="day">
 <h3 class="day-title">Monday 9 November <span class="day-count">4</span></h3>
@@ -3253,6 +3253,26 @@
 <p><strong>What changed</strong> (<code>frontend/src/hand-sort-ui.js</code>, <code>scripts/check-solo-ui.mjs</code>)</p>
 <ul><li>The switch that keeps the hand sorted all the time is now just <strong>Auto</strong> (it said &quot;Auto sort: On&quot; or &quot;Auto sort: Off&quot;), and the button that sorts once is <strong>Sort</strong> (it said &quot;Sort now&quot;). Whether Auto is on is shown by its colour (green when on, grey when off) and its tooltip, and by <code>aria-checked</code> for a screen reader; the words no longer say it. Nothing else changed, so entry 190 describes what they do under their old names.</li></ul>
 <p><strong>What I checked:</strong> the solo check (628), with the checks that looked for the old words changed to the new ones, and the checks that Auto is on or off now read the switch state instead of the words. I did not look at a new screenshot of the bar.</p>
+  </div></div></div>
+</article>
+</div>
+</div>
+<div class="day">
+<h3 class="day-title">Saturday 14 November <span class="day-count">1</span></h3>
+<div class="entries">
+<article class="entry" id="entry-192" data-n="192">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-192-body">
+    <span class="num">192</span>
+    <span class="head-text"><span class="title">A shorter lift for the selected card, which goes down with a resting hand, and a narrower hand</span><span class="sum">The selected card of the hand should go down a bit when the cards rest, and it goes up too much when selected, so cut that by 50%.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-192-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>The selected card of the hand should go down a bit when the cards rest, and it goes up too much when selected, so cut that by 50%.</li><li>Reduce the width of the space the cards in the hand take by 25%, including the dotted rectangle area (and what do I call that?).</li></ul>
+<p><strong>What changed</strong> (<code>frontend/src/hand-view.js</code>, <code>shared/hand-layout.mjs</code>, <code>scripts/test-hand.mjs</code>, <code>scripts/check-solo-ui.mjs</code>)</p>
+<ul><li><strong>Selected card:</strong> it comes up by 0.225 of its height (it was 0.45) from where the hand is, and it now goes down with a resting hand and stays up the same distance above its neighbours. Before, it stayed at the raised height while the others went down a quarter, so it stood about 0.7 of a card above them. How I read &quot;go down a bit&quot;: it moves down with the hand by the whole distance the hand goes down, and I did not give it a smaller drop of its own.</li><li><strong>Narrower hand:</strong> the distance between cards is three quarters of what it was (<code>STEP_SHARE</code> in <code>shared/hand-layout.mjs</code>). A hand of 7 or more is 5.05 cards wide instead of 6.4, which is 21% narrower, not 25%: a quarter off the whole width would have put a hand of 2 or 3 cards half on top of each other, so I scaled the step and not the width. A hand of 4 goes from 4 to 3.25 cards. The dashed outline and the drop area are worked out from where the cards are, so they are narrower by the same amount. I called that outline the hand's drop area in my answer; there is no name for it in the code beyond the dashed rectangle. The room beside the selected card is unchanged, so in a crowded hand it is a bit smaller (0.64 of a card, was 0.71).</li><li>Not done: I did not change how wide the room is for the hand on the page; only the cards are closer together.</li></ul>
+<p><strong>What I checked:</strong> the hand unit test (116) with the step and width numbers changed, the solo check (628), with the selected card checks changed (it comes up about a fifth of its height, and a lowered hand takes it down), and screenshots of the selected card with the hand raised and resting. I did not look at the drop area with a card carried over it after the change, only the numbers, and not at a hand of 12 or more.</p>
+<p><strong>My mistakes this round:</strong> I changed the width in the layout first and found the other tests that hold the old numbers (the hole under a carried card, the step beside the selected card) only by running the hand test, one failure at a time.</p>
   </div></div></div>
 </article>
 </div>

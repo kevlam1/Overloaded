@@ -20,7 +20,7 @@ import { manaNode } from './mana-pips.js';
 export const LEAVE_DELAY = 150; // ms the pointer must stay out of the hand before it lowers, or before a carried card is taken to be away from it (coming back is at once): the edge of the area does not flicker
 export const EASE_RATE = 24; // per second: every instant the card closes this share of the distance (about 90% in 100 ms)
 const REST = { distance: 0.05, angle: 0.02, scale: 0.002 };
-const LIFT_OUT = 0.45; // a clicked card comes up by this fraction of its height
+const LIFT_OUT = 0.225; // a clicked card comes up by this fraction of its height, from where the hand is (0.45 until 2026-11-13: it came up too far)
 const SELECTED_SCALE = 1.1; // closer than this to its place a card is at it
 
 const round2 = (value) => Math.round(value * 100) / 100;
@@ -183,7 +183,7 @@ export function mountHand({ container, costOf = () => '' }) {
     } else {
       spots = handLayout({ count: all.length, width, cardWidth, cardHeight }).slots;
     }
-    // A card of the hand that has been clicked (it is the selected card) comes up to be read and each side moves aside to make room. It does not go down with a lowered hand.
+    // A card of the hand that has been clicked (it is the selected card) comes up to be read and each side moves aside to make room. It goes down with a lowered hand and stays up the same distance above the others (Kevin, 2026-11-13).
     const selectedIndex = carried ? -1 : row.findIndex((button) => button.classList.contains('selected'));
     if (selectedIndex >= 0) spots = handLayoutSelected({ count: row.length, width, cardWidth, cardHeight, index: selectedIndex }).slots; // the whole of each side moves aside
     // A resting (lowered) hand is flat: no turn and no drop at the ends. The arc comes when the pointer comes into the hand and the cards rise (Kevin, 2026-11-13); the angle and the drop ease like everything else.
@@ -197,7 +197,7 @@ export function mountHand({ container, costOf = () => '' }) {
       if (!m) { m = { x: 0, y: 0, a: 0, s: 1, tx: 0, ty: 0, ta: 0, ts: 1, gen: 0 }; motion.set(button, m); }
       const comesUp = index === selectedIndex;
       m.tx = spot.x + shiftX;
-      m.ty = comesUp ? spot.y - Math.round(cardHeight * LIFT_OUT) : spot.y + drop;
+      m.ty = comesUp ? spot.y + drop - Math.round(cardHeight * LIFT_OUT) : spot.y + drop;
       m.ta = spot.angle;
       m.ts = comesUp ? SELECTED_SCALE : 1;
       const from = pending.get(button.dataset.uid);
