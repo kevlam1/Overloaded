@@ -49,6 +49,7 @@ try {
   })()`);
   check('every day is under the week its date belongs to (Monday to Sunday, Oct 25 in Week -1)', wrong.length === 0, JSON.stringify(wrong));
 
+  check('every week starts folded, with its days hidden and aria-expanded false', await ev(`Array.from(document.querySelectorAll('.week')).every((w) => w.classList.contains('collapsed') && getComputedStyle(w.querySelector('.days')).display === 'none' && w.querySelector('.week-head button').getAttribute('aria-expanded') === 'false')`));
   const closed = await ev(`Array.from(document.querySelectorAll('.entry')).every((e) => !e.classList.contains('open') && getComputedStyle(e.querySelector('.body')).display === 'none')`);
   check('all entries start closed, showing a title and a summary', closed);
   await ev(`document.querySelector('#entry-1 .entry-head button').click()`);
@@ -99,6 +100,7 @@ try {
   await browser.goto(`${ORIGIN}/logs/`);
   await sleep(300);
   if (shots) await browser.screenshot('scratch-logs-top.png');
+  await ev(`document.getElementById('expand-all').click()`);
   await ev(`window.scrollTo({ top: document.getElementById('week-1').getBoundingClientRect().top + window.scrollY - 100, behavior: 'instant' })`);
   await sleep(400);
   check('scrolling to Week 1 marks it in the week bar', await ev(`document.querySelector('.week-link.current')?.dataset.target === 'week-1'`));

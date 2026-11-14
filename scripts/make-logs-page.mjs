@@ -2,7 +2,7 @@
 // The look and the behaviour are the two files next to the page, frontend/public/logs/logs.css and logs.js (the site's content policy allows no inline style or script).
 // Run it from the project folder: node scripts/make-logs-page.mjs      Run it again whenever log.md or a summary changes, and commit the page it writes.
 // The entries are split into weeks, Monday to Sunday (Kevin, 2026-11-14): Week -1 is 25 October (a Sunday, put there as an exception) to Sunday 1 November, Week 0 is Monday 2 to Sunday 8 November,
-// Week 1 is Monday 9 to Sunday 15 November, and so on. A week with no entry is left out.
+// Week 1 is Monday 9 to Sunday 15 November, and so on. A week with no entry is left out. Every week starts folded (the page opens on the list of weeks); a click, a search, a week link or an entry link opens one.
 // It stops if log.md is not numbered 1, 2, 3 ... or has a section it does not know, and it checks that every word of log.md is on the page, so nothing is dropped without being noticed.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { SUMMARIES, REFLECTION_SUMMARIES } from './log-summaries.mjs';
@@ -156,16 +156,16 @@ const weeksHtml = weeks.map((w) => {
 ${d.sections.map((s) => entryHtml({ id: `entry-${s.number}`, badge: String(s.number), title: s.name, summary: summaryOf(s), lines: s.lines })).join('\n')}
 </div>
 </div>`).join('\n');
-  return `<section class="week" id="${weekId(w.week)}" aria-labelledby="${weekId(w.week)}-title">
-<h2 class="week-head" id="${weekId(w.week)}-title"><button type="button" aria-expanded="true" aria-controls="${weekId(w.week)}-days"><span class="wname">${weekName(w.week)}</span><span class="range">${esc(weekRange(w.week))}</span><span class="week-count">${count} ${count === 1 ? 'entry' : 'entries'}</span><span class="caret" aria-hidden="true"></span></button></h2>
+  return `<section class="week collapsed" id="${weekId(w.week)}" aria-labelledby="${weekId(w.week)}-title">
+<h2 class="week-head" id="${weekId(w.week)}-title"><button type="button" aria-expanded="false" aria-controls="${weekId(w.week)}-days"><span class="wname">${weekName(w.week)}</span><span class="range">${esc(weekRange(w.week))}</span><span class="week-count">${count} ${count === 1 ? 'entry' : 'entries'}</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="${weekId(w.week)}-days">
 ${daysHtml}
 </div>
 </section>`;
 }).join('\n');
 
-const reflectionHtml = `<section class="week" id="reflection" aria-labelledby="reflection-title">
-<h2 class="week-head" id="reflection-title"><button type="button" aria-expanded="true" aria-controls="reflection-days"><span class="wname">Reflection</span><span class="range">the whole project</span><span class="caret" aria-hidden="true"></span></button></h2>
+const reflectionHtml = `<section class="week collapsed" id="reflection" aria-labelledby="reflection-title">
+<h2 class="week-head" id="reflection-title"><button type="button" aria-expanded="false" aria-controls="reflection-days"><span class="wname">Reflection</span><span class="range">the whole project</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="reflection-days"><div class="day"><div class="entries">
 ${entryHtml({ id: 'reflection-misread', badge: '•', title: misread.title, summary: REFLECTION_SUMMARIES.misread, lines: misread.lines })}
 ${entryHtml({ id: 'reflection-decisions', badge: '•', title: decisions.title, summary: REFLECTION_SUMMARIES.decisions, lines: decisions.lines })}
