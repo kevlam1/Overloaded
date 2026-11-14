@@ -175,6 +175,7 @@ These were decided with me but not yet designed. When the lobby or table pages a
 ## The log protocol
 - Add to `log.md` directly, in my first-person voice, matching the existing entries, and say what you added so I can review the diff. Never rewrite past entries without asking. List your own mistakes. Do not claim you tested something you did not.
 - Keep the structure of `../midi-companion/log.md` so a `/logs/` page script can read it later: a title and tool lines, then `## What I set out to build`, then numbered `## N. Title (YYYY-MM-DD)` sections with bold labels (`**What I asked for**`, `**What changed**`, `**What I checked**`, `**Decisions**`), then `## Where AI misread me, or I had to correct course` and `## Decisions and abandoned ideas`. No other `##` headings.
+- **Dates come from the machine clock (2026-11-13):** run `date` before writing the date of a log entry (or any dated note) and use that day. Never work it out from the previous entry or guess "tomorrow"; entries 181 to 187 were dated a day ahead that way. The date decides which week an entry goes under on `/logs/`.
 - For a project this long, log decisions and dropped features as they happen, including every scope cut and why.
 
 ## Reuse from the other artifacts
