@@ -3810,6 +3810,22 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 **My mistakes this round:** the logs page I built earlier carried an invisible character copied from an entry that talks about them, which the source hygiene check found in the quick tests; the generator now writes such characters as numbers. I had also not put the logs page check into `npm test`; it is there now. I also dated entries 181 to 187 as 2026-11-14 when the day was Friday 2026-11-13 (I took the date from my own guess of the next day instead of the machine clock); you caught it, and I changed those dates, the same date in `CLAUDE.md` and in four code comments, which moved the logs page header from Saturday 14 November to Friday 13 November.
 
+
+---
+
+## 188. A resting hand is flat (2026-11-13)
+
+**What I asked for**
+- When the hand is resting, have the arc be flat. Then: the resting cards hide the bottom 25%.
+
+**What changed** (`frontend/src/hand-view.js`, `scripts/check-solo-ui.mjs`)
+- A lowered hand has no turn and no drop at the ends: every card sits straight, side by side, on one line. When the pointer comes into the hand and the cards rise they take their arc again, and they go flat again when the pointer has been away for a moment (the turn and the drop ease like the rest of the movement; under reduced motion they snap). It is one line in `arrange()`: when the hand is not raised, the places the layout works out are given a height of 0 and an angle of 0. `shared/hand-layout.mjs` still works out the arc, so the carried-card and selected-card layouts are unchanged.
+- The second request is what the hand already does: I measured a resting hand of 7 cards at 1366 by 768, and every card has exactly 0.25 of its height below the bottom of the window (before this change the end cards of the arc hid more). I changed nothing for it.
+
+**What I checked:** the solo check (619). The fan check is now three: a resting hand is flat (no card turned, all at the same height), with the pointer in the hand the first card leans left, the last right and the ends sit lower, and when the pointer leaves it goes flat again. Three older checks had assumed the resting hand had an arc: the two Alt-picture checks (the pointer now has to be put on the first card again after the hand has risen, because it moves) and the check that raising moves every card by the same distance (the cards now also turn about their bottom middle, so it compares the page's own places instead of the boxes). A screenshot of the resting hand. I did not look at it at phone width or on the table page.
+
+**My mistakes this round:** the solo check was already broken before this change, crashing near the end with a SecurityError: the blocked-storage scenario removed its script by the number 1, which stopped being its number when I added other scripts to every page for the silent test browsers (entry 180). It now uses the number it was given.
+
 ---
 
 ## Where AI misread me, or I had to correct course

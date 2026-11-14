@@ -186,6 +186,8 @@ export function mountHand({ container, costOf = () => '' }) {
     // A card of the hand that has been clicked (it is the selected card) comes up to be read and each side moves aside to make room. It does not go down with a lowered hand.
     const selectedIndex = carried ? -1 : row.findIndex((button) => button.classList.contains('selected'));
     if (selectedIndex >= 0) spots = handLayoutSelected({ count: row.length, width, cardWidth, cardHeight, index: selectedIndex }).slots; // the whole of each side moves aside
+    // A resting (lowered) hand is flat: no turn and no drop at the ends. The arc comes when the pointer comes into the hand and the cards rise (Kevin, 2026-11-13); the angle and the drop ease like everything else.
+    if (!raised) spots = spots.map((spot) => ({ ...spot, y: 0, angle: 0 }));
     const snap = prefersReducedMotion();
     let moving = false;
     row.forEach((button, index) => {

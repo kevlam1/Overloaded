@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.187</span></h1>
-    <p class="lede">187 entries, Oct 25 to Nov 13, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
+    <h1>Build log <span class="version">Version 0.188</span></h1>
+    <p class="lede">188 entries, Oct 25 to Nov 13, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
   </div>
 </header>
 
@@ -23,7 +23,7 @@
     <div class="weeks-row">
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
-<a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">77</span></a>
+<a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">78</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
     </div>
     <div class="tools">
@@ -1961,7 +1961,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-1" aria-labelledby="week-1-title">
-<h2 class="week-head" id="week-1-title"><button type="button" aria-expanded="false" aria-controls="week-1-days"><span class="wname">Week 1</span><span class="range">Nov 9 to Nov 15</span><span class="week-count">77 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-1-title"><button type="button" aria-expanded="false" aria-controls="week-1-days"><span class="wname">Week 1</span><span class="range">Nov 9 to Nov 15</span><span class="week-count">78 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-1-days">
 <div class="day">
 <h3 class="day-title">Monday 9 November <span class="day-count">4</span></h3>
@@ -2861,7 +2861,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Friday 13 November <span class="day-count">22</span></h3>
+<h3 class="day-title">Friday 13 November <span class="day-count">23</span></h3>
 <div class="entries">
 <article class="entry" id="entry-166" data-n="166">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-166-body">
@@ -3194,6 +3194,21 @@
 <ul><li>The home page title is &quot;Welcome to Overloaded&quot; (in the page and in <code>lobby.js</code>, which sets it again when you leave a table).</li><li><strong>The version is 0.187.</strong> It is worked out from <code>log.md</code> when the site is built: 0 means still in beta, and the second number is how many numbered entries the log has, so this entry is what takes it from 0.186 to 0.187, and every new entry raises it by one without anyone remembering to. It shows in the home page footer (&quot;Version 0.187&quot;, linking to the build log) and next to the title of the logs page. I did not give it a third number: a fix with no log entry would not change the version, and I would rather not have a number that someone has to bump by hand. The plan is 1.0 for the show and tell on 7 December; that is a choice to make, so the 0 is a line in <code>shared/version.mjs</code>.</li><li>I picked this rule myself after considering two others: one number per week (too coarse, 84 entries would be one version) and a number per milestone (needs me to judge where one stops).</li></ul>
 <p><strong>What I checked:</strong> <code>scripts/test-version.mjs</code> (10 checks, including that the real <code>log.md</code> is numbered with no gaps, so the count is the last number); the lobby page check and the logs page check with the new title and version; a screenshot of the footer. I did not break <code>shared/version.mjs</code> on purpose to see the checks fail, and I did not check the deployed site.</p>
 <p><strong>My mistakes this round:</strong> the logs page I built earlier carried an invisible character copied from an entry that talks about them, which the source hygiene check found in the quick tests; the generator now writes such characters as numbers. I had also not put the logs page check into <code>npm test</code>; it is there now. I also dated entries 181 to 187 as 2026-11-14 when the day was Friday 2026-11-13 (I took the date from my own guess of the next day instead of the machine clock); you caught it, and I changed those dates, the same date in <code>CLAUDE.md</code> and in four code comments, which moved the logs page header from Saturday 14 November to Friday 13 November.</p>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-188" data-n="188">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-188-body">
+    <span class="num">188</span>
+    <span class="head-text"><span class="title">A resting hand is flat</span><span class="sum">When the hand is resting, have the arc be flat.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-188-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>When the hand is resting, have the arc be flat. Then: the resting cards hide the bottom 25%.</li></ul>
+<p><strong>What changed</strong> (<code>frontend/src/hand-view.js</code>, <code>scripts/check-solo-ui.mjs</code>)</p>
+<ul><li>A lowered hand has no turn and no drop at the ends: every card sits straight, side by side, on one line. When the pointer comes into the hand and the cards rise they take their arc again, and they go flat again when the pointer has been away for a moment (the turn and the drop ease like the rest of the movement; under reduced motion they snap). It is one line in <code>arrange()</code>: when the hand is not raised, the places the layout works out are given a height of 0 and an angle of 0. <code>shared/hand-layout.mjs</code> still works out the arc, so the carried-card and selected-card layouts are unchanged.</li><li>The second request is what the hand already does: I measured a resting hand of 7 cards at 1366 by 768, and every card has exactly 0.25 of its height below the bottom of the window (before this change the end cards of the arc hid more). I changed nothing for it.</li></ul>
+<p><strong>What I checked:</strong> the solo check (619). The fan check is now three: a resting hand is flat (no card turned, all at the same height), with the pointer in the hand the first card leans left, the last right and the ends sit lower, and when the pointer leaves it goes flat again. Three older checks had assumed the resting hand had an arc: the two Alt-picture checks (the pointer now has to be put on the first card again after the hand has risen, because it moves) and the check that raising moves every card by the same distance (the cards now also turn about their bottom middle, so it compares the page's own places instead of the boxes). A screenshot of the resting hand. I did not look at it at phone width or on the table page.</p>
+<p><strong>My mistakes this round:</strong> the solo check was already broken before this change, crashing near the end with a SecurityError: the blocked-storage scenario removed its script by the number 1, which stopped being its number when I added other scripts to every page for the silent test browsers (entry 180). It now uses the number it was given.</p>
   </div></div></div>
 </article>
 </div>

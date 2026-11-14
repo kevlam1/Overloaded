@@ -750,12 +750,14 @@ try {
     const altDown = async () => { alt = true; await browser.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'Alt', code: 'AltLeft', windowsVirtualKeyCode: 18, modifiers: 1 }); await sleep(60); };
     const altUp = async () => { alt = false; await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Alt', code: 'AltLeft', windowsVirtualKeyCode: 18, modifiers: 0 }); await sleep(60); };
     const hoverState = () => ev(`(() => { const b = document.getElementById('card-hover'); if (!b) return null; const r = b.getBoundingClientRect(); return { hidden: b.hidden, src: b.querySelector('img').getAttribute('src'), left: r.left, right: r.right, top: r.top, bottom: r.bottom, inside: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight }; })()`);
-    const c = await rectOf('#hand .card', 0);
+    let c = await rectOf('#hand .card', 0);
     const smallSrc = await ev(`document.querySelector('#hand .card img').getAttribute('src')`);
     await moveTo(5, 5); await sleep(60);
     check('the hover box exists and starts hidden', (await hoverState())?.hidden === true);
     await moveTo(c.x, c.y);
     await sleep(700);
+    c = await rectOf('#hand .card', 0); // (the hand has risen and taken its arc since the pointer came in: the first card is somewhere else now)
+    await moveTo(c.x, c.y); await sleep(200);
     check('with the pointer resting on a card and no Alt held, no larger picture shows (however long it rests)', (await hoverState()).hidden === true);
     await altDown();
     let h = await hoverState();
@@ -851,7 +853,16 @@ try {
     await drawUntil((n) => /Lightning Bolt|Sol Ring|Llanowar Elves/.test(n)); await drawUntil((n) => /^(Forest|Island)$/.test(n)); await moveAwayFromHand(); // the deal is random: make sure the hand has a spell and a land
     if (process.argv.includes('--screenshot')) await browser.screenshot('scratch-hand-lowered.png');
     const fan = await handFacts();
-    check('the hand is a fan: the cards are placed by the page (absolute), the first leans left and the last right, the middle is straighter, the ends sit lower', fan.names.length >= 5 && fan.position === 'absolute' && fan.angles[0] < 0 && fan.angles.at(-1) > 0 && Math.abs(fan.angles[Math.floor(fan.angles.length / 2)]) < Math.abs(fan.angles[0]) + 0.01 && fan.ys[0] >= fan.ys[Math.floor(fan.ys.length / 2)], JSON.stringify(fan));
+    check('a resting hand is FLAT: the cards are placed by the page (absolute), none is turned and none sits lower than the others', fan.names.length >= 5 && fan.position === 'absolute' && fan.angles.every((a) => a === 0) && fan.ys.every((y) => y === fan.ys[0]), JSON.stringify(fan));
+    {
+      const hb = await handBox();
+      await mouse('mouseMoved', (hb.left + hb.right) / 2, hb.bottom - 20); await sleep(1200); // (the pointer comes into the hand: the cards rise and take their arc)
+      const up = await handFacts();
+      check('with the pointer in the hand it is a fan again: the first card leans left and the last right, the middle is straighter, the ends sit lower', up.names.length >= 5 && up.angles[0] < 0 && up.angles.at(-1) > 0 && Math.abs(up.angles[Math.floor(up.angles.length / 2)]) < Math.abs(up.angles[0]) + 0.01 && up.ys[0] >= up.ys[Math.floor(up.ys.length / 2)] && up.ys[0] > up.ys[Math.floor(up.ys.length / 2)] - 0.01, JSON.stringify(up));
+      await moveAwayFromHand(); await sleep(1500);
+      const down = await handFacts();
+      check('and when the pointer leaves, the hand goes flat again', down.angles.every((a) => Math.abs(a) < 0.05) && down.ys.every((y) => Math.abs(y - down.ys[0]) < 0.05), JSON.stringify(down));
+    }
     check('the pictures of the cards in the hand are the NORMAL size (the hand is large; the small picture was blurry)', await ev("[...document.querySelectorAll('#hand > .card .face img')].every((i) => i.getAttribute('src').includes('/normal/')) && document.querySelectorAll('#hand > .card .face img').length > 0") && asked.some((url) => url.includes('/normal/front/')), JSON.stringify(asked.slice(-3)));
     check('the card preview\'s picture box has the shape of a card (not a taller box with the card letterboxed in it, which left the white corners unclipped)', await ev("(() => { const i = document.querySelector('#spotlight .spot-picture'); if (!i || i.hidden) return true; const r = i.getBoundingClientRect(); return Math.abs(r.width / r.height - 488 / 680) < 0.01; })()"));
     check('a card picture is clipped with the corners of a real card (4.8% by 3.4%), so no white corner shows', await ev("(() => { const face = document.querySelector('#hand > .card .face'); const img = face.querySelector('img'); return getComputedStyle(face).borderTopLeftRadius.includes('%') && getComputedStyle(img).borderTopLeftRadius.includes('%'); })()"));
@@ -878,7 +889,10 @@ try {
     const hoveredBoxes = await ev(`(() => { const cs = [...document.querySelectorAll('#hand > .card')]; return cs.map((c) => { const r = c.getBoundingClientRect(); return [Math.round(r.left * 10) / 10, Math.round(r.top * 10) / 10, Math.round(r.width * 10) / 10, Math.round(r.height * 10) / 10]; }); })()`);
     // the pointer is in the area of the hand, so the hand has risen: ALL the cards moved up by the same distance (a quarter of a card), none moved sideways or grew, so the hovered card did not move relative to the others
     const rise = restingBoxes.map((b, i) => b[1] - hoveredBoxes[i][1]);
-    check('the pointer in the area of the hand raises the whole hand: every card moves up by the same distance and none moves sideways or grows (the hovered card has no bigger place of its own)', hoveredBoxes.every((b, i) => Math.abs(b[0] - restingBoxes[i][0]) < 1 && Math.abs(b[2] - restingBoxes[i][2]) < 1 && Math.abs(b[3] - restingBoxes[i][3]) < 1 && Math.abs(rise[i] - rise[0]) < 1.5) && rise[0] > 20 && (await ev("document.getElementById('hand').classList.contains('raised')")), JSON.stringify([rise.slice(0, 3), restingBoxes.slice(0, 2), hoveredBoxes.slice(0, 2)]));
+    // (the resting hand is flat and the raised one has its arc, so the cards also turn about their bottom middle and their boxes move sideways a little: the places are compared by the page's own numbers, --hx for the place and --hy for the height)
+    const mid = Math.floor(rise.length / 2);
+    const raisedPlaces = await handFacts();
+    check('the pointer in the area of the hand raises the whole hand: no card is given another place sideways, every card moves up (the middle one by about a quarter of a card, the ends by less because they take the arc) and the hovered card has no bigger place of its own', raisedPlaces.xs.length === fan.xs.length && raisedPlaces.xs.every((x, i) => Math.abs(x - fan.xs[i]) < 1) && hoveredBoxes.every((b, i) => rise[i] > 5) && rise[mid] > 20 && (await ev("document.getElementById('hand').classList.contains('raised')")), JSON.stringify([rise.slice(0, 3), restingBoxes.slice(0, 2), hoveredBoxes.slice(0, 2)]));
     check('...and a raised hand has all its cards inside the window', await ev("[...document.querySelectorAll('#hand > .card')].every((c) => c.getBoundingClientRect().bottom <= innerHeight + 1)"));
     if (process.argv.includes('--screenshot')) await browser.screenshot('scratch-hand-raised.png');
     { const uidOfLifted = () => ev("document.querySelector('.hand-lift-layer > .card.up') ? [...document.querySelectorAll('#hand > .card.lifted')].map((c) => c.dataset.uid)[0] : null");
@@ -2573,7 +2587,7 @@ try {
   }
 
   // ---- storage blocked ----
-  await browser.send('Page.addScriptToEvaluateOnNewDocument', { source: `Object.defineProperty(window, 'localStorage', { get() { throw new DOMException('blocked', 'SecurityError'); } });` });
+  const blockedScript = await browser.send('Page.addScriptToEvaluateOnNewDocument', { source: `Object.defineProperty(window, 'localStorage', { get() { throw new DOMException('blocked', 'SecurityError'); } });` }); // (its id is taken from the answer: other scripts are added to every page too, and the id was once assumed to be 1)
   await browser.goto(PAGE);
   await waitFor(async () => !(await $hidden('blocked')) || null, 10000, 50);
   check('with storage blocked the page does not crash: it says there is no deck', !(await $hidden('blocked')) && /no saved deck/.test(await $text('blocked-message')));
@@ -2586,7 +2600,7 @@ try {
 
   if (realPictures) {
     // A few looks at desktop width with the REAL pictures: the page with a hand and a battlefield, dark and light.
-    await browser.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: '1' }).catch(() => {});
+    await browser.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: blockedScript.identifier }).catch(() => {});
     await browser.send('Fetch.disable').catch(() => {});
     const scheme = (value) => browser.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value }, { name: 'prefers-reduced-motion', value: 'reduce' }] });
     await scheme('dark');
