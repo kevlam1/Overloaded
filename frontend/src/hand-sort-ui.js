@@ -115,17 +115,26 @@ function pillRow({ host, title, label, names, order, move }) {
   return { draw };
 }
 
-export function createHandSort({ onChange = () => {} } = {}) {
+// Two ways to sort (Kevin, 2026-11-13): Auto sort ON keeps the hand sorted all the time (a view, the hand's own order is not touched), Auto sort OFF leaves the hand alone and shows a "Sort now" button that
+// sorts it once with the buttons' current choices (onSortNow: the page puts the hand in that order for good; later draws are not sorted until it is pressed again).
+export function createHandSort({ onChange = () => {}, onSortNow = () => {} } = {}) {
   let sortState = cleanSorts(parse(store.get(SORTS_KEY)));
   let order = normalizeTypeOrder(parse(store.get(TYPE_ORDER_KEY)));
   let colors = normalizeColorOrder(parse(store.get(COLOR_ORDER_KEY)));
   let lands = normalizeLandOrder(parse(store.get(LAND_ORDER_KEY)));
   let enabled = store.get(SORT_ON_KEY) !== '0'; // the on/off switch next to the buttons: off shows the hand as it is, and the buttons keep their states
   let toggle = null;
+  let sortNow = null;
   const buttons = new Map();
 
   function draw() {
-    if (toggle) { toggle.setAttribute('aria-checked', String(enabled)); toggle.dataset.state = enabled ? 'on' : 'off'; toggle.textContent = enabled ? 'Sort: On' : 'Sort: Off'; toggle.title = enabled ? 'Sorting is on. Click to show the hand as you arranged it.' : 'Sorting is off. Click to sort the hand with the buttons.'; }
+    if (toggle) { toggle.setAttribute('aria-checked', String(enabled)); toggle.dataset.state = enabled ? 'on' : 'off'; toggle.textContent = enabled ? 'Auto sort: On' : 'Auto sort: Off'; toggle.title = enabled ? 'The hand is kept sorted all the time. Click to stop (the hand stays as it is, and a Sort now button appears).' : 'The hand is not sorted by itself. Click to keep it sorted all the time, or use Sort now.'; }
+    if (sortNow) {
+      sortNow.hidden = enabled; // (while the hand is kept sorted there is nothing to press)
+      const anyChosen = SORT_KEYS.some((key) => sortState[key] !== 0);
+      sortNow.disabled = !anyChosen;
+      sortNow.title = anyChosen ? 'Sort the hand once with the buttons as they are now.' : 'Press Type, Color, Cost or A-Z first, to say how to sort.';
+    }
     for (const [key, button] of buttons) {
       const value = sortState[key];
       button.setAttribute('aria-pressed', value === 0 ? 'false' : 'true');
@@ -145,6 +154,10 @@ export function createHandSort({ onChange = () => {} } = {}) {
     toggle.setAttribute('role', 'switch');
     toggle.addEventListener('click', () => { enabled = !enabled; store.set(SORT_ON_KEY, enabled ? '1' : '0'); draw(); onChange(); });
     host.append(toggle);
+    sortNow = make('button', 'hand-sort-now', 'Sort now');
+    sortNow.type = 'button';
+    sortNow.addEventListener('click', () => onSortNow());
+    host.append(sortNow);
     for (const key of SORT_KEYS) {
       const button = make('button', 'hand-sort', '');
       button.type = 'button';
@@ -153,7 +166,7 @@ export function createHandSort({ onChange = () => {} } = {}) {
       button.addEventListener('click', () => {
         sortState = nextSortState(sortState, key);
         store.set(SORTS_KEY, JSON.stringify(sortState));
-        if (!enabled) { enabled = true; store.set(SORT_ON_KEY, '1'); } // (a button pressed while sorting is off turns it on)
+        // (with Auto sort off a button only chooses how Sort now will sort: the hand is left alone)
         draw();
         onChange();
       });

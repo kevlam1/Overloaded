@@ -3842,6 +3842,23 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 **My mistakes this round:** my first version of the new check ran under reduced motion, so it measured no lean and failed (the code was fine); and the two Alt-picture checks I changed earlier today failed again by chance, because the hand's next card could cover the middle of the first card where I put the pointer. They now take a point on the part of the card that shows.
 
+
+---
+
+## 190. Sort now: sorting only when clicked (2026-11-13)
+
+**What I asked for**
+- Make the sort button also a button that just sorts when clicked: one version that is always on passively (what we have), and one that only sorts when clicked, with the current settings.
+
+**What changed** (`frontend/src/hand-sort-ui.js`, `frontend/pages/solo/solo.js`, `frontend/src/style.css`, `scripts/check-solo-ui.mjs`)
+- How I read it: the existing On/Off switch becomes the choice between the two versions. **Auto sort: On** is exactly what there was: the hand is kept sorted all the time, as a view. **Auto sort: Off** leaves the hand alone and shows a new **Sort now** button next to it; one click puts the hand in the order the Type, Color, Cost and A-Z buttons say, for good (the cards ease to their places), and cards drawn later are not sorted until it is pressed again. Pressing Sort now when the hand is already in that order says so, and with no sort chosen the button cannot be pressed and says why in its tooltip. It is hidden while Auto sort is on, since there is nothing to press.
+- **One thing changed for the old Off:** before, pressing Type, Color, Cost or A-Z while the switch was off turned sorting back on. With Auto sort off the buttons now only choose how Sort now will sort; otherwise the manual version would sort by itself. Tell me if you would rather keep the old behaviour.
+- The switch says "Auto sort: On" / "Auto sort: Off" now (it said "Sort: On" / "Sort: Off"). Only the solo page has the hand sorting; the table page does not yet.
+
+**What I checked:** the solo check (628), with 6 new checks (no Sort now while Auto sort is on; with it off the button is there but disabled until a sort is chosen; choosing A-Z sorts nothing by itself; Sort now sorts A to Z with the same cards and Auto sort still off; pressing it again says nothing changed; turning Auto sort on hides it), and a screenshot of the bar with Auto sort off, Sort now and Type pressed. I did not check it at phone width or on a long hand.
+
+**My mistakes this round:** none found. (I left the three new sound files in `frontend/public/sfx/` that are not mine out of the commit.)
+
 ---
 
 ## Where AI misread me, or I had to correct course

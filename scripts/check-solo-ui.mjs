@@ -604,6 +604,29 @@ try {
       check('in a sorted hand a card moved by hand stays where it was put (the others stay sorted), and changing the sorts sorts it again with the others (the card is no longer last)', pinned.at(-1) === sortedUids[0] && JSON.stringify(pinned) !== JSON.stringify(sortedUids) && restSorted && releasedSorted && released.at(-1) !== sortedUids[0], JSON.stringify({ pinned, sortedUids, released }));
     }
     await click(await costButton()); await click(await costButton()); // (the Cost button back to off)
+    // Auto sort off: the hand is left alone, the buttons only choose, and Sort now sorts it once with the current choices
+    {
+      const toggle = '.hand-bar .hand-sort-toggle';
+      const nowButton = () => ev("(() => { const b = document.querySelector('.hand-bar .hand-sort-now'); return b ? { hidden: b.hidden, disabled: b.disabled, shown: getComputedStyle(b).display !== 'none' } : null; })()");
+      const autoOn = await nowButton();
+      check('while Auto sort is on there is no Sort now button, and the switch says Auto sort: On', autoOn && autoOn.hidden === true && autoOn.shown === false && (await ev("document.querySelector('.hand-sort-toggle').textContent")) === 'Auto sort: On', JSON.stringify(autoOn));
+      await click(await rectOf(toggle));
+      const manual = await nowButton();
+      const before = await order();
+      check('with Auto sort off the switch says so and a Sort now button is there, but with no sort chosen it cannot be pressed', manual && manual.hidden === false && manual.shown === true && manual.disabled === true && (await ev("document.querySelector('.hand-sort-toggle').textContent")) === 'Auto sort: Off', JSON.stringify(manual));
+      await click(await rectOf('.hand-bar .hand-sort[data-sort="name"]'));
+      const chosen = await nowButton();
+      check('choosing A-Z with Auto sort off sorts nothing by itself (the hand is as it was, and Auto sort is still off), and Sort now can be pressed', JSON.stringify(await order()) === JSON.stringify(before) && chosen.disabled === false && (await switchState()) === 'false', JSON.stringify(chosen));
+      await click(await rectOf('.hand-bar .hand-sort-now')); await sleep(300);
+      const afterNow = await handNames();
+      check('Sort now puts the hand in the order the buttons say (A to Z), the same cards, and Auto sort is still off', az(afterNow, 1) && (await order()).slice().sort().join() === before.slice().sort().join() && (await switchState()) === 'false' && /Sorted the hand./.test(await $text('status')), JSON.stringify(afterNow));
+      await click(await rectOf('.hand-bar .hand-sort-now')); await sleep(200);
+      check('Sort now again with nothing to change says so', /already in that order/.test(await $text('status')));
+      await click(await rectOf('.hand-bar .hand-sort[data-sort="name"]')); await click(await rectOf('.hand-bar .hand-sort[data-sort="name"]')); // (A-Z back to off)
+      await click(await rectOf(toggle)); // (Auto sort on again)
+      const back = await nowButton();
+      check('turning Auto sort on again hides Sort now', back && back.hidden === true && back.shown === false && (await switchState()) === 'true', JSON.stringify(back));
+    }
     await click(await rectOf('.hand-bar .hand-sort[data-sort="color"]'));
     check('a sort is kept as a choice (pressed, and kept in the browser) and a card cannot be dropped by hand into a sorted hand: its note says why', (await ev("document.querySelector('.hand-sort[data-sort=\"color\"]').getAttribute('aria-pressed')")) === 'true' && (await ev("localStorage.getItem('overloaded.handSort')")).includes('"color":1'));
     await click(await rectOf('.hand-bar .hand-sort[data-sort="color"]')); await click(await rectOf('.hand-bar .hand-sort[data-sort="color"]')); // back to off

@@ -644,7 +644,18 @@ function reorderInHand({ uid, x, picture }) {
   apply(() => next, '');
 }
 // The sort buttons are in the bar under the hand, the order of the card types is in Settings (src/hand-sort-ui.js).
-const handSort = createHandSort({ onChange: () => { if (!anySortOn(handSort.sorts())) keepShownOrder(); pins.clear(); if (game) render(); } }); // (changing the sorts lets the cards moved by hand go back to being sorted)
+// "Sort now" (Auto sort off): the hand is put in the order the buttons say, once. The cards ease to their new places; cards drawn later are not sorted until it is pressed again.
+function sortNow() {
+  if (!game) return;
+  const sorts = handSort.buttons();
+  if (!anySortOn(sorts)) { say('Press Type, Color, Cost or A-Z first, to say how to sort.'); return; }
+  const hand = game.zones.hand;
+  const sorted = sortHand(hand, sorts, { typeOrder: handSort.typeOrder(), colorOrder: handSort.colorOrder(), landOrder: handSort.landOrder(), info: (card) => lookup?.(card) ?? null });
+  if (sorted.every((card, index) => card.uid === hand[index].uid)) { say('The hand is already in that order.'); return; }
+  pins.clear();
+  apply(() => { let next = game; sorted.forEach((card, index) => { next = reorderHand(next, card.uid, index); }); return next; }, 'Sorted the hand.');
+}
+const handSort = createHandSort({ onSortNow: sortNow, onChange: () => { if (!anySortOn(handSort.sorts())) keepShownOrder(); pins.clear(); if (game) render(); } }); // (changing the sorts lets the cards moved by hand go back to being sorted)
 handSort.mountButtons(handView.bar);
 handSort.mountOrders($('hand-order-settings'));
 mountBoardDrag({ board: () => $('battlefield'), onDrop: dropOnBoard, hand: () => $('hand-section'), onDropHand: dropOnHand, onHandOver: (over) => handView.carry(over), onReorderHand: reorderInHand, handZone: () => handView.zone(), handHit: (x, y) => handView.over(x, y), zoneSource, pileAt, onDropPile: dropOnPile, isEnabled: () => Boolean(game) });
