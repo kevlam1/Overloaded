@@ -3793,6 +3793,23 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 **Decisions**
 - Once the portfolio card links to `/logs/`, that address never moves.
 
+
+---
+
+## 187. A new welcome title, the logs link, and version numbers (2026-11-14)
+
+**What I asked for**
+- Change the home page title from "Play your deck, alone or with friends" to "Welcome to Overloaded". From now on, give the site a version number that goes up, and say what version we should have now, judging by the entries in `log.md`, since an entry usually is an update.
+
+**What changed** (`shared/version.mjs`, `scripts/test-version.mjs`, `vite.config.js`, `frontend/pages/lobby/index.html` and `lobby.js`, `scripts/make-logs-page.mjs`, `logs-template.html`, `frontend/public/logs/logs.css`)
+- The home page title is "Welcome to Overloaded" (in the page and in `lobby.js`, which sets it again when you leave a table).
+- **The version is 0.187.** It is worked out from `log.md` when the site is built: 0 means still in beta, and the second number is how many numbered entries the log has, so this entry is what takes it from 0.186 to 0.187, and every new entry raises it by one without anyone remembering to. It shows in the home page footer ("Version 0.187", linking to the build log) and next to the title of the logs page. I did not give it a third number: a fix with no log entry would not change the version, and I would rather not have a number that someone has to bump by hand. The plan is 1.0 for the show and tell on 7 December; that is a choice to make, so the 0 is a line in `shared/version.mjs`.
+- I picked this rule myself after considering two others: one number per week (too coarse, 84 entries would be one version) and a number per milestone (needs me to judge where one stops).
+
+**What I checked:** `scripts/test-version.mjs` (10 checks, including that the real `log.md` is numbered with no gaps, so the count is the last number); the lobby page check and the logs page check with the new title and version; a screenshot of the footer. I did not break `shared/version.mjs` on purpose to see the checks fail, and I did not check the deployed site.
+
+**My mistakes this round:** the logs page I built earlier carried an invisible character copied from an entry that talks about them, which the source hygiene check found in the quick tests; the generator now writes such characters as numbers. I had also not put the logs page check into `npm test`; it is there now.
+
 ---
 
 ## Where AI misread me, or I had to correct course

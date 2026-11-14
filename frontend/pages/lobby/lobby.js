@@ -62,7 +62,7 @@ function busy(isBusy) {
   $('room-join-button').disabled = isBusy;
 }
 
-const START_TITLE = 'Play your deck, alone or with friends';
+const START_TITLE = 'Welcome to Overloaded';
 // Which screen shows: 'start' (make a table, join by code), 'room-join' (a table's address, you are not at it yet) or 'room' (you are
 // at the table). The name box is shared: it is on the start screen and on the join screen, not once you are at the table.
 function setScreen(screen) {

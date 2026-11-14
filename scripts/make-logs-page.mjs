@@ -6,13 +6,16 @@
 // It stops if log.md is not numbered 1, 2, 3 ... or has a section it does not know, and it checks that every word of log.md is on the page, so nothing is dropped without being noticed.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { SUMMARIES, REFLECTION_SUMMARIES } from './log-summaries.mjs';
+import { versionFromLog } from '../shared/version.mjs';
 
 const here = new URL('.', import.meta.url);
 const logText = readFileSync(new URL('../log.md', here), 'utf8').replace(/\r\n/g, '\n');
 const template = readFileSync(new URL('logs-template.html', here), 'utf8');
 
 // ---------- The tiny bit of markdown the log uses: bold, code, bullets (two levels), paragraphs ----------
-const esc = (text) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+// Invisible and direction-changing characters in the log text (entries that talk about them) are written as numbers, so the page file has none (scripts/check-source-hygiene.mjs).
+const INVISIBLE = new RegExp('[\\u200B-\\u200F\\u2028-\\u202E\\u2060-\\u206F\\u2800\\u3164\\uFEFF\\uFFA0\\uFFF9-\\uFFFB]', 'g');
+const esc = (text) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(INVISIBLE, (c) => `&#x${c.codePointAt(0).toString(16).toUpperCase()};`);
 
 // Code spans are set aside first, so a star or an angle bracket inside backticks (like `*.local` or `<dialog>`) is left alone.
 function inline(text) {
@@ -188,7 +191,7 @@ const weekNav = [
 // ---------- The word check: everything in log.md has to be on the page ----------
 const words = (text) => text.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 const fromMarkdown = (lines) => words(lines.join(' ').replace(/`/g, ''));
-const fromHtml = (html) => words(html.replace(/<[^>]+>/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&amp;/g, '&'));
+const fromHtml = (html) => words(html.replace(/<[^>]+>/g, ' ').replace(/&#x[0-9A-F]+;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&amp;/g, '&'));
 for (const [name, lines, html] of checks) {
   if (fromMarkdown(lines) !== fromHtml(html)) throw new Error(`The page text for "${name}" does not match log.md. The converter dropped or changed something.`);
 }
@@ -198,6 +201,7 @@ for (const [name, lines, html] of checks) {
 const sortedDates = numbered.map((s) => s.date).sort();
 const parts = {
   COUNT: String(numbered.length),
+  VERSION: versionFromLog(logText),
   DATES: `${short(asDate(sortedDates[0]))} to ${short(asDate(sortedDates.at(-1)))}, ${part(asDate(sortedDates.at(-1)), { year: 'numeric' })}`,
   WEEKNAV: weekNav,
   SETOUT: setOutHtml,

@@ -1,5 +1,7 @@
 import { defineConfig, loadEnv } from 'vite';
 import { fileURLToPath } from 'node:url';
+import { readFileSync } from 'node:fs';
+import { versionFromLog } from './shared/version.mjs';
 
 // The page needs five Firebase settings. They identify the project and are public by design (Firebase's docs:
 // security comes from the database rules, not from hiding them), but this repo never holds the values: they come
@@ -29,6 +31,10 @@ export default defineConfig(({ command, mode }) => {
     console.warn(message);
   }
 
+  // The version is worked out from log.md (shared/version.mjs) and put into the pages in place of {{VERSION}}.
+  let version = '0.0';
+  try { version = versionFromLog(readFileSync(new URL('./log.md', import.meta.url), 'utf8')); } catch { /* no log.md: the pages say 0.0 */ }
+
   return {
     root: 'frontend',
     define: { __FIREBASE_CONFIG__: JSON.stringify(firebaseConfig) },
@@ -40,6 +46,9 @@ export default defineConfig(({ command, mode }) => {
       },
     },
     plugins: [{
+      name: 'overloaded-version',
+      transformIndexHtml: { order: 'pre', handler: (html) => html.replace(/\{\{VERSION\}\}/g, () => version) },
+    }, {
       // On Vercel /, /deck, /solo, /logs, /table/CODE and /lobby/CODE are rewritten to their pages (vercel.json); the dev server needs the same rules.
       name: 'overloaded-dev-rewrites',
       configureServer(server) {

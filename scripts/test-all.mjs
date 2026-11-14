@@ -37,6 +37,7 @@ const suites = [
   { name: 'lobby decks: what is sent, offered and shown', cmd: node, args: ['scripts/test-lobby-deck.mjs'] },
   { name: 'mount points of the deck manager: deck page and lobby', cmd: node, args: ['scripts/test-importer-markup.mjs'] },
   { name: 'game zones: draw, move, tap, shuffle', cmd: node, args: ['scripts/test-zones.mjs'] },
+  { name: 'the version number from log.md', cmd: node, args: ['scripts/test-version.mjs'] },
   { name: 'sound settings', cmd: node, args: ['scripts/test-sound-settings.mjs'] },
   { name: 'dealing a hand one card at a time', cmd: node, args: ['scripts/test-deal-sequence.mjs'] },
   { name: 'pinging a card: the record, reading it back, which pings show', cmd: node, args: ['scripts/test-ping.mjs'] },
@@ -73,6 +74,7 @@ const suites = [
   { name: 'friendly error messages', cmd: node, args: ['scripts/test-friendly-error.mjs'] },
 ];
 if (!quick) {
+  suites.push({ name: 'the /logs/ page in headless Chrome', cmd: node, args: ['scripts/check-logs-page.mjs'] });
   suites.push({ name: 'lobby page in headless Chrome', cmd: node, args: ['scripts/check-lobby-ui.mjs'] });
   suites.push({ name: 'the pinged card: spotlight and glow in headless Chrome', cmd: node, args: ['scripts/check-spotlight-ui.mjs'] });
   suites.push({ name: 'the table fits one screen: 5 window sizes, 0 to 3 other players (headless Chrome)', cmd: node, args: ['scripts/check-table-layout.mjs'] });

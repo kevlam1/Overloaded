@@ -118,7 +118,7 @@ const ORIGIN = LIVE || `http://127.0.0.1:${server.address().port}`;
 // The server (the stand-in locally, the real Vercel with DEPLOY_URL), checked before anything relies on it
 const get = async (path) => { const r = await fetch(ORIGIN + path); return { status: r.status, type: r.headers.get('content-type') ?? '', csp: r.headers.get('content-security-policy'), body: await r.text() }; };
 const root = await get('/');
-check('the served site serves the lobby page at /', root.status === 200 && root.type.startsWith('text/html') && /<h1 id="page-title">Play your deck/.test(root.body));
+check('the served site serves the lobby page at /', root.status === 200 && root.type.startsWith('text/html') && /<h1 id="page-title">Welcome to Overloaded/.test(root.body) && /Version 0\.\d+\./.test(root.body) && !root.body.includes('{{VERSION}}'));
 check('the served site serves the same page at /lobby/ABC234', (await get('/lobby/ABC234')).body === root.body);
 check('the served site serves the same page at /lobby', (await get('/lobby')).body === root.body);
 const deckPage = await get('/deck');
@@ -210,7 +210,7 @@ try {
   const blocked = () => [...host.events, ...(guest?.events ?? [])].filter((e) => e.method === 'Network.loadingFailed' && /csp/i.test(e.params.blockedReason ?? ''));
 
   await host.goto(`${ORIGIN}/`);
-  check('the lobby page shows at the site root', (await host.eval(`document.querySelector('h1')?.textContent`)).startsWith('Play your deck'));
+  check('the lobby page shows at the site root', (await host.eval(`document.querySelector('h1')?.textContent`)).startsWith('Welcome to Overloaded'));
   check('its stylesheet loaded', (await host.eval(`Array.from(document.styleSheets).some((s) => { try { return s.cssRules.length > 0; } catch { return false; } })`)));
   check('no code is filled in at the root', (await host.eval(`document.getElementById('join-code').value`)) === '');
 

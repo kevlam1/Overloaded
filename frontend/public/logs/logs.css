@@ -19,6 +19,7 @@ a { color: var(--accent); }
 .top { padding: 2rem 0 1rem; }
 .crumb { margin: 0 0 .5rem; color: var(--muted); font-size: .9rem; }
 h1 { margin: 0 0 .5rem; font-size: 2rem; line-height: 1.15; }
+.version { display: inline-block; margin-left: .5rem; padding: .1rem .5rem; border: 1px solid var(--line); border-radius: 1rem; color: var(--muted); font-size: .85rem; font-weight: 500; vertical-align: middle; }
 .lede { margin: 0; color: var(--muted); }
 
 .weekbar { position: sticky; top: 0; z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); padding: .6rem 0; }

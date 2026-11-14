@@ -15,6 +15,7 @@ const html = readFileSync(new URL('../frontend/public/logs/index.html', import.m
 const log = readFileSync(new URL('../log.md', import.meta.url), 'utf8');
 const logCount = (log.match(/^## \d+\. /gm) ?? []).length;
 check('the page has no inline script, no inline style and no style attribute (the content policy forbids them)', !/<script(?![^>]*\bsrc=)/i.test(html) && !/<style/i.test(html) && !/\sstyle=/i.test(html));
+check('the logs page shows the version worked out from log.md', html.includes(`Version 0.${(log.match(/^## \d+\. /gm) ?? []).length}<`));
 check('the page is built from this log.md: it has every numbered entry', (html.match(/<article class="entry" id="entry-\d+"/g) ?? []).length === logCount, `${logCount} in log.md`);
 
 let server = null; let exitCode = 0;
