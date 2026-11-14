@@ -40,14 +40,15 @@ export default defineConfig(({ command, mode }) => {
       },
     },
     plugins: [{
-      // On Vercel /, /deck, /solo, /table/CODE and /lobby/CODE are rewritten to their pages (vercel.json); the dev server needs the same rules.
+      // On Vercel /, /deck, /solo, /logs, /table/CODE and /lobby/CODE are rewritten to their pages (vercel.json); the dev server needs the same rules.
       name: 'overloaded-dev-rewrites',
       configureServer(server) {
         server.middlewares.use((request, _response, next) => {
           const url = request.url ?? '';
           const withCode = /^\/(table|lobby)\/[^/?#]+\/?(\?|#|$)/.exec(url);
           const plain = /^\/(deck|solo)?\/?(\?|#|$)/.exec(url);
-          if (withCode) request.url = `/pages/${withCode[1]}/index.html`;
+          if (/^\/logs\/?(\?|#|$)/.test(url)) request.url = '/logs/index.html';
+          else if (withCode) request.url = `/pages/${withCode[1]}/index.html`;
           else if (plain) request.url = `/pages/${plain[1] ?? 'lobby'}/index.html${url.slice(url.search(/[?#]/) === -1 ? url.length : url.search(/[?#]/))}`;
           next();
         });

@@ -3646,6 +3646,24 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 **My mistakes this round:** the carets I used last time were a literal reading of your examples; I should have asked what you wanted before choosing characters.
 
+
+## 186. A /logs/ page, split into weeks (2026-11-14)
+
+**What I asked for**
+- A logs route like the ones on Scrawdle and MIDI Companion, but easier to navigate because this log has many more entries: split into weeks, Monday to Sunday, with October 25 put in the first week as an exception. There is a Week -1, a Week 0 and a Week 1.
+
+**What changed** (`scripts/make-logs-page.mjs`, `log-summaries.mjs`, `logs-template.html`, `frontend/public/logs/` (`index.html`, `logs.css`, `logs.js`), `vercel.json`, `vite.config.js`, `scripts/check-logs-page.mjs`)
+- The page at `/logs/` is built from `log.md` by `node scripts/make-logs-page.mjs`, copied in shape from MIDI Companion's. Week -1 is October 25 to November 1 (84 entries), Week 0 is November 2 to 8 (26), Week 1 is November 9 to 15 (76 with this entry), and a new week appears by itself when there are entries for it. Each entry is closed and shows its number, title and a one-line summary; a click opens it. The week bar at the top jumps to a week and marks the one in view, and the page has a search (it hides what does not match and marks the words), Expand all and Collapse all, and an address like `/logs/#entry-100` opens that entry.
+- The summaries are not mine yet: until I write one in `log-summaries.mjs` an entry shows the first sentence of its "What I asked for". I need to read them and replace the ones that say what I asked for and not what came of it.
+- The generator stops if any word of `log.md` is missing from the page, and the page uses an outside style sheet and script because the site's content policy forbids inline ones. `/logs` is rewritten to the page in `vercel.json` and in the dev server.
+
+**What I checked:** `scripts/check-logs-page.mjs` in real headless Chrome (19 checks: no inline script or style, all 185 entries present, the weeks and their dates, every day under the week its date belongs to, open and close, expand and collapse all, a search for "riffle" shows exactly the 4 entries that contain it, a search with no match, a link to one entry, the week bar marking the week in view, no sideways scroll at desktop and phone width, no console errors), and screenshots at desktop and phone width. I did not check it on the deployed site, and I did not break the page on purpose to see the checks fail.
+
+**My mistakes this round:** the first version of the search's word-marking code had a nonsense line that I wrote and then replaced; the syntax check passed it, and I only saw it by reading the code back. The first page-error check could never fail (it listened for something the browser helper does not have), found when I looked at what it read.
+
+**Decisions**
+- Once the portfolio card links to `/logs/`, that address never moves.
+
 ---
 
 ## Where AI misread me, or I had to correct course

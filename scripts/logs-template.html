@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Overloaded build log</title>
+<meta name="description" content="The build log of Overloaded, week by week: what I planned, asked the AI for, decided and dropped.">
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/logs/logs.css">
+<script src="/logs/logs.js" defer></script>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <p class="crumb"><a href="/">Overloaded</a> / build log</p>
+    <h1>Build log</h1>
+    <p class="lede">{{COUNT}} entries, {{DATES}}. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
+  </div>
+</header>
+
+<nav class="weekbar" aria-label="Weeks">
+  <div class="wrap">
+    <div class="weeks-row">
+{{WEEKNAV}}
+    </div>
+    <div class="tools">
+      <label class="search"><span class="visually-hidden">Search the log</span><input id="log-search" type="search" placeholder="Search the log" autocomplete="off"></label>
+      <button type="button" id="expand-all">Expand all</button>
+      <button type="button" id="collapse-all">Collapse all</button>
+      <span id="search-note" class="note" role="status" aria-live="polite"></span>
+    </div>
+  </div>
+</nav>
+
+<main class="wrap">
+{{SETOUT}}
+{{WEEKS}}
+{{REFLECTION}}
+<p id="no-results" class="no-results" hidden>Nothing in the log matches that.</p>
+</main>
+
+<footer class="foot wrap">
+  <p>Overloaded is a fan-made tool and is not affiliated with or endorsed by Wizards of the Coast. Magic: The Gathering and its card images and text belong to Wizards of the Coast.</p>
+</footer>
+</body>
+</html>
