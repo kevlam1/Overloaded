@@ -406,6 +406,12 @@ body.playing.solo .hand-count { font-weight: 600; color: var(--text); }
 /* the mana cost of a card in the hand shows only while the pointer is on it (its lifted copy) or it is the clicked card (Kevin, 2026-11-13) */
 body.playing #hand > .card .hand-cost { visibility: hidden; }
 body.playing #hand > .card.selected .hand-cost { visibility: visible; }
+body.playing #hand > .card.dragging .hand-cost { visibility: hidden; } /* (a card being carried takes its cost with it: the picture carried shows it) */
+.drag-ghost.has-cost { overflow: visible; background: none; box-shadow: none; }
+.drag-ghost.has-cost > img { border-radius: 4.8% / 3.4%; box-shadow: 0 0.4rem 1rem rgba(0, 0, 0, 0.5); }
+.drag-ghost > .hand-cost { position: absolute; left: 0; right: 0; bottom: 100%; display: flex; justify-content: center; margin-bottom: 0.15rem; pointer-events: none; white-space: nowrap; }
+.drag-ghost > .hand-cost .cost { margin: 0; gap: 1px; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.6)); }
+.drag-ghost > .hand-cost .pip, .drag-ghost > .hand-cost img { width: 1rem; height: 1rem; }
 /* nothing on the table can be picked up as text, and a rectangle dragged over the battlefield picks up cards */
 body.playing { user-select: none; -webkit-user-select: none; }
 body.playing input, body.playing textarea, body.playing [contenteditable] { user-select: text; -webkit-user-select: text; }
@@ -690,7 +696,7 @@ body[data-pile-style="vertical"] .battlefield > .card[data-stack-depth="1"] { tr
 body[data-pile-style="vertical"] .battlefield > .card[data-stack-depth="2"] { translate: 0 calc(var(--step-v) * -2); }
 
 .card .stack-count { position: absolute; top: 0.15rem; right: 0.15rem; padding: 0 0.3rem; border: 1px solid rgba(255, 255, 255, 0.4); border-radius: 0.6rem; background: rgba(20, 20, 26, 0.92); color: #fff; font-size: 0.75rem; font-weight: 700; line-height: 1.1rem; pointer-events: none; }
-body.playing .card .stack-count { font-size: 1.2rem; line-height: 1.7rem; padding: 0 0.55rem; border-radius: 1rem; }
+body.playing .card .stack-count { font-size: 0.9rem; line-height: 1.3rem; padding: 0 0.45rem; border-radius: 1rem; }
 /* (Kevin, 2026-11-13) the number of a pile is twice as large: at the bottom of the top card of an untapped pile, at the bottom right of a tapped one */
 body.playing .battlefield > .card .stack-count { top: auto; right: auto; bottom: 0.3rem; left: 50%; translate: -50% 0; }
 body.playing .battlefield > .card.tapped .stack-count { left: auto; right: 0.3rem; translate: none; }
@@ -727,7 +733,9 @@ body[data-tapped-pile-style="vertical"] .battlefield > .card.tapped[data-stack-d
 /* the hand while a card from the battlefield is held over it */
 body.playing #hand::after { content: ''; z-index: 200; position: absolute; left: var(--zl, 0px); width: var(--zw, 0px); top: var(--zt, 50%); bottom: 0; border: 2px dashed var(--ring); border-radius: 0.5rem; background: color-mix(in srgb, var(--ring) 10%, transparent); opacity: 0; pointer-events: none; }
 body.dragging-card .hand-section.drop-hand #hand::after { opacity: 1; } /* one rectangle round the whole hand, from where the hand starts to rise down to the bottom (the same area a card is dropped on), not an outline on each card */
-.drag-ghost[data-count]::after { content: attr(data-count) 'x'; position: absolute; right: 0.15rem; top: 0.15rem; padding: 0 0.3rem; border-radius: 0.6rem; background: rgba(20, 20, 26, 0.92); color: #fff; font-size: 0.7rem; font-weight: 700; }
+.drag-ghost[data-count]::after { content: attr(data-count) 'x'; position: absolute; right: auto; top: auto; left: 50%; bottom: 0.3rem; translate: -50% 0; padding: 0 0.45rem; border: 1px solid rgba(255, 255, 255, 0.4); border-radius: 1rem; background: rgba(20, 20, 26, 0.92); color: #fff; font-size: 0.9rem; font-weight: 700; line-height: 1.3rem; }
+/* the number of a pile being carried is the size and place of the number on the board: bottom middle, and for a tapped pile (the picture is turned on its side) the bottom right as seen, held upright */
+.drag-ghost.tapped[data-count]::after { left: auto; right: 0.3rem; top: 0.3rem; bottom: auto; translate: none; rotate: -90deg; }
 /* a dashed border around a pile: the top card and the copies fanned under it (data-stack-ext is how many copies show under the top one) */
 .battlefield > .card[data-stack-ext]::before { content: ""; position: absolute; inset: -3px; border: 1px dashed color-mix(in srgb, var(--text) 45%, transparent); border-radius: 0.5rem; pointer-events: none; }
 .battlefield > .card[data-stack-ext="1"]::before { top: calc(var(--step) * -1 - 3px); left: calc(var(--step) * -1 - 3px); }

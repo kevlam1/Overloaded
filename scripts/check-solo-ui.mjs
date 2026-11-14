@@ -670,6 +670,25 @@ try {
       check('the mana costs of the cards in the hand are hidden, and show only on the card the pointer is on', restingCost === 'hidden' && quiet && costIndex >= 0 && hovered === 'visible', JSON.stringify({ restingCost, quiet, costIndex, hovered }));
       await move({ x: 5, y: 5 }); await sleep(300);
     }
+    {
+      // a card carried from the hand takes its mana cost with it: the picture carried shows the cost, and the cost left in the hand is hidden
+      const costIndex = await ev("[...document.querySelectorAll('#hand > .card')].findIndex((c) => c.querySelector('.hand-cost'))");
+      const pointOn = () => ev(`(() => { const cards = [...document.querySelectorAll('#hand > .card')]; const card = cards[${costIndex}]; const r = card.getBoundingClientRect(); for (let x = r.left + 4; x < r.right - 4; x += 4) { const y = r.top + r.height * 0.6; if (document.elementFromPoint(x, y)?.closest('.card') === card) return { x, y }; } return null; })()`);
+      const p0 = costIndex >= 0 ? await pointOn() : null;
+      let carried = null;
+      if (p0) {
+        await move(p0); await sleep(350);
+        const p = await pointOn();
+        await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: p.x, y: p.y, button: 'left', buttons: 1, clickCount: 1 });
+        for (let n = 1; n <= 8; n++) await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p.x + n * 6, y: p.y - n * 12, buttons: 1 });
+        await sleep(150);
+        carried = await ev("(() => { const g = document.querySelector('.drag-ghost'); const cost = g?.querySelector(':scope > .hand-cost'); const left = document.querySelector('#hand > .card.dragging .hand-cost'); const gr = g?.getBoundingClientRect(); const cr = cost?.getBoundingClientRect(); return { ghost: Boolean(cost), pips: cost ? cost.children.length : 0, above: Boolean(gr && cr && cr.bottom <= gr.bottom - gr.height * 0.5), leftBehind: left ? getComputedStyle(left).visibility : 'none' }; })()");
+        await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: p.x + 48, y: p.y - 96, button: 'left', buttons: 0, clickCount: 1 });
+        await sleep(300);
+      }
+      check('a card carried from the hand takes its mana cost with it (shown above the picture), and the cost is not left behind in the hand', costIndex >= 0 && carried && carried.ghost && carried.pips >= 1 && carried.above && carried.leftBehind !== 'visible', JSON.stringify({ costIndex, carried }));
+      await move({ x: 5, y: 5 }); await sleep(300);
+    }
     check('cards are not reached with Tab (tabindex -1) and cannot be picked up as text', await ev("[...document.querySelectorAll('.card')].every((c) => c.tabIndex === -1 && getComputedStyle(c).userSelect === 'none') && getComputedStyle(document.body).userSelect === 'none'"));
     await ev('document.activeElement && document.activeElement.blur()');
     await keyDown('Tab', 'Tab', 9);
@@ -888,7 +907,7 @@ try {
       const sideLeft = base.xs.slice(0, idx).every((x, k) => up.xs[k] <= x + 1);
       const sideRight = base.xs.slice(idx + 1).every((x, k) => up.xs[idx + 1 + k] >= x - 1);
       const nearer = (base.xs[idx] - base.xs[idx - 1]) + 20 < up.xs[idx] - up.xs[idx - 1] && (base.xs[idx + 1] - base.xs[idx]) + 20 < up.xs[idx + 1] - up.xs[idx];
-      check('the whole of each side moves aside, separately: nothing to its left moves right, nothing to its right moves left, and each neighbour opens up to at least 0.6 of a card from it (the gap beside it was made 25% smaller, Kevin 2026-11-14: it was 0.75)', sideLeft && sideRight && nearer && up.xs[idx] - up.xs[idx - 1] >= base.width * 0.6 && up.xs[idx + 1] - up.xs[idx] >= base.width * 0.6, JSON.stringify({ before: base.xs, after: up.xs, sideLeft, sideRight, nearer }));
+      check('the whole of each side moves aside, separately: nothing to its left moves right, nothing to its right moves left, and each neighbour opens up to at least 0.45 of a card from it (the gap beside it was made half of what it was, Kevin 2026-11-14: it was 0.75)', sideLeft && sideRight && nearer && up.xs[idx] - up.xs[idx - 1] >= base.width * 0.45 && up.xs[idx + 1] - up.xs[idx] >= base.width * 0.45, JSON.stringify({ before: base.xs, after: up.xs, sideLeft, sideRight, nearer }));
       check('the brought-up card is in front of all the others, and it has no lifted copy of its own (it is up by itself; with the neighbours opened less, the pointer may be over a neighbour, which is lifted like any card under the pointer)', zs[idx] === Math.max(...zs) && zs.filter((z) => z === zs[idx]).length === 1 && (await ev("document.querySelector('#hand > .card.selected').classList.contains('lifted')")) === false, JSON.stringify(zs));
       await mouse('mouseMoved', 5, 5); await sleep(500);
       const lowered = await handFacts();
@@ -1998,7 +2017,7 @@ try {
   check('the top card says "6x" and nothing else carries a count', pile.badge === '6x' && pile.badges === 1, JSON.stringify(pile));
   {
     const badge = await ev("(() => { const top = document.querySelector('#battlefield .card[data-stack-depth=\"0\"][aria-label^=\"Forest\"]'); const b = top.querySelector(':scope > .stack-count'); const c = top.getBoundingClientRect(); const r = b.getBoundingClientRect(); return { off: Math.abs((r.left + r.width / 2) - (c.left + c.width / 2)), gap: c.bottom - r.bottom, font: parseFloat(getComputedStyle(b).fontSize) }; })()");
-    check('the number of a pile is twice as large (at least 19 px) and sits at the bottom of the top card, in the middle of it', badge.font >= 19 && badge.off < 3 && badge.gap >= 0 && badge.gap < 14, JSON.stringify(badge));
+    check('the number of a pile is 1.5 times as large as it was (0.9 rem, about 14 px) and sits at the bottom of the top card, in the middle of it', badge.font >= 14 && badge.font <= 15 && badge.off < 3 && badge.gap >= 0 && badge.gap < 14, JSON.stringify(badge));
   }
   check('the copies under the top one are shifted so the pile can be seen', pile.shifted === true && pile.depths.split(',').sort().join() === '0,1,2,3,4,5', JSON.stringify(pile));
   check('a screen reader is told it is the top of a stack of 6', /top of a stack of 6/.test(pile.topLabel ?? ''), String(pile.topLabel));
@@ -2010,8 +2029,10 @@ try {
     const from = await centerOfSelector(topCard);
     let carried = null;
     let ghostInfo = null;
-    await shiftDrag(from, { x: from.x + 30 * r.width / 112, y: from.y - 11 * r.height / 44 }, 8, async () => { if (process.argv.includes('--screenshot')) { await sleep(80); await browser.screenshot('scratch-pile-ghost.png'); } ghostInfo = await ev("(() => { const g = document.querySelector('.drag-ghost'); if (!g) return null; const own = g.querySelector(':scope > img')?.getBoundingClientRect(); if (!own) return null; const round = (v) => Math.round(v * 10) / 10; const copies = [...g.querySelectorAll('.drag-ghost-copy')].map((c) => { const r = c.getBoundingClientRect(); return [round(r.left - own.left), round(r.top - own.top)]; }).sort((a, b) => a[0] - b[0] || a[1] - b[1]); const top = [...document.querySelectorAll('#battlefield .card')].find((c) => c.dataset.stackDepth === '0' && c.classList.contains('dragging')); const tr = top ? top.getBoundingClientRect() : null; const pile = [...document.querySelectorAll('#battlefield .card.dragging')].filter((c) => c.dataset.stackDepth !== '0' && !c.dataset.stackHidden).map((c) => { const r = c.getBoundingClientRect(); return [round(r.left - tr.left), round(r.top - tr.top)]; }).sort((a, b) => a[0] - b[0] || a[1] - b[1]); return { stack: g.classList.contains('stack'), count: g.dataset.count, copies, pile, layers: [...g.querySelectorAll('.drag-ghost-copy')].map((c) => c.style.zIndex) }; })()"); carried = await ev(`(() => ({ hidden: document.querySelectorAll('#battlefield .card.dragging').length, visible: Array.from(document.querySelectorAll('#battlefield .card')).filter((c) => getComputedStyle(c).visibility !== 'hidden' && getComputedStyle(c).display !== 'none').length }))()`); });
+    let ghostBadge = null;
+    await shiftDrag(from, { x: from.x + 30 * r.width / 112, y: from.y - 11 * r.height / 44 }, 8, async () => { if (process.argv.includes('--screenshot')) { await sleep(80); await browser.screenshot('scratch-pile-ghost.png'); } ghostBadge = await ev("(() => { const g = document.querySelector('.drag-ghost'); const b = document.querySelector('#battlefield > .card .stack-count'); return g ? { ghost: parseFloat(getComputedStyle(g, '::after').fontSize), board: b ? parseFloat(getComputedStyle(b).fontSize) : null } : null; })()"); ghostInfo = await ev("(() => { const g = document.querySelector('.drag-ghost'); if (!g) return null; const own = g.querySelector(':scope > img')?.getBoundingClientRect(); if (!own) return null; const round = (v) => Math.round(v * 10) / 10; const copies = [...g.querySelectorAll('.drag-ghost-copy')].map((c) => { const r = c.getBoundingClientRect(); return [round(r.left - own.left), round(r.top - own.top)]; }).sort((a, b) => a[0] - b[0] || a[1] - b[1]); const top = [...document.querySelectorAll('#battlefield .card')].find((c) => c.dataset.stackDepth === '0' && c.classList.contains('dragging')); const tr = top ? top.getBoundingClientRect() : null; const pile = [...document.querySelectorAll('#battlefield .card.dragging')].filter((c) => c.dataset.stackDepth !== '0' && !c.dataset.stackHidden).map((c) => { const r = c.getBoundingClientRect(); return [round(r.left - tr.left), round(r.top - tr.top)]; }).sort((a, b) => a[0] - b[0] || a[1] - b[1]); return { stack: g.classList.contains('stack'), count: g.dataset.count, copies, pile, layers: [...g.querySelectorAll('.drag-ghost-copy')].map((c) => c.style.zIndex) }; })()"); carried = await ev(`(() => ({ hidden: document.querySelectorAll('#battlefield .card.dragging').length, visible: Array.from(document.querySelectorAll('#battlefield .card')).filter((c) => getComputedStyle(c).visibility !== 'hidden' && getComputedStyle(c).display !== 'none').length }))()`); });
     check('the picture carried with a whole pile IS the pile: the top card and a layer for each of the other drawn copies (2 under it) in the same offsets the pile has on the board, behind the top card, and the count 6 in its corner', ghostInfo && ghostInfo.stack === true && ghostInfo.count === '6' && ghostInfo.copies.length === 2 && JSON.stringify(ghostInfo.copies) === JSON.stringify(ghostInfo.pile) && ghostInfo.copies.every(([x, y]) => x < 0 && y < 0) && ghostInfo.layers.every((z) => z === '-1'), JSON.stringify(ghostInfo));
+    check('the number of a pile carried is the size of the number on the board (1.5 times what it was, 0.9 rem), not the old small one', ghostBadge && ghostBadge.board !== null && Math.abs(ghostBadge.ghost - ghostBadge.board) < 0.5 && ghostBadge.ghost >= 14, JSON.stringify(ghostBadge));
     check('while a whole pile is carried every card of it is hidden at the old place (not only the one that was pressed)', carried && carried.hidden === 6 && carried.visible === 0, JSON.stringify(carried));
     pile = await forestState();
     check('Shift and drag on a pile moves the whole pile: all six Forests on the new cell, still 6x', pile.cells.length === 1 && pile.cells[0] === '30,22' && pile.badge === '6x' && /^Moved the pile of 6 Forest./.test(await $text('status')), JSON.stringify({ pile, status: await $text('status') }));
@@ -2280,7 +2301,7 @@ try {
     check('two tapped Forests are one stack of 2 on one cell, and the lower copy is shifted diagonally, up and (a little) to the left of the pile, which itself sits a cell to the right (the default style of tapped piles)', fan.n === 2 && fan.cells.length === 1 && /^-?[0-9.]+px -[0-9.]+px$/.test(fan.translate ?? '') && fan.underBottom < fan.topBottom, JSON.stringify(fan)); }
     {
       const badge = await ev("(() => { const top = document.querySelector('#battlefield .card.tapped .stack-count'); if (!top) return null; const card = top.parentElement.getBoundingClientRect(); const r = top.getBoundingClientRect(); return { right: card.right - r.right, bottom: card.bottom - r.bottom, font: parseFloat(getComputedStyle(top).fontSize) }; })()");
-      check('on a pile of tapped cards the number is at the bottom right', badge && badge.font >= 19 && badge.right >= 0 && badge.right < 14 && badge.bottom >= 0 && badge.bottom < 14, JSON.stringify(badge));
+      check('on a pile of tapped cards the number is at the bottom right', badge && badge.font >= 14 && badge.font <= 15 && badge.right >= 0 && badge.right < 14 && badge.bottom >= 0 && badge.bottom < 14, JSON.stringify(badge));
     }
   await clickAction('Untap');
   { const one = await ev(`(() => { const c = Array.from(document.querySelectorAll('#battlefield .card:not(.tapped)')).filter((x) => x.dataset.stackSize === undefined || x.dataset.stackDepth === '0'); const lone = Array.from(document.querySelectorAll('#battlefield .card.selected'))[0]; return lone ? lone.dataset.col + ',' + lone.dataset.row : null; })()`);

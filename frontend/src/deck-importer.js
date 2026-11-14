@@ -202,6 +202,7 @@ function build() {
   // On the deck page the header's Decks link goes back to the list; inside the lobby (which has no such link) a small button does.
   if (!solo) deckNav.append(button('back-to-decks', '\u2039 All decks', 'link-button'));
   deckNav.append(button('edit-list', 'Edit list', 'link-button'));
+  if (solo) deckNav.append(button('deck-play-solo', 'Play solo', 'link-button')); // (Kevin, 2026-11-14: the deck being looked at can be used for the solo table from here too)
   const summary = make('p');
   summary.id = 'summary';
   const toggle = make('div', 'view-toggle');
@@ -784,6 +785,11 @@ export function mountDeckImporter({ root: container, sampleId, onLibraryChange: 
     });
   }
   $('edit-list').addEventListener('click', () => { say(''); showScreen('paste'); });
+  $('deck-play-solo')?.addEventListener('click', () => {
+    const entry = library.decks.find((candidate) => candidate.id === currentId);
+    if (!entry) { say('This deck is not saved yet: fix what needs attention in the list first.', true); return; }
+    if (commit(selectDeck(library, entry.id), `"${entry.deck.name}" is now the deck for the solo table.`)) location.assign('/solo');
+  });
   $('deck-text').addEventListener('keydown', (event) => { if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) runCheck(); });
   $('deck-bracket').addEventListener('change', autosave);
   $('bracket-info').addEventListener('click', () => {

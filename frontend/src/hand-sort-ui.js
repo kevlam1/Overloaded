@@ -16,7 +16,7 @@ const store = makeSafeStore();
 const parse = (text) => { try { return JSON.parse(text); } catch { return null; } };
 const make = (tag, className, content) => { const element = document.createElement(tag); if (className) element.className = className; if (content !== undefined) element.textContent = content; return element; };
 
-const ARROWS = ['', '↑', '↓']; // off, the first way, the other way round
+const ARROWS = ['', '^', 'V']; // off, the first way, the other way round
 
 // A row of pills that can be put in another order: dragged (the pill follows the pointer and the others make way) or moved a place with the arrows on it.
 // names: the words for each key in the row; order(): the keys in the order now; move(from, to): asks for the change. Returns { draw() }.

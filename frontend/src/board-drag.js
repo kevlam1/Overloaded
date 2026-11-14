@@ -129,6 +129,9 @@ export function mountBoardDrag({ doc = document, board, onDrop, hand = () => nul
     const picture = press.button.querySelector('img');
     if (press.picture) { const back = doc.createElement('img'); back.alt = ''; back.draggable = false; back.referrerPolicy = 'no-referrer'; back.src = press.picture; ghost.append(back); } // (the top of a library: a card back)
     else if (picture && !press.button.classList.contains('noimage')) { const copy = picture.cloneNode(); copy.removeAttribute('loading'); ghost.append(copy); } else ghost.textContent = press.button.getAttribute('aria-label') ?? '';
+    // a card carried from the hand takes its mana cost with it, above the picture, as it is above the card in the hand (Kevin, 2026-11-14)
+    const costHolder = press.from === 'hand' ? press.button.querySelector(':scope > .hand-cost') : null;
+    if (costHolder) { ghost.append(costHolder.cloneNode(true)); ghost.classList.add('has-cost'); }
     // the picture is the card at its own size on screen (a tapped card is turned back to portrait and then turned on its side again)
     const tapped = press.button.classList.contains('tapped');
     // the card at its own size: a card of the hand is turned and may be lifted under the pointer, which makes its box on screen bigger, so its own layout size is used

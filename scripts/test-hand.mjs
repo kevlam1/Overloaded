@@ -208,9 +208,9 @@ check('it works on a frozen hand (nothing is changed in place)', order(reorderHa
 const sel = (n, index, width = 1200) => handLayoutSelected({ count: n, width, cardWidth: 80, cardHeight: 112, index });
 const plain5 = handLayout({ count: 5, width: 1200, cardWidth: 80, cardHeight: 112 });
 const sel5 = sel(5, 2);
-same('with room, every card to the left of the clicked one moves left by 0.4125 of a card (33, it was 0.55: 25% less) and every card to the right moves right by 33; the clicked one stays where it was', sel5.slots.map((spot, k) => Math.round((spot.x - plain5.slots[k].x) * 100) / 100), [-33, -33, 0, 33, 33]);
+same('with room, every card to the left of the clicked one moves left by 0.275 of a card (22, it was 0.55: half as much) and every card to the right moves right by 22; the clicked one stays where it was', sel5.slots.map((spot, k) => Math.round((spot.x - plain5.slots[k].x) * 100) / 100), [-22, -22, 0, 22, 22]);
 same('the heights and the turns are those of the same places in the plain hand', sel5.slots.every((spot, k) => spot.y === plain5.slots[k].y && spot.angle === plain5.slots[k].angle), true);
-same('the clicked card at the left end: it stays and all the others move right by 33', sel(5, 0).slots.map((spot, k) => Math.round((spot.x - plain5.slots[k].x) * 100) / 100), [0, 33, 33, 33, 33]);
+same('the clicked card at the left end: it stays and all the others move right by 22', sel(5, 0).slots.map((spot, k) => Math.round((spot.x - plain5.slots[k].x) * 100) / 100), [0, 22, 22, 22, 22]);
 { // the whole hand is wider by two shifts when there is room, and stays centred
   const xs = sel5.slots.map((spot) => spot.x);
   same('the hand stays centred: the room left of the first card and right of the last card are the same', Math.round((xs[0] - (1200 - (xs.at(-1) + 80))) * 100) / 100, 0);
@@ -220,11 +220,11 @@ same('the clicked card at the left end: it stays and all the others move right b
   const xs = full.slots.map((spot) => spot.x);
   same('in a hand that fills its width every card stays inside it (the sides close up to make the room)', xs[0] >= -0.01 && xs.at(-1) + cw <= 900.01, true);
   const stepAside = xs[5] - xs[4]; const stepAfter = xs[6] - xs[5];
-  same('the clicked card is at least 0.9 of a card from each neighbour (it can be read)', [stepAside >= cw * 0.9, stepAfter >= cw * 0.9], [true, true]);
+  same('the clicked card is at least 0.7 of a card from each neighbour (it can be read; the gap beside it is half what it was)', [stepAside >= cw * 0.7, stepAfter >= cw * 0.7], [true, true]);
   same('the cards on each side keep one step between them (the whole side moves, not a few)', [Math.round((xs[1] - xs[0]) * 100) / 100 === Math.round((xs[4] - xs[3]) * 100) / 100, Math.round((xs[8] - xs[7]) * 100) / 100 === Math.round((xs[11] - xs[10]) * 100) / 100], [true, true]);
   same('the order of the cards never changes', xs.every((x, k) => k === 0 || x > xs[k - 1]), true);
 }
 same('a place that is not one of the cards, or a hand of one, is the plain hand', [sel(5, 99).slots.map((s2) => s2.x).join() === plain5.slots.map((s2) => s2.x).join(), sel(5, -1).slots.length, sel(1, 0).slots.length, sel(0, 0).slots.length], [true, 5, 1, 0]);
-same('the constant is what the tests assume', SPREAD, 0.4125);
+same('the constant is what the tests assume', SPREAD, 0.275);
 
 console.log(`All ${checks} hand checks passed.`);

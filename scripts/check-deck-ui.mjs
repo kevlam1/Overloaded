@@ -418,6 +418,16 @@ check('there are no commander or partner boxes; the Commander heading says to ri
   await press('save');
   const savedSample = await selectedSaved();
   check('saving it keeps the whole deck: 100 cards, the commander chosen, for Commander', Boolean(savedSample) && savedSample.name === 'Krenko, Mob Boss (sample)' && savedSample.cards.reduce((n, c) => n + c.qty, 0) === 100 && savedSample.commander.length === 1 && (await library()).decks[0].format === 'commander', JSON.stringify(savedSample?.name));
+  {
+    // the page of a deck has a Play solo button: it makes this deck the one for the solo table and opens it
+    const there = await ev("Boolean(document.getElementById('deck-play-solo'))");
+    await ev("document.getElementById('deck-play-solo').click()");
+    const went = await waitFor(async () => (await ev('location.pathname')) === '/solo' || null, 15000, 100);
+    const chosen = await ev("(() => { const l = JSON.parse(localStorage.getItem('overloaded.decks') || 'null'); return l ? l.decks.find((d) => d.id === l.selected)?.deck.name : null; })()");
+    check('the page of a deck has a Play solo button that makes this deck the solo deck and opens the solo table', there && Boolean(went) && chosen === 'Krenko, Mob Boss (sample)', JSON.stringify({ there, went, chosen }));
+    await load();
+    pictureRequests.length = 0; // (the solo table asked for pictures: the checks below count their own)
+  }
   await deleteAllSaved();
   await browser.goto(`${PAGE}?sample`);
   await ready();

@@ -3616,6 +3616,24 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 184. The cost goes with a carried card, half the gap, smaller pile numbers, carets and a Play solo button (2026-11-14)
+
+**What I asked for** (two screenshots: a card being carried with its cost left behind in the empty board, and a card lifted in the hand)
+- (1) Move the mana costs with the card being dragged. (2) Reduce the spacing beside the selected card by another 25%, so 50% in all. (3) Reduce the pile counter from 2x to 1.5x. (4) The new pile counter size must also be used when dragging a pile. (5) In the sort bar use carets (^ and V) instead of line arrows. (6) On the deck list page, a button to use the deck for solo mode too.
+
+**What changed** (`board-drag.js`, `style.css`, `shared/hand-layout.mjs`, `hand-sort-ui.js`, `deck-importer.js`, tests)
+- **Cost:** when I added "the cost shows on the clicked card" (entry 176) the cost of a clicked card stayed visible even when the card itself was hidden for being carried, so it was left behind (the first screenshot). A carried card is now hidden with its cost, and the picture carried shows the cost above it, as in the hand.
+- **Gap:** `SPREAD` is 0.275 of a card width (it was 0.55 at the start, 0.4125 last time): half of the original, 22 px for an 80 px card.
+- **Pile number:** 0.9 rem (it was 1.2, which was 2x of the old 0.6): 1.5x. The picture carried with a pile has the same number in the same place as the board: bottom middle, and for a tapped pile at the bottom right as seen, held upright (it was a small one at the top right).
+- **Sort bar:** ^ and V (a caret up and a caret down) beside the name of a button that is on.
+- **Deck page:** the page of a deck now has a Play solo button next to Edit list; it makes that deck the solo deck and opens the solo table. (The cards in the list already had a play button on them, and the menu; I read "deck list page" as this page of one deck. If you meant something else, tell me.)
+
+**What I checked:** the hand unit test (116, the expected shifts are 22), the importer markup test (56), the deck page check (275, with a new one for the button) and the solo check (616, with new checks: the cost goes with the carried card and is not left behind, the carried pile's number is the size of the one on the board, the pile numbers are 14 to 15 px). I did not look at screenshots of the carried card or the tapped pile's number.
+
+**My mistakes this round:** the cost left behind was my bug from entry 176. A new id I gave the deck page's button was already used by the home page's button, which the markup test caught, so I renamed it. And one solo run failed because a hand of 19 cards, all lands, gave the sort checks nothing to sort (the check draws until it finds different costs, and gave up after 12); the next run passed. That can happen about one run in seventy; the check should mulligan and try again, which it does not yet.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.
