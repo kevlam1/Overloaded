@@ -1280,6 +1280,7 @@ body.playing.solo .pile-stack::after { content: none; }
 .hand-sort-toggle[data-state="on"] { border-color: var(--ok, #3aa56b); color: var(--ok, #3aa56b); }
 .hand-sort-toggle[data-state="off"] { color: var(--muted); }
 .hand-sort { min-height: 0; padding: 0 0.6rem; border: 1px solid var(--line); border-radius: 1rem; background: transparent; color: var(--text); font-size: 0.75rem; font-weight: 600; line-height: 1.45rem; cursor: pointer; }
+.hand-sort .sort-chevron { margin-left: 0.3rem; vertical-align: -1px; }
 .hand-sort:hover { background: color-mix(in srgb, var(--accent) 14%, transparent); }
 .hand-sort[aria-pressed="true"] { border-color: var(--accent); background: var(--accent); color: var(--accent-text); }
 .type-order-title { margin: 0.6rem 0 0.25rem; color: var(--muted); font-size: 0.85rem; }

@@ -546,11 +546,15 @@ try {
     await click(await costButton());
     const up = await costs();
     const state1 = await ev("document.querySelector('.hand-sort[data-sort=\"cost\"]').dataset.state");
+    const chevronUp = await ev("(() => { const s = document.querySelector('.hand-sort[data-sort=\"cost\"] svg.sort-chevron'); return s ? { d: s.querySelector('path').getAttribute('d'), w: s.getAttribute('width'), h: s.getAttribute('height'), fill: s.getAttribute('fill'), text: document.querySelector('.hand-sort[data-sort=\"cost\"]').textContent } : null; })()");
     await click(await costButton());
+    const chevronDown = await ev("document.querySelector('.hand-sort[data-sort=\"cost\"] svg.sort-chevron path')?.getAttribute('d') ?? null");
     const down = await costs();
     const downUids = await order();
     await click(await costButton());
     const after = await order();
+    const chevronOff = await count('.hand-sort[data-sort="cost"] svg');
+    check('a sort button that is on shows a small drawn chevron (up for the first way, down for the other, gone when off), with its size and fill set, and the button still says just Cost', chevronUp && chevronDown && chevronUp.d !== chevronDown && chevronUp.w === '10' && chevronUp.h === '10' && chevronUp.fill === 'none' && chevronUp.text === 'Cost' && chevronOff === 0, JSON.stringify({ chevronUp, chevronDown, chevronOff }));
     const sorted = (list, sign) => list.every((n, i) => i === 0 || (n - list[i - 1]) * sign >= 0);
     check('the Cost button sorts the hand low to high, then high to low, and a third click turns it off and the hand stays in the order it was shown in', state1 === '1' && sorted(up, 1) && sorted(down, -1) && up.some((n, i) => n !== up[0]) && JSON.stringify(after) === JSON.stringify(downUids), JSON.stringify({ up, down, state1 }));
     // A-Z: the names run A to Z, then Z to A, then the hand is as it was

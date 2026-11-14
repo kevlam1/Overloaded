@@ -3634,6 +3634,20 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 185. Drawn chevrons in the sort bar (2026-11-14)
+
+**What I asked for**
+- The ^ and V in the sort bar look bad (they were only examples): use something like an icon from a library.
+
+**What changed** (`frontend/src/hand-sort-ui.js`, `style.css`, `scripts/check-solo-ui.mjs`)
+- A sort button that is on now shows a small chevron drawn as an inline picture: up for the first way, down for the other, nothing when it is off. I did not add an icon library (react-icons or another): that would be a new dependency, which I do not add without asking, and one chevron does not need 10,000 icons; the drawing is a single line path, with width, height and fill set on the picture as the project requires. If you do want a library for the whole site, say which one and I will show you its licence and size first.
+
+**What I checked:** the solo check once (617), with a new check that an active button has the drawn chevron (up, then a different shape for down, gone when off, size 10 and fill set, and the button's own words are still just "Cost"), and close-up screenshots of the bar with a button on the first way and on the other way: clean, centred next to the word, in the button's own colour.
+
+**My mistakes this round:** the carets I used last time were a literal reading of your examples; I should have asked what you wanted before choosing characters.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

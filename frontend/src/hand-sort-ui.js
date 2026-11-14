@@ -16,7 +16,27 @@ const store = makeSafeStore();
 const parse = (text) => { try { return JSON.parse(text); } catch { return null; } };
 const make = (tag, className, content) => { const element = document.createElement(tag); if (className) element.className = className; if (content !== undefined) element.textContent = content; return element; };
 
-const ARROWS = ['', '^', 'V']; // off, the first way, the other way round
+// A small chevron drawn inline (no icon library): up for the first way, down for the other way round. Width, height and fill are set on the element.
+const SVG_NS = 'http://www.w3.org/2000/svg';
+const CHEVRON = { 1: 'M2 6.6L5 3.4L8 6.6', 2: 'M2 3.4L5 6.6L8 3.4' };
+function chevron(value) {
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('width', '10');
+  svg.setAttribute('height', '10');
+  svg.setAttribute('viewBox', '0 0 10 10');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('class', 'sort-chevron');
+  const path = document.createElementNS(SVG_NS, 'path');
+  path.setAttribute('d', CHEVRON[value]);
+  path.setAttribute('stroke', 'currentColor');
+  path.setAttribute('stroke-width', '1.9');
+  path.setAttribute('stroke-linecap', 'round');
+  path.setAttribute('stroke-linejoin', 'round');
+  path.setAttribute('fill', 'none');
+  svg.append(path);
+  return svg;
+}
 
 // A row of pills that can be put in another order: dragged (the pill follows the pointer and the others make way) or moved a place with the arrows on it.
 // names: the words for each key in the row; order(): the keys in the order now; move(from, to): asks for the change. Returns { draw() }.
@@ -112,7 +132,9 @@ export function createHandSort({ onChange = () => {} } = {}) {
       button.dataset.state = String(value);
       button.title = sortWords(key, value);
       button.setAttribute('aria-label', sortWords(key, value));
-      button.firstChild.textContent = `${SORT_TITLES[key]}${ARROWS[value] ? ` ${ARROWS[value]}` : ''}`;
+      button.firstChild.textContent = SORT_TITLES[key];
+      button.querySelector('.sort-chevron')?.remove();
+      if (value === 1 || value === 2) button.append(chevron(value));
     }
   }
 
