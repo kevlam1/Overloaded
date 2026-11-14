@@ -14,7 +14,7 @@
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
     <h1>Build log <span class="version">Version 0.187</span></h1>
-    <p class="lede">187 entries, Oct 25 to Nov 14, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
+    <p class="lede">187 entries, Oct 25 to Nov 13, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
   </div>
 </header>
 
@@ -2861,7 +2861,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Friday 13 November <span class="day-count">15</span></h3>
+<h3 class="day-title">Friday 13 November <span class="day-count">22</span></h3>
 <div class="entries">
 <article class="entry" id="entry-166" data-n="166">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-166-body">
@@ -3088,11 +3088,6 @@
 <p><strong>My mistakes this round:</strong> in entry 172 I checked that the flag was on the command line and called it done; that showed the flag was passed, not that the sound was off. I did not know why the flag did not work here, so I added a page-level mute that does not depend on it.</p>
   </div></div></div>
 </article>
-</div>
-</div>
-<div class="day">
-<h3 class="day-title">Saturday 14 November <span class="day-count">7</span></h3>
-<div class="entries">
 <article class="entry" id="entry-181" data-n="181">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-181-body">
     <span class="num">181</span>
@@ -3198,7 +3193,7 @@
 <p><strong>What changed</strong> (<code>shared/version.mjs</code>, <code>scripts/test-version.mjs</code>, <code>vite.config.js</code>, <code>frontend/pages/lobby/index.html</code> and <code>lobby.js</code>, <code>scripts/make-logs-page.mjs</code>, <code>logs-template.html</code>, <code>frontend/public/logs/logs.css</code>)</p>
 <ul><li>The home page title is &quot;Welcome to Overloaded&quot; (in the page and in <code>lobby.js</code>, which sets it again when you leave a table).</li><li><strong>The version is 0.187.</strong> It is worked out from <code>log.md</code> when the site is built: 0 means still in beta, and the second number is how many numbered entries the log has, so this entry is what takes it from 0.186 to 0.187, and every new entry raises it by one without anyone remembering to. It shows in the home page footer (&quot;Version 0.187&quot;, linking to the build log) and next to the title of the logs page. I did not give it a third number: a fix with no log entry would not change the version, and I would rather not have a number that someone has to bump by hand. The plan is 1.0 for the show and tell on 7 December; that is a choice to make, so the 0 is a line in <code>shared/version.mjs</code>.</li><li>I picked this rule myself after considering two others: one number per week (too coarse, 84 entries would be one version) and a number per milestone (needs me to judge where one stops).</li></ul>
 <p><strong>What I checked:</strong> <code>scripts/test-version.mjs</code> (10 checks, including that the real <code>log.md</code> is numbered with no gaps, so the count is the last number); the lobby page check and the logs page check with the new title and version; a screenshot of the footer. I did not break <code>shared/version.mjs</code> on purpose to see the checks fail, and I did not check the deployed site.</p>
-<p><strong>My mistakes this round:</strong> the logs page I built earlier carried an invisible character copied from an entry that talks about them, which the source hygiene check found in the quick tests; the generator now writes such characters as numbers. I had also not put the logs page check into <code>npm test</code>; it is there now.</p>
+<p><strong>My mistakes this round:</strong> the logs page I built earlier carried an invisible character copied from an entry that talks about them, which the source hygiene check found in the quick tests; the generator now writes such characters as numbers. I had also not put the logs page check into <code>npm test</code>; it is there now. I also dated entries 181 to 187 as 2026-11-14 when the day was Friday 2026-11-13 (I took the date from my own guess of the next day instead of the machine clock); you caught it, and I changed those dates, the same date in <code>CLAUDE.md</code> and in four code comments, which moved the logs page header from Saturday 14 November to Friday 13 November.</p>
   </div></div></div>
 </article>
 </div>

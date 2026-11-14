@@ -3698,7 +3698,7 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
-## 181. Test bots for a full lobby, and Home is the first page (2026-11-14)
+## 181. Test bots for a full lobby, and Home is the first page (2026-11-13)
 
 **What I asked for**
 - Bots, so I can test full lobbies by myself: they do nothing, they just hold seat space; in the lobby page, for each seat I may add a bot. And the first page you see is called Home, not Lobby; the lobby is the page where you are with other people.
@@ -3715,7 +3715,7 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
-## 182. A card moved in a sorted hand no longer travels from its old place again (2026-11-14)
+## 182. A card moved in a sorted hand no longer travels from its old place again (2026-11-13)
 
 **What I asked for**
 - When I drag a card to move it from point A to point B, after I let go it plays an animation of it moving from A to B again, which is confusing. Stop that.
@@ -3730,7 +3730,7 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
-## 183. Less room beside the selected card, and a 250 ms hold for a pile (2026-11-14)
+## 183. Less room beside the selected card, and a 250 ms hold for a pile (2026-11-13)
 
 **What I asked for**
 - In the hand, reduce the space beside the selected card by 25%. Reduce the time to hold to pick up a pile of cards to 250 ms.
@@ -3744,7 +3744,7 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
-## 184. The cost goes with a carried card, half the gap, smaller pile numbers, carets and a Play solo button (2026-11-14)
+## 184. The cost goes with a carried card, half the gap, smaller pile numbers, carets and a Play solo button (2026-11-13)
 
 **What I asked for** (two screenshots: a card being carried with its cost left behind in the empty board, and a card lifted in the hand)
 - (1) Move the mana costs with the card being dragged. (2) Reduce the spacing beside the selected card by another 25%, so 50% in all. (3) Reduce the pile counter from 2x to 1.5x. (4) The new pile counter size must also be used when dragging a pile. (5) In the sort bar use carets (^ and V) instead of line arrows. (6) On the deck list page, a button to use the deck for solo mode too.
@@ -3762,7 +3762,7 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
-## 185. Drawn chevrons in the sort bar (2026-11-14)
+## 185. Drawn chevrons in the sort bar (2026-11-13)
 
 **What I asked for**
 - The ^ and V in the sort bar look bad (they were only examples): use something like an icon from a library.
@@ -3776,7 +3776,7 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
-## 186. A /logs/ page, split into weeks (2026-11-14)
+## 186. A /logs/ page, split into weeks (2026-11-13)
 
 **What I asked for**
 - A logs route like the ones on Scrawdle and MIDI Companion, but easier to navigate because this log has many more entries: split into weeks, Monday to Sunday, with October 25 put in the first week as an exception. There is a Week -1, a Week 0 and a Week 1.
@@ -3796,7 +3796,7 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
-## 187. A new welcome title, the logs link, and version numbers (2026-11-14)
+## 187. A new welcome title, the logs link, and version numbers (2026-11-13)
 
 **What I asked for**
 - Change the home page title from "Play your deck, alone or with friends" to "Welcome to Overloaded". From now on, give the site a version number that goes up, and say what version we should have now, judging by the entries in `log.md`, since an entry usually is an update.
@@ -3808,7 +3808,7 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 **What I checked:** `scripts/test-version.mjs` (10 checks, including that the real `log.md` is numbered with no gaps, so the count is the last number); the lobby page check and the logs page check with the new title and version; a screenshot of the footer. I did not break `shared/version.mjs` on purpose to see the checks fail, and I did not check the deployed site.
 
-**My mistakes this round:** the logs page I built earlier carried an invisible character copied from an entry that talks about them, which the source hygiene check found in the quick tests; the generator now writes such characters as numbers. I had also not put the logs page check into `npm test`; it is there now.
+**My mistakes this round:** the logs page I built earlier carried an invisible character copied from an entry that talks about them, which the source hygiene check found in the quick tests; the generator now writes such characters as numbers. I had also not put the logs page check into `npm test`; it is there now. I also dated entries 181 to 187 as 2026-11-14 when the day was Friday 2026-11-13 (I took the date from my own guess of the next day instead of the machine clock); you caught it, and I changed those dates, the same date in `CLAUDE.md` and in four code comments, which moved the logs page header from Saturday 14 November to Friday 13 November.
 
 ---
 

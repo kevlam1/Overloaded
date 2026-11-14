@@ -1,7 +1,7 @@
 // Builds the build-log page, frontend/public/logs/index.html (served at /logs/), from log.md, the summaries in scripts/log-summaries.mjs and the layout in scripts/logs-template.html.
 // The look and the behaviour are the two files next to the page, frontend/public/logs/logs.css and logs.js (the site's content policy allows no inline style or script).
 // Run it from the project folder: node scripts/make-logs-page.mjs      Run it again whenever log.md or a summary changes, and commit the page it writes.
-// The entries are split into weeks, Monday to Sunday (Kevin, 2026-11-14): Week -1 is 25 October (a Sunday, put there as an exception) to Sunday 1 November, Week 0 is Monday 2 to Sunday 8 November,
+// The entries are split into weeks, Monday to Sunday (Kevin, 2026-11-13): Week -1 is 25 October (a Sunday, put there as an exception) to Sunday 1 November, Week 0 is Monday 2 to Sunday 8 November,
 // Week 1 is Monday 9 to Sunday 15 November, and so on. A week with no entry is left out. Every week starts folded (the page opens on the list of weeks); a click, a search, a week link or an entry link opens one.
 // It stops if log.md is not numbered 1, 2, 3 ... or has a section it does not know, and it checks that every word of log.md is on the page, so nothing is dropped without being noticed.
 import { readFileSync, writeFileSync } from 'node:fs';
