@@ -1230,7 +1230,9 @@ body.playing .pile-stack .stack-face.back { border: 0; border-radius: 4.8% / 3.4
    bottom, as before. Only the solo page: the table page keeps its layout until this one is right. */
 body.playing.solo main.table { display: block; position: fixed; inset: 0; margin: 0; padding: 0; overflow: hidden; }
 body.playing.solo { --glass: rgba(22, 22, 30, 0.78); }
-body.playing.solo #my-board { position: absolute; inset: 0; padding: 3.7rem 0 0 2.8rem; border: 0; border-radius: 0; background: none; }
+body.playing.solo #my-board { position: absolute; inset: 0; padding: 3.7rem 2.8rem 0; border: 0; border-radius: 0; background: none; } /* the same room at both sides: the battlefield is in the middle of the window (it was flush with the right edge, Kevin 2026-11-14) */
+/* a thick line round the battlefield, drawn outside it so the cells and the places of the cards do not move */
+body.playing.solo .board.mine > .battlefield { align-self: center; outline: 4px solid color-mix(in srgb, var(--text) 40%, transparent); outline-offset: 0; }
 body.playing.solo .zones { --sw: 5.4rem; } /* the piles and the command zone are larger (Kevin, 2026-11-12); their pictures are the normal size so they stay sharp */
 body.playing.solo .hand-section { position: absolute; left: 0; right: 36rem; bottom: 0; grid-row: auto; grid-column: auto; } /* the hand is centred in the room left of the piles (30rem: the row of piles and the command zone) */
 body.playing.solo .right-column { display: contents; }
@@ -1257,11 +1259,23 @@ body.playing.solo .bar-grip { display: grid; place-items: center; width: 1.4rem;
 body.playing.solo .bar-grip:hover, body.playing.solo .bar-grip:focus-visible { color: var(--text); }
 body.playing.solo .actions-panel.dragging .bar-grip { cursor: grabbing; color: var(--ring); }
 @media (prefers-reduced-motion: reduce) { body.playing.solo .actions-panel { transition: none; } }
+/* docked to the left or the right the bar is a column (Kevin, 2026-11-14: like the control bar of MIDI Companion) */
+body.playing.solo .actions-panel[data-vertical="true"] { flex-direction: column; align-items: stretch; gap: 0.3rem; padding: 0.2rem 0.5rem 0.5rem; }
+body.playing.solo .actions-panel[data-vertical="true"] .actions { flex-direction: column; }
+body.playing.solo .actions-panel[data-vertical="true"] .actions button { width: 100%; }
+body.playing.solo .actions-panel[data-vertical="true"] .turn-stat { padding: 0 0 0.3rem; text-align: center; border-right: 0; border-bottom: 1px solid var(--line); }
+body.playing.solo .actions-panel[data-vertical="true"] .bar-grip { width: 100%; min-height: 1.3rem; }
+/* what letting go would do, shown while the bar is dragged: a strip along the edge it would dock to, a dotted line through the middle when it is lined up with the middle of the edge, a dotted triangle in the corner it would go into */
+.bar-snap-hint, .bar-center-hint, .bar-corner-hint { position: fixed; z-index: 14; pointer-events: none; animation: bar-hint-in 0.15s ease; }
+.bar-snap-hint { border-radius: 2px; background: var(--accent); box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 70%, transparent); opacity: 0.85; }
+.bar-center-hint[data-line="vertical"] { border-left: 2px dotted var(--accent); }
+.bar-center-hint[data-line="horizontal"] { border-top: 2px dotted var(--accent); }
+.bar-corner-hint svg { display: block; filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 60%, transparent)); }
+.bar-corner-hint polygon { fill: color-mix(in srgb, var(--accent) 20%, transparent); stroke: var(--accent); stroke-width: 2; stroke-dasharray: 2 3; stroke-linecap: round; stroke-linejoin: round; }
+.bar-snap-hint[hidden], .bar-center-hint[hidden], .bar-corner-hint[hidden] { display: none; }
+@keyframes bar-hint-in { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .bar-snap-hint, .bar-center-hint, .bar-corner-hint { animation: none; } }
 
-/* the card preview floats under the turn, with no frame; it takes no mouse (except the Close of a pinged card) */
-body.playing.solo #spotlight { position: absolute; z-index: 8; top: 6.4rem; right: 0.8rem; width: 16rem; height: calc(16rem * 1.3934 + 2.6rem); flex: none; padding: 0; pointer-events: none; }
-body.playing.solo #spotlight .spot-close { pointer-events: auto; }
-body.playing.solo #spotlight.is-empty { display: none; }
 
 /* the piles and the command zone: a row at the bottom right */
 body.playing.solo .side-panels { position: absolute; z-index: 9; right: 0.8rem; bottom: 0.5rem; display: block; }

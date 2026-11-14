@@ -888,7 +888,7 @@ try {
       check('and when the pointer leaves, the hand goes flat again', down.angles.every((a) => Math.abs(a) < 0.05) && down.ys.every((y) => Math.abs(y - down.ys[0]) < 0.05), JSON.stringify(down));
     }
     check('the pictures of the cards in the hand are the NORMAL size (the hand is large; the small picture was blurry)', await ev("[...document.querySelectorAll('#hand > .card .face img')].every((i) => i.getAttribute('src').includes('/normal/')) && document.querySelectorAll('#hand > .card .face img').length > 0") && asked.some((url) => url.includes('/normal/front/')), JSON.stringify(asked.slice(-3)));
-    check('the card preview\'s picture box has the shape of a card (not a taller box with the card letterboxed in it, which left the white corners unclipped)', await ev("(() => { const i = document.querySelector('#spotlight .spot-picture'); if (!i || i.hidden) return true; const r = i.getBoundingClientRect(); return Math.abs(r.width / r.height - 488 / 680) < 0.01; })()"));
+    check('the solo table has no card preview at the right of the screen (it was taken out on 2026-11-14 and comes back for the table page): there is nothing with the id spotlight', await ev("document.getElementById('spotlight') === null && document.querySelector('.card-corner') === null"));
     check('a card picture is clipped with the corners of a real card (4.8% by 3.4%), so no white corner shows', await ev("(() => { const face = document.querySelector('#hand > .card .face'); const img = face.querySelector('img'); return getComputedStyle(face).borderTopLeftRadius.includes('%') && getComputedStyle(img).borderTopLeftRadius.includes('%'); })()"));
     check('the library is the real Magic card back from Scryfall (the picture was asked for), not a drawn pattern', backsAsked.some((url) => url === 'https://backs.scryfall.io/normal/0/a/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg') && (await ev("getComputedStyle(document.querySelector('#pile-library .stack-face')).backgroundImage")).includes('backs.scryfall.io'), JSON.stringify(backsAsked.slice(0, 2)));
     check('the cards sit in order from left to right, edge to edge when they fit', fan.xs.every((x, i) => i === 0 || x > fan.xs[i - 1]) && fan.xs.length < 2 || Math.abs((fan.xs[1] - fan.xs[0]) - fan.width) < 2 || (fan.xs[1] - fan.xs[0]) < fan.width, JSON.stringify([fan.xs.slice(0, 3), fan.width]));
@@ -935,6 +935,7 @@ try {
       if ((await count('#hand .card')) !== 7) { await browser.goto(PAGE); await waitFor(async () => (await count('#hand .card')) === 7 || null, 8000, 25); await sleep(1500); } // (these checks are about seven cards; something earlier left more in some runs)
       const idx = 3;
       const mouseBtn = async (type, p, button, buttons) => browser.send('Input.dispatchMouseEvent', { type, x: p.x, y: p.y, button, buttons, clickCount: 1 });
+      { const hb = await handBox(); await mouse('mouseMoved', (hb.left + hb.right) / 2, hb.bottom - 30); await sleep(900); } // (the hand rises with the pointer low in its area: the cards before and after the click are compared raised)
       const base = await handFacts();
       const cardH = base.width * 1.4015;
       const p = await cardPoint(idx);
@@ -1094,25 +1095,14 @@ try {
     // the order is the game's: a refresh would deal a new game on the solo table, so what is checked here is that the page's own list changed (the hand count and the cards are the same)
     check('the same cards are in the hand afterwards (only the order changed)', [...after.uids].sort().join() === [...before.uids].sort().join());
   }
-  // ---- the card corner (frontend/src/spotlight.js) and the right column ----
+  // ---- the pieces that float (the card preview is gone from the solo table) ----
   {
-    const corner = () => ev(`(() => { const c = document.getElementById('spotlight'); const img = c.querySelector('.spot-picture'); const r = c.getBoundingClientRect(); return { empty: c.classList.contains('is-empty'), name: c.querySelector('.spot-name').textContent, src: img.hidden ? null : img.getAttribute('src'), closeShown: !c.querySelector('.spot-close').hidden, bottomGap: Math.round(innerHeight - r.bottom), right: Math.round(innerWidth - r.right), width: Math.round(r.width) }; })()`);
-    const sel = await ev(`document.querySelector('.card.selected')?.querySelector('img')?.getAttribute('src') ?? null`);
-    await ev(`document.querySelector('#battlefield').click()`); await sleep(100);
-    const first = await corner();
-    check('the card preview floats at the right of the window; it shows the selected card (the normal size) and keeps it after you click away', first.right <= 24 && first.width > 150 && !first.empty && /\/normal\//.test(first.src ?? '') && !first.closeShown, JSON.stringify(first));
-    await clickCard('#hand .card', (await ev(`(() => { const imgs = [...document.querySelectorAll('#hand .card img')].map((i) => i.getAttribute('src')); return Math.max(1, imgs.findIndex((s) => s !== imgs[0])); })()`))); // (a card that is not the same picture as the first: the hand is shuffled, and two Islands would look alike)
-    const second = await corner();
-    check('selecting another card keeps the corner on a card (the hand is shuffled and can hold two Islands, so only the selection is checked)', !second.empty && (await count('.card.selected')) === 1, JSON.stringify([first, second]));
-    const floating = await ev(`(() => { const r = (sel) => document.querySelector(sel).getBoundingClientRect(); const bar = r('.actions-panel'); const life = r('#life-area'); const menu = r('#settings-button'); const turn = r('.actions-panel .turn-stat'); const piles = r('.side-panels'); const preview = r('#spotlight'); const board = r('#my-board'); const panelBorders = ['#my-board', '.right-column', '.side-panels', '#spotlight', '.hand-section'].map((s) => getComputedStyle(document.querySelector(s)).borderTopWidth); return { barPosition: getComputedStyle(document.querySelector('.actions-panel')).position, barTop: Math.round(bar.top), grip: Boolean(document.querySelector('.actions-panel #bar-grip')), buttons: [...document.querySelectorAll('.actions-panel .actions button')].map((b) => b.id), barButtons: document.querySelectorAll('.bar .actions button').length, lifeLeft: Math.round(life.left), lifeTop: Math.round(life.top), menuRight: Math.round(innerWidth - menu.right), menuTop: Math.round(menu.top), turnInBar: turn.top >= bar.top && turn.bottom <= bar.bottom && turn.left >= bar.left && turn.right <= bar.right, pilesRight: Math.round(innerWidth - piles.right), pilesBottom: Math.round(innerHeight - piles.bottom), previewRight: Math.round(innerWidth - preview.right), previewAbovePiles: preview.bottom <= piles.top + 2, boardFills: Math.round(board.width) === innerWidth && Math.round(board.height) === innerHeight, panelBorders, footer: document.querySelector('footer') !== null }; })()`);
-    check('no panels: the board fills the window and the board, the card preview and the piles have no border; the action buttons are a floating bar with a grip (not in the top strip); there is no footer', floating.boardFills && floating.panelBorders.every((w) => w === '0px') && floating.barPosition === 'absolute' && floating.grip && floating.buttons.includes('draw') && floating.buttons.includes('untap-all') && !floating.buttons.includes('settings-button') && floating.barButtons === 0 && !floating.footer, JSON.stringify(floating));
-    check('the pieces float where a table has them: life at the top left, the menu button at the top right and the turn inside the floating bar, the piles and the command zone at the bottom right, the card preview at the right above them', floating.lifeLeft < 40 && floating.lifeTop < 40 && floating.menuRight < 40 && floating.menuTop < 40 && floating.turnInBar && floating.pilesRight < 40 && floating.pilesBottom < 40 && floating.previewRight < 40 && floating.previewAbovePiles, JSON.stringify(floating));
+    const floating = await ev(`(() => { const r = (sel) => document.querySelector(sel).getBoundingClientRect(); const bar = r('.actions-panel'); const life = r('#life-area'); const menu = r('#settings-button'); const turn = r('.actions-panel .turn-stat'); const piles = r('.side-panels'); const board = r('#my-board'); const panelBorders = ['#my-board', '.right-column', '.side-panels', '.hand-section'].map((s) => getComputedStyle(document.querySelector(s)).borderTopWidth); return { barPosition: getComputedStyle(document.querySelector('.actions-panel')).position, barTop: Math.round(bar.top), grip: Boolean(document.querySelector('.actions-panel #bar-grip')), buttons: [...document.querySelectorAll('.actions-panel .actions button')].map((b) => b.id), barButtons: document.querySelectorAll('.bar .actions button').length, lifeLeft: Math.round(life.left), lifeTop: Math.round(life.top), menuRight: Math.round(innerWidth - menu.right), menuTop: Math.round(menu.top), turnInBar: turn.top >= bar.top && turn.bottom <= bar.bottom && turn.left >= bar.left && turn.right <= bar.right, pilesRight: Math.round(innerWidth - piles.right), pilesBottom: Math.round(innerHeight - piles.bottom), boardFills: Math.round(board.width) === innerWidth && Math.round(board.height) === innerHeight, panelBorders, footer: document.querySelector('footer') !== null }; })()`);
+    check('no panels: the board fills the window and the board and the piles have no border; the action buttons are a floating bar with a grip (not in the top strip); there is no footer', floating.boardFills && floating.panelBorders.every((w) => w === '0px') && floating.barPosition === 'absolute' && floating.grip && floating.buttons.includes('draw') && floating.buttons.includes('untap-all') && !floating.buttons.includes('settings-button') && floating.barButtons === 0 && !floating.footer, JSON.stringify(floating));
+    check('the pieces float where a table has them: life at the top left, the menu button at the top right and the turn inside the floating bar, the piles and the command zone at the bottom right', floating.lifeLeft < 40 && floating.lifeTop < 40 && floating.menuRight < 40 && floating.menuTop < 40 && floating.turnInBar && floating.pilesRight < 40 && floating.pilesBottom < 40, JSON.stringify(floating));
     const legal = await ev(`(() => { document.getElementById('settings-button').click(); const t = document.querySelector('#settings-menu .settings-legal')?.textContent ?? ''; const shown = !document.getElementById('settings-menu').hidden; document.getElementById('settings-button').click(); return { t, shown }; })()`);
     check('Settings has a way home: a link to the home page and one to your decks', await ev("(() => { const home = document.getElementById('settings-home'); const decks = document.getElementById('settings-decks'); return Boolean(home) && Boolean(decks) && home.getAttribute('href') === '/' && decks.getAttribute('href') === '/deck' && document.getElementById('settings-menu').contains(home) && document.getElementById('settings-menu').contains(decks); })()"));
     check('the fan content notice is in Settings', legal.shown && /unofficial Fan Content/.test(legal.t) && /Not approved\/endorsed by Wizards/.test(legal.t) && /property of Wizards of the Coast/.test(legal.t), JSON.stringify(legal));
-    await ev(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))`); await sleep(60);
-    const kept = await corner();
-    check('Escape deselects the card but the corner still shows it', (await count('.card.selected')) === 0 && !kept.empty && kept.name === second.name, JSON.stringify(kept));
   }
   await clickCard('#hand .card', 0);
   check('Escape deselects', (await count('.card.selected')) === 1 && await (async () => { await ev(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))`); return (await count('.card.selected')) === 0 && (await actionLabels()).length === 0; })());
@@ -2490,6 +2480,30 @@ try {
       await escapeKey(); await sleep(150);
     }
     await motion('reduce');
+    // Shift held while a card is carried keeps it on one line (the row or the column it was moving along), like the Shift of an image editor
+    {
+      const start = await centerOfSelector('#pile-library .stack-face');
+      const at = (type, x, y, buttons, modifiers) => browser.send('Input.dispatchMouseEvent', { type, x, y, button: type === 'mouseMoved' ? 'none' : 'left', buttons, clickCount: 1, modifiers });
+      const shiftKey = (type, modifiers) => browser.send('Input.dispatchKeyEvent', { type, key: 'Shift', code: 'ShiftLeft', windowsVirtualKeyCode: 16, modifiers });
+      const ghostAt = () => ev("(() => { const g = document.querySelector('.drag-ghost'); if (!g) return null; const m = new DOMMatrix(g.style.transform); return { x: Math.round(m.e), y: Math.round(m.f) }; })()");
+      await at('mouseMoved', start.x, start.y, 0, 0); await at('mousePressed', start.x, start.y, 1, 0);
+      await at('mouseMoved', start.x + 10, start.y, 1, 0); await sleep(60);
+      const first = await ghostAt();
+      await at('mouseMoved', start.x + 150, start.y + 40, 1, 8); await sleep(60);
+      const along = await ghostAt();
+      check('with Shift held the card moves along the row only: the pointer went 150 across and 40 down and the card went across with the same height', first && along && along.x - first.x >= 140 && along.y === first.y, JSON.stringify({ first, along }));
+      await at('mouseMoved', start.x + 150, start.y - 200, 1, 8); await sleep(60); // (up: the piles are near the bottom of the window, and the browser sends no mouse events from outside it)
+      const stays = await ghostAt();
+      check('it stays on that row while Shift is held, however far up the pointer goes', stays && stays.y === first.y && stays.x === along.x, JSON.stringify({ stays, along }));
+      await shiftKey('keyUp', 0); await sleep(60);
+      const freed = await ghostAt();
+      check('letting go of Shift frees it at once, with no mouse movement: the card is under the pointer again (200 up)', freed && first.y - freed.y >= 190 && freed.x - first.x >= 140, JSON.stringify({ freed, first }));
+      await shiftKey('rawKeyDown', 8); await sleep(60);
+      const column = await ghostAt();
+      check('pressing Shift again holds it to the column it moved along most (the pointer is further up than across): the card is back at its first place across and 200 up', column && Math.abs(column.x - (first.x - 10)) <= 1 && column.y === freed.y, JSON.stringify({ column, first, freed }));
+      await shiftKey('keyUp', 0);
+      await escapeKey(); await sleep(150);
+    }
     await dragTo(await face('exile'), await cellCenter(60, 10));
     const c5 = await counts();
     check('the top card of the exile dropped on the battlefield is put there', c5.exile === 0 && c5.field === 1 && (await cellOfCard((await names('#battlefield > .card'))[0].split(',')[0])) === '60,10', JSON.stringify(c5));
@@ -2604,23 +2618,49 @@ try {
     const statusBefore = await $text('status');
     await ev("document.getElementById('untap-all').click()");
     check('the buttons on the moved bar still work (Untap all says what it did)', /Untapped/.test(await $text('status')) && statusBefore !== (await $text('status')) || /Untapped/.test(await $text('status')), await $text('status'));
+    // the bar docks like the control bar of MIDI Companion: near an edge it docks to it (a column on the left and right), near the middle of an edge it goes to the middle, near a corner into the corner
+    const dockOf = () => ev("document.querySelector('.actions-panel').dataset.vertical");
+    const hints = () => ev("({ snap: !document.querySelector('.bar-snap-hint').hidden, center: !document.querySelector('.bar-center-hint').hidden, corner: !document.querySelector('.bar-corner-hint').hidden })");
+    const hold = async (dx, dy) => { // drags the grip and reports the hints while the button is still down
+      const p = await centerOfSelector('#bar-grip');
+      await mouseAt('mouseMoved', p, 0); await mouseAt('mousePressed', p, 1);
+      for (let step = 1; step <= 6; step++) await mouseAt('mouseMoved', { x: p.x + dx * step / 6, y: p.y + dy * step / 6 }, 1);
+      await sleep(150);
+      const seen = await hints();
+      await mouseAt('mouseReleased', { x: p.x + dx, y: p.y + dy }, 0); await sleep(450);
+      return seen;
+    };
     await dragGrip(-(b1.left - 5), 0);
-    check('let go within 12 px of the left edge it snaps flush to it (8 px from the edge)', (await barBox()).left === 8, JSON.stringify(await barBox()));
+    const left = await barBox();
+    check('let go within 10 px of the left edge the bar docks to it (8 px from the edge) and turns into a column, and that is kept', left.left === 8 && left.h > left.w && (await dockOf()) === 'true' && JSON.parse(await stored()).dock === 'left', JSON.stringify({ left, vertical: await dockOf(), stored: await stored() }));
+    const hidden = await hints();
+    check('the hints are gone once it is let go', !hidden.snap && !hidden.center && !hidden.corner, JSON.stringify(hidden));
+    { const mid = (left.top + left.bottom) / 2; const seen = await hold(0, 506 - mid); const m = await barBox();
+      check('dragged to the middle of the left edge a strip and a dotted line show while it is held, and letting go puts it exactly in the middle of the edge (flush left, its middle at half the height)', seen.snap && seen.center && !seen.corner && m.left === 8 && Math.abs((m.top + m.bottom) / 2 - 500) <= 1, JSON.stringify({ seen, m })); }
+    { const m0 = await barBox(); const seen = await hold(13 - m0.left, 13 - m0.top); const m = await barBox();
+      check('dragged near the top left corner a dotted triangle shows while it is held, and letting go puts it in the corner', seen.snap && seen.corner && m.left === 8 && m.top === 8, JSON.stringify({ seen, m })); }
     { const p = await centerOfSelector("#bar-grip"); await dragGrip(1279 - p.x, 999 - p.y); } // (to the very corner of the window: the browser sends no mouse events from outside it)
     const far = await barBox();
-    check('dragged far outside the window it is brought back inside it, into the corner', far.right <= 1280 && far.bottom <= 1000 && far.right >= 1280 - 12 && far.bottom >= 1000 - 12, JSON.stringify(far));
+    check('dragged far outside the window it is brought back inside it, into the corner (as a column, docked to the right)', far.right <= 1280 && far.bottom <= 1000 && far.right >= 1280 - 12 && far.bottom >= 1000 - 12 && (await dockOf()) === 'true', JSON.stringify(far));
     await ev("document.getElementById('bar-grip').focus()");
-    await gripKey('ArrowLeft'); await gripKey('ArrowLeft');
-    const keyed = await barBox();
-    check('with the keyboard the arrow keys move it by 10 pixels', keyed.left === far.left - 20, JSON.stringify({ far, keyed }));
     await gripKey('Home');
     const home = await barBox();
-    check('Home puts it back in the middle of the top', Math.abs((home.left + home.right) / 2 - 640) <= 3 && home.top <= 12, JSON.stringify(home));
+    check('Home puts it back in the middle of the top, as a row again', Math.abs((home.left + home.right) / 2 - 640) <= 3 && home.top <= 12 && (await dockOf()) === 'false', JSON.stringify(home));
     await dragGrip(-250, 120);
+    await ev("document.getElementById('bar-grip').focus()");
+    const before = await barBox();
+    await gripKey('ArrowLeft'); await gripKey('ArrowLeft');
+    const keyed = await barBox();
+    check('with the keyboard the arrow keys move it by 10 pixels', keyed.left === before.left - 20, JSON.stringify({ before, keyed }));
     const placed = await barBox();
     await open(MARKS_DECK);
     const again = await barBox();
     check('after the page is loaded again the bar is where it was left', Math.abs(again.left - placed.left) <= 2 && Math.abs(again.top - placed.top) <= 2, JSON.stringify({ placed, again }));
+    { const p = await centerOfSelector('#bar-grip'); const b = await barBox(); await dragGrip(1280 - 13 - b.right, 0); void p; }
+    const docked = await barBox();
+    await open(MARKS_DECK);
+    const dockedAgain = await barBox();
+    check('docked to the right edge the bar is a column flush to it, and after the page is loaded again it is still docked there', docked.right === 1272 && docked.h > docked.w && dockedAgain.right === 1272 && dockedAgain.h > dockedAgain.w && (await dockOf()) === 'true', JSON.stringify({ docked, dockedAgain }));
     await ev("localStorage.setItem('overloaded.actionBar', '{\"fx\":\"left\",\"fy\":99}')");
     await open(MARKS_DECK);
     const damaged = await barBox();

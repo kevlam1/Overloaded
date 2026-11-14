@@ -3905,6 +3905,24 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 **My mistakes this round:** a comment I put at the end of a line of a check swallowed the end of the call (a syntax error I had already learned about), and I had started the solo check before the syntax check, so I stopped that run (only the one I started) and ran it again.
 
+
+---
+
+## 194. No card preview on the solo table, a centred battlefield with a thick line, a floating bar that docks, and Shift to hold a drag to a line (2026-11-14)
+
+**What I asked for**
+- Remove the preview card that appears at the right of the screen (it comes back for the tables). Add a thick line round the battlefield and centre it on the screen. Make the floating control bar act like the one in MIDI Companion: snap, centre and attach to any side of the screen. While dragging a card or a pile, holding Shift keeps it on the same X or Y axis, like Photoshop.
+
+**What changed** (`frontend/pages/solo/solo.js` and `index.html`, `frontend/src/style.css`, `frontend/src/floating-bar.js`, `shared/bar-place.mjs`, `frontend/src/board-drag.js`, `scripts/check-solo-ui.mjs`, `scripts/test-bar-place.mjs`)
+- **Preview:** the card preview (the "card corner") is gone from the solo page: its section, its styles and the code that filled it. The table page still has its own, and `frontend/src/spotlight.js` is untouched. The card is still read from the large picture on hover, with Alt.
+- **Battlefield:** a 4 px line round it, drawn as an outline so the cells and the places of the cards do not move, and the same room (2.8rem) at both sides instead of only at the left, so it is in the middle of the window (it was 45 px from the left and touching the right edge; now 45 and 45 at 1366 wide).
+- **Floating bar:** it now docks like the control bar of MIDI Companion, with its numbers (10 px to an edge, 15 px to the middle of one, 20 px to a corner). Let go near an edge and it docks there (top, bottom, left or right), near the middle of an edge it goes exactly to the middle, near a corner into the corner. On the left or the right it turns into a column. While dragging, a strip along the edge, a dotted line through the middle and a dotted triangle in the corner show what letting go would do. The place is kept as the edge and two fractions (a place stored before this, with no edge, is a free place). The arrow keys still move it by 10 px (then it is free, a row), and Home puts it back docked to the middle of the top. `shared/bar-place.mjs` has the rules in plain numbers (`dockPlan`, `nearestDock`, `anchored`, `isVertical`) and the old `snap` is gone.
+- **Shift:** holding Shift while a card or a pile is carried keeps it on one line: along the row or down the column, whichever the pointer has moved along more since the drag began (it decides once the pointer is 8 px away), and it stays on that line until Shift is let go. Pressing or letting go of Shift moves the card at once without moving the mouse. How I read a clash: Shift when you press already means "carry the whole pile", so a drag started with Shift is held to a line only after Shift has been let go and pressed again.
+
+**What I checked:** the solo check (634) and the bar place unit test (43), with new checks for each part: no `#spotlight` on the page, the bar docking left as a column, the strip and dotted line while it is held at the middle of the left edge, the triangle at the top left corner, the corner at the bottom right, Home, a docked bar surviving a reload; and for Shift: along the row with the same height, staying there, freed when Shift is let go, held to the column when pressed again. Screenshots of the page as it starts, with the bar docked left as a column, and with the bar dragged to the top left corner. I did not look at the bar docked to the top, bottom or right in a screenshot, did not check Shift on the table page (it has no drag changes yet) or on a phone, and the hints are only checked by whether they show.
+
+**My mistakes this round:** my first Shift check pushed the pointer below the bottom of the window, where the browser sends no mouse events, so it read the wrong place (I had been told about this before); two hand checks failed on the first run because the hand was down when they measured it, and a check of the area of the hand pointed at the top of a resting card, which is outside the area now that it is smaller.
+
 ---
 
 ## Where AI misread me, or I had to correct course

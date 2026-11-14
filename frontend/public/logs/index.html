@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.193</span></h1>
-    <p class="lede">193 entries, Oct 25 to Nov 14, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
+    <h1>Build log <span class="version">Version 0.194</span></h1>
+    <p class="lede">194 entries, Oct 25 to Nov 14, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
   </div>
 </header>
 
@@ -23,7 +23,7 @@
     <div class="weeks-row">
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
-<a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">83</span></a>
+<a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
     </div>
     <div class="tools">
@@ -1961,7 +1961,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-1" aria-labelledby="week-1-title">
-<h2 class="week-head" id="week-1-title"><button type="button" aria-expanded="false" aria-controls="week-1-days"><span class="wname">Week 1</span><span class="range">Nov 9 to Nov 15</span><span class="week-count">83 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-1-title"><button type="button" aria-expanded="false" aria-controls="week-1-days"><span class="wname">Week 1</span><span class="range">Nov 9 to Nov 15</span><span class="week-count">84 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-1-days">
 <div class="day">
 <h3 class="day-title">Monday 9 November <span class="day-count">4</span></h3>
@@ -3258,7 +3258,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Saturday 14 November <span class="day-count">2</span></h3>
+<h3 class="day-title">Saturday 14 November <span class="day-count">3</span></h3>
 <div class="entries">
 <article class="entry" id="entry-192" data-n="192">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-192-body">
@@ -3288,6 +3288,21 @@
 <ul><li>The drop area (the dashed rectangle) now starts lower: it is the lower three quarters of what it was (<code>AREA_SHARE</code> 0.75, and <code>areaInset()</code> for where it starts), and its bottom stays on the bottom of the hand's box. At 1366 by 768 that is about 122 px tall instead of 163. The line where a resting hand starts to rise when the pointer comes near it is the same line, as before, so the pointer now has to be a little lower on a resting hand to raise it, and a card dropped on the top part of the visible cards of a resting hand is no longer dropped on the hand. A raised hand still counts the whole box.</li></ul>
 <p><strong>What I checked:</strong> the solo check (629): a new check that the rectangle is three quarters as tall as the visible part of a lowered hand (the box less the drop), and eight older checks changed or they failed on the first run: they pointed at the top of a resting card, which is now outside the area (the carry out and back in, and the drops onto the hand, including the command zone ones, which failed one after another because of one early miss). They now go in through the lower part of the area. I did not look at a screenshot of the new rectangle.</p>
 <p><strong>My mistakes this round:</strong> a comment I put at the end of a line of a check swallowed the end of the call (a syntax error I had already learned about), and I had started the solo check before the syntax check, so I stopped that run (only the one I started) and ran it again.</p>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-194" data-n="194">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-194-body">
+    <span class="num">194</span>
+    <span class="head-text"><span class="title">No card preview on the solo table, a centred battlefield with a thick line, a floating bar that docks, and Shift to hold a drag to a line</span><span class="sum">Remove the preview card that appears at the right of the screen (it comes back for the tables).</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-194-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>Remove the preview card that appears at the right of the screen (it comes back for the tables). Add a thick line round the battlefield and centre it on the screen. Make the floating control bar act like the one in MIDI Companion: snap, centre and attach to any side of the screen. While dragging a card or a pile, holding Shift keeps it on the same X or Y axis, like Photoshop.</li></ul>
+<p><strong>What changed</strong> (<code>frontend/pages/solo/solo.js</code> and <code>index.html</code>, <code>frontend/src/style.css</code>, <code>frontend/src/floating-bar.js</code>, <code>shared/bar-place.mjs</code>, <code>frontend/src/board-drag.js</code>, <code>scripts/check-solo-ui.mjs</code>, <code>scripts/test-bar-place.mjs</code>)</p>
+<ul><li><strong>Preview:</strong> the card preview (the &quot;card corner&quot;) is gone from the solo page: its section, its styles and the code that filled it. The table page still has its own, and <code>frontend/src/spotlight.js</code> is untouched. The card is still read from the large picture on hover, with Alt.</li><li><strong>Battlefield:</strong> a 4 px line round it, drawn as an outline so the cells and the places of the cards do not move, and the same room (2.8rem) at both sides instead of only at the left, so it is in the middle of the window (it was 45 px from the left and touching the right edge; now 45 and 45 at 1366 wide).</li><li><strong>Floating bar:</strong> it now docks like the control bar of MIDI Companion, with its numbers (10 px to an edge, 15 px to the middle of one, 20 px to a corner). Let go near an edge and it docks there (top, bottom, left or right), near the middle of an edge it goes exactly to the middle, near a corner into the corner. On the left or the right it turns into a column. While dragging, a strip along the edge, a dotted line through the middle and a dotted triangle in the corner show what letting go would do. The place is kept as the edge and two fractions (a place stored before this, with no edge, is a free place). The arrow keys still move it by 10 px (then it is free, a row), and Home puts it back docked to the middle of the top. <code>shared/bar-place.mjs</code> has the rules in plain numbers (<code>dockPlan</code>, <code>nearestDock</code>, <code>anchored</code>, <code>isVertical</code>) and the old <code>snap</code> is gone.</li><li><strong>Shift:</strong> holding Shift while a card or a pile is carried keeps it on one line: along the row or down the column, whichever the pointer has moved along more since the drag began (it decides once the pointer is 8 px away), and it stays on that line until Shift is let go. Pressing or letting go of Shift moves the card at once without moving the mouse. How I read a clash: Shift when you press already means &quot;carry the whole pile&quot;, so a drag started with Shift is held to a line only after Shift has been let go and pressed again.</li></ul>
+<p><strong>What I checked:</strong> the solo check (634) and the bar place unit test (43), with new checks for each part: no <code>#spotlight</code> on the page, the bar docking left as a column, the strip and dotted line while it is held at the middle of the left edge, the triangle at the top left corner, the corner at the bottom right, Home, a docked bar surviving a reload; and for Shift: along the row with the same height, staying there, freed when Shift is let go, held to the column when pressed again. Screenshots of the page as it starts, with the bar docked left as a column, and with the bar dragged to the top left corner. I did not look at the bar docked to the top, bottom or right in a screenshot, did not check Shift on the table page (it has no drag changes yet) or on a phone, and the hints are only checked by whether they show.</p>
+<p><strong>My mistakes this round:</strong> my first Shift check pushed the pointer below the bottom of the window, where the browser sends no mouse events, so it read the wrong place (I had been told about this before); two hand checks failed on the first run because the hand was down when they measured it, and a check of the area of the hand pointed at the top of a resting card, which is outside the area now that it is smaller.</p>
   </div></div></div>
 </article>
 </div>
