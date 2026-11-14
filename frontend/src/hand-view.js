@@ -54,6 +54,31 @@ export function mountHand({ container, costOf = () => '' }) {
 
   const buttons = () => [...container.querySelectorAll(':scope > .card')];
 
+  // Under the middle of the hand, while the cards are up: how many cards there are ("Hand: 7", nothing for an empty hand), and room for the sort buttons the page puts in it (Kevin, 2026-11-13).
+  const bar = document.createElement('div');
+  bar.className = 'hand-bar';
+  bar.hidden = true;
+  const countNote = document.createElement('span');
+  countNote.className = 'hand-count';
+  bar.append(countNote);
+  section.append(bar);
+  function updateBar() {
+    const total = buttons().length;
+    const show = raised && total > 0;
+    bar.hidden = !show;
+    if (!show) return;
+    countNote.textContent = `Hand: ${total}`;
+    const z = zone();
+    bar.style.left = `${(z.left + z.right) / 2 - section.getBoundingClientRect().left}px`;
+  }
+
+  // An empty hand has no cards to start the drop area at, so it starts under the battlefield (the area would otherwise reach up over it): never higher than the bottom of the battlefield.
+  function emptyFloor() {
+    if (buttons().length > 0) return 0;
+    const field = document.getElementById('battlefield');
+    return field ? field.getBoundingClientRect().bottom : 0;
+  }
+
   function showCost(button) {
     const cost = String(costOf(button.dataset.uid) ?? '');
     let holder = button.querySelector(':scope > .hand-cost');
@@ -190,6 +215,7 @@ export function mountHand({ container, costOf = () => '' }) {
     for (const button of all) { showCost(button); sharpen(button); }
     // the dashed outline shown while a card is carried over the hand (style.css) covers the same width as the zone
     setZoneVars();
+    updateBar();
     syncLift();
     if (moving) startMoving();
   }
@@ -258,11 +284,12 @@ export function mountHand({ container, costOf = () => '' }) {
       raised = true;
     } else {
       if (!raised || lowerTimer !== null) return;
-      lowerTimer = setTimeout(() => { lowerTimer = null; raised = false; container.classList.remove('raised'); arrange(); }, LEAVE_DELAY);
+      lowerTimer = setTimeout(() => { lowerTimer = null; raised = false; container.classList.remove('raised'); arrange(); updateBar(); }, LEAVE_DELAY);
       return;
     }
     container.classList.add('raised');
     arrange(); // the places move by the quarter (and the lifted copy is dropped)
+    updateBar();
   }
   // Is the point (x, y) in the area of the hand? The width the cards cover; from the top of the box down while raised, from the top of the cards that show while lowered.
   function inArea(x, y) {
@@ -283,7 +310,7 @@ export function mountHand({ container, costOf = () => '' }) {
     const z = zone();
     container.style.setProperty('--zl', `${z.left - container.getBoundingClientRect().left}px`);
     container.style.setProperty('--zw', `${z.right - z.left}px`);
-    container.style.setProperty('--zt', `${dropDistance()}px`); // where the dashed rectangle starts: where the visible cards of a lowered hand start, which is where the hand rises when the pointer comes near it
+    container.style.setProperty('--zt', `${Math.max(dropDistance(), emptyFloor() - container.getBoundingClientRect().top)}px`); // where the dashed rectangle starts: where the visible cards of a lowered hand start, which is where the hand rises when the pointer comes near it
   }
 
   // ---- carrying a card of the hand ----
@@ -363,10 +390,10 @@ export function mountHand({ container, costOf = () => '' }) {
   // no cards is a few cards wide in the middle, where one would go.
   function over(x, y) {
     const z = zone();
-    const top = z.top + dropDistance();
+    const top = Math.max(z.top + dropDistance(), emptyFloor());
     return x >= z.left && x < z.right && y >= top && y <= z.bottom + 1;
   }
 
   if (typeof ResizeObserver === 'function') new ResizeObserver(() => arrange()).observe(container);
-  return { arrange, carry, holeFor, noteDrop, zone, over, isRaised: () => raised };
+  return { arrange, carry, holeFor, noteDrop, zone, over, bar, isRaised: () => raised };
 }

@@ -3437,6 +3437,24 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 173. Wheel zoom on the Alt picture, the hand's count and sorts, the piles' names and arrows, and a lower drop area for an empty hand (2026-11-13)
+
+**What I asked for**
+- (1) While holding Alt over a card, the scroll wheel makes the larger picture bigger or smaller. (2) The white dotted box when you drag a card from the battlefield to your hand is too big when the hand is empty: lower its top to under the bottom of the battlefield. (3) When the pointer is over the hand and the cards come up, show how many cards you have under the middle, like "Hand: 7", not at 0. (4) Move the library, graveyard and exile names above them like the command zone, with an arrow beside each that opens a menu, set up for now. (5) Add the hand sort that we have been skipping. And do not make so many tests that it takes too long.
+
+**What changed** (`frontend/src/card-hover.js`, `hand-view.js`, new `hand-sort-ui.js`, `pages/solo/solo.js` and `index.html`, `style.css`, tests)
+- **Wheel zoom:** up is a tenth bigger, down a tenth smaller, between half and double the normal size; the size is kept in the browser. The wheel is only taken while the picture is shown.
+- **Empty hand:** with no cards, the drop area starts at the bottom of the battlefield (it started at the top of the hand's box, which reached up over it). With cards it is as before.
+- **"Hand: 7":** a small pill under the middle of the hand while its cards are up. At the bottom of the window it sits over the lower edge of the cards, because most of the raised cards are below the window edge.
+- **Piles:** Library, Graveyard and Exile are named above their piles, with a small arrow that opens the pile's own menu (the same one as a right-click: search, shuffle, draw, look, mill, move all). The names under the piles are gone on the solo table.
+- **Hand sort:** three buttons in the same pill, Color, Type and Cost, each off, one way (arrow up), the other way (arrow down), off; it only changes how the hand is shown, the hand's own order is kept, and a card drawn while a sort is on is placed by it. The colour decides first, then the type, then the cost. While a sort is on, rearranging by dragging in the hand is refused with a note. Settings has the card types as pills, each with arrows to move it earlier or later. The choices are kept in the browser.
+
+**What I checked:** 6 new unit checks for the wheel rules (27 hover checks) and one block of 11 checks in the solo check (the count shows and hides, the sort buttons sort low to high, high to low and back to the stored order, a sort is kept, the type pill moves, the pile names are above with arrows, the arrow opens the library menu, the wheel sizes the picture and clamps, the empty hand's area starts under the battlefield); the final solo check run passed (597). Screenshot of the count, the sort buttons and the pile names. Not done: the type pills are moved with arrows, not dragged; the live table page has none of this (the count and sorts are the solo page only; its piles and the empty-hand note are as before); no phones or touch.
+
+**My mistakes this round:** the bar did not take the mouse at first (the hand section ignores it, so the sort buttons did nothing; the check caught it); my first expectations for the pile menu title, the wheel steps (0.7 not 0.8) and the old library check (it expected the name under the pile) were wrong; one of my checks counted on a random hand having cards of different costs and failed once, so it now draws until it has some; and I ran the solo check more times than I wanted to (6), because a new interface had a few small mistakes. I kept the new tests to one block.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

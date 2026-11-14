@@ -7,6 +7,8 @@ import { play, mountSoundSettings } from '../../src/sound.js';
 import { mountPileStyle } from '../../src/pile-style.js';
 import { mountPileViewer } from '../../src/pile-viewer.js';
 import { mountSettingsMenu } from '../../src/settings-menu.js';
+import { createHandSort } from '../../src/hand-sort-ui.js';
+import { sortHand, anySortOn } from '../../../shared/hand-sort.mjs';
 import { mountPileStack } from '../../src/pile-stack.js';
 import { mountCommandZone } from '../../src/command-zone.js';
 import { taxAction } from '../../../shared/commander-zone.mjs';
@@ -120,13 +122,18 @@ function findCard(uid) {
   return null;
 }
 
+// The hand as it is shown: the cards dealt so far, in the order of the sorts that are on (a view: the hand's own order is not changed, shared/hand-sort.mjs).
+function shownHand() {
+  return sortHand(dealer.visible(game.zones.hand), handSort.sorts(), { typeOrder: handSort.typeOrder(), info: (card) => lookup?.(card) ?? null });
+}
+
 // ---- drawing the whole table ----
 function render() {
   $('turn').textContent = String(game.turn);
   $('life').textContent = String(game.life);
   lifeChips.update(chipEntries(game.pc));
   place($('battlefield'), game.zones.battlefield, { battlefield: true, cells: boardCells(game) });
-  place($('hand'), dealer.visible(game.zones.hand));
+  place($('hand'), shownHand());
   handView.arrange();
   commandZone.update(game, { slotOf: (uid) => commandSlots.get(uid) ?? null });
   for (const picture of $('command').querySelectorAll('.card .face img')) { // the command zone cards are larger than a battlefield card: the normal size, so they stay sharp
@@ -383,6 +390,29 @@ function pickFromPileMenu(zone, id, amount) {
 function openPileMenu(zone, where) {
   openCardMenu({ title: `${ZONE_WORDS[zone][0].toUpperCase()}${ZONE_WORDS[zone].slice(1)}`, items: pileMenuItems(zone, game.zones[zone].length), x: where.x, y: where.y, returnFocus: where.element, onPick: (id, amount) => pickFromPileMenu(zone, id, amount) });
 }
+// The name of each pile is above it, like the command zone's, with a small arrow that opens the pile's menu (the same one a right-click opens: search, shuffle, draw, look, mill, move all).
+for (const [zone, name] of [['library', 'Library'], ['graveyard', 'Graveyard'], ['exile', 'Exile']]) {
+  const pile = $(`pile-${zone}`);
+  const slot = document.createElement('div');
+  slot.className = 'pile-slot';
+  const head = document.createElement('div');
+  head.className = 'pile-head';
+  const label = document.createElement('span');
+  label.className = 'pile-name';
+  label.textContent = name;
+  const caret = document.createElement('button');
+  caret.type = 'button';
+  caret.className = 'pile-caret';
+  caret.id = `pile-caret-${zone}`;
+  caret.setAttribute('aria-haspopup', 'menu');
+  caret.setAttribute('aria-label', `${name} options`);
+  caret.title = `${name} options`;
+  caret.innerHTML = '<svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" aria-hidden="true"><path d="M1 3l4 4 4-4z"/></svg>';
+  caret.addEventListener('click', () => { if (!game) return; const box = caret.getBoundingClientRect(); openPileMenu(zone, { x: box.left, y: box.bottom + 4, element: caret }); });
+  head.append(label, caret);
+  pile.before(slot);
+  slot.append(head, pile);
+}
 for (const zone of ['library', 'graveyard', 'exile', 'sideboard']) {
   $(`pile-${zone}`).addEventListener('contextmenu', (event) => {
     event.preventDefault();
@@ -491,7 +521,7 @@ function dropOnHand({ uid, from, x, picture }) {
   if (from === 'library') play('draw');
   const place = handView.holeFor(uid, x ?? 0, true); // the place that was open in the hand when it was let go
   handView.noteDrop(uid, picture); // the card starts from where its picture was let go and eases into its place
-  apply(() => { const moved = moveCard(game, uid, 'hand'); return moved.zones.hand.some((c) => c.uid === uid) ? reorderHand(moved, uid, place) : moved; }, // (a token that leaves the battlefield stops existing: there is nothing to put in its place)
+  apply(() => { const moved = moveCard(game, uid, 'hand'); return moved.zones.hand.some((c) => c.uid === uid) && !anySortOn(handSort.sorts()) ? reorderHand(moved, uid, place) : moved; }, // (a token that leaves the battlefield stops existing: there is nothing to put in its place)
      from === 'battlefield' ? `Moved ${found.card.n} back to your hand.` : `Moved ${from === 'library' ? 'the top card of your library' : found.card.n} to your hand.`);
 }
 // The piles and the command zone are places a card can be taken from (the top card of the library, the graveyard or the exile, or a card of the command zone) and dropped on (frontend/src/board-drag.js).
@@ -530,12 +560,17 @@ function dropOnPile({ uid, from, to, slot = null, element = null, flying = null 
 const handView = mountHand({ container: $('hand'), costOf: (uid) => { const card = game?.zones.hand.find((c) => c.uid === uid); const known = card ? lookup?.(card) : null; return known?.m ?? ''; } });
 function reorderInHand({ uid, x, picture }) {
   if (!game || !game.zones.hand.some((c) => c.uid === uid)) return;
+  if (anySortOn(handSort.sorts())) { handView.arrange(); say('The hand is sorted: turn the sorts off to arrange it by hand.'); return; } // (what place the card was dropped at has no meaning in a sorted hand)
   const to = handView.holeFor(uid, x); // the place it was last shown over
   handView.noteDrop(uid, picture); // the card starts from where its picture was let go and eases into its place
   const next = reorderHand(game, uid, to);
   if (next === game) { handView.arrange(); return; }
   apply(() => next, '');
 }
+// The sort buttons are in the bar under the hand, the order of the card types is in Settings (src/hand-sort-ui.js).
+const handSort = createHandSort({ onChange: () => { if (game) render(); } });
+handSort.mountButtons(handView.bar);
+handSort.mountTypeOrder($('type-order-settings'));
 mountBoardDrag({ board: () => $('battlefield'), onDrop: dropOnBoard, hand: () => $('hand-section'), onDropHand: dropOnHand, onHandOver: (over) => handView.carry(over), onReorderHand: reorderInHand, handZone: () => handView.zone(), handHit: (x, y) => handView.over(x, y), zoneSource, pileAt, onDropPile: dropOnPile, isEnabled: () => Boolean(game) });
 
 $('mulligan').addEventListener('click', doMulligan);

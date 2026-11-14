@@ -1,5 +1,5 @@
 // Tests for the pure parts of frontend/src/card-hover.js: which larger picture a card button asks for, and where the box goes. (The hover itself is checked in a real browser in check-solo-ui.mjs.)
-import { largeAddress, placeBox } from '../frontend/src/card-hover.js';
+import { largeAddress, placeBox, nextHoverScale, readHoverScale, HOVER_SCALE } from '../frontend/src/card-hover.js';
 
 let checks = 0;
 const same = (label, actual, expected) => {
@@ -35,5 +35,13 @@ same('the box never covers the hovered card when there is room on a side', (() =
 same('with more room on the left than the right it goes left', (() => { const p = placeBox({ left: 800, right: 860, top: 100, height: 84 }, { ...win, windowWidth: 1000 }); return p.left + 272 <= 800; })(), true);
 same('a tiny window keeps the box at the edge gap and never negative', (() => { const p = placeBox({ left: 10, right: 40, top: 10, height: 40 }, { windowWidth: 200, windowHeight: 200, height: 379 }); return p.left >= 4 && p.top >= 4; })(), true);
 same('numbers only: every result is a finite number', (() => { const p = placeBox({ left: 0, right: 0, top: 0, height: 0 }, win); return Number.isFinite(p.left) && Number.isFinite(p.top); })(), true);
+
+// the wheel over the picture: up is bigger, down smaller, a tenth a notch, between half and double
+same('wheel up makes the picture a tenth bigger, wheel down a tenth smaller', [nextHoverScale(1, -100), nextHoverScale(1, 100)], [1.1, 0.9]);
+same('no float drift after many notches (rounded to a hundredth)', [3, 4, 5].map((n) => { let scale = 1; for (let i = 0; i < n; i++) scale = nextHoverScale(scale, -1); return scale; }), [1.3, 1.4, 1.5]);
+same('it stops at half size and at double size', [nextHoverScale(0.5, 100), nextHoverScale(2, -100), nextHoverScale(1.95, -1)], [0.5, 2, 2]);
+same('a wheel that does not move (0, nothing, text) changes nothing', [nextHoverScale(1.3, 0), nextHoverScale(1.3, undefined), nextHoverScale(1.3, 'x')], [1.3, 1.3, 1.3]);
+same('a saved size is read back, and a bad or missing one is the normal size', [readHoverScale('1.4'), readHoverScale('9'), readHoverScale('0.1'), readHoverScale('nope'), readHoverScale(null), readHoverScale(undefined)], [1.4, 2, 0.5, 1, 1, 1]);
+same('the limits and the key', [HOVER_SCALE.min, HOVER_SCALE.max, HOVER_SCALE.key], [0.5, 2, 'overloaded.hoverScale']);
 
 console.log(`All ${checks} card hover checks passed.`);

@@ -522,6 +522,58 @@ try {
     await browser.goto(PAGE);
     await handIs(7);
   }
+  // ---- under the hand (the count and the sort buttons), the names of the piles with their arrows, and the drop area of an empty hand ----
+  {
+    const rectOf = (selector, index = 0) => ev(`(() => { const r = document.querySelectorAll(${JSON.stringify(selector)})[${index}].getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, left: r.left, right: r.right, top: r.top, bottom: r.bottom }; })()`);
+    const move = (p) => browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p.x, y: p.y });
+    const click = async (p) => { await move(p); await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: p.x, y: p.y, button: 'left', buttons: 1, clickCount: 1 }); await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: p.x, y: p.y, button: 'left', buttons: 0, clickCount: 1 }); await sleep(120); };
+    const bar = () => ev("(() => { const b = document.querySelector('.hand-bar'); const r = b.getBoundingClientRect(); return { hidden: b.hidden, text: b.querySelector('.hand-count').textContent, cx: r.left + r.width / 2, top: r.top, bottom: r.bottom }; })()");
+    const middle = await rectOf('#hand .card', 3);
+    await move({ x: 5, y: 5 }); await sleep(300);
+    check('with the pointer away from the hand there is no count under it', (await bar()).hidden === true);
+    await move({ x: middle.x, y: middle.y }); await sleep(400);
+    const shown = await bar();
+    const cardsBottom = await ev("Math.max(...[...document.querySelectorAll('#hand > .card')].map((c) => c.getBoundingClientRect().bottom))");
+    check('with the pointer over the hand it says "Hand: 7" under the middle of it', shown.hidden === false && shown.text === 'Hand: 7' && Math.abs(shown.cx - middle.x) < 140 && shown.top > 900 && shown.bottom <= 1000, JSON.stringify({ shown, middle, cardsBottom }));
+    if (process.argv.includes('--screenshot')) await browser.screenshot('scratch-solo-handbar.png');
+    // the sorts: Cost one way (low to high), the other way, off (the hand as it was)
+    const order = () => ev("[...document.querySelectorAll('#hand > .card')].map((c) => c.dataset.uid)");
+    const costs = () => ev("[...document.querySelectorAll('#hand > .card')].map((c) => { const text = (c.querySelector('.hand-cost')?.dataset.cost ?? '').split('//')[0]; return (text.match(/\\{[^}]*\\}/g) ?? []).reduce((n, symbol) => n + (/^\\{\\d+\\}$/.test(symbol) ? Number(symbol.slice(1, -1)) : /X/.test(symbol) ? 0 : 1), 0); })");
+    for (let n = 0; n < 12 && new Set(await costs()).size < 2; n++) { await press('draw'); await sleep(80); } // (the hand is random: draw until it has cards of different costs, so a sort has something to do)
+    await move({ x: middle.x, y: middle.y }); await sleep(300);
+    const before = await order();
+    const costButton = () => rectOf('.hand-bar .hand-sort[data-sort="cost"]');
+    await click(await costButton());
+    const up = await costs();
+    const state1 = await ev("document.querySelector('.hand-sort[data-sort=\"cost\"]').dataset.state");
+    await click(await costButton());
+    const down = await costs();
+    await click(await costButton());
+    const after = await order();
+    const sorted = (list, sign) => list.every((n, i) => i === 0 || (n - list[i - 1]) * sign >= 0);
+    check('the Cost button sorts the hand low to high, then high to low, and a third click puts the hand back as it was', state1 === '1' && sorted(up, 1) && sorted(down, -1) && up.some((n, i) => n !== up[0]) && JSON.stringify(after) === JSON.stringify(before), JSON.stringify({ up, down, state1 }));
+    await click(await rectOf('.hand-bar .hand-sort[data-sort="color"]'));
+    check('a sort is kept as a choice (pressed, and kept in the browser) and a card cannot be dropped by hand into a sorted hand: its note says why', (await ev("document.querySelector('.hand-sort[data-sort=\"color\"]').getAttribute('aria-pressed')")) === 'true' && (await ev("localStorage.getItem('overloaded.handSort')")).includes('"color":1'));
+    await click(await rectOf('.hand-bar .hand-sort[data-sort="color"]')); await click(await rectOf('.hand-bar .hand-sort[data-sort="color"]')); // back to off
+    // the order of the card types is in Settings: a pill moves one place later
+    await move({ x: 5, y: 5 });
+    const typeFirst = await ev("document.querySelector('#type-order-settings .type-pill').dataset.type");
+    await ev("document.querySelector('#type-order-settings .type-pill .type-move:last-child').click()");
+    check('Settings has the card types as pills and one can be moved later (the order is kept in the browser)', (await ev("document.querySelectorAll('#type-order-settings .type-pill').length")) === 7 && (await ev("document.querySelectorAll('#type-order-settings .type-pill')[1].dataset.type")) === typeFirst && (await ev("localStorage.getItem('overloaded.handTypeOrder')")).includes(typeFirst));
+    await ev("localStorage.removeItem('overloaded.handTypeOrder'); localStorage.removeItem('overloaded.handSort')");
+    // the names of the piles are above them, each with an arrow that opens the pile's menu
+    const heads = await ev("['library', 'graveyard', 'exile'].map((zone) => { const head = document.querySelector('#pile-' + zone).parentElement.querySelector('.pile-head'); const pile = document.getElementById('pile-' + zone); const caret = head.querySelector('.pile-caret'); return { name: head.querySelector('.pile-name').textContent, above: head.getBoundingClientRect().bottom <= pile.getBoundingClientRect().top + 2, caretRight: caret.getBoundingClientRect().left >= head.querySelector('.pile-name').getBoundingClientRect().right - 1, labelOnPile: getComputedStyle(pile, '::after').content }; })");
+    check('the library, graveyard and exile are named above their piles with an arrow beside each name (and no name under them)', JSON.stringify(heads.map((h) => h.name)) === '["Library","Graveyard","Exile"]' && heads.every((h) => h.above && h.caretRight && h.labelOnPile === 'none'), JSON.stringify(heads));
+    await click(await rectOf('#pile-caret-library'));
+    const menu = await ev("(() => { const m = document.querySelector('.card-menu'); return m ? { title: m.querySelector('.card-menu-title')?.textContent, items: [...m.querySelectorAll('[role=menuitem]')].map((i) => i.textContent.trim()) } : null; })()");
+    check('the arrow beside Library opens the menu of the pile (the same as a right-click on it)', menu && /library/i.test(menu.title) && menu.items.includes('Shuffle') && menu.items.includes('Search...'), JSON.stringify(menu));
+    await browser.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await sleep(100);
+    // an empty hand: the drop area starts under the bottom of the battlefield (it used to reach up over it)
+    await ev("document.getElementById('hand').replaceChildren(); document.getElementById('hand').style.paddingRight = '1px'"); await sleep(300);
+    const area = await ev("(() => { const h = document.getElementById('hand'); const zt = parseFloat(h.style.getPropertyValue('--zt')); return { top: h.getBoundingClientRect().top + zt, field: document.getElementById('battlefield').getBoundingClientRect().bottom }; })()");
+    check('with an empty hand the white dotted drop area starts under the bottom of the battlefield', area.top >= area.field - 1, JSON.stringify(area));
+    await browser.goto(PAGE); await waitFor(async () => (await count('#hand .card')) === 7 || null, 8000, 25); await sleep(1200); // (dealt again: the hand was emptied by hand above)
+  }
   // ---- the larger picture of a card while Alt is held over it (frontend/src/card-hover.js): real mouse movement and real Alt key events ----
   {
     const rectOf = (selector, index = 0) => ev(`(() => { const r = document.querySelectorAll(${JSON.stringify(selector)})[${index}].getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, left: r.left, right: r.right, top: r.top, bottom: r.bottom }; })()`);
@@ -553,6 +605,24 @@ try {
     check('with Alt held, moving off the card hides it', (await hoverState()).hidden === true);
     await moveTo(c.x, c.y); await sleep(80);
     check('and moving back on shows it again at once', (await hoverState()).hidden === false);
+    // the wheel over the card while Alt is held makes the picture bigger (up) or smaller (down), a tenth a notch, and the size is kept
+    {
+      const width = async () => { const b = await hoverState(); return Math.round(b.right - b.left); };
+      const wheel = async (deltaY) => { await browser.send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: c.x, y: c.y, deltaX: 0, deltaY, modifiers: 1 }); await sleep(50); };
+      const w0 = await width();
+      await wheel(-100);
+      const w1 = await width();
+      for (let n = 0; n < 4; n++) await wheel(100);
+      const w2 = await width();
+      for (let n = 0; n < 40; n++) await wheel(100);
+      const w3 = await width();
+      const kept = await ev("localStorage.getItem('overloaded.hoverScale')");
+      for (let n = 0; n < 40; n++) await wheel(-100);
+      const w4 = await width();
+      check('Alt and the wheel: up makes the picture bigger (a tenth of the normal size), down smaller, never under half or over double size, and the size is kept in the browser', w0 === 272 && w1 === 299 && w2 === 190 && w3 === 136 && w4 === 544 && kept === '0.5' && (await hoverState()).inside, JSON.stringify({ w0, w1, w2, w3, w4, kept }));
+      for (let n = 0; n < 10; n++) await wheel(100); // back to the normal size for what follows
+      await ev("localStorage.removeItem('overloaded.hoverScale')");
+    }
     // a point on a visible part of a card whose picture differs from the first card's (the cards overlap, and which are in front depends on the random hand)
     const c3 = await ev(`(() => { const cards = [...document.querySelectorAll('#hand .card')]; const imgs = cards.map((c) => c.querySelector('img').getAttribute('src')); for (let n = cards.length - 1; n > 0; n--) { if (imgs[n] === imgs[0]) continue; const r = cards[n].getBoundingClientRect(); for (let x = r.left + 4; x < r.right - 4; x += 4) { const y = r.top + r.height * 0.6; if (document.elementFromPoint(x, y)?.closest('.card') === cards[n]) return { x, y }; } } return null; })()`);
     await moveTo(c3.x, c3.y); await sleep(100);
@@ -1506,7 +1576,7 @@ try {
   await open(SIDE_JSON);
   const stack = (zone) => ev(`(() => { const b = document.getElementById('pile-${zone}'); const face = b.querySelector('.stack-face'); return { cls: b.classList.contains('pile-stack'), count: b.dataset.count, empty: b.dataset.empty, label: b.dataset.label, text: b.textContent, back: face.classList.contains('back'), img: face.querySelectorAll('img').length, layers: b.querySelectorAll('.stack-layer').length, badge: getComputedStyle(b, '::before').content, name: getComputedStyle(b, '::after').content, pressed: b.getAttribute('aria-pressed') }; })()`);
   const lib = await stack('library');
-  check('the library is a stack: three layers, a card back (no picture of the top card), the number on it and a line for a screen reader that is the only text', lib.cls && lib.layers === 2 && lib.back && lib.img === 0 && lib.count === '45' && lib.text === 'Library: 45' && lib.badge === '"45"' && lib.name === '"Library"', JSON.stringify(lib));
+  check('the library is a stack: three layers, a card back (no picture of the top card), the number on it (its name is drawn above it, not on it) and a line for a screen reader that is the only text', lib.cls && lib.layers === 2 && lib.back && lib.img === 0 && lib.count === '45' && lib.text === 'Library: 45' && lib.badge === '"45"' && lib.name === 'none', JSON.stringify(lib));
   const gy0 = await stack('graveyard');
   check('an empty graveyard is an empty outline with a 0 on it', gy0.empty === 'true' && gy0.count === '0' && gy0.img === 0 && gy0.text === 'Graveyard: 0', JSON.stringify(gy0));
   await clickCard('#hand .card', 0);

@@ -4,10 +4,20 @@
 // has no pointer or Alt), appears at once and goes when Alt is let go or the pointer leaves the card, and hides on a click, a menu, Escape or a scroll (and stays hidden for that
 // card until Alt is let go or the pointer has left it).
 import { IMAGE_HOST } from '../../shared/card-image.mjs';
+import { makeSafeStore } from './safe-store.js';
 
 const SMALL = `${IMAGE_HOST}/small/`;
 const NORMAL = `${IMAGE_HOST}/normal/`;
-const BOX_WIDTH = 272; // px, the picture is 17rem wide
+const BOX_WIDTH = 272; // px, the picture is 17rem wide at the normal size
+// The scroll wheel over a card while Alt is held makes the larger picture bigger or smaller (Kevin, 2026-11-13): a tenth of the normal size a notch, between half size and double, and the size is kept in this browser.
+export const HOVER_SCALE = { min: 0.5, max: 2, step: 0.1, key: 'overloaded.hoverScale' };
+export function nextHoverScale(scale, deltaY) {
+  const now = Number.isFinite(scale) ? scale : 1;
+  if (!(deltaY < 0 || deltaY > 0)) return Math.min(HOVER_SCALE.max, Math.max(HOVER_SCALE.min, now));
+  const next = now + (deltaY < 0 ? HOVER_SCALE.step : -HOVER_SCALE.step); // wheel up: bigger
+  return Math.round(Math.min(HOVER_SCALE.max, Math.max(HOVER_SCALE.min, next)) * 100) / 100;
+}
+export const readHoverScale = (text) => (text === null || text === undefined || text === '' ? 1 : nextHoverScale(Number(text), 0));
 
 // The bigger picture's address for a card button, or null when the card shows no picture (a name only, or an address that is not one of Scryfall's).
 export function largeAddress(button) {
@@ -43,6 +53,8 @@ export function mountCardHover(doc = document) {
   picture.referrerPolicy = 'no-referrer';
   box.append(picture);
   doc.body.append(box);
+  const store = makeSafeStore();
+  let scale = readHoverScale(store.get(HOVER_SCALE.key));
 
   let altHeld = false;
   let over = null; // the card button the pointer is on
@@ -56,9 +68,15 @@ export function mountCardHover(doc = document) {
     current = button;
     picture.onerror = () => { box.hidden = true; }; // no larger picture: show nothing rather than a broken image
     picture.src = url;
+    placeFor(button);
+  };
+  // The box at the size now chosen, beside the card.
+  const placeFor = (button) => {
     const rect = button.getBoundingClientRect();
-    const height = Math.round(BOX_WIDTH * 1.395);
-    const spot = placeBox(rect, { height, windowWidth: doc.defaultView.innerWidth, windowHeight: doc.defaultView.innerHeight });
+    const width = Math.round(BOX_WIDTH * scale);
+    const height = Math.round(width * 1.395);
+    const spot = placeBox(rect, { width, height, windowWidth: doc.defaultView.innerWidth, windowHeight: doc.defaultView.innerHeight });
+    box.style.width = `${width}px`;
     box.style.left = `${spot.left}px`;
     box.style.top = `${spot.top}px`;
     box.hidden = false;
@@ -100,6 +118,18 @@ export function mountCardHover(doc = document) {
   };
   const onBlur = () => { altHeld = false; suppressed = null; hide(); };
 
+  // The wheel changes the size of the picture while it is shown (and only then: otherwise the wheel is left alone).
+  const onWheel = (event) => {
+    if (!current || !altHeld || box.hidden) return;
+    event.preventDefault();
+    const next = nextHoverScale(scale, event.deltaY);
+    if (next === scale) return;
+    scale = next;
+    store.set(HOVER_SCALE.key, scale);
+    if (current.isConnected) placeFor(current);
+  };
+
+  doc.addEventListener('wheel', onWheel, { passive: false });
   doc.addEventListener('pointerover', onOver);
   doc.addEventListener('pointerout', onOut);
   doc.addEventListener('pointermove', onMove);
@@ -114,6 +144,7 @@ export function mountCardHover(doc = document) {
     box,
     stop() {
       hide();
+      doc.removeEventListener('wheel', onWheel);
       doc.removeEventListener('pointerover', onOver);
       doc.removeEventListener('pointerout', onOut);
       doc.removeEventListener('pointermove', onMove);
