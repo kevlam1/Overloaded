@@ -498,14 +498,7 @@ document.addEventListener('keydown', (event) => {
   event.preventDefault();
   if (key === 'f') flipFaceDown(found); else toggleTapped(found); // (E and Q do the same)
 });
-// Tab opens Settings (Kevin, 2026-11-13: the cards are not reached with Tab any more). Inside Settings, and in a box you type in, Tab moves between the controls as usual.
-document.addEventListener('keydown', (event) => {
-  if (event.key !== 'Tab' || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || !game) return;
-  if (event.target instanceof Element && event.target.closest('input, select, textarea, [contenteditable], #settings-menu')) return;
-  if (!$('settings-menu').hidden) return;
-  event.preventDefault();
-  $('settings-button').click();
-});
+// (Tab opens and closes Settings, and does nothing else: src/settings-menu.js)
 
 // Dragging a rectangle over the empty part of the battlefield picks up every card it touches (Kevin, 2026-11-13). E, Q and F then act on all of them; a click on empty space, Escape or a click on another card lets the group go.
 // (Moving the group together is not built.)

@@ -17,6 +17,14 @@ export function mountSettingsMenu({ button, panel }) {
     if (open) place();
   }
   button.addEventListener('click', () => setOpen(!isOpen()));
+  // Tab opens and closes Settings and does nothing else (Kevin, 2026-11-13): it never moves the focus to a button or a card, whatever is on the page. In a box you type text in, Tab is left alone.
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Tab' || event.ctrlKey || event.altKey || event.metaKey) return;
+    if (event.target instanceof Element && event.target.closest('textarea, [contenteditable], input:not([type=checkbox]):not([type=range]):not([type=radio]):not([type=button])')) return;
+    if (button.offsetParent === null) return; // (the table is not showing: there is no Settings to open)
+    event.preventDefault();
+    setOpen(!isOpen());
+  }, true);
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && isOpen()) { event.stopImmediatePropagation(); setOpen(false); button.focus(); }
   }, true);

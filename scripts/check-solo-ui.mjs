@@ -663,9 +663,15 @@ try {
       await move({ x: 5, y: 5 }); await sleep(300);
     }
     check('cards are not reached with Tab (tabindex -1) and cannot be picked up as text', await ev("[...document.querySelectorAll('.card')].every((c) => c.tabIndex === -1 && getComputedStyle(c).userSelect === 'none') && getComputedStyle(document.body).userSelect === 'none'"));
+    await ev('document.activeElement && document.activeElement.blur()');
     await keyDown('Tab', 'Tab', 9);
-    check('Tab opens Settings', (await ev("document.getElementById('settings-menu').hidden")) === false);
-    await browser.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await sleep(150);
+    const opened = (await ev("document.getElementById('settings-menu').hidden")) === false;
+    const focusAfterOpen = await ev('document.activeElement.tagName');
+    await keyDown('Tab', 'Tab', 9);
+    const closed = (await ev("document.getElementById('settings-menu').hidden")) === true;
+    await keyDown('Tab', 'Tab', 9); await keyDown('Tab', 'Tab', 9); // (open and closed again, three presses so far plus this)
+    const focusAfter = await ev('document.activeElement.tagName');
+    check('Tab opens Settings and Tab again closes it, and it never puts the focus on a button or a card (the focus stays on the page)', opened && closed && focusAfterOpen === 'BODY' && focusAfter === 'BODY' && (await ev("document.getElementById('settings-menu').hidden")) === true, JSON.stringify({ opened, closed, focusAfterOpen, focusAfter }));
     const handBefore = await count('#hand .card');
     await keyDown('d', 'KeyD', 68);
     check('D draws a card', (await count('#hand .card')) === handBefore + 1 && /^Drew /.test(await $text('status')), await $text('status'));

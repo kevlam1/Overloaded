@@ -3541,6 +3541,21 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 179. Tab only opens and closes Settings (2026-11-13)
+
+**What I asked for**
+- Buttons should not be selectable or highlightable with Tab. Tab's purpose is to open and close Settings.
+
+**What changed** (`frontend/src/settings-menu.js`, `solo.js`, `scripts/check-solo-ui.mjs`)
+- Tab (and Shift+Tab) now opens Settings when it is closed and closes it when it is open, and never moves the focus: no button, link, pile or card gets the focus ring from it. In a box you type text in (the pile search, a number box, a text area) Tab is left alone. The handler is in the Settings menu module, so it is the same on both tables; before it was only on the solo table (in entry 176 I wrote that Tab opened Settings on both tables, which was wrong: only the solo page had it).
+- A side effect: Tab can no longer be used to move between the controls inside Settings; they are used with the mouse.
+
+**What I checked:** the solo check once (613): Tab opens Settings, Tab again closes it, and the focus stays on the page (the body) after each press. Not checked: the table page (the same module, but no check presses Tab there), and a focus ring that comes from the keys E, F and so on being pressed after a click (a button that was clicked still keeps the focus).
+
+**My mistakes this round:** the wrong claim in entry 176 above.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.
