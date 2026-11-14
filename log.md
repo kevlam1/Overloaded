@@ -802,13 +802,15 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 **What I checked**
 - Before committing I ran everything. The first attempt at the commits failed because PowerShell passed my message as stray arguments, and my redo wrote a byte-order mark into the subject lines; I redid the local commits once more (nothing was pushed in between) and verified there is no mark and no attribution line.
-- Three real bugs were found against the real project, each shown failing first and then fixed (see `docs/live-play.md`): simultaneous sign-ins made different accounts; the "you already have a table" warning never appeared; raw SDK text and a dead Enter key. 
+- Three real bugs were found against the real project, each shown failing first and then fixed (see `docs/live-play.md`): simultaneous sign-ins made different accounts; the "you already have a table" warning never appeared; raw SDK text and a dead Enter key.
 - Optimization, measured: the page's JavaScript went from 232.9 KB to 220.9 KB (70.0 to 65.7 KB gzipped, about 6%), with an unchanged load time within noise.
 - `npm run test:live`: 10 suites, all passing, about 40 seconds, nothing left behind. The live rules check matched 43 of 43 requests, so what I pasted behaves like the file. 25 broken copies of the new modules and the page all fail their checks.
 - Not checked: anything on a phone (on hold), size limits and the table-code format (not built), security headers, slow or flaky connections (only fully offline), the idle and 8-hour limits against the real project (they need time to pass), and that every rule in the published file is present (only behavior was compared).
 
 **Decisions**
 - Phones and tablets are on hold until a working basic UI exists: desktop-only checks for now (recorded in `CLAUDE.md` and the todo). Not applied: pre-creating the anonymous account on page load, because it would create an account for every visitor.
+
+---
 
 ## 39. The page's table logic moves to `shared/` and gets tested against the real rules (2026-10-28)
 
@@ -829,6 +831,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 **Decisions**
 - Table logic lives in `shared/` with the database passed in, so the same code runs in the page and in tests. This is the pattern for the game logic later.
 
+---
+
 ## 40. The game flow reviewed: a model of the design compared with the code, step by step (2026-10-28)
 
 **What I asked for**
@@ -848,6 +852,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 **Decisions**
 - The page enforces three things the rules do not (start needs two players and everyone ready, ready only in the lobby, the host cannot leave while others are there). I recommended accepting that for a friendly game; it is design question 2 for you.
+
+---
 
 ## 41. Coming back to your seat mid-match, and a table that carries on without its host (2026-10-28)
 
@@ -874,6 +880,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - Playing alone is a browser-only solo table (Phase 2), not a table with seats.
 - The host hand-over is a proposal: a voluntary hand-over now (small), and taking over from a host who vanished together with presence and the heartbeat (bigger). Not built; it needs my go-ahead.
 
+---
+
 ## 42. The host can hand the table to another player (2026-10-28)
 
 **What I asked for**
@@ -894,6 +902,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - A hand-over to a player who already hosts another live table is refused, to keep the one-table-per-host rule.
 - A host who leaves hands the table to the lowest seat. The host can still close the table instead.
 
+---
+
 ## 43. Why every Vercel deployment since the lobby page has failed (2026-10-28)
 
 **What I asked for**
@@ -911,6 +921,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 **Decisions**
 - The fix is mine to make in the Vercel dashboard (Project, Settings, Environment Variables: add `FIREBASE_API_KEY`, `FIREBASE_AUTH_DOMAIN`, `FIREBASE_DATABASE_URL`, `FIREBASE_PROJECT_ID`, `FIREBASE_APP_ID` for Production and Preview, then redeploy). Claude does not read or print my `.env`.
 - Not done yet, and it matters right after: the built site has no page at `/` (the lobby builds to `/pages/lobby/`), and `/lobby/CODE` links need a rewrite, so a Vercel config (`vercel.json`) is still to do.
+
+---
 
 ## 44. Shared links, a Vercel config, and the full rule mutation run (2026-10-28)
 
@@ -934,6 +946,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - A link with extra path parts (`/lobby/ABC234/extra`) is a 404, like on Vercel, not the lobby page.
 - The referrer policy is `strict-origin-when-cross-origin`, not `no-referrer`, so a Google Cloud API key restricted by website would not silently break sign-in.
 
+---
+
 ## 45. The deployed site checked for real (2026-10-28)
 
 **What I asked for**
@@ -953,6 +967,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 **Decisions**
 - The test I could run myself, I ran. What is left for me to try by hand is what a script cannot judge: how the page looks and feels in my own browser, a share link opened on a second real device, and a phone.
+
+---
 
 ## 46. The heartbeat, and warnings before a table closes (2026-10-28)
 
@@ -975,6 +991,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - The page sends at most one heartbeat a minute, not every 30 seconds. The database's 30-second cap is only a floor against abuse.
 - The warnings use the server's clock, so a wrong clock on one computer cannot hide or invent a warning.
 - Left for later: the heartbeat is not in the flow model (its "expire" step only moves the creation time); it is covered by the rule tests and the live check.
+
+---
 
 ## 47. An edge-case pass: names, slow text, seat squatting, blocked storage, and a heartbeat race (2026-10-28)
 
@@ -1003,6 +1021,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - Table codes stay at 6 characters (about a billion possibilities); I decided that guessing is not worth 2 more characters to type for now, and will revisit if the site gets real traffic.
 - Left for later, recorded in `docs/todo.md`: size limits on `public` and `private` (a griefer could write megabytes there) and one person sitting at several tables at once.
 
+---
+
 ## 48. Two tabs of one browser were two players (2026-10-28)
 
 **What I asked for**
@@ -1022,6 +1042,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 **Decisions**
 - A join from two tabs at once is left to the rules (one seat). The reclaim write replaces the whole member entry, so a `ready` mark set in that gap would be erased; it is rare, so I left it.
+
+---
 
 ## 49. Presence: "Reconnecting..." and "Disconnected" (2026-10-28)
 
@@ -1044,6 +1066,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 **Decisions**
 - A note per tab (not per player), so a refresh or a second tab never makes the player look gone.
 - Left for later: nothing stops a member writing many tab notes with different names; the name shape is checked, the count is not.
+
+---
 
 ## 50. A member can take over from a host who has been gone for 5 minutes (2026-10-29)
 
@@ -1068,6 +1092,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - A host can still delete their own host slot and hold two tables, so the one-table slot limits honest use, not abuse. That was true before the takeover; I wrote it down.
 - Not in the flow model: presence and time, so the model does not cover the takeover; it is covered by the rule tests, the page-logic tests and the live check.
 
+---
+
 ## 51. The full rule mutation run after presence and the takeover (2026-10-29)
 
 **What I asked for**
@@ -1083,6 +1109,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 **Decisions**
 - Claude does not edit or paste the rules file while a full run is going; it only reads the committed copy.
+
+---
 
 ## 52. The card list build: a second look at the plan, and the first piece (2026-10-29)
 
@@ -1104,6 +1132,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - Build from both bulk files, once a week at most; reuse a stale list if Scryfall is down; tokens, rules text and printings are left for later steps.
 - The cost field is Scryfall's as given: a transform card has its front-face cost, a split, adventure or prepare card has both costs joined by " // ". Anything that reads costs later has to allow for both.
 
+---
+
 ## 53. The card list build: download, reuse, fallbacks and the wiring (2026-10-29)
 
 **What I asked for**
@@ -1123,6 +1153,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 **Decisions**
 - One cache folder everywhere, `.vercel/cache/overloaded`, not one chosen by a Vercel variable. I had first picked the folder from `VERCEL`, then saw that the docs say system variables are only exposed when a setting is on; a missing variable would have moved the cache somewhere Vercel does not keep and cost a 100 MB download on every deploy.
 - The build never blocks a deploy because Scryfall is down; it blocks only when there is no list at all.
+
+---
 
 ## 54. The card list on Vercel: first build, and the cache (2026-10-29)
 
@@ -1144,6 +1176,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 **Decisions**
 - Open for Kevin: `engines` floats to the newest Node major (26 today), and the page build and card step have been run locally on 24 only. Pinning it to `24.x` would match local testing; leaving it means a new major could break a deploy by itself.
 
+---
+
 ## 55. Pinning Node to 24.x (2026-10-29)
 
 **What I asked for**
@@ -1157,6 +1191,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 **Decisions**
 - I left the Vercel dropdown at 24.x and changed only `package.json`. The deploy is the proof of whether the pin took effect.
+
+---
 
 ## 56. The deck import page, version 1 (2026-10-29)
 
@@ -1179,6 +1215,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - The four defaults above. One saved deck for now, and no card images or Scryfall lookup in version one (images cost player bandwidth and need a policy change; the lookup needs rate-limit code). Names newer than the card list show as not found, and the list refreshes weekly.
 - An ambiguous name or a "did you mean" is the player's choice, never decided by the page, and the commander is a labeled guess the player confirms.
 
+---
+
 ## 57. The deck import page goes live (2026-10-29)
 
 **What I asked for**
@@ -1193,6 +1231,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 **Decisions**
 - `/deck` stays a standalone page until the lobby has deck fields; then the lobby picks a saved deck and this page becomes where decks are made and managed.
+
+---
 
 ## 58. The lobby idea, and the zone logic for the solo table (2026-10-29)
 
@@ -1215,6 +1255,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - Casual means the logic never refuses a move by the rules of the game: life can go below zero, a library can run out (draw says it was short and carries on), and a mulligan shuffles the hand back and draws again, with the player putting cards on the bottom by hand.
 - Index 0 is the top of every pile, and a graveyard shows the newest card first.
 
+---
+
 ## 59. The solo table, at /solo (2026-10-29)
 
 **What I asked for**
@@ -1234,6 +1276,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 **Decisions**
 - `/solo` is the address. Solo games are not saved: a refresh deals a new game.
 - The Start rule is not in the lobby idea. The built rule (a match starts only with at least 2 players, all ready) is still in the database rules and the flow model; I have not changed it. Open question for me: drop it only from the idea, or relax the built rule.
+
+---
 
 ## 60. Cards that were printed under another title (2026-10-29)
 
@@ -1259,6 +1303,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - Matching works even when a title exists only on a non-English printing, because the real name is always English. What it cannot do yet is show that printing's art: the table draws the default printing. Keeping the art of the printing I actually own is a follow-up (the list would need to remember which printing carries each title).
 - A title is only used after a real name and a front face fail, so a title can never hide or steal a real card.
 
+---
+
 ## 61. The solo table and alternate titles go live (2026-10-29)
 
 **What I asked for**
@@ -1278,6 +1324,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 **Decisions**
 - None new. The Start-button question and keeping a title's own printing art are still open on `docs/todo.md`.
 
+---
+
 ## 62. Sideboards in the solo table, and the start rule (2026-10-29)
 
 **What I asked for**
@@ -1295,6 +1343,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 **Decisions**
 - No change to the start rule. The sideboard stays a pile you can look at and move cards to and from, with nothing enforced (casual play).
+
+---
 
 ## 63. The number in a decklist line is optional, and a card picture on hover (2026-10-29)
 
@@ -1318,6 +1368,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - A line without a number is a card unless it looks like a heading, label or comment; skipped lines are still reported, so nothing disappears silently.
 - Pasted junk with no number (for example `<img src=x ...>`) is now a "not found" line instead of a "skipped" notice. It is still shown as plain text and never runs.
 
+---
+
 ## 64. The checked deck list shows the set and number I typed (2026-10-29)
 
 **What I asked for**
@@ -1336,6 +1388,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - The column shows the set CODE as typed, not the set's name: our card list has no set data, and a pasted list holds the code, not the name.
 - It shows what I typed, not the printing the site draws. The picture is still the default printing, and the saved deck still stores only the card id. The column is a debugging aid until the real printing fix.
 - Claude's slip: the first version of the new browser check expected 5 cells in every row, but a not-found row has no cost cell. The page was right and the check was wrong; I corrected the check.
+
+---
 
 ## 65. The art of the printing I named (2026-10-29)
 
@@ -1364,6 +1418,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - I confirmed keeping the collectors' printings, and I said the one-time rebuild after the push is fine (a single real download of the bulk files). The art picker (another printing of the same card, in the deck page and the lobby) stays on `docs/todo.md` for a later step.
 - I asked Claude to clean the to-do list of items this work made useless. It removed four finished or superseded items (the "later" printings item, the "when the build is set up" caution, "show the printing the player meant", and "next import pieces"), fixed the header and the Hosting line that still said nothing was built, and separated the already-passed spike from the ManaBox item it was glued to. Open items were left alone.
 
+---
+
 ## 66. The first live build of the printings, and one bug found by reading (2026-10-29)
 
 **What I asked for**
@@ -1382,6 +1438,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 **Decisions**
 - Claude's slip: the Save window above was a bug in my own `runCheck`, found by reading the diff, not by any test; none of my earlier checks could see it because the page waits on the network only for lists that name sets.
 
+---
+
 ## 67. Two ideas on the to-do list: several saved decks and The Stack (2026-10-30)
 
 **What I asked for**
@@ -1395,6 +1453,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - Anyone at the table can remove a card from the stack. Abilities go on the stack too, so Claude must research the kinds of things that can go on it and the best ways to represent them before any design. The solo table gets a stack as well.
 - Costs: the solo version runs in the browser, so no network and no money; the live version adds a few small database writes inside Firebase's free plan.
 - Claude recommended recording the idea and not building it now: there is no shared table page yet, and the stack is the first zone that every player writes, so it needs a rules change.
+
+---
 
 ## 68. What the lobby shows about a deck, formats and brackets (2026-10-30)
 
@@ -1411,6 +1471,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - The table gets a format setting (`meta.format` already exists, with no way to choose it), only decks of that format are offered, and a player with none can paste a list in the lobby. That makes "several saved decks" the first step.
 - The first formats are Commander and Standard; more can be added later.
 - Claude's slip: it first meant "one text" for the commander field and I read it as the deck title; it explained again and I liked the commander names over a custom deck name.
+
+---
 
 ## 69. Several saved decks (2026-10-30)
 
@@ -1431,6 +1493,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - The saved deck keeps its format (`SAVED_VERSION` stays 1) and the library wraps it, so nothing that already reads a saved deck had to change.
 - The format of a deck is a choice on the deck page, defaulting to Commander when a commander is chosen and Standard otherwise.
 - Claude's slips: two shell commands with backticks inside double quotes failed before changing anything (I then wrote the scripts as files), I miscounted two things my scripts expected (4 where there were 5, 3 where there were 4), the first seven solo checks I added ran after a scenario that blocks browser storage, and my later solo scenarios were shadowed by a leftover library key until the seed helper cleared it. Each time the page was right and my check was wrong.
+
+---
 
 ## 70. A format on the create form, and the deck fields on the member entry: the rules path (2026-10-30)
 
@@ -1455,6 +1519,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - Tomorrow, in this order: look at `git diff` of the rules file, run the full `npm run mutate` before pasting, paste, add the new requests to `scripts/check-live-rules.mjs` and run `npm run test:live`, then the page path.
 - Claude's slips: my first lobby check left a made-up "Modern" option selected, which broke the later offline step (the page was right); my first mutation of the "applies on creation" rule had unbalanced parentheses and would have broken the rules file for the wrong reason (caught by looking before running); the first run of my "alice keeps her ready mark" test failed because the emulator helper throws away what its callback returns, which this repo's notes had already recorded; my first `setDeck` refusal tests passed for the wrong reason (the database refuses those values too), and a broken copy that skipped the page's checks only showed it, so they now require the page's own message; adding a random action shifted the flow test's random numbers and left a coverage gap, so I raised it to 240 sequences and made two cases required; and a large shell command with backticks and quotes inside failed before running anything, so I wrote the log edit as files.
 
+---
+
 ## 71. A sample deck on the deck page, and a link from the solo table (2026-10-30)
 
 **What I asked for**
@@ -1474,6 +1540,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - Only one sample so far, the Commander list I gave. A 60-card Standard sample waits for a list from me.
 - The only change to my list is the `Commander` line on top.
 - Claude's slip: the stale local printing folder was its own doing. After the Collectors' printings were added it ran the deploy check against a seeded cache that predated them, and that build published the older folder; the two missing cards showed it, and it regenerated the folder.
+
+---
 
 ## 72. The format choice replaces the commander radio buttons, and the commander lists are grouped (2026-10-30)
 
@@ -1495,6 +1563,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - "Likely commanders" means legendary creatures only. Backgrounds and legendary planeswalkers are under "Other cards" for now.
 - Claude's slips: its first edit missed one leftover use of the old radio in my check, which crashed the run; and my first "load a Standard deck" check passed for the wrong reason.
 
+---
+
 ## 73. The full mutation run for the deck fields rules (2026-10-30)
 
 **What I asked for**
@@ -1511,6 +1581,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 **Decisions**
 - The rules file is ready to paste: `backend/database.rules.json` as committed in 873686d. Then the new requests go into `scripts/check-live-rules.mjs` (the deck fields, the un-ready rule, and a 220 and a 221 character commander, since the length rule has only been checked in the emulator) and `npm run test:live` runs.
 
+---
+
 ## 74. The deck fields rules are live, and checked against the real project (2026-10-30)
 
 **What I asked for**
@@ -1525,6 +1597,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 **Decisions**
 - Next is the page path: the bracket in the library and on the deck page, the lobby seats showing commander, bracket and ready, and a deck picker that calls `setDeck`.
+
+---
 
 ## 75. The small backend follow-ups (2026-10-30)
 
@@ -1545,6 +1619,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 **Decisions**
 - The `lastSeen` fix and the question about `meta/format` wait for the next rules change, so one mutation run and one paste cover them together. I lean towards leaving `meta/format` open.
+
+---
 
 ## 76. A bracket on each saved deck (2026-10-30)
 
@@ -1567,6 +1643,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - My first browser check failed for a reason in the test, not the page: the pasted list had the same text as the loaded Standard deck, so the page correctly kept that deck's format. The test now picks Commander explicitly. Also, the local printings folder was stale again after the live test run (the deploy check leaves a smaller one) and I rebuilt it with `node scripts/build-card-list.mjs --from-files --site`.
 - Still to do in step 3: the lobby seats and deck picker, the "choose a deck" popup, and the Game Changers guess.
 
+---
+
 ## 77. The lobby: decks on the seats, a deck picker, Ready and the "Choose a deck" popup (2026-10-30)
 
 **What I asked for**
@@ -1587,6 +1665,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 **Decisions**
 - Left out on purpose: a Start button and the "everyone choose a deck" popup at Start (they belong with the table page), the Game Changers guess, pasting a list inside the lobby (the popup and the picker link to the deck page instead; the seat is kept), and previewing your own deck there.
 - The "Ready" mark is bold after the commander and bracket with no separator; I left it since the bold tells it apart. Say if you want a dash or a different look.
+
+---
 
 ## 78. The Start button and the first table page (2026-10-30)
 
@@ -1610,6 +1690,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - Claude's first version of the table page used `./table.js`, which the page's own address `/table/CODE` turns into `/table/table.js`; the dev rewrite then served HTML as a script and the first live run failed (Alice reached the page, Bob's lists were empty). Production builds use root-based paths so only the dev server showed it. The table page now uses root-based paths, and the live check caught the problem, which is what it is for.
 - "Back to the lobby" on the table page while the match is on leads straight back to the table, because the lobby sends everyone at a playing table there. There is no leave or concede button yet.
 - Next: the game on the table page (your own zones from `shared/zones.mjs`, hand and library in `private/`, the rest in `public/`, small writes per move), then the opponent view. The rules batch (zone size limits, the `lastSeen` deletion, `meta/format`) waits until the data shapes are settled.
+
+---
 
 ## 79. Your own game on the table page, saved live (2026-10-30)
 
@@ -1790,6 +1872,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - My first edit of `shared/zones.mjs` also wrote stray backslashes into the file and broke it before it ran; fixed with a one-off script.
 - Next: the art link checker (step 2), then the buttons (step 3), then the one rules run (step 4).
 
+---
+
 ## 87. No practical limit on counters, the modifier and life (2026-11-04)
 
 **What I asked for**
@@ -1806,6 +1890,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 **Decisions**
 - Why one trillion and not none: whole numbers are only exact in JavaScript up to about 9 quadrillion, so a ceiling keeps sums exact, and nobody reaches it in play.
 
+---
+
 ## 88. Custom art becomes an uploaded picture, and sleeves and playmats join it (2026-11-04)
 
 **What I asked for**
@@ -1819,6 +1905,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 **Decisions**
 - Dropped the image link idea. Open: whether other players see one's playmat, and whether swapping a sleeve mid-match stays light enough.
+
+---
 
 ## 89. Counter buttons on the solo table, first part (2026-11-04)
 
@@ -1842,6 +1930,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - My first scenario failed because an earlier scenario leaves browser storage blocked for the rest of the run; I moved mine before it.
 - The editing tool again turned an escaped character in a test file (an Arabic-Indic digit written as a backslash-u code) into the real character. The hygiene check does not flag it because it is not invisible; I noticed because a search for the escape found nothing, and I wrote it with a code point call instead.
 
+---
+
 ## 90. The counter controls on the live table page (2026-11-05)
 
 **What I asked for**
@@ -1858,6 +1948,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 **Decisions**
 - Next: clicking the chips and the label on the card, then notes and face-down, then player counters and commander damage.
+
+---
 
 ## 91. Clicking the counters and the change on the card itself (2026-11-05)
 
@@ -1879,6 +1971,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - Clicking a mark does not select the card, so you can adjust counters on several cards quickly.
 - Next: notes and face-down, then player counters and commander damage buttons, then the one rules run.
 
+---
+
 ## 92. The dev server did not serve my own pages (2026-11-05)
 
 **What I asked for**
@@ -1895,6 +1989,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 **Decisions**
 - My own mistake: the first fix only checked that each address answered 200 with the right page title. It did not check that the page's script loaded, so it passed while `/deck` and `/solo` were broken, and you found it. The check now fetches every script and stylesheet the page asks for, and looks at whether the page's own code ran.
+
+---
 
 ## 93. A power and toughness box with the real numbers (2026-11-05)
 
@@ -1920,6 +2016,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - I did not put the printed numbers on the game card or in the database: they are looked up from the card list like the type line, so the database card shape and the rules are unchanged. A copy of a creature made with `copyAsToken` therefore loses its printed numbers; on `docs/todo.md`.
 - Next, if you want it: the right-click menu from the video to replace most of the panel.
 
+---
+
 ## 94. A right-click menu on cards, and a quieter selected-card area (2026-11-05)
 
 **What I asked for**
@@ -1940,6 +2038,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - Mistakes of mine: the menu first grew taller after being placed near the right edge (it was placed using the window width including the scrollbar, and narrowed there so a line wrapped); the bottom-right-corner check caught it and it is fixed (a fixed natural width, and the width without the scrollbar). Two older checks were out of date and I updated them. A first version of one of my new tests had an `if` that would have skipped the keyboard checks silently; it is a real assertion now. The local card list was again overwritten by the production build check and had to be rebuilt.
 - Not done: Ping card (it would need to be sent to the other players), Create copy (a copy of a creature loses its printed numbers until `copyAsToken` gets them passed in), a long-press for phones (a phone has no right-click; the buttons are the way in there), and a menu for cards inside the pile viewer (those are rows, not card buttons). Phone width is not checked.
 - The panel's move buttons are still there next to the menu. If you want the selected-card area shorter still, they can go and the menu does the moving.
+
+---
 
 ## 95. Two-sided cards: turning a card over (2026-11-06)
 
@@ -1970,6 +2070,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - Left out on purpose: flip cards (turned upside down, 45 printings), meld cards, reversible Secret Lair printings (the same card with art on both sides).
 - Not done: a copy of a turned card (still shows the front picture), the back face in the deck page's hover picture (the table has no hover picture yet), playing a modal card straight from the hand as its land, `bk` in the batched database rules change, face-down pictures and the real card back, emblems and the token creator, and phone width.
 
+---
+
 ## 96. Create copy, playing a modal card as its back face, and the front and back hover picture (2026-11-06)
 
 **What I asked for**
@@ -1995,6 +2097,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - The wider hover box covers the type column of the deck list but never the card names.
 - Not done: the keywords of a copy of a back face (they come from the whole card), Create copy through the menu on the live table page (the button is tested live, the menu only on the solo table), flip and meld cards, `bk` in the batched rules change, face-down pictures, emblems and the token creator, and phone width.
 
+---
+
 ## 97. Player counters and commander damage (2026-11-06)
 
 **What I asked for**
@@ -2017,6 +2121,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - A flaky check of mine from entry 95: the named-printing fallback waited for "any back picture" and not for the final one, so it failed one run in four. It now waits for the end state.
 - Unexplained and still open: one run of the two-browser live check failed at "both ready again with the decks they brought" after the match ended, and then passed ten runs in a row. I lost that output, so I do not know the cause. It is on `docs/todo.md`.
 - Two partner commanders of one seat share one number, because the key is the seat. Solo has no commander damage (no opponents). `pc` and `cd` still need to go into the batched rules change.
+
+---
 
 ## 98. Turns, summoning sickness and "doesn't untap" (2026-11-06)
 
@@ -2044,6 +2150,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - Mistakes of mine: **the first Pass design had a flaw.** A player keeps only their latest record, so two passes in a row by one player (a skip) could not be taken back: it went to turn 2 instead of turn 3. I found it while planning the live test, showed it with a small script against the old code first, and records now carry the turn they replaced, with regression tests. My first unit test of take back only used the case where the previous pass belonged to someone else, which hid it. **The "your turn" banner was first inside the game section,** below the other players' panels, so a player would never have seen it; the screenshot showed it and it is at the top now. The lock first floated in the empty space above a tapped card; the zoom showed it and it sits on the card's corner. Four broken copies survived at first (a creature made sick again by moving it within the battlefield, damaged marks passing the consistency check, and the wording of the untap message) and now have tests. My shell scripts lost backslashes twice (a regex came out with backspace characters in it, which the hygiene check and a syntax check caught, and several patches stopped before writing), so I used the edit tool for anything with a backslash. One of my broken-copy runs went past the ten-minute limit and moved to the background; I did not touch the files meanwhile and it restored them itself.
 - Left out or open: taking a pass back does not un-draw or un-untap the player whose turn started; haste from an enchantment still needs the one-click clear; a player who leaves without conceding is only handled by the Skip button; no sound or browser notification (the banner and the title only); `sk`, `nu` and `pass` still need to go into the batched rules change; phone width.
 
+---
+
 ## 99. Review fixes, a lobby race, and no automatic draw or untap (2026-11-06)
 
 **What I asked for**
@@ -2063,6 +2171,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 **Decisions**
 - Mistakes of mine: I proposed hiding Take back once the next player's turn had started without noticing that, with an automatic start, it would almost never be usable. I asked before building it, and the answer changed the design. My earlier note on the intermittent failure had the mechanism wrong: it said the popup came from Ready pressed before the deck was sent, which was right, but I had not seen that the deck is restored through a database write that finishes *after* the page is already usable. The failure came back while I was testing, with the full output saved this time, which showed the "choose a deck" dialog open on Alice's page. Six runs in a row passed after the fix. That is not proof, because the failure was intermittent (about one run in six), but the cause is identified.
 - Not done: the batched database rules change (size and shape limits for `public`, `private` and `pass`, plus `sk`, `nu`, `pc`, `cd`, `bk`), a 55-minute mutation run and your paste.
+
+---
 
 ## 100. The batched database rules change: built and tested, not pasted yet (2026-11-06)
 
@@ -2086,6 +2196,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - Mistakes of mine: my first draft of the rules had two holes the new tests found before anything ran against the project. The 250-card key check was overwritten by the card's own `.validate` when I merged the two blocks, so any key was accepted. And a rule on a child never runs for a value with no children, so a list or a whole branch written as one long string was accepted. The first mutation run also marked 107 mutations "suspicious" because my own structure check threw before any behavior test, which hid what the tests catch; I moved it to the end of the file. My `timeout` once killed a mutation run midway; the script repaired the rules file from its backup and I checked the hash.
 - Not done: your paste into the Firebase console, then `npm run test:live`; the scheduled cleanup of old tables (still needed before strangers use the site); a rule against one person making many tables.
 
+---
+
 ## 101. The first sound effects: draw and shuffle (2026-11-06)
 
 **What I asked for**
@@ -2106,6 +2218,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - Not done on purpose: no sound for other players' moves, none for "your turn" (still on the list), and no setting for that yet.
 - Mistakes of mine: one of my first broken copies had text that broke the syntax, so its "caught" meant nothing; I rewrote it and it was caught for the right reason. One broken copy (no sample after moving the slider) survived because the previous sound was the same one, so the test could not tell; I changed the test to play a shuffle first and count the plays, and it is caught now. The two files showed up as "added" in git's index under their old names (something staged them, not me); I unstaged them, which touched only the index.
 
+---
+
 ## 102. Tap and your-turn sounds, and the volume scheme (2026-11-06)
 
 **What I asked for**
@@ -2124,6 +2238,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 **Decisions**
 - Mistakes of mine: a regex in a template literal in my new check lost its backslash and was read as a comment, which made the page throw; and my live check assumed Alice's page still had its recorder after a reload. Both were found by the first run and fixed.
 
+---
+
 ## 103. The volume slider could not reach its ends (2026-11-06)
 
 **What I asked for**
@@ -2140,6 +2256,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 **Decisions**
 - Not done: a your-turn sound on the solo table.
+
+---
 
 ## 104. The slider looked wrong in my browser, and it made noise (2026-11-06)
 
@@ -2159,6 +2277,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 **Decisions**
 - Mistakes of Claude: it told me the accent colour change "may" fix the look when it could not reproduce the problem, and it added a sample sound on adjustment that I did not ask for.
 
+---
+
 ## 105. All four sounds at the same, lower level (2026-11-06)
 
 **What I asked for**
@@ -2172,6 +2292,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - The levels are the average level of each whole file, decoded in headless Chrome (draw -31.8, shuffle -31.2, tap -51.6, your turn -25.0 dBFS, after I replaced the tap file). A short sharp click (draw) can still feel punchier than its average says: its peak is the highest of the four.
 - Not checked: how they actually sound. Nobody has listened since the change. The gains are single numbers in `SOUND_GAIN` if one feels too soft or too loud.
 - I ran the unit test and the solo check, not the whole `npm test`: only the gain numbers and their expectations changed.
+
+---
 
 ## 106. Dealing the hand one card at a time (2026-11-06)
 
@@ -2195,6 +2317,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - Chose to stage only the display, not the game: dealing the game for real one card at a time would have meant seven saves, other players seeing a half-dealt hand, and a refresh in the middle leaving a partial game.
 - Mistakes of Claude: its first test used a hand of seven cards for a deal of three; its first screenshot showed the whole hand because the navigation helper waited for the deal to finish; its recorder in the live check was lost on a reload; and its first mulligan block changed Alice's hand before a check that compares it with her first one.
 
+---
+
 ## 107. Expired tables are cleaned up by whoever finds them (2026-11-06)
 
 **What I asked for**
@@ -2213,6 +2337,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 - A page never deletes a table it belongs to. The rules let a host (or the last player standing) delete their table while it is alive, so a page that wrongly believed it had closed (stale read, offline queue) could destroy a live table. Only the safe cases were built: a stranger, and a new table at a colliding code.
 - Not solved: a table nobody ever opens again, whose host never makes a new table, still stays in the database. Each host account leaves at most one (a new table replaces the old). The full fix is a scheduled job; Firebase's needs a paid plan. A free scheduled job elsewhere (GitHub Actions or Vercel Cron with a service account key as a secret) is an option, not checked, and the key is your decision.
 - Mistakes of mine: reusing a code created a bug I had not thought of until the test of the old host found it: the old host's slot named the reused code, which now belongs to someone else's live table, so the rules refused every new table for that host. Fixed as above. My first version of two tests could not fail (the code guard and the live-table slot).
+
+---
 
 ## 108. Ping card: a shared spotlight and a glow (2026-11-06)
 
@@ -2233,6 +2359,8 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 **Decisions**
 - Not built: pinging a card in the hand (it would be a deliberate reveal and needs its own wording), pinging another player's card, a ping on the solo table, sounds for a ping. A hostile player can still ping very fast; the other pages just keep replacing the spotlight and each player can close it. The Stack stays a separate, larger feature that needs research first.
 - Mistakes of Claude: it first wrote an empty object as a "refused" ping (in Firebase an empty object is a delete) and passed a string where a test helper wanted an object. Its first ping tests did not cover a missing id or name. It picked a port another check already uses.
+
+---
 
 ## 109. The one-screen layout, Phase A (2026-11-06)
 
@@ -3646,6 +3774,7 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 **My mistakes this round:** the carets I used last time were a literal reading of your examples; I should have asked what you wanted before choosing characters.
 
+---
 
 ## 186. A /logs/ page, split into weeks (2026-11-14)
 
