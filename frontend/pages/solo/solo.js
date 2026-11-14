@@ -93,7 +93,7 @@ const place = cardNodes.place;
 // The piles as stacks of cards (src/pile-stack.js) and the command zone with its two outlined slots and the commander tax (src/command-zone.js).
 const stacks = Object.fromEntries([['library', 'Library'], ['graveyard', 'Graveyard'], ['exile', 'Exile']].map(([zone, label]) => [zone, mountPileStack($(`pile-${zone}`), { zone, label })]));
 const commandSlots = new Map(); // uid -> 1 or 2: the slot of the command zone a commander was dragged into (not saved: a refresh puts them in order)
-const commandZone = mountCommandZone({ root: $('command'), place, showTax: true, onTax: (uid, delta) => { if (!game) return; const action = taxAction(game, uid, delta); if (action) apply(() => action.run(game), action.message); } });
+const commandZone = mountCommandZone({ root: $('command'), place, showTax: true, keepTaxRoom: true, onTax: (uid, delta) => { if (!game) return; const action = taxAction(game, uid, delta); if (action) apply(() => action.run(game), action.message); } });
 
 // The hand is shown one card at a time with the draw sound for each (shared/deal-sequence.mjs). Only what is SHOWN is staged: the game was dealt all at once, so
 // what is saved and what other players see never waits for the animation. A refresh in the middle just shows the whole hand.

@@ -795,6 +795,9 @@ body[data-tapped-pile-style="vertical"] .battlefield > .card.tapped[data-stack-e
 .cmd-slot.away .slot-cards { border-style: dotted; opacity: 0.7; }
 .cmd-slot .tax { display: inline-flex; align-items: center; gap: 0.25rem; }
 .cmd-slot .tax[hidden] { display: none; }
+/* On the solo table the tax row of an empty slot keeps its room (it is only not drawn), so the two slots line up (Kevin, 2026-11-13) */
+.cmd-slot .tax.tax-off { visibility: hidden; }
+body.playing.solo .cmd-slot .tax { height: 1.7rem; } /* the same height with a number in it and without, so the two slots line up */
 .settings-row { margin-bottom: 0.5rem; }
 
 /* The deck manager (frontend/src/deck-importer.js): three screens, one at a time. */

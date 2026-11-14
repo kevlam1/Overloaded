@@ -3512,6 +3512,20 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 177. The empty command slot lines up with the other (2026-11-13)
+
+**What I asked for**
+- The inactive commander zone is not aligned; align it with the others.
+
+**What changed** (`frontend/src/command-zone.js`, `solo.js`, `style.css`, `scripts/check-solo-ui.mjs`)
+- When I moved the tax counter above each commander (entry 176), the empty slot's tax row was hidden with the hidden attribute, which takes no room, so its dotted box sat one row higher than the commander's. On the solo table the empty slot now keeps the room of its tax row (the row is only made invisible), and the row has one fixed height with a number in it and without. The table page, which has no tax counters yet, is as it was.
+
+**What I checked:** the solo check (613). Its command zone check now also asks that the two slots have the same top and bottom; it printed the positions when it failed (the second slot was 31 px higher), and it passed after the change. The three older checks that asked whether the empty slot's tax is hidden now ask whether it is invisible. I did not look at a screenshot of this change.
+
+**My mistakes this round:** my first fix put a display rule on the tax row, which a stronger hidden rule overrode, so the slot stayed 31 px high; my second try (a fixed height) did not help for the same reason, and I found the cause only by adding the positions to the failure message. And the two checks about the hand (the cards moving aside) failed again in some runs with 9 cards in the hand; I did not find what leaves them there, so they now deal a fresh hand of 7 right before they run.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

@@ -12,7 +12,7 @@ function make(tag, className, content) {
 
 // root: the element that holds the two slots (it is emptied and filled once). place(container, cards): the page's way of drawing card buttons. onTax(uid, delta): one cast more or less.
 // showTax: whether the tax counter is shown at all (the live table hides it until the database accepts it).
-export function mountCommandZone({ root, place, onTax, showTax = true }) {
+export function mountCommandZone({ root, place, onTax, showTax = true, keepTaxRoom = false }) {
   const slots = [1, 2].map((slot) => {
     const element = make('div', 'cmd-slot');
     element.dataset.slot = String(slot);
@@ -59,7 +59,8 @@ export function mountCommandZone({ root, place, onTax, showTax = true }) {
       slot.words.disabled = !entry;
       slot.words.title = entry ? `${entry.name}: commander tax ${entry.tax}, cast ${entry.casts} ${entry.casts === 1 ? 'time' : 'times'} from the command zone. Click to add a cast (each makes the next one cost ${TAX_PER_CAST} more); right-click to take one back.` : '';
       slot.words.setAttribute('aria-label', entry ? `${entry.name}: commander tax ${entry.tax}. Click to add a cast, right-click to take one back.` : 'No commander');
-      slot.tax.hidden = !showTax || !entry;
+      if (keepTaxRoom && showTax) { slot.tax.hidden = false; slot.tax.classList.toggle('tax-off', !entry); } // (the solo table keeps the room of the tax row of an empty slot, so the slots line up)
+      else slot.tax.hidden = !showTax || !entry;
     });
   }
   return { update };
