@@ -3890,6 +3890,21 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 **My mistakes this round:** I changed the width in the layout first and found the other tests that hold the old numbers (the hole under a carried card, the step beside the selected card) only by running the hand test, one failure at a time.
 
+
+---
+
+## 193. The hand's drop area is a quarter shorter (2026-11-14)
+
+**What I asked for**
+- I asked what size the drop area is (811 by 163 px at 1366 by 768, about 6.05 cards wide and 0.87 of a card tall), then to reduce its height by about 25%.
+
+**What changed** (`frontend/src/hand-view.js`, `scripts/check-solo-ui.mjs`)
+- The drop area (the dashed rectangle) now starts lower: it is the lower three quarters of what it was (`AREA_SHARE` 0.75, and `areaInset()` for where it starts), and its bottom stays on the bottom of the hand's box. At 1366 by 768 that is about 122 px tall instead of 163. The line where a resting hand starts to rise when the pointer comes near it is the same line, as before, so the pointer now has to be a little lower on a resting hand to raise it, and a card dropped on the top part of the visible cards of a resting hand is no longer dropped on the hand. A raised hand still counts the whole box.
+
+**What I checked:** the solo check (629): a new check that the rectangle is three quarters as tall as the visible part of a lowered hand (the box less the drop), and eight older checks changed or they failed on the first run: they pointed at the top of a resting card, which is now outside the area (the carry out and back in, and the drops onto the hand, including the command zone ones, which failed one after another because of one early miss). They now go in through the lower part of the area. I did not look at a screenshot of the new rectangle.
+
+**My mistakes this round:** a comment I put at the end of a line of a check swallowed the end of the call (a syntax error I had already learned about), and I had started the solo check before the syntax check, so I stopped that run (only the one I started) and ran it again.
+
 ---
 
 ## Where AI misread me, or I had to correct course

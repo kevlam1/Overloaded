@@ -293,10 +293,14 @@ export function mountHand({ container, costOf = () => '' }) {
     arrange(); // the places move by the quarter (and the lifted copy is dropped)
     updateBar();
   }
-  // Is the point (x, y) in the area of the hand? The width the cards cover; from the top of the box down while raised, from the top of the cards that show while lowered.
+  // How far below the top of the box the drop area starts (and where a lowered hand starts to rise): the visible part of a lowered hand is the box less the drop, and the area is the lower three quarters of that
+  // (Kevin, 2026-11-14: it was all of it, 25% taller).
+  const AREA_SHARE = 0.75;
+  const areaInset = (boxHeight) => { const drop = dropDistance(); return Math.round(boxHeight - AREA_SHARE * Math.max(0, boxHeight - drop)); };
+  // Is the point (x, y) in the area of the hand? The width the cards cover; from the top of the box down while raised, from the start of the drop area while lowered.
   function inArea(x, y) {
     const z = zone();
-    const top = z.top + (raised ? 0 : dropDistance());
+    const top = z.top + (raised ? 0 : areaInset(z.bottom - z.top));
     return x >= z.left && x < z.right && y >= top && y <= z.bottom + 1;
   }
   const onPointerMove = (event) => {
@@ -312,7 +316,7 @@ export function mountHand({ container, costOf = () => '' }) {
     const z = zone();
     container.style.setProperty('--zl', `${z.left - container.getBoundingClientRect().left}px`);
     container.style.setProperty('--zw', `${z.right - z.left}px`);
-    container.style.setProperty('--zt', `${Math.max(dropDistance(), emptyFloor() - container.getBoundingClientRect().top)}px`); // where the dashed rectangle starts: where the visible cards of a lowered hand start, which is where the hand rises when the pointer comes near it
+    container.style.setProperty('--zt', `${Math.max(areaInset(z.bottom - z.top), emptyFloor() - container.getBoundingClientRect().top)}px`); // where the dashed rectangle starts: the lower three quarters of the visible cards of a lowered hand, which is where the hand rises when the pointer comes near it
   }
 
   // ---- carrying a card of the hand ----
@@ -392,7 +396,7 @@ export function mountHand({ container, costOf = () => '' }) {
   // no cards is a few cards wide in the middle, where one would go.
   function over(x, y) {
     const z = zone();
-    const top = Math.max(z.top + dropDistance(), emptyFloor());
+    const top = Math.max(z.top + areaInset(z.bottom - z.top), emptyFloor());
     return x >= z.left && x < z.right && y >= top && y <= z.bottom + 1;
   }
 

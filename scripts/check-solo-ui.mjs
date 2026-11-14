@@ -1005,9 +1005,11 @@ try {
       for (let step = 1; step <= 8; step++) await mouse('mouseMoved', start.x, start.y - (start.y - handTop + 80) * step / 8, 1);
       await sleep(300);
       const out = await ev("document.getElementById('hand').classList.contains('raised')");
-      for (let step = 1; step <= 8; step++) await mouse('mouseMoved', start.x, handTop - 80 + (start.y - handTop + 80) * step / 8, 1);
+      const inside = (await handBox()).bottom - 30; // (back in through the drop area, which starts lower than the top of the cards: coming in at the top of a lowered hand would be outside it)
+      for (let step = 1; step <= 8; step++) await mouse('mouseMoved', start.x, handTop - 80 + (Math.max(start.y, inside) - handTop + 80) * step / 8, 1);
       await sleep(300);
       const back = await ev("document.getElementById('hand').classList.contains('raised')");
+      await mouse('mouseMoved', start.x, start.y, 1); await sleep(150);
       await mouse('mouseReleased', start.x, start.y, 0); await sleep(250);
       check('carrying a card out of the hand lowers it, bringing it back raises it, and letting go in the place it came from changes nothing', out === false && back === true && (await handFacts()).uids.join() === same.uids.join(), JSON.stringify({ out, back }));
     }
@@ -2415,8 +2417,9 @@ try {
       seen = await ev("(() => { const h = document.getElementById('hand'); const after = getComputedStyle(h, '::after'); return { outline: after.opacity, style: after.borderTopStyle, wide: Math.round(parseFloat(after.width)), cardOutlines: [...h.querySelectorAll(':scope > .card')].map((c) => getComputedStyle(c).outlineStyle), hole: h.dataset.hole ?? null, marked: document.getElementById('hand-section').classList.contains('drop-hand'), xs: [...h.querySelectorAll(':scope > .card')].map((c) => Math.round(parseFloat(c.style.getPropertyValue('--hx')))) }; })()");
     } });
     const holeShown = Number(seen?.hole);
-    const rectBox = await ev("(() => { const h = document.getElementById('hand'); const a = getComputedStyle(h, '::after'); const r = h.getBoundingClientRect(); return { handH: Math.round(r.height), top: Math.round(parseFloat(a.top)), height: Math.round(parseFloat(a.height)), bottomGap: Math.round(parseFloat(a.bottom)) }; })()");
-    check('the rectangle is inside the box of the hand, below its top, with its bottom edge on the bottom of the box (where it starts is checked below, by where the hand rises)', rectBox.top > 20 && rectBox.top < rectBox.handH / 2 + 1 && rectBox.bottomGap === 0, JSON.stringify(rectBox));
+    const rectBox = await ev("(() => { const h = document.getElementById('hand'); const a = getComputedStyle(h, '::after'); const r = h.getBoundingClientRect(); return { handH: Math.round(r.height), top: Math.round(parseFloat(a.top)), height: Math.round(parseFloat(a.height)), bottomGap: Math.round(parseFloat(a.bottom)), drop: (() => { const c = h.querySelector(':scope > .card'); return Math.round(c.offsetHeight * 0.25 + (parseFloat(getComputedStyle(c).bottom) || 0)); })() }; })()");
+    check('the rectangle is inside the box of the hand, below its top, with its bottom edge on the bottom of the box (where it starts is checked below, by where the hand rises)', rectBox.top > 20 && rectBox.top < rectBox.handH * 0.65 && rectBox.bottomGap === 0, JSON.stringify(rectBox));
+    check('the rectangle is three quarters as tall as the visible part of a lowered hand (the box less the drop): a quarter shorter than it was (Kevin, 2026-11-14)', Math.abs(rectBox.height + 4 - 0.75 * (rectBox.handH - rectBox.drop)) <= 4, JSON.stringify(rectBox));
     check('carried over the hand a card from the battlefield is shown by ONE rectangle round the whole hand (a dashed outline, as wide as the hand), and no card of the hand has an outline of its own', seen && seen.marked === true && seen.outline === '1' && seen.style === 'dashed' && seen.wide > 300 && seen.cardOutlines.every((o) => o === 'none'), JSON.stringify(seen));
     check('the hand opens a place for it: one place is open among the cards (a hole between two of them) and the cards have moved', Number.isInteger(holeShown) && holeShown >= 0 && holeShown <= 6 && JSON.stringify(seen.xs) !== JSON.stringify(before), JSON.stringify({ hole: seen?.hole, before, now: seen?.xs }));
     // away from the hand the place closes again
@@ -2449,7 +2452,8 @@ try {
     const zoneCount = (zone) => ev("Number(document.getElementById('pile-" + zone + "').dataset.count)");
     const counts = async () => ({ hand: await count('#hand > .card'), field: await count('#battlefield > .card'), library: await zoneCount('library'), graveyard: await zoneCount('graveyard'), exile: await zoneCount('exile'), command: await count('#command .card') });
     const face = (zone) => centerOfSelector('#pile-' + zone + ' .stack-face');
-    const handPoint = async () => handCardPoint((await handNames())[0]);
+    // (a point on the first card but low in the drop area: the area starts lower than it did, so a point high on a lowered card is no longer over the hand)
+    const handPoint = async () => { const p = await handCardPoint((await handNames())[0]); return { ...p, y: (await ev("document.getElementById('hand').getBoundingClientRect().bottom")) - 30 }; };
     const c0 = await counts();
     check('the table starts with a hand of 7, a library, a commander in the command zone and nothing on the field, in the graveyard or the exile', c0.hand === 7 && c0.field === 0 && c0.library > 40 && c0.graveyard === 0 && c0.exile === 0 && c0.command === 1, JSON.stringify(c0));
     // a plain click on a pile still opens its viewer (it is not a drag)
