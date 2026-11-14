@@ -86,7 +86,7 @@ export function holeAt({ total, width, cardWidth, x, previous = null, deadZone =
 // A card of the hand that has been clicked comes up to be read, and the cards beside it make room (Kevin, 2026-11-12): the WHOLE of each side moves aside, separately: every card to its left moves
 // left by SPREAD of a card's width and every card to its right moves right by as much, so the row opens around it. The row is laid out again in the width left after the two shifts (the cards on each side
 // close up a little when there is no room, so nothing leaves the width) and centred. Heights and turns are those of the same place in the plain hand. index: the clicked card.
-export const SPREAD = 0.55; // how far each side moves aside, as a fraction of a card's width
+export const SPREAD = 0.4125; // how far each side moves aside, as a fraction of a card's width
 export function handLayoutSelected({ count, width, cardWidth, cardHeight, index }) {
   const plain = handLayout({ count, width, cardWidth, cardHeight });
   const n = plain.slots.length;

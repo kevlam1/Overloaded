@@ -3602,6 +3602,20 @@ Artifact 5 is the moonshot, due Sunday 13 December. I want to build Overloaded, 
 
 ---
 
+## 183. Less room beside the selected card, and a 250 ms hold for a pile (2026-11-14)
+
+**What I asked for**
+- In the hand, reduce the space beside the selected card by 25%. Reduce the time to hold to pick up a pile of cards to 250 ms.
+
+**What changed** (`shared/hand-layout.mjs`, `shared/stacks.mjs`, tests)
+- `SPREAD` is 0.4125 of a card's width (it was 0.55): each side of the hand moves aside by 33 px for an 80 px card (it was 44), a quarter less. `STACK_HOLD_MS` is 250 (it was 350).
+
+**What I checked:** the hand unit test (116, the expected shifts are now 33) and the stacks test (122), and the solo check (614). Two expectations in the solo check followed the change: each neighbour of the clicked card is now at least 0.6 of a card away (it was 0.75), and "the brought-up card has no lifted copy" now asks whether the selected card itself is lifted, not whether any card is, because with the neighbours opened less a pointer that stays where it was can end up over a neighbour, which is then lifted like any card under the pointer. If that happens in use and bothers you, it is the price of the smaller gap; the other way is a smaller rise of the clicked card.
+
+**My mistakes this round:** none found; a second check failed once after the first, and went away when the first was fixed (a leftover from it).
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.
