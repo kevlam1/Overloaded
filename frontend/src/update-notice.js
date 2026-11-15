@@ -3,7 +3,7 @@
 // The build writes /version.json with an id (the commit on Vercel); the page has its own copy of that id. About 13 seconds after the page loads, and then once a minute,
 // it asks for /version.json (never from the cache); if the id is different a newer build is live, and the notice shows. Nothing is shown when the ids match or the file can't be read.
 const FIRST_CHECK_MS = 13000;
-const EVERY_MS = 60000;
+const EVERY_MS = 60000; // after the first check, once a minute
 
 export function mountUpdateNotice({ buildId, fetchFn = fetch, doc = document } = {}) {
   if (!buildId || buildId === 'dev') return { stop() {} };
