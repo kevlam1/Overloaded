@@ -661,10 +661,14 @@ try {
     const menu = await ev("(() => { const m = document.querySelector('.card-menu'); return m ? { title: m.querySelector('.card-menu-title')?.textContent, items: [...m.querySelectorAll('[role=menuitem]')].map((i) => i.textContent.trim()) } : null; })()");
     check('the arrow beside Library opens the menu of the pile (the same as a right-click on it)', menu && /library/i.test(menu.title) && menu.items.includes('Shuffle') && menu.items.includes('Search...'), JSON.stringify(menu));
     await browser.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await sleep(100);
-    // an empty hand: the drop area starts under the bottom of the battlefield (it used to reach up over it)
-    await ev("document.getElementById('hand').replaceChildren(); document.getElementById('hand').style.paddingRight = '1px'"); await sleep(300);
-    const area = await ev("(() => { const h = document.getElementById('hand'); const zt = parseFloat(h.style.getPropertyValue('--zt')); return { top: h.getBoundingClientRect().top + zt, field: document.getElementById('battlefield').getBoundingClientRect().bottom }; })()");
+    // an empty hand has the drop area of a hand of ONE card (Kevin, 2026-11-15): the same width, the same place in the middle and the same top; and it starts under the bottom of the battlefield
+    const dropArea = "(() => { const h = document.getElementById('hand'); const r = h.getBoundingClientRect(); const left = r.left + parseFloat(h.style.getPropertyValue('--zl')); const width = parseFloat(h.style.getPropertyValue('--zw')); return { left: Math.round(left), width: Math.round(width), middle: Math.round(left + width / 2), top: Math.round(r.top + parseFloat(h.style.getPropertyValue('--zt'))), bottom: Math.round(r.bottom), field: Math.round(document.getElementById('battlefield').getBoundingClientRect().bottom), cardWidth: Math.round(document.querySelector('#hand > .card')?.offsetWidth ?? 0) }; })()";
+    await ev("(() => { const h = document.getElementById('hand'); [...h.querySelectorAll(':scope > .card')].slice(1).forEach((c) => c.remove()); h.style.paddingRight = '1px'; })()"); await sleep(300);
+    const oneCard = await ev(dropArea);
+    await ev("document.getElementById('hand').replaceChildren(); document.getElementById('hand').style.paddingRight = '2px'"); await sleep(300);
+    const area = await ev(dropArea);
     check('with an empty hand the white dotted drop area starts under the bottom of the battlefield', area.top >= area.field - 1, JSON.stringify(area));
+    check('and it is the same size and place as the drop area of a hand of one card: the same width (two card widths), the same middle and the same top (within 2 px)', oneCard.cardWidth > 50 && Math.abs(oneCard.width - 2 * oneCard.cardWidth) <= 2 && Math.abs(area.width - oneCard.width) <= 2 && Math.abs(area.middle - oneCard.middle) <= 2 && Math.abs(area.top - oneCard.top) <= 2 && area.bottom === oneCard.bottom, JSON.stringify({ oneCard, area }));
     await browser.goto(PAGE); await waitFor(async () => (await count('#hand .card')) === 7 || null, 8000, 25); await sleep(1200); // (dealt again: the hand was emptied by hand above)
   }
   // ---- Q and E tap, D draws, Tab opens Settings, a rectangle picks several cards, costs show on hover, and the command zone's words ----

@@ -4015,6 +4015,21 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **My mistakes this round:** the 66 rows were a detour: you had asked for the sides and the top, and when I asked how to extend it I offered "taller" first and did not say that the sides were part of it; it cost about ten long runs of the check before you pointed the problem out. Two of my new checks had mistakes (one used a drag helper that was not available there, and my pile test left the hand without the Forests the next checks needed).
 
+
+---
+
+## 200. An empty hand has the drop area of a hand of one card (2026-11-15)
+
+**What I asked for**
+- First a question (how much of a card has to be dragged from the hand to the bottom of the battlefield; it felt like 75%), which I told Claude to skip. Then: make the size of the drop zone of an empty hand the same as that of a one-card hand.
+
+**What changed** (`frontend/src/hand-view.js`, `scripts/check-solo-ui.mjs`)
+- With no cards in it the hand's drop area was three card widths wide (a guess at a card from the height of the box) and started under the bottom of the battlefield. It is now what a hand of one card has: two card widths wide (the card and half a card at each end), in the middle, and starting at the same height (a quarter of a card's height below where the cards stand, and the 2.8 rem they keep above the bottom of the box). The function `emptyFloor` (the "never higher than the bottom of the battlefield" rule) is gone, because the area now starts well below the battlefield by itself. For a hand with no cards the height of a card is worked out from the box the way style.css does it (the height inside its padding less 2.8 rem), in `cardHeightOf`.
+
+**What I checked:** the solo check (647): a new check that the empty hand's area has the same width, the same middle and the same top (within 2 px) as the area of a hand of one card (made by taking all but one card out of the page), and that it still starts under the bottom of the battlefield. I did not drop a card on an empty hand with the mouse after this change, only the numbers.
+
+**My mistakes this round:** my first version took a card's height as the box's height less 4 px, which is not what the style sheet says, so the empty area came out 25% too wide (447 px against 356) and the new check caught it. The check that the hand goes down again once the pointer leaves failed once in the first run and passed in the next; I do not know what made it fail and it is not one I changed.
+
 ---
 
 ## Where AI misread me, or I had to correct course

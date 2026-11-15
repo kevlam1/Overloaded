@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.199</span></h1>
-    <p class="lede">199 entries, Oct 25 to Nov 15, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
+    <h1>Build log <span class="version">Version 0.200</span></h1>
+    <p class="lede">200 entries, Oct 25 to Nov 15, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
   </div>
 </header>
 
@@ -23,7 +23,7 @@
     <div class="weeks-row">
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
-<a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">89</span></a>
+<a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">90</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
     </div>
     <div class="tools">
@@ -1961,7 +1961,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-1" aria-labelledby="week-1-title">
-<h2 class="week-head" id="week-1-title"><button type="button" aria-expanded="false" aria-controls="week-1-days"><span class="wname">Week 1</span><span class="range">Nov 9 to Nov 15</span><span class="week-count">89 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-1-title"><button type="button" aria-expanded="false" aria-controls="week-1-days"><span class="wname">Week 1</span><span class="range">Nov 9 to Nov 15</span><span class="week-count">90 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-1-days">
 <div class="day">
 <h3 class="day-title">Monday 9 November <span class="day-count">4</span></h3>
@@ -3368,7 +3368,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Sunday 15 November <span class="day-count">1</span></h3>
+<h3 class="day-title">Sunday 15 November <span class="day-count">2</span></h3>
 <div class="entries">
 <article class="entry" id="entry-199" data-n="199">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-199-body">
@@ -3383,6 +3383,21 @@
 <ul><li><strong>Flush:</strong> the solo battlefield has no room at the sides and a 2.5 px gap at the top (so its line is not cut off), so it reaches the top and both sides of the window and the bar, the life and the menu float over its top. It is 112 columns across the whole window, so the cells and the cards are a little bigger than before (about 7% at 1366 wide).</li><li><strong>The 66 rows are gone again (entry 198 taken back).</strong> Flush at both sides and ending above the hand cannot both be true with 66 rows: at 1366 wide a 112 by 66 board would be 805 px tall in a 768 px window. With the old 112 by 44 it is about 537 px tall at 1366 and 754 at 1920, which ends above the zones row and the hand like before. So <code>setBoardRows</code>, the 66-row CSS, the extra row rules, the new empty-hand floor and the test changes that went with them were taken out; <code>shared/board-grid.mjs</code>, <code>hand-view.js</code> and <code>test-board-grid.mjs</code> are back as they were before 198. The work on the floating pieces in the solo check stayed (clicks and the rectangle that avoid the life piece at the top-left).</li><li><strong>Piles and groups into the hand:</strong> a whole pile (Shift to take it, or hold it), and the cards picked with a rectangle, can be dropped on the hand's drop area now: every card of them goes into the hand, one place after another from the place that opened, and it says &quot;Moved N cards back to your hand.&quot; The hand marks itself and opens a place while they are over it. Before, they could only be dropped on the board. Tokens in a pile or group vanish as a token does when it leaves the battlefield.</li></ul>
 <p><strong>What I checked:</strong> the solo check (646), with two new checks (a pile of six dropped on the hand: six cards more in the hand, no Forest left, the hand marked on the way; and the picked group dropped on the hand: the battlefield empty, the hand bigger by as many). A few older checks pointed at the top-left corner of the board, which the life piece covers now, so they point lower. I did not look at a screenshot of the flush board, did not check a pile with a token in it dropped on the hand, and the piles at the left edge now have their copies drawn out of the window (there is no room for them any more).</p>
 <p><strong>My mistakes this round:</strong> the 66 rows were a detour: you had asked for the sides and the top, and when I asked how to extend it I offered &quot;taller&quot; first and did not say that the sides were part of it; it cost about ten long runs of the check before you pointed the problem out. Two of my new checks had mistakes (one used a drag helper that was not available there, and my pile test left the hand without the Forests the next checks needed).</p>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-200" data-n="200">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-200-body">
+    <span class="num">200</span>
+    <span class="head-text"><span class="title">An empty hand has the drop area of a hand of one card</span><span class="sum">First a question (how much of a card has to be dragged from the hand to the bottom of the battlefield; it felt like 75%), which I told Claude to skip.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-200-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>First a question (how much of a card has to be dragged from the hand to the bottom of the battlefield; it felt like 75%), which I told Claude to skip. Then: make the size of the drop zone of an empty hand the same as that of a one-card hand.</li></ul>
+<p><strong>What changed</strong> (<code>frontend/src/hand-view.js</code>, <code>scripts/check-solo-ui.mjs</code>)</p>
+<ul><li>With no cards in it the hand's drop area was three card widths wide (a guess at a card from the height of the box) and started under the bottom of the battlefield. It is now what a hand of one card has: two card widths wide (the card and half a card at each end), in the middle, and starting at the same height (a quarter of a card's height below where the cards stand, and the 2.8 rem they keep above the bottom of the box). The function <code>emptyFloor</code> (the &quot;never higher than the bottom of the battlefield&quot; rule) is gone, because the area now starts well below the battlefield by itself. For a hand with no cards the height of a card is worked out from the box the way style.css does it (the height inside its padding less 2.8 rem), in <code>cardHeightOf</code>.</li></ul>
+<p><strong>What I checked:</strong> the solo check (647): a new check that the empty hand's area has the same width, the same middle and the same top (within 2 px) as the area of a hand of one card (made by taking all but one card out of the page), and that it still starts under the bottom of the battlefield. I did not drop a card on an empty hand with the mouse after this change, only the numbers.</p>
+<p><strong>My mistakes this round:</strong> my first version took a card's height as the box's height less 4 px, which is not what the style sheet says, so the empty area came out 25% too wide (447 px against 356) and the new check caught it. The check that the hand goes down again once the pointer leaves failed once in the first run and passed in the next; I do not know what made it fail and it is not one I changed.</p>
   </div></div></div>
 </article>
 </div>

@@ -72,11 +72,12 @@ export function mountHand({ container, costOf = () => '' }) {
     bar.style.left = `${(z.left + z.right) / 2 - section.getBoundingClientRect().left}px`;
   }
 
-  // An empty hand has no cards to start the drop area at, so it starts under the battlefield (the area would otherwise reach up over it): never higher than the bottom of the battlefield.
-  function emptyFloor() {
-    if (buttons().length > 0) return 0;
-    const field = document.getElementById('battlefield');
-    return field ? field.getBoundingClientRect().bottom : 0;
+  // The height a card of the hand has: from the first card, or, with no cards, the height one would have (style.css: the height of the box inside its padding, less 2.8 rem).
+  const remPixels = () => parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+  function cardHeightOf(card) {
+    if (card) return card.offsetHeight;
+    const style = getComputedStyle(container);
+    return Math.max(0, container.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom) - 2.8 * remPixels());
   }
 
   function showCost(button) {
@@ -143,7 +144,7 @@ export function mountHand({ container, costOf = () => '' }) {
   // (plus the gap the cards keep above the bottom of the box, so that exactly a quarter of a card is below the bottom edge of the window)
   const dropDistance = () => {
     const card = container.querySelector(':scope > .card');
-    if (!card) return 0;
+    if (!card) return Math.round(cardHeightOf(null) * 0.25 + 2.8 * remPixels()); // an empty hand: the drop a card of the hand would have (a quarter of its height, and the 2.8 rem the cards keep above the bottom of the box)
     const inset = parseFloat(getComputedStyle(card).bottom) || 0;
     return Math.round(card.offsetHeight * 0.25 + inset);
   };
@@ -316,7 +317,7 @@ export function mountHand({ container, costOf = () => '' }) {
     const z = zone();
     container.style.setProperty('--zl', `${z.left - container.getBoundingClientRect().left}px`);
     container.style.setProperty('--zw', `${z.right - z.left}px`);
-    container.style.setProperty('--zt', `${Math.max(areaInset(z.bottom - z.top), emptyFloor() - container.getBoundingClientRect().top)}px`); // where the dashed rectangle starts: the lower three quarters of the visible cards of a lowered hand, which is where the hand rises when the pointer comes near it
+    container.style.setProperty('--zt', `${areaInset(z.bottom - z.top)}px`); // where the dashed rectangle starts: the lower three quarters of the visible cards of a lowered hand, which is where the hand rises when the pointer comes near it
   }
 
   // ---- carrying a card of the hand ----
@@ -376,10 +377,11 @@ export function mountHand({ container, costOf = () => '' }) {
   function zone() {
     const box = container.getBoundingClientRect();
     const all = buttons();
-    const cardWidth = all[0] ? all[0].offsetWidth : box.height * 0.6;
+    const cardWidth = all[0] ? all[0].offsetWidth : cardHeightOf(null) / 1.4015; // (an empty hand: the width a card of the hand would have)
     const slack = cardWidth / 2;
-    let left = box.left + box.width / 2 - cardWidth * 1.5;
-    let right = box.left + box.width / 2 + cardWidth * 1.5;
+    // an empty hand has the drop area of a hand of ONE card (Kevin, 2026-11-15): a card wide and half a card more at each end, in the middle
+    let left = box.left + box.width / 2 - cardWidth;
+    let right = box.left + box.width / 2 + cardWidth;
     if (all.length) {
       // from the layout of the WHOLE hand, not from where the cards are going now: while a card is carried the others make room or close up, and an area that followed them would shrink and grow under the
       // pointer (the kind of feedback that made the old hand jitter)
@@ -396,7 +398,7 @@ export function mountHand({ container, costOf = () => '' }) {
   // no cards is a few cards wide in the middle, where one would go.
   function over(x, y) {
     const z = zone();
-    const top = Math.max(z.top + areaInset(z.bottom - z.top), emptyFloor());
+    const top = z.top + areaInset(z.bottom - z.top);
     return x >= z.left && x < z.right && y >= top && y <= z.bottom + 1;
   }
 
