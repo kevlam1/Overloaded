@@ -547,10 +547,3 @@ body.dragging-card { cursor: grabbing; user-select: none; }
 body.playing .battlefield > .card, body.playing #hand > .card { cursor: grab; user-select: none; }
 body.dragging-card .battlefield > .card, body.dragging-card #hand > .card { cursor: grabbing; }
 
-/* TEMPORARY update notice (frontend/src/update-notice.js): remove with it. */
-.update-notice { position: fixed; right: 1rem; bottom: 1rem; z-index: 1000; max-width: 18rem; padding: 0.8rem 2rem 0.8rem 0.9rem; background: var(--card); color: var(--text); border: 2px solid var(--accent); border-radius: 0.6rem; box-shadow: 0 0.4rem 1.4rem rgba(0, 0, 0, 0.35); }
-.update-notice p { margin: 0 0 0.4rem; }
-.update-notice .update-note { margin: 0.4rem 0 0; color: var(--muted); font-size: 0.85rem; }
-.update-notice .update-refresh { font: inherit; padding: 0.4rem 0.7rem; background: var(--accent); color: var(--accent-text); border: 0; border-radius: 0.4rem; cursor: pointer; }
-.update-notice .update-close { position: absolute; top: 0.25rem; right: 0.35rem; font: inherit; width: 1.5rem; height: 1.5rem; background: none; color: var(--muted); border: 0; cursor: pointer; }
-.update-notice button:focus-visible { outline: 3px solid var(--text); outline-offset: 2px; }

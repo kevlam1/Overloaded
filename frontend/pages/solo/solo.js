@@ -4,7 +4,6 @@
 // markup. Nothing here is saved: a refresh deals a new game.
 import { makeSafeStore } from '../../src/safe-store.js';
 import { play, mountSoundSettings } from '../../src/sound.js';
-import { mountUpdateNotice } from '../../src/update-notice.js';
 import { mountCardHover } from '../../src/card-hover.js';
 import { mountBoardDrag } from '../../src/board-drag.js';
 import { stepFrom } from '../../../shared/board-grid.mjs';
@@ -313,7 +312,6 @@ $('next-turn').addEventListener('click', goNextTurn);
 $('untap-all').addEventListener('click', () => { play('tap'); apply(() => untapAll(game), untapMessage(game)); });
 $('shuffle').addEventListener('click', () => { play('shuffle'); apply(() => shuffleLibrary(game), 'Shuffled your library.'); });
 mountSoundSettings($('sound-settings'));
-mountUpdateNotice(); // temporary demo notice, see update-notice.js
 mountCardHover(); // a larger picture of any card the pointer rests on (the cards are small on the one-screen layout)
 // ---- the battlefield grid: drag and drop, Auto-arrange and Alt+arrow keys (shared/board-grid.mjs, src/board-drag.js) ----
 // A card dropped on a cell of your battlefield: from the hand it is played there (a taken cell is refused); from the battlefield it moves there, or swaps places with the card that is there.
