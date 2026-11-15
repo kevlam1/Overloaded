@@ -26,7 +26,7 @@ const AXIS_STICK_PX = 12; // ...and it changes from the row to the column (or ba
 // library, whose top card is not shown), pileAt(x, y) gives { zone, element } for the pile under a point, and onDropPile({ uid, from, to }) is called when a card is let go over one.
 export function mountBoardDrag({ doc = document, board, onDrop, hand = () => null, onDropHand = () => {}, onHandOver = () => {}, onReorderHand = () => {}, handZone = () => null, handHit = null, zoneSource = () => null, pileAt = () => null, onDropPile = () => {}, groupOf = () => null, isEnabled = () => true }) {
   // groupOf(uid) (optional): the uids of the cards picked up together (by a rectangle) when the card pressed is one of them, or null. Pressing one of them carries all of them, each keeping its place relative to
-  // the others, and onDrop is called with { group } (Kevin, 2026-11-14). A group is carried over the board only: not into the hand or onto a pile.
+  // the others, and onDrop is called with { group } (Kevin, 2026-11-14). A group is carried over the board or into the hand (all its cards go there), not onto a pile.
   let press = null; // the card the pointer went down on, before it has moved far enough to be a drag
   let hold = null; // { ring, timer, ready }: a pile of cards is being held down; when the circle is full it is ready to be moved as a whole
   let drag = null; // { button, uid, from, ghost, highlight, cell }
@@ -255,13 +255,13 @@ export function mountBoardDrag({ doc = document, board, onDrop, hand = () => nul
     if ((pile?.element ?? null) !== drag.pileElement) { drag.pileElement?.classList.remove('drop-target'); pile?.element.classList.add('drop-target'); drag.pileElement = pile?.element ?? null; }
     drag.pile = pile ? pile.zone : null;
     drag.slot = pile?.slot ?? null;
-    drag.overHand = !pile && !drag.group && (drag.from === 'hand' || !drag.whole) && over;
+    drag.overHand = !pile && over; // (a whole pile and a group can be dropped on the hand too, Kevin 2026-11-14)
     handElement?.classList.toggle('drop-hand', drag.overHand && drag.from !== 'hand');
     // the place the card is over is decided from the middle of the picture carried, not from the pointer: you take a card of an overlapping hand by the part that shows, which may be far from its middle, and the
     // picture starts exactly over its own place, so nothing moves until it has been carried a little
     // a card from outside the hand (the battlefield, a pile) opens a place in it while it is over it, as a card of the hand does
     if (drag.from === 'hand') onHandOver({ uid: drag.uid, x: x - drag.holdW * (drag.grab.x - 0.5), over: drag.overHand });
-    else if (!drag.whole && !drag.group) onHandOver({ uid: drag.uid, x: x - drag.holdW * (drag.grab.x - 0.5), over: drag.overHand, external: true }); // the hand shows where the card would go back (over), or closes up when the card is away from it
+    else onHandOver({ uid: drag.uid, x: x - drag.holdW * (drag.grab.x - 0.5), over: drag.overHand, external: true }); // the hand shows where the card would go back (over), or closes up when the card is away from it
     // a tapped card is a landscape card, 11 cells wide, so it may not start in the last 3 columns of the board
     if (cell && drag.tapped) cell.col = Math.min(cell.col, BOARD_COLS - CARD_ROWS);
     drag.cell = drag.overHand || drag.pile ? null : cell;
@@ -301,6 +301,7 @@ export function mountBoardDrag({ doc = document, board, onDrop, hand = () => nul
     if (!drag) { endHold(); press = null; return; }
     update(event);
     const { uid, from, cell, overHand, whole, pile, group } = drag;
+    const carriedUids = drag.carried.map((c) => c.dataset.uid).filter(Boolean); // (every card of a pile or a group that is carried: they all go where it is dropped)
     const pileElement = drag.pileElement;
     const slot = drag.slot;
     const flying = pile && drag.ghost ? drag.ghost.cloneNode(true) : null; // a copy of the picture carried, left where it was let go, for the page to fly into the pile
@@ -311,7 +312,7 @@ export function mountBoardDrag({ doc = document, board, onDrop, hand = () => nul
     swallowClick();
     if (pile) onDropPile({ uid, from, to: pile, slot, element: pileElement, flying });
     else if (overHand && from === 'hand') onReorderHand({ uid, x, picture });
-    else if (overHand) onDropHand({ uid, from, x, picture });
+    else if (overHand) onDropHand({ uid, from, x, picture, uids: whole || group ? carriedUids : null });
     else if (cell) onDrop({ uid, from, col: cell.col, row: cell.row, whole, group });
   };
   const cancel = () => { if (drag) swallowClick(); clean(); };

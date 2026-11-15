@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.198</span></h1>
-    <p class="lede">198 entries, Oct 25 to Nov 14, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
+    <h1>Build log <span class="version">Version 0.199</span></h1>
+    <p class="lede">199 entries, Oct 25 to Nov 15, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
   </div>
 </header>
 
@@ -23,7 +23,7 @@
     <div class="weeks-row">
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
-<a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">88</span></a>
+<a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">89</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
     </div>
     <div class="tools">
@@ -1961,7 +1961,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-1" aria-labelledby="week-1-title">
-<h2 class="week-head" id="week-1-title"><button type="button" aria-expanded="false" aria-controls="week-1-days"><span class="wname">Week 1</span><span class="range">Nov 9 to Nov 15</span><span class="week-count">88 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-1-title"><button type="button" aria-expanded="false" aria-controls="week-1-days"><span class="wname">Week 1</span><span class="range">Nov 9 to Nov 15</span><span class="week-count">89 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-1-days">
 <div class="day">
 <h3 class="day-title">Monday 9 November <span class="day-count">4</span></h3>
@@ -3363,6 +3363,26 @@
 <ul><li>The solo battlefield has 66 rows instead of 44, the same 112 columns and the same square cells, so a card keeps its cell and the cells did not change size. <code>setBoardRows(66)</code> in <code>shared/board-grid.mjs</code> sets it (<code>BOARD_ROWS</code>, <code>MAX_ROW</code> and <code>BOARD_CAPACITY</code> are live bindings now, and the number must be a whole number of card heights); only the solo page calls it, so the table page and every test of the shared logic keep 44, and the table page's board, card sizes and layout did not change. New lands start on the new bottom row (55) and other cards at the top-left, as before.</li><li>The board starts at the top of the window (a 2.5 px gap for its line) and its aspect is 112 to 66, so at 1920 by 1080 it fills the window from top to bottom and at 1366 by 768 it ends 13 px above the bottom. The bar, the life and the menu float over its top. The hand and the zones row float over its bottom, so lands on the bottom row are under the hand if the hand is over them.</li><li>An empty hand's drop area now starts at the lowest 13% of the battlefield (it used to start at the board's bottom edge, which is the bottom of the window now).</li><li><strong>Not done:</strong> the left and right sides. The board still has its 2.8 rem room at both sides (left: room for the copies under a pile at the left edge). That is what &quot;left and right&quot; in your question was about; I had not done it when I answered.</li><li><strong>Known rough edge:</strong> the first card that is not a land is put at the top-left corner of the board, which is under the life piece, so the corner of its picture is covered.</li></ul>
 <p><strong>What I checked:</strong> the solo check (644), the full <code>npm test</code> (70 suites, including the table layout checks, which did not change), and the board grid test (158, with new checks that 66 rows give a last row of 55, 84 blocks, a bottom landing row of 55, points found in the new rows, a drop at the bottom, 44 put back, and bad row numbers refused). Screenshots at 1366 by 768 and 1920 by 1080. Many of the solo check's points and numbers had to change: the bottom row was written as 33 and the board height as 44 rows in about 40 places, clicks near the top of the board hit the life piece, and a few waits were too short. I did not look at the board on a window much taller than wide, at light mode, or the live table page with it.</p>
 <p><strong>My mistakes this round:</strong> I should have said at the start that &quot;taller&quot; means a bigger grid and the test changes that come with it; I asked which kind, but not how heavy the taller kind was. I also changed the checks one failing round at a time, about ten runs of the long solo check, when I could have looked for every place that used 44 and 33 and the top of the board first.</p>
+  </div></div></div>
+</article>
+</div>
+</div>
+<div class="day">
+<h3 class="day-title">Sunday 15 November <span class="day-count">1</span></h3>
+<div class="entries">
+<article class="entry" id="entry-199" data-n="199">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-199-body">
+    <span class="num">199</span>
+    <span class="head-text"><span class="title">The battlefield flush with the window, the 66 rows taken back out, and piles and groups into the hand</span><span class="sum">The battlefield flush with the sides of the window too, its bottom above the hand just like before, and the drop area of the hand should also work for carrying piles of a stack.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-199-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>The battlefield flush with the sides of the window too, its bottom above the hand just like before, and the drop area of the hand should also work for carrying piles of a stack.</li></ul>
+<p><strong>What changed</strong> (<code>frontend/src/style.css</code>, <code>frontend/src/board-drag.js</code>, <code>frontend/pages/solo/solo.js</code>, <code>shared/board-grid.mjs</code>, <code>frontend/src/hand-view.js</code>, <code>scripts/</code>)</p>
+<ul><li><strong>Flush:</strong> the solo battlefield has no room at the sides and a 2.5 px gap at the top (so its line is not cut off), so it reaches the top and both sides of the window and the bar, the life and the menu float over its top. It is 112 columns across the whole window, so the cells and the cards are a little bigger than before (about 7% at 1366 wide).</li><li><strong>The 66 rows are gone again (entry 198 taken back).</strong> Flush at both sides and ending above the hand cannot both be true with 66 rows: at 1366 wide a 112 by 66 board would be 805 px tall in a 768 px window. With the old 112 by 44 it is about 537 px tall at 1366 and 754 at 1920, which ends above the zones row and the hand like before. So <code>setBoardRows</code>, the 66-row CSS, the extra row rules, the new empty-hand floor and the test changes that went with them were taken out; <code>shared/board-grid.mjs</code>, <code>hand-view.js</code> and <code>test-board-grid.mjs</code> are back as they were before 198. The work on the floating pieces in the solo check stayed (clicks and the rectangle that avoid the life piece at the top-left).</li><li><strong>Piles and groups into the hand:</strong> a whole pile (Shift to take it, or hold it), and the cards picked with a rectangle, can be dropped on the hand's drop area now: every card of them goes into the hand, one place after another from the place that opened, and it says &quot;Moved N cards back to your hand.&quot; The hand marks itself and opens a place while they are over it. Before, they could only be dropped on the board. Tokens in a pile or group vanish as a token does when it leaves the battlefield.</li></ul>
+<p><strong>What I checked:</strong> the solo check (646), with two new checks (a pile of six dropped on the hand: six cards more in the hand, no Forest left, the hand marked on the way; and the picked group dropped on the hand: the battlefield empty, the hand bigger by as many). A few older checks pointed at the top-left corner of the board, which the life piece covers now, so they point lower. I did not look at a screenshot of the flush board, did not check a pile with a token in it dropped on the hand, and the piles at the left edge now have their copies drawn out of the window (there is no room for them any more).</p>
+<p><strong>My mistakes this round:</strong> the 66 rows were a detour: you had asked for the sides and the top, and when I asked how to extend it I offered &quot;taller&quot; first and did not say that the sides were part of it; it cost about ten long runs of the check before you pointed the problem out. Two of my new checks had mistakes (one used a drag helper that was not available there, and my pile test left the hand without the Forests the next checks needed).</p>
   </div></div></div>
 </article>
 </div>

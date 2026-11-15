@@ -16,9 +16,7 @@ import { pileMenuItems, pileAction } from '../../../shared/pile-menu.mjs';
 import { mountCardHover } from '../../src/card-hover.js';
 import { mountBoardDrag } from '../../src/board-drag.js';
 import { mountHand } from '../../src/hand-view.js';
-import { stepFrom, setBoardRows } from '../../../shared/board-grid.mjs';
-
-setBoardRows(66); // the solo battlefield is taller than a table's (66 rows, not 44), from the top of the window down to the hand: see style.css (body.playing.solo)
+import { stepFrom } from '../../../shared/board-grid.mjs';
 import { createDealer, SHUFFLE_PAUSE_MS } from '../../../shared/deal-sequence.mjs';
 import { loadCardList } from '../../src/card-list.js';
 import { LIBRARY_KEY, LEGACY_KEY, readLibrary, selectedEntry } from '../../../shared/deck-library.mjs';
@@ -581,13 +579,28 @@ document.addEventListener('keydown', (event) => {
   if (direction && nudgeSelected(direction)) event.preventDefault();
 });
 // A card of yours dragged from the battlefield and let go over your hand goes back into the hand (a token that leaves the battlefield stops existing, like every other way of moving it).
-function dropOnHand({ uid, from, x, picture }) {
+function dropOnHand({ uid, from, x, picture, uids = null }) {
   if (!game || from === 'hand') return;
   const found = findCard(uid);
   if (!found || found.zone !== from) return;
   if (from === 'library') play('draw');
   const place = handView.holeFor(uid, x ?? 0, true); // the place that was open in the hand when it was let go
   handView.noteDrop(uid, picture); // the card starts from where its picture was let go and eases into its place
+  if (from === 'battlefield' && Array.isArray(uids) && uids.length > 1) { // a whole pile or a group of picked cards: every card of it goes into the hand, one place after another from the place that was open
+    apply(() => {
+      let next = game; let at = place; let count = 0;
+      for (const each of uids) {
+        if (!next.zones.battlefield.some((c) => c.uid === each)) continue;
+        const moved = moveCard(next, each, 'hand');
+        count += 1;
+        next = moved.zones.hand.some((c) => c.uid === each) && !anySortOn(handSort.sorts()) ? reorderHand(moved, each, at++) : moved; // (a token that leaves the battlefield stops existing)
+      }
+      if (count === 0) throw new Error('Nothing to move.');
+      return next;
+    }, `Moved ${uids.length} cards back to your hand.`);
+    multi.clear();
+    return;
+  }
   apply(() => { const moved = moveCard(game, uid, 'hand'); return moved.zones.hand.some((c) => c.uid === uid) && !anySortOn(handSort.sorts()) ? reorderHand(moved, uid, place) : moved; }, // (a token that leaves the battlefield stops existing: there is nothing to put in its place)
      from === 'battlefield' ? `Moved ${found.card.n} back to your hand.` : `Moved ${from === 'library' ? 'the top card of your library' : found.card.n} to your hand.`);
 }

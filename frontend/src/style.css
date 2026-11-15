@@ -670,34 +670,6 @@ body.playing .side-panels button, body.playing .players-section button { min-hei
 .battlefield > .card[data-row="31"], .battlefield > .cell-highlight[data-row="31"] { grid-row-start: 32; }
 .battlefield > .card[data-row="32"], .battlefield > .cell-highlight[data-row="32"] { grid-row-start: 33; }
 .battlefield > .card[data-row="33"], .battlefield > .cell-highlight[data-row="33"] { grid-row-start: 34; }
-.battlefield > .card[data-row="34"], .battlefield > .cell-highlight[data-row="34"] { grid-row-start: 35; }
-.battlefield > .card[data-row="35"], .battlefield > .cell-highlight[data-row="35"] { grid-row-start: 36; }
-.battlefield > .card[data-row="36"], .battlefield > .cell-highlight[data-row="36"] { grid-row-start: 37; }
-.battlefield > .card[data-row="37"], .battlefield > .cell-highlight[data-row="37"] { grid-row-start: 38; }
-.battlefield > .card[data-row="38"], .battlefield > .cell-highlight[data-row="38"] { grid-row-start: 39; }
-.battlefield > .card[data-row="39"], .battlefield > .cell-highlight[data-row="39"] { grid-row-start: 40; }
-.battlefield > .card[data-row="40"], .battlefield > .cell-highlight[data-row="40"] { grid-row-start: 41; }
-.battlefield > .card[data-row="41"], .battlefield > .cell-highlight[data-row="41"] { grid-row-start: 42; }
-.battlefield > .card[data-row="42"], .battlefield > .cell-highlight[data-row="42"] { grid-row-start: 43; }
-.battlefield > .card[data-row="43"], .battlefield > .cell-highlight[data-row="43"] { grid-row-start: 44; }
-.battlefield > .card[data-row="44"], .battlefield > .cell-highlight[data-row="44"] { grid-row-start: 45; }
-.battlefield > .card[data-row="45"], .battlefield > .cell-highlight[data-row="45"] { grid-row-start: 46; }
-.battlefield > .card[data-row="46"], .battlefield > .cell-highlight[data-row="46"] { grid-row-start: 47; }
-.battlefield > .card[data-row="47"], .battlefield > .cell-highlight[data-row="47"] { grid-row-start: 48; }
-.battlefield > .card[data-row="48"], .battlefield > .cell-highlight[data-row="48"] { grid-row-start: 49; }
-.battlefield > .card[data-row="49"], .battlefield > .cell-highlight[data-row="49"] { grid-row-start: 50; }
-.battlefield > .card[data-row="50"], .battlefield > .cell-highlight[data-row="50"] { grid-row-start: 51; }
-.battlefield > .card[data-row="51"], .battlefield > .cell-highlight[data-row="51"] { grid-row-start: 52; }
-.battlefield > .card[data-row="52"], .battlefield > .cell-highlight[data-row="52"] { grid-row-start: 53; }
-.battlefield > .card[data-row="53"], .battlefield > .cell-highlight[data-row="53"] { grid-row-start: 54; }
-.battlefield > .card[data-row="54"], .battlefield > .cell-highlight[data-row="54"] { grid-row-start: 55; }
-.battlefield > .card[data-row="55"], .battlefield > .cell-highlight[data-row="55"] { grid-row-start: 56; }
-.battlefield > .card[data-row="56"], .battlefield > .cell-highlight[data-row="56"] { grid-row-start: 57; }
-.battlefield > .card[data-row="57"], .battlefield > .cell-highlight[data-row="57"] { grid-row-start: 58; }
-.battlefield > .card[data-row="58"], .battlefield > .cell-highlight[data-row="58"] { grid-row-start: 59; }
-.battlefield > .card[data-row="34"], .battlefield > .cell-highlight[data-row="34"] { grid-row-start: 35; }
-.battlefield > .card[data-row="35"], .battlefield > .cell-highlight[data-row="35"] { grid-row-start: 36; }
-.battlefield > .card[data-row="36"], .battlefield > .cell-highlight[data-row="36"] { grid-row-start: 37; }
 body.playing .battlefield { flex: 1 1 0; min-height: 0; container-type: size; align-self: flex-start; aspect-ratio: 112 / 44; max-width: 100%; }
 /* debugging: the snap grid drawn on the board. A thin line at every cell (an eighth of a card, the step a card snaps to) and a stronger line at every card (8 cells), so what is stored matches what is seen */
 body.playing .battlefield { background-image: linear-gradient(to right, rgba(255, 255, 255, 0.22) 1px, transparent 1px), linear-gradient(to bottom, rgba(255, 255, 255, 0.22) 1px, transparent 1px), linear-gradient(to right, rgba(255, 255, 255, 0.07) 1px, transparent 1px), linear-gradient(to bottom, rgba(255, 255, 255, 0.07) 1px, transparent 1px); background-size: calc(100% / 14) calc(100% / 4), calc(100% / 14) calc(100% / 4), calc(100% / 112) calc(100% / 44), calc(100% / 112) calc(100% / 44); }
@@ -1384,8 +1356,7 @@ body.dragging-card .pile-stack.drop-target .stack-face, body.dragging-card .cmd-
 .cmd-slot .slot-cards::before { top: -0.33rem; }
 .cmd-slot .slot-cards::after { bottom: -0.33rem; }
 .cmd-slot.empty-slot .slot-cards::before, .cmd-slot.empty-slot .slot-cards::after { opacity: 0.55; box-shadow: none; }
-/* The solo battlefield is taller (Kevin, 2026-11-14: "extend the battlefield; the control bar, life and settings can live on top of it"): 66 rows instead of 44, so with the same cells it reaches from the top of the
-   window down to the hand and the zones row, which float over its bottom edge as the bar, the life and the menu float over its top. The line round it is drawn outside it, so a small gap is kept at the top. */
-body.playing.solo #my-board { padding: 0.15rem 2.8rem 0; }
-body.playing.solo .battlefield { grid-template-rows: repeat(66, minmax(0, 1fr)); aspect-ratio: 112 / 66; }
-body.playing.solo .board.mine > .battlefield { max-height: calc(100cqw * 66 / 112); background-size: calc(100% / 112) calc(100% / 66), calc(100% / 112) calc(100% / 66); }
+/* The solo battlefield reaches the top and both sides of the window (Kevin, 2026-11-14: "extend the battlefield; the control bar, life and settings can live on top of it", "flush with the window sides too, the bottom above
+   the hand like before"): no room at the sides or the top (a 2.5 px gap keeps its line from being cut), so the bar, the life and the menu float over its top. It stays 112 by 44 cells, so its bottom is above the hand and the
+   zones row. The line round it is drawn outside it. */
+body.playing.solo #my-board { padding: 0.15rem 0 0; }

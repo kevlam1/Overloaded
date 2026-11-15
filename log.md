@@ -3998,6 +3998,23 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **My mistakes this round:** I should have said at the start that "taller" means a bigger grid and the test changes that come with it; I asked which kind, but not how heavy the taller kind was. I also changed the checks one failing round at a time, about ten runs of the long solo check, when I could have looked for every place that used 44 and 33 and the top of the board first.
 
+
+---
+
+## 199. The battlefield flush with the window, the 66 rows taken back out, and piles and groups into the hand (2026-11-15)
+
+**What I asked for**
+- The battlefield flush with the sides of the window too, its bottom above the hand just like before, and the drop area of the hand should also work for carrying piles of a stack.
+
+**What changed** (`frontend/src/style.css`, `frontend/src/board-drag.js`, `frontend/pages/solo/solo.js`, `shared/board-grid.mjs`, `frontend/src/hand-view.js`, `scripts/`)
+- **Flush:** the solo battlefield has no room at the sides and a 2.5 px gap at the top (so its line is not cut off), so it reaches the top and both sides of the window and the bar, the life and the menu float over its top. It is 112 columns across the whole window, so the cells and the cards are a little bigger than before (about 7% at 1366 wide).
+- **The 66 rows are gone again (entry 198 taken back).** Flush at both sides and ending above the hand cannot both be true with 66 rows: at 1366 wide a 112 by 66 board would be 805 px tall in a 768 px window. With the old 112 by 44 it is about 537 px tall at 1366 and 754 at 1920, which ends above the zones row and the hand like before. So `setBoardRows`, the 66-row CSS, the extra row rules, the new empty-hand floor and the test changes that went with them were taken out; `shared/board-grid.mjs`, `hand-view.js` and `test-board-grid.mjs` are back as they were before 198. The work on the floating pieces in the solo check stayed (clicks and the rectangle that avoid the life piece at the top-left).
+- **Piles and groups into the hand:** a whole pile (Shift to take it, or hold it), and the cards picked with a rectangle, can be dropped on the hand's drop area now: every card of them goes into the hand, one place after another from the place that opened, and it says "Moved N cards back to your hand." The hand marks itself and opens a place while they are over it. Before, they could only be dropped on the board. Tokens in a pile or group vanish as a token does when it leaves the battlefield.
+
+**What I checked:** the solo check (646), with two new checks (a pile of six dropped on the hand: six cards more in the hand, no Forest left, the hand marked on the way; and the picked group dropped on the hand: the battlefield empty, the hand bigger by as many). A few older checks pointed at the top-left corner of the board, which the life piece covers now, so they point lower. I did not look at a screenshot of the flush board, did not check a pile with a token in it dropped on the hand, and the piles at the left edge now have their copies drawn out of the window (there is no room for them any more).
+
+**My mistakes this round:** the 66 rows were a detour: you had asked for the sides and the top, and when I asked how to extend it I offered "taller" first and did not say that the sides were part of it; it cost about ten long runs of the check before you pointed the problem out. Two of my new checks had mistakes (one used a drag helper that was not available there, and my pile test left the hand without the Forests the next checks needed).
+
 ---
 
 ## Where AI misread me, or I had to correct course

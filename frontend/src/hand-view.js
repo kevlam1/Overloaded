@@ -72,14 +72,11 @@ export function mountHand({ container, costOf = () => '' }) {
     bar.style.left = `${(z.left + z.right) / 2 - section.getBoundingClientRect().left}px`;
   }
 
-  // An empty hand has no cards to start the drop area at, so it starts near the bottom of the battlefield: the lowest 13% of it, about where the cards of a hand would be (the battlefield now reaches the bottom of
-  // the window, 2026-11-14, so its bottom edge itself would leave no room to drop on).
+  // An empty hand has no cards to start the drop area at, so it starts under the battlefield (the area would otherwise reach up over it): never higher than the bottom of the battlefield.
   function emptyFloor() {
     if (buttons().length > 0) return 0;
     const field = document.getElementById('battlefield');
-    if (!field) return 0;
-    const box = field.getBoundingClientRect();
-    return box.bottom - Math.round(box.height * 0.13);
+    return field ? field.getBoundingClientRect().bottom : 0;
   }
 
   function showCost(button) {
