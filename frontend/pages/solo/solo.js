@@ -16,7 +16,9 @@ import { pileMenuItems, pileAction } from '../../../shared/pile-menu.mjs';
 import { mountCardHover } from '../../src/card-hover.js';
 import { mountBoardDrag } from '../../src/board-drag.js';
 import { mountHand } from '../../src/hand-view.js';
-import { stepFrom } from '../../../shared/board-grid.mjs';
+import { stepFrom, setBoardRows } from '../../../shared/board-grid.mjs';
+
+setBoardRows(66); // the solo battlefield is taller than a table's (66 rows, not 44), from the top of the window down to the hand: see style.css (body.playing.solo)
 import { createDealer, SHUFFLE_PAUSE_MS } from '../../../shared/deal-sequence.mjs';
 import { loadCardList } from '../../src/card-list.js';
 import { LIBRARY_KEY, LEGACY_KEY, readLibrary, selectedEntry } from '../../../shared/deck-library.mjs';

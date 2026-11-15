@@ -2,7 +2,7 @@
 // tried in, settling a board, tidying it, stepping, and where a drop lands. The numbers come from the constants where they can, so changing the size of the board does not mean
 // rewriting this file.
 import {
-  BOARD_COLS, BOARD_ROWS, CARD_COLS, CARD_ROWS, MAX_COL, MAX_ROW, BOARD_CAPACITY, TAP_GAP, validCell, cellKey, cellOf, cellOrder, overlaps, takenCells, firstEmptyCell, placeAll, arrangeAll, stepFrom, cellAtPoint, anchorAtPoint, shiftedAnchor, nearbyFreeBlock,
+  BOARD_COLS, BOARD_ROWS, CARD_COLS, CARD_ROWS, MAX_COL, MAX_ROW, BOARD_CAPACITY, setBoardRows, TAP_GAP, validCell, cellKey, cellOf, cellOrder, overlaps, takenCells, firstEmptyCell, placeAll, arrangeAll, stepFrom, cellAtPoint, anchorAtPoint, shiftedAnchor, nearbyFreeBlock,
 } from '../shared/board-grid.mjs';
 
 let checks = 0;
@@ -154,6 +154,27 @@ same('an unknown direction gives none', [stepFrom({ col: 1, row: 1 }, 'sideways'
   same('less than half a cell rounds to no change, half a cell or more to one cell', [shiftedAnchor(rect, start, 4, 0).col, shiftedAnchor(rect, start, 5, 0).col, shiftedAnchor(rect, start, -4, 0).col, shiftedAnchor(rect, start, -6, 0).col], [40, 41, 40, 39]);
   same('the card is kept on the board at every edge', [shiftedAnchor(rect, start, -9999, -9999), shiftedAnchor(rect, start, 9999, 9999), shiftedAnchor(rect, start, 9999, -9999)], [{ col: 0, row: 0 }, { col: MAX_COL, row: MAX_ROW }, { col: MAX_COL, row: 0 }]);
   same('a board with no size, no start or a number that is not a number gives no place', [shiftedAnchor(null, start, 0, 0), shiftedAnchor({ left: 0, top: 0, width: 0, height: 10 }, start, 0, 0), shiftedAnchor(rect, null, 0, 0), shiftedAnchor(rect, start, NaN, 0), shiftedAnchor(rect, start, 0, Infinity), shiftedAnchor(rect, start, '5', 0)], [null, null, null, null, null, null]);
+}
+
+// ---- the solo table asks for a taller board (setBoardRows, 2026-11-14): 66 rows, the same cells, so a card keeps its cell ----
+{
+  const wasRows = BOARD_ROWS;
+  same('the default board is 44 rows, last card row 33, 56 blocks', [BOARD_ROWS, MAX_ROW, BOARD_CAPACITY], [44, 33, 56]);
+  setBoardRows(66);
+  same('with 66 rows the last card row is 55 and there are 84 blocks (14 by 6)', [BOARD_ROWS, MAX_ROW, BOARD_CAPACITY], [66, 55, 84]);
+  same('the bounds that came from the constants follow: a card may start in row 55 and not in row 56', [validCell(0, 55), validCell(0, 56), validCell(MAX_COL, MAX_ROW)], [true, false, true]);
+  same('lands start on the new bottom row and everything else at the top', [cellOrder(true)[0], cellOrder(false)[0], cellOrder(true).length], [{ col: 0, row: 55 }, { col: 0, row: 0 }, 84]);
+  const rect = { left: 0, top: 0, width: BOARD_COLS * 10, height: 66 * 10 };
+  same('a point is found in the new rows, and the last cell is the last row', [cellAtPoint(rect, 5, 655), cellAtPoint(rect, rect.width - 1, rect.height - 1)], [{ col: 0, row: 65 }, { col: BOARD_COLS - 1, row: 65 }]);
+  same('a drop at the very bottom keeps the card on the board: its top row is the last card row', anchorAtPoint(rect, 5, 659), { col: 0, row: 55 });
+  setBoardRows(wasRows);
+  same('and putting 44 back puts the old numbers back', [BOARD_ROWS, MAX_ROW, BOARD_CAPACITY, validCell(0, 34)], [44, 33, 56, false]);
+  for (const bad of [0, 10, 12, 45, 66.5, -11, '66', null, undefined, NaN]) {
+    let message = '';
+    try { setBoardRows(bad); } catch (error) { message = error.message; }
+    same('a number of rows that is not a whole number of card heights is refused: ' + String(bad), /whole number of card heights/.test(message), true);
+  }
+  same('...and a refused number changes nothing', [BOARD_ROWS, MAX_ROW], [44, 33]);
 }
 
 console.log(`All ${checks} board grid checks passed.`);

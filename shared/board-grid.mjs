@@ -8,13 +8,23 @@
 // first free block, lands from the bottom-left and every other card from the top-left, which keeps a loose order without two labelled sections. If every block is taken the card
 // goes on top of the last one tried: nothing is refused.
 export const BOARD_COLS = 112; // 14 cards across (it was 12: Kevin, 2026-11-10, "lots of the battlefield seems to be empty space")
-export const BOARD_ROWS = 44;
+// The number of rows is 44 for every board EXCEPT on the solo table, which asks for 66 (setBoardRows, Kevin 2026-11-14: "extend the battlefield", so it fills the window from the top down to the hand): a board of more rows is the same
+// columns and the same cells, so a card keeps its cell. These three are live bindings, so every module that imports them sees the number set last.
+export let BOARD_ROWS = 44;
 export const CARD_COLS = 8;
 export const CARD_ROWS = 11; // a card is 8 cells wide and 11 tall, so a cell is square (a card is 5 by 7)
 export const MAX_COL = BOARD_COLS - CARD_COLS; // the last column a card can start in
-export const MAX_ROW = BOARD_ROWS - CARD_ROWS; // the last row a card can start in
+export let MAX_ROW = BOARD_ROWS - CARD_ROWS; // the last row a card can start in
 export const TAP_GAP = 1; // a tapped card steps out of its pile to a place this many cells further than a whole card (Kevin, 2026-11-09: one more cell to the right)
-export const BOARD_CAPACITY = (BOARD_COLS / CARD_COLS) * (BOARD_ROWS / CARD_ROWS); // 48 blocks (12 by 4): how many cards fit side by side without overlapping
+export let BOARD_CAPACITY = (BOARD_COLS / CARD_COLS) * (BOARD_ROWS / CARD_ROWS); // 56 blocks (14 by 4) of 44 rows: how many cards fit side by side without overlapping
+
+// Sets the number of rows (a whole number of card heights, so the blocks come out even). Only the solo page calls it, once, before any game is made.
+export function setBoardRows(rows) {
+  if (!Number.isInteger(rows) || rows < CARD_ROWS || rows % CARD_ROWS !== 0) throw new Error(`The board needs a whole number of card heights of rows, not ${rows}.`);
+  BOARD_ROWS = rows;
+  MAX_ROW = BOARD_ROWS - CARD_ROWS;
+  BOARD_CAPACITY = (BOARD_COLS / CARD_COLS) * (BOARD_ROWS / CARD_ROWS);
+}
 
 const whole = (value) => Number.isInteger(value);
 export const validCell = (col, row) => whole(col) && whole(row) && col >= 0 && col <= MAX_COL && row >= 0 && row <= MAX_ROW;

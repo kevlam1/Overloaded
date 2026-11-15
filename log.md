@@ -3979,6 +3979,25 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **My mistakes this round:** none beyond the squeezed hand above, which I found by running the check, not by looking.
 
+
+---
+
+## 198. A taller solo battlefield, with the bar, the life and the menu floating over it (2026-11-14)
+
+**What I asked for**
+- Extend the battlefield; the control bar, the life and the settings can live on top of it. I was asked how and chose "taller": add rows so it fills the window, starting at the top. Afterwards I asked why it was taking so long, saying I had expected extending it to the top, left and right to be light.
+
+**What changed** (`shared/board-grid.mjs`, `frontend/pages/solo/solo.js`, `frontend/src/style.css`, `frontend/src/hand-view.js`, `scripts/test-board-grid.mjs`, `scripts/check-solo-ui.mjs`)
+- The solo battlefield has 66 rows instead of 44, the same 112 columns and the same square cells, so a card keeps its cell and the cells did not change size. `setBoardRows(66)` in `shared/board-grid.mjs` sets it (`BOARD_ROWS`, `MAX_ROW` and `BOARD_CAPACITY` are live bindings now, and the number must be a whole number of card heights); only the solo page calls it, so the table page and every test of the shared logic keep 44, and the table page's board, card sizes and layout did not change. New lands start on the new bottom row (55) and other cards at the top-left, as before.
+- The board starts at the top of the window (a 2.5 px gap for its line) and its aspect is 112 to 66, so at 1920 by 1080 it fills the window from top to bottom and at 1366 by 768 it ends 13 px above the bottom. The bar, the life and the menu float over its top. The hand and the zones row float over its bottom, so lands on the bottom row are under the hand if the hand is over them.
+- An empty hand's drop area now starts at the lowest 13% of the battlefield (it used to start at the board's bottom edge, which is the bottom of the window now).
+- **Not done:** the left and right sides. The board still has its 2.8 rem room at both sides (left: room for the copies under a pile at the left edge). That is what "left and right" in your question was about; I had not done it when I answered.
+- **Known rough edge:** the first card that is not a land is put at the top-left corner of the board, which is under the life piece, so the corner of its picture is covered.
+
+**What I checked:** the solo check (644), the full `npm test` (70 suites, including the table layout checks, which did not change), and the board grid test (158, with new checks that 66 rows give a last row of 55, 84 blocks, a bottom landing row of 55, points found in the new rows, a drop at the bottom, 44 put back, and bad row numbers refused). Screenshots at 1366 by 768 and 1920 by 1080. Many of the solo check's points and numbers had to change: the bottom row was written as 33 and the board height as 44 rows in about 40 places, clicks near the top of the board hit the life piece, and a few waits were too short. I did not look at the board on a window much taller than wide, at light mode, or the live table page with it.
+
+**My mistakes this round:** I should have said at the start that "taller" means a bigger grid and the test changes that come with it; I asked which kind, but not how heavy the taller kind was. I also changed the checks one failing round at a time, about ten runs of the long solo check, when I could have looked for every place that used 44 and 33 and the top of the board first.
+
 ---
 
 ## Where AI misread me, or I had to correct course

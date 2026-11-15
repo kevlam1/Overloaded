@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.197</span></h1>
-    <p class="lede">197 entries, Oct 25 to Nov 14, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
+    <h1>Build log <span class="version">Version 0.198</span></h1>
+    <p class="lede">198 entries, Oct 25 to Nov 14, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
   </div>
 </header>
 
@@ -23,7 +23,7 @@
     <div class="weeks-row">
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
-<a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">87</span></a>
+<a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">88</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
     </div>
     <div class="tools">
@@ -1961,7 +1961,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-1" aria-labelledby="week-1-title">
-<h2 class="week-head" id="week-1-title"><button type="button" aria-expanded="false" aria-controls="week-1-days"><span class="wname">Week 1</span><span class="range">Nov 9 to Nov 15</span><span class="week-count">87 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-1-title"><button type="button" aria-expanded="false" aria-controls="week-1-days"><span class="wname">Week 1</span><span class="range">Nov 9 to Nov 15</span><span class="week-count">88 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-1-days">
 <div class="day">
 <h3 class="day-title">Monday 9 November <span class="day-count">4</span></h3>
@@ -3258,7 +3258,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Saturday 14 November <span class="day-count">6</span></h3>
+<h3 class="day-title">Saturday 14 November <span class="day-count">7</span></h3>
 <div class="entries">
 <article class="entry" id="entry-192" data-n="192">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-192-body">
@@ -3348,6 +3348,21 @@
 <ul><li><strong>Larger:</strong> the cards of the row are 6.8 rem wide (109 px), were 5.4 rem (86 px). On a window under about 1360 px they are a little smaller, <code>(width - 50.4 rem) / 5</code>, because the hand is 42 rem across and has to fit beside the row; at 1280 wide they are 95 px. The hand's right edge now follows the row (<code>calc(5 * var(--zones-sw) + 7.2rem)</code>) instead of a fixed 36 rem. My first version made the row 6.8 rem on every window and squeezed the hand at 1280 wide, which failed four older hand checks; the narrower size on small windows fixed that.</li><li><strong>Bottom:</strong> 0.2 rem from the bottom of the window (3 px; it was 8 px).</li><li><strong>Words:</strong> &quot;Command zone&quot; is not drawn. It is still in the page as hidden text for a screen reader.</li><li><strong>Gold frames:</strong> each commander slot has a 2 px solid gold border, a thin outline 3 px outside it (so it reads as a double line), a soft gold glow, a faint gold tint from the top left, and a small gold diamond on the middle of its top and bottom edge. An empty slot has the same frame dashed and dimmer. The gold is <code>--gold</code>, darker in light mode and lighter in dark mode.</li></ul>
 <p><strong>What I checked:</strong> the solo check (644): the size and the 3 px gap, the words gone and still in the page, the frame (solid and 2 px, the outline, the diamonds, dashed for the empty slot), the slots and piles still lined up, and the hand not squeezed. Screenshots at 1366 by 768 and 1920 by 1080 in dark mode. I did not look at the gold in light mode, at the frame while a card is dragged over it (the ring that shows the drop is older and I did not check how it looks next to the gold), or at the row on a window under 1280 wide.</p>
 <p><strong>My mistakes this round:</strong> none beyond the squeezed hand above, which I found by running the check, not by looking.</p>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-198" data-n="198">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-198-body">
+    <span class="num">198</span>
+    <span class="head-text"><span class="title">A taller solo battlefield, with the bar, the life and the menu floating over it</span><span class="sum">Extend the battlefield; the control bar, the life and the settings can live on top of it.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-198-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>Extend the battlefield; the control bar, the life and the settings can live on top of it. I was asked how and chose &quot;taller&quot;: add rows so it fills the window, starting at the top. Afterwards I asked why it was taking so long, saying I had expected extending it to the top, left and right to be light.</li></ul>
+<p><strong>What changed</strong> (<code>shared/board-grid.mjs</code>, <code>frontend/pages/solo/solo.js</code>, <code>frontend/src/style.css</code>, <code>frontend/src/hand-view.js</code>, <code>scripts/test-board-grid.mjs</code>, <code>scripts/check-solo-ui.mjs</code>)</p>
+<ul><li>The solo battlefield has 66 rows instead of 44, the same 112 columns and the same square cells, so a card keeps its cell and the cells did not change size. <code>setBoardRows(66)</code> in <code>shared/board-grid.mjs</code> sets it (<code>BOARD_ROWS</code>, <code>MAX_ROW</code> and <code>BOARD_CAPACITY</code> are live bindings now, and the number must be a whole number of card heights); only the solo page calls it, so the table page and every test of the shared logic keep 44, and the table page's board, card sizes and layout did not change. New lands start on the new bottom row (55) and other cards at the top-left, as before.</li><li>The board starts at the top of the window (a 2.5 px gap for its line) and its aspect is 112 to 66, so at 1920 by 1080 it fills the window from top to bottom and at 1366 by 768 it ends 13 px above the bottom. The bar, the life and the menu float over its top. The hand and the zones row float over its bottom, so lands on the bottom row are under the hand if the hand is over them.</li><li>An empty hand's drop area now starts at the lowest 13% of the battlefield (it used to start at the board's bottom edge, which is the bottom of the window now).</li><li><strong>Not done:</strong> the left and right sides. The board still has its 2.8 rem room at both sides (left: room for the copies under a pile at the left edge). That is what &quot;left and right&quot; in your question was about; I had not done it when I answered.</li><li><strong>Known rough edge:</strong> the first card that is not a land is put at the top-left corner of the board, which is under the life piece, so the corner of its picture is covered.</li></ul>
+<p><strong>What I checked:</strong> the solo check (644), the full <code>npm test</code> (70 suites, including the table layout checks, which did not change), and the board grid test (158, with new checks that 66 rows give a last row of 55, 84 blocks, a bottom landing row of 55, points found in the new rows, a drop at the bottom, 44 put back, and bad row numbers refused). Screenshots at 1366 by 768 and 1920 by 1080. Many of the solo check's points and numbers had to change: the bottom row was written as 33 and the board height as 44 rows in about 40 places, clicks near the top of the board hit the life piece, and a few waits were too short. I did not look at the board on a window much taller than wide, at light mode, or the live table page with it.</p>
+<p><strong>My mistakes this round:</strong> I should have said at the start that &quot;taller&quot; means a bigger grid and the test changes that come with it; I asked which kind, but not how heavy the taller kind was. I also changed the checks one failing round at a time, about ten runs of the long solo check, when I could have looked for every place that used 44 and 33 and the top of the board first.</p>
   </div></div></div>
 </article>
 </div>
