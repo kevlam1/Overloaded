@@ -4030,6 +4030,22 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **My mistakes this round:** my first version took a card's height as the box's height less 4 px, which is not what the style sheet says, so the empty area came out 25% too wide (447 px against 356) and the new check caught it. The check that the hand goes down again once the pointer leaves failed once in the first run and passed in the next; I do not know what made it fail and it is not one I changed.
 
+
+---
+
+## 201. A plan for right-click menus on more parts of the table (2026-11-15)
+
+**What I asked for**
+- A plan for menu options: for example right-clicking my library to choose "View library", "Draw card", "Draw X cards". Which areas should have a menu (the hand count, the battlefield, a card on the battlefield, exile, the graveyard, what else?), and to go through each of them.
+
+**What changed** (`docs/menus.md`, new; nothing in the code)
+- A draft plan, not built and nothing decided. It says first how the menus work today (one menu component, `frontend/src/card-menu.js`; what each menu offers and does is plain data in `shared/card-menu.mjs`, `pile-menu.mjs` and `player-counters.mjs`; menus exist today only on cards, on the library, graveyard, exile and sideboard piles and on the life total). Then 14 areas, each with what it has now, a proposal and questions for me: the library, graveyard, exile, command zone, the hand (a card, the count and the gap), the empty battlefield, a card on the battlefield and a picked group, face-down and notes, the life total, the turn number, tokens, the floating bar, other players' areas on the table page, and the deck page (left alone). Also one shared new piece, a small "X" box for "Draw X...", "Mill X...", "Look at top X...", the decisions that cut across (order inside a menu, shortcuts shown beside a line, wording, touch, undo, tests) and a suggested building order.
+- What I found while reading the code: "View library" is the existing Search..., "Draw card" is the existing Draw line (a click draws one, with 2, 3, 4, 5 and 7 as quick amounts), so the part of the example that is missing is a typed "Draw X"; the hand bar, the empty battlefield, the turn number and the command-zone slots have no menu at all; and E, Q and F act on a picked group while the right-click menu acts on one card only.
+
+**What I checked:** I read `shared/card-menu.mjs` and `shared/pile-menu.mjs` and listed the right-click handlers in the page code (a search for `contextmenu`) so that the "today" lines are from the code and not from memory. I ran nothing else, since nothing was built.
+
+**My mistakes this round:** none found; but the plan is a first draft of what to ask you, and some of the proposed lines (Scry and Surveil as their own window, "Exile top X", a random discard) may be more than you want.
+
 ---
 
 ## Where AI misread me, or I had to correct course

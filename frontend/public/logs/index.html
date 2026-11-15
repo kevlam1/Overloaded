@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.200</span></h1>
-    <p class="lede">200 entries, Oct 25 to Nov 15, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
+    <h1>Build log <span class="version">Version 0.201</span></h1>
+    <p class="lede">201 entries, Oct 25 to Nov 15, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
   </div>
 </header>
 
@@ -23,7 +23,7 @@
     <div class="weeks-row">
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
-<a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">90</span></a>
+<a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">91</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
     </div>
     <div class="tools">
@@ -1961,7 +1961,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-1" aria-labelledby="week-1-title">
-<h2 class="week-head" id="week-1-title"><button type="button" aria-expanded="false" aria-controls="week-1-days"><span class="wname">Week 1</span><span class="range">Nov 9 to Nov 15</span><span class="week-count">90 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-1-title"><button type="button" aria-expanded="false" aria-controls="week-1-days"><span class="wname">Week 1</span><span class="range">Nov 9 to Nov 15</span><span class="week-count">91 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-1-days">
 <div class="day">
 <h3 class="day-title">Monday 9 November <span class="day-count">4</span></h3>
@@ -3368,7 +3368,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Sunday 15 November <span class="day-count">2</span></h3>
+<h3 class="day-title">Sunday 15 November <span class="day-count">3</span></h3>
 <div class="entries">
 <article class="entry" id="entry-199" data-n="199">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-199-body">
@@ -3398,6 +3398,21 @@
 <ul><li>With no cards in it the hand's drop area was three card widths wide (a guess at a card from the height of the box) and started under the bottom of the battlefield. It is now what a hand of one card has: two card widths wide (the card and half a card at each end), in the middle, and starting at the same height (a quarter of a card's height below where the cards stand, and the 2.8 rem they keep above the bottom of the box). The function <code>emptyFloor</code> (the &quot;never higher than the bottom of the battlefield&quot; rule) is gone, because the area now starts well below the battlefield by itself. For a hand with no cards the height of a card is worked out from the box the way style.css does it (the height inside its padding less 2.8 rem), in <code>cardHeightOf</code>.</li></ul>
 <p><strong>What I checked:</strong> the solo check (647): a new check that the empty hand's area has the same width, the same middle and the same top (within 2 px) as the area of a hand of one card (made by taking all but one card out of the page), and that it still starts under the bottom of the battlefield. I did not drop a card on an empty hand with the mouse after this change, only the numbers.</p>
 <p><strong>My mistakes this round:</strong> my first version took a card's height as the box's height less 4 px, which is not what the style sheet says, so the empty area came out 25% too wide (447 px against 356) and the new check caught it. The check that the hand goes down again once the pointer leaves failed once in the first run and passed in the next; I do not know what made it fail and it is not one I changed.</p>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-201" data-n="201">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-201-body">
+    <span class="num">201</span>
+    <span class="head-text"><span class="title">A plan for right-click menus on more parts of the table</span><span class="sum">A plan for menu options: for example right-clicking my library to choose &quot;View library&quot;, &quot;Draw card&quot;, &quot;Draw X cards&quot;.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-201-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>A plan for menu options: for example right-clicking my library to choose &quot;View library&quot;, &quot;Draw card&quot;, &quot;Draw X cards&quot;. Which areas should have a menu (the hand count, the battlefield, a card on the battlefield, exile, the graveyard, what else?), and to go through each of them.</li></ul>
+<p><strong>What changed</strong> (<code>docs/menus.md</code>, new; nothing in the code)</p>
+<ul><li>A draft plan, not built and nothing decided. It says first how the menus work today (one menu component, <code>frontend/src/card-menu.js</code>; what each menu offers and does is plain data in <code>shared/card-menu.mjs</code>, <code>pile-menu.mjs</code> and <code>player-counters.mjs</code>; menus exist today only on cards, on the library, graveyard, exile and sideboard piles and on the life total). Then 14 areas, each with what it has now, a proposal and questions for me: the library, graveyard, exile, command zone, the hand (a card, the count and the gap), the empty battlefield, a card on the battlefield and a picked group, face-down and notes, the life total, the turn number, tokens, the floating bar, other players' areas on the table page, and the deck page (left alone). Also one shared new piece, a small &quot;X&quot; box for &quot;Draw X...&quot;, &quot;Mill X...&quot;, &quot;Look at top X...&quot;, the decisions that cut across (order inside a menu, shortcuts shown beside a line, wording, touch, undo, tests) and a suggested building order.</li><li>What I found while reading the code: &quot;View library&quot; is the existing Search..., &quot;Draw card&quot; is the existing Draw line (a click draws one, with 2, 3, 4, 5 and 7 as quick amounts), so the part of the example that is missing is a typed &quot;Draw X&quot;; the hand bar, the empty battlefield, the turn number and the command-zone slots have no menu at all; and E, Q and F act on a picked group while the right-click menu acts on one card only.</li></ul>
+<p><strong>What I checked:</strong> I read <code>shared/card-menu.mjs</code> and <code>shared/pile-menu.mjs</code> and listed the right-click handlers in the page code (a search for <code>contextmenu</code>) so that the &quot;today&quot; lines are from the code and not from memory. I ran nothing else, since nothing was built.</p>
+<p><strong>My mistakes this round:</strong> none found; but the plan is a first draft of what to ask you, and some of the proposed lines (Scry and Surveil as their own window, &quot;Exile top X&quot;, a random discard) may be more than you want.</p>
   </div></div></div>
 </article>
 </div>
