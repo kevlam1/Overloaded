@@ -15,7 +15,6 @@ import { taxAction } from '../../../shared/commander-zone.mjs';
 import { pileMenuItems, pileAction } from '../../../shared/pile-menu.mjs';
 import { applyScry, topCards } from '../../../shared/scry.mjs';
 import { openScryWindow } from '../../src/scry-window.js';
-import { mountUpdateNotice } from '../../src/update-notice.js';
 import { mountCardHover } from '../../src/card-hover.js';
 import { mountBoardDrag } from '../../src/board-drag.js';
 import { mountHand } from '../../src/hand-view.js';
@@ -553,7 +552,6 @@ document.addEventListener('click', (event) => {
   render();
 });
 
-mountUpdateNotice({ buildId: __BUILD_ID__ }); // temporary demo notice, see update-notice.js
 mountCardHover(); // a larger picture of any card the pointer is on while Alt is held (the cards are small on the one-screen layout)
 // ---- the battlefield grid: drag and drop and Alt+arrow keys (the Auto-arrange button was taken out on 2026-11-14) (shared/board-grid.mjs, src/board-drag.js) ----
 // A card dropped on a cell of your battlefield: from the hand it is played there (a taken cell is refused); from the battlefield it moves there, or swaps places with the card that is there.
