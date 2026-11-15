@@ -14,6 +14,8 @@ Kevin asked for a plan for menu options on more parts of the table: for example,
 8. A right-click on a picked card acts on the whole group (area 7).
 9. Common tokens: the list in area 11, plus the ones the data adds (Eldrazi Spawn, Thopter, Elf Warrior, Squirrel, Beast, Angel 4/4, Dragon 5/5). The data (the 3,000 most played Commander cards) has no 4/4 Dragon token: the dragons are a 5/5 and a 6/6.
 
+10. **Graveyard window and battlefield card, from Kevin's notebook (2026-11-15, two photos):** the graveyard's "View" opens a pop-up window with a search bar, a right-click on its cards to label or note them (and the search also looks in the notes), a filter for type, color and so on, and dragging over several cards to pick them, then sending all of them to the battlefield, exile, library and so on. A battlefield card's menu: Tap / Untap, Add +1/+1 counter, Add counter (a list that starts with Stun, "etc"), Move to (hand, GY, Exile, "etc", and something called "custom"), Phase out, Create copy, Create token (only when the card is related to a token), Add loyalty token (only for a planeswalker and the like). Details in areas 2 and 7; nothing built yet.
+
 ## Built so far
 - 2026-11-15, log entry 203: the X box, the library / graveyard / exile menu changes (View, Draw card, Draw X, Look at top X, Mill X, Exile top X, Exile all, Shuffle into library) and the counters X line. Not built yet: the View submenu, the inline number boxes, Scry and Surveil, Reveal top X, Play with top revealed.
 
@@ -37,6 +39,7 @@ A small "X" box: choosing "Draw X...", "Mill X...", "Look at top X...", "Exile t
 - Today: Search..., Move all to (hand, battlefield, exile, sideboard, top or bottom of the library).
 - Proposed: "View graveyard", keep Move all to, add "Exile all" and "Shuffle into library" as direct lines.
 - Open: should the top card of the graveyard be right-clickable on its own (the menu of that card), or is the viewer enough?
+- **Kevin's notebook (2026-11-15), the graveyard window ("View"), which every pile window would share:** search bar (exists: `shared/card-search.mjs`); right-click a card in the window to give it a label or note, and the search matches notes too (new: notes exist today only on battlefield cards, `setNote` in `shared/zones.mjs`, and are cleared when a card leaves it); a filter for types, colors and so on (new: the card list has the type line, colors and cost, so this is a row of toggles above the cards); drag across several cards to pick them, then one action sends all picked cards to the battlefield, exile, library and so on (new: the "Move all to" line works on the whole pile today, not on a pick). How I read it: these four go in the pile window of every pile (library when viewed, graveyard, exile, sideboard), not only the graveyard.
 
 ### 3. Exile
 - Today: same as the graveyard.
@@ -61,6 +64,7 @@ A small "X" box: choosing "Draw X...", "Mill X...", "Look at top X...", "Exile t
 ### 7. A card on the battlefield, and a picked group
 - Today: Modify..., Tap/Untap, Flip, Turn over (two-sided only), Doesn't untap, Summoning sick, +1/+1 counter (2, 3, 5), Create copy, Ping (live), Move to.
 - Proposed: "Add counter..." (a choice of kinds: +1/+1, -1/-1, loyalty, charge, and a typed name later), "Remove all counters", "Set note...", "Untap all of this name" (e.g. all Forests), "Move to" stays last.
+- **Kevin's notebook (2026-11-15), the card's menu, in his order:** Tap / Untap; Add +1/+1 counter; Add counter, which opens a list (Stun first, "etc"); Move to, which opens Hand, Graveyard, Exile and "etc" and a "custom"; Phase out; Create copy; Create token (offered only when the card is related to a token: the `all_parts` data in the plan for tokens); Add loyalty token (only for a planeswalker or the like). How I read it: "Add counter" is a submenu of kinds (+1/+1, -1/-1, loyalty, charge, time, stun, other); "loyalty token" means a loyalty counter, offered on a card whose type has Planeswalker (and Battle, for its defense counters). Stun is not one of the six kinds the game stores today (`COUNTER_KINDS` in `shared/zones.mjs`), and Phase out does not exist at all yet: both need new stored fields (and a rules change before they work on the live table).
 - **A picked group, question for Kevin (the answer is not in yet):** when several cards are picked with a rectangle, E, Q and F act on all of them and dragging moves all of them, but right-clicking one of the picked cards opens the menu for that one card only. Should the menu act on every picked card when the card is one of them? Proposed: yes, the title says "3 cards", and Tap, Move to, counters, Create copy all apply to the whole group.
 
 ### 8. Face-down and notes (card level, a possible later piece)
