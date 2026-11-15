@@ -1,6 +1,6 @@
 // Tests for shared/pile-menu.mjs and moveAll in shared/zones.mjs: what the right-click menu of a pile offers and what each choice does.
 import { makeGame, moveCard, moveAll, checkGame, seededRandom, ZONES } from '../shared/zones.mjs';
-import { pileMenuItems, pileAction, PILE_ZONES, DRAW_AMOUNTS, LOOK_AMOUNTS, MILL_AMOUNTS } from '../shared/pile-menu.mjs';
+import { pileMenuItems, pileAction, PILE_ZONES } from '../shared/pile-menu.mjs';
 
 let checks = 0;
 const fail = (label, detail) => { console.log(`FAILED CHECK: ${label}: ${detail}`); process.exit(1); };
@@ -16,15 +16,18 @@ const uids = (game, zone) => game.zones[zone].map((c) => c.uid);
 // the items
 same('the pile zones are the four piles', PILE_ZONES, ['library', 'graveyard', 'exile', 'sideboard']);
 same('an unknown zone has no menu', [pileMenuItems('hand', 5), pileMenuItems('battlefield', 5), pileMenuItems('nope', 5)], [[], [], []]);
-same('the library menu: search, shuffle, draw, look, mill (with amounts that fit the pile)', pileMenuItems('library', 40).map((i) => [i.id, i.amounts ?? null]), [['search', null], ['shuffle', null], ['draw', DRAW_AMOUNTS], ['look', LOOK_AMOUNTS], ['mill', MILL_AMOUNTS]]);
-same('amounts larger than the pile are not offered', pileMenuItems('library', 3).map((i) => [i.id, i.amounts ?? null]), [['search', null], ['shuffle', null], ['draw', [2, 3]], ['look', [2, 3]], ['mill', [2, 3]]]);
-same('a library of one card cannot be shuffled and has no amounts', pileMenuItems('library', 1).map((i) => [i.id, i.amounts ?? null]), [['search', null], ['draw', []], ['look', []], ['mill', []]]);
-same('an empty library can only be searched', pileMenuItems('library', 0).map((i) => i.id), ['search']);
-for (const zone of ['graveyard', 'exile', 'sideboard']) {
-  const items = pileMenuItems(zone, 5);
-  same(`the ${zone} menu: search, and Move all to every other place but itself`, [items.map((i) => i.id), items[1].items.map((i) => i.id)], [['search', 'moveall'], ['hand', 'battlefield', 'graveyard', 'exile', 'sideboard'].filter((z) => z !== zone).map((z) => `moveall:${z}`).concat(['moveall:library-top', 'moveall:library-bottom'])]);
-  same(`an empty ${zone} can only be searched`, pileMenuItems(zone, 0).map((i) => i.id), ['search']);
-}
+const shape = (items) => items.map((i) => [i.id, i.label, i.ask ?? null]);
+same('the library menu (no rows of number buttons any more): View library, Draw card, then lines that ask for a number, then Shuffle', shape(pileMenuItems('library', 40)), [['search', 'View library', null], ['draw', 'Draw card', null], ['draw', 'Draw X...', { max: 40, unit: 'cards' }], ['look', 'Look at top X...', { max: 40, unit: 'cards' }], ['mill', 'Mill X...', { max: 40, unit: 'cards' }], ['exiletop', 'Exile top X...', { max: 40, unit: 'cards' }], ['shuffle', 'Shuffle', null]]);
+same('the number a line asks for can be at most the size of the pile', shape(pileMenuItems('library', 3)).filter(([, , a]) => a).map(([, , a]) => a.max), [3, 3, 3, 3]);
+same('a library of one card cannot be shuffled and asks for 1 at most', shape(pileMenuItems('library', 1)), [['search', 'View library', null], ['draw', 'Draw card', null], ['draw', 'Draw X...', { max: 1, unit: 'cards' }], ['look', 'Look at top X...', { max: 1, unit: 'cards' }], ['mill', 'Mill X...', { max: 1, unit: 'cards' }], ['exiletop', 'Exile top X...', { max: 1, unit: 'cards' }]]);
+check('no menu line has a row of amounts', ['library', 'graveyard', 'exile', 'sideboard'].every((zone) => [0, 1, 5, 40].every((count) => pileMenuItems(zone, count).every((i) => !('amounts' in i)))));
+check('every line that asks for a number says so in its label (it ends in three dots) and the others do not', ['library', 'graveyard', 'exile'].every((zone) => pileMenuItems(zone, 9).every((i) => Boolean(i.ask) === i.label.endsWith('...'))));
+same('an empty library can only be viewed', pileMenuItems('library', 0).map((i) => i.label), ['View library']);
+const MOVE_ALL = (zone) => ['hand', 'battlefield', 'graveyard', 'exile', 'sideboard'].filter((z) => z !== zone).map((z) => 'moveall:' + z).concat(['moveall:library-top', 'moveall:library-bottom']);
+same('the graveyard menu: View graveyard, Exile all, Shuffle into library, Move all to every other place', [pileMenuItems('graveyard', 5).map((i) => [i.id, i.label]), pileMenuItems('graveyard', 5)[3].items.map((i) => i.id)], [[['search', 'View graveyard'], ['moveall:exile', 'Exile all'], ['intolibrary', 'Shuffle into library'], ['moveall', 'Move all to']], MOVE_ALL('graveyard')]);
+same('the exile menu: View exile, Shuffle into library, Move all to every other place', [pileMenuItems('exile', 5).map((i) => [i.id, i.label]), pileMenuItems('exile', 5)[2].items.map((i) => i.id)], [[['search', 'View exile'], ['intolibrary', 'Shuffle into library'], ['moveall', 'Move all to']], MOVE_ALL('exile')]);
+same('the sideboard menu: View sideboard and Move all to', [pileMenuItems('sideboard', 5).map((i) => [i.id, i.label]), pileMenuItems('sideboard', 5)[1].items.map((i) => i.id)], [[['search', 'View sideboard'], ['moveall', 'Move all to']], MOVE_ALL('sideboard')]);
+for (const zone of ['graveyard', 'exile', 'sideboard']) same('an empty ' + zone + ' can only be viewed', pileMenuItems(zone, 0).map((i) => i.id), ['search']);
 
 // the actions
 {
@@ -41,6 +44,11 @@ for (const zone of ['graveyard', 'exile', 'sideboard']) {
   const gone = milled.run(game);
   same('mill 3 puts the top three cards in the graveyard (the newest first) and none in the hand', [uids(gone, 'graveyard'), gone.zones.library.length, uids(gone, 'hand').join() === uids(game, 'hand').join()], [libraryBefore.slice(0, 3).reverse(), libraryBefore.length - 3, true]);
   same('...and says what it did', milled.message, 'Milled the top 3 cards of your library into your graveyard.');
+  const exiled = pileAction('exiletop', 'library', 3);
+  const away = exiled.run(game);
+  same('exile top 3 puts the top three cards in exile (it keeps its cards in the order they arrived) and none in the graveyard or hand', [uids(away, 'exile'), away.zones.library.length, away.zones.graveyard.length, uids(away, 'hand').join() === uids(game, 'hand').join()], [libraryBefore.slice(0, 3), libraryBefore.length - 3, 0, true]);
+  same('...and says what it did', [exiled.message, pileAction('exiletop', 'library', 1).message], ['Exiled the top 3 cards of your library.', 'Exiled the top card of your library.']);
+  same('exile top only works on the library, and milling and drawing work only on the library', [pileAction('exiletop', 'graveyard'), pileAction('mill', 'exile'), pileAction('draw', 'sideboard')], [null, null, null]);
   same('mill 1 says "card"', pileAction('mill', 'library', 1).message, 'Milled the top card of your library into your graveyard.');
   const all = pileAction('mill', 'library', 999).run(game);
   same('milling more than the library holds mills what there is and stops', [all.zones.library.length, all.zones.graveyard.length], [0, libraryBefore.length]);
@@ -68,6 +76,11 @@ for (const zone of ['graveyard', 'exile', 'sideboard']) {
   const viaMenu = pileAction('moveall:hand', 'graveyard');
   same('the menu choice does the same and says it', [uids(viaMenu.run(game), 'hand').slice(-4), viaMenu.message], [gy, 'Moved everything from your graveyard to your hand.']);
   same('...to the top and the bottom of the library with their own words', [pileAction('moveall:library-top', 'exile').message, pileAction('moveall:library-bottom', 'sideboard').message], ['Moved everything from exile to the top of your library.', 'Moved everything from your sideboard to the bottom of your library.']);
+  { const inGy = (() => { let g = fresh(); for (const u of uids(g, 'library').slice(0, 5)) g = moveCard(g, u, 'graveyard'); return g; })();
+    const into = pileAction('intolibrary', 'graveyard');
+    const result = into.run(inGy);
+    same('shuffle into library puts every card of the graveyard in the library, so the graveyard is empty and nothing is lost', [result.zones.graveyard.length, result.zones.library.length, checkGame(result).length], [0, inGy.zones.library.length + 5, 0]);
+    same('...and says what it did, for the exile too, and is not offered for the sideboard or the library', [into.message, pileAction('intolibrary', 'exile').message, pileAction('intolibrary', 'sideboard'), pileAction('intolibrary', 'library')], ['Shuffled everything from your graveyard into your library.', 'Shuffled everything from exile into your library.', null, null]); }
   same('a pile cannot be moved to itself, to the command zone or to nowhere, and an id that is not a choice gives nothing', [pileAction('moveall:graveyard', 'graveyard'), pileAction('moveall:command', 'graveyard'), pileAction('moveall:nowhere', 'graveyard'), pileAction('search', 'library'), pileAction('look', 'library'), pileAction('shuffle', 'graveyard'), pileAction('draw', 'exile'), pileAction('mill', 'sideboard'), pileAction(5, 'library'), pileAction('shuffle', 'hand')], Array(10).fill(null));
   // a random walk: nothing is lost or copied
   const random = seededRandom(9);
@@ -80,7 +93,7 @@ for (const zone of ['graveyard', 'exile', 'sideboard']) {
     const item = pick(items);
     const choices = item.items ? item.items : [item];
     const choice = pick(choices);
-    const action = pileAction(choice.id, zone, choice.amounts ? pick(choice.amounts) : 1);
+    const action = pileAction(choice.id, zone, choice.ask ? 1 + Math.floor(random() * choice.ask.max) : 1);
     if (action) walk = action.run(walk);
     const problems = checkGame(walk);
     if (problems.length) fail(`random walk step ${step}`, problems.join('; '));

@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.202</span></h1>
-    <p class="lede">202 entries, Oct 25 to Nov 15, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
+    <h1>Build log <span class="version">Version 0.203</span></h1>
+    <p class="lede">203 entries, Oct 25 to Nov 15, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
   </div>
 </header>
 
@@ -23,7 +23,7 @@
     <div class="weeks-row">
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
-<a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">92</span></a>
+<a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">93</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
     </div>
     <div class="tools">
@@ -1961,7 +1961,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-1" aria-labelledby="week-1-title">
-<h2 class="week-head" id="week-1-title"><button type="button" aria-expanded="false" aria-controls="week-1-days"><span class="wname">Week 1</span><span class="range">Nov 9 to Nov 15</span><span class="week-count">92 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-1-title"><button type="button" aria-expanded="false" aria-controls="week-1-days"><span class="wname">Week 1</span><span class="range">Nov 9 to Nov 15</span><span class="week-count">93 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-1-days">
 <div class="day">
 <h3 class="day-title">Monday 9 November <span class="day-count">4</span></h3>
@@ -3368,7 +3368,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Sunday 15 November <span class="day-count">4</span></h3>
+<h3 class="day-title">Sunday 15 November <span class="day-count">5</span></h3>
 <div class="entries">
 <article class="entry" id="entry-199" data-n="199">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-199-body">
@@ -3428,6 +3428,21 @@
 <ul><li>The plan now has a &quot;Decided so far&quot; list with those answers and the areas are changed to match: &quot;Cast commander&quot; does not touch the tax, there is no Tidy line, the hand menu has a random discard and Mulligan, and the library menu has Exile top X, Scry and Surveil (each its own window). Question 4 stays open, now explained in the plan: right-clicking one of the cards picked with a rectangle opens the menu of that one card, while E, Q, F and dragging already act on the whole group.</li><li><strong>Tokens, with the data read first:</strong> in Scryfall's bulk file <code>oracle_cards</code> (cached 2026-11-05) there are 938 token records (862 different faces) and 4,891 of the 39,287 cards list the tokens they make (<code>all_parts</code> entries with <code>component: &quot;token&quot;</code>, each with the token's name, type line and Scryfall id), so &quot;tokens related to the cards in my deck&quot; can be built from the cards. The catch is that an entry's id is one printing of the token and only 1,655 of the 4,699 entries match a record in that file; <code>default_cards</code> (3,049 token printings) has the rest, and tokens with the same name differ (the Goblin is 1/1 red on 59 printings, 1/1 black and red on 1, 2/1 red on 2; I checked that Krenko, Mob Boss points at a 1/1 red one). So the token list has to be built from <code>default_cards</code> and the link has to follow the id, not the name. The sizes are estimates until it is built (about 60 KB of plain JSON for the faces, 100 to 150 KB for the links, to be fetched only when the Tokens menu is first opened).</li></ul>
 <p><strong>What I checked:</strong> the raw fields and counts above, by reading the two cached bulk files (I printed a token record's fields, Krenko's and Smothering Tithe's <code>all_parts</code>, and counted). Nothing was built or run.</p>
 <p><strong>My mistakes this round:</strong> my first draft of the token section said the Goblin was &quot;2/1 and Krenko's 1/1&quot; from the first file alone; I had read Krenko's id but not its power and toughness, so I looked it up in <code>default_cards</code> before keeping the sentence.</p>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-203" data-n="203">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-203-body">
+    <span class="num">203</span>
+    <span class="head-text"><span class="title">The number box instead of the rows of number buttons, and the first library, graveyard and exile menu changes</span><span class="sum">Start the first slice of the menu plan, go over whether there are more options, and rework the 2-to-7 number buttons into it.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-203-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>Start the first slice of the menu plan, go over whether there are more options, and rework the 2-to-7 number buttons into it. Also, take a look at the most popular commanders and whether they make tokens like 4/4 dragons. My answers before that: a right-click on a picked card acts on the whole group; the common tokens in the plan are good for now.</li></ul>
+<p><strong>What changed</strong> (<code>shared/number-input.mjs</code>, <code>frontend/src/number-box.js</code>, <code>frontend/src/card-menu.js</code>, <code>shared/pile-menu.mjs</code>, <code>shared/card-menu.mjs</code>, <code>frontend/pages/solo/solo.js</code>, <code>frontend/pages/table/table.js</code>, <code>frontend/src/style.css</code>, tests)</p>
+<ul><li><strong>The X box:</strong> a menu line that needs a number (its label ends in three dots) now closes the menu and opens a small box where the menu was: the field has the focus and starts at the last number used if it fits, Enter or OK does it, Escape, Cancel or a click outside cancels, and a number that is not allowed (0, letters, more than the pile has) stays open and says why. What is accepted is <code>parseCount</code> in <code>shared/number-input.mjs</code>. The rows of fixed number buttons are gone from every menu (<code>amounts</code>, <code>DRAW_AMOUNTS</code>, <code>LOOK_AMOUNTS</code>, <code>MILL_AMOUNTS</code> and <code>COUNTER_AMOUNTS</code> were removed).</li><li><strong>Library menu:</strong> View library, Draw card, Draw X..., Look at top X..., Mill X..., Exile top X..., Shuffle. <strong>Graveyard:</strong> View graveyard, Exile all, Shuffle into library, Move all to. <strong>Exile:</strong> View exile, Shuffle into library, Move all to. <strong>Sideboard:</strong> View sideboard, Move all to. (The old &quot;Search...&quot; is &quot;View ...&quot;; the page still opens the viewer with its search bar.)</li><li><strong>Counters on a card:</strong> &quot;+1/+1 counter&quot; adds one and &quot;+1/+1 counters X...&quot; asks for 1 to 99 (the 2, 3 and 5 buttons are gone). I did this because they are the same kind of number buttons; say so if you want them back.</li><li>The table page uses the same menus, so it has the new lines too (a draw, mill or exile of a typed number, Shuffle into library, the counters); nothing about them is new in its saved data.</li><li><strong>Tokens, from the data (to answer &quot;popular commanders and 4/4 dragons&quot;):</strong> I read the cached bulk files. Among the 3,000 most played Commander-legal cards (Scryfall's <code>edhrec_rank</code>), the tokens they make are, by number of cards: Treasure 86, Food 18, Goblin 1/1 14, Zombie 2/2 14, Copy 13, Eldrazi Spawn 0/1 9, Thopter 1/1 flying 7, Elf Warrior 1/1 7, Soldier 1/1 5, Squirrel 1/1 5, Wizard 0/1 5, then Beast 3/3, Human Soldier, Vampire (lifelink), Saproling, Spirit (flying), Angel 4/4 flying vigilance (4 cards), Bird 2/2 flying, Clue (3). There is no 4/4 dragon: the dragon tokens are a 5/5 red flier (Lathliss, Dragon Queen; Dragonmaster Outcast; Rite of the Dragoncaller) and a 6/6 (Utvara Hellkite). Of the 150 best-ranked commanders only 33 make a token, and nine of them make a Treasure. I will add Eldrazi Spawn, Thopter, Elf Warrior, Squirrel, Beast, Angel and Dragon to the common list in the plan.</li></ul>
+<p><strong>What I checked:</strong> <code>test-number-input.mjs</code> (24), <code>test-pile-menu.mjs</code> (40), <code>test-card-menu.mjs</code> (203), all quick suites (64), and the solo check (659): the new menu lines, the box opening with the focus, 0, letters and a number over the pile refused with their messages, 3 drawing three cards and saying so, the last number being offered again, Escape cancelling, Mill X and Exile top X, the graveyard lines (Exile all) and exile's Shuffle into library, Look at top X opening the viewer, the counters X line by mouse and by keyboard. I did not run the live table checks against the real project and did not look at a screenshot of the number box.</p>
+<p><strong>My mistakes this round:</strong> my shell command with a long file inside it was cut off twice and wrote nothing (I saw it only because the next step could not find the file), so I wrote the files with the file tool; two older checks that clicked the 3 next to the counter failed on the first full run and had to be rewritten.</p>
   </div></div></div>
 </article>
 </div>

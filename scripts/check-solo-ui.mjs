@@ -659,8 +659,48 @@ try {
     check('the library, graveyard and exile are named above their piles with an arrow beside each name (and no name under them)', JSON.stringify(heads.map((h) => h.name)) === '["Library","Graveyard","Exile"]' && heads.every((h) => h.above && h.caretRight && h.labelOnPile === 'none'), JSON.stringify(heads));
     await click(await rectOf('#pile-caret-library'));
     const menu = await ev("(() => { const m = document.querySelector('.card-menu'); return m ? { title: m.querySelector('.card-menu-title')?.textContent, items: [...m.querySelectorAll('[role=menuitem]')].map((i) => i.textContent.trim()) } : null; })()");
-    check('the arrow beside Library opens the menu of the pile (the same as a right-click on it)', menu && /library/i.test(menu.title) && menu.items.includes('Shuffle') && menu.items.includes('Search...'), JSON.stringify(menu));
+    check('the arrow beside Library opens the menu of the pile (the same as a right-click on it)', menu && /library/i.test(menu.title) && JSON.stringify(menu.items) === JSON.stringify(['View library', 'Draw card', 'Draw X...', 'Look at top X...', 'Mill X...', 'Exile top X...', 'Shuffle']), JSON.stringify(menu));
     await browser.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await sleep(100);
+    // the number box of a menu line that asks for a number (frontend/src/number-box.js; Kevin, 2026-11-15): Draw X, Mill X, Exile top X and the graveyard and exile lines, with real clicks and keys
+    {
+      const boxState = () => ev("(() => { const b = document.querySelector('.number-box'); if (!b) return null; const i = b.querySelector('input'); const n = b.querySelector('.number-box-note'); return { title: b.getAttribute('aria-label'), value: i.value, focused: document.activeElement === i, note: n.textContent, bad: n.classList.contains('bad'), invalid: i.getAttribute('aria-invalid'), inside: (() => { const r = b.getBoundingClientRect(); return r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight; })() }; })()");
+      const typeNumber = async (text) => { await ev("document.querySelector('.number-box input').select()"); await browser.send('Input.insertText', { text }); };
+      const enterKey = async () => { await browser.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, text: '\r' }); await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 }); await sleep(150); };
+      const escKey = async () => { await browser.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await sleep(100); };
+      const openLine = async (zone, line) => { await click(await rectOf('#pile-caret-' + zone)); await sleep(60); await pressMenuItem(line); await sleep(150); };
+      await ev("localStorage.removeItem('overloaded.lastNumber')");
+      const handBefore = await count('#hand .card'); const libraryBefore = Number((await pileCount('library')).split(': ').at(-1));
+      await openLine('library', 'Draw X...');
+      const first = await boxState();
+      check('Draw X... closes the menu and opens a small number box: titled Draw X, the field has the focus and starts at 1, it says how many cards there are, and it is inside the window', first && first.title === 'Draw X' && first.value === '1' && first.focused && first.note === '1 to ' + libraryBefore + ' cards' && first.inside && (await count('.card-menu')) === 0, JSON.stringify(first));
+      await typeNumber('0'); await enterKey();
+      const refused = await boxState();
+      check('a number that is not allowed (0) keeps the box open and says why, marked as invalid, and nothing is drawn', refused && refused.bad && refused.invalid === 'true' && /smallest number is 1/.test(refused.note) && (await count('#hand .card')) === handBefore, JSON.stringify(refused));
+      await typeNumber('abc'); await enterKey();
+      check('letters are refused in words too', /whole number/.test((await boxState())?.note ?? ''));
+      await typeNumber(String(libraryBefore + 1)); await enterKey();
+      check('a number bigger than the pile is refused and says the most', /The most is /.test((await boxState())?.note ?? '') && (await count('#hand .card')) === handBefore);
+      await typeNumber('3'); await enterKey(); await sleep(250);
+      check('typing 3 and pressing Enter draws three cards, closes the box and says so', (await boxState()) === null && (await count('#hand .card')) === handBefore + 3 && /Drew 3 cards\./.test(await $text('status')) && (await pileCount('library')) === 'Library: ' + (libraryBefore - 3), JSON.stringify({ hand: await count('#hand .card'), status: await $text('status'), library: await pileCount('library') }));
+      await openLine('library', 'Draw X...');
+      const remembered = await boxState();
+      await escKey();
+      check('the number used last is offered next time (3), and Escape closes the box without drawing', remembered && remembered.value === '3' && (await boxState()) === null && (await count('#hand .card')) === handBefore + 3, JSON.stringify(remembered));
+      await openLine('library', 'Mill X...'); await typeNumber('2'); await enterKey();
+      await openLine('library', 'Exile top X...'); await typeNumber('1'); await enterKey();
+      check('Mill X... puts the top cards in the graveyard and Exile top X... in exile', (await pileCount('graveyard')) === 'Graveyard: 2' && (await pileCount('exile')) === 'Exile: 1' && (await pileCount('library')) === 'Library: ' + (libraryBefore - 6), JSON.stringify([await pileCount('graveyard'), await pileCount('exile'), await pileCount('library')]));
+      await click(await rectOf('#pile-caret-graveyard')); await sleep(60);
+      const gyLines = await menuLabels(); await escKey();
+      check('the graveyard menu has View graveyard, Exile all, Shuffle into library and Move all to', JSON.stringify(gyLines) === JSON.stringify(['View graveyard', 'Exile all', 'Shuffle into library', 'Move all to']), JSON.stringify(gyLines));
+      await click(await rectOf('#pile-caret-graveyard')); await sleep(60); await pressMenuItem('Exile all'); await sleep(150);
+      check('Exile all sends the graveyard to exile', (await pileCount('graveyard')) === 'Graveyard: 0' && (await pileCount('exile')) === 'Exile: 3', JSON.stringify([await pileCount('graveyard'), await pileCount('exile')]));
+      await click(await rectOf('#pile-caret-exile')); await sleep(60); await pressMenuItem('Shuffle into library'); await sleep(250);
+      check('Shuffle into library puts everything of exile back into the library', (await pileCount('exile')) === 'Exile: 0' && (await pileCount('library')) === 'Library: ' + (libraryBefore - 3) && /Shuffled everything from exile into your library\./.test(await $text('status')), JSON.stringify([await pileCount('exile'), await pileCount('library'), await $text('status')]));
+      await openLine('library', 'Look at top X...'); await typeNumber('2'); await enterKey(); await sleep(200);
+      check('Look at top X... opens the viewer with the top cards (and changes nothing)', !(await $hidden('viewer')) && (await pileCount('library')) === 'Library: ' + (libraryBefore - 3), JSON.stringify(await pileCount('library')));
+      await press('viewer-close'); await sleep(100);
+    }
+
     // an empty hand has the drop area of a hand of ONE card (Kevin, 2026-11-15): the same width, the same place in the middle and the same top; and it starts under the bottom of the battlefield
     const dropArea = "(() => { const h = document.getElementById('hand'); const r = h.getBoundingClientRect(); const left = r.left + parseFloat(h.style.getPropertyValue('--zl')); const width = parseFloat(h.style.getPropertyValue('--zw')); return { left: Math.round(left), width: Math.round(width), middle: Math.round(left + width / 2), top: Math.round(r.top + parseFloat(h.style.getPropertyValue('--zt'))), bottom: Math.round(r.bottom), field: Math.round(document.getElementById('battlefield').getBoundingClientRect().bottom), cardWidth: Math.round(document.querySelector('#hand > .card')?.offsetWidth ?? 0) }; })()";
     await ev("(() => { const h = document.getElementById('hand'); [...h.querySelectorAll(':scope > .card')].slice(1).forEach((c) => c.remove()); h.style.paddingRight = '1px'; })()"); await sleep(300);
@@ -1472,7 +1512,7 @@ try {
   check('there is no menu before a right click', (await menuState()) === null);
   await mouse('#battlefield .card[data-kind="other"]', { button: 'right', dy: 64 });
   let menu = await menuState();
-  check('a right click on a creature opens its menu: its name, then Modify, Tap, the counter with 2 3 5, Create copy and Move to (with the two marks after Tap: Elves came in sick)', menu && menu.title === 'Llanowar Elves' && menu.role === 'menu' && JSON.stringify(menu.items) === JSON.stringify(['Modify...', 'Tap', 'Flip', "Doesn't untap", 'Not summoning sick', '+1/+1 counter', '2', '3', '5', 'Create copy', 'Move to']), JSON.stringify(menu));
+  check('a right click on a creature opens its menu: its name, then Modify, Tap, the counter and the counters X..., Create copy and Move to (with the two marks after Tap: Elves came in sick)', menu && menu.title === 'Llanowar Elves' && menu.role === 'menu' && JSON.stringify(menu.items) === JSON.stringify(['Modify...', 'Tap', 'Flip', "Doesn't untap", 'Not summoning sick', '+1/+1 counter', '+1/+1 counters X...', 'Create copy', 'Move to']), JSON.stringify(menu));
   check('the menu is inside the window and the first item has the focus', menu.inside && menu.focused === 'Modify...', JSON.stringify(menu));
   check('the right click also selected the card', (await $text('selected-line')).startsWith('Llanowar Elves'), await $text('selected-line'));
   await ev(`window.__plays = []; HTMLMediaElement.prototype.play = function () { window.__plays.push({ src: new URL(this.src).pathname, volume: Math.round(this.volume * 10000) / 10000 }); return Promise.resolve(); };`);
@@ -1482,9 +1522,11 @@ try {
   await mouse('#battlefield .card[data-kind="other"]', { button: 'right', dy: 64 });
   menu = await menuState();
   check('a tapped card offers Untap', menu.items[1] === 'Untap', JSON.stringify(menu.items));
-  await clickMenuItem('3');
+  await clickMenuItem('+1/+1 counters X...'); await sleep(150);
+  await ev("document.querySelector('.number-box input').select()"); await browser.send('Input.insertText', { text: '3' });
+  await browser.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, text: '\r' }); await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 }); await sleep(150);
   const threeCounters = await box();
-  check('the 3 next to the counter adds three +1/+1 counters: a chip, 4 and 4 in the box, a green floating +3/+3 and the status', (await chipText()) === '+1/+1 3' && threeCounters.power === '4' && threeCounters.toughness === '4' && (await toastOf())?.text === '+3/+3' && /toast-up/.test((await toastOf()).tone) && (await $text('status')) === 'Added 3 +1/+1 counters to Llanowar Elves.', `${await chipText()} ${JSON.stringify(threeCounters)} ${JSON.stringify(await toastOf())} ${await $text('status')}`);
+  check('+1/+1 counters X... with 3 typed adds three +1/+1 counters: a chip, 4 and 4 in the box, a green floating +3/+3 and the status', (await chipText()) === '+1/+1 3' && threeCounters.power === '4' && threeCounters.toughness === '4' && (await toastOf())?.text === '+3/+3' && /toast-up/.test((await toastOf()).tone) && (await $text('status')) === 'Added 3 +1/+1 counters to Llanowar Elves.', `${await chipText()} ${JSON.stringify(threeCounters)} ${JSON.stringify(await toastOf())} ${await $text('status')}`);
   await mouse('#battlefield .card[data-kind="other"]', { button: 'right', dy: 64 });
   await clickMenuItem('+1/+1 counter');
   check('the name itself adds one', (await chipText()) === '+1/+1 4', await chipText());
@@ -1522,11 +1564,13 @@ try {
   check('the card on the battlefield again offers Tap', (await menuState()).items.includes('Tap'));
   {
     for (let n = 0; n < 5; n++) await key('ArrowDown', 'ArrowDown', 40); // Tap, Flip, the two marks, then the counter
-    await key('ArrowRight', 'ArrowRight', 39);
-    check('Right moves along the counter row to its first amount', (await menuState()).focused === '2', JSON.stringify(await menuState()));
-    await key('ArrowRight', 'ArrowRight', 39);
-    await key('Enter', 'Enter', 13, '\r');
-    check('Enter on an amount chooses it: the 3 adds three counters and the menu closes', (await menuState()) === null && /Added 3 /.test(await $text('status')), await $text('status'));
+    await key('ArrowDown', 'ArrowDown', 40);
+    check('Down moves from the counter line to the line that asks for a number', (await menuState()).focused === '+1/+1 counters X...', JSON.stringify(await menuState()));
+    await key('Enter', 'Enter', 13, '\r'); await sleep(150);
+    check('Enter on a line that asks for a number closes the menu and opens the number box with the focus in its field', (await menuState()) === null && (await ev("(() => { const b = document.querySelector('.number-box'); return Boolean(b) && document.activeElement === b.querySelector('input'); })()")), await $text('status'));
+    await browser.send('Input.insertText', { text: '3' });
+    await key('Enter', 'Enter', 13, '\r'); await sleep(150);
+    check('typing 3 and Enter in the box adds three counters and closes the box', (await ev("document.querySelector('.number-box') === null")) && /Added 3 /.test(await $text('status')), await $text('status'));
     await mouse(cardSelector, { button: 'right', dy: 64 });
     await key('End', 'End', 35);
     await key('Enter', 'Enter', 13, '\r');

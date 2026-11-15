@@ -1,6 +1,6 @@
 // Checks shared/card-menu.mjs: which choices a card's right-click menu offers in each zone, and what each choice does to a real game.
 // Run from the repo root:  node scripts/test-card-menu.mjs
-import { menuItems, menuAction, turnLabel, turnMessage, playBackLabel, PLAY_BACK_ZONES, noUntapLabel, sickLabel, untapMessage, ZONE_NAMES, MOVE_TARGETS, COUNTER_AMOUNTS } from '../shared/card-menu.mjs';
+import { menuItems, menuAction, turnLabel, turnMessage, playBackLabel, PLAY_BACK_ZONES, noUntapLabel, sickLabel, untapMessage, ZONE_NAMES, MOVE_TARGETS, COUNTER_ASK } from '../shared/card-menu.mjs';
 import { makeGame, moveCard, createToken, changeCounter, seededRandom, ZONES, checkGame, isLandCard, battlefieldRows, setTapped, setNoUntap } from '../shared/zones.mjs';
 
 let checks = 0;
@@ -29,25 +29,25 @@ function onBattlefield() {
 
 // ---- the constants are what the design says ----
 same('the move targets', MOVE_TARGETS.map(([to]) => to), ['hand', 'battlefield', 'graveyard', 'exile', 'command', 'sideboard']);
-same('the quick counter amounts', COUNTER_AMOUNTS, [2, 3, 5]);
+same('the counter box asks for 1 to 99 counters', COUNTER_ASK, { max: 99, unit: 'counters' });
 same('every zone has words', ZONES.every((zone) => typeof ZONE_NAMES[zone] === 'string'), true);
 
 // ---- what is offered ----
 const ids = (items) => items.map((item) => item.id);
-same('on the battlefield: Modify, Tap, the two marks (does not untap, summoning sick), the counter, Create copy, Move to', ids(menuItems({ tapped: false }, 'battlefield')), ['modify', 'tap', 'flip', 'nountap', 'sick', 'counter', 'copy', 'move']);
+same('on the battlefield: Modify, Tap, the two marks (does not untap, summoning sick), the counter, Create copy, Move to', ids(menuItems({ tapped: false }, 'battlefield')), ['modify', 'tap', 'flip', 'nountap', 'sick', 'counter', 'counter', 'copy', 'move']);
 same('an untapped card offers Tap, a tapped one Untap', [menuItems({ tapped: false }, 'battlefield')[1].label, menuItems({ tapped: true }, 'battlefield')[1].label], ['Tap', 'Untap']);
-same('the counter item has the quick amounts and its own copy of the list', (() => { const item = menuItems({}, 'battlefield')[5]; item.amounts.push(99); return [item.label, menuItems({}, 'battlefield')[5].amounts]; })(), ['+1/+1 counter', [2, 3, 5]]);
+same('the counter has a plain line (one) and a line that asks for a number (X...), and each call gets its own copy of the ask', (() => { const items = menuItems({}, 'battlefield'); const one = items[5]; const many = items[6]; many.ask.max = 1; return [one.label, one.ask ?? null, many.label, menuItems({}, 'battlefield')[6].ask]; })(), ['+1/+1 counter', null, '+1/+1 counters X...', { max: 99, unit: 'counters' }]);
 for (const zone of ['hand', 'graveyard', 'exile', 'command', 'sideboard', 'library']) same(`in ${zone} only Move to is offered`, ids(menuItems({}, zone)), ['move']);
-same('moves from the battlefield: every zone but the battlefield, then the two library places', ids(menuItems({}, 'battlefield')[7].items), ['move:hand', 'move:graveyard', 'move:exile', 'move:command', 'move:sideboard', 'move:library-top', 'move:library-bottom']);
+same('moves from the battlefield: every zone but the battlefield, then the two library places', ids(menuItems({}, 'battlefield')[8].items), ['move:hand', 'move:graveyard', 'move:exile', 'move:command', 'move:sideboard', 'move:library-top', 'move:library-bottom']);
 same('moves from the hand: not to the hand', ids(menuItems({}, 'hand')[0].items), ['move:battlefield', 'move:graveyard', 'move:exile', 'move:command', 'move:sideboard', 'move:library-top', 'move:library-bottom']);
 same('from the library you can still put it on the top or bottom of it', ids(menuItems({}, 'library')[0].items).slice(-2), ['move:library-top', 'move:library-bottom']);
-same('a card that is not there still gets a menu', ids(menuItems(null, 'battlefield')), ['modify', 'tap', 'flip', 'nountap', 'sick', 'counter', 'copy', 'move']);
+same('a card that is not there still gets a menu', ids(menuItems(null, 'battlefield')), ['modify', 'tap', 'flip', 'nountap', 'sick', 'counter', 'counter', 'copy', 'move']);
 // Ping card (shared/ping.mjs): only on a live table (other players to ping), only for a card in a public zone, and the page sends it (menuAction has nothing to run)
 for (const zone of ['battlefield', 'graveyard', 'exile', 'command', 'hand', 'library', 'sideboard']) same('the solo menu never offers Ping card (' + zone + ')', ids(menuItems({}, zone)).includes('ping'), false);
 for (const zone of ['battlefield', 'graveyard', 'exile', 'command']) same('a live table offers Ping card for a card in the ' + zone + ', just before Move to', (() => { const list = ids(menuItems({}, zone, { live: true })); return [list.includes('ping'), list.at(-2), list.at(-1)]; })(), [true, 'ping', 'move']);
 for (const zone of ['hand', 'library', 'sideboard']) same('a live table does not offer Ping card for a card in the ' + zone + ' (it is hidden: a ping would reveal it)', ids(menuItems({}, zone, { live: true })).includes('ping'), false);
 same('the label is plain words', menuItems({}, 'battlefield', { live: true }).find((item) => item.id === 'ping').label, 'Ping card');
-same('on the battlefield of a live table the order is the old one with Ping card before Move to', ids(menuItems({}, 'battlefield', { live: true })), ['modify', 'tap', 'flip', 'nountap', 'sick', 'counter', 'copy', 'ping', 'move']);
+same('on the battlefield of a live table the order is the old one with Ping card before Move to', ids(menuItems({}, 'battlefield', { live: true })), ['modify', 'tap', 'flip', 'nountap', 'sick', 'counter', 'counter', 'copy', 'ping', 'move']);
 same('the options object may be left out or empty', [ids(menuItems({}, 'graveyard', {})).includes('ping'), ids(menuItems({}, 'graveyard', undefined)).includes('ping')], [false, false]);
 same('menuAction has nothing to run for ping (the page sends it)', menuAction('ping', { uid: 'c1', n: 'X' }), null);
 same('labels are plain words', menuItems({}, 'hand')[0].items.map((item) => item.label), ['Battlefield', 'Graveyard', 'Exile', 'Command zone', 'Sideboard', 'Top of library', 'Bottom of library']);
@@ -60,12 +60,12 @@ same('labels are plain words', menuItems({}, 'hand')[0].items.map((item) => item
   const tapped = tap.run(game);
   const untap = menuAction('tap', cardOf(tapped, uid));
   check('Untap untaps it', cardOf(untap.run(tapped), uid).tapped === false && untap.message === `Untapped ${card.n}.`);
-  for (const amount of [1, 2, 3, 5]) {
+  for (const amount of [1, 2, 3, 5, 7, 99]) {
     const add = menuAction('counter', card, amount);
     same(`the counter item adds ${amount}`, [cardOf(add.run(game), uid).ct, add.message, add.toast], [{ p: amount }, `Added ${amount} +1/+1 counter${amount === 1 ? '' : 's'} to ${card.n}.`, { text: `+${amount}/+${amount}`, tone: 'up' }]);
   }
   same('the counter item with no amount adds one', cardOf(menuAction('counter', card).run(game), uid).ct, { p: 1 });
-  for (const bad of [0, 4, 10, -1, 2.5, '2', NaN, null]) refused(`the counter item refuses ${String(bad)}`, () => menuAction('counter', card, bad), /1, 2, 3 or 5/);
+  for (const bad of [0, 100, 1000, -1, 2.5, '2', NaN, null]) refused(`the counter item refuses ${String(bad)}`, () => menuAction('counter', card, bad), /1 to 99 counters/);
   const minus = changeCounter(game, uid, 'm', 3);
   same('a +1/+1 counter from the menu cancels -1/-1 counters first, as the rules do', [cardOf(menuAction('counter', card, 2).run(minus), uid).ct, cardOf(menuAction('counter', card, 5).run(minus), uid).ct], [{ m: 1 }, { p: 2 }]);
   for (const [to, label] of [['hand', 'Hand'], ['graveyard', 'Graveyard'], ['exile', 'Exile'], ['command', 'Command zone'], ['sideboard', 'Sideboard']]) {
@@ -109,11 +109,11 @@ same('no card, no action', [menuAction('tap', null), menuAction('tap', undefined
   const delverUid = game.zones.hand.find((card) => card.b === 1)?.uid ?? game.zones.library.find((card) => card.b === 1).uid;
   game = deepFreeze(moveCard(game, delverUid, 'battlefield'));
   const delver = cardOf(game, delverUid);
-  same('a card with a back face offers Turn over, after Tap and before the counter', ids(menuItems(delver, 'battlefield')), ['modify', 'tap', 'flip', 'turn', 'nountap', 'sick', 'counter', 'copy', 'move']);
+  same('a card with a back face offers Turn over, after Tap and before the counter', ids(menuItems(delver, 'battlefield')), ['modify', 'tap', 'flip', 'turn', 'nountap', 'sick', 'counter', 'counter', 'copy', 'move']);
   same('its label says what it will do', [menuItems(delver, 'battlefield')[3].label, menuItems({ ...delver, turned: true }, 'battlefield')[3].label], ['Flip double-faced card', 'Flip double-faced card']);
   same('the label function says the same', [turnLabel(delver), turnLabel({ ...delver, turned: true })], ['Flip double-faced card', 'Flip double-faced card']);
   for (const zone of ['hand', 'graveyard', 'exile', 'command', 'sideboard', 'library']) same(`in ${zone} it is not offered, even for a card with a back`, ids(menuItems(delver, zone)), ['move']);
-  for (const bad of [0, true, '1', 2, null]) same(`b that is ${JSON.stringify(bad)} offers no Turn over`, ids(menuItems({ ...delver, b: bad }, 'battlefield')), ['modify', 'tap', 'flip', 'nountap', 'sick', 'counter', 'copy', 'move']);
+  for (const bad of [0, true, '1', 2, null]) same(`b that is ${JSON.stringify(bad)} offers no Turn over`, ids(menuItems({ ...delver, b: bad }, 'battlefield')), ['modify', 'tap', 'flip', 'nountap', 'sick', 'counter', 'counter', 'copy', 'move']);
   same('a card with no back, and no card, offer none', [ids(menuItems(onBattlefield().card, 'battlefield')).includes('turn'), ids(menuItems(null, 'battlefield')).includes('turn')], [false, false]);
   const turn = menuAction('turn', delver);
   same('Turn over says what it did', turn.message, `Turned ${delver.n} over.`);

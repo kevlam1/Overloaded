@@ -10,6 +10,13 @@ Kevin asked for a plan for menu options on more parts of the table: for example,
 5. Tokens: a "Tokens" menu with three sections: tokens made by the cards in your deck, the most commonly used tokens, and a search bar for every token. See area 11.
 6. A random discard is wanted, and the hand menu gets a Mulligan line (as well as the button on the bar).
 
+7. **Library menu, from Kevin's sketch (2026-11-15):** Draw card; Draw X cards (popup); View library; View, which opens Top card and Top X cards; Shuffle; Scry, Surveil and Mill, each with a small number box inside its own line (starts at 1, changeable, click the word to do it with that number); Exile top X (popup); Reveal top X (popup); Play with top revealed. Reveal top X also works on the solo table (a window marked "revealed"). Play with top revealed shows the real top card face up on your library for you and, on the live table, for the other players (that needs a new public field and a rules change that Kevin pastes, so the live part comes with the table page).
+8. A right-click on a picked card acts on the whole group (area 7).
+9. Common tokens: the list in area 11, plus the ones the data adds (Eldrazi Spawn, Thopter, Elf Warrior, Squirrel, Beast, Angel 4/4, Dragon 5/5). The data (the 3,000 most played Commander cards) has no 4/4 Dragon token: the dragons are a 5/5 and a 6/6.
+
+## Built so far
+- 2026-11-15, log entry 203: the X box, the library / graveyard / exile menu changes (View, Draw card, Draw X, Look at top X, Mill X, Exile top X, Exile all, Shuffle into library) and the counters X line. Not built yet: the View submenu, the inline number boxes, Scry and Surveil, Reveal top X, Play with top revealed.
+
 ## How the menus work today (so the plan fits it)
 - One menu component, `frontend/src/card-menu.js`, draws every menu (a title, items, items with quick amounts, headings that open a submenu, keyboard use).
 - What a menu offers and does is plain data in `shared/` with Node tests, and the page runs the action through its own `apply()`: `shared/card-menu.mjs` (a card), `shared/pile-menu.mjs` (a pile), `shared/player-counters.mjs` (the life total).
@@ -69,7 +76,7 @@ A small "X" box: choosing "Draw X...", "Mill X...", "Look at top X...", "Exile t
 ### 11. Tokens (Decided: three sections)
 The menu is "Tokens" (on the empty battlefield, and later on a card). Its three sections:
 1. **From your deck:** the tokens that the cards of your deck make (Krenko, Mob Boss lists a Goblin; Smothering Tithe lists a Treasure).
-2. **Common:** the most used tokens, a fixed short list (Treasure, Food, Clue, Blood, Map, a 1/1 Soldier, a 1/1 Spirit, a 1/1 Goblin, a 2/2 Zombie, a 1/1 Saproling...). Which ones is for Kevin to choose.
+2. **Common:** the most used tokens, a fixed short list: Treasure, Food, Clue, Blood, Map, 1/1 Goblin, 1/1 Soldier, 1/1 flying Spirit, 2/2 Zombie, 1/1 Saproling, 1/1 Squirrel, 1/1 flying Thopter, 0/1 Eldrazi Spawn, 3/3 Beast, 4/4 flying vigilance Angel, 5/5 flying Dragon (checked against the 3,000 most played Commander cards on 2026-11-15: log entry 203).
 3. **Search all tokens...:** a small window with a search bar over every token, by name or type, and a "How many" number (the X box).
 Choosing one makes it on the battlefield with the logic that exists (`createToken`: name, type line, power and toughness, colors); tokens with the same name and look pile up as a stack. A token that leaves the battlefield stops existing, as now.
 

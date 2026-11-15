@@ -386,7 +386,7 @@ function pickFromPileMenu(zone, id, amount) {
   if (id === 'look') { openPile(zone, { look: amount ?? 1 }); return; }
   const action = pileAction(id, zone, amount);
   if (!action) return;
-  if (id === 'shuffle') { play('shuffle'); if (zone === 'library') shuffleAnimation($('pile-library'), cardBackUrl('small')); } else if (id === 'draw') play('draw');
+  if (id === 'shuffle') { play('shuffle'); if (zone === 'library') shuffleAnimation($('pile-library'), cardBackUrl('small')); } else if (id === 'intolibrary') play('shuffle'); else if (id === 'draw') play('draw');
   apply(() => action.run(game), action.message);
 }
 function openPileMenu(zone, where) {

@@ -4062,6 +4062,25 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **My mistakes this round:** my first draft of the token section said the Goblin was "2/1 and Krenko's 1/1" from the first file alone; I had read Krenko's id but not its power and toughness, so I looked it up in `default_cards` before keeping the sentence.
 
+
+---
+
+## 203. The number box instead of the rows of number buttons, and the first library, graveyard and exile menu changes (2026-11-15)
+
+**What I asked for**
+- Start the first slice of the menu plan, go over whether there are more options, and rework the 2-to-7 number buttons into it. Also, take a look at the most popular commanders and whether they make tokens like 4/4 dragons. My answers before that: a right-click on a picked card acts on the whole group; the common tokens in the plan are good for now.
+
+**What changed** (`shared/number-input.mjs`, `frontend/src/number-box.js`, `frontend/src/card-menu.js`, `shared/pile-menu.mjs`, `shared/card-menu.mjs`, `frontend/pages/solo/solo.js`, `frontend/pages/table/table.js`, `frontend/src/style.css`, tests)
+- **The X box:** a menu line that needs a number (its label ends in three dots) now closes the menu and opens a small box where the menu was: the field has the focus and starts at the last number used if it fits, Enter or OK does it, Escape, Cancel or a click outside cancels, and a number that is not allowed (0, letters, more than the pile has) stays open and says why. What is accepted is `parseCount` in `shared/number-input.mjs`. The rows of fixed number buttons are gone from every menu (`amounts`, `DRAW_AMOUNTS`, `LOOK_AMOUNTS`, `MILL_AMOUNTS` and `COUNTER_AMOUNTS` were removed).
+- **Library menu:** View library, Draw card, Draw X..., Look at top X..., Mill X..., Exile top X..., Shuffle. **Graveyard:** View graveyard, Exile all, Shuffle into library, Move all to. **Exile:** View exile, Shuffle into library, Move all to. **Sideboard:** View sideboard, Move all to. (The old "Search..." is "View ..."; the page still opens the viewer with its search bar.)
+- **Counters on a card:** "+1/+1 counter" adds one and "+1/+1 counters X..." asks for 1 to 99 (the 2, 3 and 5 buttons are gone). I did this because they are the same kind of number buttons; say so if you want them back.
+- The table page uses the same menus, so it has the new lines too (a draw, mill or exile of a typed number, Shuffle into library, the counters); nothing about them is new in its saved data.
+- **Tokens, from the data (to answer "popular commanders and 4/4 dragons"):** I read the cached bulk files. Among the 3,000 most played Commander-legal cards (Scryfall's `edhrec_rank`), the tokens they make are, by number of cards: Treasure 86, Food 18, Goblin 1/1 14, Zombie 2/2 14, Copy 13, Eldrazi Spawn 0/1 9, Thopter 1/1 flying 7, Elf Warrior 1/1 7, Soldier 1/1 5, Squirrel 1/1 5, Wizard 0/1 5, then Beast 3/3, Human Soldier, Vampire (lifelink), Saproling, Spirit (flying), Angel 4/4 flying vigilance (4 cards), Bird 2/2 flying, Clue (3). There is no 4/4 dragon: the dragon tokens are a 5/5 red flier (Lathliss, Dragon Queen; Dragonmaster Outcast; Rite of the Dragoncaller) and a 6/6 (Utvara Hellkite). Of the 150 best-ranked commanders only 33 make a token, and nine of them make a Treasure. I will add Eldrazi Spawn, Thopter, Elf Warrior, Squirrel, Beast, Angel and Dragon to the common list in the plan.
+
+**What I checked:** `test-number-input.mjs` (24), `test-pile-menu.mjs` (40), `test-card-menu.mjs` (203), all quick suites (64), and the solo check (659): the new menu lines, the box opening with the focus, 0, letters and a number over the pile refused with their messages, 3 drawing three cards and saying so, the last number being offered again, Escape cancelling, Mill X and Exile top X, the graveyard lines (Exile all) and exile's Shuffle into library, Look at top X opening the viewer, the counters X line by mouse and by keyboard. I did not run the live table checks against the real project and did not look at a screenshot of the number box.
+
+**My mistakes this round:** my shell command with a long file inside it was cut off twice and wrote nothing (I saw it only because the next step could not find the file), so I wrote the files with the file tool; two older checks that clicked the 3 next to the counter failed on the first full run and had to be rewritten.
+
 ---
 
 ## Where AI misread me, or I had to correct course

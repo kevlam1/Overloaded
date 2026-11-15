@@ -349,12 +349,9 @@ dialog h2 { margin-top: 0; }
 
 .card-menu { position: fixed; z-index: 40; width: max-content; min-width: 13rem; max-width: 18rem; max-height: calc(100vh - 16px); overflow-y: auto; padding: 0 0 0.25rem; background: var(--card); color: var(--text); border: 1px solid var(--line); border-radius: 0.6rem; box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.35); font-size: 0.95rem; }
 .card-menu-title { padding: 0.5rem 0.8rem; border-bottom: 1px solid var(--line); font-weight: 700; overflow-wrap: anywhere; }
-.card-menu .card-menu-item, .card-menu .card-menu-amount { display: flex; align-items: center; justify-content: space-between; min-height: 2.25rem; margin: 0; border: 0; border-radius: 0; background: transparent; color: inherit; font: inherit; font-weight: 400; text-align: left; cursor: pointer; }
+.card-menu .card-menu-item { display: flex; align-items: center; justify-content: space-between; min-height: 2.25rem; margin: 0; border: 0; border-radius: 0; background: transparent; color: inherit; font: inherit; font-weight: 400; text-align: left; cursor: pointer; }
 .card-menu .card-menu-item { width: 100%; padding: 0.3rem 0.8rem; }
-.card-menu .card-menu-item:hover, .card-menu .card-menu-item:focus-visible, .card-menu .card-menu-amount:hover, .card-menu .card-menu-amount:focus-visible { background: var(--accent); color: var(--accent-text); outline: none; }
-.card-menu-row { display: flex; align-items: center; gap: 0.25rem; padding-right: 0.5rem; }
-.card-menu-row .card-menu-item { flex: 1 1 auto; width: auto; }
-.card-menu .card-menu-amount { flex: 0 0 auto; width: 2rem; min-height: 1.75rem; padding: 0; justify-content: center; border: 1px solid var(--line); border-radius: 0.35rem; }
+.card-menu .card-menu-item:hover, .card-menu .card-menu-item:focus-visible { background: var(--accent); color: var(--accent-text); outline: none; }
 .card-menu-sub { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--bg); }
 .card-menu-sub[hidden] { display: none; }
 .card-menu .card-menu-subitem { padding-left: 1.6rem; }
@@ -1360,3 +1357,12 @@ body.dragging-card .pile-stack.drop-target .stack-face, body.dragging-card .cmd-
    the hand like before"): no room at the sides or the top (a 2.5 px gap keeps its line from being cut), so the bar, the life and the menu float over its top. It stays 112 by 44 cells, so its bottom is above the hand and the
    zones row. The line round it is drawn outside it. */
 body.playing.solo #my-board { padding: 0.15rem 0 0; }
+/* the small number box of a menu line such as "Draw X..." (frontend/src/number-box.js; Kevin, 2026-11-15) */
+.number-box { position: fixed; z-index: 45; width: 13rem; padding: 0.6rem 0.7rem 0.7rem; border: 1px solid var(--line); border-radius: 0.6rem; background: var(--panel, var(--bg)); box-shadow: 0 0.5rem 1.4rem rgba(0, 0, 0, 0.45); }
+.number-box-title { margin-bottom: 0.4rem; font-weight: 700; }
+.number-box-input { width: 100%; padding: 0.3rem 0.5rem; border: 1px solid var(--line); border-radius: 0.4rem; background: var(--bg); color: var(--text); font: inherit; font-variant-numeric: tabular-nums; }
+.number-box-input[aria-invalid="true"] { border-color: var(--bad, #d9534f); }
+.number-box-note { min-height: 1.1rem; margin: 0.25rem 0 0.4rem; color: var(--muted); font-size: 0.8rem; }
+.number-box-note.bad { color: var(--bad, #d9534f); }
+.number-box-buttons { display: flex; gap: 0.4rem; justify-content: flex-end; }
+.number-box-buttons button { min-height: 0; padding: 0.2rem 0.8rem; }

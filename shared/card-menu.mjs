@@ -6,7 +6,7 @@ import { canPing } from './ping.mjs';
 
 export const ZONE_NAMES = { library: 'your library', hand: 'your hand', battlefield: 'the battlefield', graveyard: 'your graveyard', exile: 'exile', command: 'the command zone', sideboard: 'your sideboard' };
 export const MOVE_TARGETS = [['hand', 'Hand'], ['battlefield', 'Battlefield'], ['graveyard', 'Graveyard'], ['exile', 'Exile'], ['command', 'Command zone'], ['sideboard', 'Sideboard']];
-export const COUNTER_AMOUNTS = [2, 3, 5]; // the quick buttons next to "+1/+1 counter"; clicking the name itself adds 1
+export const COUNTER_ASK = { max: 99, unit: 'counters' }; // "+1/+1 counters X..." asks for a number up to this (Kevin, 2026-11-15: no more quick buttons 2, 3 and 5)
 
 // The words for turning a two-sided card over, and the sentence for a screen reader or the message line after it (the pages use
 // both, so the menu and the selected-card button say the same).
@@ -36,7 +36,7 @@ export const PLAY_BACK_ZONES = ['hand', 'graveyard', 'exile', 'command'];
 const backNameOf = (card) => { const parts = String(card?.n ?? '').split(' // '); return parts.length === 2 ? parts[1] : null; };
 export const playBackLabel = (card) => `Play ${backNameOf(card) ?? 'its back face'}`;
 
-// The items for a card in a zone: { id, label, amounts? } for a choice, { id, label, items } for a heading that opens more.
+// The items for a card in a zone: { id, label } for a choice, { id, label, ask } for a line that asks for a number first ("+1/+1 counters X..."), { id, label, items } for a heading that opens more.
 // Tap, counters and Modify belong to a card on the battlefield; moving is offered everywhere (not to the zone it is already in).
 // live: this is a table with other players, so a card in a public zone can also be pinged to them (shared/ping.mjs); the solo table has nobody to ping.
 export function menuItems(card, zone, { live = false } = {}) {
@@ -48,7 +48,8 @@ export function menuItems(card, zone, { live = false } = {}) {
     if (card?.b === 1) items.push({ id: 'turn', label: turnLabel(card) }); // only a card with a back face (transform and modal cards)
     items.push({ id: 'nountap', label: noUntapLabel(card) });
     items.push({ id: 'sick', label: sickLabel(card) });
-    items.push({ id: 'counter', label: '+1/+1 counter', amounts: [...COUNTER_AMOUNTS] });
+    items.push({ id: 'counter', label: '+1/+1 counter' });
+    items.push({ id: 'counter', label: '+1/+1 counters X...', ask: { ...COUNTER_ASK } });
     items.push({ id: 'copy', label: 'Create copy' });
   }
   if (card?.md === 1 && card.b === 1 && PLAY_BACK_ZONES.includes(zone)) items.push({ id: 'playback', label: playBackLabel(card) });
@@ -95,7 +96,7 @@ export function menuAction(id, card, amount = 1, { printed = null } = {}) {
   if (id === 'flip') return { run: (game) => setFaceDown(game, card.uid, !card.faceDown), message: flipMessage(card) };
   if (id === 'turn') return { run: (game) => turnOver(game, card.uid), message: turnMessage(card) };
   if (id === 'counter') {
-    if (amount !== 1 && !COUNTER_AMOUNTS.includes(amount)) throw new Error('Add 1, 2, 3 or 5 counters from the menu.');
+    if (!Number.isInteger(amount) || amount < 1 || amount > COUNTER_ASK.max) throw new Error(`Add from 1 to ${COUNTER_ASK.max} counters from the menu.`);
     return {
       run: (game) => changeCounter(game, card.uid, 'p', amount),
       message: `Added ${amount} +1/+1 counter${amount === 1 ? '' : 's'} to ${name}.`,

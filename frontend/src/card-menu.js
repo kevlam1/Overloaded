@@ -1,8 +1,10 @@
 // The right-click menu of a card: the card's name as a heading and a short list of choices (what is offered is decided in
 // shared/card-menu.mjs). One menu at a time. It opens at the pointer and stays inside the window; it closes on a choice, Escape,
 // Tab, a click elsewhere, a scroll, a resize or when the window loses focus. By keyboard: Up and Down move, Home and End jump, Right
-// opens "Move to" (or moves along a row of amounts), Left goes back, Enter and Space choose. "Move to" opens inline under its
+// opens "Move to", Left goes back, Enter and Space choose. "Move to" opens inline under its
 // heading instead of flying out, so it works the same with a mouse, a keyboard and a finger. Card names go in as text.
+import { askNumber } from './number-box.js';
+
 const ARROW = String.fromCharCode(0x25b8);
 let current = null; // the menu on screen: { close }
 
@@ -19,6 +21,8 @@ export function closeCardMenu() {
 
 // title: the card's name. items: from menuItems(). x, y: where the pointer is (window coordinates). onPick(id, amount) is called
 // after the menu has closed. returnFocus: the element to give focus back to when the menu closes (the card).
+// An item with `ask: { min, max, unit }` is a line like "Draw X...": choosing it closes the menu and opens the small number box (src/number-box.js) where the menu was, and onPick(id, number) is called with
+// the number typed (nothing is called when the box is cancelled).
 export function openCardMenu({ title, items, x, y, onPick, returnFocus = null }) {
   closeCardMenu();
   const menu = make('div', 'card-menu');
@@ -76,21 +80,17 @@ export function openCardMenu({ title, items, x, y, onPick, returnFocus = null })
         if (opening) sub.querySelector('[role="menuitem"]')?.focus({ preventScroll: true });
       });
       menu.append(head, sub);
-    } else if (Array.isArray(item.amounts)) {
-      const row = make('div', 'card-menu-row');
-      const main = itemButton(item.label, 'card-menu-item');
-      main.addEventListener('click', () => pick(item.id, 1));
-      row.append(main);
-      for (const amount of item.amounts) {
-        const button = itemButton(String(amount), 'card-menu-amount');
-        button.setAttribute('aria-label', `${item.label}, ${amount}`);
-        button.addEventListener('click', () => pick(item.id, amount));
-        row.append(button);
-      }
-      menu.append(row);
     } else {
       const button = itemButton(item.label, 'card-menu-item');
-      button.addEventListener('click', () => pick(item.id, 1));
+      if (item.ask) {
+        button.addEventListener('click', () => {
+          const at = button.getBoundingClientRect();
+          close({ restore: false });
+          askNumber({ title: item.ask.title ?? item.label.replace(/\.\.\.$/, ''), x: at.left, y: at.top, min: item.ask.min ?? 1, max: item.ask.max ?? 999, unit: item.ask.unit ?? '', returnFocus }).then((number) => { if (number !== null) onPick(item.id, number); });
+        });
+      } else {
+        button.addEventListener('click', () => pick(item.id, 1));
+      }
       menu.append(button);
     }
   }
@@ -110,8 +110,6 @@ export function openCardMenu({ title, items, x, y, onPick, returnFocus = null })
         const sub = target.nextElementSibling;
         if (sub.hidden) expand(target, sub, true);
         sub.querySelector('[role="menuitem"]')?.focus({ preventScroll: true });
-      } else if (target?.closest('.card-menu-row')) {
-        target.nextElementSibling?.focus({ preventScroll: true });
       }
       event.preventDefault();
     } else if (event.key === 'ArrowLeft') {
@@ -120,8 +118,6 @@ export function openCardMenu({ title, items, x, y, onPick, returnFocus = null })
         const head = sub.previousElementSibling;
         expand(head, sub, false);
         head.focus({ preventScroll: true });
-      } else if (target?.closest('.card-menu-row')) {
-        target.previousElementSibling?.focus({ preventScroll: true });
       }
       event.preventDefault();
     } else if (event.key === 'Escape') {
