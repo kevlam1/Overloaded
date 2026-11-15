@@ -16,6 +16,9 @@ const FIREBASE_SETTINGS = {
   appId: 'FIREBASE_APP_ID',
 };
 
+// TEMPORARY update notice (see frontend/src/update-notice.js): the id of this build, the commit on Vercel, else the time.
+const BUILD_ID = process.env.VERCEL_GIT_COMMIT_SHA || String(Date.now());
+
 const page = (path) => fileURLToPath(new URL(path, import.meta.url));
 
 export default defineConfig(({ command, mode }) => {
@@ -37,7 +40,7 @@ export default defineConfig(({ command, mode }) => {
 
   return {
     root: 'frontend',
-    define: { __FIREBASE_CONFIG__: JSON.stringify(firebaseConfig) },
+    define: { __FIREBASE_CONFIG__: JSON.stringify(firebaseConfig), __BUILD_ID__: JSON.stringify(command === 'build' ? BUILD_ID : 'dev') },
     build: {
       outDir: '../dist',
       emptyOutDir: true,
@@ -48,6 +51,9 @@ export default defineConfig(({ command, mode }) => {
     plugins: [{
       name: 'overloaded-version',
       transformIndexHtml: { order: 'pre', handler: (html) => html.replace(/\{\{VERSION\}\}/g, () => version) },
+    }, {
+      name: 'overloaded-version-file', // writes /version.json for the temporary update notice
+      generateBundle() { this.emitFile({ type: 'asset', fileName: 'version.json', source: JSON.stringify({ id: BUILD_ID }) }); },
     }, {
       // On Vercel /, /deck, /solo, /logs, /table/CODE and /lobby/CODE are rewritten to their pages (vercel.json); the dev server needs the same rules.
       name: 'overloaded-dev-rewrites',

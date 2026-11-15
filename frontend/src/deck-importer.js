@@ -61,6 +61,7 @@ const printsLoader = makePrintsLoader(); // the printings of one card, fetched w
 let printingFiles = new Map(); // the set files the pasted list names (see src/printings.js)
 let checkRun = 0; // a newer check makes an older one that is still waiting for printing files stop
 let viewToggle = null;
+let pendingPlay = false; // /deck?sample&play (the demo path from the solo table's empty state): once the sample deck is checked and saved, the solo table opens with it
 let pendingSample; // undefined, or the id of a sample deck to put in the box once the card list has loaded ('' is the first one; a /deck?sample address asks for it)
 let onLibraryChange = () => {};
 let mounted = false;
@@ -279,7 +280,10 @@ async function loadCards() {
     if (pendingSample !== undefined) {
       const id = pendingSample;
       pendingSample = undefined;
+      const playAfter = pendingPlay;
+      pendingPlay = false;
       await useSample(id);
+      if (playAfter) $('deck-play-solo')?.click(); // the same button as "Play solo": it selects the saved deck and opens /solo (it says why if the deck could not be saved)
     }
   } catch {
     index = null;
@@ -737,12 +741,13 @@ function setView(next) {
 // ---- starting ----
 // root: the element to build the manager in. Options: sampleId (undefined, or the sample deck a /deck?sample address asks for: '' is the first), onLibraryChange (called after
 // the saved decks change, so a page that lists them can look again), play (the saved decks get a "Play solo" button; not inside the lobby). Call it once; a second call does nothing.
-export function mountDeckImporter({ root: container, sampleId, onLibraryChange: onChange = () => {}, play = true } = {}) {
+export function mountDeckImporter({ root: container, sampleId, autoPlay = false, onLibraryChange: onChange = () => {}, play = true } = {}) {
   if (mounted || !container) return;
   mounted = true;
   root = container;
   solo = play;
   pendingSample = sampleId;
+  pendingPlay = autoPlay && play;
   onLibraryChange = onChange;
   build();
   const savedView = store.get(VIEW_KEY);

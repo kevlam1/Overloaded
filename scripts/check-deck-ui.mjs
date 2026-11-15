@@ -441,6 +441,19 @@ check('there are no commander or partner boxes; the Commander heading says to ri
   await load();
   check('a plain visit does not load a sample by itself', (await ev(`document.getElementById('deck-text').value`)) === '' && (await $hidden('preview')));
 
+  // ---- the quickest way in (the demo path): a link with ?sample&play goes from the deck page to the solo table with the sample deck dealt ----
+  {
+    const onSolo = () => waitFor(async () => (await ev('location.pathname')) === '/solo' || null, 20000, 100);
+    const handSize = () => waitFor(async () => ((await ev("document.querySelectorAll('#hand .card').length")) === 7) || null, 20000, 100);
+    const savedName = () => ev("(() => { const l = JSON.parse(localStorage.getItem('overloaded.decks') || 'null'); return l ? l.decks.map((d) => d.deck.name) : null; })()");
+    await deleteAllSaved();
+    await browser.goto(`${PAGE}?sample&play`);
+    check('a link with ?sample&play goes straight to the solo table with the sample deck saved and dealt, without a click', Boolean(await onSolo()) && Boolean(await handSize()) && JSON.stringify(await savedName()) === '["Krenko, Mob Boss (sample)"]', JSON.stringify(await savedName()));
+    await load();
+    await deleteAllSaved();
+    pictureRequests.length = 0; // (the solo table asked for the pictures of the hand: the hover checks below count only their own requests)
+  }
+
   // ---- cards pasted under another title they were printed under (real cases from a real export, 2026-10-29) ----
   // These need the list built with the alternate titles (format 2); an older cached list would fail here, on purpose.
   const katakana = String.fromCharCode(0x30d5, 0x30a7, 0x30a4, 0x30bf, 0x30ea, 0x30ba, 0x30e0);
