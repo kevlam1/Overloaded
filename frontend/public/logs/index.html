@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.196</span></h1>
-    <p class="lede">196 entries, Oct 25 to Nov 14, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
+    <h1>Build log <span class="version">Version 0.197</span></h1>
+    <p class="lede">197 entries, Oct 25 to Nov 14, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
   </div>
 </header>
 
@@ -23,7 +23,7 @@
     <div class="weeks-row">
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
-<a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">86</span></a>
+<a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">87</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
     </div>
     <div class="tools">
@@ -1961,7 +1961,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-1" aria-labelledby="week-1-title">
-<h2 class="week-head" id="week-1-title"><button type="button" aria-expanded="false" aria-controls="week-1-days"><span class="wname">Week 1</span><span class="range">Nov 9 to Nov 15</span><span class="week-count">86 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-1-title"><button type="button" aria-expanded="false" aria-controls="week-1-days"><span class="wname">Week 1</span><span class="range">Nov 9 to Nov 15</span><span class="week-count">87 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-1-days">
 <div class="day">
 <h3 class="day-title">Monday 9 November <span class="day-count">4</span></h3>
@@ -3258,7 +3258,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Saturday 14 November <span class="day-count">5</span></h3>
+<h3 class="day-title">Saturday 14 November <span class="day-count">6</span></h3>
 <div class="entries">
 <article class="entry" id="entry-192" data-n="192">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-192-body">
@@ -3333,6 +3333,21 @@
 <ul><li>Pressing one of the picked cards and dragging carries all of them. <code>placeGroup(game, uids, anchor, col, row)</code> in <code>shared/zones.mjs</code> moves the card pressed to the cell it was dropped on and every other card of the group by the same number of cells, so they keep their places relative to each other. The move is cut short for the whole group where its first card would leave the board (a tapped card needs the room of its landscape shape), so the group never changes shape. If a picked card is in a pile, the rest of that pile goes with it (the rectangle only reaches the cards that are drawn, three of a pile). The group goes on top of the others only if it lands on a card that is drawn above it, as a single card does. It does not snap onto a pile.</li><li>While carried, the card pressed is the usual picture and each of the others is drawn beside it where it is on the board (a tapped card on its side), at the same see-through look, and every card of the group is hidden where it was. A group is carried over the board only: not into the hand, and not onto a pile or the command zone. Shift still holds it to a row or a column, as for one card. After the drop the group is still picked.</li><li>Only the solo table has the rectangle, so only it has this; the table page does not call it.</li></ul>
 <p><strong>What I checked:</strong> <code>test-place-group.mjs</code> (20: the shape is kept, nothing to do, each edge, a tapped card, a pile, going on top or not, bad input, and 400 random moves that never lose a card or leave the board) and the solo check (642): with the whole table's cards picked by a rectangle, pressing one and moving 5 cells carries all (a picture for each other card, none left unhidden, the hand not marked) and moves every card by exactly 5 cells across with its row unchanged, says how many moved, keeps the group picked and leaves no carry behind. A screenshot of a group being carried (a pile of three Islands, a Forest and a tapped Forest on its side). I did not try a group dropped at the right edge in the browser (the logic is tested), a group that holds a pile of more than three, or a group on the table page.</p>
 <p><strong>My mistakes this round:</strong> I used a variable before declaring it in the press code (<code>group</code> was read one line before it was made), which broke every drag from a card and made the pile checks fail; my first check also called a helper that does not exist in that part of the test file and crashed the whole run, and my wait for the run took the first error line in the log for the end of the run.</p>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-197" data-n="197">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-197-body">
+    <span class="num">197</span>
+    <span class="head-text"><span class="title">A larger zones row at the bottom, no words, and gold commander frames</span><span class="sum">First a question: what to call the library, graveyard, exile and command zone at the bottom right (I suggested the &quot;zones row&quot;, the three piles and the command zone).</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-197-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>First a question: what to call the library, graveyard, exile and command zone at the bottom right (I suggested the &quot;zones row&quot;, the three piles and the command zone). Then: make the row larger, with its bottom nearly touching the bottom of the window; remove the &quot;Command zone&quot; text; and make the border round the commander cards more flairish so it is obvious that those two zones are for commanders.</li></ul>
+<p><strong>What changed</strong> (<code>frontend/src/style.css</code>, <code>frontend/pages/solo/index.html</code>, <code>scripts/check-solo-ui.mjs</code>)</p>
+<ul><li><strong>Larger:</strong> the cards of the row are 6.8 rem wide (109 px), were 5.4 rem (86 px). On a window under about 1360 px they are a little smaller, <code>(width - 50.4 rem) / 5</code>, because the hand is 42 rem across and has to fit beside the row; at 1280 wide they are 95 px. The hand's right edge now follows the row (<code>calc(5 * var(--zones-sw) + 7.2rem)</code>) instead of a fixed 36 rem. My first version made the row 6.8 rem on every window and squeezed the hand at 1280 wide, which failed four older hand checks; the narrower size on small windows fixed that.</li><li><strong>Bottom:</strong> 0.2 rem from the bottom of the window (3 px; it was 8 px).</li><li><strong>Words:</strong> &quot;Command zone&quot; is not drawn. It is still in the page as hidden text for a screen reader.</li><li><strong>Gold frames:</strong> each commander slot has a 2 px solid gold border, a thin outline 3 px outside it (so it reads as a double line), a soft gold glow, a faint gold tint from the top left, and a small gold diamond on the middle of its top and bottom edge. An empty slot has the same frame dashed and dimmer. The gold is <code>--gold</code>, darker in light mode and lighter in dark mode.</li></ul>
+<p><strong>What I checked:</strong> the solo check (644): the size and the 3 px gap, the words gone and still in the page, the frame (solid and 2 px, the outline, the diamonds, dashed for the empty slot), the slots and piles still lined up, and the hand not squeezed. Screenshots at 1366 by 768 and 1920 by 1080 in dark mode. I did not look at the gold in light mode, at the frame while a card is dragged over it (the ring that shows the drop is older and I did not check how it looks next to the gold), or at the row on a window under 1280 wide.</p>
+<p><strong>My mistakes this round:</strong> none beyond the squeezed hand above, which I found by running the check, not by looking.</p>
   </div></div></div>
 </article>
 </div>

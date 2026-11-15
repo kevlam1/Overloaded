@@ -3961,6 +3961,24 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **My mistakes this round:** I used a variable before declaring it in the press code (`group` was read one line before it was made), which broke every drag from a card and made the pile checks fail; my first check also called a helper that does not exist in that part of the test file and crashed the whole run, and my wait for the run took the first error line in the log for the end of the run.
 
+
+---
+
+## 197. A larger zones row at the bottom, no words, and gold commander frames (2026-11-14)
+
+**What I asked for**
+- First a question: what to call the library, graveyard, exile and command zone at the bottom right (I suggested the "zones row", the three piles and the command zone). Then: make the row larger, with its bottom nearly touching the bottom of the window; remove the "Command zone" text; and make the border round the commander cards more flairish so it is obvious that those two zones are for commanders.
+
+**What changed** (`frontend/src/style.css`, `frontend/pages/solo/index.html`, `scripts/check-solo-ui.mjs`)
+- **Larger:** the cards of the row are 6.8 rem wide (109 px), were 5.4 rem (86 px). On a window under about 1360 px they are a little smaller, `(width - 50.4 rem) / 5`, because the hand is 42 rem across and has to fit beside the row; at 1280 wide they are 95 px. The hand's right edge now follows the row (`calc(5 * var(--zones-sw) + 7.2rem)`) instead of a fixed 36 rem. My first version made the row 6.8 rem on every window and squeezed the hand at 1280 wide, which failed four older hand checks; the narrower size on small windows fixed that.
+- **Bottom:** 0.2 rem from the bottom of the window (3 px; it was 8 px).
+- **Words:** "Command zone" is not drawn. It is still in the page as hidden text for a screen reader.
+- **Gold frames:** each commander slot has a 2 px solid gold border, a thin outline 3 px outside it (so it reads as a double line), a soft gold glow, a faint gold tint from the top left, and a small gold diamond on the middle of its top and bottom edge. An empty slot has the same frame dashed and dimmer. The gold is `--gold`, darker in light mode and lighter in dark mode.
+
+**What I checked:** the solo check (644): the size and the 3 px gap, the words gone and still in the page, the frame (solid and 2 px, the outline, the diamonds, dashed for the empty slot), the slots and piles still lined up, and the hand not squeezed. Screenshots at 1366 by 768 and 1920 by 1080 in dark mode. I did not look at the gold in light mode, at the frame while a card is dragged over it (the ring that shows the drop is older and I did not check how it looks next to the gold), or at the row on a window under 1280 wide.
+
+**My mistakes this round:** none beyond the squeezed hand above, which I found by running the check, not by looking.
+
 ---
 
 ## Where AI misread me, or I had to correct course

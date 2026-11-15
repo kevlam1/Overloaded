@@ -1239,8 +1239,9 @@ body.playing.solo { --glass: rgba(22, 22, 30, 0.78); }
 body.playing.solo #my-board { position: absolute; inset: 0; padding: 3.7rem 2.8rem 0; border: 0; border-radius: 0; background: none; } /* the same room at both sides: the battlefield is in the middle of the window (it was flush with the right edge, Kevin 2026-11-14) */
 /* a line round the battlefield (2 px: 4 was too thick, Kevin 2026-11-14), drawn outside it so the cells and the places of the cards do not move */
 body.playing.solo .board.mine > .battlefield { align-self: center; outline: 2px solid color-mix(in srgb, var(--text) 40%, transparent); outline-offset: 0; }
-body.playing.solo .zones { --sw: 5.4rem; } /* the piles and the command zone are larger (Kevin, 2026-11-12); their pictures are the normal size so they stay sharp */
-body.playing.solo .hand-section { position: absolute; left: 0; right: 36rem; bottom: 0; grid-row: auto; grid-column: auto; } /* the hand is centred in the room left of the piles (30rem: the row of piles and the command zone) */
+body.playing.solo { --zones-sw: min(6.8rem, calc((100vw - 50.4rem) / 5)); } /* 6.8 rem, less on a window under about 1360 px so that the hand (42 rem across) still fits beside the zones row, which is 5 widths and 5.6 rem across */
+body.playing.solo .zones { --sw: var(--zones-sw); } /* the piles and the command zone are larger (Kevin, 2026-11-12, and again 2026-11-14: 5.4 then 6.8 rem); their pictures are the normal size so they stay sharp */
+body.playing.solo .hand-section { position: absolute; left: 0; right: calc(5 * var(--zones-sw) + 7.2rem); bottom: 0; grid-row: auto; grid-column: auto; } /* the hand is centred in the room left of the zones row (5 widths and 5.6 rem across, 0.8 rem from the right edge, and a little room between) */
 body.playing.solo .right-column { display: contents; }
 
 /* the pieces that float: glass, like the control bar of MIDI Companion */
@@ -1285,7 +1286,7 @@ body.playing.solo .actions-panel[data-vertical="true"] .bar-grip svg { rotate: 9
 
 
 /* the piles and the command zone: a row at the bottom right */
-body.playing.solo .side-panels { position: absolute; z-index: 9; right: 0.8rem; bottom: 0.5rem; display: block; }
+body.playing.solo .side-panels { position: absolute; z-index: 9; right: 0.8rem; bottom: 0.2rem; display: block; } /* the bottom of the row nearly touches the bottom of the window (Kevin, 2026-11-14) */
 body.playing.solo .side-panels > section { padding: 0; }
 body.playing.solo .piles-section { display: flex; flex-direction: row; align-items: flex-start; gap: 1rem; }
 /* the name of each pile is above it like the command zone's, with a small arrow that opens its menu (Kevin, 2026-11-13) */
@@ -1349,3 +1350,12 @@ body.dragging-card .pile-stack.drop-target .stack-face, body.dragging-card .cmd-
 .drag-group-part { position: absolute; overflow: hidden; border-radius: 0.3rem; background: var(--line); box-shadow: 0 0.4rem 1rem rgba(0, 0, 0, 0.5); opacity: 0.6; }
 .drag-group-part img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .drag-group-part img.on-its-side { position: absolute; left: 50%; top: 50%; width: auto; height: auto; translate: -50% -50%; rotate: 90deg; }
+/* the two command slots are framed in gold, doubled and glowing, with a small diamond on the top and bottom edge, so it is plain that they are for commanders (Kevin, 2026-11-14) */
+:root { --gold: #a9822a; }
+@media (prefers-color-scheme: dark) { :root { --gold: #d9b45f; } }
+.cmd-slot .slot-cards { position: relative; border: 2px solid var(--gold); border-radius: 0.6rem; outline: 1px solid color-mix(in srgb, var(--gold) 55%, transparent); outline-offset: 3px; background: linear-gradient(160deg, color-mix(in srgb, var(--gold) 20%, transparent), transparent 55%); box-shadow: 0 0 14px color-mix(in srgb, var(--gold) 45%, transparent), inset 0 0 12px color-mix(in srgb, var(--gold) 30%, transparent); }
+.cmd-slot.empty-slot .slot-cards { border-style: dashed; border-color: color-mix(in srgb, var(--gold) 55%, transparent); outline-color: color-mix(in srgb, var(--gold) 25%, transparent); background: none; box-shadow: inset 0 0 10px color-mix(in srgb, var(--gold) 14%, transparent); }
+.cmd-slot .slot-cards::before, .cmd-slot .slot-cards::after { content: ''; position: absolute; left: 50%; width: 0.45rem; height: 0.45rem; background: var(--gold); box-shadow: 0 0 6px color-mix(in srgb, var(--gold) 70%, transparent); rotate: 45deg; translate: -50% 0; pointer-events: none; z-index: 2; }
+.cmd-slot .slot-cards::before { top: -0.33rem; }
+.cmd-slot .slot-cards::after { bottom: -0.33rem; }
+.cmd-slot.empty-slot .slot-cards::before, .cmd-slot.empty-slot .slot-cards::after { opacity: 0.55; box-shadow: none; }
