@@ -4046,6 +4046,22 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **My mistakes this round:** none found; but the plan is a first draft of what to ask you, and some of the proposed lines (Scry and Surveil as their own window, "Exile top X", a random discard) may be more than you want.
 
+
+---
+
+## 202. My answers on the menu plan, and what the token data allows (2026-11-15)
+
+**What I asked for**
+- My answers to the six questions of the menu plan: 1. yes, Scry and Surveil as their own window, and "Exile top X"; 2. no, the commander's tax stays by hand; 3. no Tidy; 4. I asked what the picked-group question means; 5. tokens: a section for tokens related to the cards in my deck, one for the most commonly used tokens, and a search bar for every token; 6. yes to a random discard, and add a Mulligan button to the hand menu.
+
+**What changed** (`docs/menus.md`; nothing in the code)
+- The plan now has a "Decided so far" list with those answers and the areas are changed to match: "Cast commander" does not touch the tax, there is no Tidy line, the hand menu has a random discard and Mulligan, and the library menu has Exile top X, Scry and Surveil (each its own window). Question 4 stays open, now explained in the plan: right-clicking one of the cards picked with a rectangle opens the menu of that one card, while E, Q, F and dragging already act on the whole group.
+- **Tokens, with the data read first:** in Scryfall's bulk file `oracle_cards` (cached 2026-11-05) there are 938 token records (862 different faces) and 4,891 of the 39,287 cards list the tokens they make (`all_parts` entries with `component: "token"`, each with the token's name, type line and Scryfall id), so "tokens related to the cards in my deck" can be built from the cards. The catch is that an entry's id is one printing of the token and only 1,655 of the 4,699 entries match a record in that file; `default_cards` (3,049 token printings) has the rest, and tokens with the same name differ (the Goblin is 1/1 red on 59 printings, 1/1 black and red on 1, 2/1 red on 2; I checked that Krenko, Mob Boss points at a 1/1 red one). So the token list has to be built from `default_cards` and the link has to follow the id, not the name. The sizes are estimates until it is built (about 60 KB of plain JSON for the faces, 100 to 150 KB for the links, to be fetched only when the Tokens menu is first opened).
+
+**What I checked:** the raw fields and counts above, by reading the two cached bulk files (I printed a token record's fields, Krenko's and Smothering Tithe's `all_parts`, and counted). Nothing was built or run.
+
+**My mistakes this round:** my first draft of the token section said the Goblin was "2/1 and Krenko's 1/1" from the first file alone; I had read Krenko's id but not its power and toughness, so I looked it up in `default_cards` before keeping the sentence.
+
 ---
 
 ## Where AI misread me, or I had to correct course

@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.201</span></h1>
-    <p class="lede">201 entries, Oct 25 to Nov 15, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
+    <h1>Build log <span class="version">Version 0.202</span></h1>
+    <p class="lede">202 entries, Oct 25 to Nov 15, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
   </div>
 </header>
 
@@ -23,7 +23,7 @@
     <div class="weeks-row">
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
-<a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">91</span></a>
+<a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">92</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
     </div>
     <div class="tools">
@@ -1961,7 +1961,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-1" aria-labelledby="week-1-title">
-<h2 class="week-head" id="week-1-title"><button type="button" aria-expanded="false" aria-controls="week-1-days"><span class="wname">Week 1</span><span class="range">Nov 9 to Nov 15</span><span class="week-count">91 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-1-title"><button type="button" aria-expanded="false" aria-controls="week-1-days"><span class="wname">Week 1</span><span class="range">Nov 9 to Nov 15</span><span class="week-count">92 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-1-days">
 <div class="day">
 <h3 class="day-title">Monday 9 November <span class="day-count">4</span></h3>
@@ -3368,7 +3368,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Sunday 15 November <span class="day-count">3</span></h3>
+<h3 class="day-title">Sunday 15 November <span class="day-count">4</span></h3>
 <div class="entries">
 <article class="entry" id="entry-199" data-n="199">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-199-body">
@@ -3413,6 +3413,21 @@
 <ul><li>A draft plan, not built and nothing decided. It says first how the menus work today (one menu component, <code>frontend/src/card-menu.js</code>; what each menu offers and does is plain data in <code>shared/card-menu.mjs</code>, <code>pile-menu.mjs</code> and <code>player-counters.mjs</code>; menus exist today only on cards, on the library, graveyard, exile and sideboard piles and on the life total). Then 14 areas, each with what it has now, a proposal and questions for me: the library, graveyard, exile, command zone, the hand (a card, the count and the gap), the empty battlefield, a card on the battlefield and a picked group, face-down and notes, the life total, the turn number, tokens, the floating bar, other players' areas on the table page, and the deck page (left alone). Also one shared new piece, a small &quot;X&quot; box for &quot;Draw X...&quot;, &quot;Mill X...&quot;, &quot;Look at top X...&quot;, the decisions that cut across (order inside a menu, shortcuts shown beside a line, wording, touch, undo, tests) and a suggested building order.</li><li>What I found while reading the code: &quot;View library&quot; is the existing Search..., &quot;Draw card&quot; is the existing Draw line (a click draws one, with 2, 3, 4, 5 and 7 as quick amounts), so the part of the example that is missing is a typed &quot;Draw X&quot;; the hand bar, the empty battlefield, the turn number and the command-zone slots have no menu at all; and E, Q and F act on a picked group while the right-click menu acts on one card only.</li></ul>
 <p><strong>What I checked:</strong> I read <code>shared/card-menu.mjs</code> and <code>shared/pile-menu.mjs</code> and listed the right-click handlers in the page code (a search for <code>contextmenu</code>) so that the &quot;today&quot; lines are from the code and not from memory. I ran nothing else, since nothing was built.</p>
 <p><strong>My mistakes this round:</strong> none found; but the plan is a first draft of what to ask you, and some of the proposed lines (Scry and Surveil as their own window, &quot;Exile top X&quot;, a random discard) may be more than you want.</p>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-202" data-n="202">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-202-body">
+    <span class="num">202</span>
+    <span class="head-text"><span class="title">My answers on the menu plan, and what the token data allows</span><span class="sum">My answers to the six questions of the menu plan: 1.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-202-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>My answers to the six questions of the menu plan: 1. yes, Scry and Surveil as their own window, and &quot;Exile top X&quot;; 2. no, the commander's tax stays by hand; 3. no Tidy; 4. I asked what the picked-group question means; 5. tokens: a section for tokens related to the cards in my deck, one for the most commonly used tokens, and a search bar for every token; 6. yes to a random discard, and add a Mulligan button to the hand menu.</li></ul>
+<p><strong>What changed</strong> (<code>docs/menus.md</code>; nothing in the code)</p>
+<ul><li>The plan now has a &quot;Decided so far&quot; list with those answers and the areas are changed to match: &quot;Cast commander&quot; does not touch the tax, there is no Tidy line, the hand menu has a random discard and Mulligan, and the library menu has Exile top X, Scry and Surveil (each its own window). Question 4 stays open, now explained in the plan: right-clicking one of the cards picked with a rectangle opens the menu of that one card, while E, Q, F and dragging already act on the whole group.</li><li><strong>Tokens, with the data read first:</strong> in Scryfall's bulk file <code>oracle_cards</code> (cached 2026-11-05) there are 938 token records (862 different faces) and 4,891 of the 39,287 cards list the tokens they make (<code>all_parts</code> entries with <code>component: &quot;token&quot;</code>, each with the token's name, type line and Scryfall id), so &quot;tokens related to the cards in my deck&quot; can be built from the cards. The catch is that an entry's id is one printing of the token and only 1,655 of the 4,699 entries match a record in that file; <code>default_cards</code> (3,049 token printings) has the rest, and tokens with the same name differ (the Goblin is 1/1 red on 59 printings, 1/1 black and red on 1, 2/1 red on 2; I checked that Krenko, Mob Boss points at a 1/1 red one). So the token list has to be built from <code>default_cards</code> and the link has to follow the id, not the name. The sizes are estimates until it is built (about 60 KB of plain JSON for the faces, 100 to 150 KB for the links, to be fetched only when the Tokens menu is first opened).</li></ul>
+<p><strong>What I checked:</strong> the raw fields and counts above, by reading the two cached bulk files (I printed a token record's fields, Krenko's and Smothering Tithe's <code>all_parts</code>, and counted). Nothing was built or run.</p>
+<p><strong>My mistakes this round:</strong> my first draft of the token section said the Goblin was &quot;2/1 and Krenko's 1/1&quot; from the first file alone; I had read Krenko's id but not its power and toughness, so I looked it up in <code>default_cards</code> before keeping the sentence.</p>
   </div></div></div>
 </article>
 </div>
