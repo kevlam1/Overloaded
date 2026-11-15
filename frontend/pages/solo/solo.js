@@ -13,6 +13,8 @@ import { mountPileStack } from '../../src/pile-stack.js';
 import { mountCommandZone } from '../../src/command-zone.js';
 import { taxAction } from '../../../shared/commander-zone.mjs';
 import { pileMenuItems, pileAction } from '../../../shared/pile-menu.mjs';
+import { applyScry, topCards } from '../../../shared/scry.mjs';
+import { openScryWindow } from '../../src/scry-window.js';
 import { mountCardHover } from '../../src/card-hover.js';
 import { mountBoardDrag } from '../../src/board-drag.js';
 import { mountHand } from '../../src/hand-view.js';
@@ -46,6 +48,8 @@ const multi = new Set(); // the uids of the cards picked up by dragging a rectan
 let modifyOpen = false; // the counters and power/toughness panel is shown (from Modify, in the card menu or the selected-card buttons)
 let viewing = null; // the pile being looked at: 'library', 'graveyard', 'exile' or 'sideboard'
 let viewTop = null; // when only the top few cards of the library are being looked at: how many
+let viewReveal = false; // the cards in the viewer are revealed (Reveal top X): the window says so
+let topRevealed = false; // "Play with top revealed": the top card of the library is shown face up on its pile (not saved; a new game turns it off)
 
 const ZONE_WORDS = { library: 'your library', hand: 'your hand', battlefield: 'the battlefield', graveyard: 'your graveyard', exile: 'exile', command: 'the command zone', sideboard: 'your sideboard' };
 const plural = (count, one, many) => `${count} ${count === 1 ? one : many}`;
@@ -147,7 +151,7 @@ function render() {
   $('hand').classList.toggle('is-empty', game.zones.hand.length === 0); // (the hint "Your hand is empty" is for a hand that really is empty, not for one that is being dealt or gathered)
   const counts = zoneCounts(game);
   for (const zone of ['library', 'graveyard', 'exile']) {
-    stacks[zone].update({ count: counts[zone] + (zone === 'library' ? dealer.waiting(game.zones.hand) : 0), top: zone === 'library' ? null : game.zones[zone][0] ?? null }); // cards not yet dealt still count as library; the top of the graveyard and exile is the newest card
+    stacks[zone].update({ count: counts[zone] + (zone === 'library' ? dealer.waiting(game.zones.hand) : 0), top: zone === 'library' ? (topRevealed ? game.zones.library[0] ?? null : null) : game.zones[zone][0] ?? null, reveal: zone === 'library' && topRevealed }); // cards not yet dealt still count as library; the top of the graveyard and exile is the newest card
   }
   $('pile-sideboard').textContent = `Sideboard: ${counts.sideboard}`;
   for (const zone of ['library', 'graveyard', 'exile', 'sideboard']) $(`pile-${zone}`).setAttribute('aria-pressed', String(viewing === zone));
@@ -160,7 +164,7 @@ function renderViewer() {
   if (!viewing) { viewer.hide(); return; }
   const all = game.zones[viewing];
   const cards = viewTop ? all.slice(0, viewTop) : all;
-  const label = `${ZONE_WORDS[viewing][0].toUpperCase()}${ZONE_WORDS[viewing].slice(1)}`;
+  const label = viewReveal && viewing === 'library' ? 'Revealed' : `${ZONE_WORDS[viewing][0].toUpperCase()}${ZONE_WORDS[viewing].slice(1)}`;
   viewer.show({
     label,
     cards,
@@ -275,6 +279,7 @@ function markOnCard(uid, hit) {
 
 function deal({ pause = 0 } = {}) {
   game = makeGame(deck, lookup);
+  topRevealed = false; // a new game: the top card is face down again
   selected = null;
   viewing = null;
   commandSlots.clear();
@@ -371,12 +376,13 @@ $('untap-all').addEventListener('click', () => { play('tap'); apply(() => untapA
 mountSoundSettings($('sound-settings'));
 // ---- piles drawn diagonally or horizontally (shared/pile-style.mjs), a double click taps a card, a click on empty space deselects ----
 mountPileStyle($('pile-style-settings'));
-const viewer = mountPileViewer({ root: $('viewer'), nodeFor: (card) => cardNodes.nodeFor(card, false), onClose: () => { viewing = null; viewTop = null; if (game) render(); } });
+const viewer = mountPileViewer({ root: $('viewer'), nodeFor: (card) => cardNodes.nodeFor(card, false), onClose: () => { viewing = null; viewTop = null; viewReveal = false; if (game) render(); } });
 viewer.onSearch(() => { if (game && viewing) renderViewer(); });
 // ---- the piles: a click opens the viewer (the cards and a search bar), a right-click opens the menu of the pile (search, shuffle, draw, look, mill, move all) ----
-function openPile(zone, { look = null, search = false } = {}) {
+function openPile(zone, { look = null, search = false, reveal = false } = {}) {
   viewing = zone;
   viewTop = look;
+  viewReveal = reveal;
   if (!search) viewer.clearSearch();
   render();
   if (search) viewer.focusSearch();
@@ -384,13 +390,26 @@ function openPile(zone, { look = null, search = false } = {}) {
 function pickFromPileMenu(zone, id, amount) {
   if (id === 'search') { openPile(zone, { search: true }); return; }
   if (id === 'look') { openPile(zone, { look: amount ?? 1 }); return; }
+  if (id === 'reveal') { openPile(zone, { look: amount ?? 1, reveal: true }); return; }
+  if (id === 'scry' || id === 'surveil') {
+    openScryWindow({
+      kind: id,
+      cards: topCards(game, amount ?? 1),
+      nodeFor: (card) => cardNodes.nodeFor(card, false),
+      onDone: ({ order, choices }) => {
+        try { const result = applyScry(game, { kind: id, order, choices }); play('shuffle'); apply(() => result.game, result.message); } catch (error) { say(error.message, true); }
+      },
+    });
+    return;
+  }
+  if (id === 'toprevealed') { topRevealed = !topRevealed; render(); say(topRevealed ? 'The top card of your library is face up now.' : 'The top card of your library is face down again.'); return; }
   const action = pileAction(id, zone, amount);
   if (!action) return;
   if (id === 'shuffle') { play('shuffle'); if (zone === 'library') shuffleAnimation($('pile-library'), cardBackUrl('small')); } else if (id === 'intolibrary') play('shuffle'); else if (id === 'draw') play('draw');
   apply(() => action.run(game), action.message);
 }
 function openPileMenu(zone, where) {
-  openCardMenu({ title: `${ZONE_WORDS[zone][0].toUpperCase()}${ZONE_WORDS[zone].slice(1)}`, items: pileMenuItems(zone, game.zones[zone].length), x: where.x, y: where.y, returnFocus: where.element, onPick: (id, amount) => pickFromPileMenu(zone, id, amount) });
+  openCardMenu({ title: `${ZONE_WORDS[zone][0].toUpperCase()}${ZONE_WORDS[zone].slice(1)}`, items: pileMenuItems(zone, game.zones[zone].length, { scry: true, reveal: true, topRevealed }), x: where.x, y: where.y, returnFocus: where.element, onPick: (id, amount) => pickFromPileMenu(zone, id, amount) });
 }
 // The name of each pile is above it, like the command zone's, with a small arrow that opens the pile's menu (the same one a right-click opens: search, shuffle, draw, look, mill, move all).
 for (const [zone, name] of [['library', 'Library'], ['graveyard', 'Graveyard'], ['exile', 'Exile']]) {

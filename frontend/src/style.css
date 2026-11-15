@@ -1366,3 +1366,26 @@ body.playing.solo #my-board { padding: 0.15rem 0 0; }
 .number-box-note.bad { color: var(--bad, #d9534f); }
 .number-box-buttons { display: flex; gap: 0.4rem; justify-content: flex-end; }
 .number-box-buttons button { min-height: 0; padding: 0.2rem 0.8rem; }
+/* a menu line with its own small number box inside it (Scry [1], Surveil [1], Mill [1]; frontend/src/card-menu.js) */
+.card-menu-row { display: flex; align-items: center; gap: 0.3rem; padding-right: 0.6rem; }
+.card-menu-row .card-menu-item { flex: 1 1 auto; width: auto; }
+.card-menu-number { flex: 0 0 auto; width: 2.6rem; padding: 0.15rem 0.3rem; border: 1px solid var(--line); border-radius: 0.35rem; background: var(--bg); color: var(--text); font: inherit; font-variant-numeric: tabular-nums; text-align: center; }
+.card-menu-number[aria-invalid="true"] { border-color: var(--bad, #d9534f); }
+/* the window of Scry and Surveil (frontend/src/scry-window.js; Kevin, 2026-11-15) */
+.scry-overlay { position: fixed; inset: 0; z-index: 44; display: grid; place-items: center; background: rgba(0, 0, 0, 0.55); }
+.scry-window { max-width: min(96vw, 70rem); max-height: 94vh; overflow: auto; padding: 1rem 1.2rem; border: 1px solid var(--line); border-radius: 0.8rem; background: var(--bg); color: var(--text); box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.6); }
+.scry-title { margin: 0 0 0.25rem; font-size: 1.2rem; }
+.scry-note { margin: 0 0 0.8rem; color: var(--muted); font-size: 0.9rem; }
+.scry-cards { display: flex; flex-wrap: wrap; gap: 0.9rem; margin: 0; padding: 0; list-style: none; }
+.scry-card { display: flex; flex-direction: column; align-items: center; gap: 0.35rem; width: 9.5rem; }
+.scry-card[data-choice="bottom"], .scry-card[data-choice="graveyard"] { opacity: 0.8; }
+.scry-place { font-size: 0.8rem; font-weight: 700; color: var(--muted); }
+.scry-picture { width: 9rem; }
+.scry-picture .card { position: static; width: 9rem; height: auto; aspect-ratio: 488 / 680; }
+.scry-choices { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.25rem; }
+.scry-choice, .scry-move { min-height: 0; padding: 0.15rem 0.55rem; border: 1px solid var(--line); border-radius: 0.8rem; background: transparent; color: var(--text); font-size: 0.8rem; cursor: pointer; }
+.scry-choice[aria-pressed="true"] { border-color: var(--accent); background: var(--accent); color: var(--accent-text); }
+.scry-move:disabled { opacity: 0.35; cursor: default; }
+.scry-arrows { display: flex; gap: 0.3rem; }
+.scry-buttons { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1rem; }
+.pile-stack[data-revealed="true"] .stack-face { outline: 2px solid var(--gold, #d9b45f); }

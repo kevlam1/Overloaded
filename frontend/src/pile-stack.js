@@ -11,7 +11,7 @@ function make(tag, className, content) {
   return element;
 }
 
-// button: the pile's button. zone: library, graveyard or exile. label: the word shown under it. Returns { update({ count, top }) }, top being the card to show (not for the library).
+// button: the pile's button. zone: library, graveyard or exile. label: the word shown under it. Returns { update({ count, top, reveal }) }, top being the card to show (for the library only when reveal is on).
 export function mountPileStack(button, { zone, label }) {
   button.classList.add('pile-stack');
   button.dataset.zone = zone;
@@ -42,12 +42,15 @@ export function mountPileStack(button, { zone, label }) {
     face.append(picture);
   }
 
-  function update({ count, top = null }) {
+  // reveal (the library only): its top card is shown face up ("Play with top revealed"), so the face is the card and not the back
+  function update({ count, top = null, reveal = false }) {
     button.dataset.count = String(count);
     button.dataset.empty = String(count === 0);
-    words.textContent = `${label}: ${count}`;
-    face.classList.toggle('back', zone === 'library' && count > 0);
-    showTop(zone === 'library' || count === 0 ? null : top);
+    button.dataset.revealed = String(zone === 'library' && reveal && top !== null);
+    words.textContent = zone === 'library' && reveal && top ? `${label}: ${count}, top card ${top.n}` : `${label}: ${count}`;
+    const faceUp = zone === 'library' && reveal && top !== null && count > 0;
+    face.classList.toggle('back', zone === 'library' && count > 0 && !faceUp);
+    showTop(count === 0 || (zone === 'library' && !faceUp) ? null : top);
   }
   return { update };
 }

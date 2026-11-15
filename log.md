@@ -4083,6 +4083,24 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 ---
 
+## 204. The library menu from my sketch: View, Scry, Surveil, Reveal and Play with top revealed (2026-11-15)
+
+**What I asked for**
+- Build the library menu from my handwritten sketch. My answers: Draw X and Exile top X stay popups; Reveal top X should work on the solo table too; other players should see the top card when Play with top revealed is on.
+
+**What changed** (`shared/pile-menu.mjs`, `shared/scry.mjs`, `frontend/src/scry-window.js`, `frontend/src/card-menu.js`, `frontend/src/pile-stack.js`, `frontend/pages/solo/solo.js`, `frontend/src/style.css`, tests)
+- **Library menu order:** Draw card, Draw X..., View library, View (Top card, Top X cards...), Shuffle, Scry, Surveil, Mill, Exile top X..., Reveal top X..., Play with top revealed.
+- **Number inside the line:** Scry, Surveil and Mill have a small number box inside the line (starts at 1, each line remembers its own number). A 0 or a number over the library marks the box invalid and does nothing.
+- **Scry and Surveil** open their own window: the top cards side by side, Top / Bottom (and Graveyard for Surveil) under each, arrows to change the order, Done, Cancel or Escape. The logic is `shared/scry.mjs`.
+- **Reveal top X** opens the viewer titled "Revealed". **Play with top revealed** turns the top card of the library face up on the pile (solo only for now); the line then says "Stop playing with top revealed".
+- **Not built:** other players seeing a revealed card or the face-up top card. That needs a new public field and a rules change that I would have to paste, so it waits for the table page work.
+
+**What I checked:** `test-scry.mjs` (22), `test-pile-menu.mjs` (43), all 65 quick suites, and the solo check (673): the new menu list, the number boxes, View then Top X cards, Reveal, face-up top card through a draw, Scry 3 and Surveil 2 with the window, Escape. I did NOT look at a screenshot of the scry window or the face-up library, so the look is unchecked. One run failed "when the pointer leaves the area the hand goes down again" and passed on rerun, so I think it is a timing flake but I did not find the cause.
+
+**My mistakes this round:** the scry window's Done button lost the focus because the menu gives focus back to its own button as it closes (found by the check, fixed by taking the focus again a frame later); my check expected "View" but the menu's text has the arrow ("View▸").
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

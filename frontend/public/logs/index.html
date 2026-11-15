@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.203</span></h1>
-    <p class="lede">203 entries, Oct 25 to Nov 15, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
+    <h1>Build log <span class="version">Version 0.204</span></h1>
+    <p class="lede">204 entries, Oct 25 to Nov 15, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
   </div>
 </header>
 
@@ -23,7 +23,7 @@
     <div class="weeks-row">
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
-<a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">93</span></a>
+<a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">94</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
     </div>
     <div class="tools">
@@ -1961,7 +1961,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-1" aria-labelledby="week-1-title">
-<h2 class="week-head" id="week-1-title"><button type="button" aria-expanded="false" aria-controls="week-1-days"><span class="wname">Week 1</span><span class="range">Nov 9 to Nov 15</span><span class="week-count">93 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-1-title"><button type="button" aria-expanded="false" aria-controls="week-1-days"><span class="wname">Week 1</span><span class="range">Nov 9 to Nov 15</span><span class="week-count">94 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-1-days">
 <div class="day">
 <h3 class="day-title">Monday 9 November <span class="day-count">4</span></h3>
@@ -3368,7 +3368,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Sunday 15 November <span class="day-count">5</span></h3>
+<h3 class="day-title">Sunday 15 November <span class="day-count">6</span></h3>
 <div class="entries">
 <article class="entry" id="entry-199" data-n="199">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-199-body">
@@ -3443,6 +3443,21 @@
 <ul><li><strong>The X box:</strong> a menu line that needs a number (its label ends in three dots) now closes the menu and opens a small box where the menu was: the field has the focus and starts at the last number used if it fits, Enter or OK does it, Escape, Cancel or a click outside cancels, and a number that is not allowed (0, letters, more than the pile has) stays open and says why. What is accepted is <code>parseCount</code> in <code>shared/number-input.mjs</code>. The rows of fixed number buttons are gone from every menu (<code>amounts</code>, <code>DRAW_AMOUNTS</code>, <code>LOOK_AMOUNTS</code>, <code>MILL_AMOUNTS</code> and <code>COUNTER_AMOUNTS</code> were removed).</li><li><strong>Library menu:</strong> View library, Draw card, Draw X..., Look at top X..., Mill X..., Exile top X..., Shuffle. <strong>Graveyard:</strong> View graveyard, Exile all, Shuffle into library, Move all to. <strong>Exile:</strong> View exile, Shuffle into library, Move all to. <strong>Sideboard:</strong> View sideboard, Move all to. (The old &quot;Search...&quot; is &quot;View ...&quot;; the page still opens the viewer with its search bar.)</li><li><strong>Counters on a card:</strong> &quot;+1/+1 counter&quot; adds one and &quot;+1/+1 counters X...&quot; asks for 1 to 99 (the 2, 3 and 5 buttons are gone). I did this because they are the same kind of number buttons; say so if you want them back.</li><li>The table page uses the same menus, so it has the new lines too (a draw, mill or exile of a typed number, Shuffle into library, the counters); nothing about them is new in its saved data.</li><li><strong>Tokens, from the data (to answer &quot;popular commanders and 4/4 dragons&quot;):</strong> I read the cached bulk files. Among the 3,000 most played Commander-legal cards (Scryfall's <code>edhrec_rank</code>), the tokens they make are, by number of cards: Treasure 86, Food 18, Goblin 1/1 14, Zombie 2/2 14, Copy 13, Eldrazi Spawn 0/1 9, Thopter 1/1 flying 7, Elf Warrior 1/1 7, Soldier 1/1 5, Squirrel 1/1 5, Wizard 0/1 5, then Beast 3/3, Human Soldier, Vampire (lifelink), Saproling, Spirit (flying), Angel 4/4 flying vigilance (4 cards), Bird 2/2 flying, Clue (3). There is no 4/4 dragon: the dragon tokens are a 5/5 red flier (Lathliss, Dragon Queen; Dragonmaster Outcast; Rite of the Dragoncaller) and a 6/6 (Utvara Hellkite). Of the 150 best-ranked commanders only 33 make a token, and nine of them make a Treasure. I will add Eldrazi Spawn, Thopter, Elf Warrior, Squirrel, Beast, Angel and Dragon to the common list in the plan.</li></ul>
 <p><strong>What I checked:</strong> <code>test-number-input.mjs</code> (24), <code>test-pile-menu.mjs</code> (40), <code>test-card-menu.mjs</code> (203), all quick suites (64), and the solo check (659): the new menu lines, the box opening with the focus, 0, letters and a number over the pile refused with their messages, 3 drawing three cards and saying so, the last number being offered again, Escape cancelling, Mill X and Exile top X, the graveyard lines (Exile all) and exile's Shuffle into library, Look at top X opening the viewer, the counters X line by mouse and by keyboard. I did not run the live table checks against the real project and did not look at a screenshot of the number box.</p>
 <p><strong>My mistakes this round:</strong> my shell command with a long file inside it was cut off twice and wrote nothing (I saw it only because the next step could not find the file), so I wrote the files with the file tool; two older checks that clicked the 3 next to the counter failed on the first full run and had to be rewritten.</p>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-204" data-n="204">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-204-body">
+    <span class="num">204</span>
+    <span class="head-text"><span class="title">The library menu from my sketch: View, Scry, Surveil, Reveal and Play with top revealed</span><span class="sum">Build the library menu from my handwritten sketch.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-204-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>Build the library menu from my handwritten sketch. My answers: Draw X and Exile top X stay popups; Reveal top X should work on the solo table too; other players should see the top card when Play with top revealed is on.</li></ul>
+<p><strong>What changed</strong> (<code>shared/pile-menu.mjs</code>, <code>shared/scry.mjs</code>, <code>frontend/src/scry-window.js</code>, <code>frontend/src/card-menu.js</code>, <code>frontend/src/pile-stack.js</code>, <code>frontend/pages/solo/solo.js</code>, <code>frontend/src/style.css</code>, tests)</p>
+<ul><li><strong>Library menu order:</strong> Draw card, Draw X..., View library, View (Top card, Top X cards...), Shuffle, Scry, Surveil, Mill, Exile top X..., Reveal top X..., Play with top revealed.</li><li><strong>Number inside the line:</strong> Scry, Surveil and Mill have a small number box inside the line (starts at 1, each line remembers its own number). A 0 or a number over the library marks the box invalid and does nothing.</li><li><strong>Scry and Surveil</strong> open their own window: the top cards side by side, Top / Bottom (and Graveyard for Surveil) under each, arrows to change the order, Done, Cancel or Escape. The logic is <code>shared/scry.mjs</code>.</li><li><strong>Reveal top X</strong> opens the viewer titled &quot;Revealed&quot;. <strong>Play with top revealed</strong> turns the top card of the library face up on the pile (solo only for now); the line then says &quot;Stop playing with top revealed&quot;.</li><li><strong>Not built:</strong> other players seeing a revealed card or the face-up top card. That needs a new public field and a rules change that I would have to paste, so it waits for the table page work.</li></ul>
+<p><strong>What I checked:</strong> <code>test-scry.mjs</code> (22), <code>test-pile-menu.mjs</code> (43), all 65 quick suites, and the solo check (673): the new menu list, the number boxes, View then Top X cards, Reveal, face-up top card through a draw, Scry 3 and Surveil 2 with the window, Escape. I did NOT look at a screenshot of the scry window or the face-up library, so the look is unchecked. One run failed &quot;when the pointer leaves the area the hand goes down again&quot; and passed on rerun, so I think it is a timing flake but I did not find the cause.</p>
+<p><strong>My mistakes this round:</strong> the scry window's Done button lost the focus because the menu gives focus back to its own button as it closes (found by the check, fixed by taking the focus again a frame later); my check expected &quot;View&quot; but the menu's text has the arrow (&quot;View▸&quot;).</p>
   </div></div></div>
 </article>
 </div>

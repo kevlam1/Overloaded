@@ -10,22 +10,34 @@ const MOVE_ALL_TARGETS = [['hand', 'Hand'], ['battlefield', 'Battlefield'], ['gr
 const ZONE_WORDS = { library: 'your library', hand: 'your hand', battlefield: 'the battlefield', graveyard: 'your graveyard', exile: 'exile', command: 'the command zone', sideboard: 'your sideboard' };
 const VIEW_WORDS = { library: 'library', graveyard: 'graveyard', exile: 'exile', sideboard: 'sideboard' };
 
-// The items for a pile with this many cards in it: { id, label } for a choice, { id, label, ask: { max, unit } } for a line that asks for a number first (its label ends in "..."), or
-// { id, label, items } for a heading that opens more. The same id may be on two lines (Draw card and Draw X...): the number says how many. Nothing is offered that could not do anything
+// The items for a pile with this many cards in it: { id, label } for a choice, { id, label, ask: { max, unit } } for a line that asks for a number first (its label ends in "..."),
+// { id, label, number: { key, max } } for a line with its own small number box inside it (Scry, Surveil, Mill), or { id, label, items } for a heading that opens more.
+// options (the solo table passes them; a page that cannot do these things leaves them out): scry (Scry and Surveil, each with its own window), reveal (Reveal top X, and the line that keeps the top card
+// face up), topRevealed (the top card is face up now, so the line says how to stop). The same id may be on two lines (Draw card and Draw X...): the number says how many. Nothing is offered that could not do anything
 // (no shuffling or drawing an empty library).
-export function pileMenuItems(zone, count) {
+export function pileMenuItems(zone, count, { scry = false, reveal = false, topRevealed = false } = {}) {
   if (!PILE_ZONES.includes(zone)) return [];
-  const items = [{ id: 'search', label: `View ${VIEW_WORDS[zone]}` }];
+  const items = zone === 'library' ? [] : [{ id: 'search', label: `View ${VIEW_WORDS[zone]}` }]; // (the library builds its own list below, in Kevin's order)
   const ask = { max: count, unit: 'cards' };
   if (zone === 'library') {
+    // Kevin's sketch (2026-11-15): Draw card, Draw X, View library, View (top card, top X), Shuffle, Scry / Surveil / Mill with their own number boxes, Exile top X, Reveal top X, Play with top revealed
     if (count > 0) {
       items.push({ id: 'draw', label: 'Draw card' });
       items.push({ id: 'draw', label: 'Draw X...', ask });
-      items.push({ id: 'look', label: 'Look at top X...', ask });
-      items.push({ id: 'mill', label: 'Mill X...', ask });
-      items.push({ id: 'exiletop', label: 'Exile top X...', ask });
     }
+    items.push({ id: 'search', label: 'View library' });
+    if (count > 0) items.push({ id: 'view', label: 'View', items: [{ id: 'look', label: 'Top card' }, { id: 'look', label: 'Top X cards...', ask }] });
     if (count > 1) items.push({ id: 'shuffle', label: 'Shuffle' });
+    if (count > 0) {
+      if (scry) {
+        items.push({ id: 'scry', label: 'Scry', number: { key: 'scry', max: count } });
+        items.push({ id: 'surveil', label: 'Surveil', number: { key: 'surveil', max: count } });
+      }
+      items.push({ id: 'mill', label: 'Mill', number: { key: 'mill', max: count } });
+      items.push({ id: 'exiletop', label: 'Exile top X...', ask });
+      if (reveal) items.push({ id: 'reveal', label: 'Reveal top X...', ask });
+    }
+    if (reveal) items.push({ id: 'toprevealed', label: topRevealed ? 'Stop playing with top revealed' : 'Play with top revealed' });
     return items;
   }
   if (count > 0) {
