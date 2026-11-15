@@ -1,13 +1,15 @@
-// TEMPORARY (Kevin, 2026-11-15): a corner notice on the solo table when a newer build of the site is live, for the Dec 7 demo. Remove it after Monday:
-// delete this file, its import and call in pages/solo/solo.js, its block at the end of style.css, and the build-id parts of vite.config.js.
-// The build writes /version.json with an id (the commit on Vercel); the page has its own copy of that id. About 13 seconds after the page loads, and then once a minute,
-// it asks for /version.json (never from the cache); if the id is different a newer build is live, and the notice shows. Nothing is shown when the ids match or the file can't be read.
-const FIRST_CHECK_MS = 13000;
-const EVERY_MS = 60000; // after the first check, once a minute
+// TEMPORARY (Kevin, 2026-11-15), for the Dec 7 demo. This runs only in the frozen old copy of the solo page (public/classic): 13 seconds after it loads a corner notice
+// says there is a significant update, and clicking it opens the new solo page (/solo-new). A visitor who already clicked goes straight to the new page next time.
+// Remove after Monday: delete public/classic, the two solo rewrites in vercel.json, and this file.
+const SHOW_AFTER_MS = 13000;
+const NEW_PAGE = '/solo-new';
+const FLAG = 'overloaded.seenUpdate';
 
-export function mountUpdateNotice({ buildId, fetchFn = fetch, doc = document } = {}) {
-  if (!buildId || buildId === 'dev') return { stop() {} };
-  let shown = false;
+const read = () => { try { return localStorage.getItem(FLAG) === '1'; } catch { return false; } };
+const write = () => { try { localStorage.setItem(FLAG, '1'); } catch { /* blocked storage: the notice just shows again next time */ } };
+
+export function mountUpdateNotice({ doc = document, go = (url) => location.assign(url), replace = (url) => location.replace(url) } = {}) {
+  if (read()) { replace(NEW_PAGE); return { stop() {} }; }
   let pointerDown = false;
   let timer = null;
   const down = () => { pointerDown = true; };
@@ -17,7 +19,6 @@ export function mountUpdateNotice({ buildId, fetchFn = fetch, doc = document } =
   doc.addEventListener('pointercancel', up, true);
 
   function show() {
-    shown = true;
     const box = doc.createElement('div');
     box.className = 'update-notice';
     box.setAttribute('role', 'status');
@@ -27,7 +28,7 @@ export function mountUpdateNotice({ buildId, fetchFn = fetch, doc = document } =
     refresh.type = 'button';
     refresh.className = 'update-refresh';
     refresh.textContent = 'Click here to refresh the page';
-    refresh.addEventListener('click', () => { location.reload(); });
+    refresh.addEventListener('click', () => { write(); go(NEW_PAGE); });
     const note = doc.createElement('p');
     note.className = 'update-note';
     note.textContent = 'Your current game will be lost.';
@@ -41,23 +42,12 @@ export function mountUpdateNotice({ buildId, fetchFn = fetch, doc = document } =
     doc.body.append(box);
   }
 
-  async function check() {
+  function tick() {
     timer = null;
-    if (shown) return;
-    try {
-      const response = await fetchFn('/version.json', { cache: 'no-store' });
-      if (response.ok) {
-        const data = await response.json();
-        if (data && typeof data.id === 'string' && data.id !== buildId) {
-          if (pointerDown) { timer = setTimeout(check, 3000); return; } // not in the middle of a drag
-          show();
-          return;
-        }
-      }
-    } catch { /* offline or no file: stay quiet and try again */ }
-    timer = setTimeout(check, EVERY_MS);
+    if (pointerDown) { timer = setTimeout(tick, 3000); return; } // not in the middle of a drag
+    show();
   }
 
-  timer = setTimeout(check, FIRST_CHECK_MS);
+  timer = setTimeout(tick, SHOW_AFTER_MS);
   return { stop() { clearTimeout(timer); doc.removeEventListener('pointerdown', down, true); doc.removeEventListener('pointerup', up, true); doc.removeEventListener('pointercancel', up, true); } };
 }
