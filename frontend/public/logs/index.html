@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.207</span></h1>
-    <p class="lede">207 entries, Oct 25 to Nov 15, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
+    <h1>Build log <span class="version">Version 0.208</span></h1>
+    <p class="lede">208 entries, Oct 25 to Nov 15, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
   </div>
 </header>
 
@@ -23,7 +23,7 @@
     <div class="weeks-row">
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
-<a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">97</span></a>
+<a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">98</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
     </div>
     <div class="tools">
@@ -1961,7 +1961,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-1" aria-labelledby="week-1-title">
-<h2 class="week-head" id="week-1-title"><button type="button" aria-expanded="false" aria-controls="week-1-days"><span class="wname">Week 1</span><span class="range">Nov 9 to Nov 15</span><span class="week-count">97 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-1-title"><button type="button" aria-expanded="false" aria-controls="week-1-days"><span class="wname">Week 1</span><span class="range">Nov 9 to Nov 15</span><span class="week-count">98 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-1-days">
 <div class="day">
 <h3 class="day-title">Monday 9 November <span class="day-count">4</span></h3>
@@ -3368,7 +3368,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Sunday 15 November <span class="day-count">9</span></h3>
+<h3 class="day-title">Sunday 15 November <span class="day-count">10</span></h3>
 <div class="entries">
 <article class="entry" id="entry-199" data-n="199">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-199-body">
@@ -3504,6 +3504,21 @@
 <ul><li><strong>Picking:</strong> Shift and a click on a card of the hand adds it to the picked cards or takes it out again; a click without Shift picks just that card; Escape or a click on empty space lets the group go. The picked cards and the cards picked with a rectangle on the battlefield are never mixed. It says how many are picked.</li><li><strong>The menu:</strong> a right-click on a picked card opens a menu titled &quot;3 cards&quot;: Play, Discard, Exile, Top of library..., Bottom of library... and Move to (command zone, sideboard). Each line does all the cards at once, in the order of the hand, and one message says what happened.</li><li><strong>The order window:</strong> Top and Bottom of library first open a window with the cards side by side (the first on the left, marked Top, or the right one marked Bottom): drag a card to another place or use the arrows under it, then Done. Cancel and Escape change nothing. The window uses the Scry window's look.</li><li>A picked hand card dragged to the battlefield no longer carries the whole group (the group drag is only for battlefield cards).</li><li><strong>Not built:</strong> dragging one picked card to move the whole group, the table page, a touch version of picking.</li></ul>
 <p><strong>What I checked:</strong> <code>test-group-menu.mjs</code> (23, with random groups that never lose a card), all 67 quick suites and the solo check: Shift and a click adding and taking out cards (with a dispatched click and one real Shift click with the mouse), the menu lines, the window with a real mouse drag, the arrows, Done putting two cards on the library in the order chosen (seen in the library's top two), Discard for three cards and Escape. I looked at screenshots of the menu and the window. Not checked: phone width, a hand of 10 or more cards with the fan overlapping, the table page.</p>
 <p><strong>My mistakes this round:</strong> taking a card out of the picked group left it highlighted as the selected card (my check caught it), and my first real Shift and click test clicked the card that was already selected because the hand was down to two cards.</p>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-208" data-n="208">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-208-body">
+    <span class="num">208</span>
+    <span class="head-text"><span class="title">Tweaks to the hand picks, the order window and the pile windows</span><span class="sum">(1) Every picked card of the hand should come up, not only one.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-208-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>(1) Every picked card of the hand should come up, not only one. (2) The order window should glide the cards like the hand does, and have a random order. (3) A left click on the library should not open it. (4) The library, graveyard and exile windows in 7 columns with larger cards and an outline for the top and the bottom card. (5) Dragging one picked card should move the whole group. (6) In the hand menus drop the sideboard: Move to command zone, Move to top of library, Move to bottom of library. (7) A way to read a card's rules: right-click, a popup with the large card on the left and the rules, mana value, type and the rest on the right.</li></ul>
+<p><strong>What changed</strong> (<code>shared/hand-layout.mjs</code>, <code>frontend/src/hand-view.js</code>, <code>frontend/src/order-window.js</code>, <code>frontend/src/pile-viewer.js</code>, <code>frontend/src/board-drag.js</code>, <code>frontend/pages/solo/solo.js</code>, <code>shared/card-menu.mjs</code>, <code>shared/group-menu.mjs</code>, <code>frontend/src/style.css</code>, tests)</p>
+<ul><li><strong>1:</strong> the hand layout gives every picked card room (<code>handLayoutSelected</code> takes a list), and all of them come up.</li><li><strong>2:</strong> the cards in the order window glide to their new places (about a fifth of a second, none under reduced motion), and a Random order button shuffles them.</li><li><strong>3:</strong> a left click on the library does nothing now; View library in its menu opens it. The graveyard and exile still open on a click.</li><li><strong>4:</strong> the pile windows have 7 columns (4 on a window under 900 px) with the cards filling them, in the real card shape. The top card has a blue outline and a Top label, the bottom card an orange one and a Bottom label; a card seen alone says Only card. This uses the card's place in the whole pile, so a view of the bottom 2 of the library marks only the last one.</li><li><strong>5:</strong> dragging a picked card of the hand carries all of them (the others are drawn fanned behind it and hidden in the hand): over the battlefield they are all played (the dragged one where it is let go, the others on the next free cells), over a pile they all go there (to the library on top), over the hand nothing happens.</li><li><strong>6:</strong> a card in the hand has Play, Discard, Exile, Move to command zone, Move to top of library and Move to bottom of library, and no Move to heading and no sideboard. The group menu has the same lines. A card can still go to the sideboard from the graveyard or exile window.</li><li><strong>7: not built yet.</strong> The card list has no rules text (I left it out on purpose in version one to keep the list small), so there is nothing to show on the right of the popup. I wrote the options and a question for Kevin in my reply.</li></ul>
+<p><strong>What I checked:</strong> <code>test-card-menu.mjs</code> (207), <code>test-group-menu.mjs</code> (23), all 67 quick suites and the solo check: the hand lines, every picked card higher than the cards that are not picked, the library not opening on a click, 7 columns with card width above 120 px and the right shape, Top and Bottom marks, Random order (same cards, a different order within a few presses), the glide (both cards animating a moment after a move), a real mouse drag of a picked card onto the battlefield (both played) and onto the graveyard (both discarded). I looked at screenshots of the exile window and of three picked cards risen. The last full run had no failed check and stopped at the old screenshot-only step I have not investigated; the earlier run had one failure in &quot;when the pointer leaves the area the hand goes down again&quot;, which fails now and then and whose detail shows the resting cards it compared against were from a bigger hand (my guess is a stale baseline in the check; not fixed).</p>
+<p><strong>My mistakes this round:</strong> my first drag check pressed where the picked card had been before the picked cards rose, so nothing was dragged; and my first edit of the sideboard test removed the only way to put a hand card in the sideboard, so the test now moves it through the graveyard window.</p>
   </div></div></div>
 </article>
 </div>

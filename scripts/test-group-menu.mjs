@@ -14,7 +14,7 @@ const fresh = () => makeGame(deck, () => ({ t: 'Basic Land', m: '', k: [] }), { 
 const uids = (game, zone) => game.zones[zone].map((c) => c.uid);
 const total = (game) => ZONES.reduce((sum, zone) => sum + game.zones[zone].length, 0);
 
-same('the lines: Play, Discard, Exile, Top of library, Bottom of library and Move to (command zone, sideboard)', handGroupItems().map((i) => [i.id, i.label, i.items ? i.items.map((c) => c.label) : null]), [['group:battlefield', 'Play', null], ['group:graveyard', 'Discard', null], ['group:exile', 'Exile', null], ['group:top', 'Top of library...', null], ['group:bottom', 'Bottom of library...', null], ['move', 'Move to', ['Command zone', 'Sideboard']]]);
+same('the lines: Play, Discard, Exile, Move to command zone, Move to top of library, Move to bottom of library', handGroupItems().map((i) => [i.id, i.label]), [['group:battlefield', 'Play'], ['group:graveyard', 'Discard'], ['group:exile', 'Exile'], ['group:command', 'Move to command zone'], ['group:top', 'Move to top of library...'], ['group:bottom', 'Move to bottom of library...']]);
 same('only the two library lines need an order first', handGroupItems().flatMap((i) => (i.items ?? [i])).filter((i) => needsOrder(i.id)).map((i) => i.id), ['group:top', 'group:bottom']);
 same('an id that is not a choice, or no cards, has no action', [groupAction('nope', ['a']), groupAction('group:exile', []), groupAction('group:exile', null), groupAction('move', ['a'])], [null, null, null, null]);
 

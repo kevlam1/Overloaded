@@ -2,15 +2,15 @@
 // One line acts on every picked card at once. Top and Bottom of library need the order the cards go in, so the page asks for it first (frontend/src/order-window.js) and gives it to groupAction.
 import { moveCard } from './zones.mjs';
 
-// The items for a group of this many cards: Play, Discard, Exile, the two ends of the library (each opens the window that sets the order) and Move to for the rest.
+// The items for a group: Play, Discard, Exile, Move to command zone and the two ends of the library (each opens the window that sets the order).
 export function handGroupItems() {
   return [
     { id: 'group:battlefield', label: 'Play' },
     { id: 'group:graveyard', label: 'Discard' },
     { id: 'group:exile', label: 'Exile' },
-    { id: 'group:top', label: 'Top of library...' },
-    { id: 'group:bottom', label: 'Bottom of library...' },
-    { id: 'move', label: 'Move to', items: [{ id: 'group:command', label: 'Command zone' }, { id: 'group:sideboard', label: 'Sideboard' }] },
+    { id: 'group:command', label: 'Move to command zone' },
+    { id: 'group:top', label: 'Move to top of library...' },
+    { id: 'group:bottom', label: 'Move to bottom of library...' },
   ];
 }
 

@@ -160,7 +160,22 @@ export function mountBoardDrag({ doc = document, board, onDrop, hand = () => nul
     if (press.whole) carried.push(...[...boardElement.querySelectorAll(':scope > .card')].filter((c) => c !== press.button && c.dataset.col === press.button.dataset.col && c.dataset.row === press.button.dataset.row && c.classList.contains('tapped') === press.button.classList.contains('tapped') && c.dataset.stackSize !== undefined));
     // a group: every card of it is carried (and the rest of each pile it picked from), and the others are drawn beside the one pressed, each where it is on the board relative to it
     let groupBox = null;
-    if (press.group) {
+    if (press.group && press.from === 'hand') { // picked cards of the hand: the others are drawn fanned out behind the one pressed, and every one of them is hidden in the hand while they are carried
+      const members = new Set(press.group);
+      const others = [...press.button.parentElement.querySelectorAll(':scope > .card')].filter((c) => c !== press.button && members.has(c.dataset.uid));
+      groupBox = doc.createElement('div');
+      groupBox.className = 'drag-group';
+      others.forEach((c, k) => {
+        carried.push(c);
+        const part = doc.createElement('div');
+        part.className = 'drag-group-part';
+        part.style.left = `${(k + 1) * 14}px`; part.style.top = `${(k + 1) * 9}px`; part.style.width = `${rect.width}px`; part.style.height = `${rect.height}px`;
+        const art = c.querySelector('.face img');
+        if (art && !c.classList.contains('noimage')) { const copy = art.cloneNode(); copy.removeAttribute('loading'); part.append(copy); } else part.textContent = c.getAttribute('aria-label') ?? '';
+        groupBox.append(part);
+      });
+      doc.body.append(groupBox);
+    } else if (press.group) {
       const members = new Set(press.group);
       const mates = (card) => [...boardElement.querySelectorAll(':scope > .card')].filter((c) => c !== card && c.dataset.col === card.dataset.col && c.dataset.row === card.dataset.row && c.classList.contains('tapped') === card.classList.contains('tapped') && c.dataset.stackSize !== undefined && c.dataset.stackSize === card.dataset.stackSize); // (the rest of its pile)
       const picked = [...boardElement.querySelectorAll(':scope > .card')].filter((c) => members.has(c.dataset.uid));
@@ -251,7 +266,7 @@ export function mountBoardDrag({ doc = document, board, onDrop, hand = () => nul
     const over = drag.from !== 'hand' && handHit ? handHit(x, y) : inZone;
     // over a pile (the library, the graveyard, the exile or the command zone) the card goes onto it: the hand and the board are not under the pointer then
     const pileHere = pileAt(x, y);
-    const pile = pileHere && !drag.group && (pileHere.zone !== drag.from || pileHere.zone === 'command') ? pileHere : null; // (a commander may be moved from one slot of the command zone to the other)
+    const pile = pileHere && (!drag.group || drag.from === 'hand') && (pileHere.zone !== drag.from || pileHere.zone === 'command') ? pileHere : null; // (a commander may be moved from one slot of the command zone to the other)
     if ((pile?.element ?? null) !== drag.pileElement) { drag.pileElement?.classList.remove('drop-target'); pile?.element.classList.add('drop-target'); drag.pileElement = pile?.element ?? null; }
     drag.pile = pile ? pile.zone : null;
     drag.slot = pile?.slot ?? null;
@@ -287,7 +302,7 @@ export function mountBoardDrag({ doc = document, board, onDrop, hand = () => nul
     // A pile of more than one card: Shift held when the drag starts, or holding it down until the circle is full (startHold), carries the WHOLE pile; a plain drag takes one card off the top. (Shift also holds a
     // carried card to a row or a column: pointOf.)
     const stacked = source?.from === 'battlefield' && Number(source.button.dataset.stackSize) > 1;
-    const group = source?.from === 'battlefield' ? groupOf(source.uid) : null;
+    const group = source?.from === 'battlefield' || source?.from === 'hand' ? groupOf(source.uid) : null; // (the cards picked with a rectangle on the battlefield, or with Shift and a click in the hand)
     const whole = stacked && event.shiftKey && !group;
     const own = source?.from === 'battlefield' ? { col: Number(source.button.dataset.col), row: Number(source.button.dataset.row) } : null;
     press = source ? { ...source, group: Array.isArray(group) && group.length > 1 ? group : null, zone: source.from !== 'battlefield' && source.from !== 'hand', whole, x: event.clientX, y: event.clientY, start: own && Number.isInteger(own.col) && Number.isInteger(own.row) ? own : null } : null;
@@ -310,8 +325,8 @@ export function mountBoardDrag({ doc = document, board, onDrop, hand = () => nul
     const picture = drag.smooth ? { x: drag.smooth.x, y: drag.smooth.y, angle: drag.smooth.a } : drag.pos ? { x: drag.pos.x, y: drag.pos.y, angle: 0 } : null; // where the picture is as it is let go: the card starts there
     clean();
     swallowClick();
-    if (pile) onDropPile({ uid, from, to: pile, slot, element: pileElement, flying });
-    else if (overHand && from === 'hand') onReorderHand({ uid, x, picture });
+    if (pile) onDropPile({ uid, from, to: pile, slot, element: pileElement, flying, uids: group && from === 'hand' ? carriedUids : null });
+    else if (overHand && from === 'hand') { if (!group) onReorderHand({ uid, x, picture }); } // (a picked group let go over the hand stays as it is)
     else if (overHand) onDropHand({ uid, from, x, picture, uids: whole || group ? carriedUids : null });
     else if (cell) onDrop({ uid, from, col: cell.col, row: cell.row, whole, group });
   };

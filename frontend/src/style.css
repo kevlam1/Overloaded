@@ -765,9 +765,15 @@ body[data-tapped-pile-style="vertical"] .battlefield > .card.tapped[data-stack-e
 .viewer-head h2 { margin: 0; font-size: 1.1rem; }
 .viewer-head input[type="search"] { flex: 1 1 14rem; min-width: 10rem; }
 .viewer-window .hint { margin: 0 0 0.5rem; font-size: 0.8rem; }
-.viewer-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr)); gap: 0.6rem; overflow-y: auto; padding: 0.2rem; align-content: start; }
+.viewer-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 0.7rem; overflow-y: auto; padding: 0.35rem; align-content: start; } /* seven columns, the cards as large as they get (Kevin, 2026-11-15) */
+@media (max-width: 900px) { .viewer-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 .viewer-card { position: relative; display: flex; flex-direction: column; align-items: center; gap: 0.15rem; }
-.viewer-card .card { width: 7rem; height: 9.8rem; }
+.viewer-card { width: 100%; }
+.viewer-card .card { width: 100%; height: auto; aspect-ratio: 488 / 680; }
+.viewer-end { padding: 0 0.5rem; border-radius: 0.7rem; background: var(--accent); color: var(--accent-text); font-size: 0.7rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+.viewer-card[data-end="bottom"] .viewer-end { background: var(--warn, #c9822b); color: #fff; }
+.viewer-card[data-end] .card { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: 0.5rem; }
+.viewer-card[data-end="bottom"] .card { outline-color: var(--warn, #c9822b); }
 .viewer-card .card .face { width: 100%; height: 100%; }
 .viewer-depth { color: var(--muted); font-size: 0.7rem; }
 .viewer-empty { grid-column: 1 / -1; margin: 1rem 0; color: var(--muted); text-align: center; }

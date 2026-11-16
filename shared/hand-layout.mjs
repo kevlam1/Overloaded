@@ -88,13 +88,15 @@ export function holeAt({ total, width, cardWidth, x, previous = null, deadZone =
 // left by SPREAD of a card's width and every card to its right moves right by as much, so the row opens around it. The row is laid out again in the width left after the two shifts (the cards on each side
 // close up a little when there is no room, so nothing leaves the width) and centred. Heights and turns are those of the same place in the plain hand. index: the clicked card.
 export const SPREAD = 0.275; // how far each side moves aside, as a fraction of a card's width
-export function handLayoutSelected({ count, width, cardWidth, cardHeight, index }) {
+// index: the one selected card; indices: several picked cards (Kevin, 2026-11-15, Shift and a click): each of them has room beside it, so every picked card can come up.
+export function handLayoutSelected({ count, width, cardWidth, cardHeight, index, indices }) {
   const plain = handLayout({ count, width, cardWidth, cardHeight });
   const n = plain.slots.length;
-  if (!Number.isInteger(index) || index < 0 || index >= n || n < 2) return plain;
+  const picked = [...new Set(Array.isArray(indices) ? indices : [index])].filter((i) => Number.isInteger(i) && i >= 0 && i < n).sort((a, b) => a - b);
+  if (picked.length === 0 || n < 2) return plain;
   const shift = cardWidth * SPREAD;
-  const step = cardStep({ slots: n, width: Math.max(0, width - 2 * shift), cardWidth });
-  const total = cardWidth + step * (n - 1) + 2 * shift;
+  const step = cardStep({ slots: n, width: Math.max(0, width - 2 * shift * picked.length), cardWidth });
+  const total = cardWidth + step * (n - 1) + 2 * shift * picked.length;
   const x0 = (width - total) / 2;
-  return { step, slots: plain.slots.map((spot, k) => ({ ...spot, x: round2(x0 + k * step + (k < index ? 0 : k === index ? shift : 2 * shift)) })) };
+  return { step, slots: plain.slots.map((spot, k) => ({ ...spot, x: round2(x0 + k * step + 2 * shift * picked.filter((i) => i < k).length + (picked.includes(k) ? shift : 0)) })) };
 }

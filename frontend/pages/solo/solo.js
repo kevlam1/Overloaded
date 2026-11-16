@@ -649,6 +649,12 @@ function dropOnBoard({ uid, from, col, row, whole = false, group = null }) {
   const found = findCard(uid);
   if (!found || found.zone !== from) return;
   try {
+    if (group && from === 'hand') { // the cards picked with Shift and a click in the hand: the one dragged is put where it was let go, the others on the next free cells
+      const ordered = game.zones.hand.filter((card) => group.includes(card.uid)).map((card) => card.uid);
+      multi.clear(); selected = null;
+      apply(() => ordered.filter((each) => each !== uid).reduce((next, each) => moveCard(next, each, 'battlefield'), moveCard(game, uid, 'battlefield', { cell: { col, row } })), `Played ${ordered.length} cards.`);
+      return;
+    }
     if (group && from === 'battlefield') { // the cards picked up with a rectangle, moved together: each keeps its place relative to the others
       const moved = placeGroup(game, group, uid, col, row);
       if (moved.moved === 0) return;
@@ -732,8 +738,16 @@ function pileAt(x, y) {
   const slot = element?.closest?.('.cmd-slot'); // a commander can be put in either slot of the command zone; each slot is its own place to drop on (there is no larger box round both: Kevin, 2026-11-13)
   return slot ? { zone: 'command', slot: Number(slot.dataset.slot), element: slot } : null;
 }
-function dropOnPile({ uid, from, to, slot = null, element = null, flying = null }) {
+function dropOnPile({ uid, from, to, slot = null, element = null, flying = null, uids = null }) {
   const found = game ? findCard(uid) : null;
+  if (found && uids && from === 'hand' && uids.length > 1 && ZONE_WORDS[to]) { // a group of picked cards of the hand let go over a pile: they all go there (to the library: on top, the first card of the hand highest)
+    const ordered = game.zones.hand.filter((card) => uids.includes(card.uid)).map((card) => card.uid);
+    const action = groupAction(to === 'library' ? 'group:top' : `group:${to}`, ordered, { order: ordered });
+    flying?.remove();
+    multi.clear(); selected = null;
+    if (action) apply(() => action.run(game), action.message);
+    return;
+  }
   if (found && to === 'command' && (slot === 1 || slot === 2)) commandSlots.set(uid, slot);
   if (found && from === 'command' && to === 'command') { flying?.remove(); render(); say(slot ? `Put ${found.card.n} in command zone slot ${slot}.` : ''); return; } // (moved from one slot to the other)
   if (!found || found.zone !== from || from === to || !ZONE_WORDS[to]) { flying?.remove(); return; }
@@ -803,13 +817,13 @@ function pickFromHandMenu(id, amount) {
   });
 }
 handSort.mountOrders($('hand-order-settings'));
-mountBoardDrag({ board: () => $('battlefield'), onDrop: dropOnBoard, groupOf: (uid) => (multi.size > 1 && multi.has(uid) && !inHand(uid) ? [...multi] : null), hand: () => $('hand-section'), onDropHand: dropOnHand, onHandOver: (over) => handView.carry(over), onReorderHand: reorderInHand, handZone: () => handView.zone(), handHit: (x, y) => handView.over(x, y), zoneSource, pileAt, onDropPile: dropOnPile, isEnabled: () => Boolean(game) });
+mountBoardDrag({ board: () => $('battlefield'), onDrop: dropOnBoard, groupOf: (uid) => (multi.size > 1 && multi.has(uid) ? [...multi] : null), hand: () => $('hand-section'), onDropHand: dropOnHand, onHandOver: (over) => handView.carry(over), onReorderHand: reorderInHand, handZone: () => handView.zone(), handHit: (x, y) => handView.over(x, y), zoneSource, pileAt, onDropPile: dropOnPile, isEnabled: () => Boolean(game) });
 
 $('mulligan').addEventListener('click', doMulligan);
 $('new-game').addEventListener('click', () => { if (confirm('Start a new game? This one will be lost.')) { play('shuffle'); deal({ pause: SHUFFLE_PAUSE_MS }); } });
 // the life total is the number itself: click, right-click, Shift for 5, hold to set (src/life-control.js)
 mountLifeControl({ button: $('life'), say, onDelta: (delta) => apply(() => adjustLife(game, delta), ''), onSet: (value) => apply(() => adjustLife(game, value - game.life), `Life is ${value}.`) });
-for (const zone of ['library', 'graveyard', 'exile', 'sideboard']) $(`pile-${zone}`).addEventListener('click', () => togglePile(zone));
+for (const zone of ['graveyard', 'exile', 'sideboard']) $(`pile-${zone}`).addEventListener('click', () => togglePile(zone)); // (the library is opened from its menu: View library, Kevin 2026-11-15)
 $('retry').addEventListener('click', start);
 document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && (selected || multi.size > 0)) { selected = null; multi.clear(); if (game) render(); } });
 

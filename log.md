@@ -4158,6 +4158,26 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 ---
 
+## 208. Tweaks to the hand picks, the order window and the pile windows (2026-11-15)
+
+**What I asked for**
+- (1) Every picked card of the hand should come up, not only one. (2) The order window should glide the cards like the hand does, and have a random order. (3) A left click on the library should not open it. (4) The library, graveyard and exile windows in 7 columns with larger cards and an outline for the top and the bottom card. (5) Dragging one picked card should move the whole group. (6) In the hand menus drop the sideboard: Move to command zone, Move to top of library, Move to bottom of library. (7) A way to read a card's rules: right-click, a popup with the large card on the left and the rules, mana value, type and the rest on the right.
+
+**What changed** (`shared/hand-layout.mjs`, `frontend/src/hand-view.js`, `frontend/src/order-window.js`, `frontend/src/pile-viewer.js`, `frontend/src/board-drag.js`, `frontend/pages/solo/solo.js`, `shared/card-menu.mjs`, `shared/group-menu.mjs`, `frontend/src/style.css`, tests)
+- **1:** the hand layout gives every picked card room (`handLayoutSelected` takes a list), and all of them come up.
+- **2:** the cards in the order window glide to their new places (about a fifth of a second, none under reduced motion), and a Random order button shuffles them.
+- **3:** a left click on the library does nothing now; View library in its menu opens it. The graveyard and exile still open on a click.
+- **4:** the pile windows have 7 columns (4 on a window under 900 px) with the cards filling them, in the real card shape. The top card has a blue outline and a Top label, the bottom card an orange one and a Bottom label; a card seen alone says Only card. This uses the card's place in the whole pile, so a view of the bottom 2 of the library marks only the last one.
+- **5:** dragging a picked card of the hand carries all of them (the others are drawn fanned behind it and hidden in the hand): over the battlefield they are all played (the dragged one where it is let go, the others on the next free cells), over a pile they all go there (to the library on top), over the hand nothing happens.
+- **6:** a card in the hand has Play, Discard, Exile, Move to command zone, Move to top of library and Move to bottom of library, and no Move to heading and no sideboard. The group menu has the same lines. A card can still go to the sideboard from the graveyard or exile window.
+- **7: not built yet.** The card list has no rules text (I left it out on purpose in version one to keep the list small), so there is nothing to show on the right of the popup. I wrote the options and a question for Kevin in my reply.
+
+**What I checked:** `test-card-menu.mjs` (207), `test-group-menu.mjs` (23), all 67 quick suites and the solo check: the hand lines, every picked card higher than the cards that are not picked, the library not opening on a click, 7 columns with card width above 120 px and the right shape, Top and Bottom marks, Random order (same cards, a different order within a few presses), the glide (both cards animating a moment after a move), a real mouse drag of a picked card onto the battlefield (both played) and onto the graveyard (both discarded). I looked at screenshots of the exile window and of three picked cards risen. The last full run had no failed check and stopped at the old screenshot-only step I have not investigated; the earlier run had one failure in "when the pointer leaves the area the hand goes down again", which fails now and then and whose detail shows the resting cards it compared against were from a bigger hand (my guess is a stale baseline in the check; not fixed).
+
+**My mistakes this round:** my first drag check pressed where the picked card had been before the picked cards rose, so nothing was dragged; and my first edit of the sideboard test removed the only way to put a hand card in the sideboard, so the test now moves it through the graveyard window.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

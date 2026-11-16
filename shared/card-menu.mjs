@@ -54,12 +54,13 @@ export function menuItems(card, zone, { live = false, peek = false } = {}) {
   }
   if (zone === 'hand') { // (Kevin, 2026-11-15) the common moves are lines of their own, the rest stay under Move to; a two-sided card can show its other face (only a look: the page keeps it, nothing is stored; the solo table passes peek)
     items.push({ id: 'move:battlefield', label: 'Play' }, { id: 'move:graveyard', label: 'Discard' }, { id: 'move:exile', label: 'Exile' });
-    items.push({ id: 'move:library-top', label: 'Top of library' }, { id: 'move:library-bottom', label: 'Bottom of library' });
+    items.push({ id: 'move:command', label: 'Move to command zone' }, { id: 'move:library-top', label: 'Move to top of library' }, { id: 'move:library-bottom', label: 'Move to bottom of library' });
     if (peek && card?.b === 1) items.push({ id: 'peek', label: turnLabel() });
   }
   if (card?.md === 1 && card.b === 1 && PLAY_BACK_ZONES.includes(zone)) items.push({ id: 'playback', label: playBackLabel(card) });
   if (live && canPing(zone)) items.push({ id: 'ping', label: 'Ping card' }); // the page sends the ping itself (it is not a change to the game), so menuAction has nothing to run for it
-  const direct = zone === 'hand' ? ['battlefield', 'graveyard', 'exile'] : []; // (already lines of their own in the hand's menu)
+  if (zone === 'hand') return items; // (the hand has every move as a line of its own, and no sideboard: Kevin, 2026-11-15)
+  const direct = [];
   items.push({
     id: 'move',
     label: 'Move to',

@@ -185,8 +185,8 @@ export function mountHand({ container, costOf = () => '' }) {
       spots = handLayout({ count: all.length, width, cardWidth, cardHeight }).slots;
     }
     // A card of the hand that has been clicked (it is the selected card) comes up to be read and each side moves aside to make room. It goes down with a lowered hand and stays up the same distance above the others (Kevin, 2026-11-13).
-    const selectedIndex = carried ? -1 : row.findIndex((button) => button.classList.contains('selected'));
-    if (selectedIndex >= 0) spots = handLayoutSelected({ count: row.length, width, cardWidth, cardHeight, index: selectedIndex }).slots; // the whole of each side moves aside
+    const selectedIndices = carried ? [] : row.map((button, at) => (button.classList.contains('selected') ? at : -1)).filter((at) => at >= 0); // (several when cards are picked with Shift: all of them come up)
+    if (selectedIndices.length) spots = handLayoutSelected({ count: row.length, width, cardWidth, cardHeight, indices: selectedIndices }).slots; // the whole of each side moves aside
     // A resting (lowered) hand is flat: no turn and no drop at the ends. The arc comes when the pointer comes into the hand and the cards rise (Kevin, 2026-11-13); the angle and the drop ease like everything else.
     if (!raised) spots = spots.map((spot) => ({ ...spot, y: 0, angle: 0 }));
     const snap = prefersReducedMotion();
@@ -196,7 +196,7 @@ export function mountHand({ container, costOf = () => '' }) {
       let m = motion.get(button);
       const fresh = !m || m.gen !== generation - 1; // never placed, or it has been away from the hand: it goes straight to its place, with no slide in from the corner
       if (!m) { m = { x: 0, y: 0, a: 0, s: 1, tx: 0, ty: 0, ta: 0, ts: 1, gen: 0 }; motion.set(button, m); }
-      const comesUp = index === selectedIndex;
+      const comesUp = selectedIndices.includes(index);
       m.tx = spot.x + shiftX;
       m.ty = comesUp ? spot.y + drop - Math.round(cardHeight * LIFT_OUT) : spot.y + drop;
       m.ta = spot.angle;

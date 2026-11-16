@@ -4,6 +4,16 @@
 // chosen. Returns { close }.
 const make = (tag, className, text) => { const element = document.createElement(tag); if (className) element.className = className; if (text !== undefined) element.textContent = text; return element; };
 const DRAG_START_PX = 6;
+const GLIDE_MS = 220;
+const reduced = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+// A random order (Fisher-Yates): the same kind of shuffle the library uses.
+function shuffled(list) {
+  const out = [...list];
+  const words = new Uint32Array(out.length);
+  globalThis.crypto.getRandomValues(words);
+  for (let i = out.length - 1; i > 0; i--) { const j = words[i] % (i + 1); [out[i], out[j]] = [out[j], out[i]]; }
+  return out;
+}
 let current = null;
 
 export function openOrderWindow({ title, note, cards, nodeFor, onDone, places = null }) {
@@ -24,12 +34,29 @@ export function openOrderWindow({ title, note, cards, nodeFor, onDone, places = 
   const buttons = make('div', 'scry-buttons');
   const done = make('button', 'scry-done', 'Done'); done.type = 'button';
   const cancel = make('button', 'scry-cancel', 'Cancel'); cancel.type = 'button';
-  buttons.append(done, cancel);
+  const random = make('button', 'scry-random', 'Random order'); random.type = 'button';
+  buttons.append(random, done, cancel);
   panel.append(heading, noteLine, list, buttons);
   overlay.append(panel);
   document.body.append(overlay);
 
+  // The cards glide from where they were to where they are now (Kevin, 2026-11-15: like the cards of the hand): each card's old box is remembered, the list is drawn again, and every card that has moved
+  // starts from its old place and eases to the new one. Under reduced motion they just change places.
   function draw(focus = null) {
+    const before = new Map([...list.children].map((item) => [item.dataset.uid, item.getBoundingClientRect()]));
+    build(focus);
+    if (reduced() || before.size === 0) return;
+    for (const item of list.children) {
+      const from = before.get(item.dataset.uid);
+      if (!from) continue;
+      const to = item.getBoundingClientRect();
+      const dx = from.left - to.left;
+      const dy = from.top - to.top;
+      if (Math.abs(dx) < 1 && Math.abs(dy) < 1) continue;
+      item.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], { duration: GLIDE_MS, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' });
+    }
+  }
+  function build(focus = null) {
     list.replaceChildren(...order.map((uid, index) => {
       const item = make('li', 'scry-card');
       item.dataset.uid = uid;
@@ -95,6 +122,7 @@ export function openOrderWindow({ title, note, cards, nodeFor, onDone, places = 
     event.stopImmediatePropagation(); // the page's own Escape (it lets go of a card) must not also run
     close();
   };
+  random.addEventListener('click', () => { const next = shuffled(order); order.splice(0, order.length, ...next); draw(); });
   done.addEventListener('click', () => { const result = [...order]; close(); onDone(result); });
   cancel.addEventListener('click', close);
   document.addEventListener('keydown', onKey, true);

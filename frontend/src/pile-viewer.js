@@ -46,6 +46,8 @@ export function mountPileViewer({ root, nodeFor, onClose = () => {} }) {
     list.replaceChildren(...results.map(({ card, index }) => {
       const cell = make('div', 'viewer-card');
       cell.append(nodeFor(card, false));
+      const place = index + offset; // (the card's place in the whole pile: the first is the top, the last the bottom)
+      if (place === 0 || place === total - 1) { cell.dataset.end = place === 0 && total > 1 ? 'top' : place === 0 ? 'only' : 'bottom'; cell.prepend(make('span', 'viewer-end', cell.dataset.end === 'top' ? 'Top' : cell.dataset.end === 'bottom' ? 'Bottom' : 'Only card')); }
       if (depth) cell.append(make('span', 'viewer-depth', `#${index + 1 + offset}`));
       return cell;
     }));

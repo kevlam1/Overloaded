@@ -34,13 +34,12 @@ same('every zone has words', ZONES.every((zone) => typeof ZONE_NAMES[zone] === '
 
 // ---- what is offered ----
 const ids = (items) => items.map((item) => item.id);
-const HAND = ['move:battlefield', 'move:graveyard', 'move:exile', 'move:library-top', 'move:library-bottom', 'move']; // (the lines of a card in the hand, Kevin 2026-11-15)
+const HAND = ['move:battlefield', 'move:graveyard', 'move:exile', 'move:command', 'move:library-top', 'move:library-bottom']; // (the lines of a card in the hand: no Move to and no sideboard, Kevin 2026-11-15)
 same('on the battlefield: Modify, Tap, the two marks (does not untap, summoning sick), the counter, Create copy, Move to', ids(menuItems({ tapped: false }, 'battlefield')), ['modify', 'tap', 'flip', 'nountap', 'sick', 'counter', 'counter', 'copy', 'move']);
 same('an untapped card offers Tap, a tapped one Untap', [menuItems({ tapped: false }, 'battlefield')[1].label, menuItems({ tapped: true }, 'battlefield')[1].label], ['Tap', 'Untap']);
 same('the counter has a plain line (one) and a line that asks for a number (X...), and each call gets its own copy of the ask', (() => { const items = menuItems({}, 'battlefield'); const one = items[5]; const many = items[6]; many.ask.max = 1; return [one.label, one.ask ?? null, many.label, menuItems({}, 'battlefield')[6].ask]; })(), ['+1/+1 counter', null, '+1/+1 counters X...', { max: 99, unit: 'counters' }]);
 for (const zone of ['graveyard', 'exile', 'command', 'sideboard', 'library']) same(`in ${zone} only Move to is offered`, ids(menuItems({}, zone)), ['move']);
-same('in the hand: Play, Discard, Exile, Top of library, Bottom of library, then Move to', [ids(menuItems({}, 'hand')), menuItems({}, 'hand').map((i) => i.label)], [HAND, ['Play', 'Discard', 'Exile', 'Top of library', 'Bottom of library', 'Move to']]);
-same('under Move to in the hand only what has no line of its own is left', ids(menuItems({}, 'hand').at(-1).items), ['move:command', 'move:sideboard']);
+same('in the hand: Play, Discard, Exile, Move to command zone, Move to top of library, Move to bottom of library (no Move to heading, no sideboard)', [ids(menuItems({}, 'hand')), menuItems({}, 'hand').map((i) => i.label)], [HAND, ['Play', 'Discard', 'Exile', 'Move to command zone', 'Move to top of library', 'Move to bottom of library']]);
 same('moves from the battlefield: every zone but the battlefield, then the two library places', ids(menuItems({}, 'battlefield')[8].items), ['move:hand', 'move:graveyard', 'move:exile', 'move:command', 'move:sideboard', 'move:library-top', 'move:library-bottom']);
 same('moves from the graveyard: not to the graveyard', ids(menuItems({}, 'graveyard')[0].items), ['move:hand', 'move:battlefield', 'move:exile', 'move:command', 'move:sideboard', 'move:library-top', 'move:library-bottom']);
 same('from the library you can still put it on the top or bottom of it', ids(menuItems({}, 'library')[0].items).slice(-2), ['move:library-top', 'move:library-bottom']);
@@ -201,7 +200,7 @@ same('no card, no action', [menuAction('tap', null), menuAction('tap', undefined
 
   // Play the back face of a modal card
   const modal = byName(start, 'Valakut');
-  same('a modal card in the hand offers its back face by name, before Move to', ids(menuItems(modal, 'hand')), [...HAND.slice(0, 5), 'playback', 'move']);
+  same('a modal card in the hand offers its back face by name, after the moves', ids(menuItems(modal, 'hand')), [...HAND, 'playback']);
   same('with the back face\'s name in the label', menuItems(modal, 'hand').find((i) => i.id === 'playback').label, 'Play Valakut Stoneforge');
   same('the label function says the same', playBackLabel(modal), 'Play Valakut Stoneforge');
   same('where a card can be cast from: the hand, graveyard, exile and the command zone', PLAY_BACK_ZONES, ['hand', 'graveyard', 'exile', 'command']);
