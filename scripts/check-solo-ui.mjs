@@ -94,7 +94,13 @@ try {
   const clickAction = async (label) => {
     if (label === 'Deselect') { await closeMenu(); await escapeKey(); return true; }
     if (!(await openMenuOfSelected())) return false;
-    for (const step of MENU_PATHS[label] ?? [label]) { if (!(await pressMenuItem(step))) { await closeMenu(); return false; } await sleep(30); }
+    let steps = MENU_PATHS[label] ?? [label];
+    if (steps[0] === 'Move to') { // a card in the hand has Play, Discard, Exile and the library lines of its own (Kevin, 2026-11-15)
+      const here = await menuLabels();
+      const direct = { Battlefield: 'Play', Graveyard: 'Discard', Exile: 'Exile', 'Top of library': 'Top of library', 'Bottom of library': 'Bottom of library' }[steps[1]];
+      if (direct && here.includes('Play') && here.includes(direct)) steps = [direct];
+    }
+    for (const step of steps) { if (!(await pressMenuItem(step))) { await closeMenu(); return false; } await sleep(30); }
     return true;
   };
   const shuffleViaMenu = async () => { await ev(`(() => { const r = document.getElementById('pile-library').getBoundingClientRect(); document.getElementById('pile-library').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: r.x + 5, clientY: r.y + 5 })); })()`); await pressMenuItem('Shuffle'); await sleep(30); };
@@ -209,8 +215,8 @@ try {
   check('selecting a card says what it is and where', new RegExp(`^${landName}: .*Land.*, in your hand\\.$`).test(await $text('selected-line')), await $text('selected-line'));
   check('the selected card is marked', (await count('#hand .card.selected')) === 1 && (await ev(`document.querySelector('#hand .card.selected').getAttribute('aria-pressed')`)) === 'true');
   const labels = await actionLabels();
-  const inner = await (async () => { await openMenuOfSelected(); await pressMenuItem('Move to'); await sleep(30); const all = await menuLabels(); await closeMenu(); return all.filter((x) => x !== 'Move to'); })();
-  check('the right-click menu of a hand card is one entry, Move to, with every other zone and the library top and bottom inside it, and no Tap', JSON.stringify(labels) === JSON.stringify(['Move to']) && JSON.stringify(inner) === JSON.stringify(['Battlefield', 'Graveyard', 'Exile', 'Command zone', 'Sideboard', 'Top of library', 'Bottom of library']), JSON.stringify({ labels, inner }));
+  const inner = await (async () => { await openMenuOfSelected(); await pressMenuItem('Move to'); await sleep(30); const all = await menuLabels(); await closeMenu(); return all.filter((x) => x !== 'Move to' && !labels.includes(x)); })();
+  check('the right-click menu of a hand card: Play, Discard, Exile, Top of library, Bottom of library and Move to (with the command zone and the sideboard inside it), and no Tap', JSON.stringify(labels) === JSON.stringify(['Play', 'Discard', 'Exile', 'Top of library', 'Bottom of library', 'Move to']) && JSON.stringify(inner) === JSON.stringify(['Command zone', 'Sideboard']), JSON.stringify({ labels, inner }));
   const handBefore = await count('#hand .card');
   await clickAction('To battlefield');
   check('moving a land to the battlefield puts it in the lands row', (await count('#battlefield .card[data-kind="land"]')) === 1 && (await count('#battlefield .card[data-kind="other"]')) === 0 && (await count('#hand .card')) === handBefore - 1 && (await $text('status')) === `Moved ${landName} to the battlefield.`, await $text('status'));
@@ -1592,13 +1598,12 @@ try {
   check('Move to opens inline under its heading, with every other zone and both ends of the library', menu.items.slice(-8).join() === 'Move to,Hand,Graveyard,Exile,Command zone,Sideboard,Top of library,Bottom of library' && (await ev(`document.querySelector('.card-menu .has-sub').getAttribute('aria-expanded')`)) === 'true' && menu.inside, JSON.stringify(menu));
   await clickMenuItem('Graveyard');
   check('Graveyard moves the card there (the pile says so, the battlefield is empty again) and the menu is gone', (await pileCount('graveyard')) === 'Graveyard: 1' && (await count('#battlefield .card[data-kind="other"]')) === 0 && (await menuState()) === null && (await $text('status')) === 'Moved Llanowar Elves to your graveyard.', `${await pileCount('graveyard')} ${await $text('status')}`);
-  // a card in the hand has only Move to
+  // a card in the hand: Play, Discard, Exile, the two ends of the library, and Move to for the rest (Kevin, 2026-11-15)
   await mouse('#hand .card', { button: 'right', dy: 64 });
   menu = await menuState();
-  check('a card in the hand offers only Move to', menu && JSON.stringify(menu.items) === JSON.stringify(['Move to']), JSON.stringify(menu));
-  await clickMenuItem('Move to');
-  await clickMenuItem('Battlefield');
-  check('and Battlefield from there puts it on the battlefield', (await count('#battlefield .card')) === 1 && (await menuState()) === null);
+  check('a card in the hand offers Play, Discard, Exile, Top of library, Bottom of library and Move to', menu && JSON.stringify(menu.items) === JSON.stringify(['Play', 'Discard', 'Exile', 'Top of library', 'Bottom of library', 'Move to']), JSON.stringify(menu));
+  await clickMenuItem('Play');
+  check('and Play puts it on the battlefield', (await count('#battlefield .card')) === 1 && (await menuState()) === null);
   // keyboard
   const cardSelector = (await count('#battlefield .card[data-kind="land"]')) === 1 ? '#battlefield .card[data-kind="land"]' : '#battlefield .card[data-kind="other"]';
   await ev(`(() => { const c = document.querySelector(${JSON.stringify(cardSelector)}); c.focus(); c.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 0, clientY: 0 })); })()`);
@@ -1680,6 +1685,71 @@ try {
   await clickAction('To hand');
   check('a card in the hand has no Modify button', !(await actionLabels()).includes('Modify'));
 
+  // ---- the menu of the hand: the arrow next to the hand count, and the menu of a card in the hand (Kevin, 2026-11-15) ----
+  {
+    await open(DECK_JSON);
+    await waitFor(async () => (await count('#hand .card')) === 7 || null, 8000, 100);
+    const pointOf = (selector) => ev(`(() => { const r = document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
+    const pointer = (p, extra = {}) => browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p.x, y: p.y, ...extra });
+    const typeNumber = async (text) => { await ev("document.querySelector('.number-box input').select()"); await browser.send('Input.insertText', { text }); };
+    const enterKey = async () => { await browser.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, text: String.fromCharCode(13) }); await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 }); await sleep(250); };
+    const overHand = async () => { await pointer({ x: 5, y: 5 }); await sleep(150); await pointer(await pointOf('#hand .card:nth-child(2)')); await sleep(450); };
+    const openHandMenuByArrow = async () => { await overHand(); const p = await pointOf('#hand-caret'); await pointer(p); await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: p.x, y: p.y, button: 'left', buttons: 1, clickCount: 1 }); await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: p.x, y: p.y, button: 'left', buttons: 0, clickCount: 1 }); await sleep(150); return menuState(); };
+    const handSize = () => count('#hand .card');
+    const gy = async () => Number((await pileCount('graveyard')).split(': ').at(-1));
+    const lib = async () => Number((await pileCount('library')).split(': ').at(-1));
+    const library0 = await lib();
+    await overHand();
+    check('the hand bar has an arrow next to the count, with a label and the menu role', await ev("(() => { const c = document.getElementById('hand-caret'); return Boolean(c && c.getAttribute('aria-haspopup') === 'menu' && /Hand options/.test(c.getAttribute('aria-label')) && c.closest('.hand-bar') && c.previousElementSibling.classList.contains('hand-count')); })()"));
+    const menu = await openHandMenuByArrow();
+    check('the arrow opens "Your hand" with Mulligan, Shuffle hand into library, Discard X at random and Discard hand, and nothing else', menu && menu.title === 'Your hand' && JSON.stringify(menu.items) === JSON.stringify(['Mulligan', 'Shuffle hand into library', 'Discard X at random...', 'Discard hand']), JSON.stringify(menu));
+    if (process.argv.includes('--screenshot')) await browser.screenshot('scratch-solo-handmenu.png');
+    await escapeKey(); await sleep(100);
+    // Discard X at random
+    await openHandMenuByArrow(); await pressMenuItem('Discard X at random...'); await sleep(150); await typeNumber('2'); await enterKey();
+    check('Discard X at random with 2: two cards left the hand for the graveyard, and it says so', (await handSize()) === 5 && (await gy()) === 2 && /^Discarded 2 cards at random\./.test(await $text('status')), JSON.stringify([await handSize(), await gy(), await $text('status')]));
+    // Mulligan from the menu: a new hand of seven
+    await openHandMenuByArrow(); await pressMenuItem('Mulligan');
+    const dealt = await waitFor(async () => (await handSize()) === 7 || null, 15000, 100);
+    await sleep(500);
+    check('Mulligan from the menu does what the button does: a new hand of seven, the graveyard is untouched', Boolean(dealt) && (await gy()) === 2 && /^Mulligan 1:/.test(await $text('status')), JSON.stringify([await handSize(), await gy(), await $text('status')]));
+    // Shuffle hand into library
+    const libraryBefore = await lib();
+    await openHandMenuByArrow(); await pressMenuItem('Shuffle hand into library'); await sleep(300);
+    check('Shuffle hand into library empties the hand and puts all seven in the library', (await handSize()) === 0 && (await lib()) === libraryBefore + 7 && /^Shuffled your hand into your library\./.test(await $text('status')), JSON.stringify([await handSize(), await lib(), libraryBefore, await $text('status')]));
+    // Discard hand (draw three first), and the right-click on the bar opens the same menu
+    for (let n = 0; n < 3; n++) { await press('draw'); await sleep(250); }
+    await overHand();
+    const bar = await pointOf('.hand-bar .hand-count');
+    await pointer(bar); await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: bar.x, y: bar.y, button: 'right', buttons: 2, clickCount: 1 }); await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: bar.x, y: bar.y, button: 'right', buttons: 0, clickCount: 1 }); await sleep(150);
+    const byBar = await menuState();
+    check('a right-click on the bar opens the same menu', byBar && byBar.title === 'Your hand' && byBar.items.length === 4, JSON.stringify(byBar));
+    const gyBefore = await gy();
+    await pressMenuItem('Discard hand'); await sleep(300);
+    check('Discard hand puts the three cards in the graveyard and says so', (await handSize()) === 0 && (await gy()) === gyBefore + 3 && /^Discarded your hand\./.test(await $text('status')), JSON.stringify([await handSize(), await gy(), gyBefore, await $text('status')]));
+    check('with an empty hand the bar is not there to open (the Mulligan button still is)', await ev("document.querySelector('.hand-bar').hidden === true") && (await ev("document.getElementById('mulligan') !== null")));
+    // the menu of a card in the hand
+    await press('mulligan'); await waitFor(async () => (await handSize()) === 7 || null, 15000, 100); await sleep(600);
+    await pointer({ x: 5, y: 5 }); await sleep(200);
+    const nameOf = (uidSel) => ev(`document.querySelector(${JSON.stringify(uidSel)}).getAttribute('aria-label')`);
+    const firstUid = await ev("document.querySelector('#hand > .card').dataset.uid");
+    const cardSel = `#hand > .card[data-uid="${firstUid}"]`;
+    const cardName = (await nameOf(cardSel)).split(',')[0];
+    await ev(`(() => { const c = document.querySelector(${JSON.stringify(cardSel)}); const r = c.getBoundingClientRect(); c.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: r.x + r.width / 2, clientY: r.y + r.height / 2 })); })()`); await sleep(150); // (the fan overlaps the cards: a click in the middle can hit a neighbour)
+    const cardMenu = await menuState();
+    check('a right-click on a card of the hand: Play, Discard, Exile, Top of library, Bottom of library, then Move to', cardMenu && cardMenu.title === cardName && JSON.stringify(cardMenu.items.slice(0, 6)) === JSON.stringify(['Play', 'Discard', 'Exile', 'Top of library', 'Bottom of library', 'Move to']), JSON.stringify(cardMenu));
+    const gy2 = await gy(); const hand2 = await handSize();
+    await pressMenuItem('Discard'); await sleep(300);
+    check('Discard sends that card to the graveyard', (await handSize()) === hand2 - 1 && (await gy()) === gy2 + 1, JSON.stringify([await handSize(), await gy()]));
+    await pointer({ x: 5, y: 5 }); await sleep(200);
+    const secondUid = await ev("document.querySelector('#hand > .card').dataset.uid");
+    const lib2 = await lib();
+    await ev(`(() => { const c = document.querySelector('#hand > .card[data-uid="${secondUid}"]'); const r = c.getBoundingClientRect(); c.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: r.x + r.width / 2, clientY: r.y + r.height / 2 })); })()`); await sleep(150);
+    await pressMenuItem('Bottom of library'); await sleep(900);
+    check('Bottom of library puts the card under the library', (await lib()) === lib2 + 1 && !(await ev(`document.querySelector('#hand > .card[data-uid="${secondUid}"]') !== null`)), JSON.stringify([await lib(), lib2]));
+    void library0;
+  }
+
   // ---- turning a two-sided card over (real list entries: Sephiroth, Valakut Awakening, Delver, Aclazotz, and Fire // Ice which has no back) ----
   // Seven cards in a seven-card deck, so all of them are in the hand and nothing depends on luck.
   const TWO_SIDED = deckFrom('1 Sephiroth, Fabled SOLDIER\n1 Valakut Awakening\n1 Delver of Secrets\n1 Aclazotz, Deepest Betrayal\n1 Fire // Ice\n1 Sol Ring\n1 Forest', 'Two-sided deck', null, []); // no commander: the page would guess one from the legendary creatures and take it out of the hand
@@ -1688,6 +1758,33 @@ try {
   const srcOf = (prefix) => ev(`(() => { const i = document.querySelector(${JSON.stringify(cardAt(prefix) + ' img')}); return i ? i.getAttribute('src') : null; })()`);
   const rowOf = (prefix) => ev(`(() => { const c = document.querySelector(${JSON.stringify(cardAt(prefix))}); return c ? (c.dataset.kind === 'land' ? 'row-lands' : c.dataset.kind === 'other' ? 'row-other' : (c.parentElement ? c.parentElement.id : null)) : null; })()`); // which kind of card it is now: the battlefield is one grid, and a card's kind (land or other) is what the old two rows were
   const labelOf = (prefix) => ev(`document.querySelector(${JSON.stringify(cardAt(prefix))}).getAttribute('aria-label')`);
+  // a card with two faces in the hand: Flip double-faced card shows its back, only as a look (Kevin, 2026-11-15)
+  {
+    await open(TWO_SIDED);
+    await waitFor(async () => (await count('#hand .card')) === 7 || null, 8000, 100);
+    const sel = (prefix) => `#hand > .card[aria-label^="${prefix}"]`;
+    const rightClick = (selector) => ev(`(() => { const c = document.querySelector(${JSON.stringify(selector)}); const r = c.getBoundingClientRect(); c.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: r.x + r.width / 2, clientY: r.y + r.height / 2 })); })()`);
+    const imgOf = (prefix) => ev(`(() => { const i = document.querySelector(${JSON.stringify(sel(prefix) + ' img')}); return i ? i.getAttribute('src') : null; })()`);
+    const labelIn = (prefix) => ev(`document.querySelector(${JSON.stringify(sel(prefix))}).getAttribute('aria-label')`);
+    const frontSrc = await imgOf('Sephiroth');
+    await rightClick(sel('Sephiroth')); await sleep(150);
+    const sephMenu = await menuState();
+    check('a two-sided card in the hand has Flip double-faced card in its menu, after Bottom of library', sephMenu && /Sephiroth/.test(sephMenu.title) && sephMenu.items.includes('Flip double-faced card') && sephMenu.items.indexOf('Flip double-faced card') === sephMenu.items.indexOf('Bottom of library') + 1, JSON.stringify(sephMenu));
+    await pressMenuItem('Flip double-faced card'); await sleep(400);
+    const backSrc = await imgOf('Sephiroth');
+    check('choosing it shows the back face picture, and the card is still in the hand', Boolean(backSrc) && backSrc !== frontSrc && /\/back\//.test(backSrc) && (await count('#hand .card')) === 7 && /turned over/.test(await labelIn('Sephiroth')), JSON.stringify({ frontSrc, backSrc }));
+    if (process.argv.includes('--screenshot')) await browser.screenshot('scratch-solo-handpeek.png');
+    check('and the message says it is only a look', /only a look/.test(await $text('status')), await $text('status'));
+    await rightClick(sel('Sephiroth')); await sleep(150);
+    await pressMenuItem('Flip double-faced card'); await sleep(400);
+    check('choosing it again shows the front picture again', (await imgOf('Sephiroth')) === frontSrc && !/turned over/.test(await labelIn('Sephiroth')), await imgOf('Sephiroth'));
+    await rightClick(sel('Sephiroth')); await sleep(150);
+    await pressMenuItem('Flip double-faced card'); await sleep(300);
+    await rightClick(sel('Sephiroth')); await sleep(150);
+    await pressMenuItem('Play'); await sleep(400);
+    check('a card played while it shows its back still comes onto the battlefield as its front (the look is not the game)', Boolean(await ev("document.querySelector('#battlefield .card[aria-label^=\"Sephiroth\"]')")) && !/turned over/.test(await ev("document.querySelector('#battlefield .card[aria-label^=\"Sephiroth\"]').getAttribute('aria-label')")));
+    check('a card with no back (Sol Ring) has no such line', await (async () => { await rightClick(sel('Sol Ring')); await sleep(150); const m = await menuState(); await escapeKey(); return m && !m.items.includes('Flip double-faced card'); })());
+  }
   asked.length = 0;
   failBackIds.add(defaultId('Aclazotz')); // its back picture does not exist: turning it over must show the name, and turning back must bring the front picture back
   await open(TWO_SIDED);
@@ -1774,7 +1871,7 @@ try {
   await clickAction('To hand');
   const aclazotzInHand = await srcOf('Aclazotz');
   check('Aclazotz, sent to the hand while turned over, is a front-face card there (not turned, front picture)', (await count('#hand ' + cardAt('Aclazotz'))) === 1 && !/turned over/.test(await labelOf('Aclazotz')) && /\/front\//.test(aclazotzInHand), String(aclazotzInHand));
-  check('and in the hand it has no Flip double-faced card button', !(await actionLabels()).includes('Flip double-faced card') && !(await actionLabels()).includes('Flip double-faced card'));
+  check('and in the hand its menu offers Flip double-faced card too, as a look at the other face (nothing changes in the game)', (await actionLabels()).includes('Flip double-faced card'));
   await clickAction('To battlefield');
   check('played again it shows its front: a 4/4 creature in the other row', (await rowOf('Aclazotz')) === 'row-other' && !/turned over/.test(await labelOf('Aclazotz')));
   await clickAction('Deselect');
@@ -1819,7 +1916,7 @@ try {
   check('sent back to the hand it is a front-face card again', (await count('#hand .card')) === 1 && !/turned over/.test(await labelOf('Valakut Awakening')) && /\/front\//.test(await srcOf('Valakut Awakening')));
   await mouse('#hand .card', { button: 'right', dy: 64 });
   const handMenu = await menuState();
-  check('the right-click menu of the modal card in the hand offers it first, before Move to', handMenu && JSON.stringify(handMenu.items.slice(0, 2)) === JSON.stringify(['Play Valakut Stoneforge', 'Move to']), JSON.stringify(handMenu?.items));
+  check('the right-click menu of the modal card in the hand offers Play Valakut Stoneforge just before Move to, after the look at the other face', handMenu && JSON.stringify(handMenu.items.slice(-3)) === JSON.stringify(['Flip double-faced card', 'Play Valakut Stoneforge', 'Move to']), JSON.stringify(handMenu?.items));
   await clickMenuItem('Play Valakut Stoneforge');
   check('choosing it plays the land the same way', (await count('#hand .card')) === 0 && (await rowOf('Valakut Awakening')) === 'row-lands' && /, turned over/.test(await labelOf('Valakut Awakening')));
   await clickAction('Deselect');

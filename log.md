@@ -4101,6 +4101,24 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 ---
 
+## 205. The hand menu and a look at the other face of a card in the hand (2026-11-15)
+
+**What I asked for**
+- Instead of menus on the hand bar and the gap, an arrow next to the hand count with Mulligan, Shuffle hand into library and Discard hand, and no buttons that are already somewhere else (no Draw). A card in the hand should also be able to show its second face, like Sephiroth, Fabled SOLDIER.
+
+**What changed** (`shared/hand-menu.mjs`, `shared/card-menu.mjs`, `frontend/pages/solo/solo.js`, `frontend/src/hand-view.js`, tests)
+- **The hand menu:** a small arrow next to "Hand: N" (a right-click on the bar opens it too): Mulligan, Shuffle hand into library, Discard X at random..., Discard hand. I added the random discard because you wanted it in the plan on 2026-11-15 and it is not a button anywhere else; say if you want it gone. Mulligan runs the same code as the button, so the shuffle and the new hand come out as before.
+- **A card in the hand:** Play, Discard, Exile, Top of library, Bottom of library, then Move to (which now only holds Command zone and Sideboard). A two-sided card also has Flip double-faced card.
+- **Flip in the hand is only a look:** it shows the back face picture, nothing is stored and the game does not change; a card played while showing its back comes onto the battlefield as its front (the real Turn over is still on the battlefield). I checked on the live card list that Sephiroth, Fabled SOLDIER has a back face (and 5/5 on it).
+- **A bug I found on the way:** when the last card left the hand the bar with "Hand: 7" stayed on screen until the pointer moved away. It hides now.
+- Solo table only. The table page keeps its old hand menu (no peek line there).
+
+**What I checked:** `test-hand-menu.mjs` (22), `test-card-menu.mjs` (208), all 66 quick suites, and the solo check (690, run again after the last change to where the menu opens): the arrow and its menu, random discard of 2, Mulligan from the menu, Shuffle hand into library, Discard hand, a right-click on the bar, the card menu lines, Discard and Bottom of library, and Flip double-faced card on Sephiroth (back shown, front again, played as the front). I looked at screenshots of the menu and the flipped card, with the stand-in pictures the check uses (a real picture of a back face I did not look at). The check run with the screenshot flag stops at an older screenshot-only step ("no menu item Move to", line 2980) that I did not investigate.
+
+**My mistakes this round:** my site build overwrote my local card list with an old copy and the solo check then failed at the start (I rebuilt it from the saved Scryfall files); my first checks right-clicked the middle of a hand card, which hit its neighbour because the fan overlaps them; the first menu opened on top of the arrow it came from.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.204</span></h1>
-    <p class="lede">204 entries, Oct 25 to Nov 15, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
+    <h1>Build log <span class="version">Version 0.205</span></h1>
+    <p class="lede">205 entries, Oct 25 to Nov 15, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
   </div>
 </header>
 
@@ -23,7 +23,7 @@
     <div class="weeks-row">
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
-<a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">94</span></a>
+<a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">95</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
     </div>
     <div class="tools">
@@ -1961,7 +1961,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-1" aria-labelledby="week-1-title">
-<h2 class="week-head" id="week-1-title"><button type="button" aria-expanded="false" aria-controls="week-1-days"><span class="wname">Week 1</span><span class="range">Nov 9 to Nov 15</span><span class="week-count">94 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-1-title"><button type="button" aria-expanded="false" aria-controls="week-1-days"><span class="wname">Week 1</span><span class="range">Nov 9 to Nov 15</span><span class="week-count">95 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-1-days">
 <div class="day">
 <h3 class="day-title">Monday 9 November <span class="day-count">4</span></h3>
@@ -3368,7 +3368,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Sunday 15 November <span class="day-count">6</span></h3>
+<h3 class="day-title">Sunday 15 November <span class="day-count">7</span></h3>
 <div class="entries">
 <article class="entry" id="entry-199" data-n="199">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-199-body">
@@ -3458,6 +3458,21 @@
 <ul><li><strong>Library menu order:</strong> Draw card, Draw X..., View library, View (Top card, Top X cards...), Shuffle, Scry, Surveil, Mill, Exile top X..., Reveal top X..., Play with top revealed.</li><li><strong>Number inside the line:</strong> Scry, Surveil and Mill have a small number box inside the line (starts at 1, each line remembers its own number). A 0 or a number over the library marks the box invalid and does nothing.</li><li><strong>Scry and Surveil</strong> open their own window: the top cards side by side, Top / Bottom (and Graveyard for Surveil) under each, arrows to change the order, Done, Cancel or Escape. The logic is <code>shared/scry.mjs</code>.</li><li><strong>Reveal top X</strong> opens the viewer titled &quot;Revealed&quot;. <strong>Play with top revealed</strong> turns the top card of the library face up on the pile (solo only for now); the line then says &quot;Stop playing with top revealed&quot;.</li><li><strong>Not built:</strong> other players seeing a revealed card or the face-up top card. That needs a new public field and a rules change that I would have to paste, so it waits for the table page work.</li></ul>
 <p><strong>What I checked:</strong> <code>test-scry.mjs</code> (22), <code>test-pile-menu.mjs</code> (43), all 65 quick suites, and the solo check (673): the new menu list, the number boxes, View then Top X cards, Reveal, face-up top card through a draw, Scry 3 and Surveil 2 with the window, Escape. I did NOT look at a screenshot of the scry window or the face-up library, so the look is unchecked. One run failed &quot;when the pointer leaves the area the hand goes down again&quot; and passed on rerun, so I think it is a timing flake but I did not find the cause.</p>
 <p><strong>My mistakes this round:</strong> the scry window's Done button lost the focus because the menu gives focus back to its own button as it closes (found by the check, fixed by taking the focus again a frame later); my check expected &quot;View&quot; but the menu's text has the arrow (&quot;View▸&quot;).</p>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-205" data-n="205">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-205-body">
+    <span class="num">205</span>
+    <span class="head-text"><span class="title">The hand menu and a look at the other face of a card in the hand</span><span class="sum">Instead of menus on the hand bar and the gap, an arrow next to the hand count with Mulligan, Shuffle hand into library and Discard hand, and no buttons that are already somewhere else (no Draw).</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-205-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>Instead of menus on the hand bar and the gap, an arrow next to the hand count with Mulligan, Shuffle hand into library and Discard hand, and no buttons that are already somewhere else (no Draw). A card in the hand should also be able to show its second face, like Sephiroth, Fabled SOLDIER.</li></ul>
+<p><strong>What changed</strong> (<code>shared/hand-menu.mjs</code>, <code>shared/card-menu.mjs</code>, <code>frontend/pages/solo/solo.js</code>, <code>frontend/src/hand-view.js</code>, tests)</p>
+<ul><li><strong>The hand menu:</strong> a small arrow next to &quot;Hand: N&quot; (a right-click on the bar opens it too): Mulligan, Shuffle hand into library, Discard X at random..., Discard hand. I added the random discard because you wanted it in the plan on 2026-11-15 and it is not a button anywhere else; say if you want it gone. Mulligan runs the same code as the button, so the shuffle and the new hand come out as before.</li><li><strong>A card in the hand:</strong> Play, Discard, Exile, Top of library, Bottom of library, then Move to (which now only holds Command zone and Sideboard). A two-sided card also has Flip double-faced card.</li><li><strong>Flip in the hand is only a look:</strong> it shows the back face picture, nothing is stored and the game does not change; a card played while showing its back comes onto the battlefield as its front (the real Turn over is still on the battlefield). I checked on the live card list that Sephiroth, Fabled SOLDIER has a back face (and 5/5 on it).</li><li><strong>A bug I found on the way:</strong> when the last card left the hand the bar with &quot;Hand: 7&quot; stayed on screen until the pointer moved away. It hides now.</li><li>Solo table only. The table page keeps its old hand menu (no peek line there).</li></ul>
+<p><strong>What I checked:</strong> <code>test-hand-menu.mjs</code> (22), <code>test-card-menu.mjs</code> (208), all 66 quick suites, and the solo check (690, run again after the last change to where the menu opens): the arrow and its menu, random discard of 2, Mulligan from the menu, Shuffle hand into library, Discard hand, a right-click on the bar, the card menu lines, Discard and Bottom of library, and Flip double-faced card on Sephiroth (back shown, front again, played as the front). I looked at screenshots of the menu and the flipped card, with the stand-in pictures the check uses (a real picture of a back face I did not look at). The check run with the screenshot flag stops at an older screenshot-only step (&quot;no menu item Move to&quot;, line 2980) that I did not investigate.</p>
+<p><strong>My mistakes this round:</strong> my site build overwrote my local card list with an old copy and the solo check then failed at the start (I rebuilt it from the saved Scryfall files); my first checks right-clicked the middle of a hand card, which hit its neighbour because the fan overlaps them; the first menu opened on top of the arrow it came from.</p>
   </div></div></div>
 </article>
 </div>

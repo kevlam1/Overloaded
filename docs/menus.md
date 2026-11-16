@@ -19,7 +19,8 @@ Kevin asked for a plan for menu options on more parts of the table: for example,
 ## Built so far
 - 2026-11-15, log entry 203: the X box, the library / graveyard / exile menu changes (View, Draw card, Draw X, Look at top X, Mill X, Exile top X, Exile all, Shuffle into library) and the counters X line. Not built yet: the View submenu, the inline number boxes, Scry and Surveil, Reveal top X, Play with top revealed.
 
-- 2026-11-15, log entry 204: the library menu from the sketch (View submenu, number boxes inside Scry, Surveil and Mill, the Scry / Surveil window, Reveal top X, Play with top revealed, solo only). Not built: showing revealed cards to other players (needs a rules change).
+- 2026-11-15, log entry 204: the library menu from the sketch (View submenu, number boxes inside Scry, Surveil and Mill, the Scry / Surveil window, Reveal top X, Play with top revealed, solo only). Not built: showing revealed cards to other players (needs a rules change).- 2026-11-15, log entry 205: the hand menu (an arrow next to the hand count: Mulligan, Shuffle hand into library, Discard X at random, Discard hand), the lines of a hand card (Play, Discard, Exile, top and bottom of the library) and Flip double-faced card as a look at the back face. Solo only. Kevin said "custom" in his battlefield-card notes is under Add counter (a typed counter name), not under Move to.
+
 ## How the menus work today (so the plan fits it)
 - One menu component, `frontend/src/card-menu.js`, draws every menu (a title, items, items with quick amounts, headings that open a submenu, keyboard use).
 - What a menu offers and does is plain data in `shared/` with Node tests, and the page runs the action through its own `apply()`: `shared/card-menu.mjs` (a card), `shared/pile-menu.mjs` (a pile), `shared/player-counters.mjs` (the life total).

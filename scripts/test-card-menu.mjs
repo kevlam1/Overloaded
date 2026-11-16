@@ -34,12 +34,15 @@ same('every zone has words', ZONES.every((zone) => typeof ZONE_NAMES[zone] === '
 
 // ---- what is offered ----
 const ids = (items) => items.map((item) => item.id);
+const HAND = ['move:battlefield', 'move:graveyard', 'move:exile', 'move:library-top', 'move:library-bottom', 'move']; // (the lines of a card in the hand, Kevin 2026-11-15)
 same('on the battlefield: Modify, Tap, the two marks (does not untap, summoning sick), the counter, Create copy, Move to', ids(menuItems({ tapped: false }, 'battlefield')), ['modify', 'tap', 'flip', 'nountap', 'sick', 'counter', 'counter', 'copy', 'move']);
 same('an untapped card offers Tap, a tapped one Untap', [menuItems({ tapped: false }, 'battlefield')[1].label, menuItems({ tapped: true }, 'battlefield')[1].label], ['Tap', 'Untap']);
 same('the counter has a plain line (one) and a line that asks for a number (X...), and each call gets its own copy of the ask', (() => { const items = menuItems({}, 'battlefield'); const one = items[5]; const many = items[6]; many.ask.max = 1; return [one.label, one.ask ?? null, many.label, menuItems({}, 'battlefield')[6].ask]; })(), ['+1/+1 counter', null, '+1/+1 counters X...', { max: 99, unit: 'counters' }]);
-for (const zone of ['hand', 'graveyard', 'exile', 'command', 'sideboard', 'library']) same(`in ${zone} only Move to is offered`, ids(menuItems({}, zone)), ['move']);
+for (const zone of ['graveyard', 'exile', 'command', 'sideboard', 'library']) same(`in ${zone} only Move to is offered`, ids(menuItems({}, zone)), ['move']);
+same('in the hand: Play, Discard, Exile, Top of library, Bottom of library, then Move to', [ids(menuItems({}, 'hand')), menuItems({}, 'hand').map((i) => i.label)], [HAND, ['Play', 'Discard', 'Exile', 'Top of library', 'Bottom of library', 'Move to']]);
+same('under Move to in the hand only what has no line of its own is left', ids(menuItems({}, 'hand').at(-1).items), ['move:command', 'move:sideboard']);
 same('moves from the battlefield: every zone but the battlefield, then the two library places', ids(menuItems({}, 'battlefield')[8].items), ['move:hand', 'move:graveyard', 'move:exile', 'move:command', 'move:sideboard', 'move:library-top', 'move:library-bottom']);
-same('moves from the hand: not to the hand', ids(menuItems({}, 'hand')[0].items), ['move:battlefield', 'move:graveyard', 'move:exile', 'move:command', 'move:sideboard', 'move:library-top', 'move:library-bottom']);
+same('moves from the graveyard: not to the graveyard', ids(menuItems({}, 'graveyard')[0].items), ['move:hand', 'move:battlefield', 'move:exile', 'move:command', 'move:sideboard', 'move:library-top', 'move:library-bottom']);
 same('from the library you can still put it on the top or bottom of it', ids(menuItems({}, 'library')[0].items).slice(-2), ['move:library-top', 'move:library-bottom']);
 same('a card that is not there still gets a menu', ids(menuItems(null, 'battlefield')), ['modify', 'tap', 'flip', 'nountap', 'sick', 'counter', 'counter', 'copy', 'move']);
 // Ping card (shared/ping.mjs): only on a live table (other players to ping), only for a card in a public zone, and the page sends it (menuAction has nothing to run)
@@ -50,7 +53,7 @@ same('the label is plain words', menuItems({}, 'battlefield', { live: true }).fi
 same('on the battlefield of a live table the order is the old one with Ping card before Move to', ids(menuItems({}, 'battlefield', { live: true })), ['modify', 'tap', 'flip', 'nountap', 'sick', 'counter', 'counter', 'copy', 'ping', 'move']);
 same('the options object may be left out or empty', [ids(menuItems({}, 'graveyard', {})).includes('ping'), ids(menuItems({}, 'graveyard', undefined)).includes('ping')], [false, false]);
 same('menuAction has nothing to run for ping (the page sends it)', menuAction('ping', { uid: 'c1', n: 'X' }), null);
-same('labels are plain words', menuItems({}, 'hand')[0].items.map((item) => item.label), ['Battlefield', 'Graveyard', 'Exile', 'Command zone', 'Sideboard', 'Top of library', 'Bottom of library']);
+same('labels are plain words', menuItems({}, 'graveyard')[0].items.map((item) => item.label), ['Hand', 'Battlefield', 'Exile', 'Command zone', 'Sideboard', 'Top of library', 'Bottom of library']);
 
 // ---- what each choice does ----
 {
@@ -112,7 +115,7 @@ same('no card, no action', [menuAction('tap', null), menuAction('tap', undefined
   same('a card with a back face offers Turn over, after Tap and before the counter', ids(menuItems(delver, 'battlefield')), ['modify', 'tap', 'flip', 'turn', 'nountap', 'sick', 'counter', 'counter', 'copy', 'move']);
   same('its label says what it will do', [menuItems(delver, 'battlefield')[3].label, menuItems({ ...delver, turned: true }, 'battlefield')[3].label], ['Flip double-faced card', 'Flip double-faced card']);
   same('the label function says the same', [turnLabel(delver), turnLabel({ ...delver, turned: true })], ['Flip double-faced card', 'Flip double-faced card']);
-  for (const zone of ['hand', 'graveyard', 'exile', 'command', 'sideboard', 'library']) same(`in ${zone} it is not offered, even for a card with a back`, ids(menuItems(delver, zone)), ['move']);
+  for (const zone of ['hand', 'graveyard', 'exile', 'command', 'sideboard', 'library']) same(`in ${zone} it is not offered, even for a card with a back`, ids(menuItems(delver, zone)), zone === 'hand' ? HAND : ['move']);
   for (const bad of [0, true, '1', 2, null]) same(`b that is ${JSON.stringify(bad)} offers no Turn over`, ids(menuItems({ ...delver, b: bad }, 'battlefield')), ['modify', 'tap', 'flip', 'nountap', 'sick', 'counter', 'counter', 'copy', 'move']);
   same('a card with no back, and no card, offer none', [ids(menuItems(onBattlefield().card, 'battlefield')).includes('turn'), ids(menuItems(null, 'battlefield')).includes('turn')], [false, false]);
   const turn = menuAction('turn', delver);
@@ -198,15 +201,20 @@ same('no card, no action', [menuAction('tap', null), menuAction('tap', undefined
 
   // Play the back face of a modal card
   const modal = byName(start, 'Valakut');
-  same('a modal card in the hand offers its back face by name, before Move to', ids(menuItems(modal, 'hand')), ['playback', 'move']);
-  same('with the back face\'s name in the label', menuItems(modal, 'hand')[0].label, 'Play Valakut Stoneforge');
+  same('a modal card in the hand offers its back face by name, before Move to', ids(menuItems(modal, 'hand')), [...HAND.slice(0, 5), 'playback', 'move']);
+  same('with the back face\'s name in the label', menuItems(modal, 'hand').find((i) => i.id === 'playback').label, 'Play Valakut Stoneforge');
   same('the label function says the same', playBackLabel(modal), 'Play Valakut Stoneforge');
   same('where a card can be cast from: the hand, graveyard, exile and the command zone', PLAY_BACK_ZONES, ['hand', 'graveyard', 'exile', 'command']);
   for (const zone of PLAY_BACK_ZONES) check(`it is offered in ${zone}`, ids(menuItems(modal, zone)).includes('playback'));
   for (const zone of ['battlefield', 'library', 'sideboard']) check(`and not in ${zone}`, !ids(menuItems(modal, zone)).includes('playback'));
   const transform = byName(start, 'Delver');
   check('a transform card has a back but cannot be played as it', !ids(menuItems(transform, 'hand')).includes('playback') && transform.b === 1 && !('md' in transform));
-  same('a card with no back is not offered it either', ids(menuItems(byName(start, 'Goblin'), 'hand')), ['move']);
+  same('a card with no back is not offered it either', ids(menuItems(byName(start, 'Goblin'), 'hand')), HAND);
+  // the hand look at the other face (Kevin, 2026-11-15): only where the page asks for it (peek), only for a card with a back, only in the hand; it changes nothing in the game
+  same(`a two-sided card in the hand offers Flip double-faced card when the page asks for it`, [ids(menuItems(modal, 'hand', { peek: true })).includes('peek'), menuItems(modal, 'hand', { peek: true }).find((i) => i.id === 'peek').label], [true, 'Flip double-faced card']);
+  same(`...and not when the page does not (the table page has no look)`, ids(menuItems(modal, 'hand')).includes('peek'), false);
+  same(`...a card with no back is not offered it, and no zone but the hand offers it`, [ids(menuItems(byName(start, 'Goblin'), 'hand', { peek: true })).includes('peek'), ['graveyard', 'exile', 'command', 'battlefield', 'library', 'sideboard'].some((z) => ids(menuItems(modal, z, { peek: true })).includes('peek'))], [false, false]);
+  same(`choosing it is the page job: menuAction has nothing to run`, menuAction('peek', modal), null);
   for (const bad of [0, true, '1', 2, null]) check(`md that is ${JSON.stringify(bad)} offers nothing`, !ids(menuItems({ ...modal, md: bad }, 'hand')).includes('playback'));
   check('md without b offers nothing', !ids(menuItems({ ...modal, b: undefined }, 'hand')).includes('playback'));
   same('a saved name with no two halves gets words instead of a face name', playBackLabel({ ...modal, n: 'Valakut Awakening' }), 'Play its back face');

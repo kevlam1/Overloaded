@@ -39,7 +39,7 @@ export const playBackLabel = (card) => `Play ${backNameOf(card) ?? 'its back fac
 // The items for a card in a zone: { id, label } for a choice, { id, label, ask } for a line that asks for a number first ("+1/+1 counters X..."), { id, label, items } for a heading that opens more.
 // Tap, counters and Modify belong to a card on the battlefield; moving is offered everywhere (not to the zone it is already in).
 // live: this is a table with other players, so a card in a public zone can also be pinged to them (shared/ping.mjs); the solo table has nobody to ping.
-export function menuItems(card, zone, { live = false } = {}) {
+export function menuItems(card, zone, { live = false, peek = false } = {}) {
   const items = [];
   if (zone === 'battlefield') {
     items.push({ id: 'modify', label: 'Modify...' });
@@ -52,15 +52,20 @@ export function menuItems(card, zone, { live = false } = {}) {
     items.push({ id: 'counter', label: '+1/+1 counters X...', ask: { ...COUNTER_ASK } });
     items.push({ id: 'copy', label: 'Create copy' });
   }
+  if (zone === 'hand') { // (Kevin, 2026-11-15) the common moves are lines of their own, the rest stay under Move to; a two-sided card can show its other face (only a look: the page keeps it, nothing is stored; the solo table passes peek)
+    items.push({ id: 'move:battlefield', label: 'Play' }, { id: 'move:graveyard', label: 'Discard' }, { id: 'move:exile', label: 'Exile' });
+    items.push({ id: 'move:library-top', label: 'Top of library' }, { id: 'move:library-bottom', label: 'Bottom of library' });
+    if (peek && card?.b === 1) items.push({ id: 'peek', label: turnLabel() });
+  }
   if (card?.md === 1 && card.b === 1 && PLAY_BACK_ZONES.includes(zone)) items.push({ id: 'playback', label: playBackLabel(card) });
   if (live && canPing(zone)) items.push({ id: 'ping', label: 'Ping card' }); // the page sends the ping itself (it is not a change to the game), so menuAction has nothing to run for it
+  const direct = zone === 'hand' ? ['battlefield', 'graveyard', 'exile'] : []; // (already lines of their own in the hand's menu)
   items.push({
     id: 'move',
     label: 'Move to',
     items: [
-      ...MOVE_TARGETS.filter(([to]) => to !== zone).map(([to, label]) => ({ id: `move:${to}`, label })),
-      { id: 'move:library-top', label: 'Top of library' },
-      { id: 'move:library-bottom', label: 'Bottom of library' },
+      ...MOVE_TARGETS.filter(([to]) => to !== zone && !direct.includes(to)).map(([to, label]) => ({ id: `move:${to}`, label })),
+      ...(zone === 'hand' ? [] : [{ id: 'move:library-top', label: 'Top of library' }, { id: 'move:library-bottom', label: 'Bottom of library' }]),
     ],
   });
   return items;

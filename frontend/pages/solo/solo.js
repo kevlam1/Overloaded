@@ -13,6 +13,7 @@ import { mountPileStack } from '../../src/pile-stack.js';
 import { mountCommandZone } from '../../src/command-zone.js';
 import { taxAction } from '../../../shared/commander-zone.mjs';
 import { pileMenuItems, pileAction } from '../../../shared/pile-menu.mjs';
+import { handMenuItems, handAction } from '../../../shared/hand-menu.mjs';
 import { applyScry, topCards } from '../../../shared/scry.mjs';
 import { openScryWindow } from '../../src/scry-window.js';
 import { mountCardHover } from '../../src/card-hover.js';
@@ -49,6 +50,7 @@ let modifyOpen = false; // the counters and power/toughness panel is shown (from
 let viewing = null; // the pile being looked at: 'library', 'graveyard', 'exile' or 'sideboard'
 let viewTop = null; // when only the top few cards of the library are being looked at: how many
 let viewReveal = false; // the cards in the viewer are revealed (Reveal top X): the window says so
+const peeking = new Set(); // uids of two-sided cards in the hand that are shown on their back face (only a look, for you: not saved, nothing changes in the game)
 let topRevealed = false; // "Play with top revealed": the top card of the library is shown face up on its pile (not saved; a new game turns it off)
 
 const ZONE_WORDS = { library: 'your library', hand: 'your hand', battlefield: 'the battlefield', graveyard: 'your graveyard', exile: 'exile', command: 'the command zone', sideboard: 'your sideboard' };
@@ -118,7 +120,9 @@ function findCard(uid) {
 const pins = new Map();
 let shownSorted = null; // the cards of the hand as they were last shown while a sort was in force (null when none was): turning the sort off keeps that order
 function shownHand() {
-  const cards = dealer.visible(game.zones.hand);
+  let cards = dealer.visible(game.zones.hand);
+  for (const uid of [...peeking]) if (!game.zones.hand.some((card) => card.uid === uid)) peeking.delete(uid); // (a card that has left the hand shows its front again)
+  if (peeking.size) cards = cards.map((card) => (peeking.has(card.uid) && card.b === 1 ? { ...card, turned: true } : card));
   const sorts = handSort.sorts();
   if (!anySortOn(sorts)) { shownSorted = null; return cards; }
   for (const uid of [...pins.keys()]) if (!cards.some((card) => card.uid === uid)) pins.delete(uid); // (a card that has left the hand is not pinned any more)
@@ -236,13 +240,20 @@ function openMenuFor(uid, where) {
   const found = findCard(uid);
   if (!found) return;
   select(uid);
-  openCardMenu({ title: found.card.n, items: menuItems(found.card, found.zone), x: where.x, y: where.y, returnFocus: where.element, onPick: (id, amount) => pickFromMenu(uid, id, amount) });
+  openCardMenu({ title: found.card.n, items: menuItems(found.card, found.zone, { peek: true }), x: where.x, y: where.y, returnFocus: where.element, onPick: (id, amount) => pickFromMenu(uid, id, amount) });
 }
 
 function pickFromMenu(uid, id, amount) {
   const found = findCard(uid);
   if (!found) return;
   if (id === 'modify') { modifyOpen = true; render(); $('marks-amount').focus(); return; } // opens the Modify window next to the card
+  if (id === 'peek') { // a look at the other face of a two-sided card in the hand
+    if (found.zone !== 'hand' || found.card.b !== 1) return;
+    if (peeking.has(uid)) peeking.delete(uid); else peeking.add(uid);
+    render();
+    say(peeking.has(uid) ? `Showing the back of ${found.card.n} (only a look: it is still in your hand as it was).` : `Showing the front of ${found.card.n} again.`);
+    return;
+  }
   try {
     const action = menuAction(id, found.card, amount, { printed: printedOf(found.card, lookup) });
     if (!action) return;
@@ -280,6 +291,7 @@ function markOnCard(uid, hit) {
 function deal({ pause = 0 } = {}) {
   game = makeGame(deck, lookup);
   topRevealed = false; // a new game: the top card is face down again
+  peeking.clear();
   selected = null;
   viewing = null;
   commandSlots.clear();
@@ -679,6 +691,36 @@ function sortNow() {
 }
 const handSort = createHandSort({ onSortNow: sortNow, onChange: () => { if (!anySortOn(handSort.sorts())) keepShownOrder(); pins.clear(); if (game) render(); } }); // (changing the sorts lets the cards moved by hand go back to being sorted)
 handSort.mountButtons(handView.bar);
+// The menu of the hand (Kevin, 2026-11-15): an arrow next to the hand count, or a right-click on the bar. Mulligan, Shuffle hand into library, Discard X at random, Discard hand (shared/hand-menu.mjs).
+function openHandMenu(where) {
+  if (!game) return;
+  openCardMenu({ title: 'Your hand', items: handMenuItems(game.zones.hand.length), x: where.x, y: where.y, returnFocus: where.element, onPick: pickFromHandMenu });
+}
+function pickFromHandMenu(id, amount) {
+  if (id === 'mulligan') { doMulligan(); return; }
+  const action = handAction(id, amount);
+  if (!action) return;
+  if (id === 'shuffleinto') play('shuffle');
+  apply(() => action.run(game), action.message);
+}
+{
+  const handCaret = document.createElement('button');
+  handCaret.type = 'button';
+  handCaret.className = 'pile-caret hand-caret';
+  handCaret.id = 'hand-caret';
+  handCaret.setAttribute('aria-haspopup', 'menu');
+  handCaret.setAttribute('aria-label', 'Hand options');
+  handCaret.title = 'Hand options';
+  handCaret.innerHTML = '<svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" aria-hidden="true"><path d="M1 3l4 4 4-4z"/></svg>';
+  handCaret.addEventListener('click', () => { const box = handCaret.getBoundingClientRect(); openHandMenu({ x: box.left, y: box.top - 12 - (game ? handMenuItems(game.zones.hand.length).length : 1) * 36 - 44, element: handCaret }); }); // (the bar is at the bottom of the window: the menu opens above it, about 36 px a line and a 44 px title)
+  handView.bar.querySelector('.hand-count').after(handCaret);
+  handView.bar.addEventListener('contextmenu', (event) => {
+    event.preventDefault();
+    const fromKeyboard = event.clientX === 0 && event.clientY === 0;
+    const box = event.currentTarget.getBoundingClientRect();
+    openHandMenu({ x: fromKeyboard ? box.left + box.width / 2 : event.clientX, y: fromKeyboard ? box.top : event.clientY, element: handCaret });
+  });
+}
 handSort.mountOrders($('hand-order-settings'));
 mountBoardDrag({ board: () => $('battlefield'), onDrop: dropOnBoard, groupOf: (uid) => (multi.size > 1 && multi.has(uid) ? [...multi] : null), hand: () => $('hand-section'), onDropHand: dropOnHand, onHandOver: (over) => handView.carry(over), onReorderHand: reorderInHand, handZone: () => handView.zone(), handHit: (x, y) => handView.over(x, y), zoneSource, pileAt, onDropPile: dropOnPile, isEnabled: () => Boolean(game) });
 

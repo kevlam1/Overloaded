@@ -162,7 +162,7 @@ export function mountHand({ container, costOf = () => '' }) {
 
   function arrange() {
     const all = buttons();
-    if (all.length === 0) { clearLift(); setZoneVars(); return; }
+    if (all.length === 0) { clearLift(); setZoneVars(); updateBar(); return; } // (the last card has left: the bar with the count goes too)
     generation += 1;
     const sample = all[0];
     const cardWidth = sample.offsetWidth;
