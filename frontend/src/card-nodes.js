@@ -268,3 +268,12 @@ export function makeCardNodes({ onSelect = () => {}, isSelected = () => false, r
     clear: () => nodes.clear(),
   };
 }
+
+// A card button shown large (a pile window) asks for the NORMAL size of its picture, not the small one it was made with: the small one is 146 px wide and looks blurry at 160 px and more (Kevin, 2026-11-15). Safe to call
+// more than once; a picture that fails keeps the usual fallback.
+export function sharpenPicture(button) {
+  const picture = button?.querySelector?.('.face img');
+  const src = picture?.getAttribute('src') ?? '';
+  if (picture && src.includes('/small/') && picture.dataset.sharp !== '1') { picture.dataset.sharp = '1'; picture.src = src.replace('/small/', '/normal/'); }
+  return button;
+}

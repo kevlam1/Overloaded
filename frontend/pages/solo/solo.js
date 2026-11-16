@@ -288,7 +288,6 @@ function pickFromGroupMenu(id, uids) {
     title: top ? 'Put on top of your library' : 'Put on the bottom of your library',
     note: top ? 'The left card ends up as the top card. Drag a card to move it, or use its arrows.' : 'The right card ends up as the very bottom card. Drag a card to move it, or use its arrows.',
     cards,
-    nodeFor: (card) => cardNodes.nodeFor(card, false),
     places: (index, count) => (top ? (index === 0 ? 'Top' : `#${index + 1}`) : (index === count - 1 ? 'Bottom' : `#${index + 1}`)),
     onDone: (order) => run(order),
   });

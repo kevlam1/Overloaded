@@ -33,6 +33,8 @@ export function openScryWindow({ kind, cards, nodeFor, onDone }) {
   buttons.append(done, cancel);
   panel.append(heading, note, list, buttons);
   overlay.append(panel);
+  for (const type of ['click', 'pointerdown', 'pointerup', 'mousedown', 'mouseup', 'dblclick']) overlay.addEventListener(type, (event) => event.stopPropagation()); // (whatever happens on the dark space around the window is the window's)
+  overlay.addEventListener('contextmenu', (event) => { event.preventDefault(); event.stopPropagation(); });
   document.body.append(overlay);
   const byUid = new Map(cards.map((card) => [card.uid, card]));
 

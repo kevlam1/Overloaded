@@ -754,6 +754,8 @@ try {
       const downCards = await ev("[...document.querySelectorAll('#viewer-list .card.exiled-down')].map((c) => c.getAttribute('aria-label'))");
       const columns = await ev("(() => { const g = document.getElementById('viewer-list'); const c = g.querySelector('.card'); return { columns: getComputedStyle(g).gridTemplateColumns.split(' ').length, cardWidth: Math.round(c.getBoundingClientRect().width), cardHeight: Math.round(c.getBoundingClientRect().height), ends: [...g.querySelectorAll('.viewer-card[data-end]')].map((e) => [e.dataset.end, e.querySelector('.viewer-end').textContent]) }; })()");
       if (process.argv.includes('--screenshot')) await browser.screenshot('scratch-solo-viewer.png');
+      const sharp = await ev("(() => { const c = document.querySelector('#viewer-list .viewer-card .card'); const s = getComputedStyle(c); const g = getComputedStyle(document.getElementById('viewer-list')); return { src: c.querySelector('.face img')?.getAttribute('src') ?? '', border: s.borderTopWidth, background: s.backgroundColor, gap: parseFloat(g.columnGap) }; })()");
+      check('the pile window pictures are the normal size (sharp), with no frame round a card and the cards close together', /\/normal\//.test(sharp.src) && sharp.border === '0px' && sharp.background === 'rgba(0, 0, 0, 0)' && sharp.gap <= 8, JSON.stringify(sharp));
       check('the exile window shows its cards in 7 columns, larger than the old 112 px, with the top card marked Top and the last one Bottom', columns.columns === 7 && columns.cardWidth > 120 && Math.abs(columns.cardHeight / columns.cardWidth - 680 / 488) < 0.05 && JSON.stringify(columns.ends) === JSON.stringify([['top', 'Top'], ['bottom', 'Bottom']]), JSON.stringify(columns));
       check('in the exile window the card exiled face down is shown to you with the words "exiled face down", the other one is not', downCards.length === 1 && /exiled face down/.test(downCards[0]) && (await count('#viewer-list .card')) === 2, JSON.stringify(downCards));
       await press('viewer-close'); await sleep(100);
@@ -988,6 +990,15 @@ try {
     check('...inside the window and not covering the card', h.inside && (h.left >= c.right || h.right <= c.left), JSON.stringify([h, c]));
     const frame = await ev(`(() => { const b = document.getElementById('card-hover'); const c = getComputedStyle(b); const i = b.querySelector('img').getBoundingClientRect(); const r = b.getBoundingClientRect(); return { padding: c.paddingTop, border: c.borderTopWidth, background: c.backgroundColor, gap: Math.round(Math.abs(r.width - i.width) + Math.abs(r.height - i.height)) }; })()`);
     check('the Alt picture is just the card: no padding, no border, no background, the box is the picture\'s size', frame.padding === '0px' && frame.border === '0px' && frame.background === 'rgba(0, 0, 0, 0)' && frame.gap <= 2, JSON.stringify(frame));
+    // Q and E turn the larger picture while Alt is held (Kevin, 2026-11-15), for a room, a battle or any card read sideways
+    const turnState = () => ev("(() => { const b = document.getElementById('card-hover'); const r = b.getBoundingClientRect(); const i = b.querySelector('img'); return { turns: b.dataset.turns, rotate: getComputedStyle(i).rotate, wide: r.width > r.height, inside: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight }; })()");
+    const keyQE = async (key) => { const code = 'Key' + key.toUpperCase(); await browser.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key, code, windowsVirtualKeyCode: key.toUpperCase().charCodeAt(0), modifiers: 1 }); await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key, code, windowsVirtualKeyCode: key.toUpperCase().charCodeAt(0), modifiers: 1 }); await sleep(100); };
+    const upright = await turnState();
+    await keyQE('e'); const turnedRight = await turnState();
+    await keyQE('q'); await keyQE('q'); const turnedLeft = await turnState();
+    check('E turns the larger picture a quarter turn one way (the box is as wide as the card is tall) and Q the other way, inside the window', upright.turns === '0' && turnedRight.turns === '1' && /^90deg$/.test(turnedRight.rotate) && turnedRight.wide && turnedRight.inside && turnedLeft.turns === '3' && /^-90deg$|^270deg$/.test(turnedLeft.rotate) && turnedLeft.wide && turnedLeft.inside, JSON.stringify({ upright, turnedRight, turnedLeft }));
+    await altUp(); await altDown();
+    check('letting go of Alt and holding it again shows the picture upright again', (await turnState()).turns === '0');
     await altUp();
     check('letting go of Alt hides it', (await hoverState()).hidden === true);
     const altKeys = await ev(`(() => { const down = new KeyboardEvent('keydown', { key: 'Alt', altKey: true, bubbles: true, cancelable: true }); const up = new KeyboardEvent('keyup', { key: 'Alt', bubbles: true, cancelable: true }); document.dispatchEvent(down); document.dispatchEvent(up); return { down: down.defaultPrevented, up: up.defaultPrevented }; })()`);
@@ -1875,6 +1886,29 @@ try {
     check('Random order shuffles the cards (the same cards, a different order after a few presses)', different && sameCards, JSON.stringify(await win()));
     if (JSON.stringify((await win()).uids) !== JSON.stringify([hand[1], hand[5]])) await ev("document.querySelector('.order-window .scry-card:first-child .scry-move:last-child').click()");
     await sleep(100);
+    const pics = await ev("[...document.querySelectorAll('.order-window .order-card img')].map((i) => i.getAttribute('src'))");
+    check('the order window draws a picture for each card of its own (the normal size), and the arrows are drawn icons', pics.length === 2 && pics.every((u) => /\/normal\/front\//.test(u)) && (await count('.order-window .scry-move svg')) === 4, JSON.stringify(pics));
+    // a click and a right-click on the dark space around the window leave it alone: the cards stay in it, nothing opens, the picked cards stay picked
+    const outside = { x: 20, y: 400 };
+    await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: outside.x, y: outside.y });
+    await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: outside.x, y: outside.y, button: 'left', buttons: 1, clickCount: 1 }); await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: outside.x, y: outside.y, button: 'left', buttons: 0, clickCount: 1 });
+    await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: outside.x, y: outside.y, button: 'right', buttons: 2, clickCount: 1 }); await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: outside.x, y: outside.y, button: 'right', buttons: 0, clickCount: 1 });
+    await sleep(250);
+    const prevented = await ev("(() => { const e = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 20, clientY: 400 }); document.querySelector('.scry-overlay').dispatchEvent(e); return e.defaultPrevented; })()");
+    check('a click and a right-click outside the order window leave it as it was: both cards still drawn, no menu opened, the right-click is not left to the browser, the cards are still picked', (await win()) !== null && (await count('.order-window .order-card img')) === 2 && (await count('.card-menu')) === 0 && prevented === true && (await pickedUids()).length === 2, JSON.stringify([await count('.order-window .order-card img'), await count('.card-menu'), prevented, await pickedUids()]));
+    // while a card is dragged the other slides aside to open its place
+    {
+      const ps = await ev("[...document.querySelectorAll('.order-window .scry-picture')].map((p) => { const r = p.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })");
+      const mm = (type, x, y, buttons) => browser.send('Input.dispatchMouseEvent', { type, x, y, button: type === 'mouseMoved' ? 'none' : 'left', buttons, clickCount: type === 'mouseMoved' ? 0 : 1 });
+      await mm('mouseMoved', ps[0].x, ps[0].y, 0); await mm('mousePressed', ps[0].x, ps[0].y, 1);
+      await mm('mouseMoved', ps[0].x + 20, ps[0].y, 1); await mm('mouseMoved', ps[1].x + 20, ps[1].y, 1); await sleep(350);
+      const shifted = await ev("(() => { const items = [...document.querySelectorAll('.order-window .scry-card')]; const r = items[1].getBoundingClientRect(); return { translate: items[1].style.translate, moved: Math.round(r.left) }; })()");
+      const gapLeft = await ev("Math.round(document.querySelectorAll('.order-window .scry-card')[1].getBoundingClientRect().left)");
+      await mm('mouseMoved', ps[0].x + 20, ps[0].y, 1); await sleep(350);
+      const back = await ev("document.querySelectorAll('.order-window .scry-card')[1].style.translate");
+      await mm('mouseReleased', ps[0].x + 20, ps[0].y, 0); await sleep(300);
+      check('while a card is dragged over the next one that card slides to the other side to open the place (and slides back when the card goes back), like the hand', /px/.test(shifted.translate) && gapLeft < Math.round(ps[1].x - 20) - 20 && back === '', JSON.stringify({ shifted, gapLeft, back, ps }));
+    }
     // drag the first picture past the second one with a real mouse
     const centres = await ev("[...document.querySelectorAll('.order-window .scry-picture')].map((p) => { const r = p.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })");
     const m = (type, x, y, buttons) => browser.send('Input.dispatchMouseEvent', { type, x, y, button: type === 'mouseMoved' ? 'none' : 'left', buttons, clickCount: type === 'mouseMoved' ? 0 : 1 });
@@ -1922,9 +1956,9 @@ try {
       const lastNow = await ev(`(() => { const r = document.querySelector('#hand > .card[data-uid="${lastUid}"]').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`); // (the picked cards came up: where the card is now)
       await m('mouseMoved', lastNow.x, lastNow.y, 0); await sleep(200); await m('mousePressed', lastNow.x, lastNow.y, 1);
       await m('mouseMoved', lastNow.x + 20, lastNow.y - 40, 1); await m('mouseMoved', 640, 300, 1); await sleep(120);
-      const carrying = await ev("({ ghost: document.querySelectorAll('.drag-ghost').length, parts: document.querySelectorAll('.drag-group .drag-group-part').length, hidden: [...document.querySelectorAll('#hand > .card.dragging')].length })");
+      const carrying = await ev("({ ghost: document.querySelectorAll('.drag-ghost').length, parts: document.querySelectorAll('.drag-ghost > .drag-ghost-copy').length, separate: document.querySelectorAll('.drag-group').length, count: document.querySelector('.drag-ghost')?.dataset.count ?? null, opaque: getComputedStyle(document.querySelector('.drag-ghost > .drag-ghost-copy')).opacity, hidden: [...document.querySelectorAll('#hand > .card.dragging')].length })");
       await m('mouseReleased', 640, 300, 0); await sleep(300);
-      check('dragging one picked card shows the others fanned behind it, and hides both in the hand while they are carried', carrying.ghost === 1 && carrying.parts === 1 && carrying.hidden === 2, JSON.stringify(carrying));
+      check('dragging one picked card carries ONE picture: the others are layers inside it behind it (not a separate pile that stays behind), it says how many cards it carries, and both are hidden in the hand', carrying.ghost === 1 && carrying.parts === 1 && carrying.separate === 0 && carrying.count === '2' && carrying.hidden === 2, JSON.stringify(carrying));
       check('letting go over the battlefield plays both picked cards', (await count('#battlefield .card')) === fieldBefore + 2 && (await count('#hand .card')) === 0 && /^Played 2 cards\./.test(await $text('status')), JSON.stringify([await count('#battlefield .card'), await count('#hand .card'), await $text('status')]));
       for (let n = 0; n < 3; n++) { await press('draw'); await sleep(250); }
       await sleep(600);

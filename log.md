@@ -4196,6 +4196,24 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 ---
 
+## 210. Fixes to the group drag, the order window, the pile windows and the Alt picture (2026-11-15)
+
+**What I asked for** (the first five of Kevin's eight points)
+- (2) The card held when dragging picked cards looks alone with the pile of picked cards behind it. (3) An empty window when clicking outside the order window. (4) The order window should shift the cards aside as one is dragged, like the hand, and use different arrows. (5) The pile windows look blurry, have a border round each card, and should be larger and closer. (6) Q and E should also turn the picture shown with Alt.
+
+**What changed** (`frontend/src/board-drag.js`, `frontend/src/order-window.js`, `frontend/src/scry-window.js`, `frontend/src/pile-viewer.js`, `frontend/src/card-nodes.js`, `frontend/src/card-hover.js`, `frontend/src/style.css`, tests)
+- **2:** the picked cards are now layers inside the one picture carried (it leans and follows the pointer as one), with "2x" on it. Before, the others were a separate pile that did not move with the lean, and every layer was see-through (the ghost is 60% opaque), which is the mess in your screenshot.
+- **3:** the cause was mine. The order window showed the hand's own card buttons, and the table takes those back whenever it is drawn again; a click outside the window drew it again, so the cards were pulled out of the window and it was left empty. The window now draws its own pictures from the cards' ids (the normal size, sharp). A click or right-click on the dark space around the window (and the Scry window) now stops there: nothing behind it sees it and no menu opens.
+- **4:** while a card is dragged the cards between its old place and the new one slide aside to open it (and slide back if it goes back); the arrows are drawn icons, rounder buttons.
+- **5:** the pile windows ask for the NORMAL size of each picture (the small one is 146 px wide, blurry at 160), have no frame round a card and a 0.4 rem gap, and the window is wider (96 rem). The blue Top and orange Bottom outlines stay.
+- **6:** with Alt held over a card Q and E turn the larger picture a quarter turn each way (a card on its side gets a box as wide as it is tall, kept inside the window); it goes back upright when Alt is let go. With Alt held the table does not tap on Q and E, so they were free.
+
+**What I checked:** all 68 quick suites, `test-card-hover.mjs` (27) and the solo check: the group carried as one picture with a count and nothing left behind, the order window drawing its own pictures with drawn arrows, a left and a right click outside it leaving it alone (right-click not left to the browser), the other card sliding aside while one is dragged and back again, the pile window pictures at the normal size with no frame and an 8 px gap at most, and Q and E turning the Alt picture (box, rotation, inside the window, upright again after Alt is let go). I looked at screenshots of the order window and the exile window, with the stand-in pictures. Not checked: the real Scryfall pictures at this size, phone width.
+
+**My mistakes this round:** I had built the order window on the hand's card buttons without noticing they are shared with the table; Kevin's screenshot of the empty window showed it.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

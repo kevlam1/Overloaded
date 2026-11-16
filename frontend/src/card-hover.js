@@ -56,12 +56,13 @@ export function mountCardHover(doc = document) {
   const store = makeSafeStore();
   let scale = readHoverScale(store.get(HOVER_SCALE.key));
 
+  let turns = 0; // quarter turns of the larger picture (Q turns it one way, E the other: for a room, a battle or any card that is read sideways), back to 0 for another card
   let altHeld = false;
   let over = null; // the card button the pointer is on
   let current = null; // the card button the box is for
   let suppressed = null; // after Escape or a click: not again for this card until Alt is let go or the pointer has left it
 
-  const hide = () => { box.hidden = true; picture.removeAttribute('src'); current = null; };
+  const hide = () => { box.hidden = true; picture.removeAttribute('src'); current = null; turns = 0; };
   const show = (button) => {
     const url = largeAddress(button);
     if (!url || !button.isConnected) return;
@@ -75,10 +76,21 @@ export function mountCardHover(doc = document) {
     const rect = button.getBoundingClientRect();
     const width = Math.round(BOX_WIDTH * scale);
     const height = Math.round(width * 1.395);
-    const spot = placeBox(rect, { width, height, windowWidth: doc.defaultView.innerWidth, windowHeight: doc.defaultView.innerHeight });
-    box.style.width = `${width}px`;
+    const sideways = turns % 2 !== 0; // a card on its side takes a box as wide as the card is tall
+    const boxWidth = sideways ? height : width;
+    const boxHeight = sideways ? width : height;
+    const spot = placeBox(rect, { width: boxWidth, height: boxHeight, windowWidth: doc.defaultView.innerWidth, windowHeight: doc.defaultView.innerHeight });
+    box.style.width = `${boxWidth}px`;
+    box.style.height = `${boxHeight}px`;
     box.style.left = `${spot.left}px`;
     box.style.top = `${spot.top}px`;
+    picture.style.position = 'absolute';
+    picture.style.width = `${width}px`;
+    picture.style.height = `${height}px`;
+    picture.style.left = `${Math.round((boxWidth - width) / 2)}px`;
+    picture.style.top = `${Math.round((boxHeight - height) / 2)}px`;
+    picture.style.rotate = `${turns * 90}deg`;
+    box.dataset.turns = String(((turns % 4) + 4) % 4);
     box.hidden = false;
   };
   // The box is for the card under the pointer, and only while Alt is held.
@@ -110,6 +122,11 @@ export function mountCardHover(doc = document) {
   const onKeyDown = (event) => {
     if (event.key === 'Alt') { event.preventDefault(); setAlt(true); }
     else if (event.key === 'Escape') onAway();
+    else if ((event.key === 'q' || event.key === 'Q' || event.key === 'e' || event.key === 'E') && altHeld && current && !box.hidden && !event.ctrlKey && !event.metaKey) { // (with Alt held the table does not tap on Q and E, so the keys are free to turn the picture)
+      event.preventDefault();
+      turns += event.key === 'q' || event.key === 'Q' ? -1 : 1;
+      if (current.isConnected) placeFor(current);
+    }
   };
   const onKeyUp = (event) => {
     if (event.key !== 'Alt') return;

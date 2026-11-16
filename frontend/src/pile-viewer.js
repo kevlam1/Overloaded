@@ -2,6 +2,7 @@
 // name, by letters that appear in the name in order ("ft" finds Forest) and by words of the type line (shared/card-search.mjs). The cards are the same card buttons as everywhere else
 // (nodeFor), so clicking one selects it and right-clicking it opens its menu: that is how a card is taken out of the pile.
 // The page asks for a redraw (show) after every change of the game; the search text is kept across redraws, so searching and then moving a card leaves the search where it was.
+import { sharpenPicture } from './card-nodes.js';
 import { searchCards } from '../../shared/card-search.mjs';
 
 function make(tag, className, content) {
@@ -45,7 +46,7 @@ export function mountPileViewer({ root, nodeFor, onClose = () => {} }) {
     }
     list.replaceChildren(...results.map(({ card, index }) => {
       const cell = make('div', 'viewer-card');
-      cell.append(nodeFor(card, false));
+      cell.append(sharpenPicture(nodeFor(card, false))); // (the normal size of the picture: the window shows it large)
       const place = index + offset; // (the card's place in the whole pile: the first is the top, the last the bottom)
       if (place === 0 || place === total - 1) { cell.dataset.end = place === 0 && total > 1 ? 'top' : place === 0 ? 'only' : 'bottom'; cell.prepend(make('span', 'viewer-end', cell.dataset.end === 'top' ? 'Top' : cell.dataset.end === 'bottom' ? 'Bottom' : 'Only card')); }
       if (depth) cell.append(make('span', 'viewer-depth', `#${index + 1 + offset}`));

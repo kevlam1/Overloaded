@@ -160,21 +160,21 @@ export function mountBoardDrag({ doc = document, board, onDrop, hand = () => nul
     if (press.whole) carried.push(...[...boardElement.querySelectorAll(':scope > .card')].filter((c) => c !== press.button && c.dataset.col === press.button.dataset.col && c.dataset.row === press.button.dataset.row && c.classList.contains('tapped') === press.button.classList.contains('tapped') && c.dataset.stackSize !== undefined));
     // a group: every card of it is carried (and the rest of each pile it picked from), and the others are drawn beside the one pressed, each where it is on the board relative to it
     let groupBox = null;
-    if (press.group && press.from === 'hand') { // picked cards of the hand: the others are drawn fanned out behind the one pressed, and every one of them is hidden in the hand while they are carried
+    if (press.group && press.from === 'hand') { // picked cards of the hand: the others are layers behind the picture of the one pressed (inside it, so the whole pile leans and follows the pointer together), and every one of them is hidden in the hand while they are carried
       const members = new Set(press.group);
       const others = [...press.button.parentElement.querySelectorAll(':scope > .card')].filter((c) => c !== press.button && members.has(c.dataset.uid));
-      groupBox = doc.createElement('div');
-      groupBox.className = 'drag-group';
+      if (others.length) ghost.classList.add('stack');
       others.forEach((c, k) => {
         carried.push(c);
-        const part = doc.createElement('div');
-        part.className = 'drag-group-part';
-        part.style.left = `${(k + 1) * 14}px`; part.style.top = `${(k + 1) * 9}px`; part.style.width = `${rect.width}px`; part.style.height = `${rect.height}px`;
+        const layer = doc.createElement('div');
+        layer.className = 'drag-ghost-copy';
+        layer.style.translate = `${-(k + 1) * 9}px ${-(k + 1) * 7}px`;
+        layer.style.zIndex = '-1';
         const art = c.querySelector('.face img');
-        if (art && !c.classList.contains('noimage')) { const copy = art.cloneNode(); copy.removeAttribute('loading'); part.append(copy); } else part.textContent = c.getAttribute('aria-label') ?? '';
-        groupBox.append(part);
+        if (art && !c.classList.contains('noimage')) { const copy = art.cloneNode(); copy.removeAttribute('loading'); layer.append(copy); }
+        ghost.append(layer);
       });
-      doc.body.append(groupBox);
+      if (others.length) ghost.dataset.count = String(others.length + 1); // (the picture says how many cards it carries)
     } else if (press.group) {
       const members = new Set(press.group);
       const mates = (card) => [...boardElement.querySelectorAll(':scope > .card')].filter((c) => c !== card && c.dataset.col === card.dataset.col && c.dataset.row === card.dataset.row && c.classList.contains('tapped') === card.classList.contains('tapped') && c.dataset.stackSize !== undefined && c.dataset.stackSize === card.dataset.stackSize); // (the rest of its pile)
