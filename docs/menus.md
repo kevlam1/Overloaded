@@ -23,6 +23,7 @@ Kevin asked for a plan for menu options on more parts of the table: for example,
 - 2026-11-15, log entry 206: Draw card flies like the button, Auto starts off, the library's Mill and Exile top X became Move top X cards (Graveyard, Exile, Exile face down on solo), View has top and bottom, headings open boxes beside them with a turning arrow, thin pill hand bar and pile names.
 - 2026-11-15, log entry 207: Shift+click picks several cards of the hand; a right-click on a picked card opens a menu for all of them (Play, Discard, Exile, Top and Bottom of library with an order window, Move to). The group menu of the battlefield's picked cards is still to build.
 - 2026-11-15, log entry 208: every picked hand card comes up, the order window glides and has Random order, a click on the library does not open it, pile windows in 7 columns with Top and Bottom marked, a picked group can be dragged (onto the battlefield or a pile), hand menus without the sideboard. Still to decide: the card details popup (needs rules text in the card data).
+- 2026-11-15, log entry 209: View details on every card (the window with the large card and its rules); the rules are built into /data/rules/XX.json by the card list build (list format 10).
 
 ## How the menus work today (so the plan fits it)
 - One menu component, `frontend/src/card-menu.js`, draws every menu (a title, items, items with quick amounts, headings that open a submenu, keyboard use).

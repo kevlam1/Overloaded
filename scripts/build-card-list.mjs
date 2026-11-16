@@ -19,7 +19,8 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { brotliCompressSync, gzipSync } from 'node:zlib';
-import { buildFromFiles, countPrintings, serializeList, serializePrintings, serializePrints, validateList, validatePrintings } from './lib/card-list.mjs';
+import { buildFromFiles, countPrintings, serializeList, serializePrintings, serializePrints, serializeRules, validateList, validatePrintings } from './lib/card-list.mjs';
+import { validateRules, countRules } from '../shared/card-rules.mjs';
 import { validatePrints, countPrints } from '../shared/card-prints.mjs';
 import { ensureCardList, publish } from './lib/card-list-build.mjs';
 
@@ -39,8 +40,8 @@ async function fromFiles() {
   let previousCount = null;
   if (existsSync(outPath)) { try { previousCount = JSON.parse(readFileSync(outPath, 'utf8')).length; } catch { /* an unreadable old file is not a reason to refuse a new list */ } }
   const started = performance.now();
-  const { list, counts, printingFiles, prints } = await buildFromFiles(oraclePath, defaultPath);
-  const problems = [...validateList(list, { previousCount }), ...validatePrintings(printingFiles), ...validatePrints(prints)];
+  const { list, counts, printingFiles, prints, rules } = await buildFromFiles(oraclePath, defaultPath);
+  const problems = [...validateList(list, { previousCount }), ...validatePrintings(printingFiles), ...validatePrints(prints), ...validateRules(rules)];
   console.log(`Read ${counts.printings} printings and ${counts.oracleRecords} card records in ${((performance.now() - started) / 1000).toFixed(1)} s`);
   console.log(`  not for decks (art cards, vanguards, planes, schemes, tokens, emblems, collectibles): ${counts.notCandidates}`);
   console.log(`  online-only (every printing digital): ${counts.onlineOnly}`);
@@ -69,12 +70,17 @@ async function fromFiles() {
   writeFileSync(`${printsPath}.tmp`, printsBytes);
   renameSync(`${printsPath}.tmp`, printsPath);
   console.log(`Wrote ${printsPath}: ${mb(printsBytes.length)} MB, ${mb(gzipSync(printsBytes).length)} MB gzipped (${countPrints(prints).cards} cards, ${countPrints(prints).rows} printings by card)`);
+  const rulesBytes = Buffer.from(serializeRules(rules));
+  const rulesPath = join(dirname(outPath), 'rules.json');
+  writeFileSync(`${rulesPath}.tmp`, rulesBytes);
+  renameSync(`${rulesPath}.tmp`, rulesPath);
+  console.log(`Wrote ${rulesPath}: ${mb(rulesBytes.length)} MB, ${mb(gzipSync(rulesBytes).length)} MB gzipped (${countRules(rules)} cards with rules)`);
   if (args.includes('--site')) {
     // Also put them where the site picks them up (the same step the real build uses), so the pages can be run and checked
     // here without downloading anything. The bytes are the ones that were just checked and written.
     const publicFile = join(root, 'frontend', 'public', 'data', 'cards.json');
-    await publish(publicFile, bytes, printingBytes, printsBytes);
-    console.log(`Published the list, ${countPrintings(printingFiles).sets} printing files and the printings by card to ${dirname(publicFile)}`);
+    await publish(publicFile, bytes, printingBytes, printsBytes, rulesBytes);
+    console.log(`Published the list, ${countPrintings(printingFiles).sets} printing files, the printings by card and the rules of ${countRules(rules)} cards to ${dirname(publicFile)}`);
   }
 }
 
@@ -92,7 +98,7 @@ async function forTheSite() {
     // A small public record of what this build did, so the first Vercel builds can be read from the live site without
     // access to Vercel's build logs: whether the list was rebuilt or reused (does the cache persist?), which Node ran,
     // and whether Vercel's system variables reached the build. Nothing secret; it changes on every build on purpose.
-    const info = { action: result.action, reason: result.reason, count: result.count, builtAt: result.meta?.builtAt ?? null, sha256: result.meta?.sha256 ?? null, oracleUpdatedAt: result.meta?.oracleUpdatedAt ?? null, printingSets: result.meta?.printingSets ?? null, printingCount: result.meta?.printingCount ?? null, printingsSha256: result.meta?.printingsSha256 ?? null, node: process.version, vercelEnv: process.env.VERCEL_ENV ?? null, onVercel: Boolean(process.env.VERCEL), ranAt: new Date().toISOString() };
+    const info = { action: result.action, reason: result.reason, count: result.count, builtAt: result.meta?.builtAt ?? null, sha256: result.meta?.sha256 ?? null, oracleUpdatedAt: result.meta?.oracleUpdatedAt ?? null, rulesCards: result.meta?.rulesCards ?? null, printingSets: result.meta?.printingSets ?? null, printingCount: result.meta?.printingCount ?? null, printingsSha256: result.meta?.printingsSha256 ?? null, node: process.version, vercelEnv: process.env.VERCEL_ENV ?? null, onVercel: Boolean(process.env.VERCEL), ranAt: new Date().toISOString() };
     mkdirSync(dirname(publicFile), { recursive: true });
     writeFileSync(join(dirname(publicFile), 'cards.info.json'), JSON.stringify(info, null, 2));
   } catch (error) {

@@ -10,6 +10,7 @@ import { gzipSync } from 'node:zlib';
 import { decide, ensureCardList, getBulkInfo, downloadFile, loadCached, DAY_MS, MAX_AGE_MS, MAX_STALE_MS, HEADERS, LIST_FORMAT } from './lib/card-list-build.mjs';
 import { printingValue } from '../shared/printings.mjs';
 import { shardOf, printingsOf } from '../shared/card-prints.mjs';
+import { shardOf as rulesShardOf, rulesOf } from '../shared/card-rules.mjs';
 
 let checks = 0;
 function check(label, condition, detail = '') {
@@ -39,6 +40,7 @@ const NAMES_B = [...NAMES_A, 'Golf']; // a week later one card is new
 const validateOptions = { minCards: 3, mustHave: [] };
 const printingOptions = { minPrintings: 3, minSets: 1 };
 const printsOptions = { minCards: 1, minRows: 1 };
+const rulesOptions = { minCards: 1, mustHave: {} }; // (the stand-in cards have no rules text: the real build also insists on Sol Ring and Lightning Bolt)
 
 // ---- the stand-in Scryfall ----
 const state = { oracle: null, deflt: null, apiStatus: 200, fileStatus: 200, sizeLie: 0, cutOffDefault: false, failDefaultOnce: false, hang: false, hangFiles: false, requests: [], bulkBody: null };
@@ -74,18 +76,18 @@ let n = 0;
 const fresh = () => { const dir = join(root, `case${++n}`); return { cacheDir: join(dir, 'cache'), publicFile: join(dir, 'public', 'data', 'cards.json') }; };
 const T0 = Date.UTC(2026, 9, 29, 12, 0, 0);
 const logs = []; const warns = [];
-const run = (paths, over = {}) => ensureCardList({ ...paths, now: T0, env: {}, apiUrl: API, validateOptions, printingOptions, printsOptions, retryDelayMs: 0, timeouts: { apiMs: 3000, fileMs: 3000 }, log: (m) => logs.push(m), warn: (m) => warns.push(m), ...over });
+const run = (paths, over = {}) => ensureCardList({ ...paths, now: T0, env: {}, apiUrl: API, validateOptions, printingOptions, printsOptions, rulesOptions, retryDelayMs: 0, timeouts: { apiMs: 3000, fileMs: 3000 }, log: (m) => logs.push(m), warn: (m) => warns.push(m), ...over });
 const names = (paths) => JSON.parse(readFileSync(paths.publicFile, 'utf8')).map((e) => e.n);
 const cacheBytes = (paths) => readFileSync(join(paths.cacheDir, 'cards.json'));
 const setsDir = (paths) => join(paths.publicFile, '..', 'printings');
 const setFiles = (paths) => (existsSync(setsDir(paths)) ? readdirSync(setsDir(paths)).sort() : []);
-const CACHE_FILES = 'cards.json,cards.meta.json,printings.json,prints.json';
+const CACHE_FILES = 'cards.json,cards.meta.json,printings.json,prints.json,rules.json';
 
 try {
   // ---- decide: the rule, with its boundaries ----
   const cachedAt = (daysAgo, format = LIST_FORMAT) => ({ meta: { builtAt: new Date(T0 - daysAgo * DAY_MS).toISOString(), format } });
   check('7 days is the reuse limit', MAX_AGE_MS === 7 * DAY_MS && MAX_STALE_MS === 30 * DAY_MS);
-  check('the list format is 9 (3 had the printing of each title and the per-set printing files; 4 added the printed power and toughness; 5 added b and bpt, a back face to turn over; 6 added md, a modal card; 7 added the printings grouped by card; 8 added the year of each; 9 adds ci and gc)', LIST_FORMAT === 9);
+  check('the list format is 10 (3 had the printing of each title and the per-set printing files; 4 added the printed power and toughness; 5 added b and bpt, a back face to turn over; 6 added md, a modal card; 7 added the printings grouped by card; 8 added the year of each; 9 added ci and gc; 10 adds the rules of every card)', LIST_FORMAT === 10);
   check('a 1 day old list is reused', decide({ cached: cachedAt(1), now: T0, env: {} }).action === 'reuse');
   check('a list one millisecond under 7 days is reused', decide({ cached: { meta: { builtAt: new Date(T0 - MAX_AGE_MS + 1).toISOString(), format: LIST_FORMAT } }, now: T0, env: {} }).action === 'reuse');
   check('a recent list in an older format is rebuilt, not reused', decide({ cached: cachedAt(1, 1), now: T0, env: {} }).action === 'rebuild' && /older format/.test(decide({ cached: cachedAt(1, 1), now: T0, env: {} }).reason));
@@ -261,23 +263,23 @@ try {
   await run(p);
   const damaged = Buffer.from(cacheBytes(p)); damaged[10] = damaged[10] ^ 1;
   writeFileSync(join(p.cacheDir, 'cards.json'), damaged);
-  check('a list that no longer matches its record is not loaded', (await loadCached(p.cacheDir, validateOptions, printingOptions, printsOptions)) === null);
+  check('a list that no longer matches its record is not loaded', (await loadCached(p.cacheDir, validateOptions, printingOptions, printsOptions, rulesOptions)) === null);
   state.requests = [];
   result = await run(p, { now: T0 + DAY_MS });
   check('so a damaged cache is rebuilt, not reused', result.action === 'rebuilt' && state.requests.length === 3);
   rmSync(join(p.cacheDir, 'cards.meta.json'));
-  check('a list with no record is not loaded', (await loadCached(p.cacheDir, validateOptions, printingOptions, printsOptions)) === null);
+  check('a list with no record is not loaded', (await loadCached(p.cacheDir, validateOptions, printingOptions, printsOptions, rulesOptions)) === null);
   writeFileSync(join(p.cacheDir, 'cards.meta.json'), '{ not json');
-  check('a record that is not JSON is not loaded', (await loadCached(p.cacheDir, validateOptions, printingOptions, printsOptions)) === null);
+  check('a record that is not JSON is not loaded', (await loadCached(p.cacheDir, validateOptions, printingOptions, printsOptions, rulesOptions)) === null);
   const realSha = (await import('node:crypto')).createHash('sha256').update(cacheBytes(p)).digest('hex');
   writeFileSync(join(p.cacheDir, 'cards.meta.json'), JSON.stringify({ builtAt: 'yesterday-ish', sha256: realSha }));
-  check('a record with a bad date is not loaded, even though its checksum is right', (await loadCached(p.cacheDir, validateOptions, printingOptions, printsOptions)) === null);
+  check('a record with a bad date is not loaded, even though its checksum is right', (await loadCached(p.cacheDir, validateOptions, printingOptions, printsOptions, rulesOptions)) === null);
   writeFileSync(join(p.cacheDir, 'cards.meta.json'), JSON.stringify({ builtAt: 1793000000000, sha256: realSha }));
-  check('a record whose date is a number, not text, is not loaded', (await loadCached(p.cacheDir, validateOptions, printingOptions, printsOptions)) === null);
+  check('a record whose date is a number, not text, is not loaded', (await loadCached(p.cacheDir, validateOptions, printingOptions, printsOptions, rulesOptions)) === null);
   writeFileSync(join(p.cacheDir, 'cards.meta.json'), JSON.stringify({ sha256: realSha }));
-  check('a record with no date is not loaded', (await loadCached(p.cacheDir, validateOptions, printingOptions, printsOptions)) === null);
+  check('a record with no date is not loaded', (await loadCached(p.cacheDir, validateOptions, printingOptions, printsOptions, rulesOptions)) === null);
   await run(p, { now: T0 + 2 * DAY_MS });
-  check('a cached list that fails stricter checks is not loaded', (await loadCached(p.cacheDir, { minCards: 100, mustHave: [] }, printingOptions, printsOptions)) === null && (await loadCached(p.cacheDir, validateOptions, printingOptions, printsOptions)) !== null);
+  check('a cached list that fails stricter checks is not loaded', (await loadCached(p.cacheDir, { minCards: 100, mustHave: [] }, printingOptions, printsOptions, rulesOptions)) === null && (await loadCached(p.cacheDir, validateOptions, printingOptions, printsOptions, rulesOptions)) !== null);
   check('a cache folder that does not exist is simply empty', (await loadCached(join(root, 'nowhere'), validateOptions, printingOptions)) === null);
 
   // ---- 8b. The printings in the cache are checked like the list ----
@@ -286,26 +288,26 @@ try {
   await run(p);
   const printingsPath = join(p.cacheDir, 'printings.json');
   const goodPrintings = readFileSync(printingsPath);
-  check('a good cache loads, with its printings', (await loadCached(p.cacheDir, validateOptions, printingOptions, printsOptions))?.printingBytes?.length === goodPrintings.length);
+  check('a good cache loads, with its printings', (await loadCached(p.cacheDir, validateOptions, printingOptions, printsOptions, rulesOptions))?.printingBytes?.length === goodPrintings.length);
   // A change that leaves the file valid JSON with valid printings (one id swapped for another): only the record's checksum can see it.
   const tampered = Buffer.from(goodPrintings.toString('utf8').replace(uuid(1000), () => uuid(1999)));
   check('the tampered file really is different and still passes the content checks', tampered.length === goodPrintings.length && Buffer.compare(tampered, goodPrintings) !== 0 && !JSON.stringify(JSON.parse(tampered.toString('utf8'))).includes(uuid(1000)));
   writeFileSync(printingsPath, tampered);
-  check('printings that are valid but are not what the record vouches for are not loaded (the checksum, not the content, says so)', (await loadCached(p.cacheDir, validateOptions, printingOptions, printsOptions)) === null);
+  check('printings that are valid but are not what the record vouches for are not loaded (the checksum, not the content, says so)', (await loadCached(p.cacheDir, validateOptions, printingOptions, printsOptions, rulesOptions)) === null);
   writeFileSync(printingsPath, goodPrintings);
-  check('and the untouched file loads again', (await loadCached(p.cacheDir, validateOptions, printingOptions, printsOptions)) !== null);
+  check('and the untouched file loads again', (await loadCached(p.cacheDir, validateOptions, printingOptions, printsOptions, rulesOptions)) !== null);
   const damagedPrintings = Buffer.from(goodPrintings); damagedPrintings[5] = damagedPrintings[5] ^ 1;
   writeFileSync(printingsPath, damagedPrintings);
-  check('printings that no longer match the record are not loaded', (await loadCached(p.cacheDir, validateOptions, printingOptions, printsOptions)) === null);
+  check('printings that no longer match the record are not loaded', (await loadCached(p.cacheDir, validateOptions, printingOptions, printsOptions, rulesOptions)) === null);
   state.requests = [];
   result = await run(p, { now: T0 + DAY_MS });
   check('so a damaged printings file is rebuilt, at the cost of 3 requests', result.action === 'rebuilt' && state.requests.length === 3 && Buffer.compare(readFileSync(printingsPath), goodPrintings) === 0);
   rmSync(printingsPath);
-  check('a cache with no printings file is not loaded', (await loadCached(p.cacheDir, validateOptions, printingOptions, printsOptions)) === null);
+  check('a cache with no printings file is not loaded', (await loadCached(p.cacheDir, validateOptions, printingOptions, printsOptions, rulesOptions)) === null);
   state.requests = [];
   result = await run(p, { now: T0 + 2 * DAY_MS });
   check('and is rebuilt', result.action === 'rebuilt' && existsSync(printingsPath) && state.requests.length === 3);
-  check('printings that fail stricter checks are not loaded', (await loadCached(p.cacheDir, validateOptions, { minPrintings: 100, minSets: 1 }, printsOptions)) === null && (await loadCached(p.cacheDir, validateOptions, printingOptions, printsOptions)) !== null);
+  check('printings that fail stricter checks are not loaded', (await loadCached(p.cacheDir, validateOptions, { minPrintings: 100, minSets: 1 }, printsOptions, rulesOptions)) === null && (await loadCached(p.cacheDir, validateOptions, printingOptions, printsOptions, rulesOptions)) !== null);
   {
     // A record that vouches for printings that are not valid, even with a matching checksum: not loaded.
     const metaPath = join(p.cacheDir, 'cards.meta.json');
@@ -324,7 +326,7 @@ try {
   olderMeta.format = 2; delete olderMeta.printingsSha256; delete olderMeta.printingCount; delete olderMeta.printingSets; delete olderMeta.printingsBytes;
   writeFileSync(join(p.cacheDir, 'cards.meta.json'), JSON.stringify(olderMeta, null, 2));
   rmSync(join(p.cacheDir, 'printings.json'));
-  const older = await loadCached(p.cacheDir, validateOptions, printingOptions, printsOptions);
+  const older = await loadCached(p.cacheDir, validateOptions, printingOptions, printsOptions, rulesOptions);
   check('a format 2 list still loads, with no printings', older !== null && older.printingBytes === null && older.count === 6);
   state.requests = [];
   mkdirSync(setsDir(p), { recursive: true }); writeFileSync(join(setsDir(p), 'set-stale.json'), '{}'); // left from an earlier build
@@ -376,7 +378,33 @@ try {
   result = await run(p, { now: T0 + 2 * DAY_MS });
   check('a reuse publishes them again from the cache with no request', result.action === 'reuse' && state.requests.length === 0 && published('Echo').length === 1);
   writeFileSync(join(p.cacheDir, 'prints.json'), readFileSync(join(p.cacheDir, 'prints.json'), 'utf8').replace('Alpha', 'Alpho'));
-  check('a damaged printings-by-card file (the checksum no longer fits) means the cache is not loaded', (await loadCached(p.cacheDir, validateOptions, printingOptions, printsOptions)) === null);
+  check('a damaged printings-by-card file (the checksum no longer fits) means the cache is not loaded', (await loadCached(p.cacheDir, validateOptions, printingOptions, printsOptions, rulesOptions)) === null);
+
+  // ---- 8f. The rules of every card (shared/card-rules.mjs): the files the details window reads ----
+  reset();
+  p = fresh();
+  result = await run(p);
+  const rulesFolder = join(dirname(p.publicFile), 'rules');
+  const rulesShards = readdirSync(rulesFolder);
+  check('a rebuild publishes the rules: a file for each two-character shard that has a card', rulesShards.length >= 1 && rulesShards.length <= 6 && rulesShards.every((name) => /^[0-9a-f]{2}\.json$/.test(name)), rulesShards.join());
+  const rulesPublished = (name) => { try { return rulesOf(JSON.parse(readFileSync(join(rulesFolder, `${rulesShardOf(name)}.json`), 'utf8')), name); } catch { return null; } }; // (a card with no file has no rules)
+  check('every card is in the file its name picks, with its name and type', NAMES_A.every((name) => rulesPublished(name)?.f[0].n === name && rulesPublished(name).f[0].t === 'Creature'), JSON.stringify(rulesPublished('Alpha')));
+  check('the token and the online-only card have no rules', rulesPublished('Goblin') === null && rulesPublished('Alchemy Only') === null);
+  const rulesMeta = JSON.parse(readFileSync(join(p.cacheDir, 'cards.meta.json'), 'utf8'));
+  check('the cache keeps the rules in one file with a checksum in the record', existsSync(join(p.cacheDir, 'rules.json')) && rulesMeta.rulesCards === 6 && /^[0-9a-f]{64}$/.test(rulesMeta.rulesSha256));
+  rmSync(rulesFolder, { recursive: true, force: true });
+  state.requests = [];
+  result = await run(p, { now: T0 + 2 * DAY_MS });
+  check('a reuse publishes them again from the cache with no request', result.action === 'reuse' && state.requests.length === 0 && rulesPublished('Echo')?.f[0].n === 'Echo');
+  const rulesText = readFileSync(join(p.cacheDir, 'rules.json'), 'utf8');
+  writeFileSync(join(p.cacheDir, 'rules.json'), rulesText.replace('Alpha', 'Alpho'));
+  check('damaged rules (the checksum no longer fits) mean the cache is not loaded', (await loadCached(p.cacheDir, validateOptions, printingOptions, printsOptions, rulesOptions)) === null);
+  writeFileSync(join(p.cacheDir, 'rules.json'), rulesText);
+  check('and the untouched file loads again', (await loadCached(p.cacheDir, validateOptions, printingOptions, printsOptions, rulesOptions)) !== null);
+  rmSync(join(p.cacheDir, 'rules.json'));
+  check('a cache with no rules file is not loaded', (await loadCached(p.cacheDir, validateOptions, printingOptions, printsOptions, rulesOptions)) === null);
+  writeFileSync(join(p.cacheDir, 'rules.json'), rulesText);
+  check('rules that fail stricter checks are not loaded', (await loadCached(p.cacheDir, validateOptions, printingOptions, printsOptions, { minCards: 100, mustHave: {} })) === null);
 
   // ---- 9. Where downloading is not allowed ----
   reset();

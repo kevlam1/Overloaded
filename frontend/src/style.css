@@ -1424,3 +1424,39 @@ body.playing.solo .pile-head .pile-caret { width: 1.05rem; height: 1.05rem; bord
 .order-window .scry-picture .card { pointer-events: none; }
 .order-window .scry-card.order-dragging { position: relative; z-index: 3; opacity: 0.9; cursor: grabbing; }
 .order-window .scry-card.order-dragging .scry-picture { cursor: grabbing; box-shadow: 0 0.6rem 1.4rem rgba(0, 0, 0, 0.5); }
+
+/* the details window of a card (frontend/src/card-details.js; Kevin, 2026-11-15): the large card on the left, the rules and the rest on the right */
+.details-overlay { position: fixed; inset: 0; z-index: 46; display: grid; place-items: center; padding: 1rem; background: rgba(0, 0, 0, 0.6); }
+.details-window { position: relative; display: grid; grid-template-columns: minmax(14rem, 24rem) minmax(0, 1fr); gap: 1.2rem; width: min(64rem, 100%); max-height: calc(100vh - 2rem); padding: 1rem 1.2rem; border: 1px solid var(--line); border-radius: 0.8rem; background: var(--bg); color: var(--text); box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.6); overflow: hidden; }
+.details-picture { display: flex; flex-direction: column; align-items: center; gap: 0.6rem; min-height: 0; }
+.details-card { width: 100%; height: auto; aspect-ratio: 488 / 680; border-radius: 4.8% / 3.4%; background: var(--card); }
+.details-nopicture { margin: 1rem 0; padding: 2rem 1rem; border: 1px dashed var(--line); border-radius: 0.6rem; text-align: center; color: var(--muted); }
+.details-side { display: flex; flex-direction: column; min-height: 0; min-width: 0; padding-right: 4.5rem; }
+.details-title { margin: 0 0 0.5rem; font-size: 1.35rem; overflow-wrap: anywhere; }
+.details-body { overflow-y: auto; min-height: 0; padding-right: 0.3rem; }
+.details-close { position: absolute; top: 0.8rem; right: 1rem; }
+.details-face + .details-face { margin-top: 0.9rem; padding-top: 0.9rem; border-top: 1px solid var(--line); }
+.details-facehead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.details-facename { margin: 0; font-size: 1.05rem; }
+.details-type { margin: 0.1rem 0 0.5rem; color: var(--muted); }
+.details-rules { margin: 0 0 0.45rem; line-height: 1.45; }
+.details-none { color: var(--muted); font-style: italic; }
+.details-stats { margin: 0.4rem 0 0; font-weight: 600; }
+.details-symbol { display: inline-block; vertical-align: -0.2em; margin: 0 0.05em; }
+.details-symbol .pip-img { width: 1.1em; height: 1.1em; }
+.details-facts { margin: 1rem 0 0; display: grid; gap: 0.3rem; }
+.details-row { display: grid; grid-template-columns: 9rem minmax(0, 1fr); gap: 0.6rem; }
+.details-row dt { color: var(--muted); }
+.details-row dd { margin: 0; overflow-wrap: anywhere; }
+.details-subhead { margin: 1rem 0 0.4rem; font-size: 0.95rem; }
+.details-legalgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr)); gap: 0.35rem; margin: 0; padding: 0; list-style: none; }
+.details-legalgrid li { display: flex; justify-content: space-between; gap: 0.4rem; padding: 0.2rem 0.5rem; border: 1px solid var(--line); border-radius: 0.5rem; font-size: 0.82rem; }
+.details-legalgrid .is-legal .details-word { color: var(--ok, #3aa56b); font-weight: 700; }
+.details-legalgrid .is-banned .details-word { color: var(--danger, #d9534f); font-weight: 700; }
+.details-legalgrid .is-not .details-word { color: var(--muted); }
+@media (max-width: 900px) { .details-window { grid-template-columns: 1fr; overflow-y: auto; } .details-card { max-width: 18rem; } .details-side { padding-right: 0; } .details-close { position: static; justify-self: end; } }
+.details-face { padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
+.details-face + .details-face { margin-top: 0.9rem; padding-top: 0.9rem; border-top: 1px solid var(--line); }
+.details-facehead .details-type { margin: 0; }
+.details-facehead + .details-rules { margin-top: 0.6rem; }
+.details-subhead { margin-top: 1.4rem; }

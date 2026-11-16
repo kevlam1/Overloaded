@@ -34,6 +34,14 @@ same('every zone has words', ZONES.every((zone) => typeof ZONE_NAMES[zone] === '
 
 // ---- what is offered ----
 const ids = (items) => items.map((item) => item.id);
+// View details (Kevin, 2026-11-15): only where the page asks for it, for every card of the list in every zone, never for a token; the page opens the window, so menuAction has nothing to run
+for (const zone of ['hand', 'battlefield', 'graveyard', 'exile', 'command', 'sideboard', 'library']) {
+  same(`View details is not in the menu unless the page asks (${zone})`, ids(menuItems({ n: 'Sol Ring' }, zone)).includes('details'), false);
+  same(`...and is there when it does (${zone})`, menuItems({ n: 'Sol Ring' }, zone, { details: true }).filter((i) => i.id === 'details').map((i) => i.label), ['View details']);
+  same(`...but not for a token (${zone})`, ids(menuItems({ n: 'Goblin', tok: 1 }, zone, { details: true })).includes('details'), false);
+}
+same('View details comes before Move to on the battlefield and is the last line in the hand', [ids(menuItems({ n: 'A' }, 'battlefield', { details: true })).slice(-2), ids(menuItems({ n: 'A' }, 'hand', { details: true })).at(-1)], [['details', 'move'], 'details']);
+same('choosing it is the page job: menuAction has nothing to run', menuAction('details', { n: 'A' }), null);
 const HAND = ['move:battlefield', 'move:graveyard', 'move:exile', 'move:command', 'move:library-top', 'move:library-bottom']; // (the lines of a card in the hand: no Move to and no sideboard, Kevin 2026-11-15)
 same('on the battlefield: Modify, Tap, the two marks (does not untap, summoning sick), the counter, Create copy, Move to', ids(menuItems({ tapped: false }, 'battlefield')), ['modify', 'tap', 'flip', 'nountap', 'sick', 'counter', 'counter', 'copy', 'move']);
 same('an untapped card offers Tap, a tapped one Untap', [menuItems({ tapped: false }, 'battlefield')[1].label, menuItems({ tapped: true }, 'battlefield')[1].label], ['Tap', 'Untap']);

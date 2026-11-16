@@ -218,7 +218,7 @@ try {
   check('selecting a card says what it is and where', new RegExp(`^${landName}: .*Land.*, in your hand\\.$`).test(await $text('selected-line')), await $text('selected-line'));
   check('the selected card is marked', (await count('#hand .card.selected')) === 1 && (await ev(`document.querySelector('#hand .card.selected').getAttribute('aria-pressed')`)) === 'true');
   const labels = await actionLabels();
-  check('the right-click menu of a hand card: Play, Discard, Exile, Move to command zone, Move to top of library, Move to bottom of library (no sideboard, no Move to heading), and no Tap', JSON.stringify(labels) === JSON.stringify(['Play', 'Discard', 'Exile', 'Move to command zone', 'Move to top of library', 'Move to bottom of library']), JSON.stringify({ labels }));
+  check('the right-click menu of a hand card: Play, Discard, Exile, Move to command zone, Move to top of library, Move to bottom of library (no sideboard, no Move to heading), and no Tap', JSON.stringify(labels) === JSON.stringify(['Play', 'Discard', 'Exile', 'Move to command zone', 'Move to top of library', 'Move to bottom of library', 'View details']), JSON.stringify({ labels }));
   const handBefore = await count('#hand .card');
   await clickAction('To battlefield');
   check('moving a land to the battlefield puts it in the lands row', (await count('#battlefield .card[data-kind="land"]')) === 1 && (await count('#battlefield .card[data-kind="other"]')) === 0 && (await count('#hand .card')) === handBefore - 1 && (await $text('status')) === `Moved ${landName} to the battlefield.`, await $text('status'));
@@ -1639,7 +1639,7 @@ try {
   check('there is no menu before a right click', (await menuState()) === null);
   await mouse('#battlefield .card[data-kind="other"]', { button: 'right', dy: 64 });
   let menu = await menuState();
-  check('a right click on a creature opens its menu: its name, then Modify, Tap, the counter and the counters X..., Create copy and Move to (with the two marks after Tap: Elves came in sick)', menu && menu.title === 'Llanowar Elves' && menu.role === 'menu' && JSON.stringify(menu.items) === JSON.stringify(['Modify...', 'Tap', 'Flip', "Doesn't untap", 'Not summoning sick', '+1/+1 counter', '+1/+1 counters X...', 'Create copy', 'Move to']), JSON.stringify(menu));
+  check('a right click on a creature opens its menu: its name, then Modify, Tap, the counter and the counters X..., Create copy and Move to (with the two marks after Tap: Elves came in sick)', menu && menu.title === 'Llanowar Elves' && menu.role === 'menu' && JSON.stringify(menu.items) === JSON.stringify(['Modify...', 'Tap', 'Flip', "Doesn't untap", 'Not summoning sick', '+1/+1 counter', '+1/+1 counters X...', 'Create copy', 'View details', 'Move to']), JSON.stringify(menu));
   check('the menu is inside the window and the first item has the focus', menu.inside && menu.focused === 'Modify...', JSON.stringify(menu));
   check('the right click also selected the card', (await $text('selected-line')).startsWith('Llanowar Elves'), await $text('selected-line'));
   await ev(`window.__plays = []; HTMLMediaElement.prototype.play = function () { window.__plays.push({ src: new URL(this.src).pathname, volume: Math.round(this.volume * 10000) / 10000 }); return Promise.resolve(); };`);
@@ -1670,7 +1670,7 @@ try {
   // a card in the hand: Play, Discard, Exile, the two ends of the library, and Move to for the rest (Kevin, 2026-11-15)
   await mouse('#hand .card', { button: 'right', dy: 64 });
   menu = await menuState();
-  check('a card in the hand offers Play, Discard, Exile, Move to command zone, Move to top of library and Move to bottom of library', menu && JSON.stringify(menu.items) === JSON.stringify(['Play', 'Discard', 'Exile', 'Move to command zone', 'Move to top of library', 'Move to bottom of library']), JSON.stringify(menu));
+  check('a card in the hand offers Play, Discard, Exile, Move to command zone, Move to top of library and Move to bottom of library', menu && JSON.stringify(menu.items) === JSON.stringify(['Play', 'Discard', 'Exile', 'Move to command zone', 'Move to top of library', 'Move to bottom of library', 'View details']), JSON.stringify(menu));
   await clickMenuItem('Play');
   check('and Play puts it on the battlefield', (await count('#battlefield .card')) === 1 && (await menuState()) === null);
   // keyboard
@@ -1940,6 +1940,53 @@ try {
     }
   }
 
+  // ---- the details window of a card: the large card on the left, the rules and the rest on the right (Kevin, 2026-11-15) ----
+  {
+    const DETAILS_JSON = deckFrom('1 Lightning Bolt\n1 Sephiroth, Fabled SOLDIER\n5 Forest', 'Details deck', null, []);
+    await open(DETAILS_JSON);
+    await waitFor(async () => (await count('#hand .card')) === 7 || null, 8000, 100);
+    await sleep(900);
+    const rightClickByName = (prefix) => ev(`(() => { const c = document.querySelector('#hand > .card[aria-label^="${prefix}"]'); const r = c.getBoundingClientRect(); c.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: r.x + r.width / 2, clientY: r.y + r.height / 2 })); })()`);
+    const win = () => ev("(() => { const w = document.querySelector('.details-window'); if (!w) return null; const img = w.querySelector('.details-card'); return { label: w.getAttribute('aria-label'), title: w.querySelector('.details-title').textContent, src: img ? img.getAttribute('src') : null, faces: [...w.querySelectorAll('.details-facename')].map((n) => n.textContent), types: [...w.querySelectorAll('.details-type')].map((n) => n.textContent), rules: [...w.querySelectorAll('.details-rules')].map((n) => n.textContent), facts: Object.fromEntries([...w.querySelectorAll('.details-row')].map((r) => [r.querySelector('dt').textContent, r.querySelector('dd').textContent])), legal: [...w.querySelectorAll('.details-legalgrid li')].map((l) => l.textContent), pips: w.querySelectorAll('.pip-img, .pip').length, flip: w.querySelector('.details-flip')?.textContent ?? null, closeFocused: document.activeElement === w.querySelector('.details-close'), box: (() => { const r = w.getBoundingClientRect(); return { inside: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight, picture: w.querySelector('.details-picture').getBoundingClientRect().left < w.querySelector('.details-side').getBoundingClientRect().left }; })() }; })()");
+    await rightClickByName('Lightning Bolt'); await sleep(150);
+    const boltMenu = await menuState();
+    check('a card of the hand has View details at the end of its menu', boltMenu && boltMenu.items.at(-1) === 'View details', JSON.stringify(boltMenu));
+    await pressMenuItem('View details');
+    await waitFor(async () => ((await win())?.rules ?? []).some((t) => /3 damage/.test(t)) || null, 8000, 100);
+    const bolt = await win();
+    check('View details opens a window for the card: its name, the large picture of the card on the left, and the rules on the right', bolt && bolt.label === 'Details of Lightning Bolt' && bolt.title === 'Lightning Bolt' && /\/normal\/front\//.test(bolt.src ?? '') && bolt.box.picture && bolt.box.inside, JSON.stringify(bolt));
+    check('the rules come from the site\'s files: the type, the rules text, the mana value, the colors and the color identity', bolt.types[0] === 'Instant' && bolt.rules.some((t) => /Lightning Bolt deals 3 damage to any target\./.test(t)) && bolt.facts['Mana value'] === '1' && bolt.facts.Colors === 'Red' && bolt.facts['Color identity'] === 'Red', JSON.stringify(bolt.facts));
+    check('a card with one face does not repeat its name under the title (the type is there with the cost beside it)', bolt.faces.length === 0 && bolt.types[0] === 'Instant');
+    check('the mana cost is drawn as a symbol and the legality of seven formats is listed with the words', bolt.pips >= 1 && bolt.legal.length === 7 && bolt.legal.some((l) => /Modern/.test(l) && /Legal/.test(l)) && bolt.legal.some((l) => /Standard/.test(l) && /Not legal/.test(l)), JSON.stringify({ pips: bolt.pips, legal: bolt.legal }));
+    check('no request went to Scryfall (the rules come from the own files of the site)', browser.events.every((e) => e.method !== 'Network.requestWillBeSent' || !/api.scryfall.com/.test(e.params.request.url)));
+    if (process.argv.includes('--screenshot')) await browser.screenshot('scratch-solo-details.png');
+    check('the Close button has the focus, and Escape closes the window', bolt.closeFocused && await (async () => { await browser.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await sleep(200); return (await win()) === null; })());
+    // a card with two faces: both faces' rules, and a button for the picture
+    await rightClickByName('Sephiroth'); await sleep(150); await pressMenuItem('View details');
+    await waitFor(async () => ((await win())?.faces ?? []).length === 2 || null, 8000, 100);
+    const seph = await win();
+    check('a card with two faces shows both: each face\'s name, type and rules, and its power and toughness', seph && seph.faces.join() === 'Sephiroth, Fabled SOLDIER,Sephiroth, One-Winged Angel' && seph.types.length === 2 && seph.rules.some((t) => /Whenever Sephiroth enters or attacks/.test(t)) && seph.rules.some((t) => /^Flying/.test(t)), JSON.stringify(seph));
+    check('and a button to see the back face of the picture, which shows it and then the front again', seph.flip === 'Show the back face' && await (async () => { await ev("document.querySelector('.details-flip').click()"); await sleep(150); const back = await win(); await ev("document.querySelector('.details-flip').click()"); await sleep(150); const front = await win(); return /\/back\//.test(back.src) && back.flip === 'Show the front face' && /\/front\//.test(front.src); })());
+    await ev("document.querySelector('.details-close').click()"); await sleep(150);
+    check('the Close button closes it, and a click on the dim space around it too', (await win()) === null && await (async () => { await rightClickByName('Forest'); await sleep(150); await pressMenuItem('View details'); await sleep(300); await ev("document.querySelector('.details-overlay').dispatchEvent(new MouseEvent('click', { bubbles: true }))"); await sleep(150); return (await win()) === null; })());
+    // when the rules cannot be loaded, the window says so and tries again; when the file has no such card it says that (a fresh page: the loader keeps the files it has fetched)
+    await open(DETAILS_JSON); await waitFor(async () => (await count('#hand .card')) === 7 || null, 8000, 100); await sleep(900);
+    await ev("window.__realFetch = window.fetch; window.fetch = (url, options) => (/\\/data\\/rules\\//.test(String(url)) ? Promise.resolve(new Response('no', { status: window.__rulesStatus ?? 500 })) : window.__realFetch(url, options)); window.__rulesStatus = 500;");
+    await rightClickByName('Lightning Bolt'); await sleep(150); await pressMenuItem('View details');
+    await waitFor(async () => /could not be loaded/.test(((await win())?.rules ?? []).join()) || null, 8000, 100);
+    const failed = await win();
+    check('when the rules cannot be loaded the window says so, still shows the card and what the list knows (keywords, color identity), and offers Try again', failed && /could not be loaded/.test(failed.rules.join()) && /\/normal\/front\//.test(failed.src) && failed.facts['Color identity'] === 'Red' && (await ev("document.querySelector('.details-window button.secondary:not(.details-close):not(.details-flip)')?.textContent")) === 'Try again', JSON.stringify(failed));
+    await ev("window.fetch = window.__realFetch"); await ev("document.querySelector('.details-window button.secondary:not(.details-close):not(.details-flip)').click()");
+    await waitFor(async () => ((await win())?.rules ?? []).some((t) => /3 damage/.test(t)) || null, 8000, 100);
+    check('Try again fetches the file again and the rules appear', ((await win())?.rules ?? []).some((t) => /3 damage/.test(t)));
+    await ev("document.querySelector('.details-close').click()"); await sleep(150);
+    await ev("window.fetch = (url, options) => (/\\/data\\/rules\\//.test(String(url)) ? Promise.resolve(new Response('no', { status: 404 })) : window.__realFetch(url, options))");
+    await rightClickByName('Forest'); await sleep(150); await pressMenuItem('View details');
+    await waitFor(async () => /not available/.test(((await win())?.rules ?? []).join()) || null, 8000, 100);
+    check('when the site has no rules file (a 404) the window says the rules are not available', /not available/.test(((await win())?.rules ?? []).join()), JSON.stringify(await win()));
+    await ev("window.fetch = window.__realFetch"); await ev("document.querySelector('.details-close').click()"); await sleep(150);
+  }
+
   // ---- turning a two-sided card over (real list entries: Sephiroth, Valakut Awakening, Delver, Aclazotz, and Fire // Ice which has no back) ----
   // Seven cards in a seven-card deck, so all of them are in the hand and nothing depends on luck.
   const TWO_SIDED = deckFrom('1 Sephiroth, Fabled SOLDIER\n1 Valakut Awakening\n1 Delver of Secrets\n1 Aclazotz, Deepest Betrayal\n1 Fire // Ice\n1 Sol Ring\n1 Forest', 'Two-sided deck', null, []); // no commander: the page would guess one from the legendary creatures and take it out of the hand
@@ -2106,7 +2153,7 @@ try {
   check('sent back to the hand it is a front-face card again', (await count('#hand .card')) === 1 && !/turned over/.test(await labelOf('Valakut Awakening')) && /\/front\//.test(await srcOf('Valakut Awakening')));
   await mouse('#hand .card', { button: 'right', dy: 64 });
   const handMenu = await menuState();
-  check('the right-click menu of the modal card in the hand offers Play Valakut Stoneforge last, after the look at the other face', handMenu && JSON.stringify(handMenu.items.slice(-2)) === JSON.stringify(['Flip double-faced card', 'Play Valakut Stoneforge']), JSON.stringify(handMenu?.items));
+  check('the right-click menu of the modal card in the hand offers Play Valakut Stoneforge after the look at the other face, before View details', handMenu && JSON.stringify(handMenu.items.slice(-3)) === JSON.stringify(['Flip double-faced card', 'Play Valakut Stoneforge', 'View details']), JSON.stringify(handMenu?.items));
   await clickMenuItem('Play Valakut Stoneforge');
   check('choosing it plays the land the same way', (await count('#hand .card')) === 0 && (await rowOf('Valakut Awakening')) === 'row-lands' && /, turned over/.test(await labelOf('Valakut Awakening')));
   await clickAction('Deselect');
@@ -2121,7 +2168,7 @@ try {
   const tokensBefore = await count('.card[aria-label^="Sephiroth, One-Winged"]');
   await mouse(cardAt('Sephiroth, Fabled'), { button: 'right', dy: 64 });
   const sephMenu = await menuState();
-  check('the menu of a battlefield card offers Create copy, after the counter and before Move to', sephMenu && sephMenu.items.includes('Create copy') && sephMenu.items.indexOf('Create copy') === sephMenu.items.indexOf('Move to') - 1, JSON.stringify(sephMenu?.items));
+  check('the menu of a battlefield card offers Create copy, after the counter and before Move to', sephMenu && sephMenu.items.includes('Create copy') && sephMenu.items.indexOf('Create copy') === sephMenu.items.indexOf('Move to') - 2 && sephMenu.items.indexOf('View details') === sephMenu.items.indexOf('Move to') - 1, JSON.stringify(sephMenu?.items));
   await clickMenuItem('Create copy');
   check('the status names the face that was copied', (await $text('status')) === 'Made a token copy of Sephiroth, One-Winged Angel.', await $text('status'));
   const copySel = '.card[aria-label^="Sephiroth, One-Winged"]';

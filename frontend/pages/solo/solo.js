@@ -16,6 +16,8 @@ import { pileMenuItems, pileAction } from '../../../shared/pile-menu.mjs';
 import { handMenuItems, handAction } from '../../../shared/hand-menu.mjs';
 import { handGroupItems, groupAction, needsOrder } from '../../../shared/group-menu.mjs';
 import { openOrderWindow } from '../../src/order-window.js';
+import { openCardDetails } from '../../src/card-details.js';
+import { makeRulesLoader } from '../../src/card-rules.js';
 import { applyScry, topCards } from '../../../shared/scry.mjs';
 import { openScryWindow } from '../../src/scry-window.js';
 import { mountCardHover } from '../../src/card-hover.js';
@@ -53,6 +55,7 @@ let viewing = null; // the pile being looked at: 'library', 'graveyard', 'exile'
 let viewTop = null; // when only the top few cards of the library are being looked at: how many
 let viewBottom = false; // the cards shown are the bottom few of the library, not the top
 let viewReveal = false; // the cards in the viewer are revealed (Reveal top X): the window says so
+const rulesLoader = makeRulesLoader(); // the rules of a card come from the site's own files, one small file per group of cards, fetched when a card's details are opened
 const peeking = new Set(); // uids of two-sided cards in the hand that are shown on their back face (only a look, for you: not saved, nothing changes in the game)
 let topRevealed = false; // "Play with top revealed": the top card of the library is shown face up on its pile (not saved; a new game turns it off)
 
@@ -258,7 +261,7 @@ function openMenuFor(uid, where) {
   if (!found) return;
   if (found.zone === 'hand' && multi.size > 1 && multi.has(uid)) { openGroupMenu(where); return; } // (several cards of the hand picked: the menu is for all of them)
   select(uid);
-  openCardMenu({ title: found.card.n, items: menuItems(found.card, found.zone, { peek: true }), x: where.x, y: where.y, returnFocus: where.element, onPick: (id, amount) => pickFromMenu(uid, id, amount) });
+  openCardMenu({ title: found.card.n, items: menuItems(found.card, found.zone, { peek: true, details: true }), x: where.x, y: where.y, returnFocus: where.element, onPick: (id, amount) => pickFromMenu(uid, id, amount) });
 }
 
 // The menu of the picked cards of the hand: Play, Discard, Exile, Top and Bottom of library (each asks for the order first) and Move to. The cards go in the order they have in the hand.
@@ -295,6 +298,7 @@ function pickFromMenu(uid, id, amount) {
   const found = findCard(uid);
   if (!found) return;
   if (id === 'modify') { modifyOpen = true; render(); $('marks-amount').focus(); return; } // opens the Modify window next to the card
+  if (id === 'details') { openCardDetails({ card: found.card, info: lookup?.(found.card) ?? null, loader: rulesLoader, returnFocus: document.activeElement instanceof HTMLElement ? document.activeElement : null }); return; } // the rules, mana value, type and the rest of the card (frontend/src/card-details.js)
   if (id === 'peek') { // a look at the other face of a two-sided card in the hand
     if (found.zone !== 'hand' || found.card.b !== 1) return;
     if (peeking.has(uid)) peeking.delete(uid); else peeking.add(uid);

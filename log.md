@@ -4178,6 +4178,24 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 ---
 
+## 209. The card details window, with the rules of every card in files of our own (option A) (2026-11-15)
+
+**What I asked for**
+- Option A for item 7: a right-click on a card opens a window with the large card on the left and its rules, mana value, type and the rest on the right, with the rules coming from small static files built during the site's build (no Scryfall request while playing).
+
+**What changed** (`shared/card-rules.mjs`, `scripts/lib/card-list.mjs`, `scripts/lib/card-list-build.mjs`, `scripts/build-card-list.mjs`, `frontend/src/card-rules.js`, `frontend/src/card-details.js`, `shared/card-menu.mjs`, `shared/card-lookup.mjs`, `frontend/pages/solo/solo.js`, `frontend/pages/table/table.js`, `frontend/src/style.css`, tests)
+- **The data:** the card list build now also writes the rules of every card from the Oracle Cards file it already downloads, into 256 small files, `/data/rules/XX.json`, grouped by the first two characters of the card's key (the same way as the printings by card). A card's entry: its mana value, colors, the legality in seven formats (standard, pioneer, modern, legacy, vintage, commander, pauper) as seven letters, and its faces (name, mana cost, type line, rules text, power and toughness, loyalty, defense). The list format is 10, so the next Vercel build rebuilds the list once (a download of about 100 MB, as before) and then reuses it.
+- **What it costs, measured on the real files (the Oct 26 download):** 34,142 cards, 9.8 MB of files in all, 2.5 MB compressed, the biggest file 12 KB compressed (a card's details fetch one of them). The build checks the files before it publishes them (shape of every entry, order, no big shrink from the last build, and that Sol Ring and Lightning Bolt have the right words); the cache keeps them in `rules.json` with a checksum in the record, like the printings.
+- **I compared real cards with their raw Scryfall records:** Jace, the Mind Sculptor (loyalty 3), Invasion of Zendikar (a battle: defense 3, and the back face 4/4), Fire // Ice, Black Lotus and the five-faced Who // What // When // Where // Why. The check found the five-faced card on its first run (I had allowed four faces at most; it is eight now).
+- **The window:** the menu line "View details" (last in the hand's menu, before Move to elsewhere; not for tokens) opens it. Left: the picture of the card (a button to see the back face of a two-sided card). Right: for each face its name, mana cost drawn as symbols, type, rules text with the symbols drawn, power and toughness, loyalty or defense; then mana value, colors, color identity, keywords and the legality of the seven formats. While the file loads it shows what the card list knows; if it cannot be loaded it says so and offers Try again; if the card is not in the files it says the rules are not available. Escape, Close or a click on the dark space closes it. It works on the solo table and on the table page (for your own cards).
+- The card lookup now carries the color identity (`ci`), which the window shows.
+
+**What I checked:** `test-card-rules.mjs` (58, with junk input and every way an entry can be wrong), `test-card-list.mjs` (240), `test-card-list-build.mjs` (173, including the rules files published, kept in the cache, republished from it without a request, damaged or missing rules meaning the cache is not used), `test-card-menu.mjs` (230), all 68 quick suites, `check-deploy-config.mjs` (58) and the solo check: the window for Lightning Bolt (type, text, mana value 1, colors, color identity, the cost as a symbol, seven legality entries, no request to Scryfall), a two-faced card (both faces and the button for the back picture), the failing and the 404 cases and Try again. I looked at a screenshot of the window with the stand-in picture. Not checked: the table page's window in a real game, phone width (the window goes to one column under 900 px, not looked at), a real picture in the window, and the build on Vercel (that happens on the next push to main).
+
+**My mistakes this round:** the details window's first checks failed because the loader keeps a file it has fetched, so a second card of the same file never asked the network (the check now reloads the page); and the first details test expected the old menu lists.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

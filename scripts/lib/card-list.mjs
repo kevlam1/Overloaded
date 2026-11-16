@@ -8,6 +8,7 @@ import { createGunzip } from 'node:zlib';
 import { createInterface } from 'node:readline';
 import { printingValue, readPrintingValue, SET_CODE } from '../../shared/printings.mjs';
 import { readRow } from '../../shared/card-prints.mjs';
+import { entryFromRecord } from '../../shared/card-rules.mjs';
 
 const byCodeUnits = (a, b) => (a < b ? -1 : a > b ? 1 : 0); // code units, not locale
 
@@ -189,6 +190,7 @@ export function buildList(oracleRecords, printings) {
 export const serializeList = (list) => JSON.stringify(list);
 export const serializePrintings = (files) => JSON.stringify(files);
 export const serializePrints = (prints) => JSON.stringify(prints);
+export const serializeRules = (rules) => JSON.stringify(rules); // (the rules of every card, { cards: { name: entry } }, split into /data/rules/XX.json when published: shared/card-rules.mjs)
 
 // A build that finds far fewer printings than this (there were 109,475 on 2026-10-29) means Scryfall changed something.
 export const MIN_PRINTINGS = 80000;
@@ -283,6 +285,7 @@ export async function buildFromFiles(oraclePath, defaultPath) {
   for await (const printing of readJsonLines(defaultPath)) { printings.add(printing); counts.printings++; }
   const list = [];
   const names = new Map(); // the oracle id of each kept card to its name in the list, for the printing files
+  const rulesByName = new Map(); // the rules of each kept card (shared/card-rules.mjs), for the details window
   for await (const record of readJsonLines(oraclePath)) {
     counts.oracleRecords++;
     if (!isDeckCandidate(record)) { counts.notCandidates++; continue; }
@@ -291,6 +294,7 @@ export async function buildFromFiles(oraclePath, defaultPath) {
     if (!printings.seen.has(id)) counts.noPrintingsKept++;
     list.push(toEntry(record, printings.alternateNames(id), printings.alternateIds(id)));
     names.set(id, record.name);
+    rulesByName.set(record.name, entryFromRecord(record));
   }
   list.sort(byNameThenId);
   counts.kept = list.length;
@@ -299,5 +303,7 @@ export async function buildFromFiles(oraclePath, defaultPath) {
   Object.assign(counts, { printingSets: Object.keys(printingFiles).length, printingsKept: countPrintings(printingFiles).printings });
   const prints = printings.cardPrints(names);
   Object.assign(counts, { printsCards: Object.keys(prints.cards).length, printsRows: Object.values(prints.cards).reduce((sum, rows) => sum + rows.length, 0) });
-  return { list, counts, printingFiles, prints };
+  const rules = { cards: Object.fromEntries(list.filter((entry, at) => at === 0 || list[at - 1].n !== entry.n).map((entry) => [entry.n, rulesByName.get(entry.n)])) }; // (in the order of the list, a name once)
+  counts.rulesCards = Object.keys(rules.cards).length;
+  return { list, counts, printingFiles, prints, rules };
 }

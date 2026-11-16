@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.208</span></h1>
-    <p class="lede">208 entries, Oct 25 to Nov 15, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
+    <h1>Build log <span class="version">Version 0.209</span></h1>
+    <p class="lede">209 entries, Oct 25 to Nov 15, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
   </div>
 </header>
 
@@ -23,7 +23,7 @@
     <div class="weeks-row">
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
-<a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">98</span></a>
+<a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">99</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
     </div>
     <div class="tools">
@@ -1961,7 +1961,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-1" aria-labelledby="week-1-title">
-<h2 class="week-head" id="week-1-title"><button type="button" aria-expanded="false" aria-controls="week-1-days"><span class="wname">Week 1</span><span class="range">Nov 9 to Nov 15</span><span class="week-count">98 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-1-title"><button type="button" aria-expanded="false" aria-controls="week-1-days"><span class="wname">Week 1</span><span class="range">Nov 9 to Nov 15</span><span class="week-count">99 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-1-days">
 <div class="day">
 <h3 class="day-title">Monday 9 November <span class="day-count">4</span></h3>
@@ -3368,7 +3368,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Sunday 15 November <span class="day-count">10</span></h3>
+<h3 class="day-title">Sunday 15 November <span class="day-count">11</span></h3>
 <div class="entries">
 <article class="entry" id="entry-199" data-n="199">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-199-body">
@@ -3519,6 +3519,21 @@
 <ul><li><strong>1:</strong> the hand layout gives every picked card room (<code>handLayoutSelected</code> takes a list), and all of them come up.</li><li><strong>2:</strong> the cards in the order window glide to their new places (about a fifth of a second, none under reduced motion), and a Random order button shuffles them.</li><li><strong>3:</strong> a left click on the library does nothing now; View library in its menu opens it. The graveyard and exile still open on a click.</li><li><strong>4:</strong> the pile windows have 7 columns (4 on a window under 900 px) with the cards filling them, in the real card shape. The top card has a blue outline and a Top label, the bottom card an orange one and a Bottom label; a card seen alone says Only card. This uses the card's place in the whole pile, so a view of the bottom 2 of the library marks only the last one.</li><li><strong>5:</strong> dragging a picked card of the hand carries all of them (the others are drawn fanned behind it and hidden in the hand): over the battlefield they are all played (the dragged one where it is let go, the others on the next free cells), over a pile they all go there (to the library on top), over the hand nothing happens.</li><li><strong>6:</strong> a card in the hand has Play, Discard, Exile, Move to command zone, Move to top of library and Move to bottom of library, and no Move to heading and no sideboard. The group menu has the same lines. A card can still go to the sideboard from the graveyard or exile window.</li><li><strong>7: not built yet.</strong> The card list has no rules text (I left it out on purpose in version one to keep the list small), so there is nothing to show on the right of the popup. I wrote the options and a question for Kevin in my reply.</li></ul>
 <p><strong>What I checked:</strong> <code>test-card-menu.mjs</code> (207), <code>test-group-menu.mjs</code> (23), all 67 quick suites and the solo check: the hand lines, every picked card higher than the cards that are not picked, the library not opening on a click, 7 columns with card width above 120 px and the right shape, Top and Bottom marks, Random order (same cards, a different order within a few presses), the glide (both cards animating a moment after a move), a real mouse drag of a picked card onto the battlefield (both played) and onto the graveyard (both discarded). I looked at screenshots of the exile window and of three picked cards risen. The last full run had no failed check and stopped at the old screenshot-only step I have not investigated; the earlier run had one failure in &quot;when the pointer leaves the area the hand goes down again&quot;, which fails now and then and whose detail shows the resting cards it compared against were from a bigger hand (my guess is a stale baseline in the check; not fixed).</p>
 <p><strong>My mistakes this round:</strong> my first drag check pressed where the picked card had been before the picked cards rose, so nothing was dragged; and my first edit of the sideboard test removed the only way to put a hand card in the sideboard, so the test now moves it through the graveyard window.</p>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-209" data-n="209">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-209-body">
+    <span class="num">209</span>
+    <span class="head-text"><span class="title">The card details window, with the rules of every card in files of our own (option A)</span><span class="sum">Option A for item 7: a right-click on a card opens a window with the large card on the left and its rules, mana value, type and the rest on the right, with the rules coming from small static files built during the site's build (no Scryfall...</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-209-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>Option A for item 7: a right-click on a card opens a window with the large card on the left and its rules, mana value, type and the rest on the right, with the rules coming from small static files built during the site's build (no Scryfall request while playing).</li></ul>
+<p><strong>What changed</strong> (<code>shared/card-rules.mjs</code>, <code>scripts/lib/card-list.mjs</code>, <code>scripts/lib/card-list-build.mjs</code>, <code>scripts/build-card-list.mjs</code>, <code>frontend/src/card-rules.js</code>, <code>frontend/src/card-details.js</code>, <code>shared/card-menu.mjs</code>, <code>shared/card-lookup.mjs</code>, <code>frontend/pages/solo/solo.js</code>, <code>frontend/pages/table/table.js</code>, <code>frontend/src/style.css</code>, tests)</p>
+<ul><li><strong>The data:</strong> the card list build now also writes the rules of every card from the Oracle Cards file it already downloads, into 256 small files, <code>/data/rules/XX.json</code>, grouped by the first two characters of the card's key (the same way as the printings by card). A card's entry: its mana value, colors, the legality in seven formats (standard, pioneer, modern, legacy, vintage, commander, pauper) as seven letters, and its faces (name, mana cost, type line, rules text, power and toughness, loyalty, defense). The list format is 10, so the next Vercel build rebuilds the list once (a download of about 100 MB, as before) and then reuses it.</li><li><strong>What it costs, measured on the real files (the Oct 26 download):</strong> 34,142 cards, 9.8 MB of files in all, 2.5 MB compressed, the biggest file 12 KB compressed (a card's details fetch one of them). The build checks the files before it publishes them (shape of every entry, order, no big shrink from the last build, and that Sol Ring and Lightning Bolt have the right words); the cache keeps them in <code>rules.json</code> with a checksum in the record, like the printings.</li><li><strong>I compared real cards with their raw Scryfall records:</strong> Jace, the Mind Sculptor (loyalty 3), Invasion of Zendikar (a battle: defense 3, and the back face 4/4), Fire // Ice, Black Lotus and the five-faced Who // What // When // Where // Why. The check found the five-faced card on its first run (I had allowed four faces at most; it is eight now).</li><li><strong>The window:</strong> the menu line &quot;View details&quot; (last in the hand's menu, before Move to elsewhere; not for tokens) opens it. Left: the picture of the card (a button to see the back face of a two-sided card). Right: for each face its name, mana cost drawn as symbols, type, rules text with the symbols drawn, power and toughness, loyalty or defense; then mana value, colors, color identity, keywords and the legality of the seven formats. While the file loads it shows what the card list knows; if it cannot be loaded it says so and offers Try again; if the card is not in the files it says the rules are not available. Escape, Close or a click on the dark space closes it. It works on the solo table and on the table page (for your own cards).</li><li>The card lookup now carries the color identity (<code>ci</code>), which the window shows.</li></ul>
+<p><strong>What I checked:</strong> <code>test-card-rules.mjs</code> (58, with junk input and every way an entry can be wrong), <code>test-card-list.mjs</code> (240), <code>test-card-list-build.mjs</code> (173, including the rules files published, kept in the cache, republished from it without a request, damaged or missing rules meaning the cache is not used), <code>test-card-menu.mjs</code> (230), all 68 quick suites, <code>check-deploy-config.mjs</code> (58) and the solo check: the window for Lightning Bolt (type, text, mana value 1, colors, color identity, the cost as a symbol, seven legality entries, no request to Scryfall), a two-faced card (both faces and the button for the back picture), the failing and the 404 cases and Try again. I looked at a screenshot of the window with the stand-in picture. Not checked: the table page's window in a real game, phone width (the window goes to one column under 900 px, not looked at), a real picture in the window, and the build on Vercel (that happens on the next push to main).</p>
+<p><strong>My mistakes this round:</strong> the details window's first checks failed because the loader keeps a file it has fetched, so a second card of the same file never asked the network (the check now reloads the page); and the first details test expected the old menu lists.</p>
   </div></div></div>
 </article>
 </div>
