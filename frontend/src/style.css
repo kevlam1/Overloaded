@@ -1483,3 +1483,10 @@ body.playing.solo .pile-head .pile-caret { width: 1.05rem; height: 1.05rem; bord
 .details-glyph .mana-icon { width: 0.8em; height: 0.8em; }
 .card-menu-fly .card-menu-subitem { justify-content: flex-start; }
 .card-menu-fly[data-icons] .card-menu-subitem:not(:has(.mana-icon)) { padding-left: calc(0.8rem + 1.6em); }
+.viewer-card .viewer-end { position: absolute; top: -0.5rem; left: 50%; translate: -50% 0; z-index: 2; white-space: nowrap; pointer-events: none; }
+.viewer-grid { padding: 0.9rem 0.3rem 0.3rem; }
+.details-rulings-box { margin-top: 1.4rem; padding: 0; border: 0; background: none; box-shadow: none; }
+.details-rulings-box .details-subhead { margin-top: 0; }
+.details-rulings { display: grid; gap: 0.7rem; margin: 0; padding: 0; list-style: none; }
+.details-ruling-meta { color: var(--muted); font-size: 0.78rem; letter-spacing: 0.02em; }
+.details-ruling-text { margin: 0.1rem 0 0; line-height: 1.45; }

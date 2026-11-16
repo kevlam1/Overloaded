@@ -25,6 +25,7 @@ Kevin asked for a plan for menu options on more parts of the table: for example,
 - 2026-11-15, log entry 208: every picked hand card comes up, the order window glides and has Random order, a click on the library does not open it, pile windows in 7 columns with Top and Bottom marked, a picked group can be dragged (onto the battlefield or a pile), hand menus without the sideboard. Still to decide: the card details popup (needs rules text in the card data).
 - 2026-11-15, log entry 209: View details on every card (the window with the large card and its rules); the rules are built into /data/rules/XX.json by the card list build (list format 10).
 - 2026-11-15, log entries 210 and 211: group drag as one picture, the order window fixes, sharp pile windows, Alt picture turns with Q and E, and Add counter on battlefield cards (99 counters from the real rules text, a search field, Custom... for a name of your own, Mana icons). Solo only. Rulings in the details window: waiting for Kevin.
+- 2026-11-15, log entry 212: Rulings in the card details (/data/rulings, list format 11), picked neighbours overlap, a dropped group overlaps on the battlefield, level pile window labels, 218 counters.
 
 ## How the menus work today (so the plan fits it)
 - One menu component, `frontend/src/card-menu.js`, draws every menu (a title, items, items with quick amounts, headings that open a submenu, keyboard use).

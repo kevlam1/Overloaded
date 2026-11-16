@@ -224,6 +224,22 @@ same('the clicked card at the left end: it stays and all the others move right b
   same('the cards on each side keep one step between them (the whole side moves, not a few)', [Math.abs((xs[1] - xs[0]) - (xs[4] - xs[3])) < 0.02, Math.abs((xs[8] - xs[7]) - (xs[11] - xs[10])) < 0.02], [true, true]);
   same('the order of the cards never changes', xs.every((x, k) => k === 0 || x > xs[k - 1]), true);
 }
+// several picked cards (Shift and a click): cards next to each other are one group that keeps the resting step, the room is at the two ends of the group
+{
+  const many = (indices, n = 7, width = 1200) => handLayoutSelected({ count: n, width, cardWidth: 80, cardHeight: 112, indices });
+  const gaps = (xs) => xs.slice(1).map((x, k) => Math.round((x - xs[k]) * 100) / 100);
+  const plain7 = handLayout({ count: 7, width: 1200, cardWidth: 80, cardHeight: 112 });
+  const restStep = Math.round((plain7.slots[1].x - plain7.slots[0].x) * 100) / 100;
+  const adjacent = gaps(many([2, 3, 4]).slots.map((spot) => spot.x));
+  const wide = adjacent.map((gap) => Math.round((gap - restStep) * 100) / 100);
+  same('three picked cards in a row keep the step they have at rest between them (they overlap as in the resting hand); the room is a shift on each side of the group', wide, [0, 22, 0, 0, 22, 0]);
+  const apart = gaps(many([1, 4]).slots.map((spot) => spot.x)).map((gap) => Math.round((gap - restStep) * 100) / 100);
+  same('two picked cards that are not next to each other each get room on both sides (the old way)', apart, [22, 22, 0, 22, 22, 0]);
+  same('a group at the end of the hand has room only on its inner side', gaps(many([5, 6]).slots.map((spot) => spot.x)).map((gap) => Math.round((gap - restStep) * 100) / 100), [0, 0, 0, 0, 22, 0]);
+  same('the hand stays centred whatever is picked', [many([2, 3]), many([0, 6]), many([1, 3, 5])].map((r) => { const xs = r.slots.map((spot) => spot.x); return Math.abs(xs[0] - (1200 - (xs.at(-1) + 80))) < 0.02; }), [true, true, true]);
+  same('in a hand that fills its width a picked group still stays inside it', (() => { const xs = many([4, 5, 6], 12, 900).slots.map((spot) => spot.x); return xs[0] >= -0.01 && xs.at(-1) + 80 <= 900.01; })(), true);
+
+}
 same('a place that is not one of the cards, or a hand of one, is the plain hand', [sel(5, 99).slots.map((s2) => s2.x).join() === plain5.slots.map((s2) => s2.x).join(), sel(5, -1).slots.length, sel(1, 0).slots.length, sel(0, 0).slots.length], [true, 5, 1, 0]);
 same('the constant is what the tests assume', SPREAD, 0.275);
 

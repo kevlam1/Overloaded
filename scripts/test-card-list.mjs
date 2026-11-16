@@ -313,6 +313,17 @@ try {
     JSON.stringify({ oracle_id: 'o-Alchemy Only', digital: true }), JSON.stringify({ oracle_id: 'o-Alchemy Only', digital: true }),
   ]);
   const { list, counts } = await buildFromFiles(oracleFile, defaultFile);
+  // the rulings (Scryfall's rulings file): for the cards in the list only, in date order, nothing when no file is given
+  {
+    const rulingsFile = gz('rulings.jsonl.gz', [
+      { oracle_id: 'o-Sol Ring', source: 'wotc', published_at: '2020-05-05', comment: 'Late.' }, { oracle_id: 'o-Sol Ring', source: 'scryfall', published_at: '2019-01-01', comment: 'Early.' }, { oracle_id: 'o-Sol Ring', source: 'wotc', published_at: '2019-01-01', comment: 'Same day, later in the file.' },
+      { oracle_id: 'o-Alchemy Only', source: 'wotc', published_at: '2020-01-01', comment: 'Online only: not in the list.' }, { oracle_id: 'o-Goblin', source: 'wotc', published_at: '2020-01-01', comment: 'A token.' }, { oracle_id: 'o-Alpha', source: 'wotc', published_at: 'nope', comment: 'Bad date.' }, { oracle_id: 'o-Beta', source: 'wotc', published_at: '2020-01-01', comment: '   ' },
+    ].map((r) => JSON.stringify(r)));
+    const withRulings = await buildFromFiles(oracleFile, defaultFile, rulingsFile);
+    same('the rulings are only for cards in the list, in date order (a tie keeps the file order), the unusable ones left out', withRulings.rulings, { cards: { 'Sol Ring': [['2019-01-01', 's', 'Early.'], ['2019-01-01', 'w', 'Same day, later in the file.'], ['2020-05-05', 'w', 'Late.']] } });
+    same('...and the counts say so', [withRulings.counts.rulingsCards, withRulings.counts.rulingsRows], [1, 3]);
+    same('without a rulings file there are none (and the list is the same)', [(await buildFromFiles(oracleFile, defaultFile)).rulings, withRulings.list], [null, built]);
+  }
   same('files in, the same list as from memory', list, built);
   same('the counts describe every step', counts, { printings: 6, oracleRecords: 9, notCandidates: 3, onlineOnly: 1, noPrintingsKept: 1, kept: 5, withAlternateNames: 0, printingSets: 0, printingsKept: 0, printsCards: 0, printsRows: 0, rulesCards: 5 });
 

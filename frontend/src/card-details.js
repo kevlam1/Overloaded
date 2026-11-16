@@ -1,6 +1,7 @@
 // The details window of a card (Kevin, 2026-11-15): the large card on the left, and on the right its rules, mana value, type and the rest. The rules come from the site's own files (frontend/src/card-rules.js);
 // what the card list already knows (keywords, color identity, printed power and toughness) is shown at once, and the rest follows when the file has come. Card names and rules go in as text, never as markup.
-//   openCardDetails({ card, info, loader, returnFocus }): card, the card of the game (n, i, p?, b?); info, its entry in the card list (or null); loader, makeRulesLoader(); returnFocus, where the focus goes back to.
+//   openCardDetails({ card, info, loader, rulingsLoader, returnFocus }): card, the card of the game (n, i, p?, b?); info, its entry in the card list (or null); loader, makeRulesLoader(); rulingsLoader, makeRulingsLoader()
+//   (the rulings are a section at the end, loaded on their own so the rules show first); returnFocus, where the focus goes back to.
 import { imageUrl } from '../../shared/card-image.mjs';
 import { legalitiesOf } from '../../shared/card-rules.mjs';
 import { manaNode } from './mana-pips.js';
@@ -26,7 +27,7 @@ export function richText(text) {
   return fragment;
 }
 
-export function openCardDetails({ card, info = null, loader, returnFocus = null }) {
+export function openCardDetails({ card, info = null, loader, rulingsLoader = null, returnFocus = null }) {
   current?.close();
   const name = String(card?.n ?? '');
   const hasBack = card?.b === 1 || info?.b === 1;
@@ -84,6 +85,35 @@ export function openCardDetails({ card, info = null, loader, returnFocus = null 
     return section;
   }
 
+  // The rulings (Kevin, 2026-11-15: "rulings are found in card details"): a section at the end of the right side, newest last as Scryfall lists them, each with its date and who wrote it.
+  const rulingsBox = make('section', 'details-rulings-box');
+  function drawRulings(state, rows) {
+    rulingsBox.replaceChildren(make('h3', 'details-subhead', 'Rulings'));
+    if (state === 'ready') {
+      const list = make('ul', 'details-rulings');
+      for (const ruling of rows) {
+        const item = make('li', 'details-ruling');
+        item.append(make('span', 'details-ruling-meta', `${ruling.date} \u00b7 ${ruling.words}`));
+        const text = make('p', 'details-ruling-text');
+        text.append(richText(ruling.text));
+        item.append(text);
+        list.append(item);
+      }
+      rulingsBox.append(list);
+    } else {
+      const note = make('p', 'details-none', state === 'loading' ? 'Loading the rulings...' : state === 'failed' ? 'The rulings could not be loaded. Check your connection.' : 'No rulings for this card.');
+      rulingsBox.append(note);
+      if (state === 'failed') { const retry = make('button', 'secondary details-retry-rulings', 'Try again'); retry.type = 'button'; retry.addEventListener('click', () => startRulings()); rulingsBox.append(retry); }
+    }
+  }
+  async function startRulings() {
+    if (!rulingsLoader) return;
+    drawRulings('loading', []);
+    const result = await rulingsLoader.load(name);
+    if (!overlay.isConnected) return;
+    drawRulings(result.state, result.rows);
+  }
+
   const row = (label, value) => { const r = make('div', 'details-row'); r.append(make('dt', '', label), make('dd', '', value)); return r; };
 
   function drawBody(state, entry) {
@@ -115,6 +145,7 @@ export function openCardDetails({ card, info = null, loader, returnFocus = null 
       legal.append(grid);
       body.append(legal);
     }
+    if (rulingsLoader) body.append(rulingsBox); // (kept between redraws: it is drawn on its own when its file has come)
   }
 
   async function start() {
@@ -143,6 +174,7 @@ export function openCardDetails({ card, info = null, loader, returnFocus = null 
   current = { close: closeWindow };
   drawPicture();
   start();
+  startRulings();
   close.focus({ preventScroll: true });
   requestAnimationFrame(() => { if (overlay.isConnected) close.focus({ preventScroll: true }); }); // (the menu that opened this window gives the focus back to its own button as it closes: take it again)
   return { close: closeWindow };

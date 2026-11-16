@@ -50,6 +50,7 @@ const suites = [
   { name: 'how piles are drawn: the saved choice', cmd: node, args: ['scripts/test-pile-style.mjs'] },
   { name: 'searching a pile: names, letters in order, types', cmd: node, args: ['scripts/test-card-search.mjs'] },
   { name: 'the right-click menu of a pile: shuffle, draw, mill, move all', cmd: node, args: ['scripts/test-pile-menu.mjs'] },
+  { name: 'card rulings: the files the details window reads under the rules', cmd: node, args: ['scripts/test-card-rulings.mjs'] },
   { name: 'counters a card can be given: the catalog and named counters', cmd: node, args: ['scripts/test-counter-catalog.mjs'] },
   { name: 'card rules: the files the details window reads', cmd: node, args: ['scripts/test-card-rules.mjs'] },
   { name: 'the menu of several cards picked in the hand', cmd: node, args: ['scripts/test-group-menu.mjs'] },

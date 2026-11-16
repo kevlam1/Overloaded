@@ -9,6 +9,7 @@ import { createInterface } from 'node:readline';
 import { printingValue, readPrintingValue, SET_CODE } from '../../shared/printings.mjs';
 import { readRow } from '../../shared/card-prints.mjs';
 import { entryFromRecord } from '../../shared/card-rules.mjs';
+import { rowFromRecord } from '../../shared/card-rulings.mjs';
 
 const byCodeUnits = (a, b) => (a < b ? -1 : a > b ? 1 : 0); // code units, not locale
 
@@ -190,6 +191,7 @@ export function buildList(oracleRecords, printings) {
 export const serializeList = (list) => JSON.stringify(list);
 export const serializePrintings = (files) => JSON.stringify(files);
 export const serializePrints = (prints) => JSON.stringify(prints);
+export const serializeRulings = (rulings) => JSON.stringify(rulings); // (the rulings of every card, { cards: { name: [[date, source, text], ...] } }, split into /data/rulings/XX.json when published: shared/card-rulings.mjs)
 export const serializeRules = (rules) => JSON.stringify(rules); // (the rules of every card, { cards: { name: entry } }, split into /data/rules/XX.json when published: shared/card-rules.mjs)
 
 // A build that finds far fewer printings than this (there were 109,475 on 2026-10-29) means Scryfall changed something.
@@ -279,7 +281,7 @@ export async function* readJsonLines(path) {
 // Builds the list from two bulk files on disk. Returns { list, counts } where counts describe each filter step.
 // Both files are read one record at a time and only the small entries are kept: the Oracle file is 200 MB unpacked and
 // the Default file 620 MB, and a build machine should not need gigabytes of memory for a 4 MB list.
-export async function buildFromFiles(oraclePath, defaultPath) {
+export async function buildFromFiles(oraclePath, defaultPath, rulingsPath = null) {
   const printings = new PrintingSummary();
   const counts = { printings: 0, oracleRecords: 0, notCandidates: 0, onlineOnly: 0, noPrintingsKept: 0, kept: 0 };
   for await (const printing of readJsonLines(defaultPath)) { printings.add(printing); counts.printings++; }
@@ -305,5 +307,19 @@ export async function buildFromFiles(oraclePath, defaultPath) {
   Object.assign(counts, { printsCards: Object.keys(prints.cards).length, printsRows: Object.values(prints.cards).reduce((sum, rows) => sum + rows.length, 0) });
   const rules = { cards: Object.fromEntries(list.filter((entry, at) => at === 0 || list[at - 1].n !== entry.n).map((entry) => [entry.n, rulesByName.get(entry.n)])) }; // (in the order of the list, a name once)
   counts.rulesCards = Object.keys(rules.cards).length;
-  return { list, counts, printingFiles, prints, rules };
+  // The rulings (Scryfall's rulings file: one record per ruling, with the oracle id of its card), for the cards in the list only, in date order (a ruling that came first stays first: the sort is stable).
+  let rulings = null;
+  if (rulingsPath) {
+    const byName = new Map();
+    for await (const record of readJsonLines(rulingsPath)) {
+      const name = names.get(record?.oracle_id);
+      const row = name === undefined ? null : rowFromRecord(record);
+      if (!row) continue;
+      if (!byName.has(name)) byName.set(name, []);
+      byName.get(name).push(row);
+    }
+    rulings = { cards: Object.fromEntries(Object.keys(rules.cards).filter((name) => byName.has(name)).map((name) => [name, byName.get(name).sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))])) };
+    Object.assign(counts, { rulingsCards: Object.keys(rulings.cards).length, rulingsRows: Object.values(rulings.cards).reduce((sum, rows) => sum + rows.length, 0) });
+  }
+  return { list, counts, printingFiles, prints, rules, rulings };
 }

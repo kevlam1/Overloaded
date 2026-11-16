@@ -258,6 +258,10 @@ try {
   await openLibraryViewer();
   const libRows = await count('#viewer-list .card');
   check('the library can be looked at: every card, numbered from the top', !(await $hidden('viewer')) && libRows === parseInt((await pileCount('library')).split(': ')[1], 10) && (await ev(`document.querySelector('#viewer-list .viewer-depth').textContent`)) === '#1');
+  { // the marks of the top and the bottom card sit on the card's top edge and do not move the card: the first row is level, and every card is centred in its column (Kevin, 2026-11-15)
+    const lay = await ev("(() => { const cells = [...document.querySelectorAll('#viewer-list .viewer-card')]; const first = cells.slice(0, 7); return { tops: first.map((c) => Math.round(c.querySelector('.card').getBoundingClientRect().top)), off: cells.map((c) => { const a = c.getBoundingClientRect(); const b = c.querySelector('.card').getBoundingClientRect(); return Math.round(Math.abs((a.left + a.width / 2) - (b.left + b.width / 2))); }), ends: cells.filter((c) => c.dataset.end).map((c) => [c.dataset.end, c.querySelector('.viewer-end').textContent]), pill: (() => { const p = cells[0].querySelector('.viewer-end').getBoundingClientRect(); const c0 = cells[0].querySelector('.card').getBoundingClientRect(); return { centred: Math.round(Math.abs((p.left + p.width / 2) - (c0.left + c0.width / 2))), over: p.top < c0.top + 4 && p.bottom > c0.top }; })(), columns: getComputedStyle(document.getElementById('viewer-list')).gridTemplateColumns.split(' ').length }; })()");
+    check('in the library window the first row is level (the top card with its mark is not pushed down), every card is centred in its column, and the mark is centred on the card\'s top edge', new Set(lay.tops).size === 1 && lay.off.every((n) => n <= 1) && lay.pill.centred <= 1 && lay.pill.over && JSON.stringify(lay.ends) === JSON.stringify([['top', 'Top'], ['bottom', 'Bottom']]) && lay.columns === 7, JSON.stringify(lay));
+  }
   await press('viewer-close');
   check('the Close button closes the viewer', (await $hidden('viewer')));
 
@@ -1853,6 +1857,12 @@ try {
     const hand = await uidsNow();
     await plainClick(hand[1]); await shiftClick(hand[3]);
     check('Shift and a click adds a card to the picked ones: the card that was selected and the new one are picked, and it says how many', JSON.stringify(await pickedUids()) === JSON.stringify([hand[1], hand[3]]) && /^2 cards picked/.test(await $text('status')), JSON.stringify([await pickedUids(), await $text('status')]));
+    // picked cards that are next to each other overlap as they do at rest: the room is made beside the group (Kevin, 2026-11-15)
+    await shiftClick(hand[2]); await sleep(800);
+    const lefts = await ev("Object.fromEntries([...document.querySelectorAll('#hand > .card')].map((c) => [c.dataset.uid, c.getBoundingClientRect().left]))");
+    const dBetween = (x, y) => Math.round((lefts[y] - lefts[x]) * 10) / 10;
+    check('three picked cards in a row are as close to each other as two cards that are not picked (they overlap), not spread apart', Math.abs(dBetween(hand[1], hand[2]) - dBetween(hand[5], hand[6])) < 4 && Math.abs(dBetween(hand[2], hand[3]) - dBetween(hand[5], hand[6])) < 4 && dBetween(hand[3], hand[4]) > dBetween(hand[5], hand[6]) + 8, JSON.stringify({ d12: dBetween(hand[1], hand[2]), d23: dBetween(hand[2], hand[3]), d34: dBetween(hand[3], hand[4]), d56: dBetween(hand[5], hand[6]) }));
+    await shiftClick(hand[2]); await sleep(300);
     await shiftClick(hand[5]);
     check('a third Shift and click makes three', (await pickedUids()).length === 3 && /^3 cards picked/.test(await $text('status')));
     await sleep(700);
@@ -1960,6 +1970,8 @@ try {
       await m('mouseReleased', 640, 300, 0); await sleep(300);
       check('dragging one picked card carries ONE picture: the others are layers inside it behind it (not a separate pile that stays behind), it says how many cards it carries, and both are hidden in the hand', carrying.ghost === 1 && carrying.parts === 1 && carrying.separate === 0 && carrying.count === '2' && carrying.hidden === 2, JSON.stringify(carrying));
       check('letting go over the battlefield plays both picked cards', (await count('#battlefield .card')) === fieldBefore + 2 && (await count('#hand .card')) === 0 && /^Played 2 cards\./.test(await $text('status')), JSON.stringify([await count('#battlefield .card'), await count('#hand .card'), await $text('status')]));
+      const placed = await ev("[...document.querySelectorAll('#battlefield > .card')].map((c) => [Number(c.dataset.col), Number(c.dataset.row)])");
+      check('the two cards played together overlap: the one that was not dragged is two columns and a row up and to the left of the one dragged (it is not thrown into a corner)', placed.length >= 2 && (() => { const [a, b] = placed.slice(-2); return Math.abs(a[0] - b[0]) === 2 && Math.abs(a[1] - b[1]) === 1; })(), JSON.stringify(placed));
       for (let n = 0; n < 3; n++) { await press('draw'); await sleep(250); }
       await sleep(600);
       const three = await uidsNow();
@@ -1976,7 +1988,7 @@ try {
 
   // ---- the details window of a card: the large card on the left, the rules and the rest on the right (Kevin, 2026-11-15) ----
   {
-    const DETAILS_JSON = deckFrom('1 Lightning Bolt\n1 Sephiroth, Fabled SOLDIER\n5 Forest', 'Details deck', null, []);
+    const DETAILS_JSON = deckFrom('1 Lightning Bolt\n1 Sephiroth, Fabled SOLDIER\n1 Doubling Season\n4 Forest', 'Details deck', null, []);
     await open(DETAILS_JSON);
     await waitFor(async () => (await count('#hand .card')) === 7 || null, 8000, 100);
     await sleep(900);
@@ -2003,6 +2015,20 @@ try {
     check('and a button to see the back face of the picture, which shows it and then the front again', seph.flip === 'Show the back face' && await (async () => { await ev("document.querySelector('.details-flip').click()"); await sleep(150); const back = await win(); await ev("document.querySelector('.details-flip').click()"); await sleep(150); const front = await win(); return /\/back\//.test(back.src) && back.flip === 'Show the front face' && /\/front\//.test(front.src); })());
     await ev("document.querySelector('.details-close').click()"); await sleep(150);
     check('the Close button closes it, and a click on the dim space around it too', (await win()) === null && await (async () => { await rightClickByName('Forest'); await sleep(150); await pressMenuItem('View details'); await sleep(300); await ev("document.querySelector('.details-overlay').dispatchEvent(new MouseEvent('click', { bubbles: true }))"); await sleep(150); return (await win()) === null; })());
+    // the rulings (Kevin, 2026-11-15): a section at the end of the details, from the site's own files
+    const rulingsOf = () => ev("(() => { const b = document.querySelector('.details-rulings-box'); if (!b) return null; return { heading: b.querySelector('.details-subhead')?.textContent, note: b.querySelector('.details-none')?.textContent ?? null, items: [...b.querySelectorAll('.details-ruling')].map((i) => [i.querySelector('.details-ruling-meta').textContent, i.querySelector('.details-ruling-text').textContent]), retry: b.querySelector('.details-retry-rulings')?.textContent ?? null, last: document.querySelector('.details-body').lastElementChild === b }; })()");
+    await rightClickByName('Lightning Bolt'); await sleep(150); await pressMenuItem('View details');
+    await waitFor(async () => (await rulingsOf())?.note || (await rulingsOf())?.items.length || null, 8000, 100);
+    const boltRulings = await rulingsOf();
+    check('a card with no rulings (Lightning Bolt has none in Scryfall\'s file) says so under a Rulings heading, at the end of the details', boltRulings && boltRulings.heading === 'Rulings' && boltRulings.note === 'No rulings for this card.' && boltRulings.items.length === 0 && boltRulings.last, JSON.stringify(boltRulings));
+    await ev("document.querySelector('.details-close').click()"); await sleep(150);
+    await rightClickByName('Doubling Season'); await sleep(150); await pressMenuItem('View details');
+    await waitFor(async () => ((await rulingsOf())?.items.length ?? 0) >= 3 || null, 8000, 100);
+    const doubling = await rulingsOf();
+    check('a card with rulings lists them under the Rulings heading, each with its date and who wrote it, oldest first, and the text of the real ruling', doubling && doubling.items.length >= 3 && doubling.items.every(([meta]) => /^\d{4}-\d{2}-\d{2} \u00b7 (Wizards of the Coast|Scryfall)$/.test(meta)) && doubling.items.every(([meta], k) => k === 0 || meta.slice(0, 10) >= doubling.items[k - 1][0].slice(0, 10)) && doubling.items.some(([, text]) => /Doubling Season/.test(text)) && doubling.last, JSON.stringify(doubling));
+    if (process.argv.includes('--screenshot')) { await ev("document.querySelector('.details-rulings-box').scrollIntoView({ block: 'center' })"); await sleep(100); await browser.screenshot('scratch-solo-rulings.png'); }
+    check('the rules came too (the rulings are a section of their own, loaded beside them)', (await win()).rules.some((t) => /twice that many|double/i.test(t) || t.length > 20), JSON.stringify((await win()).rules).slice(0, 200));
+    await ev("document.querySelector('.details-close').click()"); await sleep(150);
     // when the rules cannot be loaded, the window says so and tries again; when the file has no such card it says that (a fresh page: the loader keeps the files it has fetched)
     await open(DETAILS_JSON); await waitFor(async () => (await count('#hand .card')) === 7 || null, 8000, 100); await sleep(900);
     await ev("window.__realFetch = window.fetch; window.fetch = (url, options) => (/\\/data\\/rules\\//.test(String(url)) ? Promise.resolve(new Response('no', { status: window.__rulesStatus ?? 500 })) : window.__realFetch(url, options)); window.__rulesStatus = 500;");
@@ -2019,6 +2045,17 @@ try {
     await waitFor(async () => /not available/.test(((await win())?.rules ?? []).join()) || null, 8000, 100);
     check('when the site has no rules file (a 404) the window says the rules are not available', /not available/.test(((await win())?.rules ?? []).join()), JSON.stringify(await win()));
     await ev("window.fetch = window.__realFetch"); await ev("document.querySelector('.details-close').click()"); await sleep(150);
+    // the rulings alone failing: the rules show, the rulings say they could not be loaded and offer Try again, and it works when the network is back
+    await open(DETAILS_JSON); await waitFor(async () => (await count('#hand .card')) === 7 || null, 8000, 100); await sleep(900);
+    await ev("window.__realFetch = window.fetch; window.fetch = (url, options) => (/\\/data\\/rulings\\//.test(String(url)) ? Promise.resolve(new Response('no', { status: 500 })) : window.__realFetch(url, options));");
+    await rightClickByName('Doubling Season'); await sleep(150); await pressMenuItem('View details');
+    await waitFor(async () => (await rulingsOf())?.retry || null, 8000, 100);
+    const rf = await rulingsOf();
+    check('when only the rulings cannot be loaded the rules still show, and the rulings say so and offer Try again', rf && /could not be loaded/.test(rf.note) && rf.retry === 'Try again' && ((await win())?.rules ?? []).some((t) => t.length > 10), JSON.stringify(rf));
+    await ev("window.fetch = window.__realFetch"); await ev("document.querySelector('.details-retry-rulings').click()");
+    await waitFor(async () => ((await rulingsOf())?.items.length ?? 0) >= 3 || null, 8000, 100);
+    check('Try again brings the rulings', ((await rulingsOf())?.items.length ?? 0) >= 3);
+    await ev("document.querySelector('.details-close').click()"); await sleep(150);
   }
 
   // ---- Add counter: flying, trample, lore and the rest from a menu that can be searched, a name of your own, and the symbols of the rules text in the details window (Kevin, 2026-11-15) ----
@@ -2044,7 +2081,7 @@ try {
     check('a card on the battlefield has Add counter in its menu, after the two +1/+1 lines', menu1 && menu1.items.indexOf('Add counter') === menu1.items.indexOf('+1/+1 counters X...') + 1, JSON.stringify(menu1?.items));
     await pressMenuItem('Add counter'); await sleep(200);
     const fly = await ev("(() => { const f = document.querySelector('.card-menu-fly:not([hidden])'); if (!f) return null; const lines = [...f.querySelectorAll(':scope > [role=menuitem]')]; return { filter: document.activeElement === f.querySelector('.card-menu-filter'), first: lines.slice(0, 4).map((l) => l.textContent.trim()), last: lines.at(-1).textContent.trim(), count: lines.length, icons: lines.filter((l) => l.querySelector('.mana-icon')).length, inside: (() => { const r = f.getBoundingClientRect(); return r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight; })() }; })()");
-    check('Add counter opens a box with a search field (it has the focus) and the counters: Custom..., +1/+1, -1/-1, Flying ..., many with their icons, inside the window', fly && fly.filter && fly.first.join() === 'Custom...,+1/+1,-1/-1,Flying' && fly.last === 'Vortex' && fly.count > 90 && fly.icons > 30 && fly.inside, JSON.stringify(fly));
+    check('Add counter opens a box with a search field (it has the focus) and the counters: Custom..., +1/+1, -1/-1, Flying ..., many with their icons, inside the window', fly && fly.filter && fly.first.join() === 'Custom...,+1/+1,-1/-1,Flying' && fly.last === 'Winch' && fly.count > 200 && fly.icons > 30 && fly.inside, JSON.stringify(fly));
     if (process.argv.includes('--screenshot')) await browser.screenshot('scratch-solo-counters.png');
     await typeIn('tra');
     const shown = await ev("[...document.querySelectorAll('.card-menu-fly:not([hidden]) > [role=menuitem]')].filter((l) => !l.hidden).map((l) => l.textContent.trim())");

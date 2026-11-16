@@ -1,10 +1,17 @@
 // The kinds of counter a card can be given from its right-click menu: "Add counter" (Kevin, 2026-11-15). Plain data and plain functions with no browser code, so Node can test it (scripts/test-counter-catalog.mjs).
 //
-// Where the list comes from: the wiki page Kevin named (https://mtg.fandom.com/wiki/Counter_(marker)/Full_List) could not be read from here (HTTP 402), so the names are the counters the cards themselves put on
+// Where the list comes from: the wiki page Kevin named (https://mtg.fandom.com/wiki/Counter_(marker)/Full_List) could not be read from here (HTTP 402), so the first names are the counters the cards themselves put on
 // permanents, found in the rules text of every card in our own card data (shared/card-rules.mjs, the Oct 26 Oracle Cards file): every "<name> counter" phrase in 34,142 cards, counted by how many cards use it.
-// The list below is those with at least two cards, in the order of how many (the most common first), without the ones that are only for players (energy, poison, experience, rad, ticket, speed), plus the thirteen keyword
-// counters of the Comprehensive Rules (rule 122.1b) first. Any other counter can be typed in ("Custom..."), so a card newer than this list is never stuck.
+// COMMON is those with at least two cards, most common first, without the ones that are only for players (energy, poison, experience, rad, ticket, speed); the thirteen keyword counters of the Comprehensive Rules
+// (rule 122.1b) come first. Then Kevin gave the wiki page as a PDF (2026-11-15) and RARE is every counter on it that was missing (read with pdftotext: 170 headings read cleanly and 31 more through the page's
+// overlapping text, each checked against the rules text of our cards; the deprecated +X/+Y kinds and the player counters left out). Any other counter can be typed in ("Custom..."), so a card newer than this list is never stuck.
 //
+const RARE = ['aegis', 'awakening', 'bait', 'blessing', 'bloodline', 'bloodstain', 'book', 'brain', 'bribery', 'burden', 'carrion', 'component', 'contested', 'corruption', 'credit', 'croak', 'crystal', 'cube', 'currency', 'death', 'descent', 'despair', 'discovery', 'duty', 'ember', 'enlightened', 'eruption',
+  'everything', 'eyeball', 'eyestalk', 'feeding', 'fellowship', 'fetch', 'filibuster', 'foreshadow', 'fury', 'gem', 'ghostform', 'glyph', 'hack', 'harmony', 'hatching', 'hoofprint', 'hope', 'hourglass', 'hunger', 'impostor', 'incarnation', 'incubation', 'influence', 'intel', 'intervention', 'invitation',
+  'isolation', 'javelin', 'judgment', 'kick', 'knickknack', 'knowledge', 'loot', 'magnet', 'manabond', 'manifestation', 'mannequin', 'mask', 'matrix', 'midway', 'mine', 'mire', 'music', 'necrodermis', 'night', 'ore', 'pain', 'palliation', 'paralyzation', 'pause', 'petal', 'petrification', 'phylactery', 'phyresis',
+  'plot', 'polyp', 'possession', 'pupa', 'rejection', 'reprieve', 'rev', 'revival', 'ribbon', 'ritual', 'rope', 'rust', 'scroll', 'shell', 'shred', 'silver', 'sleep', 'sleight', 'slumber', 'soot', 'spark', 'story', 'strife', 'supply', 'suspect', 'takeover', 'task', 'theft', 'tower', 'training', 'trap', 'treasure',
+  'unity', 'unlock', 'valor', 'vitality', 'volatile', 'vow', 'voyage', 'wage', 'winch'];
+
 // A counter is stored on a card as a key of its counters (card.ct, shared/zones.mjs): the fixed kinds keep their one-letter keys (p, m, l, c, t) and every other counter is its slug (flying, first-strike, lore).
 export const FIXED = { p: '+1/+1', m: '-1/-1', l: 'Loyalty', c: 'Charge', t: 'Time' };
 const RESERVED = new Set(Object.getOwnPropertyNames(Object.prototype)); // (constructor, toString and the like: a counter with one of these names would read as something that is already on every object)
@@ -55,6 +62,8 @@ export function counterMenuItems() {
   for (const key of KEYWORD_COUNTERS) items.push(line(key));
   for (const key of ['l', 'c', 't']) items.push(line(key));
   for (const key of COMMON) items.push(line(key));
+  for (const key of RARE) items.push(line(key));
   return items;
 }
-export const COUNTER_CATALOG_SIZE = 2 + KEYWORD_COUNTERS.length + 3 + COMMON.length;
+export const COUNTER_CATALOG_SIZE = 2 + KEYWORD_COUNTERS.length + 3 + COMMON.length + RARE.length;
+export const ALL_COUNTER_KEYS = [...KEYWORD_COUNTERS, ...Object.keys(FIXED), ...COMMON, ...RARE];

@@ -37,6 +37,7 @@ import { LIBRARY_KEY, LEGACY_KEY, readLibrary } from '../../../shared/deck-libra
 import { makeLookup } from '../../../shared/card-lookup.mjs';
 import { openCardDetails } from '../../src/card-details.js';
 import { makeRulesLoader } from '../../src/card-rules.js';
+import { makeRulingsLoader } from '../../src/card-rulings.js';
 import { friendlyMessage } from '../../../shared/friendly-error.mjs';
 import { setFaceDown, makeGame, draw, moveCard, shuffleLibrary, mulligan, setTapped, turnOver, untapAll, beginTurn, adjustLife, boardCells, settleBoard, isLandCard, placeCard, placeStack, arrangeBoard, zoneCounts, reorderHand } from '../../../shared/zones.mjs';
 import { gameWrites, joinGame, readPublic } from '../../../shared/game-sync.mjs';
@@ -105,6 +106,7 @@ function lookupReady() {
   lookupLoad ??= loadCardList().then((cards) => makeLookup(cards)).catch((error) => { lookupLoad = null; throw error; });
   return lookupLoad;
 }
+const rulingsLoader = makeRulingsLoader();
 const rulesLoader = makeRulesLoader();
 let lookup = null;
 let game = null; // your game as you see it now
@@ -310,7 +312,7 @@ function pickFromMenu(uid, id, amount) {
   if (!found) return;
   if (id === 'modify') { modifyOpen = true; render(); $('marks-amount').focus(); return; }
   if (id === 'ping') { sendPing(found.card, found.zone); return; }
-  if (id === 'details') { openCardDetails({ card: found.card, info: lookup?.(found.card) ?? null, loader: rulesLoader, returnFocus: document.activeElement instanceof HTMLElement ? document.activeElement : null }); return; }
+  if (id === 'details') { openCardDetails({ card: found.card, info: lookup?.(found.card) ?? null, loader: rulesLoader, rulingsLoader, returnFocus: document.activeElement instanceof HTMLElement ? document.activeElement : null }); return; }
   try {
     const action = menuAction(id, found.card, amount, { printed: printedOf(found.card, lookup) });
     if (!action) return;

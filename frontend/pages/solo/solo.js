@@ -20,6 +20,7 @@ import { openCardDetails } from '../../src/card-details.js';
 import { askText } from '../../src/text-box.js';
 import { slugOf, counterLabel } from '../../../shared/counter-catalog.mjs';
 import { makeRulesLoader } from '../../src/card-rules.js';
+import { makeRulingsLoader } from '../../src/card-rulings.js';
 import { applyScry, topCards } from '../../../shared/scry.mjs';
 import { openScryWindow } from '../../src/scry-window.js';
 import { mountCardHover } from '../../src/card-hover.js';
@@ -57,6 +58,7 @@ let viewing = null; // the pile being looked at: 'library', 'graveyard', 'exile'
 let viewTop = null; // when only the top few cards of the library are being looked at: how many
 let viewBottom = false; // the cards shown are the bottom few of the library, not the top
 let viewReveal = false; // the cards in the viewer are revealed (Reveal top X): the window says so
+const rulingsLoader = makeRulingsLoader(); // (the rulings of a card, the same way: one small file, fetched when its details are opened)
 const rulesLoader = makeRulesLoader(); // the rules of a card come from the site's own files, one small file per group of cards, fetched when a card's details are opened
 const peeking = new Set(); // uids of two-sided cards in the hand that are shown on their back face (only a look, for you: not saved, nothing changes in the game)
 let topRevealed = false; // "Play with top revealed": the top card of the library is shown face up on its pile (not saved; a new game turns it off)
@@ -306,7 +308,7 @@ function pickFromMenu(uid, id, amount) {
       .then((key) => { if (key === null || !findCard(uid)) return; apply(() => changeCounter(game, uid, key, 1), `Added a ${counterLabel(key)} counter to ${found.card.n}.`); });
     return;
   }
-  if (id === 'details') { openCardDetails({ card: found.card, info: lookup?.(found.card) ?? null, loader: rulesLoader, returnFocus: document.activeElement instanceof HTMLElement ? document.activeElement : null }); return; } // the rules, mana value, type and the rest of the card (frontend/src/card-details.js)
+  if (id === 'details') { openCardDetails({ card: found.card, info: lookup?.(found.card) ?? null, loader: rulesLoader, rulingsLoader, returnFocus: document.activeElement instanceof HTMLElement ? document.activeElement : null }); return; } // the rules, mana value, type and the rest of the card (frontend/src/card-details.js)
   if (id === 'peek') { // a look at the other face of a two-sided card in the hand
     if (found.zone !== 'hand' || found.card.b !== 1) return;
     if (peeking.has(uid)) peeking.delete(uid); else peeking.add(uid);
@@ -664,7 +666,9 @@ function dropOnBoard({ uid, from, col, row, whole = false, group = null }) {
     if (group && from === 'hand') { // the cards picked with Shift and a click in the hand: the one dragged is put where it was let go, the others on the next free cells
       const ordered = game.zones.hand.filter((card) => group.includes(card.uid)).map((card) => card.uid);
       multi.clear(); selected = null;
-      apply(() => ordered.filter((each) => each !== uid).reduce((next, each) => moveCard(next, each, 'battlefield'), moveCard(game, uid, 'battlefield', { cell: { col, row } })), `Played ${ordered.length} cards.`);
+      // (the others first, each two columns and a row further up and to the left, so the one dragged is the last and on top: they overlap as the picture carried did)
+      const behind = ordered.filter((each) => each !== uid);
+      apply(() => moveCard(behind.reduce((next, each, k) => moveCard(next, each, 'battlefield', { cell: { col: Math.max(0, col - 2 * (behind.length - k)), row: Math.max(0, row - (behind.length - k)) } }), game), uid, 'battlefield', { cell: { col, row } }), `Played ${ordered.length} cards.`);
       return;
     }
     if (group && from === 'battlefield') { // the cards picked up with a rectangle, moved together: each keeps its place relative to the others

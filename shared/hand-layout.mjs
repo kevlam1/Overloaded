@@ -94,9 +94,12 @@ export function handLayoutSelected({ count, width, cardWidth, cardHeight, index,
   const n = plain.slots.length;
   const picked = [...new Set(Array.isArray(indices) ? indices : [index])].filter((i) => Number.isInteger(i) && i >= 0 && i < n).sort((a, b) => a - b);
   if (picked.length === 0 || n < 2) return plain;
+  // Picked cards that are next to each other are one group (Kevin, 2026-11-15): they keep the step they have at rest, so they overlap as they do in the resting hand, and the room is made at the two ends of the group.
+  const runs = [];
+  for (const at of picked) { const last = runs.at(-1); if (last && last.end === at - 1) last.end = at; else runs.push({ start: at, end: at }); }
   const shift = cardWidth * SPREAD;
-  const step = cardStep({ slots: n, width: Math.max(0, width - 2 * shift * picked.length), cardWidth });
-  const total = cardWidth + step * (n - 1) + 2 * shift * picked.length;
+  const step = cardStep({ slots: n, width: Math.max(0, width - 2 * shift * runs.length), cardWidth });
+  const total = cardWidth + step * (n - 1) + 2 * shift * runs.length;
   const x0 = (width - total) / 2;
-  return { step, slots: plain.slots.map((spot, k) => ({ ...spot, x: round2(x0 + k * step + 2 * shift * picked.filter((i) => i < k).length + (picked.includes(k) ? shift : 0)) })) };
+  return { step, slots: plain.slots.map((spot, k) => ({ ...spot, x: round2(x0 + k * step + 2 * shift * runs.filter((run) => run.end < k).length + (runs.some((run) => run.start <= k && k <= run.end) ? shift : 0)) })) };
 }
