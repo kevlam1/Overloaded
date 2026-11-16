@@ -14,6 +14,8 @@ import { mountCommandZone } from '../../src/command-zone.js';
 import { taxAction } from '../../../shared/commander-zone.mjs';
 import { pileMenuItems, pileAction } from '../../../shared/pile-menu.mjs';
 import { handMenuItems, handAction } from '../../../shared/hand-menu.mjs';
+import { handGroupItems, groupAction, needsOrder } from '../../../shared/group-menu.mjs';
+import { openOrderWindow } from '../../src/order-window.js';
 import { applyScry, topCards } from '../../../shared/scry.mjs';
 import { openScryWindow } from '../../src/scry-window.js';
 import { mountCardHover } from '../../src/card-hover.js';
@@ -81,7 +83,7 @@ $('life-area').addEventListener('contextmenu', (event) => {
   openCardMenu({ title: 'Your counters', items: playerMenuItems(game), x: fromKeyboard ? box.left + box.width / 2 : event.clientX, y: fromKeyboard ? box.top + box.height / 2 : event.clientY, returnFocus: event.currentTarget, onPick: (id) => { const action = playerAction(id, game); if (action) apply(() => action.run(game), action.message); } });
 });
 
-const cardNodes = makeCardNodes({ onSelect: (uid) => select(uid), isSelected: (uid) => uid === selected || multi.has(uid), onMark: (uid, hit) => markOnCard(uid, hit), onMenu: (uid, where) => openMenuFor(uid, where), onBadge: (uid, kind) => clearBadge(uid, kind), printedStats: (card) => printedOf(card, lookup) });
+const cardNodes = makeCardNodes({ onSelect: (uid, event) => select(uid, event), isSelected: (uid) => uid === selected || multi.has(uid), onMark: (uid, hit) => markOnCard(uid, hit), onMenu: (uid, where) => openMenuFor(uid, where), onBadge: (uid, kind) => clearBadge(uid, kind), printedStats: (card) => printedOf(card, lookup) });
 const place = cardNodes.place;
 // The piles as stacks of cards (src/pile-stack.js) and the command zone with its two outlined slots and the commander tax (src/command-zone.js).
 const stacks = Object.fromEntries([['library', 'Library'], ['graveyard', 'Graveyard'], ['exile', 'Exile']].map(([zone, label]) => [zone, mountPileStack($(`pile-${zone}`), { zone, label })]));
@@ -231,9 +233,21 @@ function apply(run, message = '') {
   return made;
 }
 
-function select(uid) {
+// Shift and a click on a card of the hand adds it to the picked cards or takes it out again (Kevin, 2026-11-15); a right-click on a picked card then acts on all of them (openGroupMenu). A click without Shift on a card of
+// the hand picks just that card. The picked cards of the battlefield (a rectangle) and of the hand are never mixed.
+const inHand = (uid) => game.zones.hand.some((card) => card.uid === uid);
+function select(uid, event = null) {
+  if (event?.shiftKey && inHand(uid)) {
+    if ([...multi].some((each) => !inHand(each))) multi.clear();
+    if (multi.size === 0 && selected && selected !== uid && inHand(selected)) multi.add(selected);
+    if (multi.has(uid)) multi.delete(uid); else multi.add(uid);
+    if (multi.size <= 1) { selected = multi.size === 1 ? [...multi][0] : null; multi.clear(); say(''); } else { selected = multi.has(uid) ? uid : [...multi].at(-1); say(`${multi.size} cards picked. Right-click one of them for what to do with all of them.`); }
+    modifyOpen = false;
+    render();
+    return;
+  }
   if (uid !== selected) modifyOpen = false;
-  if (!multi.has(uid)) multi.clear(); // (a click on a card that is not in the group leaves the group)
+  if (!multi.has(uid) || inHand(uid)) multi.clear(); // (a click on a card that is not in the group leaves the group; a plain click on a card of the hand picks just that one)
   selected = uid;
   render();
 }
@@ -242,8 +256,39 @@ function select(uid) {
 function openMenuFor(uid, where) {
   const found = findCard(uid);
   if (!found) return;
+  if (found.zone === 'hand' && multi.size > 1 && multi.has(uid)) { openGroupMenu(where); return; } // (several cards of the hand picked: the menu is for all of them)
   select(uid);
   openCardMenu({ title: found.card.n, items: menuItems(found.card, found.zone, { peek: true }), x: where.x, y: where.y, returnFocus: where.element, onPick: (id, amount) => pickFromMenu(uid, id, amount) });
+}
+
+// The menu of the picked cards of the hand: Play, Discard, Exile, Top and Bottom of library (each asks for the order first) and Move to. The cards go in the order they have in the hand.
+function openGroupMenu(where) {
+  const picked = game.zones.hand.filter((card) => multi.has(card.uid));
+  if (picked.length < 2) return;
+  const uids = picked.map((card) => card.uid);
+  openCardMenu({ title: `${picked.length} cards`, items: handGroupItems(), x: where.x, y: where.y, returnFocus: where.element, onPick: (id) => pickFromGroupMenu(id, uids) });
+}
+function pickFromGroupMenu(id, uids) {
+  const run = (order = null) => {
+    try {
+      const action = groupAction(id, uids, { order });
+      if (!action) return;
+      if (id === 'group:top' || id === 'group:bottom') play('shuffle');
+      multi.clear(); selected = null;
+      apply(() => action.run(game), action.message);
+    } catch (error) { say(error.message, true); }
+  };
+  if (!needsOrder(id)) { run(); return; }
+  const cards = uids.map((uid) => game.zones.hand.find((card) => card.uid === uid)).filter(Boolean);
+  const top = id === 'group:top';
+  openOrderWindow({
+    title: top ? 'Put on top of your library' : 'Put on the bottom of your library',
+    note: top ? 'The left card ends up as the top card. Drag a card to move it, or use its arrows.' : 'The right card ends up as the very bottom card. Drag a card to move it, or use its arrows.',
+    cards,
+    nodeFor: (card) => cardNodes.nodeFor(card, false),
+    places: (index, count) => (top ? (index === 0 ? 'Top' : `#${index + 1}`) : (index === count - 1 ? 'Bottom' : `#${index + 1}`)),
+    onDone: (order) => run(order),
+  });
 }
 
 function pickFromMenu(uid, id, amount) {
@@ -758,7 +803,7 @@ function pickFromHandMenu(id, amount) {
   });
 }
 handSort.mountOrders($('hand-order-settings'));
-mountBoardDrag({ board: () => $('battlefield'), onDrop: dropOnBoard, groupOf: (uid) => (multi.size > 1 && multi.has(uid) ? [...multi] : null), hand: () => $('hand-section'), onDropHand: dropOnHand, onHandOver: (over) => handView.carry(over), onReorderHand: reorderInHand, handZone: () => handView.zone(), handHit: (x, y) => handView.over(x, y), zoneSource, pileAt, onDropPile: dropOnPile, isEnabled: () => Boolean(game) });
+mountBoardDrag({ board: () => $('battlefield'), onDrop: dropOnBoard, groupOf: (uid) => (multi.size > 1 && multi.has(uid) && !inHand(uid) ? [...multi] : null), hand: () => $('hand-section'), onDropHand: dropOnHand, onHandOver: (over) => handView.carry(over), onReorderHand: reorderInHand, handZone: () => handView.zone(), handHit: (x, y) => handView.over(x, y), zoneSource, pileAt, onDropPile: dropOnPile, isEnabled: () => Boolean(game) });
 
 $('mulligan').addEventListener('click', doMulligan);
 $('new-game').addEventListener('click', () => { if (confirm('Start a new game? This one will be lost.')) { play('shuffle'); deal({ pause: SHUFFLE_PAUSE_MS }); } });

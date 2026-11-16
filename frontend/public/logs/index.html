@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.206</span></h1>
-    <p class="lede">206 entries, Oct 25 to Nov 15, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
+    <h1>Build log <span class="version">Version 0.207</span></h1>
+    <p class="lede">207 entries, Oct 25 to Nov 15, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
   </div>
 </header>
 
@@ -23,7 +23,7 @@
     <div class="weeks-row">
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
-<a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">96</span></a>
+<a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">97</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
     </div>
     <div class="tools">
@@ -1961,7 +1961,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-1" aria-labelledby="week-1-title">
-<h2 class="week-head" id="week-1-title"><button type="button" aria-expanded="false" aria-controls="week-1-days"><span class="wname">Week 1</span><span class="range">Nov 9 to Nov 15</span><span class="week-count">96 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-1-title"><button type="button" aria-expanded="false" aria-controls="week-1-days"><span class="wname">Week 1</span><span class="range">Nov 9 to Nov 15</span><span class="week-count">97 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-1-days">
 <div class="day">
 <h3 class="day-title">Monday 9 November <span class="day-count">4</span></h3>
@@ -3368,7 +3368,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Sunday 15 November <span class="day-count">8</span></h3>
+<h3 class="day-title">Sunday 15 November <span class="day-count">9</span></h3>
 <div class="entries">
 <article class="entry" id="entry-199" data-n="199">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-199-body">
@@ -3489,6 +3489,21 @@
 <p><strong>What I checked:</strong> <code>test-pile-menu.mjs</code> (48, with face down exile and every move clearing the mark), <code>test-zones.mjs</code> (268), all 66 quick suites and the solo check (701): the new menu list, the box beside each heading, Move top X cards with each choice, the face down card in the exile window, View bottom 2 numbering, remembered numbers, Draw card and Draw X flying, the arrows turning, the thin bar, the Mulligan lifted copy, and the sort checks now starting from Auto on. I looked at screenshots of the library menu with View open and of the hand menu. Not checked: the table page with these menus in a real game (its code changed for View from the bottom and Move top X cards, only the unit tests cover them), phone width, a real Scryfall picture in the face down window.</p>
 <ul><li><strong>A check that sometimes fails:</strong> &quot;when the pointer leaves the area the hand goes down again&quot; fails about one run in three (the cards come back a few pixels apart from where they started). It did before this round too; I did not find the cause.</li></ul>
 <p><strong>My mistakes this round:</strong> my first flyouts were separate elements outside the menu, which made every old check that counts menus see two (I moved them inside); the first sort checks all failed because Auto is off now; and the hand bar stayed 34 px tall because a button rule I did not see kept a minimum height.</p>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-207" data-n="207">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-207-body">
+    <span class="num">207</span>
+    <span class="head-text"><span class="title">Picking several cards of the hand with Shift, a menu for all of them, and a window to set the order</span><span class="sum">Thoughts on selecting several cards in the hand with Shift and a click, with a right-click menu (graveyard, exile, battlefield, top or bottom of the library) and maybe a draggable pop-up for the order.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-207-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>Thoughts on selecting several cards in the hand with Shift and a click, with a right-click menu (graveyard, exile, battlefield, top or bottom of the library) and maybe a draggable pop-up for the order. I said sure.</li></ul>
+<p><strong>What changed</strong> (<code>shared/group-menu.mjs</code>, <code>frontend/src/order-window.js</code>, <code>frontend/pages/solo/solo.js</code>, <code>frontend/src/card-nodes.js</code>, <code>frontend/src/style.css</code>, tests)</p>
+<ul><li><strong>Picking:</strong> Shift and a click on a card of the hand adds it to the picked cards or takes it out again; a click without Shift picks just that card; Escape or a click on empty space lets the group go. The picked cards and the cards picked with a rectangle on the battlefield are never mixed. It says how many are picked.</li><li><strong>The menu:</strong> a right-click on a picked card opens a menu titled &quot;3 cards&quot;: Play, Discard, Exile, Top of library..., Bottom of library... and Move to (command zone, sideboard). Each line does all the cards at once, in the order of the hand, and one message says what happened.</li><li><strong>The order window:</strong> Top and Bottom of library first open a window with the cards side by side (the first on the left, marked Top, or the right one marked Bottom): drag a card to another place or use the arrows under it, then Done. Cancel and Escape change nothing. The window uses the Scry window's look.</li><li>A picked hand card dragged to the battlefield no longer carries the whole group (the group drag is only for battlefield cards).</li><li><strong>Not built:</strong> dragging one picked card to move the whole group, the table page, a touch version of picking.</li></ul>
+<p><strong>What I checked:</strong> <code>test-group-menu.mjs</code> (23, with random groups that never lose a card), all 67 quick suites and the solo check: Shift and a click adding and taking out cards (with a dispatched click and one real Shift click with the mouse), the menu lines, the window with a real mouse drag, the arrows, Done putting two cards on the library in the order chosen (seen in the library's top two), Discard for three cards and Escape. I looked at screenshots of the menu and the window. Not checked: phone width, a hand of 10 or more cards with the fan overlapping, the table page.</p>
+<p><strong>My mistakes this round:</strong> taking a card out of the picked group left it highlighted as the selected card (my check caught it), and my first real Shift and click test clicked the card that was already selected because the hand was down to two cards.</p>
   </div></div></div>
 </article>
 </div>

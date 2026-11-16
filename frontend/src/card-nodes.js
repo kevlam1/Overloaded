@@ -199,7 +199,7 @@ export function makeCardNodes({ onSelect = () => {}, isSelected = () => false, r
           const badge = badgeHit(event);
           if (hit) { event.stopPropagation(); if (onMark(card.uid, hit) !== false) showToast(button, markToast(hit)); }
           else if (badge) { event.stopPropagation(); onBadge(card.uid, badge); }
-          else onSelect(card.uid);
+          else onSelect(card.uid, event);
         });
         button.addEventListener('contextmenu', (event) => {
           const hit = markHit(event);

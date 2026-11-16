@@ -1819,6 +1819,78 @@ try {
     void library0;
   }
 
+  // ---- picking several cards of the hand with Shift and a click, and the menu for all of them (Kevin, 2026-11-15) ----
+  {
+    await open(DECK_JSON);
+    await waitFor(async () => (await count('#hand .card')) === 7 || null, 8000, 100);
+    await sleep(900);
+    const uidsNow = () => ev("[...document.querySelectorAll('#hand > .card')].map((c) => c.dataset.uid)");
+    const shiftClick = (uid) => ev(`document.querySelector('#hand > .card[data-uid="${uid}"]').dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, shiftKey: true }))`);
+    const plainClick = (uid) => ev(`document.querySelector('#hand > .card[data-uid="${uid}"]').click()`);
+    const pickedUids = () => ev("[...document.querySelectorAll('#hand > .card.selected')].map((c) => c.dataset.uid)");
+    const rightClickCard = (uid) => ev(`(() => { const c = document.querySelector('#hand > .card[data-uid="${uid}"]'); const r = c.getBoundingClientRect(); c.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: r.x + r.width / 2, clientY: r.y + r.height / 2 })); })()`);
+    const typeNumber = async (text) => { await ev("document.querySelector('.number-box input').select()"); await browser.send('Input.insertText', { text }); };
+    const enterKey = async () => { await browser.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, text: String.fromCharCode(13) }); await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 }); await sleep(250); };
+    const gy = async () => Number((await pileCount('graveyard')).split(': ').at(-1));
+    const hand = await uidsNow();
+    await plainClick(hand[1]); await shiftClick(hand[3]);
+    check('Shift and a click adds a card to the picked ones: the card that was selected and the new one are picked, and it says how many', JSON.stringify(await pickedUids()) === JSON.stringify([hand[1], hand[3]]) && /^2 cards picked/.test(await $text('status')), JSON.stringify([await pickedUids(), await $text('status')]));
+    await shiftClick(hand[5]);
+    check('a third Shift and click makes three', (await pickedUids()).length === 3 && /^3 cards picked/.test(await $text('status')));
+    await shiftClick(hand[3]);
+    check('Shift and a click on a picked card takes it out again', JSON.stringify(await pickedUids()) === JSON.stringify([hand[1], hand[5]]), JSON.stringify(await pickedUids()));
+    await rightClickCard(hand[1]); await sleep(150);
+    if (process.argv.includes('--screenshot')) await browser.screenshot('scratch-solo-groupmenu.png');
+    const groupMenu = await menuState();
+    check('a right-click on a picked card opens a menu for all of them: titled "2 cards", with Play, Discard, Exile, Top of library, Bottom of library and Move to', groupMenu && groupMenu.title === '2 cards' && JSON.stringify(groupMenu.items.slice(0, 6)) === JSON.stringify(['Play', 'Discard', 'Exile', 'Top of library...', 'Bottom of library...', 'Move to']), JSON.stringify(groupMenu));
+    await pressMenuItem('Top of library...'); await sleep(250);
+    const win = () => ev("(() => { const w = document.querySelector('.order-window'); return w ? { title: w.getAttribute('aria-label'), uids: [...w.querySelectorAll('.scry-card')].map((c) => c.dataset.uid), places: [...w.querySelectorAll('.scry-place')].map((p) => p.textContent), doneFocused: document.activeElement === w.querySelector('.scry-done') } : null; })()");
+    const w1 = await win();
+    check('Top of library opens a window with the two cards in the order of the hand, the left one marked Top, and the Done button has the focus', w1 && /top of your library/.test(w1.title) && JSON.stringify(w1.uids) === JSON.stringify([hand[1], hand[5]]) && w1.places[0] === 'Top' && w1.doneFocused, JSON.stringify(w1));
+    if (process.argv.includes('--screenshot')) await browser.screenshot('scratch-solo-order.png');
+    // drag the first picture past the second one with a real mouse
+    const centres = await ev("[...document.querySelectorAll('.order-window .scry-picture')].map((p) => { const r = p.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })");
+    const m = (type, x, y, buttons) => browser.send('Input.dispatchMouseEvent', { type, x, y, button: type === 'mouseMoved' ? 'none' : 'left', buttons, clickCount: type === 'mouseMoved' ? 0 : 1 });
+    await m('mouseMoved', centres[0].x, centres[0].y, 0); await m('mousePressed', centres[0].x, centres[0].y, 1);
+    await m('mouseMoved', centres[0].x + 30, centres[0].y, 1); await m('mouseMoved', centres[1].x + 40, centres[1].y, 1); await sleep(60);
+    const dragging = await ev("document.querySelectorAll('.order-window .order-dragging').length");
+    await m('mouseReleased', centres[1].x + 40, centres[1].y, 0); await sleep(150);
+    const w2 = await win();
+    check('dragging the first card past the second swaps them (the card follows the pointer while it moves)', dragging === 1 && JSON.stringify(w2.uids) === JSON.stringify([hand[5], hand[1]]) && w2.places[0] === 'Top', JSON.stringify({ dragging, w2 }));
+    await ev("document.querySelector('.order-window .scry-card:first-child .scry-move:last-child').click()"); await sleep(100);
+    await ev("document.querySelector('.order-window .scry-card:last-child .scry-move:first-child').click()"); await sleep(100);
+    check('the arrows under a card move it later and earlier', JSON.stringify((await win()).uids) === JSON.stringify([hand[5], hand[1]]) || JSON.stringify((await win()).uids) === JSON.stringify([hand[1], hand[5]]));
+    // set the order to [hand[5], hand[1]] and finish
+    if (JSON.stringify((await win()).uids) !== JSON.stringify([hand[5], hand[1]])) await ev("document.querySelector('.order-window .scry-card:first-child .scry-move:last-child').click()");
+    await sleep(100);
+    const libraryBefore = Number((await pileCount('library')).split(': ').at(-1));
+    await ev("document.querySelector('.order-window .scry-done').click()"); await sleep(300);
+    check('Done puts them on the library in that order, takes them out of the hand, and says so', !(await win()) && (await count('#hand .card')) === 5 && Number((await pileCount('library')).split(': ').at(-1)) === libraryBefore + 2 && /^Put 2 cards on the top of your library\./.test(await $text('status')) && (await pickedUids()).length === 0, JSON.stringify([await count('#hand .card'), await pileCount('library'), await $text('status')]));
+    await ev("document.getElementById('pile-caret-library').click()"); await sleep(80); await pressMenuItem('View'); await sleep(100); await pressMenuItem('Top X cards...'); await sleep(150); await typeNumber('2'); await enterKey(); await sleep(250);
+    const topTwo = await ev("[...document.querySelectorAll('#viewer-list .card')].map((c) => c.dataset.uid)");
+    check('the top card of the library is the first card of the order and the next is the second', JSON.stringify(topTwo) === JSON.stringify([hand[5], hand[1]]), JSON.stringify({ topTwo, hand }));
+    await press('viewer-close'); await sleep(100);
+    // Discard for the group, and Escape lets the group go
+    const rest = await uidsNow();
+    await plainClick(rest[0]); await shiftClick(rest[2]); await shiftClick(rest[3]);
+    const gy0 = await gy();
+    await rightClickCard(rest[2]); await sleep(150); await pressMenuItem('Discard'); await sleep(300);
+    check('Discard puts all three picked cards in the graveyard at once', (await count('#hand .card')) === 2 && (await gy()) === gy0 + 3 && /^Discarded 3 cards\./.test(await $text('status')), JSON.stringify([await count('#hand .card'), await gy(), await $text('status')]));
+    const left = await uidsNow();
+    await plainClick(left[0]); await shiftClick(left[1]);
+    await browser.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await sleep(200);
+    check('Escape lets the picked cards go', (await pickedUids()).length === 0);
+    await plainClick(left[0]); await shiftClick(left[1]); await plainClick(left[1]);
+    check('a click without Shift on a card of the hand picks just that one', JSON.stringify(await pickedUids()) === JSON.stringify([left[1]]), JSON.stringify(await pickedUids()));
+    // a real Shift and click with the mouse on the card on top (the last card of the fan has nothing over it)
+    await plainClick((await uidsNow())[0]); // (the last card of the fan is the one to Shift and click, so another card is picked first)
+    const lastUid = (await uidsNow()).at(-1);
+    const lastBox = await ev(`(() => { const r = document.querySelector('#hand > .card[data-uid="${lastUid}"]').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
+    await m('mouseMoved', lastBox.x, lastBox.y, 0); await sleep(300);
+    await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: lastBox.x, y: lastBox.y, button: 'left', buttons: 1, clickCount: 1, modifiers: 8 }); await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: lastBox.x, y: lastBox.y, button: 'left', buttons: 0, clickCount: 1, modifiers: 8 }); await sleep(200);
+    check('a real Shift and click with the mouse picks too (the selected card and this one)', (await pickedUids()).length === 2 && /^2 cards picked/.test(await $text('status')), JSON.stringify([await pickedUids(), await $text('status')]));
+  }
+
   // ---- turning a two-sided card over (real list entries: Sephiroth, Valakut Awakening, Delver, Aclazotz, and Fire // Ice which has no back) ----
   // Seven cards in a seven-card deck, so all of them are in the hand and nothing depends on luck.
   const TWO_SIDED = deckFrom('1 Sephiroth, Fabled SOLDIER\n1 Valakut Awakening\n1 Delver of Secrets\n1 Aclazotz, Deepest Betrayal\n1 Fire // Ice\n1 Sol Ring\n1 Forest', 'Two-sided deck', null, []); // no commander: the page would guess one from the legendary creatures and take it out of the hand

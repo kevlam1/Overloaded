@@ -4140,6 +4140,24 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 ---
 
+## 207. Picking several cards of the hand with Shift, a menu for all of them, and a window to set the order (2026-11-15)
+
+**What I asked for**
+- Thoughts on selecting several cards in the hand with Shift and a click, with a right-click menu (graveyard, exile, battlefield, top or bottom of the library) and maybe a draggable pop-up for the order. I said sure.
+
+**What changed** (`shared/group-menu.mjs`, `frontend/src/order-window.js`, `frontend/pages/solo/solo.js`, `frontend/src/card-nodes.js`, `frontend/src/style.css`, tests)
+- **Picking:** Shift and a click on a card of the hand adds it to the picked cards or takes it out again; a click without Shift picks just that card; Escape or a click on empty space lets the group go. The picked cards and the cards picked with a rectangle on the battlefield are never mixed. It says how many are picked.
+- **The menu:** a right-click on a picked card opens a menu titled "3 cards": Play, Discard, Exile, Top of library..., Bottom of library... and Move to (command zone, sideboard). Each line does all the cards at once, in the order of the hand, and one message says what happened.
+- **The order window:** Top and Bottom of library first open a window with the cards side by side (the first on the left, marked Top, or the right one marked Bottom): drag a card to another place or use the arrows under it, then Done. Cancel and Escape change nothing. The window uses the Scry window's look.
+- A picked hand card dragged to the battlefield no longer carries the whole group (the group drag is only for battlefield cards).
+- **Not built:** dragging one picked card to move the whole group, the table page, a touch version of picking.
+
+**What I checked:** `test-group-menu.mjs` (23, with random groups that never lose a card), all 67 quick suites and the solo check: Shift and a click adding and taking out cards (with a dispatched click and one real Shift click with the mouse), the menu lines, the window with a real mouse drag, the arrows, Done putting two cards on the library in the order chosen (seen in the library's top two), Discard for three cards and Escape. I looked at screenshots of the menu and the window. Not checked: phone width, a hand of 10 or more cards with the fan overlapping, the table page.
+
+**My mistakes this round:** taking a card out of the picked group left it highlighted as the selected card (my check caught it), and my first real Shift and click test clicked the card that was already selected because the hand was down to two cards.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

@@ -1412,3 +1412,9 @@ body.playing.solo .pile-head .pile-caret { width: 1.05rem; height: 1.05rem; bord
 /* a card exiled face down: you see it, with a label (an opponent would not; the live table does not offer it yet) */
 .card.exiled-down { outline: 2px dashed color-mix(in srgb, var(--text) 55%, transparent); outline-offset: -2px; }
 .card.exiled-down::before { content: 'Face down'; position: absolute; z-index: 3; top: 0.2rem; left: 0.2rem; padding: 0 0.35rem; border-radius: 0.6rem; background: rgba(0, 0, 0, 0.72); color: #fff; font-size: 0.62rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; pointer-events: none; }
+
+/* the window that puts cards in an order (frontend/src/order-window.js): the pictures are dragged, not clicked */
+.order-window .scry-picture { cursor: grab; touch-action: none; user-select: none; }
+.order-window .scry-picture .card { pointer-events: none; }
+.order-window .scry-card.order-dragging { position: relative; z-index: 3; opacity: 0.9; cursor: grabbing; }
+.order-window .scry-card.order-dragging .scry-picture { cursor: grabbing; box-shadow: 0 0.6rem 1.4rem rgba(0, 0, 0, 0.5); }
