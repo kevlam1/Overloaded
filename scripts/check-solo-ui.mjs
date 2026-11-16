@@ -958,6 +958,7 @@ try {
         await sleep(120);
         await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: hb.x, y: hb.y, button: 'left', buttons: 0, clickCount: 1 }); await sleep(250);
         check('the picked group dropped on the hand puts all its cards into the hand: the battlefield is empty, the hand is ' + onField + ' cards bigger, and it says so', (await count('#battlefield > .card')) === 0 && (await ev("document.querySelectorAll('#hand .card').length")) === handBefore + onField && new RegExp('^Moved ' + onField + ' cards back to your hand\.').test(await $text('status')), JSON.stringify({ handBefore, onField, field: await count('#battlefield > .card'), status: await $text('status') }));
+        check('and the cards that were carried are not left looking picked in the hand: none is selected, and a click on one of them selects just that one (Kevin, 2026-11-15)', (await count('#hand .card.selected')) === 0 && await (async () => { await ev("document.querySelector('#hand .card').click()"); await sleep(150); return (await count('#hand .card.selected')) === 1; })(), String(await count('#hand .card.selected')));
       }
     }
     await browser.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await sleep(150);

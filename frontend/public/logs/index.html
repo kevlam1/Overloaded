@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.212</span></h1>
-    <p class="lede">212 entries, Oct 25 to Nov 15, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
+    <h1>Build log <span class="version">Version 0.213</span></h1>
+    <p class="lede">213 entries, Oct 25 to Nov 15, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
   </div>
 </header>
 
@@ -23,7 +23,7 @@
     <div class="weeks-row">
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
-<a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">102</span></a>
+<a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
     </div>
     <div class="tools">
@@ -1961,7 +1961,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-1" aria-labelledby="week-1-title">
-<h2 class="week-head" id="week-1-title"><button type="button" aria-expanded="false" aria-controls="week-1-days"><span class="wname">Week 1</span><span class="range">Nov 9 to Nov 15</span><span class="week-count">102 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-1-title"><button type="button" aria-expanded="false" aria-controls="week-1-days"><span class="wname">Week 1</span><span class="range">Nov 9 to Nov 15</span><span class="week-count">103 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-1-days">
 <div class="day">
 <h3 class="day-title">Monday 9 November <span class="day-count">4</span></h3>
@@ -3368,7 +3368,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Sunday 15 November <span class="day-count">14</span></h3>
+<h3 class="day-title">Sunday 15 November <span class="day-count">15</span></h3>
 <div class="entries">
 <article class="entry" id="entry-199" data-n="199">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-199-body">
@@ -3579,6 +3579,21 @@
 <ul><li><strong>Rulings:</strong> the card list build now also downloads Scryfall's rulings file (5.4 MB, the third bulk file) and writes the rulings of every card into 256 small files, <code>/data/rulings/XX.json</code>, in the same shard as the card's rules. Measured on the real file: 78,948 rulings on 19,875 cards of our list, 17.4 MB as text, 4.7 MB compressed in all, 29 KB compressed for the biggest file (a card's window fetches one file, about 18 KB). The list format is 11, so the next Vercel build downloads the three files once and rebuilds the list, then reuses it. A row is the date, who wrote it (Wizards or Scryfall) and the text, in date order; the build checks every row, the order and that Doubling Season and Humility have at least three rulings each (I first used Sol Ring and Lightning Bolt for that, and the check refused the real data: Scryfall has no rulings for either).</li><li><strong>The window:</strong> a Rulings section at the end of the details, loaded on its own so the rules show first: each ruling with its date and author, symbols in the text drawn as in the rules; &quot;No rulings for this card.&quot; when there are none; if it cannot be loaded it says so and offers Try again. On the solo table and the table page. The cost is on Vercel's side (the files are served, and the browser keeps what it has fetched); about 18 KB a card the first time.</li><li><strong>Picked cards in a row (3):</strong> cards that are next to each other in the group keep the step they have at rest, so they overlap like the resting hand; the room is made at the two ends of the group (cards that are apart each still get room on both sides).</li><li><strong>A group dropped on the battlefield (4):</strong> the one dragged goes where it is let go and the others go behind it, each two columns and a row further up and to the left, so they overlap like the picture carried, instead of being thrown to the nearest free corner.</li><li><strong>Counters (5):</strong> the wiki PDF has 170 counter headings that read cleanly and 31 more that came out garbled (the page's own overlay text), which I matched against the rules text of our cards. 119 were missing from the menu and are added (the catalog is 218 counters now, found one by one: awakening, bloodline, bloodstain, burden, contested, corruption, currency, eyeball, eyestalk ...). Left out on purpose: the deprecated +X/+Y kinds, the player counters (energy, poison, experience, rad, ticket), and &quot;Keyword&quot;, which is a category. One heading I could not read, &quot;Prey?&quot;, is not added.</li><li><strong>The library window (6):</strong> my first version put the Top and Bottom label above the card in the flow, which pushed that card down; I read &quot;off centre&quot; as that, since the cards in a column were centred. The label is now drawn over the card's top edge, centred, and the card keeps its place; the check measures that the first row is level and every card is centred in its column. If I misread this, tell me what you see.</li></ul>
 <p><strong>What I checked:</strong> <code>test-card-rulings.mjs</code> (41), <code>test-card-list.mjs</code> (243, with the rulings), <code>test-card-list-build.mjs</code> (183: the third download, the files published, the cache, a damaged or missing file, the request counts), <code>test-hand.mjs</code> (121), <code>test-counter-catalog.mjs</code> (33), all 70 quick suites, and the solo check: the Rulings section for a card with none and for Doubling Season (date and author, oldest first, text of the real ruling, at the end), the rulings failing alone and Try again, the three picked cards overlapping like resting ones, the two cards dropped on the battlefield one column pair and a row apart, and the library window level and centred. I compared Doubling Season's first ruling with the raw record (same date, source and text). I looked at a screenshot of the rulings. Not checked: a real picture beside the rulings, phone width, the build on Vercel (the next push to main).</p>
 <p><strong>My mistakes this round:</strong> I picked Sol Ring and Lightning Bolt as the cards the rulings build insists on, and neither has a ruling; the first real run refused the data.</p>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-213" data-n="213">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-213-body">
+    <span class="num">213</span>
+    <span class="head-text"><span class="title">Cards carried from the battlefield to the hand were left looking picked</span><span class="sum">Dragging several cards from the battlefield to the hand left them all looking selected in the hand, but they did not act as a group.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-213-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>Dragging several cards from the battlefield to the hand left them all looking selected in the hand, but they did not act as a group.</li></ul>
+<p><strong>What changed</strong> (<code>frontend/pages/solo/solo.js</code>, <code>scripts/check-solo-ui.mjs</code>)</p>
+<ul><li>A picked group now remembers the zone it was picked in (the battlefield for a rectangle, the hand for Shift and a click). When any of its cards is no longer in that zone the group is let go, so cards moved together (or one by one) are not left looking picked. A click on one of them then selects just that one.</li></ul>
+<p><strong>What I checked:</strong> the solo check (765, all passed), including a new check right after the group drop on the hand: no card is selected, and a click selects exactly one. I did not look at a screenshot for this one.</p>
+<p><strong>My mistakes this round:</strong> I built the group so that its picked cards stayed picked wherever they went, since only their ids were kept; the group drop test I wrote before did not look at the hand afterwards.</p>
   </div></div></div>
 </article>
 </div>

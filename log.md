@@ -4253,6 +4253,20 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 ---
 
+## 213. Cards carried from the battlefield to the hand were left looking picked (2026-11-15)
+
+**What I asked for**
+- Dragging several cards from the battlefield to the hand left them all looking selected in the hand, but they did not act as a group.
+
+**What changed** (`frontend/pages/solo/solo.js`, `scripts/check-solo-ui.mjs`)
+- A picked group now remembers the zone it was picked in (the battlefield for a rectangle, the hand for Shift and a click). When any of its cards is no longer in that zone the group is let go, so cards moved together (or one by one) are not left looking picked. A click on one of them then selects just that one.
+
+**What I checked:** the solo check (765, all passed), including a new check right after the group drop on the hand: no card is selected, and a click selects exactly one. I did not look at a screenshot for this one.
+
+**My mistakes this round:** I built the group so that its picked cards stayed picked wherever they went, since only their ids were kept; the group drop test I wrote before did not look at the hand afterwards.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

@@ -51,6 +51,7 @@ let deck = null;
 let lookup = null;
 let game = null;
 let selected = null; // the uid of the selected card
+let multiZone = null; // the zone the picked cards are in ('battlefield' for a rectangle, 'hand' for Shift and a click): a group is picked in ONE zone and is let go when a card leaves it, so cards moved together are not left looking picked
 const multi = new Set(); // the uids of the cards picked up by dragging a rectangle over the battlefield (E, Q and F then act on all of them)
 // (The card preview at the right of the screen was taken out of the solo table on 2026-11-14 and will come back for the table page: the card is read from the picture on hover, with Alt.)
 let modifyOpen = false; // the counters and power/toughness panel is shown (from Modify, in the card menu or the selected-card buttons)
@@ -151,6 +152,7 @@ function keepShownOrder() {
 
 // ---- drawing the whole table ----
 function render() {
+  if (multi.size > 0 && [...multi].some((each) => findCard(each)?.zone !== multiZone)) multi.clear(); // (a picked card has left the zone it was picked in, with the others or alone: the group is over)
   $('turn').textContent = String(game.turn);
   $('life').textContent = String(game.life);
   lifeChips.update(chipEntries(game.pc));
@@ -246,6 +248,7 @@ const inHand = (uid) => game.zones.hand.some((card) => card.uid === uid);
 function select(uid, event = null) {
   if (event?.shiftKey && inHand(uid)) {
     if ([...multi].some((each) => !inHand(each))) multi.clear();
+    multiZone = 'hand';
     if (multi.size === 0 && selected && selected !== uid && inHand(selected)) multi.add(selected);
     if (multi.has(uid)) multi.delete(uid); else multi.add(uid);
     if (multi.size <= 1) { selected = multi.size === 1 ? [...multi][0] : null; multi.clear(); say(''); } else { selected = multi.has(uid) ? uid : [...multi].at(-1); say(`${multi.size} cards picked. Right-click one of them for what to do with all of them.`); }
@@ -641,6 +644,7 @@ document.addEventListener('pointerup', () => {
   marqueeEnded = true;
   setTimeout(() => { marqueeEnded = false; }, 0);
   multi.clear();
+  multiZone = 'battlefield';
   for (const uid of done.hits) multi.add(uid);
   selected = null;
   say(multi.size > 1 ? `${multi.size} cards picked. E or Q taps them, F flips them.` : '');
