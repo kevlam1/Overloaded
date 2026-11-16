@@ -1391,3 +1391,24 @@ body.playing.solo #my-board { padding: 0.15rem 0 0; }
 .scry-arrows { display: flex; gap: 0.3rem; }
 .scry-buttons { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1rem; }
 .pile-stack[data-revealed="true"] .stack-face { outline: 2px solid var(--gold, #d9b45f); }
+
+/* Menus (Kevin, 2026-11-15): a heading (View, Move to) opens its lines in a box of its own beside it, with a chevron that turns round when the box opens on the left; the carets of the piles and the
+   hand turn upside down while their menu is open; the hand bar is a thin pill like the pile names. */
+.card-menu-fly { position: fixed; z-index: 81; width: max-content; min-width: 11rem; max-width: 18rem; max-height: calc(100vh - 16px); overflow-y: auto; padding: 0.25rem 0; background: var(--card); color: var(--text); border: 1px solid var(--line); border-radius: 0.6rem; box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.35); }
+.card-menu-fly[hidden] { display: none; }
+.card-menu .card-menu-subitem { padding-left: 0.8rem; }
+.card-menu .has-sub .card-menu-arrow { flex: 0 0 auto; margin-left: 0.8rem; transition: rotate 0.15s; }
+.card-menu .has-sub[data-side="left"] .card-menu-arrow { rotate: 180deg; }
+.card-menu .has-sub[aria-expanded="true"] { background: color-mix(in srgb, var(--accent) 22%, transparent); }
+.card-menu .has-sub[aria-expanded="true"]:hover, .card-menu .has-sub[aria-expanded="true"]:focus-visible { background: var(--accent); color: var(--accent-text); }
+.pile-caret svg, .hand-caret svg { transition: rotate 0.15s; }
+.pile-caret[aria-expanded="true"] svg, .hand-caret[aria-expanded="true"] svg { rotate: 180deg; }
+@media (prefers-reduced-motion: reduce) { .card-menu .has-sub .card-menu-arrow, .pile-caret svg, .hand-caret svg { transition: none; } }
+body.playing.solo .hand-bar:not([hidden]) { gap: 0.3rem; padding: 0.05rem 0.4rem; border-radius: 0.9rem; font-size: 0.66rem; letter-spacing: 0.05em; text-transform: uppercase; }
+body.playing.solo .hand-bar .hand-sort, body.playing.solo .hand-bar .hand-sort-toggle, body.playing.solo .hand-bar .hand-sort-now { min-height: 0; padding: 0 0.45rem; font-size: 0.64rem; line-height: 1.05rem; }
+body.playing.solo .hand-bar .hand-caret { width: 1.05rem; height: 1.05rem; border-radius: 50%; }
+body.playing.solo .pile-head { align-self: flex-start; height: 1.3rem; margin-block: 0.2rem; padding: 0 0.15rem 0 0.55rem; border: 1px solid var(--line); border-radius: 0.9rem; background: var(--glass); font-size: 0.66rem; letter-spacing: 0.05em; text-transform: uppercase; }
+body.playing.solo .pile-head .pile-caret { width: 1.05rem; height: 1.05rem; border-radius: 50%; }
+/* a card exiled face down: you see it, with a label (an opponent would not; the live table does not offer it yet) */
+.card.exiled-down { outline: 2px dashed color-mix(in srgb, var(--text) 55%, transparent); outline-offset: -2px; }
+.card.exiled-down::before { content: 'Face down'; position: absolute; z-index: 3; top: 0.2rem; left: 0.2rem; padding: 0 0.35rem; border-radius: 0.6rem; background: rgba(0, 0, 0, 0.72); color: #fff; font-size: 0.62rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; pointer-events: none; }

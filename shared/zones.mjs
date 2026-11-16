@@ -158,7 +158,8 @@ function withCell(game, card, cell = null) {
 
 // Moves one card to a zone. position: 'top' or 'bottom' of that pile (see DEFAULT_POSITION). cell: where on the battlefield grid its top-left corner goes if it is moved there ({ col, row }; cards may overlap). A card that leaves the
 // battlefield is untapped; one that arrives there remembers the turn it arrived.
-export function moveCard(game, uid, to, { position, cell = null } = {}) {
+// faceDown: only for a move to exile ("exile face down": you can see the card, an opponent could not): the card gets xd, which any other move takes off again.
+export function moveCard(game, uid, to, { position, cell = null, faceDown = false } = {}) {
   if (!ZONES.includes(to)) throw new Error(`There is no zone called ${to}.`);
   const where = position ?? DEFAULT_POSITION[to];
   if (where !== 'top' && where !== 'bottom') throw new Error('A position is "top" or "bottom".');
@@ -170,6 +171,8 @@ export function moveCard(game, uid, to, { position, cell = null } = {}) {
   if (leaving && card.tok) return { ...game, zones }; // a token that leaves the battlefield stops existing
   const moved = { ...card, tapped: to === 'battlefield' ? card.tapped : false, turnEntered: to === 'battlefield' ? (from === 'battlefield' ? card.turnEntered : game.turn) : null };
   if (leaving) for (const key of BATTLEFIELD_STATE) delete moved[key]; // counters, the modifier, the note, face-down, sick and noUntap stay behind
+  delete moved.xd;
+  if (to === 'exile' && faceDown) moved.xd = true;
   if (to === 'battlefield' && from !== 'battlefield' && entersSick(moved)) moved.sick = true; // a creature that comes in is summoning sick, unless it has printed haste
   if (to === 'battlefield' && from !== 'battlefield') { // it takes the cell it was dropped on, or the first empty cell (lands from the bottom-left, the rest from the top-left)
     if (cell && !validCell(cell.col, cell.row)) throw new Error('That is not a space on the battlefield.');
@@ -612,6 +615,7 @@ export function checkGame(game) {
       if (zone !== 'battlefield' && (card.tapped || card.turnEntered !== null)) problems.push(`card ${card.uid} is tapped or has an entry turn outside the battlefield`);
       if (zone === 'battlefield' && !Number.isInteger(card.turnEntered)) problems.push(`battlefield card ${card.uid} has no entry turn`);
       if (zone === 'battlefield' && ('px' in card || 'py' in card) && !validCell(card.px, card.py)) problems.push(`battlefield card ${card.uid} has a cell that is not on the grid`);
+      if ('xd' in card && !(card.xd === true && zone === 'exile')) problems.push(`card ${card.uid} has a damaged exiled-face-down mark`);
       if (zone !== 'battlefield') {
         for (const key of [...BATTLEFIELD_STATE, 'tok', 'pt', 'cl']) if (key in card) problems.push(`card ${card.uid} has ${key} outside the battlefield`);
       }

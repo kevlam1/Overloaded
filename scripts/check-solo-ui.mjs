@@ -490,6 +490,22 @@ try {
     check('a card drawn comes out of the library as a small picture of the card back (a flying copy that starts at the pile size, over the library), with the real card hidden meanwhile', early1 && hiddenWhileFlying === 'hidden' && distance(early1, lib) < 90 && early1.w < 150, JSON.stringify({ early1, hiddenWhileFlying, lib }));
     check('it grows and moves toward the hand on the way, and turns over (the back is squeezed to nothing and the face is seen)', mid1 && mid1.w > early1.w && distance(mid1, lib) > distance(early1, lib), JSON.stringify({ early1, mid1 }));
     check('when it lands the flying copy is gone and the real card is shown', late1 === null && landed === 'visible', JSON.stringify({ late1, landed }));
+    // Draw card and Draw X in the library's menu fly the cards out of the library like the Draw button (Kevin, 2026-11-15)
+    {
+      const handNow = () => count('#hand .card');
+      const h0 = await handNow();
+      await ev("document.getElementById('pile-caret-library').click()"); await sleep(80); await pressMenuItem('Draw card'); await sleep(25);
+      const menuFlight = await flightAt();
+      await sleep(1000);
+      check('Draw card in the library menu flies the card out of the library like the Draw button (a flying copy at the pile), and the card lands in the hand', menuFlight && distance(menuFlight, lib) < 90 && (await handNow()) === h0 + 1 && (await flightAt()) === null, JSON.stringify({ menuFlight, hand: await handNow(), h0 }));
+      await ev("document.getElementById('pile-caret-library').click()"); await sleep(80); await pressMenuItem('Draw X...'); await sleep(150);
+      await ev("document.querySelector('.number-box input').select()"); await browser.send('Input.insertText', { text: '3' });
+      await browser.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, text: String.fromCharCode(13) }); await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
+      let sawFlight = false; let sawSecond = false;
+      for (let n = 0; n < 40; n++) { await sleep(40); const f = await flightAt(); if (f) { if (sawFlight && (await handNow()) > h0 + 1) sawSecond = true; sawFlight = true; } }
+      await sleep(900);
+      check('Draw X with 3 draws them one after another, each flying, and says so', sawFlight && sawSecond && (await handNow()) === h0 + 4 && (await flightAt()) === null && /^Drew 3 cards\./.test(await $text('status')), JSON.stringify({ sawFlight, sawSecond, hand: await handNow(), h0, status: await $text('status') }));
+    }
     // the library shuffle riffle: card backs over the pile in a menu shuffle, gone afterwards
     { const p = lib; await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p.x, y: p.y }); await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: p.x, y: p.y, button: 'right', buttons: 2, clickCount: 1 }); await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: p.x, y: p.y, button: 'right', buttons: 0, clickCount: 1 }); await sleep(150); }
     await ev("[...document.querySelectorAll('#card-menu [role=menuitem], .card-menu button')].find((b) => /^Shuffle/.test(b.textContent.trim()))?.click()");
@@ -534,6 +550,12 @@ try {
     const move = (p) => browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p.x, y: p.y });
     const click = async (p) => { await move(p); await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: p.x, y: p.y, button: 'left', buttons: 1, clickCount: 1 }); await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: p.x, y: p.y, button: 'left', buttons: 0, clickCount: 1 }); await sleep(120); };
     const bar = () => ev("(() => { const b = document.querySelector('.hand-bar'); const r = b.getBoundingClientRect(); return { hidden: b.hidden, text: b.querySelector('.hand-count').textContent, cx: r.left + r.width / 2, top: r.top, bottom: r.bottom }; })()");
+    // Auto (the hand kept sorted) starts OFF in a browser that never chose (Kevin, 2026-11-15); the sort checks below are about Auto being on, so it is switched on and the page reloaded first
+    await ev("localStorage.removeItem('overloaded.handSortOn')"); await ev('location.reload()'); await sleep(1500);
+    await waitFor(async () => (await count('#hand .card')) === 7 || null, 15000, 100); await sleep(900);
+    check('the Auto switch starts off when nobody has chosen', (await ev("document.querySelector('.hand-sort-toggle').dataset.state")) === 'off');
+    await ev("localStorage.setItem('overloaded.handSortOn', '1')"); await ev('location.reload()'); await sleep(1500);
+    await waitFor(async () => (await count('#hand .card')) === 7 || null, 15000, 100); await sleep(900);
     const middle = await rectOf('#hand .card', 3);
     await move({ x: 5, y: 5 }); await sleep(300);
     check('with the pointer away from the hand there is no count under it', (await bar()).hidden === true);
@@ -542,6 +564,23 @@ try {
     const cardsBottom = await ev("Math.max(...[...document.querySelectorAll('#hand > .card')].map((c) => c.getBoundingClientRect().bottom))");
     check('with the pointer over the hand it says "Hand: 7" under the middle of it', shown.hidden === false && shown.text === 'Hand: 7' && Math.abs(shown.cx - middle.x) < 140 && shown.top > 900 && shown.bottom <= 1000, JSON.stringify({ shown, middle, cardsBottom }));
     if (process.argv.includes('--screenshot')) await browser.screenshot('scratch-solo-handbar.png');
+    const barBoxes = await ev("(() => { const b = document.querySelector('.hand-bar'); return { bar: Math.round(b.getBoundingClientRect().height), kids: [...b.children].map((k) => [k.className, Math.round(k.getBoundingClientRect().height), getComputedStyle(k).lineHeight, getComputedStyle(k).minHeight, getComputedStyle(k).paddingTop]) }; })()");
+    check('the hand bar is a thin pill (at most 28 px tall)', barBoxes.bar <= 28, JSON.stringify(barBoxes));
+    {
+      const turn = (id) => ev("(() => { const el = document.getElementById(" + JSON.stringify(id) + "); return { open: el.getAttribute('aria-expanded'), rotate: getComputedStyle(el.querySelector('svg')).rotate }; })()");
+      const handClosed = await turn('hand-caret');
+      const c = await rectOf('#hand-caret'); await click(c); await sleep(300);
+      const handOpen = await turn('hand-caret');
+      await browser.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await sleep(300);
+      const handAfter = await turn('hand-caret');
+      check('the arrow beside the hand count turns upside down while its menu is open and back when it closes', handClosed.open === 'false' && handOpen.open === 'true' && handOpen.rotate !== handClosed.rotate && /180deg|^180/.test(handOpen.rotate) && handAfter.open === 'false' && handAfter.rotate === handClosed.rotate, JSON.stringify({ handClosed, handOpen, handAfter }));
+      const libClosed = await turn('pile-caret-library');
+      await ev("document.getElementById('pile-caret-library').click()"); await sleep(300);
+      const libOpen = await turn('pile-caret-library');
+      await browser.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await sleep(300);
+      check('the arrows beside the pile names turn the same way', libClosed.open === 'false' && libOpen.open === 'true' && /180deg|^180/.test(libOpen.rotate), JSON.stringify({ libClosed, libOpen }));
+      await move({ x: middle.x, y: middle.y }); await sleep(400);
+    }
     // the sorts: Cost one way (low to high), the other way, off (the hand as it was)
     const order = () => ev("[...document.querySelectorAll('#hand > .card')].map((c) => c.dataset.uid)");
     const costs = () => ev("[...document.querySelectorAll('#hand > .card')].map((c) => { const text = (c.querySelector('.hand-cost')?.dataset.cost ?? '').split('//')[0]; return (text.match(/\\{[^}]*\\}/g) ?? []).reduce((n, symbol) => n + (/^\\{\\d+\\}$/.test(symbol) ? Number(symbol.slice(1, -1)) : /X/.test(symbol) ? 0 : 1), 0); })");
@@ -664,8 +703,8 @@ try {
     const heads = await ev("['library', 'graveyard', 'exile'].map((zone) => { const head = document.querySelector('#pile-' + zone).parentElement.querySelector('.pile-head'); const pile = document.getElementById('pile-' + zone); const caret = head.querySelector('.pile-caret'); return { name: head.querySelector('.pile-name').textContent, above: head.getBoundingClientRect().bottom <= pile.getBoundingClientRect().top + 2, caretRight: caret.getBoundingClientRect().left >= head.querySelector('.pile-name').getBoundingClientRect().right - 1, labelOnPile: getComputedStyle(pile, '::after').content }; })");
     check('the library, graveyard and exile are named above their piles with an arrow beside each name (and no name under them)', JSON.stringify(heads.map((h) => h.name)) === '["Library","Graveyard","Exile"]' && heads.every((h) => h.above && h.caretRight && h.labelOnPile === 'none'), JSON.stringify(heads));
     await click(await rectOf('#pile-caret-library'));
-    const menu = await ev("(() => { const m = document.querySelector('.card-menu'); return m ? { title: m.querySelector('.card-menu-title')?.textContent, items: [...m.querySelectorAll('[role=menuitem]')].map((i) => i.textContent.trim()) } : null; })()");
-    check('the arrow beside Library opens the menu of the pile (the same as a right-click on it)', menu && /library/i.test(menu.title) && JSON.stringify(menu.items) === JSON.stringify(['Draw card', 'Draw X...', 'View library', 'View▸', 'Top card', 'Top X cards...', 'Shuffle', 'Scry', 'Surveil', 'Mill', 'Exile top X...', 'Reveal top X...', 'Play with top revealed']), JSON.stringify(menu));
+    const menu = await ev("(() => { const m = document.querySelector('.card-menu'); return m ? { title: m.querySelector('.card-menu-title')?.textContent, items: [...m.querySelectorAll('[role=menuitem]')].filter((i) => !i.closest('.card-menu-fly')).map((i) => i.textContent.trim()) } : null; })()");
+    check('the arrow beside Library opens the menu of the pile (the same as a right-click on it)', menu && /library/i.test(menu.title) && JSON.stringify(menu.items) === JSON.stringify(['Draw card', 'Draw X...', 'View library', 'View', 'Shuffle', 'Scry', 'Surveil', 'Move top X cards', 'Reveal top X...', 'Play with top revealed']), JSON.stringify(menu));
     await browser.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await sleep(100);
     // the number box of a menu line that asks for a number (frontend/src/number-box.js; Kevin, 2026-11-15): Draw X, Mill X, Exile top X and the graveyard and exile lines, with real clicks and keys
     {
@@ -696,24 +735,44 @@ try {
       const lineState = () => ev("(() => [...document.querySelectorAll('.card-menu-row')].map((r) => [r.querySelector('[role=menuitem]').textContent.trim(), r.querySelector('input').value, r.querySelector('input').getAttribute('aria-invalid')]))()");
       await click(await rectOf('#pile-caret-library')); await sleep(60);
       const fresh = await lineState();
-      check('the library menu has Scry, Surveil and Mill with a small number box inside each line, all starting at 1', JSON.stringify(fresh.map(([label, value]) => [label, value])) === JSON.stringify([['Scry', '1'], ['Surveil', '1'], ['Mill', '1']]), JSON.stringify(fresh));
-      await setLineNumber('Mill', 0); await pressMenuItem('Mill'); await sleep(100);
+      check('the library menu has Scry and Surveil with a small number box inside each line, both starting at 1', JSON.stringify(fresh.map(([label, value]) => [label, value])) === JSON.stringify([['Scry', '1'], ['Surveil', '1']]), JSON.stringify(fresh));
+      await setLineNumber('Scry', 0); await pressMenuItem('Scry'); await sleep(100);
       const bad = await lineState();
-      check('clicking Mill with 0 in its box does nothing: the menu stays open and the box is marked invalid', bad && bad.find(([label]) => label === 'Mill')[2] === 'true' && (await pileCount('graveyard')) === 'Graveyard: 0', JSON.stringify(bad));
-      await setLineNumber('Mill', 2); await pressMenuItem('Mill'); await sleep(150);
-      await openLine('library', 'Exile top X...'); await typeNumber('1'); await enterKey();
-      check('Mill X... puts the top cards in the graveyard and Exile top X... in exile', (await pileCount('graveyard')) === 'Graveyard: 2' && (await pileCount('exile')) === 'Exile: 1' && (await pileCount('library')) === 'Library: ' + (libraryBefore - 6), JSON.stringify([await pileCount('graveyard'), await pileCount('exile'), await pileCount('library')]));
+      check('clicking Scry with 0 in its box does nothing: the menu stays open and the box is marked invalid', bad && bad.find(([label]) => label === 'Scry')[2] === 'true' && !(await ev("document.querySelector('.scry-window')")), JSON.stringify(bad));
+      await escKey(); await sleep(100);
+      // Move top X cards: a box beside the heading with Graveyard, Exile and Exile face down, each asking for a number
+      await click(await rectOf('#pile-caret-library')); await sleep(60); await pressMenuItem('Move top X cards'); await sleep(150);
+      const fly = await ev(`(() => { const f = document.querySelector('.card-menu-fly:not([hidden])'); const h = [...document.querySelectorAll('.card-menu .has-sub')].find((x) => /Move top/.test(x.textContent)); if (!f) return null; const r = f.getBoundingClientRect(); const hr = h.getBoundingClientRect(); const main = document.querySelector('.card-menu'); return { items: [...f.querySelectorAll('[role=menuitem]')].map((i) => i.textContent.trim()), expanded: h.getAttribute('aria-expanded'), separate: (r.left >= main.getBoundingClientRect().right - 6) || (r.right <= main.getBoundingClientRect().left + 6), beside: Math.abs(r.left - hr.right) < 40 || Math.abs(r.right - hr.left) < 40, inside: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight, arrow: h.querySelector('svg.card-menu-arrow') !== null }; })()`);
+      check('Move top X cards opens its lines in a box of their own beside the heading (not inside the same box), with a chevron on the heading', fly && fly.items.join() === 'Graveyard...,Exile...,Exile face down...' && fly.expanded === 'true' && fly.separate && fly.beside && fly.inside && fly.arrow, JSON.stringify(fly));
+      await pressMenuItem('Graveyard...'); await sleep(150); await typeNumber('2'); await enterKey();
+      await click(await rectOf('#pile-caret-library')); await sleep(60); await pressMenuItem('Move top X cards'); await sleep(100); await pressMenuItem('Exile...'); await sleep(150); await typeNumber('1'); await enterKey();
+      await click(await rectOf('#pile-caret-library')); await sleep(60); await pressMenuItem('Move top X cards'); await sleep(100); await pressMenuItem('Exile face down...'); await sleep(150); await typeNumber('1'); await enterKey();
+      check('Move top X cards: Graveyard... 2, Exile... 1 and Exile face down... 1 move the top cards there, and nothing is lost', (await pileCount('graveyard')) === 'Graveyard: 2' && (await pileCount('exile')) === 'Exile: 2' && (await pileCount('library')) === 'Library: ' + (libraryBefore - 7) && /face down\./.test(await $text('status')), JSON.stringify([await pileCount('graveyard'), await pileCount('exile'), await pileCount('library'), await $text('status')]));
+      await press('pile-exile'); await sleep(250);
+      const downCards = await ev("[...document.querySelectorAll('#viewer-list .card.exiled-down')].map((c) => c.getAttribute('aria-label'))");
+      check('in the exile window the card exiled face down is shown to you with the words "exiled face down", the other one is not', downCards.length === 1 && /exiled face down/.test(downCards[0]) && (await count('#viewer-list .card')) === 2, JSON.stringify(downCards));
+      await press('viewer-close'); await sleep(100);
       await click(await rectOf('#pile-caret-graveyard')); await sleep(60);
       const gyLines = await menuLabels(); await escKey();
       check('the graveyard menu has View graveyard, Exile all, Shuffle into library and Move all to', JSON.stringify(gyLines) === JSON.stringify(['View graveyard', 'Exile all', 'Shuffle into library', 'Move all to']), JSON.stringify(gyLines));
       await click(await rectOf('#pile-caret-graveyard')); await sleep(60); await pressMenuItem('Exile all'); await sleep(150);
-      check('Exile all sends the graveyard to exile', (await pileCount('graveyard')) === 'Graveyard: 0' && (await pileCount('exile')) === 'Exile: 3', JSON.stringify([await pileCount('graveyard'), await pileCount('exile')]));
+      check('Exile all sends the graveyard to exile', (await pileCount('graveyard')) === 'Graveyard: 0' && (await pileCount('exile')) === 'Exile: 4', JSON.stringify([await pileCount('graveyard'), await pileCount('exile')]));
       await click(await rectOf('#pile-caret-exile')); await sleep(60); await pressMenuItem('Shuffle into library'); await sleep(250);
       check('Shuffle into library puts everything of exile back into the library', (await pileCount('exile')) === 'Exile: 0' && (await pileCount('library')) === 'Library: ' + (libraryBefore - 3) && /Shuffled everything from exile into your library\./.test(await $text('status')), JSON.stringify([await pileCount('exile'), await pileCount('library'), await $text('status')]));
       await click(await rectOf('#pile-caret-library')); await sleep(60);
+      await setLineNumber('Scry', 2); await pressMenuItem('Scry'); await sleep(250); await escKey(); await sleep(100);
+      await click(await rectOf('#pile-caret-library')); await sleep(60);
       const rememberedLines = await lineState();
-      check('each line remembers its own number: Mill shows 2 now, Scry and Surveil still 1', JSON.stringify(rememberedLines.map(([label, value]) => [label, value])) === JSON.stringify([['Scry', '1'], ['Surveil', '1'], ['Mill', '2']]), JSON.stringify(rememberedLines));
-      await pressMenuItem('View'); await sleep(60); await pressMenuItem('Top X cards...'); await sleep(150); await typeNumber('2'); await enterKey(); await sleep(200);
+      check('each line remembers its own number: Scry shows 2 now (it was run with 2), Surveil still 1', JSON.stringify(rememberedLines.map(([label, value]) => [label, value])) === JSON.stringify([['Scry', '2'], ['Surveil', '1']]), JSON.stringify(rememberedLines));
+      await pressMenuItem('View'); await sleep(150);
+      const viewFly = await ev("[...document.querySelectorAll('.card-menu-fly:not([hidden]) [role=menuitem]')].map((i) => i.textContent.trim())");
+      if (process.argv.includes('--screenshot')) await browser.screenshot('scratch-solo-libmenu.png');
+      check('View opens a box with Top card, Top X cards, Bottom card and Bottom X cards', JSON.stringify(viewFly) === JSON.stringify(['Top card', 'Top X cards...', 'Bottom card', 'Bottom X cards...']), JSON.stringify(viewFly));
+      await pressMenuItem('Bottom X cards...'); await sleep(150); await typeNumber('2'); await enterKey(); await sleep(200);
+      const bottomView = await ev("({ title: document.getElementById('viewer-title').textContent, count: document.querySelectorAll('#viewer-list .card').length, depths: [...document.querySelectorAll('#viewer-list .viewer-depth')].map((d) => d.textContent) })");
+      check('Bottom X cards... with 2 shows the bottom two cards, numbered by their place from the top, and changes nothing', !(await $hidden('viewer')) && /the bottom 2 of /.test(bottomView.title) && bottomView.count === 2 && bottomView.depths.join() === '#' + (libraryBefore - 3 - 1) + ',#' + (libraryBefore - 3) && (await pileCount('library')) === 'Library: ' + (libraryBefore - 3), JSON.stringify(bottomView));
+      await press('viewer-close'); await sleep(100);
+      await click(await rectOf('#pile-caret-library')); await sleep(60); await pressMenuItem('View'); await sleep(100); await pressMenuItem('Top X cards...'); await sleep(150); await typeNumber('2'); await enterKey(); await sleep(200);
       check('View, then Top X cards... and 2 opens the viewer with the top cards (and changes nothing)', !(await $hidden('viewer')) && (await pileCount('library')) === 'Library: ' + (libraryBefore - 3), JSON.stringify(await pileCount('library')));
       await press('viewer-close'); await sleep(100);
       // Reveal top X: the viewer says "Revealed"
@@ -1108,7 +1167,9 @@ try {
       check('...and a click on empty space puts it back', (await count('#hand > .card.selected')) === 0 && (await count('.card-menu')) === 0);
     }
     await mouse('mouseMoved', 5, 5); await sleep(1000); // (the hand waits 150 ms before it lowers and then eases down: 250 ms was not always enough)
-    check('when the pointer leaves the area the hand goes down again', !(await ev("document.getElementById('hand').classList.contains('raised')")) && JSON.stringify(await ev(`(() => { const cs = [...document.querySelectorAll('#hand > .card')]; return cs.map((c) => { const r = c.getBoundingClientRect(); return [Math.round(r.left * 10) / 10, Math.round(r.top * 10) / 10, Math.round(r.width * 10) / 10, Math.round(r.height * 10) / 10]; }); })()`)) === JSON.stringify(restingBoxes));
+    const raisedNow = await ev("document.getElementById('hand').classList.contains('raised')");
+    const boxesNow = await ev(`(() => { const cs = [...document.querySelectorAll('#hand > .card')]; return cs.map((c) => { const r = c.getBoundingClientRect(); return [Math.round(r.left * 10) / 10, Math.round(r.top * 10) / 10, Math.round(r.width * 10) / 10, Math.round(r.height * 10) / 10]; }); })()`);
+    check('when the pointer leaves the area the hand goes down again', !raisedNow && JSON.stringify(boxesNow) === JSON.stringify(restingBoxes), JSON.stringify({ raisedNow, boxesNow, restingBoxes }));
     // dragging a card within the hand
     const before = await handFacts();
     const box = await handBox();
@@ -1595,7 +1656,8 @@ try {
   await mouse('#battlefield .card[data-kind="other"]', { button: 'right', dy: 64 });
   await clickMenuItem('Move to');
   menu = await menuState();
-  check('Move to opens inline under its heading, with every other zone and both ends of the library', menu.items.slice(-8).join() === 'Move to,Hand,Graveyard,Exile,Command zone,Sideboard,Top of library,Bottom of library' && (await ev(`document.querySelector('.card-menu .has-sub').getAttribute('aria-expanded')`)) === 'true' && menu.inside, JSON.stringify(menu));
+  const moveFly = await ev(`(() => { const f = document.querySelector('.card-menu-fly:not([hidden])'); const h = document.querySelector('.card-menu .has-sub'); if (!f) return null; const r = f.getBoundingClientRect(); const hr = h.getBoundingClientRect(); return { items: [...f.querySelectorAll('[role=menuitem]')].map((i) => i.textContent.trim()), expanded: h.getAttribute('aria-expanded'), separate: (r.left >= document.querySelector('.card-menu').getBoundingClientRect().right - 6) || (r.right <= document.querySelector('.card-menu').getBoundingClientRect().left + 6), beside: Math.abs(r.left - hr.right) < 40 || Math.abs(r.right - hr.left) < 40, inside: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight }; })()`);
+  check('Move to opens a box of its own beside the heading, with every other zone and both ends of the library', moveFly && moveFly.items.join() === 'Hand,Graveyard,Exile,Command zone,Sideboard,Top of library,Bottom of library' && moveFly.expanded === 'true' && moveFly.separate && moveFly.beside && moveFly.inside && menu.inside, JSON.stringify(moveFly));
   await clickMenuItem('Graveyard');
   check('Graveyard moves the card there (the pile says so, the battlefield is empty again) and the menu is gone', (await pileCount('graveyard')) === 'Graveyard: 1' && (await count('#battlefield .card[data-kind="other"]')) === 0 && (await menuState()) === null && (await $text('status')) === 'Moved Llanowar Elves to your graveyard.', `${await pileCount('graveyard')} ${await $text('status')}`);
   // a card in the hand: Play, Discard, Exile, the two ends of the library, and Move to for the rest (Kevin, 2026-11-15)
@@ -1709,7 +1771,14 @@ try {
     await openHandMenuByArrow(); await pressMenuItem('Discard X at random...'); await sleep(150); await typeNumber('2'); await enterKey();
     check('Discard X at random with 2: two cards left the hand for the graveyard, and it says so', (await handSize()) === 5 && (await gy()) === 2 && /^Discarded 2 cards at random\./.test(await $text('status')), JSON.stringify([await handSize(), await gy(), await $text('status')]));
     // Mulligan from the menu: a new hand of seven
-    await openHandMenuByArrow(); await pressMenuItem('Mulligan');
+    await motion('no-preference'); // (the real hand gathers and hides, which is when the lifted copy of a hovered card used to be left behind)
+    await openHandMenuByArrow(); await overHand(); await pointer(await pointOf('#hand .card:nth-child(2)')); await sleep(300);
+    const liftedBefore = await ev("document.querySelector('.hand-lift-layer')?.children.length ?? 0");
+    await ev("document.getElementById('hand-caret').click()"); await sleep(120); await pressMenuItem('Mulligan'); await sleep(200);
+    const liftedAfter = await ev("document.querySelector('.hand-lift-layer')?.children.length ?? 0");
+    check('after Mulligan from the menu no lifted copy of a hovered card is left on screen while the hand gathers (it used to stay a moment)', liftedAfter === 0, JSON.stringify({ liftedBefore, liftedAfter }));
+    await waitFor(async () => (await handSize()) === 7 || null, 20000, 100); await sleep(1500);
+    await motion('reduce');
     const dealt = await waitFor(async () => (await handSize()) === 7 || null, 15000, 100);
     await sleep(500);
     check('Mulligan from the menu does what the button does: a new hand of seven, the graveyard is untouched', Boolean(dealt) && (await gy()) === 2 && /^Mulligan 1:/.test(await $text('status')), JSON.stringify([await handSize(), await gy(), await $text('status')]));

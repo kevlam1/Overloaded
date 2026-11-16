@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.205</span></h1>
-    <p class="lede">205 entries, Oct 25 to Nov 15, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
+    <h1>Build log <span class="version">Version 0.206</span></h1>
+    <p class="lede">206 entries, Oct 25 to Nov 15, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
   </div>
 </header>
 
@@ -23,7 +23,7 @@
     <div class="weeks-row">
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
-<a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">95</span></a>
+<a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">96</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
     </div>
     <div class="tools">
@@ -1961,7 +1961,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-1" aria-labelledby="week-1-title">
-<h2 class="week-head" id="week-1-title"><button type="button" aria-expanded="false" aria-controls="week-1-days"><span class="wname">Week 1</span><span class="range">Nov 9 to Nov 15</span><span class="week-count">95 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-1-title"><button type="button" aria-expanded="false" aria-controls="week-1-days"><span class="wname">Week 1</span><span class="range">Nov 9 to Nov 15</span><span class="week-count">96 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-1-days">
 <div class="day">
 <h3 class="day-title">Monday 9 November <span class="day-count">4</span></h3>
@@ -3368,7 +3368,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Sunday 15 November <span class="day-count">7</span></h3>
+<h3 class="day-title">Sunday 15 November <span class="day-count">8</span></h3>
 <div class="entries">
 <article class="entry" id="entry-199" data-n="199">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-199-body">
@@ -3473,6 +3473,22 @@
 <ul><li><strong>The hand menu:</strong> a small arrow next to &quot;Hand: N&quot; (a right-click on the bar opens it too): Mulligan, Shuffle hand into library, Discard X at random..., Discard hand. I added the random discard because you wanted it in the plan on 2026-11-15 and it is not a button anywhere else; say if you want it gone. Mulligan runs the same code as the button, so the shuffle and the new hand come out as before.</li><li><strong>A card in the hand:</strong> Play, Discard, Exile, Top of library, Bottom of library, then Move to (which now only holds Command zone and Sideboard). A two-sided card also has Flip double-faced card.</li><li><strong>Flip in the hand is only a look:</strong> it shows the back face picture, nothing is stored and the game does not change; a card played while showing its back comes onto the battlefield as its front (the real Turn over is still on the battlefield). I checked on the live card list that Sephiroth, Fabled SOLDIER has a back face (and 5/5 on it).</li><li><strong>A bug I found on the way:</strong> when the last card left the hand the bar with &quot;Hand: 7&quot; stayed on screen until the pointer moved away. It hides now.</li><li>Solo table only. The table page keeps its old hand menu (no peek line there).</li></ul>
 <p><strong>What I checked:</strong> <code>test-hand-menu.mjs</code> (22), <code>test-card-menu.mjs</code> (208), all 66 quick suites, and the solo check (690, run again after the last change to where the menu opens): the arrow and its menu, random discard of 2, Mulligan from the menu, Shuffle hand into library, Discard hand, a right-click on the bar, the card menu lines, Discard and Bottom of library, and Flip double-faced card on Sephiroth (back shown, front again, played as the front). I looked at screenshots of the menu and the flipped card, with the stand-in pictures the check uses (a real picture of a back face I did not look at). The check run with the screenshot flag stops at an older screenshot-only step (&quot;no menu item Move to&quot;, line 2980) that I did not investigate.</p>
 <p><strong>My mistakes this round:</strong> my site build overwrote my local card list with an old copy and the solo check then failed at the start (I rebuilt it from the saved Scryfall files); my first checks right-clicked the middle of a hand card, which hit its neighbour because the fan overlaps them; the first menu opened on top of the arrow it came from.</p>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-206" data-n="206">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-206-body">
+    <span class="num">206</span>
+    <span class="head-text"><span class="title">Six menu fixes: Draw animation, Auto off, Move top X cards, View from the bottom, menus in their own boxes</span><span class="sum">(1) Draw card in the library menu should animate like the Draw button.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-206-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>(1) Draw card in the library menu should animate like the Draw button. (2) Auto sort should not start on. (3) After Mulligan in the hand menu the hovered card behind the cursor stays for a moment. (4) Mill X and Exile top X become one line, Move Top X Cards, with graveyard, exile and exile face down (opponents can't see it, you can). (5) View has Top card, Top X cards, Bottom card and Bottom X cards. (6) Change how the menus look: the arrow flips, submenus are not inside the same box, the hand bar is too thick, take inspiration from the thin pills.</li></ul>
+<p><strong>What changed</strong> (<code>shared/pile-menu.mjs</code>, <code>shared/zones.mjs</code>, <code>frontend/src/card-menu.js</code>, <code>frontend/src/hand-view.js</code>, <code>frontend/src/hand-sort-ui.js</code>, <code>frontend/src/card-nodes.js</code>, <code>frontend/src/pile-viewer.js</code>, <code>frontend/pages/solo/solo.js</code>, <code>frontend/pages/table/table.js</code>, <code>frontend/src/style.css</code>, tests)</p>
+<ul><li><strong>1:</strong> Draw card and Draw X from the library menu now fly each card out of the library like the Draw button (Draw X draws one after another with a short pause; under reduced motion they come at once).</li><li><strong>2:</strong> Auto starts off in a browser that never chose; the sort switch still remembers a choice.</li><li><strong>3:</strong> Choosing anything in the hand menu lets go of the lifted copy of the hovered card first, and Mulligan does too. I could only check it with motion switched on in the check: there no lifted copy is left while the hand gathers. I did not see the stuck card myself, so say if it still happens.</li><li><strong>4:</strong> Library menu: Draw card, Draw X, View library, View, Shuffle, Scry, Surveil, Move top X cards (Graveyard, Exile, Exile face down, each asks how many), Reveal top X, Play with top revealed. A card exiled face down is marked in exile (<code>xd</code>, cleared when it leaves) and the exile window shows it to you with the words &quot;Face down&quot;. It is only on the solo table: the live table would store the name where an opponent could read it.</li><li><strong>5:</strong> View opens Top card, Top X cards, Bottom card, Bottom X cards (the table page has the same). The window says &quot;the bottom 2 of N&quot; and numbers the cards from the top.</li><li><strong>6:</strong> A heading (View, Move top X cards, Move to) now opens its lines in a separate box beside it, on hover or click (the keyboard still uses Right and Left), with a chevron that turns round when the box opens on the left. The arrows beside the pile names and the hand count turn upside down while their menu is open. The hand bar is a thin pill with small uppercase labels, and the pile names are pills too.</li><li><strong>Note:</strong> the box is inside the menu's element in the page but drawn with position: fixed, which is how the old checks about &quot;one menu&quot; still hold.</li></ul>
+<p><strong>What I checked:</strong> <code>test-pile-menu.mjs</code> (48, with face down exile and every move clearing the mark), <code>test-zones.mjs</code> (268), all 66 quick suites and the solo check (701): the new menu list, the box beside each heading, Move top X cards with each choice, the face down card in the exile window, View bottom 2 numbering, remembered numbers, Draw card and Draw X flying, the arrows turning, the thin bar, the Mulligan lifted copy, and the sort checks now starting from Auto on. I looked at screenshots of the library menu with View open and of the hand menu. Not checked: the table page with these menus in a real game (its code changed for View from the bottom and Move top X cards, only the unit tests cover them), phone width, a real Scryfall picture in the face down window.</p>
+<ul><li><strong>A check that sometimes fails:</strong> &quot;when the pointer leaves the area the hand goes down again&quot; fails about one run in three (the cards come back a few pixels apart from where they started). It did before this round too; I did not find the cause.</li></ul>
+<p><strong>My mistakes this round:</strong> my first flyouts were separate elements outside the menu, which made every old check that counts menus see two (I moved them inside); the first sort checks all failed because Auto is off now; and the hand bar stayed 34 px tall because a button rule I did not see kept a minimum height.</p>
   </div></div></div>
 </article>
 </div>

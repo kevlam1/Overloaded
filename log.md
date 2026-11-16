@@ -4119,6 +4119,27 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 ---
 
+## 206. Six menu fixes: Draw animation, Auto off, Move top X cards, View from the bottom, menus in their own boxes (2026-11-15)
+
+**What I asked for**
+- (1) Draw card in the library menu should animate like the Draw button. (2) Auto sort should not start on. (3) After Mulligan in the hand menu the hovered card behind the cursor stays for a moment. (4) Mill X and Exile top X become one line, Move Top X Cards, with graveyard, exile and exile face down (opponents can't see it, you can). (5) View has Top card, Top X cards, Bottom card and Bottom X cards. (6) Change how the menus look: the arrow flips, submenus are not inside the same box, the hand bar is too thick, take inspiration from the thin pills.
+
+**What changed** (`shared/pile-menu.mjs`, `shared/zones.mjs`, `frontend/src/card-menu.js`, `frontend/src/hand-view.js`, `frontend/src/hand-sort-ui.js`, `frontend/src/card-nodes.js`, `frontend/src/pile-viewer.js`, `frontend/pages/solo/solo.js`, `frontend/pages/table/table.js`, `frontend/src/style.css`, tests)
+- **1:** Draw card and Draw X from the library menu now fly each card out of the library like the Draw button (Draw X draws one after another with a short pause; under reduced motion they come at once).
+- **2:** Auto starts off in a browser that never chose; the sort switch still remembers a choice.
+- **3:** Choosing anything in the hand menu lets go of the lifted copy of the hovered card first, and Mulligan does too. I could only check it with motion switched on in the check: there no lifted copy is left while the hand gathers. I did not see the stuck card myself, so say if it still happens.
+- **4:** Library menu: Draw card, Draw X, View library, View, Shuffle, Scry, Surveil, Move top X cards (Graveyard, Exile, Exile face down, each asks how many), Reveal top X, Play with top revealed. A card exiled face down is marked in exile (`xd`, cleared when it leaves) and the exile window shows it to you with the words "Face down". It is only on the solo table: the live table would store the name where an opponent could read it.
+- **5:** View opens Top card, Top X cards, Bottom card, Bottom X cards (the table page has the same). The window says "the bottom 2 of N" and numbers the cards from the top.
+- **6:** A heading (View, Move top X cards, Move to) now opens its lines in a separate box beside it, on hover or click (the keyboard still uses Right and Left), with a chevron that turns round when the box opens on the left. The arrows beside the pile names and the hand count turn upside down while their menu is open. The hand bar is a thin pill with small uppercase labels, and the pile names are pills too.
+- **Note:** the box is inside the menu's element in the page but drawn with position: fixed, which is how the old checks about "one menu" still hold.
+
+**What I checked:** `test-pile-menu.mjs` (48, with face down exile and every move clearing the mark), `test-zones.mjs` (268), all 66 quick suites and the solo check (701): the new menu list, the box beside each heading, Move top X cards with each choice, the face down card in the exile window, View bottom 2 numbering, remembered numbers, Draw card and Draw X flying, the arrows turning, the thin bar, the Mulligan lifted copy, and the sort checks now starting from Auto on. I looked at screenshots of the library menu with View open and of the hand menu. Not checked: the table page with these menus in a real game (its code changed for View from the bottom and Move top X cards, only the unit tests cover them), phone width, a real Scryfall picture in the face down window.
+- **A check that sometimes fails:** "when the pointer leaves the area the hand goes down again" fails about one run in three (the cards come back a few pixels apart from where they started). It did before this round too; I did not find the cause.
+
+**My mistakes this round:** my first flyouts were separate elements outside the menu, which made every old check that counts menus see two (I moved them inside); the first sort checks all failed because Auto is off now; and the hand bar stayed 34 px tall because a button rule I did not see kept a minimum height.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

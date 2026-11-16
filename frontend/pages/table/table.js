@@ -111,6 +111,7 @@ let saving = Promise.resolve();
 let selected = null; // the uid of the selected card
 let modifyOpen = false; // the counters and power/toughness panel is shown (from Modify, in the card menu or the selected-card buttons)
 let viewing = null; // the pile being looked at: 'library', 'graveyard', 'exile' or 'sideboard'
+let viewBottom = false; // the cards shown are the bottom few of the library, not the top
 let viewTop = null; // when only the top few cards of the library are being looked at: how many
 // What a player has on them (src/counter-chips.js, shared/player-counters.mjs): chips next to the life total, and a right-click on the life area adds or removes any counter the database accepts, and commander damage from each seat that has a commander.
 const lifeChips = mountCounterChips($('life-chips'));
@@ -192,13 +193,15 @@ function render() {
 function renderViewer() {
   if (!viewing) { viewer.hide(); return; }
   const all = game.zones[viewing];
-  const cards = viewTop ? all.slice(0, viewTop) : all;
+  const cards = viewTop ? (viewBottom ? all.slice(Math.max(0, all.length - viewTop)) : all.slice(0, viewTop)) : all;
   const label = `${ZONE_WORDS[viewing][0].toUpperCase()}${ZONE_WORDS[viewing].slice(1)}`;
   viewer.show({
     label,
     cards,
     depth: viewing === 'library',
     total: all.length,
+    from: viewBottom ? 'bottom' : 'top',
+    offset: viewBottom ? all.length - cards.length : 0,
     noteText: viewing === 'library' ? 'The top card is first. Right-click a card to move it; right-click the library itself to shuffle, draw or mill.' : viewing === 'graveyard' ? 'The newest card is first. Right-click a card to move it.' : 'Right-click a card to move it.',
   });
 }
@@ -715,12 +718,13 @@ $('untap-all').addEventListener('click', () => { if (game) { play('tap'); apply(
 mountSoundSettings($('sound-settings'));
 // ---- piles drawn diagonally or horizontally (shared/pile-style.mjs), a double click taps a card, a click on empty space deselects ----
 mountPileStyle($('pile-style-settings'));
-const viewer = mountPileViewer({ root: $('viewer'), nodeFor: (card) => cardNodes.nodeFor(card, false), onClose: () => { viewing = null; viewTop = null; if (game) render(); } });
+const viewer = mountPileViewer({ root: $('viewer'), nodeFor: (card) => cardNodes.nodeFor(card, false), onClose: () => { viewing = null; viewTop = null; viewBottom = false; if (game) render(); } });
 viewer.onSearch(() => { if (game && viewing) renderViewer(); });
 // ---- the piles: a click opens the viewer (the cards and a search bar), a right-click opens the menu of the pile (search, shuffle, draw, look, mill, move all) ----
-function openPile(zone, { look = null, search = false } = {}) {
+function openPile(zone, { look = null, search = false, bottom = false } = {}) {
   viewing = zone;
   viewTop = look;
+  viewBottom = bottom;
   if (!search) viewer.clearSearch();
   render();
   if (search) viewer.focusSearch();
@@ -728,6 +732,7 @@ function openPile(zone, { look = null, search = false } = {}) {
 function pickFromPileMenu(zone, id, amount) {
   if (id === 'search') { openPile(zone, { search: true }); return; }
   if (id === 'look') { openPile(zone, { look: amount ?? 1 }); return; }
+  if (id === 'lookbottom') { openPile(zone, { look: amount ?? 1, bottom: true }); return; }
   const action = pileAction(id, zone, amount);
   if (!action) return;
   if (id === 'shuffle' || id === 'intolibrary') play('shuffle'); else if (id === 'draw') play('draw');

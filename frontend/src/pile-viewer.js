@@ -32,12 +32,12 @@ export function mountPileViewer({ root, nodeFor, onClose = () => {} }) {
 
   // label: the name of the pile ("Library"). cards: what to show (all of the pile, or only its top few). depth: whether to number the cards by their place from the top (a library).
   // total: how many cards the pile has (when only some are shown). noteText: a short line under the title.
-  function show({ label, cards, depth = false, total = cards.length, noteText = '' }) {
+  function show({ label, cards, depth = false, total = cards.length, noteText = '', from = 'top', offset = 0 }) {
     const opening = !isOpen();
     if (opening) { returnTo = document.activeElement instanceof HTMLElement ? document.activeElement : null; root.hidden = false; }
     const results = searchCards(cards, search.value);
     const filtering = search.value.trim() !== '';
-    title.textContent = filtering ? `${label}: ${results.length} of ${cards.length}` : cards.length === total ? `${label}: ${cards.length} ${cards.length === 1 ? 'card' : 'cards'}` : `${label}: the top ${cards.length} of ${total}`;
+    title.textContent = filtering ? `${label}: ${results.length} of ${cards.length}` : cards.length === total ? `${label}: ${cards.length} ${cards.length === 1 ? 'card' : 'cards'}` : `${label}: the ${from} ${cards.length} of ${total}`;
     note.textContent = noteText;
     if (results.length === 0) {
       list.replaceChildren(make('p', 'viewer-empty', filtering ? 'No card matches that.' : 'No cards.'));
@@ -46,7 +46,7 @@ export function mountPileViewer({ root, nodeFor, onClose = () => {} }) {
     list.replaceChildren(...results.map(({ card, index }) => {
       const cell = make('div', 'viewer-card');
       cell.append(nodeFor(card, false));
-      if (depth) cell.append(make('span', 'viewer-depth', `#${index + 1}`));
+      if (depth) cell.append(make('span', 'viewer-depth', `#${index + 1 + offset}`));
       return cell;
     }));
   }

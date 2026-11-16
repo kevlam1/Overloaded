@@ -135,6 +135,7 @@ function showFace(button, card) {
   const picture = button.querySelector('img');
   const side = sideShown(card);
   button.classList.toggle('face-down', card.faceDown === true);
+  button.classList.toggle('exiled-down', card.xd === true); // (exiled face down: you see the card with a label, an opponent would not)
   if (!picture || picture.dataset.side === side) return;
   picture.dataset.side = side;
   picture.dataset.tried = '';
@@ -222,7 +223,7 @@ export function makeCardNodes({ onSelect = () => {}, isSelected = () => false, r
     showFace(button, card);
     const printed = printedStats(card);
     const marks = marksSentence(card, printed);
-    button.setAttribute('aria-label', `${card.n}${card.faceDown ? ', face down' : ''}${card.turned && !card.tok ? ', turned over' : ''}${card.tapped ? ', tapped' : ''}${card.noUntap ? ", doesn't untap" : ''}${card.sick ? ', summoning sick' : ''}${marks ? `. ${marks}` : ''}`);
+    button.setAttribute('aria-label', `${card.n}${card.faceDown ? ', face down' : ''}${card.xd ? ', exiled face down' : ''}${card.turned && !card.tok ? ', turned over' : ''}${card.tapped ? ', tapped' : ''}${card.noUntap ? ", doesn't untap" : ''}${card.sick ? ', summoning sick' : ''}${marks ? `. ${marks}` : ''}`);
     updateBadges(button, card, Boolean(onBadge) && !readOnly);
     updateMarks(button, card, Boolean(onMark) && !readOnly, printed, onBattlefield);
     return button;

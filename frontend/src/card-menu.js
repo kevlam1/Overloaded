@@ -1,8 +1,8 @@
 // The right-click menu of a card: the card's name as a heading and a short list of choices (what is offered is decided in
 // shared/card-menu.mjs). One menu at a time. It opens at the pointer and stays inside the window; it closes on a choice, Escape,
 // Tab, a click elsewhere, a scroll, a resize or when the window loses focus. By keyboard: Up and Down move, Home and End jump, Right
-// opens "Move to", Left goes back, Enter and Space choose. "Move to" opens inline under its
-// heading instead of flying out, so it works the same with a mouse, a keyboard and a finger. Card names go in as text.
+// opens a heading's menu, Left goes back, Enter and Space choose. A heading ("View", "Move to") opens its lines in a box of their own beside it
+// (Kevin, 2026-11-15, not inside the same box any more): on hover or click with a mouse, Right with a keyboard. Card names go in as text.
 import { askNumber } from './number-box.js';
 import { parseCount, startingCount } from '../../shared/number-input.mjs';
 import { makeSafeStore } from './safe-store.js';
@@ -13,7 +13,17 @@ const numberStore = makeSafeStore();
 const rememberedNumbers = () => { try { const data = JSON.parse(numberStore.get(NUMBERS_KEY) ?? '{}'); return data && typeof data === 'object' && !Array.isArray(data) ? data : {}; } catch { return {}; } };
 const rememberNumber = (key, value) => numberStore.set(NUMBERS_KEY, JSON.stringify({ ...rememberedNumbers(), [key]: value }));
 
-const ARROW = String.fromCharCode(0x25b8);
+const SVG_NS = 'http://www.w3.org/2000/svg';
+// the arrow on a heading: a chevron pointing at the box that opens beside it, turned round when that box opens on the left (width, height and fill set on the element)
+function chevron() {
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('width', '10'); svg.setAttribute('height', '10'); svg.setAttribute('viewBox', '0 0 10 10'); svg.setAttribute('fill', 'none'); svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('class', 'card-menu-arrow');
+  const path = document.createElementNS(SVG_NS, 'path');
+  path.setAttribute('d', 'M3 1.8L6.6 5L3 8.2'); path.setAttribute('stroke', 'currentColor'); path.setAttribute('stroke-width', '1.8'); path.setAttribute('stroke-linecap', 'round'); path.setAttribute('stroke-linejoin', 'round'); path.setAttribute('fill', 'none');
+  svg.append(path);
+  return svg;
+}
 let current = null; // the menu on screen: { close }
 
 function make(tag, className, content) {
@@ -32,8 +42,8 @@ export function closeCardMenu() {
 // An item with `number: { key, min, max }` is a line with its own small number box inside it ("Scry [1]"): click the word and it is done with the number in the box, which starts at 1 or at the last number
 // used on that line (key) and can be changed there (Right arrow goes from the word into the box, Enter in the box does it).
 // An item with `ask: { min, max, unit }` is a line like "Draw X...": choosing it closes the menu and opens the small number box (src/number-box.js) where the menu was, and onPick(id, number) is called with
-// the number typed (nothing is called when the box is cancelled).
-export function openCardMenu({ title, items, x, y, onPick, returnFocus = null }) {
+// the number typed (nothing is called when the box is cancelled). onClose: called when the menu has closed, however it closed (a caret that turns while its menu is open uses it).
+export function openCardMenu({ title, items, x, y, onPick, returnFocus = null, onClose = null }) {
   closeCardMenu();
   const menu = make('div', 'card-menu');
   menu.setAttribute('role', 'menu');
@@ -70,34 +80,49 @@ export function openCardMenu({ title, items, x, y, onPick, returnFocus = null })
       askNumber({ title: item.ask.title ?? item.label.replace(/\.\.\.$/, ''), x: at.left, y: at.top, min: item.ask.min ?? 1, max: item.ask.max ?? 999, unit: item.ask.unit ?? '', returnFocus }).then((number) => { if (number !== null) onPick(item.id, number); });
     });
   };
+  const flyouts = []; // the boxes beside the headings: { head, sub }
+  const placeFly = (head, sub) => { // beside the heading (on the right, or on the left when there is no room), kept inside the window
+    const room = document.documentElement;
+    const at = head.getBoundingClientRect();
+    const box = sub.getBoundingClientRect();
+    const right = at.right - 2;
+    const onLeft = right + box.width > room.clientWidth - 8 && at.left - box.width + 2 >= 8;
+    sub.style.left = `${Math.max(8, onLeft ? at.left - box.width + 2 : Math.min(right, room.clientWidth - box.width - 8))}px`;
+    sub.style.top = `${Math.max(8, Math.min(at.top - 4, room.clientHeight - box.height - 8))}px`;
+    sub.dataset.side = onLeft ? 'left' : 'right';
+    head.dataset.side = sub.dataset.side;
+  };
   const expand = (head, sub, open) => {
+    if (open) for (const other of flyouts) if (other.sub !== sub && !other.sub.hidden) { other.sub.hidden = true; other.head.setAttribute('aria-expanded', 'false'); }
     sub.hidden = !open;
     head.setAttribute('aria-expanded', String(open));
-    place(); // the menu got taller or shorter: keep it inside the window
+    if (open) placeFly(head, sub);
   };
+  const closeFlyouts = () => { for (const other of flyouts) if (!other.sub.hidden) expand(other.head, other.sub, false); };
 
   for (const item of items) {
     if (Array.isArray(item.items)) {
       const head = itemButton(item.label, 'card-menu-item has-sub');
       head.setAttribute('aria-haspopup', 'menu');
       head.setAttribute('aria-expanded', 'false');
-      const arrow = make('span', 'card-menu-arrow', ARROW);
-      arrow.setAttribute('aria-hidden', 'true');
-      head.append(arrow);
-      const sub = make('div', 'card-menu-sub');
+      head.append(chevron());
+      const sub = make('div', 'card-menu-fly card-menu-sub'); // (inside the menu's element, but drawn at the window with position: fixed, so it is a box of its own beside the heading)
       sub.hidden = true;
       sub.setAttribute('role', 'menu');
       sub.setAttribute('aria-label', item.label);
+      sub.tabIndex = -1;
       for (const child of item.items) {
         const button = itemButton(child.label, 'card-menu-item card-menu-subitem');
         bindChoice(button, child);
         sub.append(button);
       }
-      head.addEventListener('click', () => {
-        const opening = sub.hidden;
-        expand(head, sub, opening);
-        if (opening) sub.querySelector('[role="menuitem"]')?.focus({ preventScroll: true });
+      flyouts.push({ head, sub });
+      head.addEventListener('click', () => { // (a click opens it and keeps it open: it may be open already because the pointer came over the heading)
+        expand(head, sub, true);
+        sub.querySelector('[role="menuitem"]')?.focus({ preventScroll: true });
       });
+      head.addEventListener('pointerenter', (event) => { if (event.pointerType !== 'touch') expand(head, sub, true); });
+      sub.addEventListener('keydown', onKeydown);
       menu.append(head, sub);
     } else if (item.number) {
       const min = item.number.min ?? 1;
@@ -125,17 +150,19 @@ export function openCardMenu({ title, items, x, y, onPick, returnFocus = null })
         else if (event.key === 'ArrowLeft' || event.key === 'ArrowRight' || event.key === 'Home' || event.key === 'End') event.stopPropagation(); // (the box keeps its own cursor keys)
       });
       row.append(main, field);
+      row.addEventListener('pointerenter', closeFlyouts);
       menu.append(row);
     } else {
       const button = itemButton(item.label, 'card-menu-item');
       bindChoice(button, item);
+      button.addEventListener('pointerenter', closeFlyouts);
       menu.append(button);
     }
   }
 
-  const visibleItems = () => [...menu.querySelectorAll('[role="menuitem"]')].filter((button) => !button.closest('[hidden]'));
-  menu.addEventListener('keydown', (event) => {
-    const list = visibleItems();
+  function onKeydown(event) {
+    const container = event.currentTarget;
+    const list = [...container.querySelectorAll(':scope > [role="menuitem"], :scope > .card-menu-row [role="menuitem"]')];
     const active = document.activeElement;
     const target = active?.classList?.contains('card-menu-number') ? active.parentElement.querySelector('[role="menuitem"]') : active; // (a number box counts as its line)
     const at = list.indexOf(target);
@@ -146,20 +173,19 @@ export function openCardMenu({ title, items, x, y, onPick, returnFocus = null })
     else if (event.key === 'End') go(list.length - 1);
     else if (event.key === 'ArrowRight') {
       if (target?.classList.contains('has-sub')) {
-        const sub = target.nextElementSibling;
-        if (sub.hidden) expand(target, sub, true);
-        sub.querySelector('[role="menuitem"]')?.focus({ preventScroll: true });
+        const entry = flyouts.find((fly) => fly.head === target);
+        if (entry.sub.hidden) expand(target, entry.sub, true);
+        entry.sub.querySelector('[role="menuitem"]')?.focus({ preventScroll: true });
       } else if (target?.closest('.card-menu-row')) {
         const box = target.parentElement.querySelector('.card-menu-number');
         if (box) { box.focus({ preventScroll: true }); box.select(); }
       }
       event.preventDefault();
     } else if (event.key === 'ArrowLeft') {
-      const sub = target?.closest('.card-menu-sub');
-      if (sub) {
-        const head = sub.previousElementSibling;
-        expand(head, sub, false);
-        head.focus({ preventScroll: true });
+      const entry = flyouts.find((fly) => fly.sub === container);
+      if (entry) {
+        expand(entry.head, entry.sub, false);
+        entry.head.focus({ preventScroll: true });
       }
       event.preventDefault();
     } else if (event.key === 'Escape') {
@@ -169,7 +195,8 @@ export function openCardMenu({ title, items, x, y, onPick, returnFocus = null })
     } else if (event.key === 'Tab') {
       close({ restore: true });
     }
-  });
+  }
+  menu.addEventListener('keydown', onKeydown);
 
   const onOutside = (event) => { if (!menu.contains(event.target)) close({ restore: false }); };
   const onAway = () => close({ restore: false });
@@ -192,12 +219,13 @@ export function openCardMenu({ title, items, x, y, onPick, returnFocus = null })
     window.removeEventListener('blur', onAway);
     menu.remove();
     if (current && current.menu === menu) current = null;
+    if (onClose) onClose();
     if (restore && returnFocus && returnFocus.isConnected) returnFocus.focus({ preventScroll: true });
   }
 
   document.body.append(menu);
   place();
-  visibleItems()[0]?.focus({ preventScroll: true });
+  menu.querySelector(':scope > [role="menuitem"], :scope > .card-menu-row [role="menuitem"]')?.focus({ preventScroll: true });
   current = { menu, close };
   return () => close({ restore: false });
 }

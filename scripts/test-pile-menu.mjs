@@ -17,11 +17,11 @@ const uids = (game, zone) => game.zones[zone].map((c) => c.uid);
 same('the pile zones are the four piles', PILE_ZONES, ['library', 'graveyard', 'exile', 'sideboard']);
 same('an unknown zone has no menu', [pileMenuItems('hand', 5), pileMenuItems('battlefield', 5), pileMenuItems('nope', 5)], [[], [], []]);
 const shape = (items) => items.map((i) => [i.id, i.label, i.ask ?? null, i.number ?? null, i.items ? i.items.map((c) => [c.id, c.label, c.ask ?? null]) : null]);
-same('the library menu in the order of Kevin sketch (his sketch of 2026-11-15) with the lines the solo table adds: Draw card, Draw X, View library, View (top card, top X cards), Shuffle, Scry [n], Surveil [n], Mill [n], Exile top X, Reveal top X, Play with top revealed', shape(pileMenuItems('library', 40, { scry: true, reveal: true })), [['draw', 'Draw card', null, null, null], ['draw', 'Draw X...', { max: 40, unit: 'cards' }, null, null], ['search', 'View library', null, null, null], ['view', 'View', null, null, [['look', 'Top card', null], ['look', 'Top X cards...', { max: 40, unit: 'cards' }]]], ['shuffle', 'Shuffle', null, null, null], ['scry', 'Scry', null, { key: 'scry', max: 40 }, null], ['surveil', 'Surveil', null, { key: 'surveil', max: 40 }, null], ['mill', 'Mill', null, { key: 'mill', max: 40 }, null], ['exiletop', 'Exile top X...', { max: 40, unit: 'cards' }, null, null], ['reveal', 'Reveal top X...', { max: 40, unit: 'cards' }, null, null], ['toprevealed', 'Play with top revealed', null, null, null]]);
-same('a page that cannot scry or reveal (the table page) gets the menu without those lines', pileMenuItems('library', 40).map((i) => i.label), ['Draw card', 'Draw X...', 'View library', 'View', 'Shuffle', 'Mill', 'Exile top X...']);
+same('the library menu in the order of Kevin sketch (2026-11-15) with the lines the solo table adds: Draw card, Draw X, View library, View (top card, top X cards, bottom card, bottom X cards), Shuffle, Scry [n], Surveil [n], Move top X cards (graveyard, exile, exile face down), Reveal top X, Play with top revealed', shape(pileMenuItems('library', 40, { scry: true, reveal: true, downExile: true })), [['draw', 'Draw card', null, null, null], ['draw', 'Draw X...', { max: 40, unit: 'cards' }, null, null], ['search', 'View library', null, null, null], ['view', 'View', null, null, [['look', 'Top card', null], ['look', 'Top X cards...', { max: 40, unit: 'cards' }], ['lookbottom', 'Bottom card', null], ['lookbottom', 'Bottom X cards...', { max: 40, unit: 'cards' }]]], ['shuffle', 'Shuffle', null, null, null], ['scry', 'Scry', null, { key: 'scry', max: 40 }, null], ['surveil', 'Surveil', null, { key: 'surveil', max: 40 }, null], ['movetop', 'Move top X cards', null, null, [['movetop:graveyard', 'Graveyard...', { max: 40, unit: 'cards' }], ['movetop:exile', 'Exile...', { max: 40, unit: 'cards' }], ['movetop:exiledown', 'Exile face down...', { max: 40, unit: 'cards' }]]], ['reveal', 'Reveal top X...', { max: 40, unit: 'cards' }, null, null], ['toprevealed', 'Play with top revealed', null, null, null]]);
+same('a page that cannot scry, reveal or exile face down (the table page) gets the menu without those lines', [pileMenuItems('library', 40).map((i) => i.label), pileMenuItems('library', 40).find((i) => i.id === 'movetop').items.map((i) => i.label)], [['Draw card', 'Draw X...', 'View library', 'View', 'Shuffle', 'Move top X cards'], ['Graveyard...', 'Exile...']]);
 same('when the top card is face up the line says how to stop', [pileMenuItems('library', 5, { reveal: true }).at(-1).label, pileMenuItems('library', 5, { reveal: true, topRevealed: true }).at(-1).label], ['Play with top revealed', 'Stop playing with top revealed']);
-same('the number in a line can be at most the size of the pile', pileMenuItems('library', 3, { scry: true }).filter((i) => i.number).map((i) => i.number.max), [3, 3, 3]);
-same('a library of one card cannot be shuffled and asks for 1 at most', shape(pileMenuItems('library', 1)).map(([id, label, ask, number]) => [id, label, ask?.max ?? number?.max ?? null]), [['draw', 'Draw card', null], ['draw', 'Draw X...', 1], ['search', 'View library', null], ['view', 'View', null], ['mill', 'Mill', 1], ['exiletop', 'Exile top X...', 1]]);
+same('the number in a line can be at most the size of the pile', pileMenuItems('library', 3, { scry: true }).filter((i) => i.number).map((i) => i.number.max), [3, 3]);
+same('a library of one card cannot be shuffled and asks for 1 at most', shape(pileMenuItems('library', 1)).map(([id, label, ask, number]) => [id, label, ask?.max ?? number?.max ?? null]), [['draw', 'Draw card', null], ['draw', 'Draw X...', 1], ['search', 'View library', null], ['view', 'View', null], ['movetop', 'Move top X cards', null]]);
 check('no menu line has a row of amounts', ['library', 'graveyard', 'exile', 'sideboard'].every((zone) => [0, 1, 5, 40].every((count) => pileMenuItems(zone, count, { scry: true, reveal: true }).every((i) => !('amounts' in i)))));
 check('every line that asks for a number says so in its label (it ends in three dots), the lines with their own box do not, and the others do not', ['library', 'graveyard', 'exile'].every((zone) => pileMenuItems(zone, 9, { scry: true, reveal: true }).every((i) => Boolean(i.ask) === i.label.endsWith('...') && !(i.number && i.ask))));
 same('an empty library can only be viewed (and, where it is offered, played with its top revealed)', [pileMenuItems('library', 0).map((i) => i.label), pileMenuItems('library', 0, { scry: true, reveal: true }).map((i) => i.label)], [['View library'], ['View library', 'Play with top revealed']]);
@@ -42,21 +42,31 @@ for (const zone of ['graveyard', 'exile', 'sideboard']) same('an empty ' + zone 
   same('draw 3 moves the top three cards to the hand, in order', [uids(after, 'hand').slice(-3), after.zones.library.length], [libraryBefore.slice(0, 3), libraryBefore.length - 3]);
   same('...and says how many', drawn.message, 'Drew 3 cards.');
   same('draw 1 says "1 card"', pileAction('draw', 'library', 1).message, 'Drew 1 card.');
-  const milled = pileAction('mill', 'library', 3);
+  const milled = pileAction('movetop:graveyard', 'library', 3);
   const gone = milled.run(game);
   same('mill 3 puts the top three cards in the graveyard (the newest first) and none in the hand', [uids(gone, 'graveyard'), gone.zones.library.length, uids(gone, 'hand').join() === uids(game, 'hand').join()], [libraryBefore.slice(0, 3).reverse(), libraryBefore.length - 3, true]);
   same('...and says what it did', milled.message, 'Milled the top 3 cards of your library into your graveyard.');
-  const exiled = pileAction('exiletop', 'library', 3);
+  const exiled = pileAction('movetop:exile', 'library', 3);
   const away = exiled.run(game);
   same('exile top 3 puts the top three cards in exile (it keeps its cards in the order they arrived) and none in the graveyard or hand', [uids(away, 'exile'), away.zones.library.length, away.zones.graveyard.length, uids(away, 'hand').join() === uids(game, 'hand').join()], [libraryBefore.slice(0, 3), libraryBefore.length - 3, 0, true]);
-  same('...and says what it did', [exiled.message, pileAction('exiletop', 'library', 1).message], ['Exiled the top 3 cards of your library.', 'Exiled the top card of your library.']);
-  same('the page-only choices (scry, surveil, reveal, top revealed, view, look) are not changes to the game: pileAction gives nothing', ['scry', 'surveil', 'reveal', 'toprevealed', 'view', 'look', 'search'].map((id) => pileAction(id, 'library', 2)), [null, null, null, null, null, null, null]);
-  same('exile top only works on the library, and milling and drawing work only on the library', [pileAction('exiletop', 'graveyard'), pileAction('mill', 'exile'), pileAction('draw', 'sideboard')], [null, null, null]);
-  same('mill 1 says "card"', pileAction('mill', 'library', 1).message, 'Milled the top card of your library into your graveyard.');
-  const all = pileAction('mill', 'library', 999).run(game);
+  same('...and says what it did', [exiled.message, pileAction('movetop:exile', 'library', 1).message], ['Exiled the top 3 cards of your library.', 'Exiled the top card of your library.']);
+  same('the page-only choices (scry, surveil, reveal, top revealed, view, look) are not changes to the game: pileAction gives nothing', ['scry', 'surveil', 'reveal', 'toprevealed', 'view', 'look', 'lookbottom', 'search'].map((id) => pileAction(id, 'library', 2)), [null, null, null, null, null, null, null, null]);
+  same('moving the top cards only works on the library, and drawing works only on the library', [pileAction('movetop:exile', 'graveyard'), pileAction('movetop:graveyard', 'exile'), pileAction('draw', 'sideboard')], [null, null, null]);
+  same('mill 1 says "card"', pileAction('movetop:graveyard', 'library', 1).message, 'Milled the top card of your library into your graveyard.');
+  {
+    const down = pileAction('movetop:exiledown', 'library', 2);
+    const next = down.run(game);
+    same('Move top X cards: Exile face down puts the top two cards in exile, marked face down, and says so', [uids(next, 'exile').length, next.zones.exile.every((c) => c.xd === true), down.message, checkGame(next)], [2, true, 'Exiled the top 2 cards of your library face down.', []]);
+    same('...a plain Exile has no mark', pileAction('movetop:exile', 'library', 2).run(game).zones.exile.some((c) => 'xd' in c), false);
+    const back = moveCard(next, next.zones.exile[0].uid, 'hand');
+    same('...a card that leaves exile loses the mark (hand, library, battlefield, graveyard)', ['hand', 'library', 'battlefield', 'graveyard'].map((to) => 'xd' in moveCard(next, next.zones.exile[0].uid, to).zones[to].find((c) => c.uid === next.zones.exile[0].uid)), [false, false, false, false]);
+    same('...and the game stays consistent', checkGame(back), []);
+    same('a mark in the wrong zone is a problem', checkGame({ ...next, zones: { ...next.zones, hand: [...next.zones.hand, { ...next.zones.exile[0], uid: 'x1' }], exile: next.zones.exile.slice(1) } }).some((p) => /exiled-face-down/.test(p)), true);
+  }
+  const all = pileAction('movetop:graveyard', 'library', 999).run(game);
   same('milling more than the library holds mills what there is and stops', [all.zones.library.length, all.zones.graveyard.length], [0, libraryBefore.length]);
   same('a bad amount counts as one', [pileAction('draw', 'library', 0).message, pileAction('draw', 'library', -2).message, pileAction('draw', 'library', 'x').message, pileAction('draw', 'library', 2.5).message], ['Drew 1 card.', 'Drew 1 card.', 'Drew 1 card.', 'Drew 1 card.']);
-  check('the actions never change the old game', (() => { const frozen = JSON.stringify(game); pileAction('shuffle', 'library').run(game); pileAction('draw', 'library', 2).run(game); pileAction('mill', 'library', 2).run(game); return JSON.stringify(game) === frozen; })());
+  check('the actions never change the old game', (() => { const frozen = JSON.stringify(game); pileAction('shuffle', 'library').run(game); pileAction('draw', 'library', 2).run(game); pileAction('movetop:graveyard', 'library', 2).run(game); return JSON.stringify(game) === frozen; })());
 }
 
 // move all

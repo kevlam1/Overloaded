@@ -15,26 +15,26 @@ const VIEW_WORDS = { library: 'library', graveyard: 'graveyard', exile: 'exile',
 // options (the solo table passes them; a page that cannot do these things leaves them out): scry (Scry and Surveil, each with its own window), reveal (Reveal top X, and the line that keeps the top card
 // face up), topRevealed (the top card is face up now, so the line says how to stop). The same id may be on two lines (Draw card and Draw X...): the number says how many. Nothing is offered that could not do anything
 // (no shuffling or drawing an empty library).
-export function pileMenuItems(zone, count, { scry = false, reveal = false, topRevealed = false } = {}) {
+export function pileMenuItems(zone, count, { scry = false, reveal = false, topRevealed = false, downExile = false } = {}) {
   if (!PILE_ZONES.includes(zone)) return [];
   const items = zone === 'library' ? [] : [{ id: 'search', label: `View ${VIEW_WORDS[zone]}` }]; // (the library builds its own list below, in Kevin's order)
   const ask = { max: count, unit: 'cards' };
   if (zone === 'library') {
-    // Kevin's sketch (2026-11-15): Draw card, Draw X, View library, View (top card, top X), Shuffle, Scry / Surveil / Mill with their own number boxes, Exile top X, Reveal top X, Play with top revealed
+    // Kevin's sketch (2026-11-15): Draw card, Draw X, View library, View (top card, top X cards, bottom card, bottom X cards), Shuffle, Scry / Surveil with their own number boxes, Move top X cards (graveyard,
+    // exile, and for the solo table exile face down), Reveal top X, Play with top revealed
     if (count > 0) {
       items.push({ id: 'draw', label: 'Draw card' });
       items.push({ id: 'draw', label: 'Draw X...', ask });
     }
     items.push({ id: 'search', label: 'View library' });
-    if (count > 0) items.push({ id: 'view', label: 'View', items: [{ id: 'look', label: 'Top card' }, { id: 'look', label: 'Top X cards...', ask }] });
+    if (count > 0) items.push({ id: 'view', label: 'View', items: [{ id: 'look', label: 'Top card' }, { id: 'look', label: 'Top X cards...', ask }, { id: 'lookbottom', label: 'Bottom card' }, { id: 'lookbottom', label: 'Bottom X cards...', ask }] });
     if (count > 1) items.push({ id: 'shuffle', label: 'Shuffle' });
     if (count > 0) {
       if (scry) {
         items.push({ id: 'scry', label: 'Scry', number: { key: 'scry', max: count } });
         items.push({ id: 'surveil', label: 'Surveil', number: { key: 'surveil', max: count } });
       }
-      items.push({ id: 'mill', label: 'Mill', number: { key: 'mill', max: count } });
-      items.push({ id: 'exiletop', label: 'Exile top X...', ask });
+      items.push({ id: 'movetop', label: 'Move top X cards', items: [{ id: 'movetop:graveyard', label: 'Graveyard...', ask }, { id: 'movetop:exile', label: 'Exile...', ask }, ...(downExile ? [{ id: 'movetop:exiledown', label: 'Exile face down...', ask }] : [])] });
       if (reveal) items.push({ id: 'reveal', label: 'Reveal top X...', ask });
     }
     if (reveal) items.push({ id: 'toprevealed', label: topRevealed ? 'Stop playing with top revealed' : 'Play with top revealed' });
@@ -57,7 +57,7 @@ export function pileMenuItems(zone, count, { scry = false, reveal = false, topRe
 }
 
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
-const topOfLibrary = (game, n, to) => { let next = game; for (let i = 0; i < n && next.zones.library.length; i++) next = moveCard(next, next.zones.library[0].uid, to); return next; };
+const topOfLibrary = (game, n, to, options = {}) => { let next = game; for (let i = 0; i < n && next.zones.library.length; i++) next = moveCard(next, next.zones.library[0].uid, to, options); return next; };
 
 // What a choice does to the game: { run(game) -> game, message } for a change, or null for an id that is not one (search and look are the page's: they only open the viewer).
 // zone is the pile the menu was opened on. run throws what the game logic throws, so the page can show it.
@@ -66,11 +66,11 @@ export function pileAction(id, zone, amount = 1) {
   const n = Number.isInteger(amount) && amount > 0 ? amount : 1;
   if (id === 'shuffle' && zone === 'library') return { run: (game) => shuffleLibrary(game), message: 'Shuffled your library.' };
   if (id === 'draw' && zone === 'library') return { run: (game) => draw(game, Math.min(n, game.zones.library.length || 1)).game, message: `Drew ${plural(n, 'card', 'cards')}.` };
-  if (id === 'mill' && zone === 'library') {
-    return { run: (game) => topOfLibrary(game, n, 'graveyard'), message: `Milled the top ${n === 1 ? 'card' : `${n} cards`} of your library into your graveyard.` };
-  }
-  if (id === 'exiletop' && zone === 'library') {
-    return { run: (game) => topOfLibrary(game, n, 'exile'), message: `Exiled the top ${n === 1 ? 'card' : `${n} cards`} of your library.` };
+  if (zone === 'library' && (id === 'movetop:graveyard' || id === 'movetop:exile' || id === 'movetop:exiledown')) { // (Kevin, 2026-11-15: Mill and Exile top X are one line, Move top X cards)
+    const words = n === 1 ? 'card' : `${n} cards`;
+    if (id === 'movetop:graveyard') return { run: (game) => topOfLibrary(game, n, 'graveyard'), message: `Milled the top ${words} of your library into your graveyard.` };
+    if (id === 'movetop:exile') return { run: (game) => topOfLibrary(game, n, 'exile'), message: `Exiled the top ${words} of your library.` };
+    return { run: (game) => topOfLibrary(game, n, 'exile', { faceDown: true }), message: `Exiled the top ${words} of your library face down.` };
   }
   if (id === 'intolibrary' && (zone === 'graveyard' || zone === 'exile')) {
     return { run: (game) => shuffleLibrary(moveAll(game, zone, 'library', { position: 'top' })), message: `Shuffled everything from ${ZONE_WORDS[zone]} into your library.` };

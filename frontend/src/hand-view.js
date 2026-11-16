@@ -403,5 +403,5 @@ export function mountHand({ container, costOf = () => '' }) {
   }
 
   if (typeof ResizeObserver === 'function') new ResizeObserver(() => arrange()).observe(container);
-  return { arrange, carry, holeFor, noteDrop, zone, over, bar, isRaised: () => raised };
+  return { arrange, carry, holeFor, noteDrop, zone, over, bar, clearLift, isRaised: () => raised };
 }

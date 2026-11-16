@@ -122,7 +122,7 @@ export function createHandSort({ onChange = () => {}, onSortNow = () => {} } = {
   let order = normalizeTypeOrder(parse(store.get(TYPE_ORDER_KEY)));
   let colors = normalizeColorOrder(parse(store.get(COLOR_ORDER_KEY)));
   let lands = normalizeLandOrder(parse(store.get(LAND_ORDER_KEY)));
-  let enabled = store.get(SORT_ON_KEY) !== '0'; // the on/off switch next to the buttons: off shows the hand as it is, and the buttons keep their states
+  let enabled = store.get(SORT_ON_KEY) === '1'; // the on/off switch next to the buttons: off shows the hand as it is, and the buttons keep their states
   let toggle = null;
   let sortNow = null;
   const buttons = new Map();

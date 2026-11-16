@@ -49,6 +49,7 @@ const multi = new Set(); // the uids of the cards picked up by dragging a rectan
 let modifyOpen = false; // the counters and power/toughness panel is shown (from Modify, in the card menu or the selected-card buttons)
 let viewing = null; // the pile being looked at: 'library', 'graveyard', 'exile' or 'sideboard'
 let viewTop = null; // when only the top few cards of the library are being looked at: how many
+let viewBottom = false; // the cards shown are the bottom few of the library, not the top
 let viewReveal = false; // the cards in the viewer are revealed (Reveal top X): the window says so
 const peeking = new Set(); // uids of two-sided cards in the hand that are shown on their back face (only a look, for you: not saved, nothing changes in the game)
 let topRevealed = false; // "Play with top revealed": the top card of the library is shown face up on its pile (not saved; a new game turns it off)
@@ -167,13 +168,15 @@ function render() {
 function renderViewer() {
   if (!viewing) { viewer.hide(); return; }
   const all = game.zones[viewing];
-  const cards = viewTop ? all.slice(0, viewTop) : all;
+  const cards = viewTop ? (viewBottom ? all.slice(Math.max(0, all.length - viewTop)) : all.slice(0, viewTop)) : all;
   const label = viewReveal && viewing === 'library' ? 'Revealed' : `${ZONE_WORDS[viewing][0].toUpperCase()}${ZONE_WORDS[viewing].slice(1)}`;
   viewer.show({
     label,
     cards,
     depth: viewing === 'library',
     total: all.length,
+    from: viewBottom ? 'bottom' : 'top',
+    offset: viewBottom ? all.length - cards.length : 0,
     noteText: viewing === 'library' ? 'The top card is first. Right-click a card to move it; right-click the library itself to shuffle, draw or mill.' : viewing === 'graveyard' ? 'The newest card is first. Right-click a card to move it.' : 'Right-click a card to move it.',
   });
 }
@@ -312,6 +315,28 @@ function drawOne() {
   if (!result.short) flyDrawn(result.drawn[0]);
 }
 
+// Draw X from the library menu: one card after another, each flying out of the library like the Draw button's (a small pause between them; under reduced motion they come at once).
+let drawing = false;
+async function drawCards(n) {
+  if (n <= 1) { drawOne(); return; }
+  if (drawing) return;
+  drawing = true;
+  try {
+    let drawn = 0;
+    for (let i = 0; i < n; i++) {
+      const result = draw(game, 1);
+      if (result.short) break;
+      game = result.game;
+      drawn++;
+      play('draw');
+      render();
+      flyDrawn(result.drawn[0]);
+      if (i < n - 1 && !reducedMotion()) await new Promise((resolve) => setTimeout(resolve, 140));
+    }
+    say(drawn === 0 ? 'Your library is empty.' : drawn < n ? `Drew ${drawn} cards: your library ran out.` : `Drew ${drawn} cards.`, drawn < n);
+  } finally { drawing = false; }
+}
+
 function goNextTurn() {
   const held = heldTapped(game);
   const result = nextTurn(game);
@@ -327,6 +352,7 @@ function goNextTurn() {
 let mulliganing = false; // the animation is running: another click waits
 async function doMulligan() {
   if (mulliganing) return;
+  handView.clearLift();
   mulliganing = true;
   const nodes = [...$('hand').children].filter((child) => child.classList.contains('card'));
   if (nodes.length && !reducedMotion()) { // the hand gathers, goes into the library and the library is shuffled, and then the new hand comes out of it
@@ -388,12 +414,13 @@ $('untap-all').addEventListener('click', () => { play('tap'); apply(() => untapA
 mountSoundSettings($('sound-settings'));
 // ---- piles drawn diagonally or horizontally (shared/pile-style.mjs), a double click taps a card, a click on empty space deselects ----
 mountPileStyle($('pile-style-settings'));
-const viewer = mountPileViewer({ root: $('viewer'), nodeFor: (card) => cardNodes.nodeFor(card, false), onClose: () => { viewing = null; viewTop = null; viewReveal = false; if (game) render(); } });
+const viewer = mountPileViewer({ root: $('viewer'), nodeFor: (card) => cardNodes.nodeFor(card, false), onClose: () => { viewing = null; viewTop = null; viewBottom = false; viewReveal = false; if (game) render(); } });
 viewer.onSearch(() => { if (game && viewing) renderViewer(); });
 // ---- the piles: a click opens the viewer (the cards and a search bar), a right-click opens the menu of the pile (search, shuffle, draw, look, mill, move all) ----
-function openPile(zone, { look = null, search = false, reveal = false } = {}) {
+function openPile(zone, { look = null, search = false, reveal = false, bottom = false } = {}) {
   viewing = zone;
   viewTop = look;
+  viewBottom = bottom;
   viewReveal = reveal;
   if (!search) viewer.clearSearch();
   render();
@@ -402,6 +429,8 @@ function openPile(zone, { look = null, search = false, reveal = false } = {}) {
 function pickFromPileMenu(zone, id, amount) {
   if (id === 'search') { openPile(zone, { search: true }); return; }
   if (id === 'look') { openPile(zone, { look: amount ?? 1 }); return; }
+  if (id === 'lookbottom') { openPile(zone, { look: amount ?? 1, bottom: true }); return; }
+  if (id === 'draw' && zone === 'library') { drawCards(amount ?? 1); return; } // (the same flight of the card out of the library as the Draw button)
   if (id === 'reveal') { openPile(zone, { look: amount ?? 1, reveal: true }); return; }
   if (id === 'scry' || id === 'surveil') {
     openScryWindow({
@@ -421,7 +450,9 @@ function pickFromPileMenu(zone, id, amount) {
   apply(() => action.run(game), action.message);
 }
 function openPileMenu(zone, where) {
-  openCardMenu({ title: `${ZONE_WORDS[zone][0].toUpperCase()}${ZONE_WORDS[zone].slice(1)}`, items: pileMenuItems(zone, game.zones[zone].length, { scry: true, reveal: true, topRevealed }), x: where.x, y: where.y, returnFocus: where.element, onPick: (id, amount) => pickFromPileMenu(zone, id, amount) });
+  const caret = $(`pile-caret-${zone}`); // the arrow beside the pile's name turns while the menu is open
+  caret?.setAttribute('aria-expanded', 'true');
+  openCardMenu({ title: `${ZONE_WORDS[zone][0].toUpperCase()}${ZONE_WORDS[zone].slice(1)}`, items: pileMenuItems(zone, game.zones[zone].length, { scry: true, reveal: true, topRevealed, downExile: true }), x: where.x, y: where.y, returnFocus: where.element, onPick: (id, amount) => pickFromPileMenu(zone, id, amount), onClose: () => caret?.setAttribute('aria-expanded', 'false') });
 }
 // The name of each pile is above it, like the command zone's, with a small arrow that opens the pile's menu (the same one a right-click opens: search, shuffle, draw, look, mill, move all).
 for (const [zone, name] of [['library', 'Library'], ['graveyard', 'Graveyard'], ['exile', 'Exile']]) {
@@ -438,6 +469,7 @@ for (const [zone, name] of [['library', 'Library'], ['graveyard', 'Graveyard'], 
   caret.className = 'pile-caret';
   caret.id = `pile-caret-${zone}`;
   caret.setAttribute('aria-haspopup', 'menu');
+  caret.setAttribute('aria-expanded', 'false');
   caret.setAttribute('aria-label', `${name} options`);
   caret.title = `${name} options`;
   caret.innerHTML = '<svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" aria-hidden="true"><path d="M1 3l4 4 4-4z"/></svg>';
@@ -694,9 +726,12 @@ handSort.mountButtons(handView.bar);
 // The menu of the hand (Kevin, 2026-11-15): an arrow next to the hand count, or a right-click on the bar. Mulligan, Shuffle hand into library, Discard X at random, Discard hand (shared/hand-menu.mjs).
 function openHandMenu(where) {
   if (!game) return;
-  openCardMenu({ title: 'Your hand', items: handMenuItems(game.zones.hand.length), x: where.x, y: where.y, returnFocus: where.element, onPick: pickFromHandMenu });
+  const caret = $('hand-caret');
+  caret?.setAttribute('aria-expanded', 'true');
+  openCardMenu({ title: 'Your hand', items: handMenuItems(game.zones.hand.length), x: where.x, y: where.y, returnFocus: where.element, onPick: pickFromHandMenu, onClose: () => caret?.setAttribute('aria-expanded', 'false') });
 }
 function pickFromHandMenu(id, amount) {
+  handView.clearLift(); // the card under the pointer was lifted: let it go now, the hand is about to change
   if (id === 'mulligan') { doMulligan(); return; }
   const action = handAction(id, amount);
   if (!action) return;
@@ -709,6 +744,7 @@ function pickFromHandMenu(id, amount) {
   handCaret.className = 'pile-caret hand-caret';
   handCaret.id = 'hand-caret';
   handCaret.setAttribute('aria-haspopup', 'menu');
+  handCaret.setAttribute('aria-expanded', 'false');
   handCaret.setAttribute('aria-label', 'Hand options');
   handCaret.title = 'Hand options';
   handCaret.innerHTML = '<svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" aria-hidden="true"><path d="M1 3l4 4 4-4z"/></svg>';
