@@ -1475,3 +1475,11 @@ body.playing.solo .pile-head .pile-caret { width: 1.05rem; height: 1.05rem; bord
 .viewer-card .card, .viewer-card .card:hover, .viewer-card .card.selected { border: 0; padding: 0; background: none; box-shadow: none; border-radius: 4.8% / 3.4%; }
 .viewer-card .card .face { border-radius: 4.8% / 3.4%; overflow: hidden; }
 .viewer-card[data-end] .card { box-shadow: none; }
+.card-menu-filter { position: sticky; top: 0; z-index: 1; display: block; width: calc(100% - 0.6rem); margin: 0 0.3rem 0.25rem; padding: 0.3rem 0.5rem; border: 1px solid var(--line); border-radius: 0.4rem; background: var(--bg); color: var(--text); font: inherit; }
+.card-menu-fly .card-menu-item[hidden] { display: none; }
+.card-menu-fly .card-menu-item .mana-icon { width: 1.1em; height: 1.1em; margin-right: 0.5em; vertical-align: -0.15em; }
+.card .marks .chip .mana-icon { display: inline-block; width: 1em; height: 1em; margin-right: 0.2em; vertical-align: -0.12em; }
+.details-glyph { display: inline-grid; place-items: center; width: 1.2em; height: 1.2em; margin: 0 0.1em; border-radius: 50%; background: var(--line); color: var(--text); vertical-align: -0.2em; font-size: 0.8em; font-weight: 700; }
+.details-glyph .mana-icon { width: 0.8em; height: 0.8em; }
+.card-menu-fly .card-menu-subitem { justify-content: flex-start; }
+.card-menu-fly[data-icons] .card-menu-subitem:not(:has(.mana-icon)) { padding-left: calc(0.8rem + 1.6em); }

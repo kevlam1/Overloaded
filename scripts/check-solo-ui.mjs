@@ -1438,7 +1438,7 @@ try {
 
   // ---- counters and the power/toughness change ----
   await open();
-  const markText = (selector) => ev(`Array.from(document.querySelectorAll(${JSON.stringify(selector)})).map((n) => n.textContent)`);
+  const markText = (selector) => ev(`Array.from(document.querySelectorAll(${JSON.stringify(selector)})).map((n) => n.title || n.textContent)`); // (a counter with an icon shows the icon and the number: its words are its tooltip)
   const setAmount = (value) => ev(`document.getElementById('marks-amount').value = ${JSON.stringify(value)}`);
   const setKind = (kind) => ev(`document.querySelector('#marks select').value = ${JSON.stringify(kind)}`);
   const clickMark = (label) => ev(`(() => { const b = Array.from(document.querySelectorAll('#marks button')).find((x) => x.textContent === ${JSON.stringify(label)}); if (!b) return false; b.click(); return true; })()`);
@@ -1650,7 +1650,7 @@ try {
   check('there is no menu before a right click', (await menuState()) === null);
   await mouse('#battlefield .card[data-kind="other"]', { button: 'right', dy: 64 });
   let menu = await menuState();
-  check('a right click on a creature opens its menu: its name, then Modify, Tap, the counter and the counters X..., Create copy and Move to (with the two marks after Tap: Elves came in sick)', menu && menu.title === 'Llanowar Elves' && menu.role === 'menu' && JSON.stringify(menu.items) === JSON.stringify(['Modify...', 'Tap', 'Flip', "Doesn't untap", 'Not summoning sick', '+1/+1 counter', '+1/+1 counters X...', 'Create copy', 'View details', 'Move to']), JSON.stringify(menu));
+  check('a right click on a creature opens its menu: its name, then Modify, Tap, the counter and the counters X..., Create copy and Move to (with the two marks after Tap: Elves came in sick)', menu && menu.title === 'Llanowar Elves' && menu.role === 'menu' && JSON.stringify(menu.items) === JSON.stringify(['Modify...', 'Tap', 'Flip', "Doesn't untap", 'Not summoning sick', '+1/+1 counter', '+1/+1 counters X...', 'Add counter', 'Create copy', 'View details', 'Move to']), JSON.stringify(menu));
   check('the menu is inside the window and the first item has the focus', menu.inside && menu.focused === 'Modify...', JSON.stringify(menu));
   check('the right click also selected the card', (await $text('selected-line')).startsWith('Llanowar Elves'), await $text('selected-line'));
   await ev(`window.__plays = []; HTMLMediaElement.prototype.play = function () { window.__plays.push({ src: new URL(this.src).pathname, volume: Math.round(this.volume * 10000) / 10000 }); return Promise.resolve(); };`);
@@ -1674,7 +1674,7 @@ try {
   await mouse('#battlefield .card[data-kind="other"]', { button: 'right', dy: 64 });
   await clickMenuItem('Move to');
   menu = await menuState();
-  const moveFly = await ev(`(() => { const f = document.querySelector('.card-menu-fly:not([hidden])'); const h = document.querySelector('.card-menu .has-sub'); if (!f) return null; const r = f.getBoundingClientRect(); const hr = h.getBoundingClientRect(); return { items: [...f.querySelectorAll('[role=menuitem]')].map((i) => i.textContent.trim()), expanded: h.getAttribute('aria-expanded'), separate: (r.left >= document.querySelector('.card-menu').getBoundingClientRect().right - 6) || (r.right <= document.querySelector('.card-menu').getBoundingClientRect().left + 6), beside: Math.abs(r.left - hr.right) < 40 || Math.abs(r.right - hr.left) < 40, inside: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight }; })()`);
+  const moveFly = await ev(`(() => { const f = document.querySelector('.card-menu-fly:not([hidden])'); const h = [...document.querySelectorAll('.card-menu .has-sub')].find((x) => /^Move to/.test(x.textContent.trim())); if (!f) return null; const r = f.getBoundingClientRect(); const hr = h.getBoundingClientRect(); return { items: [...f.querySelectorAll('[role=menuitem]')].map((i) => i.textContent.trim()), expanded: h.getAttribute('aria-expanded'), separate: (r.left >= document.querySelector('.card-menu').getBoundingClientRect().right - 6) || (r.right <= document.querySelector('.card-menu').getBoundingClientRect().left + 6), beside: Math.abs(r.left - hr.right) < 40 || Math.abs(r.right - hr.left) < 40, inside: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight }; })()`);
   check('Move to opens a box of its own beside the heading, with every other zone and both ends of the library', moveFly && moveFly.items.join() === 'Hand,Graveyard,Exile,Command zone,Sideboard,Top of library,Bottom of library' && moveFly.expanded === 'true' && moveFly.separate && moveFly.beside && moveFly.inside && menu.inside, JSON.stringify(moveFly));
   await clickMenuItem('Graveyard');
   check('Graveyard moves the card there (the pile says so, the battlefield is empty again) and the menu is gone', (await pileCount('graveyard')) === 'Graveyard: 1' && (await count('#battlefield .card[data-kind="other"]')) === 0 && (await menuState()) === null && (await $text('status')) === 'Moved Llanowar Elves to your graveyard.', `${await pileCount('graveyard')} ${await $text('status')}`);
@@ -1748,10 +1748,10 @@ try {
   await clickAction('Deselect');
   await clickCard('#battlefield .card[data-kind="land"]', 0);
   await setKind('l'); await setAmount('2'); await clickMark('Add counters');
-  const loyaltyChip = await ev(`Array.from(document.querySelectorAll('#battlefield .card[data-kind="land"] .marks .chip')).findIndex((c) => c.textContent === 'Loyalty 2') + 1`);
+  const loyaltyChip = await ev(`Array.from(document.querySelectorAll('#battlefield .card[data-kind="land"] .marks .chip')).findIndex((c) => (c.title || c.textContent) === 'Loyalty 2') + 1`);
   check('the land has a Loyalty chip to click', loyaltyChip > 0, String(loyaltyChip));
   await mouse(`#battlefield .card[data-kind="land"] .marks .chip:nth-child(${loyaltyChip})`, { button: 'right' });
-  check('a right click on a counter takes one off and opens no menu', (await menuState()) === null && (await ev(`Array.from(document.querySelectorAll('#battlefield .card[data-kind="land"] .marks .chip')).map((c) => c.textContent).includes('Loyalty 1')`)), await ev(`Array.from(document.querySelectorAll('#battlefield .card[data-kind="land"] .marks .chip')).map((c) => c.textContent).join()`));
+  check('a right click on a counter takes one off and opens no menu', (await menuState()) === null && (await ev(`Array.from(document.querySelectorAll('#battlefield .card[data-kind="land"] .marks .chip')).map((c) => c.title || c.textContent).includes('Loyalty 1')`)), await ev(`Array.from(document.querySelectorAll('#battlefield .card[data-kind="land"] .marks .chip')).map((c) => c.title || c.textContent).join()`));
   // the Modify button and the hidden panel
   await clickAction('Deselect');
   await clickCard('#battlefield .card[data-kind="land"]', 0);
@@ -2019,6 +2019,62 @@ try {
     await waitFor(async () => /not available/.test(((await win())?.rules ?? []).join()) || null, 8000, 100);
     check('when the site has no rules file (a 404) the window says the rules are not available', /not available/.test(((await win())?.rules ?? []).join()), JSON.stringify(await win()));
     await ev("window.fetch = window.__realFetch"); await ev("document.querySelector('.details-close').click()"); await sleep(150);
+  }
+
+  // ---- Add counter: flying, trample, lore and the rest from a menu that can be searched, a name of your own, and the symbols of the rules text in the details window (Kevin, 2026-11-15) ----
+  {
+    const COUNTER_JSON = deckFrom('1 Sol Ring\n6 Forest', 'Counter deck', null, []);
+    await open(COUNTER_JSON);
+    await waitFor(async () => (await count('#hand .card')) === 7 || null, 8000, 100);
+    await sleep(900);
+    const rightClickSel = (selector) => ev(`(() => { const c = document.querySelector(${JSON.stringify(selector)}); const r = c.getBoundingClientRect(); c.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: r.x + r.width / 2, clientY: r.y + r.height / 2 })); })()`);
+    const typeIn = async (text) => { await browser.send('Input.insertText', { text }); await sleep(120); };
+    const enter = async () => { await browser.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, text: String.fromCharCode(13) }); await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 }); await sleep(250); };
+    // Sol Ring: the tap symbol and the colorless mana in its rules are drawn as symbols
+    await rightClickSel('#hand > .card[aria-label^="Sol Ring"]'); await sleep(150); await pressMenuItem('View details');
+    await waitFor(async () => (await count('.details-rules')) > 0 && (await count('.details-glyph')) > 0 || null, 8000, 100);
+    const glyphs = await ev("(() => { const w = document.querySelector('.details-window'); return { glyphs: [...w.querySelectorAll('.details-glyph')].map((g) => [g.getAttribute('aria-label'), g.querySelector('.mana-icon')?.dataset.icon ?? null]), pips: w.querySelectorAll('.details-rules .details-symbol').length, text: w.querySelector('.details-rules').textContent }; })()");
+    check('in the rules text the tap symbol is the Mana project icon in a disc, and the colorless mana symbols are drawn too', JSON.stringify(glyphs.glyphs) === JSON.stringify([['tap', 'tap']]) && glyphs.pips === 2, JSON.stringify(glyphs));
+    await ev("document.querySelector('.details-close').click()"); await sleep(150);
+    // a Forest to the battlefield, then its menu
+    await rightClickSel('#hand > .card[aria-label^="Forest"]'); await sleep(150); await pressMenuItem('Play'); await sleep(400);
+    const forest = '#battlefield .card[aria-label^="Forest"]';
+    await rightClickSel(forest); await sleep(150);
+    const menu1 = await menuState();
+    check('a card on the battlefield has Add counter in its menu, after the two +1/+1 lines', menu1 && menu1.items.indexOf('Add counter') === menu1.items.indexOf('+1/+1 counters X...') + 1, JSON.stringify(menu1?.items));
+    await pressMenuItem('Add counter'); await sleep(200);
+    const fly = await ev("(() => { const f = document.querySelector('.card-menu-fly:not([hidden])'); if (!f) return null; const lines = [...f.querySelectorAll(':scope > [role=menuitem]')]; return { filter: document.activeElement === f.querySelector('.card-menu-filter'), first: lines.slice(0, 4).map((l) => l.textContent.trim()), last: lines.at(-1).textContent.trim(), count: lines.length, icons: lines.filter((l) => l.querySelector('.mana-icon')).length, inside: (() => { const r = f.getBoundingClientRect(); return r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight; })() }; })()");
+    check('Add counter opens a box with a search field (it has the focus) and the counters: Custom..., +1/+1, -1/-1, Flying ..., many with their icons, inside the window', fly && fly.filter && fly.first.join() === 'Custom...,+1/+1,-1/-1,Flying' && fly.last === 'Vortex' && fly.count > 90 && fly.icons > 30 && fly.inside, JSON.stringify(fly));
+    if (process.argv.includes('--screenshot')) await browser.screenshot('scratch-solo-counters.png');
+    await typeIn('tra');
+    const shown = await ev("[...document.querySelectorAll('.card-menu-fly:not([hidden]) > [role=menuitem]')].filter((l) => !l.hidden).map((l) => l.textContent.trim())");
+    check('typing in the search field hides the counters that do not contain the letters', shown.includes('Trample') && !shown.includes('Flying') && shown.length < 6, JSON.stringify(shown));
+    await enter();
+    const chip = () => ev("(() => { const c = document.querySelector('#battlefield .card[aria-label^=\"Forest\"] .marks .chip-trample'); return c ? { text: c.textContent, title: c.title, icon: c.querySelector('.mana-icon')?.dataset.icon ?? null } : null; })()");
+    const trample = await chip();
+    check('Enter adds the first counter left: a Trample chip with its icon and the number, its name as the tooltip, and the status says so', trample && trample.icon === 'ability-trample' && trample.text === '1' && trample.title === 'Trample 1' && /^Added a Trample counter to Forest\./.test(await $text('status')), JSON.stringify([trample, await $text('status')]));
+    check('the card says it in words too (for a screen reader)', /Trample 1/.test(await ev("document.querySelector('#battlefield .card[aria-label^=\"Forest\"]').getAttribute('aria-label')")) || /Trample/.test(await ev("document.querySelector('#battlefield .card[aria-label^=\"Forest\"]').getAttribute('aria-label')")), await ev("document.querySelector('#battlefield .card[aria-label^=\"Forest\"]').getAttribute('aria-label')"));
+    // a second kind from the list with the mouse, and the chips add and take off like the others
+    await rightClickSel(forest); await sleep(150); await pressMenuItem('Add counter'); await sleep(200); await pressMenuItem('Lore'); await sleep(250);
+    const kinds = () => ev("[...document.querySelectorAll('#battlefield .card[aria-label^=\"Forest\"] .marks .chip')].map((c) => c.title || c.textContent)");
+    check('Lore from the list adds a Lore chip beside the Trample one', JSON.stringify(await kinds()) === JSON.stringify(['Lore 1', 'Trample 1']), JSON.stringify(await kinds()));
+    await ev("document.querySelector('#battlefield .card[aria-label^=\"Forest\"] .marks .chip-lore').dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))"); await sleep(200);
+    check('a click on a named chip adds one, like the fixed kinds', (await kinds()).includes('Lore 2'), JSON.stringify(await kinds()));
+    await ev("document.querySelector('#battlefield .card[aria-label^=\"Forest\"] .marks .chip-lore').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }))"); await sleep(200);
+    check('and a right-click takes one off', (await kinds()).includes('Lore 1') && (await count('.card-menu')) === 0, JSON.stringify(await kinds()));
+    // a name of your own
+    await rightClickSel(forest); await sleep(150); await pressMenuItem('Add counter'); await sleep(200); await pressMenuItem('Custom...'); await sleep(250);
+    const asked = await ev("(() => { const b = document.querySelector('.text-box'); return b ? { title: b.getAttribute('aria-label'), focused: document.activeElement === b.querySelector('input') } : null; })()");
+    check('Custom... asks for the name in a small box with the focus in it', asked && asked.title === 'Name of the counter' && asked.focused, JSON.stringify(asked));
+    await typeIn('x'); await enter();
+    const refusedName = await ev("(() => { const b = document.querySelector('.text-box'); return b ? { bad: b.querySelector('.number-box-note').classList.contains('bad'), text: b.querySelector('.number-box-note').textContent, invalid: b.querySelector('input').getAttribute('aria-invalid') } : null; })()");
+    check('a name that cannot be one is refused in words and the box stays', refusedName && refusedName.bad && /2 to 24/.test(refusedName.text) && refusedName.invalid === 'true', JSON.stringify(refusedName));
+    await ev("document.querySelector('.text-box input').select()"); await typeIn("Wanderer's Mark"); await enter();
+    check('a good name adds a counter of that name: a chip with the name written out and a 1', (await kinds()).includes("Wanderer's-mark 1") || (await kinds()).some((k) => /^Wanderer's mark 1$|^Wanderer's-mark 1$/i.test(k)), JSON.stringify(await kinds()));
+    check('and the box has gone', (await count('.text-box')) === 0);
+    await rightClickSel(forest); await sleep(150); await pressMenuItem('Add counter'); await sleep(200); await pressMenuItem('Custom...'); await sleep(250);
+    await browser.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await sleep(200);
+    check('Escape closes the name box and adds nothing', (await count('.text-box')) === 0 && (await kinds()).length === 3, JSON.stringify(await kinds()));
   }
 
   // ---- turning a two-sided card over (real list entries: Sephiroth, Valakut Awakening, Delver, Aclazotz, and Fire // Ice which has no back) ----

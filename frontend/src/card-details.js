@@ -4,18 +4,24 @@
 import { imageUrl } from '../../shared/card-image.mjs';
 import { legalitiesOf } from '../../shared/card-rules.mjs';
 import { manaNode } from './mana-pips.js';
+import { manaIcon } from './mana-icon.js';
 
 const make = (tag, className, text) => { const element = document.createElement(tag); if (className) element.className = className; if (text !== undefined) element.textContent = text; return element; };
 const COLOR_WORDS = { W: 'White', U: 'Blue', B: 'Black', R: 'Red', G: 'Green' };
 const words = (letters) => (letters ? [...letters].map((c) => COLOR_WORDS[c]).join(', ') : 'Colorless');
 let current = null;
 
+// The symbols Scryfall's pictures do not have, drawn from the Mana project's icons (frontend/public/icons/mana): tap, untap, energy, chaos, planeswalker, acorn, ticket.
+const GLYPHS = { T: ['tap', 'tap'], Q: ['untap', 'untap'], E: ['e', 'energy'], CHAOS: ['chaos', 'chaos'], PW: ['planeswalker', 'planeswalker'], A: ['acorn', 'acorn'], TK: ['ticket', 'ticket'] };
+
 // A line of rules text with the symbols drawn ({T}, {2}{G}) like the ones on a card: the text between them stays text.
 export function richText(text) {
   const fragment = document.createDocumentFragment();
   for (const part of String(text).split(/(\{[^}]+\})/)) {
     if (!part) continue;
-    if (/^\{[^}]+\}$/.test(part)) { const symbol = manaNode(part); symbol.classList.add('details-symbol'); fragment.append(symbol); } else fragment.append(document.createTextNode(part));
+    const glyph = /^\{([A-Z]+)\}$/.exec(part) && Object.hasOwn(GLYPHS, /^\{([A-Z]+)\}$/.exec(part)[1]) ? GLYPHS[/^\{([A-Z]+)\}$/.exec(part)[1]] : null;
+    if (glyph) { const disc = document.createElement('span'); disc.className = 'details-glyph'; disc.setAttribute('role', 'img'); disc.setAttribute('aria-label', glyph[1]); disc.title = glyph[1]; const icon = manaIcon(glyph[0]); if (icon) disc.append(icon); else disc.textContent = part.slice(1, -1); fragment.append(disc); }
+    else if (/^\{[^}]+\}$/.test(part)) { const symbol = manaNode(part); symbol.classList.add('details-symbol'); fragment.append(symbol); } else fragment.append(document.createTextNode(part));
   }
   return fragment;
 }

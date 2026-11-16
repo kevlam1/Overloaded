@@ -22,6 +22,7 @@
 // pc (poison, energy, experience) and cd (commander damage by seat). docs/tokens-counters.md explains them.
 
 import { scrubText } from './player-name.mjs';
+import { isCounterKey } from './counter-catalog.mjs';
 import { validCell, cellOf, cellOrder, firstEmptyCell, placeAll, arrangeAll, overlaps, nearbyFreeBlock, CARD_COLS, CARD_ROWS, TAP_GAP, BOARD_COLS, MAX_COL, MAX_ROW } from './board-grid.mjs';
 import { stackKey, stackCellFor, snapToStack } from './stacks.mjs';
 
@@ -43,6 +44,9 @@ const EM_DASH = ' ' + String.fromCharCode(0x2014) + ' ';
 export const COUNTER_KINDS = ['p', 'm', 'l', 'c', 't', 'o']; // +1/+1, -1/-1, loyalty, charge, time, other
 export const COUNTER_WORDS = { p: '+1/+1', m: '-1/-1', l: 'Loyalty', c: 'Charge', t: 'Time', o: 'Other' };
 export const MAX_COUNT = NUMBER_LIMIT;
+export const MAX_COUNTER_KINDS = 12; // a card holds at most this many different kinds of counter
+// A kind of counter a card may hold: the six fixed kinds, or a named one (shared/counter-catalog.mjs: flying, lore, a typed name).
+export const isCounterKind = (kind) => COUNTER_KINDS.includes(kind) || isCounterKey(kind);
 export const MAX_MODIFIER = NUMBER_LIMIT;
 export const MAX_NOTE = 40;
 export const MAX_TOKEN_TEXT = 60;
@@ -331,7 +335,7 @@ const wholeStep = (delta, what) => {
 // Adds (delta above 0) or removes (below 0) counters of one kind. Adding a +1/+1 counter to a card with -1/-1 counters removes
 // -1/-1 counters first, and the other way round, as the real rules cancel them in pairs. A count stops at 0 and at MAX_COUNT.
 export function changeCounter(game, uid, kind, delta) {
-  if (!COUNTER_KINDS.includes(kind)) throw new Error('That is not a kind of counter.');
+  if (!isCounterKind(kind)) throw new Error('That is not a kind of counter.');
   wholeStep(delta, 'a counter');
   const { card, at } = onBattlefield(game, uid, 'counters');
   const counts = { ...(card.ct ?? {}) };
@@ -343,6 +347,7 @@ export function changeCounter(game, uid, kind, delta) {
     amount -= cancelled;
     if (!counts[rival]) delete counts[rival];
   }
+  if (!(kind in counts) && amount > 0 && Object.keys(counts).length >= MAX_COUNTER_KINDS) throw new Error(`A card can hold at most ${MAX_COUNTER_KINDS} kinds of counter.`);
   counts[kind] = Math.min(MAX_COUNT, Math.max(0, (counts[kind] ?? 0) + amount));
   if (!counts[kind]) delete counts[kind];
   return putBattlefield(game, at, with_(card, 'ct', counts, Object.keys(counts).length === 0));
@@ -624,7 +629,8 @@ export function checkGame(game) {
         const keys = counts && typeof counts === 'object' && !Array.isArray(counts) ? Object.keys(counts) : null;
         if (!keys || keys.length === 0) problems.push(`card ${card.uid} has an empty or damaged counters field`);
         else {
-          for (const key of keys) if (!COUNTER_KINDS.includes(key) || !Number.isInteger(counts[key]) || counts[key] < 1 || counts[key] > MAX_COUNT) problems.push(`card ${card.uid} has a damaged ${key} counter`);
+          if (keys.length > MAX_COUNTER_KINDS) problems.push(`card ${card.uid} has more than ${MAX_COUNTER_KINDS} kinds of counter`);
+          for (const key of keys) if (!isCounterKind(key) || !Number.isInteger(counts[key]) || counts[key] < 1 || counts[key] > MAX_COUNT) problems.push(`card ${card.uid} has a damaged ${key} counter`);
           if (counts.p && counts.m) problems.push(`card ${card.uid} has both +1/+1 and -1/-1 counters`);
         }
       }

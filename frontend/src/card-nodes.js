@@ -49,7 +49,12 @@ function updateMarks(button, card, interactive, printed, onBattlefield) {
   const nodes = [];
   if (chips.length) {
     const column = make('span', 'chips');
-    column.append(...chips.map((chip) => piece(`chip chip-${chip.kind}`, chip.text, 'chip', chip.kind)));
+    column.append(...chips.map((chip) => {
+      const element = piece(`chip chip-${chip.kind}`, chip.text, 'chip', chip.kind);
+      const icon = chip.icon ? manaIcon(chip.icon) : null; // a counter with an icon of its own shows it and the number, its name is in the tooltip and the card's words
+      if (icon) { element.textContent = String(shortNumber(chip.count)); element.prepend(icon); element.title = chip.text; element.classList.add('chip-iconic'); }
+      return element;
+    }));
     nodes.push(column);
   }
   if (showBox) {

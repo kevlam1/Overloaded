@@ -43,7 +43,8 @@ same('the full label keeps every digit', changeLabel({ mp: 5000000000, mt: 12000
 same('no counters, no chips', [counterChips({}), counterChips({ ct: {} }), counterChips(null)], [[], [], []]);
 same('a chip for each kind in a fixed order, whatever the order stored', counterChips({ ct: { o: 1, p: 3, l: 2 } }).map((chip) => chip.kind), ['p', 'l', 'o']);
 same('a chip has the word, the count and the text', counterChips({ ct: { p: 3 } }), [{ kind: 'p', word: '+1/+1', count: 3, text: '+1/+1 3' }]);
-same('a big count is short in the text and exact in the count', counterChips({ ct: { c: 2500000000 } }), [{ kind: 'c', word: 'Charge', count: 2500000000, text: 'Charge 2.5B' }]);
+same('a big count is short in the text and exact in the count', counterChips({ ct: { c: 2500000000 } }), [{ kind: 'c', word: 'Charge', count: 2500000000, text: 'Charge 2.5B', icon: 'counter-charge' }]);
+same('a named counter has a chip after the fixed kinds, by name, with its icon when it has one (Kevin, 2026-11-15)', counterChips({ ct: { trample: 1, p: 2, lore: 3, zzz: 1 } }), [{ kind: 'p', word: '+1/+1', count: 2, text: '+1/+1 2' }, { kind: 'lore', word: 'Lore', count: 3, text: 'Lore 3', icon: 'counter-lore' }, { kind: 'trample', word: 'Trample', count: 1, text: 'Trample 1', icon: 'ability-trample' }, { kind: 'zzz', word: 'Zzz', count: 1, text: 'Zzz 1' }]);
 same('a zero or missing count shows nothing', counterChips({ ct: { p: 0, m: undefined } }), []);
 same('every kind has a chip', counterChips({ ct: Object.fromEntries(COUNTER_KINDS.map((kind) => [kind, 1])) }).length, COUNTER_KINDS.length);
 

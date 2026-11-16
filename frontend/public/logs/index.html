@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.210</span></h1>
-    <p class="lede">210 entries, Oct 25 to Nov 15, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
+    <h1>Build log <span class="version">Version 0.211</span></h1>
+    <p class="lede">211 entries, Oct 25 to Nov 15, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
   </div>
 </header>
 
@@ -23,7 +23,7 @@
     <div class="weeks-row">
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
-<a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">100</span></a>
+<a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">101</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
     </div>
     <div class="tools">
@@ -1961,7 +1961,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-1" aria-labelledby="week-1-title">
-<h2 class="week-head" id="week-1-title"><button type="button" aria-expanded="false" aria-controls="week-1-days"><span class="wname">Week 1</span><span class="range">Nov 9 to Nov 15</span><span class="week-count">100 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-1-title"><button type="button" aria-expanded="false" aria-controls="week-1-days"><span class="wname">Week 1</span><span class="range">Nov 9 to Nov 15</span><span class="week-count">101 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-1-days">
 <div class="day">
 <h3 class="day-title">Monday 9 November <span class="day-count">4</span></h3>
@@ -3368,7 +3368,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Sunday 15 November <span class="day-count">12</span></h3>
+<h3 class="day-title">Sunday 15 November <span class="day-count">13</span></h3>
 <div class="entries">
 <article class="entry" id="entry-199" data-n="199">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-199-body">
@@ -3549,6 +3549,21 @@
 <ul><li><strong>2:</strong> the picked cards are now layers inside the one picture carried (it leans and follows the pointer as one), with &quot;2x&quot; on it. Before, the others were a separate pile that did not move with the lean, and every layer was see-through (the ghost is 60% opaque), which is the mess in your screenshot.</li><li><strong>3:</strong> the cause was mine. The order window showed the hand's own card buttons, and the table takes those back whenever it is drawn again; a click outside the window drew it again, so the cards were pulled out of the window and it was left empty. The window now draws its own pictures from the cards' ids (the normal size, sharp). A click or right-click on the dark space around the window (and the Scry window) now stops there: nothing behind it sees it and no menu opens.</li><li><strong>4:</strong> while a card is dragged the cards between its old place and the new one slide aside to open it (and slide back if it goes back); the arrows are drawn icons, rounder buttons.</li><li><strong>5:</strong> the pile windows ask for the NORMAL size of each picture (the small one is 146 px wide, blurry at 160), have no frame round a card and a 0.4 rem gap, and the window is wider (96 rem). The blue Top and orange Bottom outlines stay.</li><li><strong>6:</strong> with Alt held over a card Q and E turn the larger picture a quarter turn each way (a card on its side gets a box as wide as it is tall, kept inside the window); it goes back upright when Alt is let go. With Alt held the table does not tap on Q and E, so they were free.</li></ul>
 <p><strong>What I checked:</strong> all 68 quick suites, <code>test-card-hover.mjs</code> (27) and the solo check: the group carried as one picture with a count and nothing left behind, the order window drawing its own pictures with drawn arrows, a left and a right click outside it leaving it alone (right-click not left to the browser), the other card sliding aside while one is dragged and back again, the pile window pictures at the normal size with no frame and an 8 px gap at most, and Q and E turning the Alt picture (box, rotation, inside the window, upright again after Alt is let go). I looked at screenshots of the order window and the exile window, with the stand-in pictures. Not checked: the real Scryfall pictures at this size, phone width.</p>
 <p><strong>My mistakes this round:</strong> I had built the order window on the hand's card buttons without noticing they are shared with the table; Kevin's screenshot of the empty window showed it.</p>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-211" data-n="211">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-211-body">
+    <span class="num">211</span>
+    <span class="head-text"><span class="title">Add counter on battlefield cards, and the Mana icons for counters and the rules text</span><span class="sum">Add counter on battlefield cards, and the Mana icons for counters and the rules text</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-211-body"><div class="body-in"><div class="body-pad">
+<p><strong>What I asked for</strong> (points 7, 8 and the question in point 1)</p>
+<ul><li>(8) A menu item on battlefield cards, Add counter, with the most common counters (flying, trample) and the specialised ones, using https://mtg.fandom.com/wiki/Counter_(marker)/Full_List as the reference. (7) Use https://github.com/andrewgioia/Mana for the tap symbol and other icons. (1) Will the card details include rulings?</li></ul>
+<p><strong>What changed</strong> (<code>shared/counter-catalog.mjs</code>, <code>shared/zones.mjs</code>, <code>shared/marks.mjs</code>, <code>shared/card-menu.mjs</code>, <code>shared/mana-icons.mjs</code>, <code>frontend/src/card-menu.js</code>, <code>frontend/src/card-nodes.js</code>, <code>frontend/src/card-details.js</code>, <code>frontend/src/text-box.js</code>, <code>frontend/pages/solo/solo.js</code>, <code>frontend/public/icons/mana/</code>, <code>frontend/src/style.css</code>, tests)</p>
+<ul><li><strong>The list, and where it comes from:</strong> I could not read the wiki page (it answers HTTP 402 to me), so I made the list from the cards themselves: every &quot;&lt;name&gt; counter&quot; phrase in the rules text of all 34,142 cards in our own rules files, counted by how many cards use it (273 phrases). The menu has the thirteen keyword counters of the Comprehensive Rules (flying, first strike, double strike, deathtouch, haste, hexproof, indestructible, lifelink, menace, reach, shadow, trample, vigilance), then Loyalty, Charge and Time, then the ones at least two cards use, most common first (stun, shield, lore, oil, age, level, quest, finality, fade, spore ...), 99 lines in all, without the player-only ones (energy, poison, experience, rad, ticket, speed). &quot;Custom...&quot; is the first line: it asks for a name (letters, numbers, spaces, hyphens, up to 24) and adds a counter of that name, so a card newer than my list is never stuck.</li><li><strong>The menu:</strong> a battlefield card has Add counter after the two +1/+1 lines. It opens in its own box with a search field at the top (it has the focus: type &quot;tra&quot; and only Trample is left; Enter takes the first one left). Many lines have the Mana icon before the name.</li><li><strong>On the card:</strong> each counter is a chip like the fixed ones: a click adds one, a right-click takes one off. A counter that has an icon shows the icon and the number (its words are the tooltip and are in the card's label for a screen reader); the others show their name and the number. Loyalty, Charge and Time have icons now too, so their chips are the icon and the number.</li><li><strong>The data:</strong> a counter is stored on the card under its name (<code>ct</code>: flying, lore, third-degree-burn); a card holds at most 12 kinds; a name that is already on every object (constructor, toString ...) is refused (my first version let &quot;constructor&quot; through and the old marks test caught it).</li><li><strong>Icons:</strong> 43 more svgs copied one by one from the Mana project's <code>svg</code> folder (the 28 counters, the 12 keyword abilities, and untap, energy, chaos, planeswalker, acorn, ticket), each checked to be a plain svg; credits are updated. In the rules text of the details window the tap, untap, energy, chaos, planeswalker, acorn and ticket symbols are drawn with them (a Mana icon in a round disc), next to the mana symbols from Scryfall.</li><li><strong>Solo only:</strong> the live table's database rules know only the fixed kinds of counter, so its menu does not offer Add counter until the rules are changed.</li><li><strong>Point 1, rulings:</strong> not in the details window yet. I measured Scryfall's rulings file: 79,706 rulings on 20,080 cards, a download of 5.4 MB (the build downloads about 100 MB already), 16.8 MB of text as small files, 4.2 MB compressed in all, a median of 558 bytes and at most 9 KB for one card. A rulings section would be a second set of small files fetched when the window opens, and one more list rebuild. I have not built it; it is waiting for Kevin's yes.</li></ul>
+<p><strong>What I checked:</strong> <code>test-counter-catalog.mjs</code> (33: the catalog, every name and icon, the slugs, the 12-kind limit, hostile names, chips with their icons, clicks, the menu and what choosing does), <code>test-marks.mjs</code> (112), <code>test-card-menu.mjs</code> (230), <code>test-mana-icons.mjs</code> (139), all 69 quick suites, and the solo check: the tap symbol and mana symbols drawn in a card's rules, Add counter opening with the search field focused and the right lines, typing to filter, Enter adding Trample with its icon, Lore from the list, a click and a right-click on a named chip, Custom... asking for a name, a bad name refused and a good one added, Escape adding nothing. I looked at a screenshot of the menu (with the stand-in pictures). Not checked: the menu on a short window (it scrolls), phone width, the table page.</p>
+<p><strong>My mistakes this round:</strong> my first Custom... was the last of about 100 lines, out of reach; it is the first line now. The name box lost its focus to the card (the menu gives the focus back as it closes) until I took it again, and the first version of the list alignment pushed the names of the lines with icons to the right.</p>
   </div></div></div>
 </article>
 </div>

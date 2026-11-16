@@ -12,4 +12,4 @@ So the pictures themselves are Wizards of the Coast's, not Andrew Gioia's to lic
 
 Files are used through `shared/mana-icons.mjs` (a list of the names copied) and `frontend/src/mana-icon.js` (draws one, coloured by the text colour). Copy a new icon here and add its name to that list; do not add the whole project.
 
-Used so far: `tap.svg` (the tap symbol shown on tapped cards).
+Used so far: `tap.svg` (the tap symbol shown on tapped cards), the symbols of the rules text in the details window (`tap`, `untap`, `e`, `chaos`, `planeswalker`, `acorn`, `ticket`), and the icons of the counters a card can be given (`counter-*`, and `ability-*` for the keyword counters: flying, trample, first strike and so on). 44 files copied on 2026-11-15 from the `master` branch, one by one, each checked to be an svg.

@@ -17,6 +17,8 @@ import { handMenuItems, handAction } from '../../../shared/hand-menu.mjs';
 import { handGroupItems, groupAction, needsOrder } from '../../../shared/group-menu.mjs';
 import { openOrderWindow } from '../../src/order-window.js';
 import { openCardDetails } from '../../src/card-details.js';
+import { askText } from '../../src/text-box.js';
+import { slugOf, counterLabel } from '../../../shared/counter-catalog.mjs';
 import { makeRulesLoader } from '../../src/card-rules.js';
 import { applyScry, topCards } from '../../../shared/scry.mjs';
 import { openScryWindow } from '../../src/scry-window.js';
@@ -39,7 +41,7 @@ import { flyAway, flyDraw, shuffleAnimation, gatherIntoPile, reducedMotion } fro
 import { menuItems, menuAction, turnLabel, turnMessage, playBackLabel, PLAY_BACK_ZONES, noUntapLabel, sickLabel, untapMessage } from '../../../shared/card-menu.mjs';
 import { marksSentence, markClick, printedOf } from '../../../shared/marks.mjs';
 import { chipEntries, playerMenuItems, playerAction } from '../../../shared/player-counters.mjs';
-import { setFaceDown, makeGame, draw, moveCard, shuffleLibrary, mulligan, setTapped, turnOver, untapAll, heldTapped, adjustLife, nextTurn, boardCells, placeCard, placeStack, placeGroup, zoneCounts, reorderHand } from '../../../shared/zones.mjs';
+import { changeCounter, setFaceDown, makeGame, draw, moveCard, shuffleLibrary, mulligan, setTapped, turnOver, untapAll, heldTapped, adjustLife, nextTurn, boardCells, placeCard, placeStack, placeGroup, zoneCounts, reorderHand } from '../../../shared/zones.mjs';
 
 const $ = (id) => document.getElementById(id);
 const store = makeSafeStore();
@@ -261,7 +263,7 @@ function openMenuFor(uid, where) {
   if (!found) return;
   if (found.zone === 'hand' && multi.size > 1 && multi.has(uid)) { openGroupMenu(where); return; } // (several cards of the hand picked: the menu is for all of them)
   select(uid);
-  openCardMenu({ title: found.card.n, items: menuItems(found.card, found.zone, { peek: true, details: true }), x: where.x, y: where.y, returnFocus: where.element, onPick: (id, amount) => pickFromMenu(uid, id, amount) });
+  openCardMenu({ title: found.card.n, items: menuItems(found.card, found.zone, { peek: true, details: true, counters: true }), x: where.x, y: where.y, returnFocus: where.element, onPick: (id, amount) => pickFromMenu(uid, id, amount) });
 }
 
 // The menu of the picked cards of the hand: Play, Discard, Exile, Top and Bottom of library (each asks for the order first) and Move to. The cards go in the order they have in the hand.
@@ -297,6 +299,13 @@ function pickFromMenu(uid, id, amount) {
   const found = findCard(uid);
   if (!found) return;
   if (id === 'modify') { modifyOpen = true; render(); $('marks-amount').focus(); return; } // opens the Modify window next to the card
+  if (id === 'counteradd:custom') { // a counter with a name of your own: ask for the name, then add one
+    const box = document.querySelector(`.card[data-uid="${uid}"]`)?.getBoundingClientRect();
+    askText({ title: 'Name of the counter', x: box ? box.left : 100, y: box ? box.top : 100, hint: 'Letters, numbers, spaces and hyphens, up to 24.', returnFocus: document.querySelector(`.card[data-uid="${uid}"]`),
+      check: (text) => { const key = slugOf(text); return key ? { ok: true, value: key } : { ok: false, message: 'Use 2 to 24 letters, numbers, spaces or hyphens.' }; } })
+      .then((key) => { if (key === null || !findCard(uid)) return; apply(() => changeCounter(game, uid, key, 1), `Added a ${counterLabel(key)} counter to ${found.card.n}.`); });
+    return;
+  }
   if (id === 'details') { openCardDetails({ card: found.card, info: lookup?.(found.card) ?? null, loader: rulesLoader, returnFocus: document.activeElement instanceof HTMLElement ? document.activeElement : null }); return; } // the rules, mana value, type and the rest of the card (frontend/src/card-details.js)
   if (id === 'peek') { // a look at the other face of a two-sided card in the hand
     if (found.zone !== 'hand' || found.card.b !== 1) return;

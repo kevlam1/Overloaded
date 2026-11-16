@@ -3,6 +3,7 @@
 // action with their own apply() so a refused move leaves the game as it was.
 import { moveCard, setTapped, setFaceDown, changeCounter, turnOver, copyAsToken, faceName, setNoUntap, setSick, markSickByFace, heldTapped } from './zones.mjs';
 import { canPing } from './ping.mjs';
+import { counterMenuItems, counterLabel } from './counter-catalog.mjs';
 
 export const ZONE_NAMES = { library: 'your library', hand: 'your hand', battlefield: 'the battlefield', graveyard: 'your graveyard', exile: 'exile', command: 'the command zone', sideboard: 'your sideboard' };
 export const MOVE_TARGETS = [['hand', 'Hand'], ['battlefield', 'Battlefield'], ['graveyard', 'Graveyard'], ['exile', 'Exile'], ['command', 'Command zone'], ['sideboard', 'Sideboard']];
@@ -39,7 +40,7 @@ export const playBackLabel = (card) => `Play ${backNameOf(card) ?? 'its back fac
 // The items for a card in a zone: { id, label } for a choice, { id, label, ask } for a line that asks for a number first ("+1/+1 counters X..."), { id, label, items } for a heading that opens more.
 // Tap, counters and Modify belong to a card on the battlefield; moving is offered everywhere (not to the zone it is already in).
 // live: this is a table with other players, so a card in a public zone can also be pinged to them (shared/ping.mjs); the solo table has nobody to ping.
-export function menuItems(card, zone, { live = false, peek = false, details = false } = {}) {
+export function menuItems(card, zone, { live = false, peek = false, details = false, counters = false } = {}) {
   const items = [];
   if (zone === 'battlefield') {
     items.push({ id: 'modify', label: 'Modify...' });
@@ -50,6 +51,7 @@ export function menuItems(card, zone, { live = false, peek = false, details = fa
     items.push({ id: 'sick', label: sickLabel(card) });
     items.push({ id: 'counter', label: '+1/+1 counter' });
     items.push({ id: 'counter', label: '+1/+1 counters X...', ask: { ...COUNTER_ASK } });
+    if (counters) items.push({ id: 'counters', label: 'Add counter', searchable: true, items: counterMenuItems() }); // (Kevin, 2026-11-15: flying, trample, lore, stun and the rest; the solo table passes counters: the live table's rules know only the fixed kinds)
     items.push({ id: 'copy', label: 'Create copy' });
   }
   if (zone === 'hand') { // (Kevin, 2026-11-15) the common moves are lines of their own, the rest stay under Move to; a two-sided card can show its other face (only a look: the page keeps it, nothing is stored; the solo table passes peek)
@@ -108,6 +110,17 @@ export function menuAction(id, card, amount = 1, { printed = null } = {}) {
       run: (game) => changeCounter(game, card.uid, 'p', amount),
       message: `Added ${amount} +1/+1 counter${amount === 1 ? '' : 's'} to ${name}.`,
       toast: { text: `+${amount}/+${amount}`, tone: 'up' },
+    };
+  }
+  const add = /^counteradd:(.+)$/.exec(id);
+  if (add) { // one counter of a kind from the "Add counter" menu (the line that types a name is the page's)
+    const kind = add[1];
+    if (kind === 'custom') return null;
+    const word = counterLabel(kind);
+    return {
+      run: (game) => changeCounter(game, card.uid, kind, 1),
+      message: `Added a ${word} counter to ${name}.`,
+      toast: kind === 'p' ? { text: '+1/+1', tone: 'up' } : kind === 'm' ? { text: '-1/-1', tone: 'down' } : { text: `+1 ${word}`, tone: 'plain' },
     };
   }
   if (!Object.hasOwn(MOVES, id)) return null;

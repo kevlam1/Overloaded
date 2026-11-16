@@ -1,6 +1,10 @@
 // What a card shows about its counters and its power/toughness change, and how a typed amount is read. Plain text in, plain
 // text out, no browser code, so Node tests can load it (scripts/test-marks.mjs).
-import { COUNTER_KINDS, COUNTER_WORDS, NUMBER_LIMIT, netChange, changeCounter, changeModifier } from './zones.mjs';
+import { COUNTER_KINDS, COUNTER_WORDS, NUMBER_LIMIT, netChange, changeCounter, changeModifier, isCounterKind } from './zones.mjs';
+import { counterLabel, counterIcon } from './counter-catalog.mjs';
+
+// How a counter is written: the fixed kinds as before, a named counter from the catalog ("First strike") or from its key.
+const labelOf = (kind) => (Object.hasOwn(COUNTER_WORDS, kind) ? COUNTER_WORDS[kind] : counterLabel(kind));
 
 // A typed amount: whole digits only, commas, spaces and underscores allowed between them ("1,500,000"). Returns the number, or
 // null when it is empty, not a whole number above 0, or over NUMBER_LIMIT. No "1e9", no signs, no decimals: the buttons pick the direction.
@@ -38,14 +42,16 @@ export function changeParts(card, short = true) {
   return { power: signed(power, short), toughness: signed(toughness, short) };
 }
 
-// The counters on a card, as chips for the card and in the order of COUNTER_KINDS: [{ kind, word, count, text }].
+// The counters on a card, as chips for the card and in the order of COUNTER_KINDS, then the named counters by name: [{ kind, word, count, text, icon? }] (icon: the name of a Mana icon, when the counter has one).
 export function counterChips(card) {
   const counters = card?.ct ?? {};
-  return COUNTER_KINDS.filter((kind) => counters[kind] > 0).map((kind) => ({
+  const named = Object.keys(counters).filter((kind) => !COUNTER_KINDS.includes(kind) && counters[kind] > 0).sort();
+  return [...COUNTER_KINDS.filter((kind) => counters[kind] > 0), ...named].map((kind) => ({
     kind,
-    word: COUNTER_WORDS[kind],
+    word: labelOf(kind),
     count: counters[kind],
-    text: `${COUNTER_WORDS[kind]} ${shortNumber(counters[kind])}`,
+    text: `${labelOf(kind)} ${shortNumber(counters[kind])}`,
+    ...(counterIcon(kind) ? { icon: counterIcon(kind) } : {}),
   }));
 }
 
@@ -98,10 +104,10 @@ export function markClick(hit) {
   const delta = hit.remove ? -step : step;
   const verb = hit.remove ? 'Removed' : 'Added';
   if (hit.mark === 'chip') {
-    if (!COUNTER_KINDS.includes(hit.kind)) throw new Error('That is not a kind of counter.');
+    if (!isCounterKind(hit.kind)) throw new Error('That is not a kind of counter.');
     return {
       run: (game, uid) => changeCounter(game, uid, hit.kind, delta),
-      message: (name) => `${verb} ${step} ${COUNTER_WORDS[hit.kind]} counter${step === 1 ? '' : 's'} ${hit.remove ? 'from' : 'to'} ${name}.`,
+      message: (name) => `${verb} ${step} ${labelOf(hit.kind)} counter${step === 1 ? '' : 's'} ${hit.remove ? 'from' : 'to'} ${name}.`,
     };
   }
   const table = { power: ['power'], toughness: ['toughness'], both: ['power', 'toughness'] };
@@ -124,7 +130,7 @@ export function markToast(hit) {
       const mark = stronger ? '+' : '-';
       return { text: `${mark}${step}/${mark}${step}`, tone: stronger ? 'up' : 'down' };
     }
-    return Object.hasOwn(COUNTER_WORDS, hit.kind) ? { text: `${sign}${step} ${COUNTER_WORDS[hit.kind]}`, tone: 'plain' } : null;
+    return isCounterKind(hit.kind) ? { text: `${sign}${step} ${labelOf(hit.kind)}`, tone: 'plain' } : null;
   }
   const tone = hit.remove ? 'down' : 'up';
   if (hit.mark === 'power') return { text: `${sign}${step} power`, tone };

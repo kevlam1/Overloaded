@@ -4,6 +4,7 @@
 // opens a heading's menu, Left goes back, Enter and Space choose. A heading ("View", "Move to") opens its lines in a box of their own beside it
 // (Kevin, 2026-11-15, not inside the same box any more): on hover or click with a mouse, Right with a keyboard. Card names go in as text.
 import { askNumber } from './number-box.js';
+import { manaIcon } from './mana-icon.js';
 import { parseCount, startingCount } from '../../shared/number-input.mjs';
 import { makeSafeStore } from './safe-store.js';
 
@@ -111,15 +112,35 @@ export function openCardMenu({ title, items, x, y, onPick, returnFocus = null, o
       sub.setAttribute('role', 'menu');
       sub.setAttribute('aria-label', item.label);
       sub.tabIndex = -1;
+      // A long list (the counters) has a box at the top to type in: the lines that do not contain the letters typed are hidden (Kevin, 2026-11-15).
+      let filter = null;
+      if (item.searchable) {
+        filter = make('input', 'card-menu-filter');
+        filter.type = 'search';
+        filter.placeholder = 'Type to find one...';
+        filter.autocomplete = 'off';
+        filter.spellcheck = false;
+        filter.setAttribute('aria-label', `Find in ${item.label}`);
+        sub.append(filter);
+      }
       for (const child of item.items) {
         const button = itemButton(child.label, 'card-menu-item card-menu-subitem');
         bindChoice(button, child);
+        if (child.icon) { const icon = manaIcon(child.icon); if (icon) { button.prepend(icon); sub.dataset.icons = '1'; } } // (a line may name a Mana icon to show before its words)
         sub.append(button);
       }
-      flyouts.push({ head, sub });
+      if (filter) {
+        const lines = () => [...sub.querySelectorAll(':scope > [role="menuitem"]')];
+        filter.addEventListener('input', () => { const wanted = filter.value.trim().toLowerCase(); for (const line of lines()) line.hidden = wanted !== '' && !line.textContent.toLowerCase().includes(wanted); });
+        filter.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter') { event.preventDefault(); event.stopPropagation(); lines().find((line) => !line.hidden)?.click(); }
+          else if (event.key === 'ArrowLeft' || event.key === 'ArrowRight' || event.key === 'Home' || event.key === 'End') event.stopPropagation(); // (the box keeps its own cursor keys)
+        });
+      }
+      flyouts.push({ head, sub, filter });
       head.addEventListener('click', () => { // (a click opens it and keeps it open: it may be open already because the pointer came over the heading)
         expand(head, sub, true);
-        sub.querySelector('[role="menuitem"]')?.focus({ preventScroll: true });
+        (filter ?? sub.querySelector('[role="menuitem"]'))?.focus({ preventScroll: true });
       });
       head.addEventListener('pointerenter', (event) => { if (event.pointerType !== 'touch') expand(head, sub, true); });
       sub.addEventListener('keydown', onKeydown);
@@ -162,7 +183,7 @@ export function openCardMenu({ title, items, x, y, onPick, returnFocus = null, o
 
   function onKeydown(event) {
     const container = event.currentTarget;
-    const list = [...container.querySelectorAll(':scope > [role="menuitem"], :scope > .card-menu-row [role="menuitem"]')];
+    const list = [...container.querySelectorAll(':scope > [role="menuitem"], :scope > .card-menu-row [role="menuitem"]')].filter((line) => !line.hidden);
     const active = document.activeElement;
     const target = active?.classList?.contains('card-menu-number') ? active.parentElement.querySelector('[role="menuitem"]') : active; // (a number box counts as its line)
     const at = list.indexOf(target);
@@ -175,7 +196,7 @@ export function openCardMenu({ title, items, x, y, onPick, returnFocus = null, o
       if (target?.classList.contains('has-sub')) {
         const entry = flyouts.find((fly) => fly.head === target);
         if (entry.sub.hidden) expand(target, entry.sub, true);
-        entry.sub.querySelector('[role="menuitem"]')?.focus({ preventScroll: true });
+        (entry.filter ?? entry.sub.querySelector('[role="menuitem"]'))?.focus({ preventScroll: true });
       } else if (target?.closest('.card-menu-row')) {
         const box = target.parentElement.querySelector('.card-menu-number');
         if (box) { box.focus({ preventScroll: true }); box.select(); }
