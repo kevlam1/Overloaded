@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.215</span></h1>
-    <p class="lede">215 entries, Oct 25 to Nov 16, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
+    <h1>Build log <span class="version">Version 0.216</span></h1>
+    <p class="lede">216 entries, Oct 25 to Nov 16, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
   </div>
 </header>
 
@@ -24,7 +24,7 @@
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
-<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">2</span></a>
+<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">3</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
     </div>
     <div class="tools">
@@ -3602,10 +3602,10 @@
 </div>
 </section>
 <section class="week collapsed" id="week-2" aria-labelledby="week-2-title">
-<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">2 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">3 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-2-days">
 <div class="day">
-<h3 class="day-title">Monday 16 November <span class="day-count">2</span></h3>
+<h3 class="day-title">Monday 16 November <span class="day-count">3</span></h3>
 <div class="entries">
 <article class="entry" id="entry-214" data-n="214">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-214-body">
@@ -3639,6 +3639,21 @@
 <ul><li><code>npm test</code>: all 77 suites passed. The solo check (776) passed in its last full run, with new checks for the eye and the pill, the scroll position, the length of the bar's strip and line (at least 90% of the window), and the idle box of a carried card (on a card I built for the purpose, not a real group drag).</li><li>Screenshots at 1920 by 1000 and 1366 by 768: the board, the details window for Humility (the right side scrolls, the card is in the middle), the eye and the pill, and the bar held at the middle of the left edge (the strip and the dotted line both show).</li><li>Not checked: a real drag of a group with the real mouse and a box showing, the table page in a screenshot, the two-browser live check, phones. The piles at the bottom right now overlap the bottom of the board by about 20 px at 1920 wide.</li></ul>
 <p class="sub"><strong>My mistakes this round</strong></p>
 <ul><li>I misread MIDI Companion's code last round and made the strip and line bar-sized, and I built a Battlefield view in the pile window that you then asked me to take out.</li><li>I put the middle of a card on a cell border (<code>row + 5</code>), which rounds the wrong way now and then; it needs <code>row + 5.5</code>. A scripted rewrite of the test numbers also stopped halfway once and I had to finish it by hand, and one relative drag (<code>17</code> rows) still assumed the old land row.</li></ul>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-216" data-n="216">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-216-body">
+    <span class="num">216</span>
+    <span class="head-text"><span class="title">A small gap above the cards on the battlefield</span><span class="sum">There was still a tiny space above a card sitting on the grid tiles: either the tiles were not square or the card was too small.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-216-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>There was still a tiny space above a card sitting on the grid tiles: either the tiles were not square or the card was too small.</li></ul>
+<p><strong>What changed</strong> (<code>frontend/src/style.css</code>)</p>
+<ul><li>The tiles are square (the board is exactly 50 tiles high for 112 wide). The card was too short: it kept the real card shape (1.4015 high for 1 wide), so its 7 tiles of width gave 9.8 tiles of height inside a block of 10. A card is now exactly 7 by 10 tiles (<code>--card-h</code> is 10 tiles, <code>--card-w</code> is 0.7 of it), which stretches the picture by about 2% from top to bottom.</li></ul>
+<p><strong>What I checked:</strong> I measured the cards in a real browser at 1920 by 1000, 1366 by 768 and 1280 by 1000: each is 6.999 by 10 tiles with 0.00 of a tile above, below and to the left. <code>npm test</code> passed 76 of 77 suites; the lobby page check failed once while the machine was busy and passed all 66 checks on its own. I did not look at a new screenshot.</p>
+<p><strong>My mistakes this round:</strong> last round I made the card the right shape and did not measure it against its block, so the gap stayed.</p>
   </div></div></div>
 </article>
 </div>

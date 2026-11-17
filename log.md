@@ -4325,6 +4325,20 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 ---
 
+## 216. A small gap above the cards on the battlefield (2026-11-16)
+
+**What I asked for**
+- There was still a tiny space above a card sitting on the grid tiles: either the tiles were not square or the card was too small.
+
+**What changed** (`frontend/src/style.css`)
+- The tiles are square (the board is exactly 50 tiles high for 112 wide). The card was too short: it kept the real card shape (1.4015 high for 1 wide), so its 7 tiles of width gave 9.8 tiles of height inside a block of 10. A card is now exactly 7 by 10 tiles (`--card-h` is 10 tiles, `--card-w` is 0.7 of it), which stretches the picture by about 2% from top to bottom.
+
+**What I checked:** I measured the cards in a real browser at 1920 by 1000, 1366 by 768 and 1280 by 1000: each is 6.999 by 10 tiles with 0.00 of a tile above, below and to the left. `npm test` passed 76 of 77 suites; the lobby page check failed once while the machine was busy and passed all 66 checks on its own. I did not look at a new screenshot.
+
+**My mistakes this round:** last round I made the card the right shape and did not measure it against its block, so the gap stayed.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.
