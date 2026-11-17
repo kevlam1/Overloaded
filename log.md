@@ -4339,6 +4339,24 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 ---
 
+## 217. Tabs only between graveyard and exile, and Type and Mana value filters in the pile windows (2026-11-16)
+
+**What I asked for**
+- The library window must not have the buttons: you should not be able to go to the library from the graveyard or exile, but the graveyard and exile windows can switch between each other.
+- In each pile window a dropdown to search by type (more than one can be chosen, with a reset) and one for mana value, 1 to 7 and 8+.
+
+**What changed**
+- The tabs (`frontend/pages/solo/index.html`, `solo.js`): the Library button is gone. The tab row only shows in the graveyard and exile windows and has two buttons, Graveyard and Exile.
+- The filters (`shared/pile-filter.mjs`, `frontend/src/pile-viewer.js`, `style.css`): two dropdowns under the title, Type (creature, instant, sorcery, artifact, enchantment, land, planeswalker, battle) and Mana value (0 to 7 and 8+). Each takes any number of choices and has a Reset; the button says how many are chosen. A card shows when it matches any chosen type and any chosen mana value, together with the search. The title says "16 of 33" while a filter or the search is on. Escape or a click outside closes an open dropdown, and opening another pile starts with the filters cleared.
+- The type is read from the front face before the dash, so an Artifact Creature shows under both Artifact and Creature. The mana value is the front face's cost (a card with two halves counts the first), X counts as 0.
+- I added 0 to the mana values (you asked for 1 to 7 and 8+) because lands have mana value 0 and could not be found otherwise.
+
+**What I checked:** a new unit suite for the filters (24 checks); `npm test`: all 78 suites passed, and the solo check (791) passed in its last full run with new checks for the tab rows, both dropdowns (choosing, a second choice, Reset, the title, Escape, a click outside) and the cards that remain (by name, in the test deck). I looked at screenshots of the library window with Land chosen (15 of 33) and the graveyard window with the Mana value box open.
+
+**My mistakes this round:** my test opened the graveyard with "Search", which is not the name of its menu line ("View graveyard"), so three checks failed; and the check boxes of the dropdowns first came out large with the words pushed to the right, because the page's general input and label styles applied to them, which only the screenshot showed.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

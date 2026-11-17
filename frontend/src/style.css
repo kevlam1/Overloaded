@@ -1523,3 +1523,25 @@ body.playing.solo .pile-head .pile-caret { width: 1.05rem; height: 1.05rem; bord
 .details-side { overflow: hidden; }
 .details-body { flex: 1 1 auto; scrollbar-gutter: stable; }
 @media (max-width: 900px) { .details-window { height: auto; max-height: calc(100vh - 2rem); } .details-card { max-height: 60vh; } }
+
+/* the pile window: tabs (graveyard and exile only) and the Type and Mana value dropdowns on one row (Kevin, 2026-11-16) */
+.viewer-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; margin: 0 0 0.5rem; }
+.viewer-toolbar .viewer-tabs { margin: 0; }
+.viewer-tabs[hidden] { display: none; }
+.viewer-filters { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.viewer-drop { position: relative; }
+.viewer-drop-button { padding: 0.15rem 0.8rem; }
+.viewer-drop-button::after { content: ""; display: inline-block; margin-left: 0.45rem; border: 0.28rem solid transparent; border-top-color: currentColor; border-bottom-width: 0; vertical-align: 0.12em; }
+.viewer-drop-button.active { border-color: var(--accent); }
+.viewer-drop-panel { position: absolute; z-index: 5; top: calc(100% + 0.25rem); left: 0; display: grid; gap: 0.1rem; min-width: 11rem; padding: 0.4rem; border: 1px solid var(--line); border-radius: 0.6rem; background: var(--bg); box-shadow: 0 0.6rem 1.6rem rgba(0, 0, 0, 0.5); }
+.viewer-drop-panel[hidden] { display: none; }
+.viewer-drop-row { display: flex; align-items: center; gap: 0.5rem; padding: 0.2rem 0.4rem; border-radius: 0.4rem; cursor: pointer; }
+.viewer-drop-row:hover { background: var(--line); }
+.viewer-drop-reset { margin-top: 0.3rem; padding: 0.15rem 0.6rem; }
+.viewer-drop-reset:disabled { opacity: 0.45; cursor: default; }
+
+/* the check boxes of the dropdowns: a small box, then the words, both at the left (the page's general input and label styles made them large and pushed the words to the right) */
+.viewer-drop-panel .viewer-drop-row { display: flex; flex-direction: row; align-items: center; justify-content: flex-start; gap: 0.55rem; width: 100%; margin: 0; text-align: left; }
+.viewer-drop-panel .viewer-drop-row input[type="checkbox"] { flex: none; width: 1.05rem; height: 1.05rem; min-width: 0; margin: 0; padding: 0; accent-color: var(--accent); }
+.viewer-drop-panel .viewer-drop-row span { flex: 1 1 auto; text-align: left; font-weight: 500; }
+.viewer-drop-panel .viewer-drop-reset { width: 100%; }

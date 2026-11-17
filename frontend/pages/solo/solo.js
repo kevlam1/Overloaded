@@ -182,6 +182,7 @@ function renderViewer() {
   const cards = viewTop ? (viewBottom ? all.slice(Math.max(0, all.length - viewTop)) : all.slice(0, viewTop)) : all;
   const label = viewReveal && viewing === 'library' ? 'Revealed' : `${ZONE_WORDS[viewing][0].toUpperCase()}${ZONE_WORDS[viewing].slice(1)}`;
   for (const tab of document.querySelectorAll('#viewer .viewer-tab')) tab.setAttribute('aria-pressed', String(tab.dataset.view === viewing));
+  $('viewer-tabs').hidden = !(viewing === 'graveyard' || viewing === 'exile'); // (the graveyard and exile windows switch between each other; the library is only itself)
   viewer.show({
     label,
     cards,

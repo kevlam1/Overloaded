@@ -795,8 +795,8 @@ try {
       {
         const win = await ev("(() => { const w = document.querySelector('.viewer-window').getBoundingClientRect(); return { width: Math.round(w.width), left: Math.round(w.left), right: Math.round(window.innerWidth - w.right), inner: window.innerWidth }; })()");
         check('the pile window stays away from the sides (at least 5% of the window on each side) and is at most 66 rem wide', win.left >= win.inner * 0.05 - 1 && win.right >= win.inner * 0.05 - 1 && win.width <= 1056 + 1, JSON.stringify(win));
-        const tabs = await ev("[...document.querySelectorAll('#viewer .viewer-tab')].map((t) => [t.textContent, t.getAttribute('aria-pressed')])");
-        check('the window has Library, Graveyard and Exile buttons (no Battlefield), and Library is the one pressed (the bottom of the library is on show)', JSON.stringify(tabs) === JSON.stringify([['Library', 'true'], ['Graveyard', 'false'], ['Exile', 'false']]), JSON.stringify(tabs));
+        const toolbar = await ev("(() => { const t = document.getElementById('viewer-tabs'); return { hidden: t.hidden, shown: getComputedStyle(t).display !== 'none', filters: [...document.querySelectorAll('#viewer-filters .viewer-drop-button')].map((b) => b.textContent) }; })()");
+        check('the library window has no tab buttons (it is only itself) and has the Type and Mana value dropdowns', toolbar.hidden === true && toolbar.shown === false && JSON.stringify(toolbar.filters) === JSON.stringify(['Type', 'Mana value']), JSON.stringify(toolbar));
         // the eye hides the window so the board and the hand can be seen, and the pill brings it back (Kevin, 2026-11-16)
         await click(await rectOf('#viewer-eye')); await sleep(250);
         const peeking = await ev("({ display: getComputedStyle(document.getElementById('viewer')).display, attr: document.getElementById('viewer').hidden, pill: !document.getElementById('viewer-peek').hidden, text: document.getElementById('viewer-peek-label').textContent, pillShown: getComputedStyle(document.getElementById('viewer-peek')).display !== 'none' })");
@@ -806,14 +806,62 @@ try {
         const back = await ev("({ display: getComputedStyle(document.getElementById('viewer')).display, pill: document.getElementById('viewer-peek').hidden })");
         check('the pill brings the window back and goes away', back.display !== 'none' && back.pill === true, JSON.stringify(back));
         // a right-click on a card of the window selects it and the window is drawn again: the scroll position stays where it was
-        await click(await rectOf('#viewer .viewer-tab[data-view="library"]')); await sleep(250);
+        await press('viewer-close'); await sleep(100); await openLine('library', 'View library'); await sleep(250);
         const scrolled = await ev("(() => { const l = document.getElementById('viewer-list'); l.scrollTop = 260; return Math.round(l.scrollTop); })()");
         await ev("(() => { const c = document.querySelectorAll('#viewer-list .card')[16]; const r = c.getBoundingClientRect(); c.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: r.x + 20, clientY: r.y + 20 })); })()"); await sleep(300);
         const scrolledAfter = await ev("Math.round(document.getElementById('viewer-list').scrollTop)");
         check('a right-click on a card in the window leaves the list scrolled where it was', scrolled > 100 && Math.abs(scrolledAfter - scrolled) <= 2, JSON.stringify({ scrolled, scrolledAfter }));
         await closeMenu();
+        // the Type and Mana value dropdowns (Kevin, 2026-11-16): any number of choices each, a Reset, and the cards shown are those that match
+        const shownNames = () => ev("[...document.querySelectorAll('#viewer-list .card')].map((c) => c.getAttribute('aria-label').split(',')[0])");
+        const allNames = await shownNames();
+        const LANDS = ['Forest', 'Island']; const ONES = ['Sol Ring', 'Lightning Bolt', 'Llanowar Elves'];
+        const dropButton = (n) => rectOf('#viewer-filters .viewer-drop:nth-child(' + n + ') .viewer-drop-button');
+        const dropBox = (n, option) => rectOf('#viewer-filters .viewer-drop:nth-child(' + n + ') .viewer-drop-panel > label:nth-of-type(' + option + ') input');
+        const dropReset = (n) => rectOf('#viewer-filters .viewer-drop:nth-child(' + n + ') .viewer-drop-reset');
+        const panelOpen = (n) => ev("!document.querySelector('#viewer-filters .viewer-drop:nth-child(" + n + ") .viewer-drop-panel').hidden");
+        const buttonText = (n) => ev("document.querySelector('#viewer-filters .viewer-drop:nth-child(" + n + ") .viewer-drop-button').textContent");
+        const panelLabels = (n) => ev("[...document.querySelectorAll('#viewer-filters .viewer-drop:nth-child(" + n + ") .viewer-drop-panel label')].map((l) => l.textContent)");
+        await click(await dropButton(1)); await sleep(150);
+        check('the Type button opens a box of check boxes (creature, instant, sorcery, artifact, enchantment, land, planeswalker, battle) with a Reset', (await panelOpen(1)) && JSON.stringify(await panelLabels(1)) === JSON.stringify(['Creature', 'Instant', 'Sorcery', 'Artifact', 'Enchantment', 'Land', 'Planeswalker', 'Battle']) && (await ev("document.querySelector('#viewer-filters .viewer-drop:nth-child(1) .viewer-drop-reset').textContent")) === 'Reset');
+        await click(await dropBox(1, 6)); await sleep(200);
+        const lands = await shownNames();
+        check('choosing Land shows only the lands, and the button says one type is chosen', lands.length > 0 && lands.length === allNames.filter((n) => LANDS.includes(n)).length && lands.every((n) => LANDS.includes(n)) && (await buttonText(1)) === 'Type (1)', JSON.stringify({ lands: lands.length, all: allNames.length }));
+        check('the title says how many of the pile match', /^Your library: \d+ of \d+$/.test(await $text('viewer-title')), await $text('viewer-title'));
+        await click(await dropBox(1, 2)); await sleep(200);
+        const landsAndInstants = await shownNames();
+        check('choosing a second type (Instant) adds its cards: a card of ANY chosen type shows', landsAndInstants.length === allNames.filter((n) => LANDS.includes(n) || n === 'Lightning Bolt').length && landsAndInstants.includes('Lightning Bolt') && landsAndInstants.includes('Forest'), JSON.stringify(landsAndInstants.length));
+        await click(await dropReset(1)); await sleep(200);
+        check('Reset puts every card back and the button says Type again', (await shownNames()).length === allNames.length && (await buttonText(1)) === 'Type');
+        await click(await dropButton(1)); await sleep(100);
+        check('pressing the button again closes its box', !(await panelOpen(1)));
+        await click(await dropButton(2)); await sleep(150);
+        check('the Mana value button offers 0 to 7 and 8+', JSON.stringify(await panelLabels(2)) === JSON.stringify(['0', '1', '2', '3', '4', '5', '6', '7', '8+']));
+        await click(await dropBox(2, 2)); await sleep(200);
+        const ones = await shownNames();
+        check('choosing 1 shows the cards with mana value 1 (this deck: Sol Ring, Lightning Bolt and Llanowar Elves) and no land', ones.length === allNames.filter((n) => ONES.includes(n)).length && ones.length > 0 && ones.every((n) => ONES.includes(n)));
+        await click(await dropBox(2, 1)); await sleep(200);
+        check('choosing 0 as well adds the lands', (await shownNames()).length === allNames.filter((n) => LANDS.includes(n) || ONES.includes(n)).length);
+        await click(await dropBox(2, 1)); await sleep(200);
+        await click(await dropButton(1)); await sleep(150); await click(await dropBox(1, 1)); await sleep(200);
+        const creaturesOne = await shownNames();
+        check('a type and a mana value must both fit: Creature and 1 shows Llanowar Elves only', creaturesOne.length === allNames.filter((n) => n === 'Llanowar Elves').length && creaturesOne.length > 0 && creaturesOne.every((n) => n === 'Llanowar Elves'), JSON.stringify(creaturesOne));
+        await escapeKey(); await sleep(150);
+        check('Escape closes an open dropdown first and leaves the window open', !(await panelOpen(1)) && !(await $hidden('viewer')));
+        await click(await dropButton(2)); await sleep(100);
+        await click({ x: 5, y: 5 }); await sleep(150);
+        check('a click outside a dropdown closes it', !(await panelOpen(2)));
+        await ev("(() => { for (const r of document.querySelectorAll('#viewer-filters .viewer-drop-reset')) r.click(); })()"); await sleep(150);
+        check('both Resets put the whole library back', (await shownNames()).length === allNames.length);
+        await press('viewer-close'); await sleep(100);
+        // the graveyard and exile windows switch between each other with two buttons, and the library is not one of them
+        await openLine('graveyard', 'View graveyard'); await sleep(250);
+        const gyTabs = await ev("({ shown: getComputedStyle(document.getElementById('viewer-tabs')).display !== 'none', tabs: [...document.querySelectorAll('#viewer .viewer-tab')].map((t) => [t.textContent, t.getAttribute('aria-pressed')]), title: document.getElementById('viewer-title').textContent })");
+        check('the graveyard window has a Graveyard and an Exile button (Graveyard pressed) and no Library button', gyTabs.shown && JSON.stringify(gyTabs.tabs) === JSON.stringify([['Graveyard', 'true'], ['Exile', 'false']]) && /^Your graveyard: /.test(gyTabs.title), JSON.stringify(gyTabs));
+        await click(await rectOf('#viewer .viewer-tab[data-view="exile"]')); await sleep(250);
+        check('the Exile button switches the window to exile', /^Exile: /.test(await $text('viewer-title')) && (await ev("document.querySelector('#viewer .viewer-tab[aria-pressed=true]').textContent")) === 'Exile');
         await click(await rectOf('#viewer .viewer-tab[data-view="graveyard"]')); await sleep(250);
-        check('the Graveyard button switches the window to the graveyard', /^Your graveyard: /.test(await $text('viewer-title')), await $text('viewer-title'));
+        check('...and the Graveyard button switches it back', /^Your graveyard: /.test(await $text('viewer-title')));
       }
       await press('viewer-close'); await sleep(100);
       await click(await rectOf('#pile-caret-library')); await sleep(60); await pressMenuItem('View'); await sleep(100); await pressMenuItem('Top X cards...'); await sleep(150); await typeNumber('2'); await enterKey(); await sleep(200);

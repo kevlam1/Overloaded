@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.216</span></h1>
-    <p class="lede">216 entries, Oct 25 to Nov 16, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
+    <h1>Build log <span class="version">Version 0.217</span></h1>
+    <p class="lede">217 entries, Oct 25 to Nov 16, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
   </div>
 </header>
 
@@ -24,7 +24,7 @@
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
-<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">3</span></a>
+<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">4</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
     </div>
     <div class="tools">
@@ -3602,10 +3602,10 @@
 </div>
 </section>
 <section class="week collapsed" id="week-2" aria-labelledby="week-2-title">
-<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">3 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">4 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-2-days">
 <div class="day">
-<h3 class="day-title">Monday 16 November <span class="day-count">3</span></h3>
+<h3 class="day-title">Monday 16 November <span class="day-count">4</span></h3>
 <div class="entries">
 <article class="entry" id="entry-214" data-n="214">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-214-body">
@@ -3654,6 +3654,21 @@
 <ul><li>The tiles are square (the board is exactly 50 tiles high for 112 wide). The card was too short: it kept the real card shape (1.4015 high for 1 wide), so its 7 tiles of width gave 9.8 tiles of height inside a block of 10. A card is now exactly 7 by 10 tiles (<code>--card-h</code> is 10 tiles, <code>--card-w</code> is 0.7 of it), which stretches the picture by about 2% from top to bottom.</li></ul>
 <p><strong>What I checked:</strong> I measured the cards in a real browser at 1920 by 1000, 1366 by 768 and 1280 by 1000: each is 6.999 by 10 tiles with 0.00 of a tile above, below and to the left. <code>npm test</code> passed 76 of 77 suites; the lobby page check failed once while the machine was busy and passed all 66 checks on its own. I did not look at a new screenshot.</p>
 <p><strong>My mistakes this round:</strong> last round I made the card the right shape and did not measure it against its block, so the gap stayed.</p>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-217" data-n="217">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-217-body">
+    <span class="num">217</span>
+    <span class="head-text"><span class="title">Tabs only between graveyard and exile, and Type and Mana value filters in the pile windows</span><span class="sum">The library window must not have the buttons: you should not be able to go to the library from the graveyard or exile, but the graveyard and exile windows can switch between each other.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-217-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>The library window must not have the buttons: you should not be able to go to the library from the graveyard or exile, but the graveyard and exile windows can switch between each other.</li><li>In each pile window a dropdown to search by type (more than one can be chosen, with a reset) and one for mana value, 1 to 7 and 8+.</li></ul>
+<p class="sub"><strong>What changed</strong></p>
+<ul><li>The tabs (<code>frontend/pages/solo/index.html</code>, <code>solo.js</code>): the Library button is gone. The tab row only shows in the graveyard and exile windows and has two buttons, Graveyard and Exile.</li><li>The filters (<code>shared/pile-filter.mjs</code>, <code>frontend/src/pile-viewer.js</code>, <code>style.css</code>): two dropdowns under the title, Type (creature, instant, sorcery, artifact, enchantment, land, planeswalker, battle) and Mana value (0 to 7 and 8+). Each takes any number of choices and has a Reset; the button says how many are chosen. A card shows when it matches any chosen type and any chosen mana value, together with the search. The title says &quot;16 of 33&quot; while a filter or the search is on. Escape or a click outside closes an open dropdown, and opening another pile starts with the filters cleared.</li><li>The type is read from the front face before the dash, so an Artifact Creature shows under both Artifact and Creature. The mana value is the front face's cost (a card with two halves counts the first), X counts as 0.</li><li>I added 0 to the mana values (you asked for 1 to 7 and 8+) because lands have mana value 0 and could not be found otherwise.</li></ul>
+<p><strong>What I checked:</strong> a new unit suite for the filters (24 checks); <code>npm test</code>: all 78 suites passed, and the solo check (791) passed in its last full run with new checks for the tab rows, both dropdowns (choosing, a second choice, Reset, the title, Escape, a click outside) and the cards that remain (by name, in the test deck). I looked at screenshots of the library window with Land chosen (15 of 33) and the graveyard window with the Mana value box open.</p>
+<p><strong>My mistakes this round:</strong> my test opened the graveyard with &quot;Search&quot;, which is not the name of its menu line (&quot;View graveyard&quot;), so three checks failed; and the check boxes of the dropdowns first came out large with the words pushed to the right, because the page's general input and label styles applied to them, which only the screenshot showed.</p>
   </div></div></div>
 </article>
 </div>

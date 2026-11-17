@@ -2,8 +2,10 @@
 // name, by letters that appear in the name in order ("ft" finds Forest) and by words of the type line (shared/card-search.mjs). The cards are the same card buttons as everywhere else
 // (nodeFor), so clicking one selects it and right-clicking it opens its menu: that is how a card is taken out of the pile.
 // The page asks for a redraw (show) after every change of the game; the search text is kept across redraws, so searching and then moving a card leaves the search where it was.
+// Two dropdowns under the title (Kevin, 2026-11-16), Type and Mana value, take any number of choices each and have a Reset; the cards shown are those that match the search and any chosen type and any chosen mana value (shared/pile-filter.mjs).
 import { sharpenPicture } from './card-nodes.js';
 import { searchCards } from '../../shared/card-search.mjs';
+import { TYPE_OPTIONS, VALUE_OPTIONS, typeTitle, valueTitle, emptyFilter, filterActive, filterRows } from '../../shared/pile-filter.mjs';
 
 function make(tag, className, content) {
   const element = document.createElement(tag);
@@ -20,6 +22,9 @@ export function mountPileViewer({ root, nodeFor, onClose = () => {} }) {
   const closeButton = root.querySelector('#viewer-close');
   const note = root.querySelector('#viewer-note');
   const list = root.querySelector('#viewer-list');
+  const filterBox = root.querySelector('#viewer-filters'); // (the table page has no filters: the box is not there)
+  const filter = emptyFilter();
+  let lastArgs = null; // what show() was last given, to draw the list again when a dropdown changes
   let returnTo = null;
   const eye = root.querySelector('#viewer-eye');
   const pill = document.getElementById('viewer-peek'); // outside the window (the window is hidden while peeking)
@@ -36,6 +41,69 @@ export function mountPileViewer({ root, nodeFor, onClose = () => {} }) {
     if (!on && eye && isOpen() && document.activeElement === pill) eye.focus();
   }
 
+  // ---- the dropdowns: a button that opens a box of check boxes with a Reset ----
+  const drops = [];
+  let openDrop = null;
+  function closeDrop() { if (!openDrop) return; openDrop.panel.hidden = true; openDrop.button.setAttribute('aria-expanded', 'false'); openDrop = null; }
+  function makeDropdown({ key, label, options, titleOf }) {
+    const wrap = make('div', 'viewer-drop');
+    const button = make('button', 'secondary viewer-drop-button');
+    button.type = 'button';
+    button.setAttribute('aria-haspopup', 'true');
+    button.setAttribute('aria-expanded', 'false');
+    const panel = make('div', 'viewer-drop-panel');
+    panel.hidden = true;
+    panel.setAttribute('role', 'group');
+    panel.setAttribute('aria-label', label);
+    const boxes = new Map();
+    for (const option of options) {
+      const row = make('label', 'viewer-drop-row');
+      const box = document.createElement('input');
+      box.type = 'checkbox';
+      box.addEventListener('change', () => {
+        const chosen = new Set(filter[key]);
+        if (box.checked) chosen.add(option); else chosen.delete(option);
+        filter[key] = options.filter((each) => chosen.has(each)); // (in the order of the list)
+        sync();
+        if (lastArgs) show(lastArgs);
+      });
+      boxes.set(option, box);
+      row.append(box, make('span', '', titleOf(option)));
+      panel.append(row);
+    }
+    const reset = make('button', 'secondary viewer-drop-reset', 'Reset');
+    reset.type = 'button';
+    reset.addEventListener('click', () => { filter[key] = []; sync(); if (lastArgs) show(lastArgs); });
+    panel.append(reset);
+    function sync() {
+      for (const [option, box] of boxes) box.checked = filter[key].includes(option);
+      const n = filter[key].length;
+      button.textContent = n ? `${label} (${n})` : label;
+      button.classList.toggle('active', n > 0);
+      reset.disabled = n === 0;
+    }
+    button.addEventListener('click', () => {
+      const wasOpen = openDrop && openDrop.panel === panel;
+      closeDrop();
+      if (wasOpen) return;
+      panel.hidden = false;
+      button.setAttribute('aria-expanded', 'true');
+      openDrop = { panel, button };
+    });
+    wrap.append(button, panel);
+    sync();
+    drops.push({ wrap, sync, panel, button });
+    return wrap;
+  }
+  if (filterBox) {
+    filterBox.append(
+      makeDropdown({ key: 'types', label: 'Type', options: TYPE_OPTIONS, titleOf: typeTitle }),
+      makeDropdown({ key: 'values', label: 'Mana value', options: VALUE_OPTIONS, titleOf: valueTitle }),
+    );
+    document.addEventListener('pointerdown', (event) => { if (openDrop && !openDrop.panel.parentElement.contains(event.target)) closeDrop(); }, true);
+  }
+  function resetFilters() { filter.types = []; filter.values = []; for (const drop of drops) drop.sync(); closeDrop(); }
+
   const isOpen = () => !root.hidden;
   function close() {
     if (!isOpen()) return;
@@ -49,10 +117,11 @@ export function mountPileViewer({ root, nodeFor, onClose = () => {} }) {
   // label: the name of the pile ("Library"). cards: what to show (all of the pile, or only its top few). depth: whether to number the cards by their place from the top (a library).
   // total: how many cards the pile has (when only some are shown). noteText: a short line under the title.
   function show({ label, cards, depth = false, total = cards.length, noteText = '', from = 'top', offset = 0 }) {
+    lastArgs = { label, cards, depth, total, noteText, from, offset };
     const opening = !isOpen();
     if (opening) { returnTo = document.activeElement instanceof HTMLElement ? document.activeElement : null; root.hidden = false; }
-    const results = searchCards(cards, search.value);
-    const filtering = search.value.trim() !== '';
+    const results = filterRows(searchCards(cards, search.value), filter);
+    const filtering = search.value.trim() !== '' || filterActive(filter);
     title.textContent = filtering ? `${label}: ${results.length} of ${cards.length}` : cards.length === total ? `${label}: ${cards.length} ${cards.length === 1 ? 'card' : 'cards'}` : `${label}: the ${from} ${cards.length} of ${total}`;
     note.textContent = noteText;
     shownLabel = label;
@@ -74,7 +143,7 @@ export function mountPileViewer({ root, nodeFor, onClose = () => {} }) {
   }
 
   function focusSearch() { search.focus(); search.select(); }
-  function clearSearch() { search.value = ''; }
+  function clearSearch() { search.value = ''; resetFilters(); }
   closeButton.addEventListener('click', close);
   eye?.addEventListener('click', () => peek(true));
   pill?.addEventListener('click', () => { peek(false); focusSearch(); });
@@ -82,6 +151,7 @@ export function mountPileViewer({ root, nodeFor, onClose = () => {} }) {
   // Escape closes the viewer, and only the viewer: it is handled first and the page's own Escape (which takes the highlight off a card) does not see it.
   document.addEventListener('keydown', (event) => {
     if (event.key !== 'Escape' || !isOpen() || document.querySelector('.card-menu')) return; // an open menu takes the Escape first
+    if (openDrop) { event.stopImmediatePropagation(); event.preventDefault(); closeDrop(); return; } // then an open dropdown
     event.stopImmediatePropagation();
     event.preventDefault();
     close();
