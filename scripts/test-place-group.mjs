@@ -52,8 +52,8 @@ const problems = (game) => { const found = checkGame(game); return Array.isArray
   same('the card at 91 can go 14 cells, so the whole group goes 14', cells(part.game, some.uids), [[22, 4], [MAX_COL, 4]]);
   const up = placeGroup(game, uids, uids[0], 8, 0);
   same('up to row 0 is fine (it was 4 rows down)', cells(up.game, uids), [[8, 0], [97, 0]]);
-  const low = table([['Island', 8, 4], ['Goblin Guide', 24, 27]]);
-  const down = placeGroup(low.game, low.uids, low.uids[0], 8, 30);
+  const low = table([['Island', 8, 4], ['Goblin Guide', 24, 37]]);
+  const down = placeGroup(low.game, low.uids, low.uids[0], 8, 40);
   same('a card low on the board stops the group from going lower than the last row (it can go 3 rows)', cells(down.game, low.uids), [[8, 7], [24, MAX_ROW]]);
   const left = placeGroup(game, uids, uids[0], 0, 4);
   same('to the left edge: the anchor reaches column 0 and the other keeps its distance', cells(left.game, uids), [[0, 4], [89, 4]]);

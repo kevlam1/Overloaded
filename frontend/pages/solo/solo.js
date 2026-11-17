@@ -59,7 +59,6 @@ let viewing = null; // the pile being looked at: 'library', 'graveyard', 'exile'
 let viewTop = null; // when only the top few cards of the library are being looked at: how many
 let viewBottom = false; // the cards shown are the bottom few of the library, not the top
 let viewReveal = false; // the cards in the viewer are revealed (Reveal top X): the window says so
-let lastPile = null; // the pile the window showed last (not the battlefield): the Back button of the battlefield view goes there
 const rulingsLoader = makeRulingsLoader(); // (the rulings of a card, the same way: one small file, fetched when its details are opened)
 const rulesLoader = makeRulesLoader(); // the rules of a card come from the site's own files, one small file per group of cards, fetched when a card's details are opened
 const peeking = new Set(); // uids of two-sided cards in the hand that are shown on their back face (only a look, for you: not saved, nothing changes in the game)
@@ -94,8 +93,6 @@ $('life-area').addEventListener('contextmenu', (event) => {
 
 const cardNodes = makeCardNodes({ onSelect: (uid, event) => select(uid, event), isSelected: (uid) => uid === selected || multi.has(uid), onMark: (uid, hit) => markOnCard(uid, hit), onMenu: (uid, where) => openMenuFor(uid, where), onBadge: (uid, kind) => clearBadge(uid, kind), printedStats: (card) => printedOf(card, lookup) });
 const place = cardNodes.place;
-// The battlefield view of the pile window (Kevin, 2026-11-16) has card buttons of its own: a card button is one element, so the ones on the board cannot also sit in the window.
-const viewNodes = makeCardNodes({ onSelect: (uid, event) => select(uid, event), isSelected: (uid) => uid === selected || multi.has(uid), onMark: (uid, hit) => markOnCard(uid, hit), onMenu: (uid, where) => openMenuFor(uid, where), onBadge: (uid, kind) => clearBadge(uid, kind), printedStats: (card) => printedOf(card, lookup) });
 // The piles as stacks of cards (src/pile-stack.js) and the command zone with its two outlined slots and the commander tax (src/command-zone.js).
 const stacks = Object.fromEntries([['library', 'Library'], ['graveyard', 'Graveyard'], ['exile', 'Exile']].map(([zone, label]) => [zone, mountPileStack($(`pile-${zone}`), { zone, label })]));
 const commandSlots = new Map(); // uid -> 1 or 2: the slot of the command zone a commander was dragged into (not saved: a refresh puts them in order)
@@ -183,20 +180,16 @@ function renderViewer() {
   if (!viewing) { viewer.hide(); return; }
   const all = game.zones[viewing];
   const cards = viewTop ? (viewBottom ? all.slice(Math.max(0, all.length - viewTop)) : all.slice(0, viewTop)) : all;
-  const label = viewing === 'battlefield' ? 'Battlefield' : viewReveal && viewing === 'library' ? 'Revealed' : `${ZONE_WORDS[viewing][0].toUpperCase()}${ZONE_WORDS[viewing].slice(1)}`;
+  const label = viewReveal && viewing === 'library' ? 'Revealed' : `${ZONE_WORDS[viewing][0].toUpperCase()}${ZONE_WORDS[viewing].slice(1)}`;
   for (const tab of document.querySelectorAll('#viewer .viewer-tab')) tab.setAttribute('aria-pressed', String(tab.dataset.view === viewing));
-  const back = $('viewer-back');
-  back.hidden = !(viewing === 'battlefield' && lastPile);
-  if (!back.hidden) back.textContent = `Back to ${lastPile}`;
   viewer.show({
     label,
     cards,
     depth: viewing === 'library',
-    ends: viewing !== 'battlefield',
     total: all.length,
     from: viewBottom ? 'bottom' : 'top',
     offset: viewBottom ? all.length - cards.length : 0,
-    noteText: viewing === 'battlefield' ? 'Every card on your battlefield, tapped ones too. Right-click a card for its menu.' : viewing === 'library' ? 'The top card is first. Right-click a card to move it; right-click the library itself to shuffle, draw or mill.' : viewing === 'graveyard' ? 'The newest card is first. Right-click a card to move it.' : 'Right-click a card to move it.',
+    noteText: viewing === 'library' ? 'The top card is first. Right-click a card to move it; right-click the library itself to shuffle, draw or mill.' : viewing === 'graveyard' ? 'The newest card is first. Right-click a card to move it.' : 'Right-click a card to move it.',
   });
 }
 
@@ -484,14 +477,13 @@ $('untap-all').addEventListener('click', () => { play('tap'); apply(() => untapA
 mountSoundSettings($('sound-settings'));
 // ---- piles drawn diagonally or horizontally (shared/pile-style.mjs), a double click taps a card, a click on empty space deselects ----
 mountPileStyle($('pile-style-settings'));
-const viewer = mountPileViewer({ root: $('viewer'), nodeFor: (card) => (viewing === 'battlefield' ? viewNodes.nodeFor({ ...card, tapped: false }, false) : cardNodes.nodeFor(card, false)), onClose: () => { viewing = null; viewTop = null; viewBottom = false; viewReveal = false; lastPile = null; if (game) render(); } });
+const viewer = mountPileViewer({ root: $('viewer'), nodeFor: (card) => cardNodes.nodeFor(card, false), onClose: () => { viewing = null; viewTop = null; viewBottom = false; viewReveal = false; if (game) render(); } });
 for (const tab of document.querySelectorAll('#viewer .viewer-tab')) tab.addEventListener('click', () => { if (game) openPile(tab.dataset.view); });
-$('viewer-back').addEventListener('click', () => { if (game && lastPile) openPile(lastPile); });
 viewer.onSearch(() => { if (game && viewing) renderViewer(); });
 // ---- the piles: a click opens the viewer (the cards and a search bar), a right-click opens the menu of the pile (search, shuffle, draw, look, mill, move all) ----
 function openPile(zone, { look = null, search = false, reveal = false, bottom = false } = {}) {
+  viewer.peek(false); // (a window hidden with the eye button comes back when a pile is opened)
   viewing = zone;
-  if (zone !== 'battlefield') lastPile = zone;
   viewTop = look;
   viewBottom = bottom;
   viewReveal = reveal;

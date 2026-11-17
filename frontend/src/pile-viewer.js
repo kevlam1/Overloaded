@@ -21,10 +21,25 @@ export function mountPileViewer({ root, nodeFor, onClose = () => {} }) {
   const note = root.querySelector('#viewer-note');
   const list = root.querySelector('#viewer-list');
   let returnTo = null;
+  const eye = root.querySelector('#viewer-eye');
+  const pill = document.getElementById('viewer-peek'); // outside the window (the window is hidden while peeking)
+  let shownLabel = '';
+  const lower = (text) => `${text.charAt(0).toLowerCase()}${text.slice(1)}`; // ("Your library" reads "Back to your library")
+  // Hide the window to see the board and the hand (the eye button), and bring it back with the pill (Kevin, 2026-11-16). The pile stays open: only the window is out of the way.
+  function peek(on) {
+    root.classList.toggle('peeking', on);
+    if (pill) {
+      pill.hidden = !on;
+      const text = pill.querySelector('#viewer-peek-label');
+      if (text) text.textContent = `Back to ${lower(shownLabel)}`;
+    }
+    if (!on && eye && isOpen() && document.activeElement === pill) eye.focus();
+  }
 
   const isOpen = () => !root.hidden;
   function close() {
     if (!isOpen()) return;
+    peek(false);
     root.hidden = true;
     onClose();
     if (returnTo && returnTo.isConnected) returnTo.focus();
@@ -32,32 +47,37 @@ export function mountPileViewer({ root, nodeFor, onClose = () => {} }) {
   }
 
   // label: the name of the pile ("Library"). cards: what to show (all of the pile, or only its top few). depth: whether to number the cards by their place from the top (a library).
-  // total: how many cards the pile has (when only some are shown). noteText: a short line under the title. ends: mark the first card Top and the last Bottom (a pile has them, the battlefield does not).
-  function show({ label, cards, depth = false, total = cards.length, noteText = '', from = 'top', offset = 0, ends = true }) {
+  // total: how many cards the pile has (when only some are shown). noteText: a short line under the title.
+  function show({ label, cards, depth = false, total = cards.length, noteText = '', from = 'top', offset = 0 }) {
     const opening = !isOpen();
     if (opening) { returnTo = document.activeElement instanceof HTMLElement ? document.activeElement : null; root.hidden = false; }
     const results = searchCards(cards, search.value);
     const filtering = search.value.trim() !== '';
     title.textContent = filtering ? `${label}: ${results.length} of ${cards.length}` : cards.length === total ? `${label}: ${cards.length} ${cards.length === 1 ? 'card' : 'cards'}` : `${label}: the ${from} ${cards.length} of ${total}`;
     note.textContent = noteText;
+    shownLabel = label;
+    if (pill && !pill.hidden) pill.querySelector('#viewer-peek-label').textContent = `Back to ${lower(label)}`;
     if (results.length === 0) {
       list.replaceChildren(make('p', 'viewer-empty', filtering ? 'No card matches that.' : 'No cards.'));
       return;
     }
+    const scrolled = list.scrollTop; // (a right-click on a card selects it and the window is drawn again: it must stay where it was, Kevin 2026-11-16)
     list.replaceChildren(...results.map(({ card, index }) => {
       const cell = make('div', 'viewer-card');
       cell.append(sharpenPicture(nodeFor(card, false))); // (the normal size of the picture: the window shows it large)
       const place = index + offset; // (the card's place in the whole pile: the first is the top, the last the bottom)
-      if (ends && (place === 0 || place === total - 1)) { cell.dataset.end = place === 0 && total > 1 ? 'top' : place === 0 ? 'only' : 'bottom'; cell.prepend(make('span', 'viewer-end', cell.dataset.end === 'top' ? 'Top' : cell.dataset.end === 'bottom' ? 'Bottom' : 'Only card')); }
+      if (place === 0 || place === total - 1) { cell.dataset.end = place === 0 && total > 1 ? 'top' : place === 0 ? 'only' : 'bottom'; cell.prepend(make('span', 'viewer-end', cell.dataset.end === 'top' ? 'Top' : cell.dataset.end === 'bottom' ? 'Bottom' : 'Only card')); }
       if (depth) cell.append(make('span', 'viewer-depth', `#${index + 1 + offset}`));
-      if (card.tapped) cell.append(make('span', 'viewer-depth', 'Tapped')); // (the battlefield view draws every card upright: this says which are tapped)
       return cell;
     }));
+    list.scrollTop = scrolled;
   }
 
   function focusSearch() { search.focus(); search.select(); }
   function clearSearch() { search.value = ''; }
   closeButton.addEventListener('click', close);
+  eye?.addEventListener('click', () => peek(true));
+  pill?.addEventListener('click', () => { peek(false); focusSearch(); });
   root.addEventListener('click', (event) => { if (event.target === root) close(); }); // a click on the dim space around the window
   // Escape closes the viewer, and only the viewer: it is handled first and the page's own Escape (which takes the highlight off a card) does not see it.
   document.addEventListener('keydown', (event) => {
@@ -67,5 +87,5 @@ export function mountPileViewer({ root, nodeFor, onClose = () => {} }) {
     close();
   }, true);
 
-  return { show, hide: () => { if (isOpen()) { root.hidden = true; returnTo = null; } }, isOpen, focusSearch, clearSearch, onSearch: (callback) => search.addEventListener('input', callback), close };
+  return { show, peek, hide: () => { if (isOpen()) { peek(false); root.hidden = true; returnTo = null; } }, isOpen, focusSearch, clearSearch, onSearch: (callback) => search.addEventListener('input', callback), close };
 }

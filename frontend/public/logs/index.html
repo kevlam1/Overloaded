@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.214</span></h1>
-    <p class="lede">214 entries, Oct 25 to Nov 16, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
+    <h1>Build log <span class="version">Version 0.215</span></h1>
+    <p class="lede">215 entries, Oct 25 to Nov 16, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
   </div>
 </header>
 
@@ -24,7 +24,7 @@
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
-<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">1</span></a>
+<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">2</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
     </div>
     <div class="tools">
@@ -3602,10 +3602,10 @@
 </div>
 </section>
 <section class="week collapsed" id="week-2" aria-labelledby="week-2-title">
-<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">1 entry</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">2 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-2-days">
 <div class="day">
-<h3 class="day-title">Monday 16 November <span class="day-count">1</span></h3>
+<h3 class="day-title">Monday 16 November <span class="day-count">2</span></h3>
 <div class="entries">
 <article class="entry" id="entry-214" data-n="214">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-214-body">
@@ -3622,6 +3622,23 @@
 <ul><li>Unit suites (70, all passed), and <code>npm test</code>: 76 of 77 suites passed; the one that did not is the solo check, which failed only the old hand-lowering check, and passed in the full run before it.</li><li>The solo check (775): all passed in one full run, and the final run failed two timing checks that I did not touch (the flight of a drawn card out of the library, and the two cards played together, which also failed on the code from before this change). New checks: for pressing each arrow twice with the real mouse, the window's size and buttons, the battlefield view, and the board pictures being the normal size. About 60 old numbers in the drag checks and four unit test files had to be changed for the new card size.</li><li>Screenshots at 1920 by 1000 and 1366 by 768: the board, the library window and the battlefield window. The cards are crisp; the window is clear of the sides.</li><li>Not checked: the glow flicker by eye (I found the cause in the code and the corner check changed with it, but no test looks for a flicker), the table page with the new card size in a screenshot (the layout check passed), the two-browser live check, and phone width.</li></ul>
 <p class="sub"><strong>My mistakes this round</strong></p>
 <ul><li>I first wrote the arrow test with the graveyard, which is hidden when empty, and then with the library, whose menu covered its arrow: the second click landed on a menu item and opened a Scry window, which broke 12 checks after it. A probe showed the focus on the Scry window's button.</li><li>I said &quot;Back&quot; would reopen the pile's menu, then saw that &quot;view menu&quot; meant the window itself and built Back to return to the pile you came from.</li><li>My new checks lost backslashes twice in the shell, and I forgot the title says &quot;Your library&quot;.</li><li>I had said an earlier run passed all 765 checks; the untouched code fails two checks now and then (the two cards played together, and holding a pile).</li></ul>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-215" data-n="215">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-215-body">
+    <span class="num">215</span>
+    <span class="head-text"><span class="title">The bar's middle line, a taller board, the eye button in the pile windows, scrolling kept, the details window, and the box that stayed behind</span><span class="sum">The bar (frontend/src/floating-bar.js): MIDI Companion's barBounds() is the whole play area, not the bar, so its strip runs along the whole edge and its dotted line across the whole window.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-215-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<p>1. The control bar: I still did not see the dotted middle line, and the colour near an edge was only as long as the bar, which is not how MIDI Companion has it. 2. Readjust the battlefield tiles to the new card size, maybe with more tiles below the current battlefield. 3. In the pile windows an eye button to see the board and the hand, with a button to bring the window back. Take the Battlefield button out of the window. 4. A right-click on a card in the pile window threw the scroll bar back to the top. 5. The card details window: the right side should scroll, because a card with a lot of text pushed the window to the top and bottom of the screen and the card art too high. 6. Dragging several cards while one shows its power and toughness box: the box did not move with it.</p>
+<p class="sub"><strong>What changed</strong></p>
+<ul><li>The bar (<code>frontend/src/floating-bar.js</code>): MIDI Companion's <code>barBounds()</code> is the whole play area, not the bar, so its strip runs along the whole edge and its dotted line across the whole window. I had read it wrongly last round and made both bar-sized. They are full length again, and keep the fix from last round (changed in place, so they no longer restart their fade-in on every move, which had also kept the dotted line almost invisible).</li><li>The board (<code>shared/board-grid.mjs</code>, <code>style.css</code>): 50 rows instead of 40, so 16 cards across and 5 down, and the board reaches further down the window (857 px high at 1920 wide). I read &quot;tiles&quot; as the cells of the grid and &quot;more tiles below&quot; as more rows. The last card row is row 40.</li><li>The pile window (<code>index.html</code>, <code>solo.js</code>, <code>pile-viewer.js</code>): the Battlefield button, its separate card buttons and the Back button are gone. A new eye button hides the window (the pile stays open) so the board and the hand can be pressed, and a pill at the top right, &quot;Back to your library&quot;, brings it back. Opening a pile from a menu while it is hidden brings it back too.</li><li>The scroll position of the list is kept when the window is drawn again (a right-click selects the card, which redraws it).</li><li>The details window (<code>style.css</code>): a height of its own (at most 40 rem, and 8 rem less than the window), the card stays in the middle of the left side, and only the right side scrolls.</li><li>The box that stayed behind: the idle power and toughness box of a selected card or one under the pointer has <code>visibility: visible</code> of its own, which a card hidden for dragging does not pass on, so it stayed where the card was. A card being carried now hides everything on it.</li></ul>
+<p class="sub"><strong>What I checked</strong></p>
+<ul><li><code>npm test</code>: all 77 suites passed. The solo check (776) passed in its last full run, with new checks for the eye and the pill, the scroll position, the length of the bar's strip and line (at least 90% of the window), and the idle box of a carried card (on a card I built for the purpose, not a real group drag).</li><li>Screenshots at 1920 by 1000 and 1366 by 768: the board, the details window for Humility (the right side scrolls, the card is in the middle), the eye and the pill, and the bar held at the middle of the left edge (the strip and the dotted line both show).</li><li>Not checked: a real drag of a group with the real mouse and a box showing, the table page in a screenshot, the two-browser live check, phones. The piles at the bottom right now overlap the bottom of the board by about 20 px at 1920 wide.</li></ul>
+<p class="sub"><strong>My mistakes this round</strong></p>
+<ul><li>I misread MIDI Companion's code last round and made the strip and line bar-sized, and I built a Battlefield view in the pile window that you then asked me to take out.</li><li>I put the middle of a card on a cell border (<code>row + 5</code>), which rounds the wrong way now and then; it needs <code>row + 5.5</code>. A scripted rewrite of the test numbers also stopped halfway once and I had to finish it by hand, and one relative drag (<code>17</code> rows) still assumed the old land row.</li></ul>
   </div></div></div>
 </article>
 </div>

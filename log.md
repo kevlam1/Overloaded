@@ -4296,6 +4296,35 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 ---
 
+## 215. The bar's middle line, a taller board, the eye button in the pile windows, scrolling kept, the details window, and the box that stayed behind (2026-11-16)
+
+**What I asked for**
+1. The control bar: I still did not see the dotted middle line, and the colour near an edge was only as long as the bar, which is not how MIDI Companion has it.
+2. Readjust the battlefield tiles to the new card size, maybe with more tiles below the current battlefield.
+3. In the pile windows an eye button to see the board and the hand, with a button to bring the window back. Take the Battlefield button out of the window.
+4. A right-click on a card in the pile window threw the scroll bar back to the top.
+5. The card details window: the right side should scroll, because a card with a lot of text pushed the window to the top and bottom of the screen and the card art too high.
+6. Dragging several cards while one shows its power and toughness box: the box did not move with it.
+
+**What changed**
+- The bar (`frontend/src/floating-bar.js`): MIDI Companion's `barBounds()` is the whole play area, not the bar, so its strip runs along the whole edge and its dotted line across the whole window. I had read it wrongly last round and made both bar-sized. They are full length again, and keep the fix from last round (changed in place, so they no longer restart their fade-in on every move, which had also kept the dotted line almost invisible).
+- The board (`shared/board-grid.mjs`, `style.css`): 50 rows instead of 40, so 16 cards across and 5 down, and the board reaches further down the window (857 px high at 1920 wide). I read "tiles" as the cells of the grid and "more tiles below" as more rows. The last card row is row 40.
+- The pile window (`index.html`, `solo.js`, `pile-viewer.js`): the Battlefield button, its separate card buttons and the Back button are gone. A new eye button hides the window (the pile stays open) so the board and the hand can be pressed, and a pill at the top right, "Back to your library", brings it back. Opening a pile from a menu while it is hidden brings it back too.
+- The scroll position of the list is kept when the window is drawn again (a right-click selects the card, which redraws it).
+- The details window (`style.css`): a height of its own (at most 40 rem, and 8 rem less than the window), the card stays in the middle of the left side, and only the right side scrolls.
+- The box that stayed behind: the idle power and toughness box of a selected card or one under the pointer has `visibility: visible` of its own, which a card hidden for dragging does not pass on, so it stayed where the card was. A card being carried now hides everything on it.
+
+**What I checked**
+- `npm test`: all 77 suites passed. The solo check (776) passed in its last full run, with new checks for the eye and the pill, the scroll position, the length of the bar's strip and line (at least 90% of the window), and the idle box of a carried card (on a card I built for the purpose, not a real group drag).
+- Screenshots at 1920 by 1000 and 1366 by 768: the board, the details window for Humility (the right side scrolls, the card is in the middle), the eye and the pill, and the bar held at the middle of the left edge (the strip and the dotted line both show).
+- Not checked: a real drag of a group with the real mouse and a box showing, the table page in a screenshot, the two-browser live check, phones. The piles at the bottom right now overlap the bottom of the board by about 20 px at 1920 wide.
+
+**My mistakes this round**
+- I misread MIDI Companion's code last round and made the strip and line bar-sized, and I built a Battlefield view in the pile window that you then asked me to take out.
+- I put the middle of a card on a cell border (`row + 5`), which rounds the wrong way now and then; it needs `row + 5.5`. A scripted rewrite of the test numbers also stopped halfway once and I had to finish it by hand, and one relative drag (`17` rows) still assumed the old land row.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

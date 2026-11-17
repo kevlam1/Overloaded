@@ -19,7 +19,7 @@ const LAST_COL = MAX_COL;
 
 same('the board is a whole number of cards across and down, a card is 7 by 10 cells, so a cell is square (a card is 5 by 7)', [BOARD_COLS % CARD_COLS, BOARD_ROWS % CARD_ROWS, CARD_COLS, CARD_ROWS], [0, 0, 7, 10]);
 same('a card starts in columns 0 to BOARD_COLS - 7 and rows 0 to BOARD_ROWS - 10, and as many fit side by side as there are blocks', [MAX_COL, MAX_ROW, BOARD_CAPACITY], [BOARD_COLS - 7, BOARD_ROWS - 10, PER_ROW * (BOARD_ROWS / CARD_ROWS)]);
-same('the board is 16 cards across and 4 down, and a tapped card steps out by 1 cell more than a card', [PER_ROW, BOARD_ROWS / CARD_ROWS, TAP_GAP], [16, 4, 1]);
+same('the board is 16 cards across and 5 down, and a tapped card steps out by 1 cell more than a card', [PER_ROW, BOARD_ROWS / CARD_ROWS, TAP_GAP], [16, 5, 1]);
 
 // cells
 for (const [col, row] of [[0, 0], [MAX_COL, MAX_ROW], [5, 2], [0, MAX_ROW], [MAX_COL, 0], [13, 7]]) same(`(${col}, ${row}) is a cell a card can start in`, validCell(col, row), true);
