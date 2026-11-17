@@ -4357,6 +4357,20 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 ---
 
+## 218. The pile window jumped when a filter changed the cards (2026-11-16)
+
+**What I asked for**
+- When I click a filter in the view window it keeps jumping around if the contents change.
+
+**What changed** (`frontend/src/style.css`)
+- The window was centred on the screen and as tall as its cards, so when a filter left fewer cards the window got shorter and moved, and the buttons slid away from the pointer. It is now anchored at the top of the screen and has a least height (34 rem, or the whole screen if that is smaller), so the buttons stay exactly where they are and only the bottom edge of the window changes.
+
+**What I checked:** a new check in the solo check measures the top of the Type button before and after a filter that shrinks the list, and it did not move (less than half a pixel); the solo check passed everything else in its last full run (792) except the old flaky check of two cards played together, which also fails sometimes on code from before. I looked at a screenshot of a graveyard window with three cards. I did not run the other suites, since only a style rule and a check changed.
+
+**My mistakes this round:** I centred the window in the round before and did not move a filter while looking at it, so I did not see the jump.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

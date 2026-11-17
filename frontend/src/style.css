@@ -1545,3 +1545,7 @@ body.playing.solo .pile-head .pile-caret { width: 1.05rem; height: 1.05rem; bord
 .viewer-drop-panel .viewer-drop-row input[type="checkbox"] { flex: none; width: 1.05rem; height: 1.05rem; min-width: 0; margin: 0; padding: 0; accent-color: var(--accent); }
 .viewer-drop-panel .viewer-drop-row span { flex: 1 1 auto; text-align: left; font-weight: 500; }
 .viewer-drop-panel .viewer-drop-reset { width: 100%; }
+
+/* The pile window is anchored at the top and has a least height, so the buttons stay where they are when a filter changes how many cards there are (it was centred and as tall as its cards, so it moved under the pointer; Kevin, 2026-11-16) */
+.viewer-overlay { align-items: flex-start; }
+.viewer-window { min-height: min(34rem, 100%); }

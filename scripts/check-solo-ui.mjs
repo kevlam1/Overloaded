@@ -815,6 +815,7 @@ try {
         // the Type and Mana value dropdowns (Kevin, 2026-11-16): any number of choices each, a Reset, and the cards shown are those that match
         const shownNames = () => ev("[...document.querySelectorAll('#viewer-list .card')].map((c) => c.getAttribute('aria-label').split(',')[0])");
         const allNames = await shownNames();
+        const buttonY = (await ev("document.querySelector('#viewer-filters .viewer-drop-button').getBoundingClientRect().top"));
         const LANDS = ['Forest', 'Island']; const ONES = ['Sol Ring', 'Lightning Bolt', 'Llanowar Elves'];
         const dropButton = (n) => rectOf('#viewer-filters .viewer-drop:nth-child(' + n + ') .viewer-drop-button');
         const dropBox = (n, option) => rectOf('#viewer-filters .viewer-drop:nth-child(' + n + ') .viewer-drop-panel > label:nth-of-type(' + option + ') input');
@@ -839,6 +840,8 @@ try {
         check('the Mana value button offers 0 to 7 and 8+', JSON.stringify(await panelLabels(2)) === JSON.stringify(['0', '1', '2', '3', '4', '5', '6', '7', '8+']));
         await click(await dropBox(2, 2)); await sleep(200);
         const ones = await shownNames();
+        const movedBy = Math.abs((await ev("document.querySelector('#viewer-filters .viewer-drop-button').getBoundingClientRect().top")) - buttonY);
+        check('the dropdown buttons stay exactly where they were while a filter changes how many cards there are (the window does not jump)', movedBy < 0.5 && ones.length < allNames.length, String(movedBy));
         check('choosing 1 shows the cards with mana value 1 (this deck: Sol Ring, Lightning Bolt and Llanowar Elves) and no land', ones.length === allNames.filter((n) => ONES.includes(n)).length && ones.length > 0 && ones.every((n) => ONES.includes(n)));
         await click(await dropBox(2, 1)); await sleep(200);
         check('choosing 0 as well adds the lands', (await shownNames()).length === allNames.filter((n) => LANDS.includes(n) || ONES.includes(n)).length);
