@@ -34,7 +34,7 @@ import { makeLookup } from '../../../shared/card-lookup.mjs';
 import { cardBackUrl } from '../../../shared/card-image.mjs';
 import { makeCardNodes } from '../../src/card-nodes.js';
 import { mountMarksPanel } from '../../src/marks-panel.js';
-import { openCardMenu } from '../../src/card-menu.js';
+import { openCardMenu, closeCardMenu } from '../../src/card-menu.js';
 import { mountCounterChips } from '../../src/counter-chips.js';
 import { mountLifeControl } from '../../src/life-control.js';
 import { mountFloatingBar } from '../../src/floating-bar.js';
@@ -514,7 +514,7 @@ function pickFromPileMenu(zone, id, amount) {
 function openPileMenu(zone, where) {
   const caret = $(`pile-caret-${zone}`); // the arrow beside the pile's name turns while the menu is open
   caret?.setAttribute('aria-expanded', 'true');
-  openCardMenu({ title: `${ZONE_WORDS[zone][0].toUpperCase()}${ZONE_WORDS[zone].slice(1)}`, items: pileMenuItems(zone, game.zones[zone].length, { scry: true, reveal: true, topRevealed, downExile: true }), x: where.x, y: where.y, returnFocus: where.element, onPick: (id, amount) => pickFromPileMenu(zone, id, amount), onClose: () => caret?.setAttribute('aria-expanded', 'false') });
+  openCardMenu({ title: `${ZONE_WORDS[zone][0].toUpperCase()}${ZONE_WORDS[zone].slice(1)}`, items: pileMenuItems(zone, game.zones[zone].length, { scry: true, reveal: true, topRevealed, downExile: true }), x: where.x, y: where.y, returnFocus: where.element, toggleOn: caret, avoid: where.avoid ?? null, onPick: (id, amount) => pickFromPileMenu(zone, id, amount), onClose: () => caret?.setAttribute('aria-expanded', 'false') });
 }
 // The name of each pile is above it, like the command zone's, with a small arrow that opens the pile's menu (the same one a right-click opens: search, shuffle, draw, look, mill, move all).
 for (const [zone, name] of [['library', 'Library'], ['graveyard', 'Graveyard'], ['exile', 'Exile']]) {
@@ -535,7 +535,7 @@ for (const [zone, name] of [['library', 'Library'], ['graveyard', 'Graveyard'], 
   caret.setAttribute('aria-label', `${name} options`);
   caret.title = `${name} options`;
   caret.innerHTML = '<svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" aria-hidden="true"><path d="M1 3l4 4 4-4z"/></svg>';
-  caret.addEventListener('click', () => { if (!game) return; const box = caret.getBoundingClientRect(); openPileMenu(zone, { x: box.left, y: box.bottom + 4, element: caret }); });
+  caret.addEventListener('click', () => { if (!game) return; if (caret.getAttribute('aria-expanded') === 'true') { closeCardMenu(); return; } const box = caret.getBoundingClientRect(); openPileMenu(zone, { x: box.left, y: box.bottom + 4, element: caret, avoid: box }); });
   head.append(label, caret);
   pile.before(slot);
   slot.append(head, pile);
@@ -807,7 +807,7 @@ function openHandMenu(where) {
   if (!game) return;
   const caret = $('hand-caret');
   caret?.setAttribute('aria-expanded', 'true');
-  openCardMenu({ title: 'Your hand', items: handMenuItems(game.zones.hand.length), x: where.x, y: where.y, returnFocus: where.element, onPick: pickFromHandMenu, onClose: () => caret?.setAttribute('aria-expanded', 'false') });
+  openCardMenu({ title: 'Your hand', items: handMenuItems(game.zones.hand.length), x: where.x, y: where.y, returnFocus: where.element, toggleOn: caret, avoid: where.avoid ?? null, onPick: pickFromHandMenu, onClose: () => caret?.setAttribute('aria-expanded', 'false') });
 }
 function pickFromHandMenu(id, amount) {
   handView.clearLift(); // the card under the pointer was lifted: let it go now, the hand is about to change
@@ -827,7 +827,7 @@ function pickFromHandMenu(id, amount) {
   handCaret.setAttribute('aria-label', 'Hand options');
   handCaret.title = 'Hand options';
   handCaret.innerHTML = '<svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" aria-hidden="true"><path d="M1 3l4 4 4-4z"/></svg>';
-  handCaret.addEventListener('click', () => { const box = handCaret.getBoundingClientRect(); openHandMenu({ x: box.left, y: box.top - 12 - (game ? handMenuItems(game.zones.hand.length).length : 1) * 36 - 44, element: handCaret }); }); // (the bar is at the bottom of the window: the menu opens above it, about 36 px a line and a 44 px title)
+  handCaret.addEventListener('click', () => { if (handCaret.getAttribute('aria-expanded') === 'true') { closeCardMenu(); return; } const box = handCaret.getBoundingClientRect(); openHandMenu({ x: box.left, y: box.bottom + 4, element: handCaret, avoid: box }); }); // (the bar is at the bottom of the window: with no room below, the menu opens above it, exactly, and never over the arrow)
   handView.bar.querySelector('.hand-count').after(handCaret);
   handView.bar.addEventListener('contextmenu', (event) => {
     event.preventDefault();

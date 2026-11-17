@@ -33,21 +33,27 @@ export function mountFloatingBar({ bar, grip, store, key = 'overloaded.actionBar
 
   function hideHints() { snapHint.hidden = true; centerHint.hidden = true; cornerHint.hidden = true; }
   // What letting go now would do, shown: a strip along the edge, a dotted line when the bar is lined up with the middle of the edge, a dotted triangle in the corner it would go into.
-  function showHints(plan) {
-    hideHints();
-    if (!plan) return;
-    const { width, height } = size();
+  // The hints are changed IN PLACE: one is shown or hidden only when what it shows really changes, never hidden and shown again on every pointer move (each new showing restarts its fade-in,
+  // which was the flicker while the bar was dragged near an edge, Kevin 2026-11-16). Like MIDI Companion's, the strip and the line are as long as the bar and follow it along the edge.
+  function showHints(plan, pixels) {
+    if (!plan) { hideHints(); return; }
+    const { width, height, barWidth, barHeight } = size();
     const edge = plan.edge;
-    const strip = { top: [0, 0, width, MARGIN], bottom: [0, height - MARGIN, width, MARGIN], left: [0, 0, MARGIN, height], right: [width - MARGIN, 0, MARGIN, height] }[edge];
-    snapHint.style.left = `${strip[0]}px`; snapHint.style.top = `${strip[1]}px`; snapHint.style.width = `${strip[2]}px`; snapHint.style.height = `${strip[3]}px`;
-    snapHint.hidden = false;
     const across = edge === 'top' || edge === 'bottom';
-    if (plan.corner === null && (across ? plan.fx === 0.5 : plan.fy === 0.5)) {
+    // a strip along the edge the bar would dock to, as long as the bar (a corner shows only its own triangle)
+    const strip = { top: [pixels.left, 0, barWidth, MARGIN], bottom: [pixels.left, height - MARGIN, barWidth, MARGIN], left: [0, pixels.top, MARGIN, barHeight], right: [width - MARGIN, pixels.top, MARGIN, barHeight] }[edge];
+    snapHint.hidden = plan.corner !== null;
+    if (plan.corner === null) { snapHint.style.left = `${strip[0]}px`; snapHint.style.top = `${strip[1]}px`; snapHint.style.width = `${strip[2]}px`; snapHint.style.height = `${strip[3]}px`; }
+    // a dotted line through the middle of the bar while it is lined up with the middle of the edge
+    const centered = plan.corner === null && (across ? plan.fx === 0.5 : plan.fy === 0.5);
+    centerHint.hidden = !centered;
+    if (centered) {
       centerHint.dataset.line = across ? 'vertical' : 'horizontal';
-      centerHint.style.left = `${across ? width / 2 - 1 : 0}px`; centerHint.style.top = `${across ? 0 : height / 2 - 1}px`;
-      centerHint.style.width = across ? '0px' : `${width}px`; centerHint.style.height = across ? `${height}px` : '0px';
-      centerHint.hidden = false;
+      centerHint.style.left = `${across ? pixels.left + barWidth / 2 - 1 : pixels.left}px`; centerHint.style.top = `${across ? pixels.top : pixels.top + barHeight / 2 - 1}px`;
+      centerHint.style.width = across ? '0px' : `${barWidth}px`; centerHint.style.height = across ? `${barHeight}px` : '0px';
     }
+    // a dotted triangle in the corner it would go into
+    cornerHint.hidden = plan.corner === null;
     if (plan.corner) {
       const box = CORNER_DISTANCE + MARGIN;
       cornerHint.style.left = `${plan.corner.x === 0 ? 0 : width - box}px`; cornerHint.style.top = `${plan.corner.y === 0 ? 0 : height - box}px`;
@@ -55,7 +61,6 @@ export function mountFloatingBar({ bar, grip, store, key = 'overloaded.actionBar
       const cx = plan.corner.x === 0 ? 1 : far; const cy = plan.corner.y === 0 ? 1 : far; // the right angle is in the corner of the window
       const ox = plan.corner.x === 0 ? far : 1; const oy = plan.corner.y === 0 ? far : 1; // the far ends of the two short sides
       cornerShape.setAttribute('points', `${cx},${cy} ${ox},${cy} ${cx},${oy}`);
-      cornerHint.hidden = false;
     }
   }
 
@@ -78,7 +83,7 @@ export function mountFloatingBar({ bar, grip, store, key = 'overloaded.actionBar
     const top = Math.min(Math.max(event.clientY - drag.dy, 0), Math.max(0, r.height - r.barHeight));
     drag.pixels = { left, top };
     put(drag.pixels);
-    showHints(dockPlan(pixelsToPlace(drag.pixels, r), r, isVertical(place)));
+    showHints(dockPlan(pixelsToPlace(drag.pixels, r), r, isVertical(place)), drag.pixels);
   }
   function release() {
     if (!drag) return;

@@ -44,7 +44,9 @@ export function closeCardMenu() {
 // used on that line (key) and can be changed there (Right arrow goes from the word into the box, Enter in the box does it).
 // An item with `ask: { min, max, unit }` is a line like "Draw X...": choosing it closes the menu and opens the small number box (src/number-box.js) where the menu was, and onPick(id, number) is called with
 // the number typed (nothing is called when the box is cancelled). onClose: called when the menu has closed, however it closed (a caret that turns while its menu is open uses it).
-export function openCardMenu({ title, items, x, y, onPick, returnFocus = null, onClose = null }) {
+// avoid: the box ({ top }) of that button: when the menu does not fit below y it opens above the button instead of being pushed up over it.
+// toggleOn: a button that opens this menu (a caret); a press on it does not count as "a click elsewhere", so the button itself can close the menu with closeCardMenu() instead of the menu closing first and the click opening it again.
+export function openCardMenu({ title, items, x, y, onPick, returnFocus = null, onClose = null, toggleOn = null, avoid = null }) {
   closeCardMenu();
   const menu = make('div', 'card-menu');
   menu.setAttribute('role', 'menu');
@@ -57,8 +59,10 @@ export function openCardMenu({ title, items, x, y, onPick, returnFocus = null, o
   const place = () => {
     const room = document.documentElement;
     const box = menu.getBoundingClientRect();
+    let top = y;
+    if (avoid && y + box.height > room.clientHeight - 8) top = avoid.top - 4 - box.height; // no room below the button that opened it: above it, so the menu never covers the button (it is pressed again to close the menu)
     menu.style.left = `${Math.max(8, Math.min(x, room.clientWidth - box.width - 8))}px`;
-    menu.style.top = `${Math.max(8, Math.min(y, room.clientHeight - box.height - 8))}px`;
+    menu.style.top = `${Math.max(8, Math.min(top, room.clientHeight - box.height - 8))}px`;
   };
   const itemButton = (label, className) => {
     const button = make('button', className, label);
@@ -219,7 +223,7 @@ export function openCardMenu({ title, items, x, y, onPick, returnFocus = null, o
   }
   menu.addEventListener('keydown', onKeydown);
 
-  const onOutside = (event) => { if (!menu.contains(event.target)) close({ restore: false }); };
+  const onOutside = (event) => { if (!menu.contains(event.target) && !(event.type === 'pointerdown' && toggleOn?.contains(event.target))) close({ restore: false }); };
   const onAway = () => close({ restore: false });
   document.addEventListener('pointerdown', onOutside, true);
   document.addEventListener('contextmenu', onOutside, true);

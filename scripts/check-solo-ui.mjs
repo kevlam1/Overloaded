@@ -585,6 +585,14 @@ try {
       const libOpen = await turn('pile-caret-library');
       await browser.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await sleep(300);
       check('the arrows beside the pile names turn the same way', libClosed.open === 'false' && libOpen.open === 'true' && /180deg|^180/.test(libOpen.rotate), JSON.stringify({ libClosed, libOpen }));
+      // a second press on the arrow closes its menu (it used to close and open again at once, Kevin 2026-11-16)
+      for (const id of ['hand-caret', 'pile-caret-library']) {
+        await click(await rectOf('#' + id)); await sleep(250);
+        const opened = await turn(id); const menusOpen = await ev("document.querySelectorAll('.card-menu').length");
+        await click(await rectOf('#' + id)); await sleep(250);
+        const again = await turn(id); const menusLeft = await ev("document.querySelectorAll('.card-menu').length");
+        check(`pressing the ${id} arrow again closes its menu and the arrow turns back`, opened.open === 'true' && menusOpen === 1 && again.open === 'false' && menusLeft === 0 && again.rotate !== opened.rotate, JSON.stringify({ opened, menusOpen, again, menusLeft }));
+      }
       await move({ x: middle.x, y: middle.y }); await sleep(400);
     }
     // the sorts: Cost one way (low to high), the other way, off (the hand as it was)
@@ -1797,7 +1805,7 @@ try {
     await motion('no-preference'); // (the real hand gathers and hides, which is when the lifted copy of a hovered card used to be left behind)
     await openHandMenuByArrow(); await overHand(); await pointer(await pointOf('#hand .card:nth-child(2)')); await sleep(300);
     const liftedBefore = await ev("document.querySelector('.hand-lift-layer')?.children.length ?? 0");
-    await ev("document.getElementById('hand-caret').click()"); await sleep(120); await pressMenuItem('Mulligan'); await sleep(200);
+    await escapeKey(); await sleep(100); await ev("document.getElementById('hand-caret').click()"); await sleep(120); await pressMenuItem('Mulligan'); await sleep(200); // (the hand rose under the pointer after the menu opened: close it and open it again at the arrow's new place; pressing the arrow while it is open would close it)
     const liftedAfter = await ev("document.querySelector('.hand-lift-layer')?.children.length ?? 0");
     check('after Mulligan from the menu no lifted copy of a hovered card is left on screen while the hand gathers (it used to stay a moment)', liftedAfter === 0, JSON.stringify({ liftedBefore, liftedAfter }));
     await waitFor(async () => (await handSize()) === 7 || null, 20000, 100); await sleep(1500);
@@ -3271,7 +3279,7 @@ try {
     { const mid = (left.top + left.bottom) / 2; const seen = await hold(0, 506 - mid); const m = await barBox();
       check('dragged to the middle of the left edge a strip and a dotted line show while it is held, and letting go puts it exactly in the middle of the edge (flush left, its middle at half the height)', seen.snap && seen.center && !seen.corner && m.left === 8 && Math.abs((m.top + m.bottom) / 2 - 500) <= 1, JSON.stringify({ seen, m })); }
     { const m0 = await barBox(); const seen = await hold(13 - m0.left, 13 - m0.top); const m = await barBox();
-      check('dragged near the top left corner a dotted triangle shows while it is held, and letting go puts it in the corner', seen.snap && seen.corner && m.left === 8 && m.top === 8, JSON.stringify({ seen, m })); }
+      check('dragged near the top left corner a dotted triangle shows while it is held (alone, like MIDI Companion: no strip), and letting go puts it in the corner', !seen.snap && seen.corner && m.left === 8 && m.top === 8, JSON.stringify({ seen, m })); }
     { const p = await centerOfSelector("#bar-grip"); await dragGrip(1279 - p.x, 999 - p.y); } // (to the very corner of the window: the browser sends no mouse events from outside it)
     const far = await barBox();
     check('dragged far outside the window it is brought back inside it, into the corner (as a column, docked to the right)', far.right <= 1280 && far.bottom <= 1000 && far.right >= 1280 - 12 && far.bottom >= 1000 - 12 && (await dockOf()) === 'true', JSON.stringify(far));
