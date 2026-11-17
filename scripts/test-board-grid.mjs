@@ -1,4 +1,4 @@
-// Tests for shared/board-grid.mjs: the fine grid (square cells, a card is 8 wide and 11 tall, the board is as many cards across and down as the constants say), the order blocks are
+// Tests for shared/board-grid.mjs: the fine grid (square cells, a card is 7 wide and 10 tall, the board is as many cards across and down as the constants say), the order blocks are
 // tried in, settling a board, tidying it, stepping, and where a drop lands. The numbers come from the constants where they can, so changing the size of the board does not mean
 // rewriting this file.
 import {
@@ -17,9 +17,9 @@ const PER_ROW = BOARD_COLS / CARD_COLS; // cards across
 const LAND_ROW = MAX_ROW; // the bottom row of blocks starts here
 const LAST_COL = MAX_COL;
 
-same('the board is a whole number of cards across and down, a card is 8 by 11 cells, so a cell is square (a card is 5 by 7)', [BOARD_COLS % CARD_COLS, BOARD_ROWS % CARD_ROWS, CARD_COLS, CARD_ROWS], [0, 0, 8, 11]);
-same('a card starts in columns 0 to BOARD_COLS - 8 and rows 0 to BOARD_ROWS - 11, and as many fit side by side as there are blocks', [MAX_COL, MAX_ROW, BOARD_CAPACITY], [BOARD_COLS - 8, BOARD_ROWS - 11, PER_ROW * (BOARD_ROWS / CARD_ROWS)]);
-same('the board is 14 cards across and 4 down, and a tapped card steps out by 1 cell more than a card', [PER_ROW, BOARD_ROWS / CARD_ROWS, TAP_GAP], [14, 4, 1]);
+same('the board is a whole number of cards across and down, a card is 7 by 10 cells, so a cell is square (a card is 5 by 7)', [BOARD_COLS % CARD_COLS, BOARD_ROWS % CARD_ROWS, CARD_COLS, CARD_ROWS], [0, 0, 7, 10]);
+same('a card starts in columns 0 to BOARD_COLS - 7 and rows 0 to BOARD_ROWS - 10, and as many fit side by side as there are blocks', [MAX_COL, MAX_ROW, BOARD_CAPACITY], [BOARD_COLS - 7, BOARD_ROWS - 10, PER_ROW * (BOARD_ROWS / CARD_ROWS)]);
+same('the board is 16 cards across and 4 down, and a tapped card steps out by 1 cell more than a card', [PER_ROW, BOARD_ROWS / CARD_ROWS, TAP_GAP], [16, 4, 1]);
 
 // cells
 for (const [col, row] of [[0, 0], [MAX_COL, MAX_ROW], [5, 2], [0, MAX_ROW], [MAX_COL, 0], [13, 7]]) same(`(${col}, ${row}) is a cell a card can start in`, validCell(col, row), true);
@@ -29,30 +29,30 @@ for (const card of [{}, { px: 3 }, { py: 2 }, { px: MAX_COL + 1, py: 0 }, { px: 
 same('cellKey is the pair as text', cellKey(3, 2), '3,2');
 
 // overlapping
-same('cards a whole card apart do not overlap (in either direction)', [overlaps({ col: 0, row: 0 }, { col: 8, row: 0 }), overlaps({ col: 0, row: 0 }, { col: 0, row: 11 }), overlaps({ col: 16, row: 16 }, { col: 8, row: 27 })], [false, false, false]);
-same('cards less than a card apart overlap', [overlaps({ col: 0, row: 0 }, { col: 7, row: 0 }), overlaps({ col: 0, row: 0 }, { col: 0, row: 10 }), overlaps({ col: 10, row: 10 }, { col: 4, row: 19 }), overlaps({ col: 5, row: 5 }, { col: 5, row: 5 })], [true, true, true, true]);
+same('cards a whole card apart do not overlap (in either direction)', [overlaps({ col: 0, row: 0 }, { col: 7, row: 0 }), overlaps({ col: 0, row: 0 }, { col: 0, row: 10 }), overlaps({ col: 14, row: 16 }, { col: 7, row: 26 })], [false, false, false]);
+same('cards less than a card apart overlap', [overlaps({ col: 0, row: 0 }, { col: 6, row: 0 }), overlaps({ col: 0, row: 0 }, { col: 0, row: 9 }), overlaps({ col: 10, row: 10 }, { col: 4, row: 18 }), overlaps({ col: 5, row: 5 }, { col: 5, row: 5 })], [true, true, true, true]);
 
 // the order blocks are tried in
 const landOrder = cellOrder(true);
 const otherOrder = cellOrder(false);
 same('there are as many blocks as fit, in either order, each once', [landOrder.length, new Set(landOrder.map((c) => cellKey(c.col, c.row))).size, otherOrder.length, new Set(otherOrder.map((c) => cellKey(c.col, c.row))).size], [BOARD_CAPACITY, BOARD_CAPACITY, BOARD_CAPACITY, BOARD_CAPACITY]);
-same('lands start at the bottom-left block and go right, a card apart', landOrder.slice(0, 3), [{ col: 0, row: LAND_ROW }, { col: 8, row: LAND_ROW }, { col: 16, row: LAND_ROW }]);
-same('...then the row of blocks above', landOrder.slice(PER_ROW, PER_ROW + 2), [{ col: 0, row: LAND_ROW - 11 }, { col: 8, row: LAND_ROW - 11 }]);
+same('lands start at the bottom-left block and go right, a card apart', landOrder.slice(0, 3), [{ col: 0, row: LAND_ROW }, { col: 7, row: LAND_ROW }, { col: 14, row: LAND_ROW }]);
+same('...then the row of blocks above', landOrder.slice(PER_ROW, PER_ROW + 2), [{ col: 0, row: LAND_ROW - 10 }, { col: 7, row: LAND_ROW - 10 }]);
 same('...and the last block for a land is the top-right', landOrder.at(-1), { col: LAST_COL, row: 0 });
-same('other cards start at the top-left and go right', otherOrder.slice(0, 3), [{ col: 0, row: 0 }, { col: 8, row: 0 }, { col: 16, row: 0 }]);
-same('...then the row below, and the last block is the bottom-right', [otherOrder[PER_ROW], otherOrder.at(-1)], [{ col: 0, row: 11 }, { col: LAST_COL, row: LAND_ROW }]);
+same('other cards start at the top-left and go right', otherOrder.slice(0, 3), [{ col: 0, row: 0 }, { col: 7, row: 0 }, { col: 14, row: 0 }]);
+same('...then the row below, and the last block is the bottom-right', [otherOrder[PER_ROW], otherOrder.at(-1)], [{ col: 0, row: 10 }, { col: LAST_COL, row: LAND_ROW }]);
 same('every block is a place a card can start', [...landOrder, ...otherOrder].every((c) => validCell(c.col, c.row)), true);
 
 // the first empty block
 same('an empty board: a land goes to the bottom-left, another card to the top-left', [firstEmptyCell([], true), firstEmptyCell([], false)], [{ col: 0, row: LAND_ROW }, { col: 0, row: 0 }]);
-same('the next land goes beside the first', firstEmptyCell([land(1, { px: 0, py: LAND_ROW })], true), { col: 8, row: LAND_ROW });
-same('a land does not take a block a spell already covers', firstEmptyCell([spell(1, { px: 0, py: LAND_ROW })], true), { col: 8, row: LAND_ROW });
-same('a card half over the first two blocks covers both, so the third is chosen', firstEmptyCell([spell(1, { px: 4, py: LAND_ROW - 3 })], true), { col: 16, row: LAND_ROW });
-same('a card seven cells to the right still covers the first block, so the next one is chosen', firstEmptyCell([spell(1, { px: 7, py: 0 })], false), { col: 16, row: 0 });
-same('a card exactly a block over does not', firstEmptyCell([spell(1, { px: 8, py: 0 })], false), { col: 0, row: 0 });
-same('a card ten cells below covers the first block, eleven does not', [firstEmptyCell([spell(1, { px: 0, py: 10 })], false), firstEmptyCell([spell(1, { px: 0, py: 11 })], false)], [{ col: 8, row: 0 }, { col: 0, row: 0 }]);
-same('a full row of lands moves the next land up a row', firstEmptyCell(Array.from({ length: PER_ROW }, (_, i) => land(i + 1, { px: i * 8, py: LAND_ROW })), true), { col: 0, row: LAND_ROW - 11 });
-same('a full board has no free block', firstEmptyCell(Array.from({ length: BOARD_CAPACITY }, (_, i) => spell(i + 1, { px: (i % PER_ROW) * 8, py: Math.floor(i / PER_ROW) * 11 })), false), null);
+same('the next land goes beside the first', firstEmptyCell([land(1, { px: 0, py: LAND_ROW })], true), { col: 7, row: LAND_ROW });
+same('a land does not take a block a spell already covers', firstEmptyCell([spell(1, { px: 0, py: LAND_ROW })], true), { col: 7, row: LAND_ROW });
+same('a card half over the first two blocks covers both, so the third is chosen', firstEmptyCell([spell(1, { px: 4, py: LAND_ROW - 3 })], true), { col: 14, row: LAND_ROW });
+same('a card six cells to the right still covers the first block, so the next one is chosen', firstEmptyCell([spell(1, { px: 6, py: 0 })], false), { col: 14, row: 0 });
+same('a card exactly a block over does not', firstEmptyCell([spell(1, { px: 7, py: 0 })], false), { col: 0, row: 0 });
+same('a card nine cells below covers the first block, ten does not', [firstEmptyCell([spell(1, { px: 0, py: 9 })], false), firstEmptyCell([spell(1, { px: 0, py: 10 })], false)], [{ col: 7, row: 0 }, { col: 0, row: 0 }]);
+same('a full row of lands moves the next land up a row', firstEmptyCell(Array.from({ length: PER_ROW }, (_, i) => land(i + 1, { px: i * 7, py: LAND_ROW })), true), { col: 0, row: LAND_ROW - 10 });
+same('a full board has no free block', firstEmptyCell(Array.from({ length: BOARD_CAPACITY }, (_, i) => spell(i + 1, { px: (i % PER_ROW) * 7, py: Math.floor(i / PER_ROW) * 10 })), false), null);
 same('cards with no cell take no room', firstEmptyCell([land(1), spell(2, { px: 999, py: 0 })], false), { col: 0, row: 0 });
 same('cards with no cell take no cell', takenCells([land(1), spell(2, { px: 999, py: 0 })]).size, 0);
 same('two cards on one cell take it once (the first one holds it)', [...takenCells([land(1, { px: 2, py: 2 }), land(2, { px: 2, py: 2 })]).values()], ['c1']);
@@ -64,7 +64,7 @@ same('two cards on one cell take it once (the first one holds it)', [...takenCel
   same('a card with a good cell keeps it', placed.get('c1'), { col: 10, row: 2 });
   same('a card on the same cell as another keeps it too (cards may overlap)', placed.get('c5'), { col: 10, row: 2 });
   same('a land with none takes the first free block for lands', placed.get('c2'), { col: 0, row: LAND_ROW });
-  same('the next land goes beside the last one', placed.get('c4'), { col: 8, row: LAND_ROW });
+  same('the next land goes beside the last one', placed.get('c4'), { col: 7, row: LAND_ROW });
   same('a spell with none takes the first free block for spells: (0, 0) is 10 columns from the cards at (10, 2), so it is free', placed.get('c3'), { col: 0, row: 0 });
   same('the cards are not changed', cards.map((c) => [c.px, c.py]), [[10, 2], [undefined, undefined], [undefined, undefined], [undefined, undefined], [10, 2]]);
   same('a card outside the grid is given a cell', placeAll([spell(1, { px: 999, py: 999 })], is).get('c1'), { col: 0, row: 0 });
@@ -79,41 +79,41 @@ same('two cards on one cell take it once (the first one holds it)', [...takenCel
 {
   const cards = [spell(1, { n: 'Zebra' }), land(2, { n: 'Island' }), land(3, { n: 'Forest' }), spell(4, { n: 'Ant' }), land(5, { n: 'Forest' }), spell(6, { n: 'Ant' })];
   const arranged = arrangeAll(cards, is);
-  same('lands are tidied from the bottom-left, by name, the same name side by side', ['c3', 'c5', 'c2'].map((uid) => arranged.get(uid)), [{ col: 0, row: LAND_ROW }, { col: 8, row: LAND_ROW }, { col: 16, row: LAND_ROW }]);
-  same('other cards from the top-left, by name, in the order they came', ['c4', 'c6', 'c1'].map((uid) => arranged.get(uid)), [{ col: 0, row: 0 }, { col: 8, row: 0 }, { col: 16, row: 0 }]);
+  same('lands are tidied from the bottom-left, by name, the same name side by side', ['c3', 'c5', 'c2'].map((uid) => arranged.get(uid)), [{ col: 0, row: LAND_ROW }, { col: 7, row: LAND_ROW }, { col: 14, row: LAND_ROW }]);
+  same('other cards from the top-left, by name, in the order they came', ['c4', 'c6', 'c1'].map((uid) => arranged.get(uid)), [{ col: 0, row: 0 }, { col: 7, row: 0 }, { col: 14, row: 0 }]);
   same('no two tidied cards overlap', [...arranged.values()].every((a, i, all) => all.every((b, j) => i === j || !overlaps(a, b))), true);
   same('tidying twice gives the same result', [...arrangeAll(cards, is)], [...arranged]);
   same('stored cells are ignored when tidying (everything is placed again)', arrangeAll([land(1, { px: 14, py: 0 })], is).get('c1'), { col: 0, row: LAND_ROW });
   const full = Array.from({ length: BOARD_CAPACITY }, (_, i) => (i % 2 ? land(i + 1) : spell(i + 1)));
   same('as many cards as there are blocks all get a block of their own', new Set([...arrangeAll(full, is).values()].map((c) => cellKey(c.col, c.row))).size, BOARD_CAPACITY);
-  const more = arrangeAll(Array.from({ length: BOARD_CAPACITY + 14 }, (_, i) => spell(i + 1)), is);
-  same('14 more cards than blocks are all placed, on top of the first 14 blocks', [more.size, new Set([...more.values()].map((c) => cellKey(c.col, c.row))).size, more.get(`c${BOARD_CAPACITY + 1}`), more.get(`c${BOARD_CAPACITY + 14}`)], [BOARD_CAPACITY + 14, BOARD_CAPACITY, { col: 0, row: 0 }, { col: LAST_COL, row: 0 }]);
+  const more = arrangeAll(Array.from({ length: BOARD_CAPACITY + PER_ROW }, (_, i) => spell(i + 1)), is);
+  same('a row of cards more than blocks are all placed, on top of the first row of blocks', [more.size, new Set([...more.values()].map((c) => cellKey(c.col, c.row))).size, more.get(`c${BOARD_CAPACITY + 1}`), more.get(`c${BOARD_CAPACITY + PER_ROW}`)], [BOARD_CAPACITY + PER_ROW, BOARD_CAPACITY, { col: 0, row: 0 }, { col: LAST_COL, row: 0 }]);
   same('no cards give nothing', arrangeAll([], is).size, 0);
   const sameNames = Array.from({ length: 30 }, (_, i) => spell(i + 1, { n: 'Goblin' }));
-  same('30 tokens with one name fill the top rows in the order they came', [...arrangeAll(sameNames, is)].slice(0, 2).map(([uid, cell]) => [uid, cell.col, cell.row]), [['c1', 0, 0], ['c2', 8, 0]]);
+  same('30 tokens with one name fill the top rows in the order they came', [...arrangeAll(sameNames, is)].slice(0, 2).map(([uid, cell]) => [uid, cell.col, cell.row]), [['c1', 0, 0], ['c2', 7, 0]]);
 }
 
 // somewhere beside a pile for a card that steps out of it (a whole card plus TAP_GAP = 1 cell to the side)
 {
-  const pile = { col: 40, row: 11 };
-  same('the block to the right plus one cell (TAP_GAP), when it is free', nearbyFreeBlock([spell(1, { px: 40, py: 11 })], pile), { col: 49, row: 11 });
-  same('...else to the left, also one cell further than a card', nearbyFreeBlock([spell(1, { px: 40, py: 11 }), spell(2, { px: 50, py: 11 })], pile), { col: 31, row: 11 });
-  same('...else below (a whole card, no gap)', nearbyFreeBlock([spell(1, { px: 40, py: 11 }), spell(2, { px: 50, py: 11 }), spell(3, { px: 30, py: 11 })], pile), { col: 40, row: 22 });
-  same('...else above', nearbyFreeBlock([spell(1, { px: 40, py: 11 }), spell(2, { px: 50, py: 11 }), spell(3, { px: 30, py: 11 }), spell(4, { px: 40, py: 22 })], pile), { col: 40, row: 0 });
-  same('...and none when all four are covered', nearbyFreeBlock([spell(2, { px: 50, py: 11 }), spell(3, { px: 30, py: 11 }), spell(4, { px: 40, py: 22 }), spell(5, { px: 40, py: 0 })], pile), null);
-  same('a card half over the right-hand place covers it', nearbyFreeBlock([spell(2, { px: 53, py: 11 })], pile), { col: 31, row: 11 });
-  same('one just a card away from the right-hand place does not cover it (49 + 8 = 57)', nearbyFreeBlock([spell(2, { px: 57, py: 11 })], pile), { col: 49, row: 11 });
-  same('the cards of the pile itself (on its cell) do not count', nearbyFreeBlock([spell(1, { px: 40, py: 11 }), spell(2, { px: 40, py: 11 })], pile), { col: 49, row: 11 });
-  same('at the right edge it goes to the left', nearbyFreeBlock([], { col: MAX_COL, row: 11 }), { col: MAX_COL - 9, row: 11 });
-  same('in the corner it goes down or up', [nearbyFreeBlock([], { col: 0, row: 0 }), nearbyFreeBlock([], { col: 0, row: MAX_ROW })], [{ col: 9, row: 0 }, { col: 9, row: MAX_ROW }]);
+  const pile = { col: 40, row: 10 };
+  same('the block to the right plus one cell (TAP_GAP), when it is free', nearbyFreeBlock([spell(1, { px: 40, py: 10 })], pile), { col: 48, row: 10 });
+  same('...else to the left, also one cell further than a card', nearbyFreeBlock([spell(1, { px: 40, py: 10 }), spell(2, { px: 49, py: 10 })], pile), { col: 32, row: 10 });
+  same('...else below (a whole card, no gap)', nearbyFreeBlock([spell(1, { px: 40, py: 10 }), spell(2, { px: 49, py: 10 }), spell(3, { px: 31, py: 10 })], pile), { col: 40, row: 20 });
+  same('...else above', nearbyFreeBlock([spell(1, { px: 40, py: 10 }), spell(2, { px: 49, py: 10 }), spell(3, { px: 31, py: 10 }), spell(4, { px: 40, py: 20 })], pile), { col: 40, row: 0 });
+  same('...and none when all four are covered', nearbyFreeBlock([spell(2, { px: 49, py: 10 }), spell(3, { px: 31, py: 10 }), spell(4, { px: 40, py: 20 }), spell(5, { px: 40, py: 0 })], pile), null);
+  same('a card half over the right-hand place covers it', nearbyFreeBlock([spell(2, { px: 52, py: 10 })], pile), { col: 32, row: 10 });
+  same('one just a card away from the right-hand place does not cover it (48 + 7 = 55)', nearbyFreeBlock([spell(2, { px: 55, py: 10 })], pile), { col: 48, row: 10 });
+  same('the cards of the pile itself (on its cell) do not count', nearbyFreeBlock([spell(1, { px: 40, py: 10 }), spell(2, { px: 40, py: 10 })], pile), { col: 48, row: 10 });
+  same('at the right edge it goes to the left', nearbyFreeBlock([], { col: MAX_COL, row: 10 }), { col: MAX_COL - 8, row: 10 });
+  same('in the corner it goes to the right', [nearbyFreeBlock([], { col: 0, row: 0 }), nearbyFreeBlock([], { col: 0, row: MAX_ROW })], [{ col: 8, row: 0 }, { col: 8, row: MAX_ROW }]);
   // prefer 'up' (the horizontal pile style): on top of the pile, a whole card higher, with no gap; then the sides
-  same("with 'up' the block above comes first (a whole card higher, in the same columns)", nearbyFreeBlock([spell(1, { px: 40, py: 11 })], pile, 'up'), { col: 40, row: 0 });
-  same('...then to the right, then to the left, then below', [nearbyFreeBlock([spell(2, { px: 40, py: 0 })], pile, 'up'), nearbyFreeBlock([spell(2, { px: 40, py: 0 }), spell(3, { px: 50, py: 11 })], pile, 'up'), nearbyFreeBlock([spell(2, { px: 40, py: 0 }), spell(3, { px: 50, py: 11 }), spell(4, { px: 30, py: 11 })], pile, 'up')], [{ col: 49, row: 11 }, { col: 31, row: 11 }, { col: 40, row: 22 }]);
-  same("with 'up' on the top row it goes to the side", nearbyFreeBlock([], { col: 40, row: 0 }, 'up'), { col: 49, row: 0 });
+  same("with 'up' the block above comes first (a whole card higher, in the same columns)", nearbyFreeBlock([spell(1, { px: 40, py: 10 })], pile, 'up'), { col: 40, row: 0 });
+  same('...then to the right, then to the left, then below', [nearbyFreeBlock([spell(2, { px: 40, py: 0 })], pile, 'up'), nearbyFreeBlock([spell(2, { px: 40, py: 0 }), spell(3, { px: 49, py: 10 })], pile, 'up'), nearbyFreeBlock([spell(2, { px: 40, py: 0 }), spell(3, { px: 49, py: 10 }), spell(4, { px: 31, py: 10 })], pile, 'up')], [{ col: 48, row: 10 }, { col: 32, row: 10 }, { col: 40, row: 20 }]);
+  same("with 'up' on the top row it goes to the side", nearbyFreeBlock([], { col: 40, row: 0 }, 'up'), { col: 48, row: 0 });
   // prefer 'left' (an untapped card leaving a tapped stack) and 'down' (the same in the horizontal style)
-  same("with 'left' the place to the left comes first, then the right", [nearbyFreeBlock([], pile, 'left'), nearbyFreeBlock([spell(2, { px: 30, py: 11 })], pile, 'left')], [{ col: 31, row: 11 }, { col: 49, row: 11 }]);
-  same("with 'left' at the left edge it goes to the right", nearbyFreeBlock([], { col: 3, row: 11 }, 'left'), { col: 12, row: 11 });
-  same("with 'down' the block below comes first, then the one above, then the sides", [nearbyFreeBlock([], pile, 'down'), nearbyFreeBlock([spell(2, { px: 40, py: 22 })], pile, 'down'), nearbyFreeBlock([spell(2, { px: 40, py: 22 }), spell(3, { px: 40, py: 0 })], pile, 'down')], [{ col: 40, row: 22 }, { col: 40, row: 0 }, { col: 49, row: 11 }]);
+  same("with 'left' the place to the left comes first, then the right", [nearbyFreeBlock([], pile, 'left'), nearbyFreeBlock([spell(2, { px: 31, py: 10 })], pile, 'left')], [{ col: 32, row: 10 }, { col: 48, row: 10 }]);
+  same("with 'left' at the left edge it goes to the right", nearbyFreeBlock([], { col: 3, row: 10 }, 'left'), { col: 11, row: 10 });
+  same("with 'down' the block below comes first, then the one above, then the sides", [nearbyFreeBlock([], pile, 'down'), nearbyFreeBlock([spell(2, { px: 40, py: 20 })], pile, 'down'), nearbyFreeBlock([spell(2, { px: 40, py: 20 }), spell(3, { px: 40, py: 0 })], pile, 'down')], [{ col: 40, row: 20 }, { col: 40, row: 0 }, { col: 48, row: 10 }]);
   same('an unknown preference is the same as right', nearbyFreeBlock([], pile, 'sideways'), nearbyFreeBlock([], pile, 'right'));
 }
 
@@ -140,7 +140,7 @@ same('an unknown direction gives none', [stepFrom({ col: 1, row: 1 }, 'sideways'
   same('every cell is found from its own middle', Array.from({ length: BOARD_COLS * BOARD_ROWS }, (_, n) => { const col = n % BOARD_COLS; const row = Math.floor(n / BOARD_COLS); const c = cellAtPoint(rect, 100 + (col + 0.5) * 10, 50 + (row + 0.5) * 10); return c.col === col && c.row === row; }).every(Boolean), true);
 
   // where a card dropped with the pointer at a point goes: its middle is at the pointer
-  same('the pointer in the middle of the board puts the card around it (4 cells left and 5 up of the pointer)', anchorAtPoint(rect, 255, 135), { col: 11, row: 3 });
+  same('the pointer in the middle of the board puts the card around it (3 cells left and 5 up of the pointer)', anchorAtPoint(rect, 255, 135), { col: 12, row: 3 });
   same('near the top-left corner the card is kept on the board', anchorAtPoint(rect, 101, 51), { col: 0, row: 0 });
   same('near the bottom-right corner too', anchorAtPoint(rect, 100 + W - 1, 50 + H - 1), { col: MAX_COL, row: MAX_ROW });
   same('the right edge keeps the whole card on the board', anchorAtPoint(rect, 100 + W - 1, 135), { col: MAX_COL, row: 3 });

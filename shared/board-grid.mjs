@@ -7,14 +7,14 @@
 // card never moves because another one was placed. A card with no position (an older game, or a damaged value) is given one when the board is drawn or the game is loaded: the
 // first free block, lands from the bottom-left and every other card from the top-left, which keeps a loose order without two labelled sections. If every block is taken the card
 // goes on top of the last one tried: nothing is refused.
-export const BOARD_COLS = 112; // 14 cards across (it was 12: Kevin, 2026-11-10, "lots of the battlefield seems to be empty space")
-export const BOARD_ROWS = 44;
-export const CARD_COLS = 8;
-export const CARD_ROWS = 11; // a card is 8 cells wide and 11 tall, so a cell is square (a card is 5 by 7)
+export const BOARD_COLS = 112; // 16 cards across (14 and 8 cells wide before 2026-11-16; 12 before 2026-11-10: "lots of the battlefield seems to be empty space")
+export const BOARD_ROWS = 40; // 4 rows of cards (44 for the bigger cards of before 2026-11-16)
+export const CARD_COLS = 7; // one size smaller than 8 by 11 (Kevin, 2026-11-16: "scale the cards on the battlefield down by 1 level")
+export const CARD_ROWS = 10; // a card is 7 cells wide and 10 tall, so a cell is square (a card is about 5 by 7)
 export const MAX_COL = BOARD_COLS - CARD_COLS; // the last column a card can start in
 export const MAX_ROW = BOARD_ROWS - CARD_ROWS; // the last row a card can start in
 export const TAP_GAP = 1; // a tapped card steps out of its pile to a place this many cells further than a whole card (Kevin, 2026-11-09: one more cell to the right)
-export const BOARD_CAPACITY = (BOARD_COLS / CARD_COLS) * (BOARD_ROWS / CARD_ROWS); // 48 blocks (12 by 4): how many cards fit side by side without overlapping
+export const BOARD_CAPACITY = (BOARD_COLS / CARD_COLS) * (BOARD_ROWS / CARD_ROWS); // 64 blocks (16 by 4): how many cards fit side by side without overlapping
 
 const whole = (value) => Number.isInteger(value);
 export const validCell = (col, row) => whole(col) && whole(row) && col >= 0 && col <= MAX_COL && row >= 0 && row <= MAX_ROW;

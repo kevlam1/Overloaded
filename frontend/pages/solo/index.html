@@ -77,9 +77,16 @@
     <div id="viewer" class="viewer-overlay" hidden>
       <div class="viewer-window" role="dialog" aria-modal="true" aria-labelledby="viewer-title">
         <div class="viewer-head">
+          <button id="viewer-back" type="button" class="secondary" hidden>Back</button>
           <h2 id="viewer-title"></h2>
           <input id="viewer-search" type="search" placeholder="Search by name, letters in order, or type" autocomplete="off" aria-label="Search this pile by name, by letters that appear in the name in order, or by type">
           <button id="viewer-close" type="button" class="secondary">Close</button>
+        </div>
+        <div class="viewer-tabs" role="group" aria-label="Look at">
+          <button type="button" class="viewer-tab secondary" data-view="library" aria-pressed="false">Library</button>
+          <button type="button" class="viewer-tab secondary" data-view="graveyard" aria-pressed="false">Graveyard</button>
+          <button type="button" class="viewer-tab secondary" data-view="exile" aria-pressed="false">Exile</button>
+          <button type="button" class="viewer-tab secondary" data-view="battlefield" aria-pressed="false">Battlefield</button>
         </div>
         <p id="viewer-note" class="hint"></p>
         <div id="viewer-list" class="viewer-grid"></div>

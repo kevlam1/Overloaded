@@ -32,8 +32,8 @@ export function mountPileViewer({ root, nodeFor, onClose = () => {} }) {
   }
 
   // label: the name of the pile ("Library"). cards: what to show (all of the pile, or only its top few). depth: whether to number the cards by their place from the top (a library).
-  // total: how many cards the pile has (when only some are shown). noteText: a short line under the title.
-  function show({ label, cards, depth = false, total = cards.length, noteText = '', from = 'top', offset = 0 }) {
+  // total: how many cards the pile has (when only some are shown). noteText: a short line under the title. ends: mark the first card Top and the last Bottom (a pile has them, the battlefield does not).
+  function show({ label, cards, depth = false, total = cards.length, noteText = '', from = 'top', offset = 0, ends = true }) {
     const opening = !isOpen();
     if (opening) { returnTo = document.activeElement instanceof HTMLElement ? document.activeElement : null; root.hidden = false; }
     const results = searchCards(cards, search.value);
@@ -48,8 +48,9 @@ export function mountPileViewer({ root, nodeFor, onClose = () => {} }) {
       const cell = make('div', 'viewer-card');
       cell.append(sharpenPicture(nodeFor(card, false))); // (the normal size of the picture: the window shows it large)
       const place = index + offset; // (the card's place in the whole pile: the first is the top, the last the bottom)
-      if (place === 0 || place === total - 1) { cell.dataset.end = place === 0 && total > 1 ? 'top' : place === 0 ? 'only' : 'bottom'; cell.prepend(make('span', 'viewer-end', cell.dataset.end === 'top' ? 'Top' : cell.dataset.end === 'bottom' ? 'Bottom' : 'Only card')); }
+      if (ends && (place === 0 || place === total - 1)) { cell.dataset.end = place === 0 && total > 1 ? 'top' : place === 0 ? 'only' : 'bottom'; cell.prepend(make('span', 'viewer-end', cell.dataset.end === 'top' ? 'Top' : cell.dataset.end === 'bottom' ? 'Bottom' : 'Only card')); }
       if (depth) cell.append(make('span', 'viewer-depth', `#${index + 1 + offset}`));
+      if (card.tapped) cell.append(make('span', 'viewer-depth', 'Tapped')); // (the battlefield view draws every card upright: this says which are tapped)
       return cell;
     }));
   }

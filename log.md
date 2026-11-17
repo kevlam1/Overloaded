@@ -4267,6 +4267,35 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 ---
 
+## 214. The arrows close their menu, the bar glow stops flickering, smaller battlefield cards, and the pile windows (2026-11-16)
+
+**What I asked for**
+- Clicking the triangle next to the hand count, library, graveyard or exile again while its menu is open did not close it: the menu closed and opened again and the triangle just flipped.
+- Make the control bar work like MIDI Companion's: it was janky near the sides because the glow flickered, and it needed the centering too.
+- Scale the battlefield cards down one level, and make their art clear (the library cards were blurry because the small picture was stretched).
+- Make the library, graveyard and exile windows smaller (they came too near the sides), add a button to view the battlefield, and a button to go back to the view menu.
+
+**What changed**
+- The arrows (`frontend/src/card-menu.js`, `frontend/pages/solo/solo.js`): a second press closes the menu (`toggleOn`: a press on the arrow is not counted as "a click elsewhere"). A menu that does not fit below its arrow now opens ABOVE it (`avoid`), because the library menu used to be pushed up over its own arrow, which made a second press on the arrow impossible.
+- The bar (`frontend/src/floating-bar.js`): the glow flickered because every pointer move hid the three hints and showed them again, and each showing restarted the fade-in. They are now changed in place and only hidden when what they show really changes. Like MIDI Companion's, the strip along the edge and the dotted middle line are as long as the bar and follow it, and a corner shows only its own triangle. The snap to the middle of an edge was already there (`shared/bar-place.mjs`).
+- Smaller cards (`shared/board-grid.mjs`, `frontend/src/style.css`): a card is 7 by 10 cells (it was 8 by 11) on a 112 by 40 board (it was 44 rows), so 16 cards fit across and 4 down. At 1920 wide a card is 120 by 168 px. A stored card on a row below 30 is given a new place when the board is drawn. The battlefield now asks for the normal size of each picture (`sharp` in `place`, solo page only, so the table page does not download more).
+- A bug the new size showed (`shared/zones.mjs`, `placeGroup`): a tapped card in the last three columns pulled a whole group off the left edge of the board. It can no longer move right but does not drag the group.
+- The pile window (`frontend/pages/solo/`, `frontend/src/pile-viewer.js`, `style.css`): at most 66 rem wide with at least 6% of the window free on each side. A row of buttons (Library, Graveyard, Exile, Battlefield) switches the window without closing it. The Battlefield view shows every card on the board (tapped ones upright with a Tapped label, no Top or Bottom marks) with card buttons of its own, so the board keeps its cards, and a Back to library button returns to the pile.
+
+**What I checked**
+- Unit suites (70, all passed), and `npm test`: 76 of 77 suites passed; the one that did not is the solo check, which failed only the old hand-lowering check, and passed in the full run before it.
+- The solo check (775): all passed in one full run, and the final run failed two timing checks that I did not touch (the flight of a drawn card out of the library, and the two cards played together, which also failed on the code from before this change). New checks: for pressing each arrow twice with the real mouse, the window's size and buttons, the battlefield view, and the board pictures being the normal size. About 60 old numbers in the drag checks and four unit test files had to be changed for the new card size.
+- Screenshots at 1920 by 1000 and 1366 by 768: the board, the library window and the battlefield window. The cards are crisp; the window is clear of the sides.
+- Not checked: the glow flicker by eye (I found the cause in the code and the corner check changed with it, but no test looks for a flicker), the table page with the new card size in a screenshot (the layout check passed), the two-browser live check, and phone width.
+
+**My mistakes this round**
+- I first wrote the arrow test with the graveyard, which is hidden when empty, and then with the library, whose menu covered its arrow: the second click landed on a menu item and opened a Scry window, which broke 12 checks after it. A probe showed the focus on the Scry window's button.
+- I said "Back" would reopen the pile's menu, then saw that "view menu" meant the window itself and built Back to return to the pile you came from.
+- My new checks lost backslashes twice in the shell, and I forgot the title says "Your library".
+- I had said an earlier run passed all 765 checks; the untouched code fails two checks now and then (the two cards played together, and holding a pile).
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

@@ -242,10 +242,10 @@ export function makeCardNodes({ onSelect = () => {}, isSelected = () => false, r
     // { col, row }, shared/zones.mjs boardCells) with data-col and data-row, which the style sheet turns into a place in the grid; data-kind says land or other (the checks use it).
     // Cards with the same name and state on one cell are a pile (shared/stacks.mjs): the top one carries the count (a "3x" badge), up to STACK_VISIBLE copies are drawn each a little lower and to the right of
     // the one above it (data-stack-depth, the style sheet offsets them), and the rest are hidden. Every card is still its own button.
-    place: (container, cards, { battlefield = false, cells = null } = {}) => {
+    place: (container, cards, { battlefield = false, cells = null, sharp = false } = {}) => { // sharp: ask for the NORMAL size of each picture (the small one is 146 px wide and looks blurry drawn larger or on a sharp screen; the hand and the pile windows do the same, Kevin 2026-11-16)
       const stacks = battlefield && cells ? stackInfo(cards, cells) : null;
       container.replaceChildren(...cards.map((card) => {
-        const button = nodeFor(card, battlefield);
+        const button = nodeFor(card, battlefield); if (sharp) sharpenPicture(button);
         const cell = battlefield ? cells?.get(card.uid) : null;
         if (cell) { button.dataset.col = String(cell.col); button.dataset.row = String(cell.row); } else { delete button.dataset.col; delete button.dataset.row; }
         if (battlefield) button.dataset.kind = isLandCard(card) ? 'land' : 'other'; else delete button.dataset.kind;

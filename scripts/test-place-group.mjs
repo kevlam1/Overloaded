@@ -28,13 +28,13 @@ const problems = (game) => { const found = checkGame(game); return Array.isArray
 
 // ---- the group keeps its shape ----
 {
-  const { game, uids } = table([['Island', 8, 4], ['Goblin Guide', 24, 4], ['Island', 16, 22]]);
+  const { game, uids } = table([['Island', 8, 4], ['Goblin Guide', 24, 4], ['Island', 16, 18]]);
   const moved = placeGroup(game, uids, uids[0], 48, 15);
-  same('the anchor goes where it was put and the others move by as much: 40 across and 11 down', cells(moved.game, uids), [[48, 15], [64, 15], [56, 33]]);
+  same('the anchor goes where it was put and the others move by as much: 40 across and 11 down', cells(moved.game, uids), [[48, 15], [64, 15], [56, 29]]);
   same('it says how many cards moved', moved.moved, 3);
   same('the cards are the same cards, only their places changed', moved.game.zones.battlefield.map((c) => ({ ...c, px: 0, py: 0 })), game.zones.battlefield.map((c) => ({ ...c, px: 0, py: 0 })));
   same('no card is lost or copied', problems(moved.game), []);
-  same('the game that was given is not changed', cells(game, uids), [[8, 4], [24, 4], [16, 22]]);
+  same('the game that was given is not changed', cells(game, uids), [[8, 4], [24, 4], [16, 18]]);
 }
 // ---- nothing to do ----
 {
@@ -44,19 +44,19 @@ const problems = (game) => { const found = checkGame(game); return Array.isArray
 }
 // ---- the board edge cuts the move short for the whole group ----
 {
-  const { game, uids } = table([['Island', 8, 4], ['Goblin Guide', 96, 4]]);
+  const { game, uids } = table([['Island', 8, 4], ['Goblin Guide', 97, 4]]);
   const right = placeGroup(game, uids, uids[0], 40, 4);
-  same('the card at 96 can only go 8 more cells, so the whole group goes 8 and keeps its shape', cells(right.game, uids), [[16, 4], [MAX_COL, 4]]);
-  const some = table([['Island', 8, 4], ['Goblin Guide', 90, 4]]);
+  same('the card at 97 can only go 8 more cells, so the whole group goes 8 and keeps its shape', cells(right.game, uids), [[16, 4], [MAX_COL, 4]]);
+  const some = table([['Island', 8, 4], ['Goblin Guide', 91, 4]]);
   const part = placeGroup(some.game, some.uids, some.uids[0], 40, 4);
-  same('the card at 90 can go 14 cells, so the whole group goes 14', cells(part.game, some.uids), [[22, 4], [MAX_COL, 4]]);
+  same('the card at 91 can go 14 cells, so the whole group goes 14', cells(part.game, some.uids), [[22, 4], [MAX_COL, 4]]);
   const up = placeGroup(game, uids, uids[0], 8, 0);
-  same('up to row 0 is fine (it was 4 rows down)', cells(up.game, uids), [[8, 0], [96, 0]]);
-  const low = table([['Island', 8, 4], ['Goblin Guide', 24, 30]]);
-  const down = placeGroup(low.game, low.uids, low.uids[0], 8, 33);
+  same('up to row 0 is fine (it was 4 rows down)', cells(up.game, uids), [[8, 0], [97, 0]]);
+  const low = table([['Island', 8, 4], ['Goblin Guide', 24, 27]]);
+  const down = placeGroup(low.game, low.uids, low.uids[0], 8, 30);
   same('a card low on the board stops the group from going lower than the last row (it can go 3 rows)', cells(down.game, low.uids), [[8, 7], [24, MAX_ROW]]);
   const left = placeGroup(game, uids, uids[0], 0, 4);
-  same('to the left edge: the anchor reaches column 0 and the other keeps its distance', cells(left.game, uids), [[0, 4], [88, 4]]);
+  same('to the left edge: the anchor reaches column 0 and the other keeps its distance', cells(left.game, uids), [[0, 4], [89, 4]]);
 }
 // ---- a tapped card needs the room of its landscape shape ----
 {
@@ -65,11 +65,22 @@ const problems = (game) => { const found = checkGame(game); return Array.isArray
   const moved = placeGroup(game, uids, uids[0], 100, 4);
   same('a tapped card cannot start in the last 3 columns: the group stops there', cells(moved.game, uids), [[8 + (BOARD_COLS - CARD_ROWS - 80), 4], [BOARD_COLS - CARD_ROWS, 4]]);
 }
+// ---- a tapped card in the last columns (past where a tapped card can start) does not pull the group off the left edge ----
+{
+  let { game, uids } = table([['Island', 0, 4], ['Goblin Guide', 104, 4]]);
+  game = setTapped(game, uids[1], true);
+  const moved = placeGroup(game, uids, uids[0], 20, 4);
+  same('the tapped card at column 104 stays put (it cannot go further right) and the group does not go off the left edge', cells(moved.game, uids).map(([c]) => c >= 0), [true, true]);
+  let t2 = table([['Island', 10, 4], ['Goblin Guide', 104, 4]]);
+  t2 = { game: setTapped(t2.game, t2.uids[1], true), uids: t2.uids };
+  const left = placeGroup(t2.game, t2.uids, t2.uids[1], 94, 4);
+  same('...and the group can still move left (10 columns, as far as the Island allows)', cells(left.game, t2.uids), [[0, 4], [94, 4]]);
+}
 // ---- a pile moves whole ----
 {
-  const { game, uids } = table([['Forest', 0, 33], ['Forest', 0, 33], ['Forest', 0, 33], ['Island', 16, 33]]);
+  const { game, uids } = table([['Forest', 0, 30], ['Forest', 0, 30], ['Forest', 0, 30], ['Island', 14, 30]]);
   const moved = placeGroup(game, [uids[2], uids[3]], uids[2], 24, 22);
-  same('picking the top card of a pile and an Island moves the pile and the Island: all four', cells(moved.game, uids), [[24, 22], [24, 22], [24, 22], [40, 22]]);
+  same('picking the top card of a pile and an Island moves the pile and the Island: all four', cells(moved.game, uids), [[24, 22], [24, 22], [24, 22], [38, 22]]);
   same('four cards moved', moved.moved, 4);
 }
 // ---- the group goes on top only when it lands on a card that comes after it ----
@@ -95,7 +106,7 @@ const problems = (game) => { const found = checkGame(game); return Array.isArray
 // ---- random groups never lose or copy a card ----
 {
   let seed = 7; const random = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
-  const start = table([['Island', 0, 0], ['Island', 16, 0], ['Goblin Guide', 32, 0], ['Island', 48, 11], ['Goblin Guide', 64, 22], ['Forest', 80, 33], ['Forest', 80, 33]]);
+  const start = table([['Island', 0, 0], ['Island', 16, 0], ['Goblin Guide', 32, 0], ['Island', 48, 11], ['Goblin Guide', 64, 22], ['Forest', 80, 30], ['Forest', 80, 30]]);
   let game = start.game; const uids = start.uids;
   for (let n = 0; n < 400; n++) {
     const group = uids.filter(() => random() < 0.5);

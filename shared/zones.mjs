@@ -570,7 +570,7 @@ export function placeGroup(game, uids, anchorUid, col, row) {
   const here = cellOf(anchor);
   const limit = (c) => (c.tapped ? BOARD_COLS - CARD_ROWS : MAX_COL);
   const wantCols = col - here.col; const wantRows = row - here.row;
-  const dCol = Math.min(Math.max(wantCols, Math.max(...group.map((c) => -c.px))), Math.min(...group.map((c) => limit(c) - c.px)));
+  const dCol = Math.min(Math.max(wantCols, Math.max(...group.map((c) => -c.px))), Math.min(...group.map((c) => Math.max(0, limit(c) - c.px)))); // (a tapped card already past its limit cannot go further right, but must not pull the group left past column 0)
   const dRow = Math.min(Math.max(wantRows, Math.max(...group.map((c) => -c.py))), Math.min(...group.map((c) => MAX_ROW - c.py)));
   if (dCol === 0 && dRow === 0) return { game: settled, moved: 0 };
   const movedCards = group.map((c) => ({ ...c, px: c.px + dCol, py: c.py + dRow }));
