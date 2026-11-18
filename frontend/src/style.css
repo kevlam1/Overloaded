@@ -1580,3 +1580,13 @@ body.playing.solo .pile-head .pile-caret { width: 1.05rem; height: 1.05rem; bord
 .stack-note { display: block; width: 100%; resize: vertical; min-height: 2.6rem; padding: 0.3rem 0.4rem; border: 1px solid var(--line); border-radius: 0.4rem; background: var(--bg); color: var(--text); font: inherit; font-size: 0.85rem; cursor: text; }
 .stack-empty { padding: 1rem 0.5rem; color: var(--muted); font-size: 0.85rem; text-align: center; }
 .order-window.order-active { overflow: hidden; } /* while a card is carried and gliding home: no scroll bars (Kevin, 2026-11-17: a card moved past the right edge made the window show one) */
+
+/* the arrows of the stack window (Kevin, 2026-11-17): one layer over the page, from a card of the stack to another card of it or to a card on the battlefield */
+.stack-arrows { position: fixed; left: 0; top: 0; z-index: 48; overflow: visible; pointer-events: none; color: var(--accent); }
+.stack-arrow-halo { stroke: rgba(0, 0, 0, 0.55); stroke-width: 6; stroke-linecap: round; }
+.stack-arrow-line { stroke: currentColor; stroke-width: 3; stroke-linecap: round; }
+.stack-arrow-hit { stroke: transparent; stroke-width: 16; pointer-events: stroke; cursor: context-menu; }
+.stack-arrow-draft { stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-dasharray: 8 6; opacity: 0.9; }
+.stack-target { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: 0.4rem; }
+.stack-arrow-source { outline: 2px dashed var(--accent); outline-offset: 2px; }
+body.stack-aiming, body.stack-aiming * { cursor: crosshair !important; }

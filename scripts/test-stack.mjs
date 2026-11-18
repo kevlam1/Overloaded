@@ -1,5 +1,5 @@
 // Tests for shared/stack.mjs: the stack window's logic (a list of card copies and text boxes, top first, with Undo).
-import { MAX_ITEMS, MAX_TEXT, MAX_UNDO, emptyStack, cleanText, copyForStack, addCard, addText, setText, moveItem, removeItem, topCard, resolveTop, clearStack, canUndo, undo, cardCount, summary } from '../shared/stack.mjs';
+import { MAX_ITEMS, MAX_TEXT, MAX_UNDO, MAX_ARROWS, addArrow, removeArrow, removeArrowsOf, arrowsOf, emptyStack, cleanText, copyForStack, addCard, addText, setText, moveItem, removeItem, topCard, resolveTop, clearStack, canUndo, undo, cardCount, summary } from '../shared/stack.mjs';
 
 let checks = 0;
 const fail = (label, detail) => { console.log(`FAILED CHECK: ${label}: ${detail}`); process.exit(1); };
@@ -96,6 +96,51 @@ same('after an Undo the next id is not used again (a new card has a new id, not 
   throws('a 41st card is refused in words', () => addCard(many, bolt()), /full/);
   throws('a 41st text box is refused in words', () => addText(many, 0, 'x'), /full/);
   same('taking one off makes room', addCard(removeItem(many, 's1'), bolt()).items.length, MAX_ITEMS); }
+
+// arrows (Kevin, 2026-11-17)
+const names3 = (stack) => stack.items.map((item) => item.card.n);
+let ar = freeze(addCard(addCard(addCard(emptyStack(), { uid: 'c1', n: 'Lightning Bolt' }), { uid: 'c2', n: 'Counterspell' }), { uid: 'c3', n: 'Giant Growth' }));
+same('an empty stack has no arrows, and the limit', [emptyStack().arrows, MAX_ARROWS], [[], 24]);
+const toCard = addArrow(ar, 's3', { card: 'c77' });
+same('an arrow from a card of the stack to a real card of the game', [toCard.stack.arrows, toCard.id], [[{ id: 'a4', from: 's3', to: { card: 'c77' } }], 'a4']);
+const toItem = addArrow(ar, 's3', { item: 's1' });
+same('an arrow from one card of the stack to another', toItem.stack.arrows, [{ id: 'a4', from: 's3', to: { item: 's1' } }]);
+same('adding an arrow does not change the stack it started from (frozen), keeps the items, and uses the next id', [ar.arrows, toItem.stack.items === ar.items, toItem.stack.next], [[], true, 5]);
+same('an arrow can be undone, and Undo gives the arrows back as they were', [undo(toItem.stack).arrows, undo(undo(toItem.stack)).arrows.length], [[], 0]);
+throws('an arrow from an item that is not there is refused', () => addArrow(ar, 'nope', { card: 'c1' }), /not on the stack/);
+throws('an arrow to an item that is not there is refused', () => addArrow(ar, 's3', { item: 'nope' }), /not on the stack/);
+throws('a card cannot point at itself', () => addArrow(ar, 's3', { item: 's3' }), /itself/);
+throws('an arrow cannot start from a text box', () => addArrow(addText(ar, 0, 'note').stack, 's4', { card: 'c1' }), /start from a card/);
+throws('an arrow cannot point at a text box', () => addArrow(addText(ar, 0, 'note').stack, 's3', { item: 's4' }), /point at a card/);
+throws('no target, junk and a bad uid are refused', () => addArrow(ar, 's3', null), /Point the arrow/);
+throws('a target that is a number is refused', () => addArrow(ar, 's3', 7), /Point the arrow/);
+throws('a uid with odd characters is refused', () => addArrow(ar, 's3', { card: 'c1 <b>' }), /Point the arrow/);
+throws('a uid that is empty is refused', () => addArrow(ar, 's3', { card: '' }), /Point the arrow/);
+throws('a uid that is too long is refused', () => addArrow(ar, 's3', { card: 'c'.repeat(41) }), /Point the arrow/);
+same('a uid of 40 letters is fine', addArrow(ar, 's3', { card: 'c'.repeat(40) }).stack.arrows.length, 1);
+throws('the same arrow twice is refused', () => addArrow(toItem.stack, 's3', { item: 's1' }), /already there/);
+same('two arrows from one card to different targets, and the same target from different cards', [addArrow(toItem.stack, 's3', { item: 's2' }).stack.arrows.length, addArrow(toItem.stack, 's2', { item: 's1' }).stack.arrows.length], [2, 2]);
+same('an arrow to a card of the stack and one to a real card with the same text are different', addArrow(addArrow(ar, 's3', { card: 's1' }).stack, 's3', { item: 's1' }).stack.arrows.length, 2);
+{ let many = ar; for (let n = 0; n < MAX_ARROWS; n++) many = addArrow(many, 's3', { card: 'c' + n }).stack;
+  same('the stack holds 24 arrows', many.arrows.length, MAX_ARROWS);
+  throws('a 25th arrow is refused in words', () => addArrow(many, 's3', { card: 'extra' }), /too many/); }
+// removing arrows
+same('an arrow is removed by its id', removeArrow(toItem.stack, 'a4').arrows, []);
+throws('removing an arrow that is not there is refused', () => removeArrow(toItem.stack, 'a99'), /no such arrow/);
+same('removing one of two arrows keeps the other', removeArrow(addArrow(toItem.stack, 's2', { card: 'c9' }).stack, 'a4').arrows.map((x) => x.id), ['a5']);
+same('removing an arrow can be undone', undo(removeArrow(toItem.stack, 'a4')).arrows.length, 1);
+const two = addArrow(toItem.stack, 's2', { card: 'c9' }).stack;
+same('the arrows of one item (from it or to it) are taken away together, the others stay', [removeArrowsOf(two, 's1').arrows.map((a) => a.id), arrowsOf(two, 's1').map((a) => a.id), arrowsOf(two, 's3').map((a) => a.id), arrowsOf(two, 's2').map((a) => a.id)], [['a5'], ['a4'], ['a4'], ['a5']]);
+same('an item that only STARTS an arrow loses it, one that only is pointed at loses it too', [removeArrowsOf(two, 's3').arrows.map((x) => x.id), removeArrowsOf(two, 's1').arrows.map((x) => x.id)], [['a5'], ['a5']]);
+same('taking the arrows of an item that has none is not a change (the same stack)', removeArrowsOf(ar, 's1') === ar, true);
+// arrows go with the items they are tied to
+same('taking an item off takes its arrows (from it and to it) and keeps the others', [removeItem(two, 's3').arrows.map((a) => a.id), removeItem(two, 's1').arrows.map((a) => a.id), removeItem(two, 's2').arrows.map((a) => a.id)], [['a5'], ['a5'], ['a4']]);
+same('an arrow to a real card stays when other items go (the card is not on the stack)', removeItem(addArrow(ar, 's3', { card: 'c1' }).stack, 's1').arrows.length, 1);
+same('Undo of a removal brings the item and its arrows back', undo(removeItem(two, 's3')).arrows.map((a) => a.id), ['a4', 'a5']);
+same('resolving the top card takes the arrows from it and to it', (() => { const r = resolveTop(addArrow(addArrow(ar, 's3', { item: 's2' }).stack, 's2', { card: 'c5' }).stack); return [names3(r.stack), r.stack.arrows.map((a) => a.id)]; })(), [['Counterspell', 'Lightning Bolt'], ['a5']]);
+same('moving, adding a card and editing text keep the arrows', [moveItem(two, 's1', 0).arrows.length, addCard(two, { uid: 'c8', n: 'X' }).arrows.length, addText(two, 0, 'a').stack.arrows.length], [2, 2, 2]);
+same('clearing the stack takes every arrow, and Undo brings them back', [clearStack(two).arrows, undo(clearStack(two)).arrows.length], [[], 2]);
+same('a change that is not one (the same text) keeps the same stack with its arrows', (() => { const w = addText(two, 0, 'hello').stack; return setText(w, 's6', 'hello') === w; })(), true);
 
 // the summary
 same('the summary says empty, one card, and two cards with the top one', [summary(emptyStack()), summary(addCard(emptyStack(), bolt())), summary(stack), summary(addText(emptyStack(), 0, 'n').stack)], ['The stack is empty.', '1 card on the stack, Lightning Bolt on top.', '2 cards on the stack, Lightning Bolt on top.', '0 cards on the stack.']);

@@ -283,6 +283,127 @@ try {
   await sleep(400);
   await browser.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
 
+  // ---- arrows (Kevin, 2026-11-17) ----
+  await pressStackButton('Clear'); await sleep(150);
+  const addCardViaMenu = async () => {
+    await ev(`(() => { const c = document.querySelector('#hand > .card'); const r = c.getBoundingClientRect(); c.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: r.x + r.width / 2, clientY: Math.min(r.y + 30, innerHeight - 20) })); })()`);
+    await sleep(150); await pressMenuItem('Add to the stack'); await sleep(200);
+  };
+  await addCardViaMenu(); await addCardViaMenu();
+  // a real card on the battlefield well clear of the window (the window covers the left of the table, where played cards land): select the first one and nudge it right with Alt and the arrow key
+  const farCard = async () => ev(`(() => { const c = [...document.querySelectorAll('#battlefield .card')].find((x) => x.getBoundingClientRect().left > 300 && x.getBoundingClientRect().width > 20); return c ? c.dataset.uid : null; })()`);
+  if (!(await farCard())) {
+    await ev(`(() => { const c = document.querySelector('#hand > .card'); const r = c.getBoundingClientRect(); c.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: r.x + r.width / 2, clientY: Math.min(r.y + 30, innerHeight - 20) })); })()`);
+    await sleep(150); await pressMenuItem('Play'); await sleep(200);
+    await ev(`document.querySelector('#battlefield .card').click()`); await sleep(100);
+    for (let n = 0; n < 40 && !(await farCard()); n++) { await browser.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'ArrowRight', code: 'ArrowRight', windowsVirtualKeyCode: 39, modifiers: 1 }); await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'ArrowRight', code: 'ArrowRight', windowsVirtualKeyCode: 39, modifiers: 1 }); await sleep(25); }
+  }
+  const farUid = await farCard();
+  check('a real card is on the battlefield clear of the stack window (for the arrows to point at)', Boolean(farUid), String(farUid));
+  const shiftMouse = (type, x, y, buttons = 0) => browser.send('Input.dispatchMouseEvent', { type, x, y, button: type === 'mouseMoved' ? 'none' : 'left', buttons, clickCount: 1, modifiers: 8 });
+  const visibleArrows = () => ev(`[...document.querySelectorAll('.stack-arrows .stack-arrow')].filter((g) => g.style.display !== 'none').length`);
+  const arrowEnd = (i = 0) => ev(`(() => { const p = document.querySelectorAll('.stack-arrows .stack-arrow-line')[${i}]; if (!p) return null; const len = p.getTotalLength(); const e = p.getPointAtLength(len); const s = p.getPointAtLength(0); return { ex: e.x, ey: e.y, sx: s.x, sy: s.y, d: p.getAttribute('d') }; })()`);
+  check('before any arrow the layer is there with no arrows and no pointer events, over the window and under the menus', await ev(`(() => { const l = document.querySelector('.stack-arrows'); const cs = getComputedStyle(l); return Boolean(l) && cs.pointerEvents === 'none' && Number(cs.zIndex) > 47 && Number(cs.zIndex) < 80 && l.querySelectorAll('.stack-arrow').length === 0 && l.getAttribute('width') === String(innerWidth) && l.getAttribute('fill') === 'none'; })()`));
+
+  // Shift and drag from one card of the stack to the other
+  const c0 = await rectOf('#stack-window .stack-card', 0);
+  const c1 = await rectOf('#stack-window .stack-card', 1);
+  await shiftMouse('mouseMoved', c0.cx, c0.cy); await shiftMouse('mousePressed', c0.cx, c0.cy, 1);
+  for (let n = 1; n <= 8; n++) await shiftMouse('mouseMoved', c0.cx + ((c1.cx - c0.cx) * n) / 8, c0.cy + ((c1.cy - c0.cy) * n) / 8, 1);
+  await sleep(80);
+  const whileDrawing = await ev(`({ aiming: document.body.classList.contains('stack-aiming'), draft: getComputedStyle(document.querySelector('.stack-arrow-draft')).display !== 'none', draftD: document.querySelector('.stack-arrow-draft').getAttribute('d'), source: document.querySelectorAll('.stack-arrow-source').length, target: document.querySelectorAll('.stack-target').length, reordered: document.querySelectorAll('#stack-window .dragging').length })`);
+  check('Shift and drag from a card draws a dashed arrow from it to the pointer, marks the card it starts from and the card it would point at, and does not drag the card', whileDrawing.aiming && whileDrawing.draft && /^M /.test(whileDrawing.draftD) && whileDrawing.source === 1 && whileDrawing.target === 1 && whileDrawing.reordered === 0, JSON.stringify(whileDrawing));
+  await shiftMouse('mouseReleased', c1.cx, c1.cy); await sleep(150);
+  check('letting go on the other card makes the arrow (one, from the top card to the other) and ends the drawing', (await visibleArrows()) === 1 && (await ev("document.body.classList.contains('stack-aiming') || document.querySelectorAll('.stack-arrow-source, .stack-target').length > 0")) === false && /Pointed .* at .*\./.test(await $text('status')), (await $text('status')));
+  const e1 = await arrowEnd(0);
+  const t1 = await rectOf('#stack-window .stack-card', 1);
+  check('the arrow starts at the middle of the right edge of the top card and ends at the middle of the right edge of the other (it swings out to the right)', e1 && Math.abs(e1.sx - (c0.x + c0.w)) < 2 && Math.abs(e1.ex - (t1.x + t1.w)) < 2 && Math.abs(e1.ey - t1.cy) < 2 && /^M .* C /.test(e1.d), JSON.stringify(e1));
+  check('the arrow is drawn with a halo and a line with an arrowhead, and its width and fill are set', await ev(`(() => { const g = document.querySelector('.stack-arrow'); const line = g.querySelector('.stack-arrow-line'); return Boolean(g.querySelector('.stack-arrow-halo')) && line.getAttribute('marker-end') === 'url(#stack-arrowhead)' && line.getAttribute('fill') === 'none' && Boolean(document.querySelector('#stack-arrowhead path[fill]')) && getComputedStyle(line).strokeWidth === '3px'; })()`));
+  // the same arrow again is refused in words
+  await shiftMouse('mouseMoved', c0.cx, c0.cy); await shiftMouse('mousePressed', c0.cx, c0.cy, 1); await shiftMouse('mouseMoved', c1.cx, c1.cy, 1); await shiftMouse('mouseReleased', c1.cx, c1.cy); await sleep(120);
+  check('the same arrow twice is refused in words and there is still one', (await visibleArrows()) === 1 && /already there/.test(await $text('status')), await $text('status'));
+  // letting go on empty space draws nothing
+  await shiftMouse('mouseMoved', c0.cx, c0.cy); await shiftMouse('mousePressed', c0.cx, c0.cy, 1); await shiftMouse('mouseMoved', 700, 150, 1); await shiftMouse('mouseReleased', 700, 150); await sleep(120);
+  check('letting go on empty space draws nothing, says so, and leaves no mark', (await visibleArrows()) === 1 && /No arrow drawn/.test(await $text('status')) && (await ev("document.querySelectorAll('.stack-arrow-source, .stack-target').length === 0 && getComputedStyle(document.querySelector('.stack-arrow-draft')).display === 'none'")));
+  // letting go on the card it started from draws nothing
+  await shiftMouse('mouseMoved', c0.cx, c0.cy); await shiftMouse('mousePressed', c0.cx, c0.cy, 1); await shiftMouse('mouseMoved', c0.cx + 30, c0.cy + 20, 1); await shiftMouse('mouseReleased', c0.cx + 30, c0.cy + 20); await sleep(120);
+  check('letting go on the card the arrow started from draws nothing (a card cannot point at itself)', (await visibleArrows()) === 1);
+
+  // from the second card to a real card on the battlefield
+  const farBox = await ev(`(() => { const r = document.querySelector('#battlefield .card[data-uid="${farUid}"]').getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height, cx: r.x + r.width / 2, cy: r.y + r.height / 2 }; })()`);
+  await shiftMouse('mouseMoved', c1.cx, c1.cy); await shiftMouse('mousePressed', c1.cx, c1.cy, 1);
+  for (let n = 1; n <= 10; n++) await shiftMouse('mouseMoved', c1.cx + ((farBox.cx - c1.cx) * n) / 10, c1.cy + ((farBox.cy - c1.cy) * n) / 10, 1);
+  const hoverMark = await ev(`document.querySelector('#battlefield .card[data-uid="${farUid}"]').classList.contains('stack-target')`);
+  await shiftMouse('mouseReleased', farBox.cx, farBox.cy); await sleep(150);
+  check('the card on the battlefield is marked as the target while the pointer is over it, and letting go there makes a second arrow', hoverMark === true && (await visibleArrows()) === 2 && (await ev("document.querySelectorAll('.stack-target').length")) === 0, String(hoverMark));
+  const e2 = await arrowEnd(1);
+  const nearEdge = e2 && e2.ex >= farBox.x - 12 && e2.ex <= farBox.x + farBox.w + 12 && e2.ey >= farBox.y - 12 && e2.ey <= farBox.y + farBox.h + 12 && (e2.ex < farBox.x + 1 || e2.ex > farBox.x + farBox.w - 1 || e2.ey < farBox.y + 1 || e2.ey > farBox.y + farBox.h - 1);
+  check('the arrow to the card on the battlefield ends just outside its edge (not inside it, not far from it)', nearEdge, JSON.stringify({ e2, farBox }));
+  check('clicking a card of the battlefield with Shift as the arrow ends did not select it or move it', await ev(`document.querySelector('#battlefield .card[data-uid="${farUid}"]').getAttribute('aria-pressed') !== 'true'`));
+
+  // the arrows follow the cards
+  const beforeMove = (await arrowEnd(0)).d;
+  await rightClick('#stack-window .stack-card', 0); await pressMenuItem('Move to bottom'); await sleep(500);
+  const afterMove = (await arrowEnd(0)).d;
+  const idsNow = await ev(`[...document.querySelectorAll('#stack-window .stack-card')].map((li) => li.dataset.id)`);
+  const movedStart = await rectOf('#stack-window .stack-card', 0);
+  const e3 = await arrowEnd(0);
+  check('when the cards change places the arrows follow them (the arrow between the two cards changed and still starts and ends on them)', beforeMove !== afterMove && (await visibleArrows()) === 2 && e3 && Math.abs(e3.sy - (await ev(`(() => { const r = document.querySelector('#stack-window li[data-id="${idsNow[1]}"]').getBoundingClientRect(); return r.top + r.height / 2; })()`))) < 3, JSON.stringify({ beforeMove, afterMove, e3, idsNow, movedStart }));
+
+  // the menu
+  await rightClick('#stack-window .stack-card', 0);
+  const menuWithArrows = await menuLabels();
+  check('the menu of a card has Point an arrow at... and, when it has arrows, Remove its arrows', menuWithArrows.includes('Point an arrow at...') && menuWithArrows.includes('Remove its arrows'), JSON.stringify(menuWithArrows));
+  await pressMenuItem('Point an arrow at...'); await sleep(100);
+  const aimStart = await ev(`({ aiming: document.body.classList.contains('stack-aiming'), source: document.querySelectorAll('.stack-arrow-source').length, status: document.getElementById('status').textContent })`);
+  check('Point an arrow at... starts an arrow that follows the pointer and says what to do', aimStart.aiming && aimStart.source === 1 && /Click the card/.test(aimStart.status), JSON.stringify(aimStart));
+  await browser.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+  await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+  await sleep(100);
+  check('Escape cancels it: no arrow, no mark, the window is still out', (await visibleArrows()) === 2 && (await ev("!document.body.classList.contains('stack-aiming') && document.querySelectorAll('.stack-arrow-source').length === 0 && document.getElementById('stack-window').dataset.open === 'true'")));
+  // by click, onto the battlefield card
+  await rightClick('#stack-window .stack-card', 1); await pressMenuItem('Point an arrow at...'); await sleep(100);
+  await mouse('mouseMoved', farBox.cx, farBox.cy); await sleep(80);
+  const clickMark = await ev(`document.querySelector('#battlefield .card[data-uid="${farUid}"]').classList.contains('stack-target')`);
+  const handBeforeClick = await handCount();
+  await mouse('mousePressed', farBox.cx, farBox.cy, 'left', 1); await mouse('mouseReleased', farBox.cx, farBox.cy); await sleep(150);
+  check('by the menu: a click on the card of the battlefield ends the arrow (a third arrow), the card is marked while the pointer is over it, and the click did not also select the card', clickMark === true && (await visibleArrows()) === 3 && (await ev(`document.querySelector('#battlefield .card[data-uid="${farUid}"]').getAttribute('aria-pressed') !== 'true' && !document.body.classList.contains('stack-aiming')`)) && (await handCount()) === handBeforeClick);
+  // removing arrows
+  const hitBox = await ev(`(() => { const p = document.querySelectorAll('.stack-arrows .stack-arrow-hit')[0]; const pt = p.getPointAtLength(p.getTotalLength() / 2); return { x: pt.x, y: pt.y }; })()`);
+  await mouse('mouseMoved', hitBox.x, hitBox.y); await mouse('mousePressed', hitBox.x, hitBox.y, 'right', 2); await mouse('mouseReleased', hitBox.x, hitBox.y, 'right'); await sleep(150);
+  const arrowMenu = await menuLabels();
+  check('right-clicking an arrow opens a menu with Remove arrow', JSON.stringify(arrowMenu) === JSON.stringify(['Remove arrow']), JSON.stringify(arrowMenu));
+  await pressMenuItem('Remove arrow'); await sleep(120);
+  check('Remove arrow takes that arrow away', (await visibleArrows()) === 2 && (await ev("document.querySelectorAll('.stack-arrows .stack-arrow').length")) === 2, JSON.stringify({ visible: await visibleArrows(), all: await ev("document.querySelectorAll('.stack-arrows .stack-arrow').length"), status: await $text('status'), menu: await menuLabels() }));
+  await pressStackButton('Undo'); await sleep(120);
+  check('Undo brings the arrow back', (await visibleArrows()) === 3);
+  await rightClick('#stack-window .stack-card', 0); await pressMenuItem('Remove its arrows'); await sleep(120);
+  check('Remove its arrows takes the arrows that start from the card or point at it', (await visibleArrows()) < 3);
+  await pressStackButton('Undo'); await sleep(120);
+
+  // sliding the window away hides the arrows, and out again brings them back
+  const arrowsBeforeSlide = await visibleArrows();
+  await ev("document.querySelector('.stack-tab').click()"); await sleep(250);
+  check('with the window slid away the arrows are not drawn', await ev(`getComputedStyle(document.querySelector('.stack-arrows')).display === 'none'`));
+  await ev("document.querySelector('.stack-tab').click()"); await sleep(350);
+  check('and when it slides out again they are back', (await visibleArrows()) === arrowsBeforeSlide && arrowsBeforeSlide >= 2, String(arrowsBeforeSlide));
+  // resolving the top card takes its arrows
+  const idsBeforeResolve = await ev(`[...document.querySelectorAll('#stack-window .stack-card')].map((li) => li.dataset.id)`);
+  await pressStackButton('Resolve top'); await sleep(150);
+  check('Resolve top takes the arrows from the card that resolved and to it; the one that started at the other card and points at the battlefield card stays', (await ev("document.querySelectorAll('.stack-arrows .stack-arrow').length")) <= 1, String(await ev("document.querySelectorAll('.stack-arrows .stack-arrow').length")));
+  if (process.argv.includes('--screenshot')) { await pressStackButton('Undo'); await sleep(300); await browser.screenshot('scratch-stack-arrows.png'); await pressStackButton('Resolve top'); await sleep(150); }
+  await pressStackButton('Clear'); await sleep(150);
+  check('Clear takes every arrow', (await ev("document.querySelectorAll('.stack-arrows .stack-arrow').length")) === 0);
+  // a card that is not on the table any more: its arrow is hidden, not drawn to nowhere
+  await addCardViaMenu(); await sleep(100);
+  const lone = await rectOf('#stack-window .stack-card', 0);
+  await shiftMouse('mouseMoved', lone.cx, lone.cy); await shiftMouse('mousePressed', lone.cx, lone.cy, 1); await shiftMouse('mouseMoved', farBox.cx, farBox.cy, 1); await shiftMouse('mouseReleased', farBox.cx, farBox.cy); await sleep(150);
+  check('an arrow from the stack to the card of the battlefield is drawn', (await visibleArrows()) === 1);
+  await ev(`document.querySelector('#battlefield .card[data-uid="${farUid}"]').remove()`); await sleep(200);
+  check('when the card it points at is not on the battlefield any more the arrow is hidden (kept, not drawn to nowhere)', (await visibleArrows()) === 0 && (await ev("document.querySelectorAll('.stack-arrows .stack-arrow').length")) === 1);
+  await pressStackButton('Clear'); await sleep(120);
+  await pressStackButton('Clear'); await sleep(60);
+
   // ---- limits ----
   for (let n = 0; n < 45; n++) await addTyped('n' + n);
   check('the stack stops at 40 items and the one past it is refused in words', (await count('#stack-window .stack-item')) === 40 && /full/.test(await $text('status')), (await $text('status')) + ' ' + (await count('#stack-window .stack-item')));

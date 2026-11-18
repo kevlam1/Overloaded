@@ -4509,6 +4509,27 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **What I checked:** a new check in the solo check (798 checks now, all passed) carries a card to the far right edge of the page and looks for a scroll bar, then checks that scrolling is back after the card is let go and the glide is over. My first version of that check used a browser name in Node and crashed the run; I fixed it. I did not look at a screenshot of it, because a scroll bar is a number (the window's width minus what its content takes), and the check reads that number.
 
+## 227. Arrows between the cards of the stack, step 2 (2026-11-17)
+
+**What I asked for**
+- I said to continue after the order window fix, so we went on to step 2 of the stack window: dragging an arrow from one card to another to show a target.
+
+**What changed** (`shared/stack.mjs`, `shared/arrow-geometry.mjs`, `frontend/src/stack-window.js`, `frontend/src/style.css`, `scripts/test-stack.mjs`, `scripts/test-arrow-geometry.mjs`, `scripts/check-stack-ui.mjs`, `scripts/test-all.mjs`, `docs/todo.md`, `CLAUDE.md`)
+- An arrow starts at the middle of the right edge of a card of the stack and points at another card of the stack or at a card on the battlefield. Hold Shift and drag from a stack card and let go on the target: a dashed arrow follows the pointer and the card it would point at gets an outline. Or right-click a stack card, choose "Point an arrow at...", and click the target (Escape or a right click cancels).
+- An arrow between two stack cards swings out to the right and comes back into the right edge of the target. An arrow to a battlefield card is a curve that ends just outside the nearest edge of that card. It is blue with a dark outline so it can be seen on the table.
+- The arrows follow their cards: when the cards glide, are moved or the list scrolls, they are redrawn every animation frame (only while the window is out and an arrow exists). An arrow whose card is scrolled out of the list, or whose battlefield card is not on the table, is hidden and not drawn to nowhere.
+- Right-click an arrow to remove it. The card's menu has "Remove its arrows" when it has some. Taking a card off the stack, resolving it, or Clear takes its arrows too; Undo brings them back. There can be 24 arrows. An arrow from a text box, to a text box, from a card to itself, or the same arrow twice is refused in words.
+- The arrows are not drawn while the window is slid away.
+
+**What I checked:** `scripts/test-stack.mjs` (87 checks, with the arrows) and `scripts/test-arrow-geometry.mjs` (24 checks, new). 34 broken copies of the two modules: 30 caught at first; three survivors were gaps in my tests (removing one of two arrows, an item that only starts an arrow, the bend of the curve) and got tests and were caught; one is a redundant guard (a zero-length line gives the centre anyway). `scripts/check-stack-ui.mjs` (88 checks, in real headless Chrome): the layer, a real Shift-drag between stack cards (mid-drag marks and the dashed arrow, the finished arrow starts and ends on the card edges), the same arrow twice, letting go on empty space or on the card it started from, an arrow to a battlefield card that ends just outside its edge, the arrows following a moved card, the menu route with Escape and with a click, right-click removal, Undo, hiding when the window slides away, Resolve top and Clear, and an arrow hidden when its battlefield card is taken away. I looked at a screenshot of two arrows to a battlefield card and one between the stack cards.
+
+**Decisions**
+- Shift and drag, plus a menu line for the same thing, because a plain drag already moves a card and the menu works without a held key.
+- An arrow from the stack to a real card is kept by the card's uid; it is hidden while the card is not on the battlefield instead of being removed, because the card can come back.
+- Not done: arrows to a card in the hand, a pile or a player, and arrows when the window is slid away. The open window covers the left of the battlefield, so a card under it cannot be pointed at until the window is slid away (and then the arrows hide). I do not know yet if that is a problem in play.
+
+**My AI's mistakes this time:** my first version of "Point an arrow at..." swallowed every click for 400 ms after it, so a quick click on the next thing was lost (the check for removing an arrow caught it; it now swallows only that one click). `isRect` returned `null` instead of `false`, and one test of mine assumed the arrow ended at the centre of the target's bottom edge when it leans toward where it starts.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

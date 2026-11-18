@@ -5,9 +5,13 @@
 // Cards are drawn with their own set of card buttons (read-only, keyed by the copy's own uid), so counters, power and toughness and badges look like they do on the battlefield.
 import { makeCardNodes } from './card-nodes.js';
 import { openCardMenu } from './card-menu.js';
-import { emptyStack, addCard, addText, setText, moveItem, removeItem, resolveTop, clearStack, undo, canUndo, cardCount, summary, MAX_TEXT } from '../../shared/stack.mjs';
+import { emptyStack, addCard, addText, setText, moveItem, removeItem, resolveTop, clearStack, undo, canUndo, cardCount, summary, addArrow, removeArrow, removeArrowsOf, arrowsOf, MAX_TEXT } from '../../shared/stack.mjs';
+import { arrowPath, overlaps, visible } from '../../shared/arrow-geometry.mjs';
 
 const make = (tag, className, text) => { const node = document.createElement(tag); if (className) node.className = className; if (text !== undefined) node.textContent = text; return node; };
+const SVG_NS = 'http://www.w3.org/2000/svg';
+const svgEl = (name, attributes = {}) => { const element = document.createElementNS(SVG_NS, name); for (const [key, value] of Object.entries(attributes)) element.setAttribute(key, String(value)); return element; };
+const nameOfCard = (element) => (element?.getAttribute?.('aria-label') ?? '').split(/[,.]/)[0] || 'a card';
 const DRAG_START = 6; // pixels the pointer moves before a press on an item becomes a drag
 const GLIDE_MS = 220;
 const EASING = 'cubic-bezier(0.2, 0.8, 0.2, 1)';
@@ -42,7 +46,7 @@ export function mountStackWindow({ root, printedStats = () => null, say = () => 
   const textButton = button('Add text', 'Add a text box at the top of the stack', () => addNote(0));
   const clearButton = button('Clear', 'Take everything off the stack (Undo brings it back)', () => { stack = clearStack(stack); say('Cleared the stack.'); draw(); });
   buttons.append(resolveButton, undoButton, textButton, clearButton);
-  head.append(buttons, make('p', 'stack-hint', 'The top of the stack is the highest. Drag a card to move it; right-click a card or a text box for more.'));
+  head.append(buttons, make('p', 'stack-hint', 'The top of the stack is the highest. Drag a card to move it. Hold Shift and drag from a card to another card to point an arrow at it. Right-click a card or a text box for more.'));
   const live = make('p', 'sr-only');
   live.setAttribute('role', 'status');
   live.setAttribute('aria-live', 'polite');
@@ -50,8 +54,156 @@ export function mountStackWindow({ root, printedStats = () => null, say = () => 
   panel.append(head, live, list);
   root.replaceChildren(panel, tab);
 
+  // ---- the arrows (Kevin, 2026-11-17): one SVG layer over the page, drawn again every animation frame while there is an arrow (or one is being drawn) and the window is out, so an arrow follows its cards
+  // when they glide or the list scrolls. The path comes from shared/arrow-geometry.mjs. An arrow whose card is not on screen (scrolled out of the list, or a real card that left the table) is hidden.
+  const layer = svgEl('svg', { class: 'stack-arrows', width: window.innerWidth, height: window.innerHeight, fill: 'none', 'aria-hidden': 'true' });
+  const defs = svgEl('defs');
+  const head2 = svgEl('marker', { id: 'stack-arrowhead', viewBox: '0 0 12 12', markerWidth: 13, markerHeight: 13, refX: 9, refY: 6, orient: 'auto', markerUnits: 'userSpaceOnUse' });
+  head2.append(svgEl('path', { d: 'M1 1 L11 6 L1 11 L3.5 6 Z', fill: 'currentColor' }));
+  defs.append(head2);
+  layer.append(defs);
+  document.body.append(layer);
+  window.addEventListener('resize', () => { layer.setAttribute('width', String(window.innerWidth)); layer.setAttribute('height', String(window.innerHeight)); });
+  const groups = new Map(); // arrow id -> { g, halo, line, hit }
+  let draft = null; // an arrow being drawn: { from, x, y, path }
+  let frameId = 0;
+  let hoverTarget = null; // the element the arrow being drawn would point at (it gets a mark)
+  const draftPath = svgEl('path', { class: 'stack-arrow-draft', fill: 'none', 'marker-end': 'url(#stack-arrowhead)' });
+  draftPath.style.display = 'none';
+  layer.append(draftPath);
+
+  const realCardEl = (uid) => document.querySelector(`#battlefield .card[data-uid="${CSS.escape(uid)}"]`);
+  const itemEl = (itemId) => list.querySelector(`li.stack-item[data-id="${CSS.escape(itemId)}"]`);
+  function pathFor(arrow, listBox) {
+    const sourceLi = itemEl(arrow.from);
+    if (!sourceLi) return null;
+    const source = sourceLi.getBoundingClientRect();
+    if (!visible(source) || !overlaps(source, listBox)) return null;
+    if (arrow.to.item !== undefined) {
+      const rect = itemEl(arrow.to.item)?.getBoundingClientRect();
+      if (!rect || !visible(rect) || !overlaps(rect, listBox)) return null;
+      return arrowPath(source, { kind: 'item', rect });
+    }
+    const rect = realCardEl(arrow.to.card)?.getBoundingClientRect();
+    if (!rect || !visible(rect)) return null;
+    return arrowPath(source, { kind: 'card', rect });
+  }
+  function frame() {
+    frameId = 0;
+    if (!open) return;
+    const listBox = list.getBoundingClientRect();
+    for (const arrow of stack.arrows) {
+      const parts = groups.get(arrow.id);
+      if (!parts) continue;
+      const path = pathFor(arrow, listBox);
+      parts.g.style.display = path ? '' : 'none';
+      if (path) for (const element of [parts.halo, parts.line, parts.hit]) element.setAttribute('d', path.d);
+    }
+    if (draft) {
+      const sourceLi = itemEl(draft.from);
+      const path = sourceLi ? arrowPath(sourceLi.getBoundingClientRect(), { kind: 'point', x: draft.x, y: draft.y }) : null;
+      draftPath.style.display = path ? '' : 'none';
+      if (path) draftPath.setAttribute('d', path.d);
+    } else draftPath.style.display = 'none';
+    if (stack.arrows.length > 0 || draft) frameId = requestAnimationFrame(frame);
+  }
+  const scheduleFrame = () => { if (!frameId && open) frameId = requestAnimationFrame(frame); };
+  function syncArrows() {
+    const wanted = new Set(stack.arrows.map((arrow) => arrow.id));
+    for (const [arrowId, parts] of groups) if (!wanted.has(arrowId)) { parts.g.remove(); groups.delete(arrowId); }
+    for (const arrow of stack.arrows) {
+      if (groups.has(arrow.id)) continue;
+      const g = svgEl('g', { class: 'stack-arrow' });
+      g.dataset.id = arrow.id;
+      const halo = svgEl('path', { class: 'stack-arrow-halo', fill: 'none' });
+      const line = svgEl('path', { class: 'stack-arrow-line', fill: 'none', 'marker-end': 'url(#stack-arrowhead)' });
+      const hit = svgEl('path', { class: 'stack-arrow-hit', fill: 'none' });
+      hit.addEventListener('contextmenu', (event) => {
+        event.preventDefault();
+        openCardMenu({ title: 'Arrow', items: [{ id: 'remove', label: 'Remove arrow' }], x: event.clientX, y: event.clientY, returnFocus: tab, onPick: () => act((s) => removeArrow(s, arrow.id), 'Removed an arrow.') });
+      });
+      g.append(halo, line, hit);
+      layer.insertBefore(g, draftPath);
+      groups.set(arrow.id, { g, halo, line, hit });
+    }
+    scheduleFrame();
+  }
+
+  // What an arrow being drawn would point at under the pointer: another card of the stack, or a real card on the battlefield (never the card it starts from).
+  function targetAt(x, y, fromId) {
+    const element = document.elementFromPoint(x, y);
+    if (!element) return null;
+    const stackCard = element.closest('#stack-window li.stack-card');
+    if (stackCard) return stackCard.dataset.id === fromId ? null : { target: { item: stackCard.dataset.id }, element: stackCard, name: nameOfCard(stackCard.querySelector('.card')) };
+    const real = element.closest('#battlefield .card[data-uid]');
+    if (real) return { target: { card: real.dataset.uid }, element: real, name: nameOfCard(real) };
+    return null;
+  }
+  const markTarget = (element) => { if (hoverTarget === element) return; hoverTarget?.classList.remove('stack-target'); hoverTarget = element; hoverTarget?.classList.add('stack-target'); };
+  function endDraft() {
+    markTarget(null);
+    const ended = draft;
+    if (ended) itemEl(ended.from)?.classList.remove('stack-arrow-source');
+    draft = null;
+    document.body.classList.remove('stack-aiming');
+    ended?.onEnd?.(); // (whoever started the arrow stops listening for its end)
+  }
+  // Starts drawing an arrow from a card of the stack. The pointer moves it; the caller ends it with finish(event) (an arrow when the pointer is on a card, nothing otherwise) or cancel(); Escape and a right
+  // click cancel it too. Returns { finish, cancel }, or null when there is no such card.
+  function startArrow(fromId, x, y, onEnd = null) {
+    endDraft();
+    const sourceLi = itemEl(fromId);
+    if (!sourceLi) return null;
+    const box = sourceLi.getBoundingClientRect();
+    const mine = { from: fromId, x: x ?? box.right, y: y ?? (box.top + box.bottom) / 2, onEnd };
+    draft = mine;
+    sourceLi.classList.add('stack-arrow-source');
+    document.body.classList.add('stack-aiming');
+    scheduleFrame();
+    const sourceName = nameOfCard(sourceLi.querySelector('.card'));
+    const move = (event) => { if (draft !== mine) return; draft.x = event.clientX; draft.y = event.clientY; markTarget(targetAt(event.clientX, event.clientY, fromId)?.element ?? null); scheduleFrame(); };
+    const stop = () => { document.removeEventListener('pointermove', move, true); document.removeEventListener('keydown', key, true); document.removeEventListener('contextmenu', cancel, true); };
+    const finish = (event) => {
+      if (draft !== mine) return false; // (it was cancelled already: Escape, a right click, or the window slid away)
+      const hit = targetAt(event.clientX, event.clientY, fromId);
+      stop(); endDraft();
+      if (!hit) { say('No arrow drawn: let go on a card.'); return false; }
+      try { const made = addArrow(stack, fromId, hit.target); stack = made.stack; say(`Pointed ${sourceName} at ${hit.name}.`); draw(); } catch (error) { say(error.message, true); }
+      return true;
+    };
+    const cancel = () => { if (draft !== mine) return; stop(); endDraft(); };
+    const key = (event) => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); cancel(); say('No arrow drawn.'); } };
+    document.addEventListener('pointermove', move, true);
+    document.addEventListener('keydown', key, true);
+    document.addEventListener('contextmenu', cancel, true);
+    return { finish, cancel };
+  }
+
+  // The menu line "Point an arrow at...": the arrow follows the pointer from the card, and the next click on a card ends it (a click anywhere else, Escape or a right click draws nothing). That click
+  // belongs to the arrow: the page does not also select or drag the card it landed on.
+  function aimByClick(fromId) {
+    let aim = null;
+    const down = (event) => {
+      if (event.button !== 0) return;
+      event.preventDefault(); event.stopPropagation();
+      // the click that ends this press is the arrow's too: it is swallowed once (or dropped when another press comes first, or after a moment), so the next click on anything works
+      const drop = () => { document.removeEventListener('click', swallow, true); document.removeEventListener('pointerdown', drop, true); };
+      const swallow = (click) => { click.preventDefault(); click.stopImmediatePropagation(); drop(); };
+      document.addEventListener('click', swallow, true);
+      document.addEventListener('pointerdown', drop, true);
+      setTimeout(drop, 400);
+      aim.finish(event);
+    };
+    aim = startArrow(fromId, null, null, () => document.removeEventListener('pointerdown', down, true));
+    if (!aim) return;
+    say('Click the card the arrow should point at. Escape cancels.');
+    document.addEventListener('pointerdown', down, true);
+  }
+
   function setOpen(next, { focus = false } = {}) {
     open = Boolean(next);
+    layer.style.display = open ? '' : 'none';
+    if (open) scheduleFrame(); else if (draft) endDraft();
     root.dataset.open = open ? 'true' : 'false';
     tab.setAttribute('aria-expanded', String(open));
     tab.title = open ? 'Slide the stack away' : 'Slide the stack out';
@@ -78,6 +230,10 @@ export function mountStackWindow({ root, printedStats = () => null, say = () => 
     if (at > 0) lines.push({ id: 'top', label: 'Move to top' });
     if (at < last) lines.push({ id: 'bottom', label: 'Move to bottom' });
     lines.push({ id: 'text', label: 'Add text below' });
+    if (item.kind === 'card') {
+      lines.push({ id: 'arrow', label: 'Point an arrow at...' });
+      if (arrowsOf(stack, item.id).length > 0) lines.push({ id: 'unarrow', label: 'Remove its arrows' });
+    }
     lines.push({ id: 'remove', label: item.kind === 'card' ? 'Take off the stack' : 'Remove text box' });
     return lines;
   }
@@ -89,6 +245,8 @@ export function mountStackWindow({ root, printedStats = () => null, say = () => 
     else if (choice === 'top') act((s) => moveItem(s, item.id, 0), '', item.id);
     else if (choice === 'bottom') act((s) => moveItem(s, item.id, s.items.length - 1), '', item.id);
     else if (choice === 'text') addNote(at + 1);
+    else if (choice === 'arrow') aimByClick(item.id);
+    else if (choice === 'unarrow') act((s) => removeArrowsOf(s, item.id), 'Removed its arrows.');
     else if (choice === 'remove') act((s) => removeItem(s, item.id), item.kind === 'card' ? `Took ${item.card.n} off the stack.` : 'Removed a text box.');
   }
   function openMenu(item, li, event) {
@@ -167,6 +325,7 @@ export function mountStackWindow({ root, printedStats = () => null, say = () => 
     undoButton.disabled = !canUndo(stack);
     clearButton.disabled = stack.items.length === 0;
     live.textContent = summary(stack);
+    syncArrows();
     if (!reduced() && before.size > 0 && open) {
       for (const node of items) {
         if (!node.dataset.id) continue;
@@ -210,6 +369,16 @@ export function mountStackWindow({ root, printedStats = () => null, say = () => 
     if (event.button !== 0 || event.pointerType === 'touch' || !(event.target instanceof Element)) return;
     const li = event.target.closest('.stack-item');
     if (!li || event.target.closest('textarea')) return;
+    if (event.shiftKey) { // Shift and a drag from a card: an arrow from it to the card the pointer is let go on (a text box has no arrows)
+      if (li.dataset.kind !== 'card') return;
+      event.preventDefault();
+      const aim = startArrow(li.dataset.id, event.clientX, event.clientY);
+      if (!aim) return;
+      const up = (done) => { document.removeEventListener('pointerup', up, true); document.removeEventListener('pointercancel', up, true); if (done.type === 'pointerup') aim.finish(done); else aim.cancel(); };
+      document.addEventListener('pointerup', up, true);
+      document.addEventListener('pointercancel', up, true);
+      return;
+    }
     const items = [...list.children].filter((node) => node.dataset.id);
     const slots = items.map((node) => node.getBoundingClientRect());
     const from = items.indexOf(li);

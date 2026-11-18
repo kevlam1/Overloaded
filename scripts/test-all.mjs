@@ -53,6 +53,7 @@ const suites = [
   { name: 'the type and mana value filters of the pile windows', cmd: node, args: ['scripts/test-pile-filter.mjs'] },
   { name: 'how much of a card shows when the hand is resting', cmd: node, args: ['scripts/test-hand-rest.mjs'] },
   { name: 'the stack window (a list of card copies and text boxes, with Undo)', cmd: node, args: ['scripts/test-stack.mjs'] },
+  { name: 'where the stack window arrows start and end', cmd: node, args: ['scripts/test-arrow-geometry.mjs'] },
   { name: 'card rulings: the files the details window reads under the rules', cmd: node, args: ['scripts/test-card-rulings.mjs'] },
   { name: 'counters a card can be given: the catalog and named counters', cmd: node, args: ['scripts/test-counter-catalog.mjs'] },
   { name: 'card rules: the files the details window reads', cmd: node, args: ['scripts/test-card-rules.mjs'] },

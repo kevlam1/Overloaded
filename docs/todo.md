@@ -12,7 +12,7 @@ This is how I am planning Overloaded. The open work comes first, then what I dro
 - [ ] At the start of every session, check the "Unknowns to check when their trigger happens" table in `CLAUDE.md`.
 
 ## Next, before the Dec 7 show and tell (proposed, not agreed)
-- [ ] **Stack window, step 2: arrows.** Drag an arrow from one card of the stack to another card (or to a card on the battlefield) to show a target. The arrow has to follow the cards when they move and be taken away with them.
+- [x] **Stack window, step 2: arrows.** Shift and drag from a stack card to another stack card or to a card on the battlefield, or use "Point an arrow at..." in the card's menu. The arrows follow the cards, go with the card they belong to, and are covered by Undo (log entry 227).
 - [ ] **Stack window, step 3: game history.** A log of the moves (played, tapped, drew) in its own floating window that slides out like the stack. Nothing like it exists yet; the status line only shows the last move.
 - [ ] **Stack window on the live table.** Only the solo page has it. On the live table every player must see the stack and its arrows, which needs new database fields and a rules change that I paste into Firebase, so it waits until the solo version feels right.
 - [ ] **Play a real game with two players on the table page.** Most changes since Nov 11 (hand fan, floating bar, menus, card details, pile windows, 7 by 10 cards) were made and tested on the solo page only. Run `npm run test:live` and play once with two real browsers.

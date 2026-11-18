@@ -3,23 +3,31 @@
 // so later changes to the real card do not touch it and the real card is never moved. Plain logic with no browser code so Node tests can load it (scripts/test-stack.mjs).
 // Every function returns a NEW stack and never changes the old one. Nothing here is saved or sent anywhere: the solo table only.
 //
-// A stack is { items, next, past }:
+// A stack is { items, arrows, next, past }:
 //   items: [{ id, kind: 'card', card } | { id, kind: 'text', text }], index 0 on top;
-//   next: the number the next item id is made from; past: earlier lists of items, newest last, for Undo.
+//   arrows: [{ id, from, to }] (Kevin, 2026-11-17): an arrow from a CARD of the stack (from is its item id) to a target, which is another item of the stack ({ item: id }) or a real card of the game
+//     ({ card: uid }, for example a creature on the battlefield). An arrow goes when the item it starts from or points to is taken off the stack; one that points at a real card stays (the page hides it while
+//     that card is not on the table);
+//   next: the number the next item or arrow id is made from; past: earlier { items, arrows }, newest last, for Undo.
 export const MAX_ITEMS = 40; // cards and text boxes together
 export const MAX_TEXT = 160; // letters in one text box
 export const MAX_UNDO = 30; // how many changes Undo can take back
+export const MAX_ARROWS = 24;
 
-export const emptyStack = () => ({ items: [], next: 1, past: [] });
+export const emptyStack = () => ({ items: [], arrows: [], next: 1, past: [] });
 
 const fail = (message) => { throw new Error(message); };
 const indexOfItem = (stack, id) => stack.items.findIndex((item) => item.id === id);
 const need = (stack, id) => { const index = indexOfItem(stack, id); if (index < 0) fail('That is not on the stack.'); return index; };
 const full = (stack) => { if (stack.items.length >= MAX_ITEMS) fail(`The stack is full (${MAX_ITEMS} items at most).`); };
 
-// A change: the new list of items, the old one kept for Undo (at most MAX_UNDO of them).
+// The arrows that still have both ends: the ones whose item (and target item) are in the list.
+const stillThere = (arrows, items) => arrows.filter((arrow) => items.some((item) => item.id === arrow.from) && (arrow.to.item === undefined || items.some((item) => item.id === arrow.to.item)));
+
+// A change: the new list of items (and arrows: the old ones that still have both ends, unless the change gives its own), the old state kept for Undo (at most MAX_UNDO of them).
 function changed(stack, items, extra = {}) {
-  return { items, next: stack.next, past: [...stack.past, stack.items].slice(-MAX_UNDO), ...extra };
+  const arrows = extra.arrows ?? stillThere(stack.arrows, items);
+  return { items, next: stack.next, past: [...stack.past, { items: stack.items, arrows: stack.arrows }].slice(-MAX_UNDO), ...extra, arrows };
 }
 
 // The text of a text box as it is kept: control characters and runs of spaces tidied, cut to MAX_TEXT letters.
@@ -105,8 +113,47 @@ export const canUndo = (stack) => stack.past.length > 0;
 // Takes back the last change. The changes made since are not kept to redo (a visual aid: adding the card again is quick).
 export function undo(stack) {
   if (!canUndo(stack)) return stack;
-  return { items: stack.past.at(-1), next: stack.next, past: stack.past.slice(0, -1) };
+  const { items, arrows } = stack.past.at(-1);
+  return { items, arrows, next: stack.next, past: stack.past.slice(0, -1) };
 }
+
+// ---- arrows ----
+const CARD_UID = /^[A-Za-z0-9_-]{1,40}$/; // the uid of a real card of the game (c12, stack-s3 and the like): plain letters, numbers, dash and underscore
+
+// Draws an arrow from a CARD of the stack to a target: { item: id } for another item of the stack (a card, not itself) or { card: uid } for a real card of the game. The same arrow twice, an arrow
+// from a text box and more than MAX_ARROWS are refused in words. Returns { stack, id } (the id of the arrow) like addText.
+export function addArrow(stack, fromId, to) {
+  const from = stack.items[need(stack, fromId)];
+  if (from.kind !== 'card') fail('An arrow can only start from a card of the stack.');
+  let target;
+  if (to && typeof to === 'object' && typeof to.item === 'string') {
+    if (to.item === fromId) fail('A card cannot point at itself.');
+    const item = stack.items[need(stack, to.item)];
+    if (item.kind !== 'card') fail('An arrow can only point at a card.');
+    target = { item: to.item };
+  } else if (to && typeof to === 'object' && typeof to.card === 'string' && CARD_UID.test(to.card)) {
+    target = { card: to.card };
+  } else fail('Point the arrow at a card.');
+  if (stack.arrows.some((arrow) => arrow.from === fromId && arrow.to.item === target.item && arrow.to.card === target.card)) fail('That arrow is already there.');
+  if (stack.arrows.length >= MAX_ARROWS) fail(`There are too many arrows (${MAX_ARROWS} at most).`);
+  const id = `a${stack.next}`;
+  const arrows = [...stack.arrows, { id, from: fromId, to: target }];
+  return { stack: changed(stack, stack.items, { arrows, next: stack.next + 1 }), id };
+}
+
+export function removeArrow(stack, arrowId) {
+  if (!stack.arrows.some((arrow) => arrow.id === arrowId)) fail('There is no such arrow.');
+  return changed(stack, stack.items, { arrows: stack.arrows.filter((arrow) => arrow.id !== arrowId) });
+}
+
+// Takes away every arrow that starts from, or points at, an item (nothing changes when it has none).
+export function removeArrowsOf(stack, itemId) {
+  const kept = stack.arrows.filter((arrow) => arrow.from !== itemId && arrow.to.item !== itemId);
+  if (kept.length === stack.arrows.length) return stack;
+  return changed(stack, stack.items, { arrows: kept });
+}
+
+export const arrowsOf = (stack, itemId) => stack.arrows.filter((arrow) => arrow.from === itemId || arrow.to.item === itemId);
 
 // How many cards are on the stack (text boxes do not count).
 export const cardCount = (stack) => stack.items.filter((item) => item.kind === 'card').length;
