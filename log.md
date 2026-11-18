@@ -4371,6 +4371,27 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 ---
 
+## 219. The to-do list cleaned up (2026-11-17)
+
+**What I asked for**
+- Go over the to-do list and update or remove the plans that were never going to be done or have changed a lot.
+
+**What changed** (`docs/todo.md`)
+- The list went from 99 lines to about 50. It had 54 open items, and most of them were finished (the card list build, printings, several saved decks, the lobby deck fields, the table page and its five steps, presence and the takeover, the batched rules change) or replaced (the board layout is now a 112 by 50 grid of 7 by 10 cards, and "the two automatic rows" is long gone).
+- It now has five parts: what is decided, what to do before the Dec 7 show and tell (proposed, not agreed), what to do before real users, the gameplay and table items still open, and a list of what was dropped or parked with the reason, so nothing disappears without a trace.
+- I checked four facts in the code before keeping them as open: `claimHostSlot` is still not called by any page, the table page still has four `confirm()` placeholders, no token creator from Scryfall's token list exists, and the sound files' sources and licences are still not recorded. The `p` rule (a picture only as a Scryfall id) is in the database rules, so that item is done.
+
+**Decisions**
+- Dropped: the week-by-week schedule and the progress card at the end of each of Weeks 6 to 9 (the portfolio card is already updated), the old test plan (the checks exist), Cloud Functions for cleanup (they need the paid plan), and the round icon from the screen recording whose meaning was never shown.
+- Parked as polish, not planned: marking low-resolution printings, preferring a paper printing for a title on several printings, and matching translated names. The Stack stays parked until after Dec 7.
+- Questions for Kevin that the list now carries: fewer columns or rows with three opponents, and whether the real card back and the Mana icons are acceptable under Wizards' policy.
+
+**What I checked:** I read the whole old list and the code for the four facts above. I did not check the live site or run the tests for this change, since only a document changed.
+
+**My mistakes this round:** the old list had been "cleaned up" on 2026-10-29 and still grew stale in two and a half weeks, because I added to it and did not close items when they were finished.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

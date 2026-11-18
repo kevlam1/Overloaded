@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.218</span></h1>
-    <p class="lede">218 entries, Oct 25 to Nov 16, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
+    <h1>Build log <span class="version">Version 0.219</span></h1>
+    <p class="lede">219 entries, Oct 25 to Nov 17, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
   </div>
 </header>
 
@@ -24,7 +24,7 @@
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
-<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">5</span></a>
+<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">6</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
     </div>
     <div class="tools">
@@ -3602,7 +3602,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-2" aria-labelledby="week-2-title">
-<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">5 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">6 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-2-days">
 <div class="day">
 <h3 class="day-title">Monday 16 November <span class="day-count">5</span></h3>
@@ -3684,6 +3684,28 @@
 <ul><li>The window was centred on the screen and as tall as its cards, so when a filter left fewer cards the window got shorter and moved, and the buttons slid away from the pointer. It is now anchored at the top of the screen and has a least height (34 rem, or the whole screen if that is smaller), so the buttons stay exactly where they are and only the bottom edge of the window changes.</li></ul>
 <p><strong>What I checked:</strong> a new check in the solo check measures the top of the Type button before and after a filter that shrinks the list, and it did not move (less than half a pixel); the solo check passed everything else in its last full run (792) except the old flaky check of two cards played together, which also fails sometimes on code from before. I looked at a screenshot of a graveyard window with three cards. I did not run the other suites, since only a style rule and a check changed.</p>
 <p><strong>My mistakes this round:</strong> I centred the window in the round before and did not move a filter while looking at it, so I did not see the jump.</p>
+  </div></div></div>
+</article>
+</div>
+</div>
+<div class="day">
+<h3 class="day-title">Tuesday 17 November <span class="day-count">1</span></h3>
+<div class="entries">
+<article class="entry" id="entry-219" data-n="219">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-219-body">
+    <span class="num">219</span>
+    <span class="head-text"><span class="title">The to-do list cleaned up</span><span class="sum">Go over the to-do list and update or remove the plans that were never going to be done or have changed a lot.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-219-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>Go over the to-do list and update or remove the plans that were never going to be done or have changed a lot.</li></ul>
+<p><strong>What changed</strong> (<code>docs/todo.md</code>)</p>
+<ul><li>The list went from 99 lines to about 50. It had 54 open items, and most of them were finished (the card list build, printings, several saved decks, the lobby deck fields, the table page and its five steps, presence and the takeover, the batched rules change) or replaced (the board layout is now a 112 by 50 grid of 7 by 10 cards, and &quot;the two automatic rows&quot; is long gone).</li><li>It now has five parts: what is decided, what to do before the Dec 7 show and tell (proposed, not agreed), what to do before real users, the gameplay and table items still open, and a list of what was dropped or parked with the reason, so nothing disappears without a trace.</li><li>I checked four facts in the code before keeping them as open: <code>claimHostSlot</code> is still not called by any page, the table page still has four <code>confirm()</code> placeholders, no token creator from Scryfall's token list exists, and the sound files' sources and licences are still not recorded. The <code>p</code> rule (a picture only as a Scryfall id) is in the database rules, so that item is done.</li></ul>
+<p class="sub"><strong>Decisions</strong></p>
+<ul><li>Dropped: the week-by-week schedule and the progress card at the end of each of Weeks 6 to 9 (the portfolio card is already updated), the old test plan (the checks exist), Cloud Functions for cleanup (they need the paid plan), and the round icon from the screen recording whose meaning was never shown.</li><li>Parked as polish, not planned: marking low-resolution printings, preferring a paper printing for a title on several printings, and matching translated names. The Stack stays parked until after Dec 7.</li><li>Questions for Kevin that the list now carries: fewer columns or rows with three opponents, and whether the real card back and the Mana icons are acceptable under Wizards' policy.</li></ul>
+<p><strong>What I checked:</strong> I read the whole old list and the code for the four facts above. I did not check the live site or run the tests for this change, since only a document changed.</p>
+<p><strong>My mistakes this round:</strong> the old list had been &quot;cleaned up&quot; on 2026-10-29 and still grew stale in two and a half weeks, because I added to it and did not close items when they were finished.</p>
   </div></div></div>
 </article>
 </div>
