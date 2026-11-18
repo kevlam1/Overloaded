@@ -92,7 +92,32 @@ try {
   await drag(await rectOf('#life-grip'), { x: 4, y: 4 });
   check('and near the corner it docks again', (await rectOf('#life-area')).x < 20);
 
+  // ---- the Counters dropdown, Foil, and Move all to (Kevin, 2026-11-18) ----
+  await mouse('mouseMoved', 5, 5); await ev("document.getElementById('new-game').click()"); await sleep(500);
+  const labels = () => ev(`[...document.querySelectorAll('.card-menu [role="menuitem"]')].map((x) => x.textContent.replace(/[^ -~]/g, '').trim())`);
+  const pick = async (text) => { const p = await ev(`(() => { const b = [...document.querySelectorAll('.card-menu [role="menuitem"]')].find((x) => x.textContent.replace(/[^ -~]/g, '').trim().startsWith(${JSON.stringify(text)})); if (!b) return null; const r = b.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`); if (!p) return false; await mouse('mouseMoved', p.x, p.y); await mouse('mousePressed', p.x, p.y, 1); await mouse('mouseReleased', p.x, p.y); await sleep(150); return true; };
+  await click('#life-counters');
+  const counterLines = await labels();
+  check('the wide Counters button opens a list of every counter and mark with its amount', counterLines.includes('Poison: 0') && counterLines.includes('Monarch: off') && counterLines.length === 10, JSON.stringify(counterLines));
+  await pick('Poison');
+  await click('#life-counters');
+  check('choosing Poison adds 1: the list now says Poison: 1 and a chip with the amount shows', (await labels()).includes('Poison: 1') && /1/.test(await ev("document.querySelector('#life-chips .counter-chip')?.textContent ?? ''")), JSON.stringify(await labels()));
+  if (process.argv.includes('--screenshot')) await browser.screenshot('scratch-counters.png');
+  await mouse('mouseMoved', 5, 5); await ev("document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))"); await sleep(100);
+  await ev(`(() => { const c = document.querySelector('#hand > .card'); const r = c.getBoundingClientRect(); c.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: r.x + r.width / 2, clientY: Math.min(r.y + 30, innerHeight - 20) })); })()`); await sleep(150);
+  await pick('Foil'); await sleep(150);
+  check('Foil in a card\'s menu makes it shimmer (a foil card with the sheen drawn over its picture)', (await ev("document.querySelectorAll('#hand > .card.foil').length")) === 1 && (await ev("getComputedStyle(document.querySelector('#hand > .card.foil .face'), '::after').content")) !== 'none');
+  await mouse('mouseMoved', 5, 5); await sleep(300);
+  if (process.argv.includes('--screenshot')) await browser.screenshot('scratch-foil.png');
+  const handBefore = await ev("document.querySelectorAll('#hand > .card').length");
+  await ev("document.getElementById('hand-caret').click()"); await sleep(150);
+  await pick('Move all to'); await sleep(150);
+  const places = await labels();
+  check('the hand menu has Move all to, with Library top, Library bottom, Graveyard and Exile', places.join('|').includes('Library top|Library bottom|Graveyard|Exile'), JSON.stringify(places));
+  await pick('Graveyard'); await sleep(200);
+  check('Move all to Graveyard puts the whole hand there', (await ev("document.querySelectorAll('#hand > .card').length")) === 0 && handBefore > 0 && Number((await ev("document.getElementById('pile-graveyard').textContent")).replace(/\D/g, '')) === handBefore);
   // ---- drag-selecting the cards of the hand ----
+  await mouse('mouseMoved', 5, 5); await ev("document.getElementById('new-game').click()"); await sleep(500); // (the hand was moved away above)
   const handCards = await ev(`[...document.querySelectorAll('#hand > .card')].map((c) => { const r = c.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; })`);
   const startX = 8; // (left of the first card, inside the area of the hand: half a card of room at each end)
   const startY = handCards[0].y + 120;

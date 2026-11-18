@@ -17,14 +17,15 @@ export function handGroupItems() {
 // The lines that need an order before they can run.
 export const needsOrder = (id) => id === 'group:top' || id === 'group:bottom';
 
+const cards = (n) => `${n} ${n === 1 ? 'card' : 'cards'}`; // (a hand of one card can be moved with "Move all to")
 const WORDS = {
-  'group:battlefield': (n) => `Played ${n} cards.`,
-  'group:graveyard': (n) => `Discarded ${n} cards.`,
-  'group:exile': (n) => `Exiled ${n} cards.`,
-  'group:command': (n) => `Moved ${n} cards to the command zone.`,
-  'group:sideboard': (n) => `Moved ${n} cards to your sideboard.`,
-  'group:top': (n) => `Put ${n} cards on the top of your library.`,
-  'group:bottom': (n) => `Put ${n} cards on the bottom of your library.`,
+  'group:battlefield': (n) => `Played ${cards(n)}.`,
+  'group:graveyard': (n) => `Discarded ${cards(n)}.`,
+  'group:exile': (n) => `Exiled ${cards(n)}.`,
+  'group:command': (n) => `Moved ${cards(n)} to the command zone.`,
+  'group:sideboard': (n) => `Moved ${cards(n)} to your sideboard.`,
+  'group:top': (n) => `Put ${cards(n)} on the top of your library.`,
+  'group:bottom': (n) => `Put ${cards(n)} on the bottom of your library.`,
 };
 
 // What a choice does to the game: { run(game) -> game, message }, or null for an id that is not one. uids: the picked cards, in the order they have in the hand (left to right). order: for Top and Bottom, the

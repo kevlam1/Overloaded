@@ -4620,6 +4620,25 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **What I checked:** `scripts/check-deck-ui.mjs` has 281 checks now (it was 277): Delete opens the window with the deck's name and Cancel focused and nothing is deleted yet, Cancel keeps the deck, Escape keeps it, Delete removes it and says so, and every tile picture in the printing window asks for the normal size. All of the deck page's old delete steps now press Delete in the window. I looked at a screenshot of the window (and fixed the Delete button's text, which was hard to read on the light red in the dark theme). I did not look at the real printing pictures, only at what size they ask for, because the checks use stand-in pictures.
 
+## 234. Deck list tidy-up, Move all to, a Counters dropdown, and foil (2026-11-18)
+
+**What I asked for**
+- Deck list: keep the "..." next to the mana symbols always shown, a button to go back to the deck list, and the card of CSS should only show the card count of the main deck. Then foil effects on cards.
+- Solo table: a "Move All to..." option on the hand with Library Top, Library Bottom, Graveyard and Exile, and a wide dropdown button to add any of the player counters, with the counter and its amount shown next to it.
+- The AI asked what foil should mean. I chose a per-card choice from the card's menu.
+
+**What changed** (`frontend/src/deck-importer.js`, `frontend/src/style.css`, `shared/hand-menu.mjs`, `shared/group-menu.mjs`, `shared/player-counters.mjs`, `shared/zones.mjs`, `shared/card-menu.mjs`, `frontend/src/card-nodes.js`, `frontend/pages/solo/index.html`, `frontend/pages/solo/solo.js`, and the tests)
+- **Deck page:** the "..." on each line of the text list is always shown (on card pictures it still waits for the pointer). "‹ All decks" is on the deck screen on the deck page too (it was only in the lobby). A saved deck's card ends with only the number of cards of the main deck, with no format and no note about lines left out.
+- **Move all to:** the hand's menu has it, with the four places. It uses the same code as the menu of picked cards, so Library top and Library bottom first ask for the order in the order window, and Graveyard and Exile move at once. A hand of one card says "1 card", not "1 cards".
+- **Counters:** a wide "Counters" button in the life piece opens a list of every counter and mark (poison, energy, experience, rad, ticket, speed, the Ring, monarch, initiative, city's blessing) with what I have, like "Poison: 1". One click adds 1 (a mark switches on or off). The chips under the button show each with its amount.
+- **Foil:** a "Foil" line in a card's menu (hand, battlefield, graveyard, exile, command zone; solo table only) makes the card shimmer with a rainbow sheen that sweeps over its picture, a little faster while the pointer is on it, and a still sheen under reduced motion. "Remove foil" turns it off. The mark goes with the card when it moves, and a copy on the stack keeps it. It is not saved or sent: the live table's rules do not know the field.
+
+**What I checked:** `scripts/check-deck-ui.mjs` (283 checks) for the three deck page changes; `scripts/test-hand-menu.mjs` (29), `scripts/test-player-counters.mjs` (154) and the new `scripts/test-foil.mjs` (8) for the logic; `scripts/check-history-and-select-ui.mjs` (24) for the Counters dropdown, Foil and Move all to in a real browser; the solo check (471) after I updated the menu lists. `npm run test:quick` passes 77 suites. I looked at screenshots of the Counters list with a poison chip and of a foil card. The foil screenshot is on a flat stand-in picture, so I have not seen it on real card art. In the solo check one earlier run failed five checks after the hand menu got its new line; four were old lists I had not updated and one looked like a knock-on that did not repeat, and I did not find out why it happened.
+
+**Decisions**
+- Foil is per card and not saved, because the card list has no foil data and the live table cannot store it.
+- Clicking a counter adds 1; to take counters away or add more at once, the right-click menu on the life piece still has the steps.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

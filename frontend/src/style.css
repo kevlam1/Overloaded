@@ -893,6 +893,7 @@ main.wide:has(.deck-app[data-screen="deck"]) { max-width: 120rem; }
 .row-menu { flex: none; min-height: 0; width: 1.6rem; height: 1.6rem; padding: 0; border: 0; border-radius: 0.4rem; background: transparent; color: var(--muted); font-size: 1rem; line-height: 1; opacity: 0; }
 .card-line:hover .row-menu, .deck-tile:hover .row-menu, .row-menu:focus-visible, .row-menu[aria-expanded="true"] { opacity: 1; }
 .row-menu:hover { background: var(--line); color: var(--text); }
+.card-line .row-menu { opacity: 1; } /* the "..." of a line of the text list is always shown, next to the mana symbols (Kevin, 2026-11-18); on a picture it still waits for the pointer */
 @media (hover: none) { .row-menu { opacity: 1; } }
 .deck-tile .row-menu { position: absolute; top: 0.3rem; right: 0.3rem; background: rgba(0, 0, 0, 0.65); color: #fff; }
 /* the saved decks as cards */
@@ -1614,7 +1615,7 @@ body.playing.solo .history-head { display: flex; align-items: center; justify-co
 .history-empty { padding: 0.3rem 0; color: var(--muted); }
 
 /* the life piece of the solo table (Kevin, 2026-11-18): it floats like the action bar. The word Life above the number is the handle; a - and a + sit beside the number. A click on the number still gains 1 (src/life-control.js). */
-body.playing.solo #life-area { width: max-content; flex-direction: column; align-items: stretch; gap: 0; padding: 0.1rem 0.5rem 0.35rem; transition: left 0.25s ease, top 0.25s ease, border-color 0.2s ease, box-shadow 0.2s ease; }
+body.playing.solo #life-area { width: max-content; min-width: 9.5rem; flex-direction: column; align-items: stretch; gap: 0; padding: 0.1rem 0.5rem 0.35rem; transition: left 0.25s ease, top 0.25s ease, border-color 0.2s ease, box-shadow 0.2s ease; }
 body.playing.solo #life-area.dragging { transition: none; border-color: var(--ring); box-shadow: 0 0.8rem 1.8rem rgba(0, 0, 0, 0.55); }
 @media (prefers-reduced-motion: reduce) { body.playing.solo #life-area { transition: none; } }
 body.playing.solo #life-area .life-grip { width: 100%; min-width: 0; min-height: 0; padding: 0.1rem 0 0.05rem; border: 0; background: none; color: var(--muted); font-size: 0.66rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; text-align: center; cursor: grab; touch-action: none; user-select: none; }
@@ -1636,3 +1637,16 @@ body.playing.solo #life-area .life-number:hover { background: color-mix(in srgb,
 .confirm-buttons button { min-height: 0; padding: 0.3rem 1rem; }
 .confirm-yes { border-color: var(--danger); background: var(--danger); color: var(--bg); font-weight: 700; }
 .confirm-yes:focus-visible, .confirm-no:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+body.playing.solo #life-area .life-counters { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; width: 100%; min-width: 0; min-height: 0; margin-top: 0.25rem; padding: 0.15rem 0.5rem; border: 1px solid var(--line); border-radius: 0.5rem; background: transparent; color: var(--text); font-size: 0.78rem; font-weight: 600; cursor: pointer; }
+body.playing.solo #life-area .life-counters::after { content: ""; width: 0.38rem; height: 0.38rem; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); rotate: 45deg; translate: 0 -0.1rem; flex: none; }
+body.playing.solo #life-area .life-counters:hover { border-color: var(--ring); }
+body.playing.solo #life-area .life-counters:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+body.playing.solo #life-area .life-counters[aria-expanded="true"]::after { rotate: 225deg; translate: 0 0.08rem; }
+
+/* foil (Kevin, 2026-11-18): a rainbow sheen that sweeps over the picture of a card marked as foil, and a little faster while the pointer is on it. Under reduced motion it is a still sheen. */
+.card.foil .face { position: relative; }
+.card.foil .face::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; background: linear-gradient(115deg, transparent 18%, rgba(255, 60, 200, 0.34) 30%, rgba(60, 220, 255, 0.34) 40%, rgba(255, 235, 60, 0.30) 50%, rgba(110, 255, 140, 0.30) 60%, rgba(150, 110, 255, 0.30) 70%, transparent 82%) 100% 100% / 260% 260%; mix-blend-mode: color-dodge; animation: foil-sweep 3.6s ease-in-out infinite; }
+.card.foil:hover .face::after { animation-duration: 1.6s; }
+.card.foil .face::before { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 1; background: repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.07) 0 2px, transparent 2px 6px); mix-blend-mode: overlay; }
+@keyframes foil-sweep { 0%, 100% { background-position: 100% 100%; } 50% { background-position: 0 0; } }
+@media (prefers-reduced-motion: reduce) { .card.foil .face::after { animation: none; background-position: 50% 50%; } }

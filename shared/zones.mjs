@@ -383,6 +383,14 @@ export function setNote(game, uid, text) {
   return putBattlefield(game, at, with_(card, 'nt', note, note === ''));
 }
 
+// Foil (Kevin, 2026-11-18): a card of the game can be marked as foil, in any zone; it keeps the mark when it moves. Only the solo table offers it (the live rules do not know the field).
+export function setFoil(game, uid, on) {
+  const { zone, at } = locate(game, uid);
+  const card = game.zones[zone][at];
+  const next = with_(card, 'foil', true, !on);
+  return { ...game, zones: { ...game.zones, [zone]: game.zones[zone].map((each, i) => (i === at ? next : each)) } };
+}
+
 export function setFaceDown(game, uid, down) {
   const { card, at } = onBattlefield(game, uid, 'a face-down state');
   return putBattlefield(game, at, with_(card, 'faceDown', true, !down));

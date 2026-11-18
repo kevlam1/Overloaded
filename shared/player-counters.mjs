@@ -118,6 +118,15 @@ export function playerMenuItems(game, { live = false, seats = [] } = {}) {
   return items;
 }
 
+// The lines of the "Counters" dropdown on the solo table (Kevin, 2026-11-18): every counter and mark a player can have, each with what the player has now; one click adds 1 (a mark such as the monarch
+// switches on or off). playerAction runs the ids (counter:poison:+1 and flag:monarch are the ones it already knows).
+export function playerAddItems(game, { live = false } = {}) {
+  return offeredCounters({ live }).map((kind) => {
+    const entry = counterEntry(kind, game?.pc);
+    return entry.flag ? { id: `flag:${kind}`, label: `${entry.label}: ${entry.count ? 'on' : 'off'}` } : { id: `counter:${kind}:+1`, label: `${entry.label}: ${entry.count}` };
+  });
+}
+
 // What a choice in that menu does: { run(game) -> game, message } or null for an id that is not one. names maps a seat to the player's name (for the words).
 export function playerAction(id, game, { live = false, names = {} } = {}) {
   if (typeof id !== 'string') return null;

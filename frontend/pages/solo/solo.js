@@ -17,7 +17,7 @@ import { mountPileStack } from '../../src/pile-stack.js';
 import { mountCommandZone } from '../../src/command-zone.js';
 import { taxAction } from '../../../shared/commander-zone.mjs';
 import { pileMenuItems, pileAction } from '../../../shared/pile-menu.mjs';
-import { handMenuItems, handAction } from '../../../shared/hand-menu.mjs';
+import { handMenuItems, handAction, moveAllGroupId } from '../../../shared/hand-menu.mjs';
 import { handGroupItems, groupAction, needsOrder } from '../../../shared/group-menu.mjs';
 import { openOrderWindow } from '../../src/order-window.js';
 import { openCardDetails } from '../../src/card-details.js';
@@ -45,7 +45,7 @@ import { mountFloatingBar } from '../../src/floating-bar.js';
 import { flyAway, flyDraw, shuffleAnimation, gatherIntoPile, reducedMotion } from '../../src/card-fly.js';
 import { menuItems, menuAction, turnLabel, turnMessage, playBackLabel, PLAY_BACK_ZONES, noUntapLabel, sickLabel, untapMessage } from '../../../shared/card-menu.mjs';
 import { marksSentence, markClick, printedOf } from '../../../shared/marks.mjs';
-import { chipEntries, playerMenuItems, playerAction } from '../../../shared/player-counters.mjs';
+import { chipEntries, playerMenuItems, playerAction, playerAddItems } from '../../../shared/player-counters.mjs';
 import { changeCounter, setFaceDown, makeGame, draw, moveCard, shuffleLibrary, mulligan, setTapped, turnOver, untapAll, heldTapped, adjustLife, nextTurn, boardCells, placeCard, placeStack, placeGroup, zoneCounts, reorderHand } from '../../../shared/zones.mjs';
 
 const $ = (id) => document.getElementById(id);
@@ -94,6 +94,17 @@ $('life-area').addEventListener('contextmenu', (event) => {
   const fromKeyboard = event.clientX === 0 && event.clientY === 0;
   openCardMenu({ title: 'Your counters', items: playerMenuItems(game), x: fromKeyboard ? box.left + box.width / 2 : event.clientX, y: fromKeyboard ? box.top + box.height / 2 : event.clientY, returnFocus: event.currentTarget, onPick: (id) => { const action = playerAction(id, game); if (action) apply(() => action.run(game), action.message); } });
 });
+
+// The wide "Counters" button under the life (Kevin, 2026-11-18): a dropdown of every counter with what you have, one click adds 1; the chips below show them with their amounts.
+{
+  const button = $('life-counters');
+  button.addEventListener('click', () => {
+    if (!game) return;
+    const box = button.getBoundingClientRect();
+    button.setAttribute('aria-expanded', 'true');
+    openCardMenu({ title: 'Add a counter', items: playerAddItems(game), x: box.left, y: box.bottom + 4, returnFocus: button, toggleOn: button, onClose: () => button.setAttribute('aria-expanded', 'false'), onPick: (id) => { const action = playerAction(id, game); if (action) apply(() => action.run(game), action.message); } });
+  });
+}
 
 const cardNodes = makeCardNodes({ onSelect: (uid, event) => select(uid, event), isSelected: (uid) => uid === selected || multi.has(uid), onMark: (uid, hit) => markOnCard(uid, hit), onMenu: (uid, where) => openMenuFor(uid, where), onBadge: (uid, kind) => clearBadge(uid, kind), printedStats: (card) => printedOf(card, lookup) });
 const place = cardNodes.place;
@@ -274,7 +285,7 @@ function openMenuFor(uid, where) {
   if (!found) return;
   if (found.zone === 'hand' && multi.size > 1 && multi.has(uid)) { openGroupMenu(where); return; } // (several cards of the hand picked: the menu is for all of them)
   select(uid);
-  openCardMenu({ title: found.card.n, items: menuItems(found.card, found.zone, { peek: true, details: true, counters: true, stack: true }), x: where.x, y: where.y, returnFocus: where.element, onPick: (id, amount) => pickFromMenu(uid, id, amount) });
+  openCardMenu({ title: found.card.n, items: menuItems(found.card, found.zone, { peek: true, details: true, counters: true, stack: true, foil: true }), x: where.x, y: where.y, returnFocus: where.element, onPick: (id, amount) => pickFromMenu(uid, id, amount) });
 }
 
 // The menu of the picked cards of the hand: Play, Discard, Exile, Top and Bottom of library (each asks for the order first) and Move to. The cards go in the order they have in the hand.
@@ -834,6 +845,8 @@ function openHandMenu(where) {
 function pickFromHandMenu(id, amount) {
   handView.clearLift(); // the card under the pointer was lifted: let it go now, the hand is about to change
   if (id === 'mulligan') { doMulligan(); return; }
+  const group = moveAllGroupId(id); // "Move all to": the whole hand, like the menu of picked cards (the library lines ask for the order first)
+  if (group) { pickFromGroupMenu(group, game.zones.hand.map((card) => card.uid)); return; }
   const action = handAction(id, amount);
   if (!action) return;
   if (id === 'shuffleinto') play('shuffle');

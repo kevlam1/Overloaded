@@ -4,7 +4,7 @@
 import {
   POISON_LETHAL, COMMANDER_LETHAL, COUNTER_LABELS, COUNTER_STEPS, DAMAGE_STEPS,
   counterEntry, playerCounterEntries, commanderDamageEntry, commanderDamageSeats, commanderDamageEntries, commanderDamageSeatsFor, counterAction, damageAction, countersSentence,
-  PUBLISHED_COUNTERS, offeredCounters, chipEntries, playerMenuItems, playerAction,
+  PUBLISHED_COUNTERS, offeredCounters, chipEntries, playerMenuItems, playerAction, playerAddItems,
 } from '../shared/player-counters.mjs';
 import { makeGame, seededRandom, checkGame, PLAYER_COUNTERS, COMMANDER_SEATS, MAX_COUNT } from '../shared/zones.mjs';
 
@@ -192,4 +192,12 @@ check('names are kept as text exactly (they are put in the page as text, never m
   })());
 }
 
+// the Counters dropdown of the solo table (Kevin, 2026-11-18): every counter and mark, each with what the player has, one click adds 1
+{ const some = { pc: { poison: 3, monarch: 1 } };
+  const items = playerAddItems(some);
+  same('the dropdown lists every counter and mark with its amount (a mark says on or off)', [items.length, items[0], items.find((i) => i.id === 'flag:monarch'), items.find((i) => i.label.startsWith('Energy'))], [PLAYER_COUNTERS.length, { id: 'counter:poison:+1', label: 'Poison: 3' }, { id: 'flag:monarch', label: 'Monarch: on' }, { id: 'counter:energy:+1', label: 'Energy: 0' }]);
+  const game = makeGame({ cards: [], commander: [] }, () => ({ t: 'Land', m: '', k: [] }), { random: seededRandom(1) });
+  const added = playerAction('counter:poison:+1', game).run(game);
+  same('choosing a line adds 1 and the line then shows the new amount, and a mark switches', [added.pc.poison, playerAddItems(added)[0].label, playerAddItems(playerAction('flag:monarch', added).run(added)).find((i) => i.id === 'flag:monarch').label], [1, 'Poison: 1', 'Monarch: on']);
+  same('on the live table only the counters the published rules know are offered', playerAddItems(some, { live: true }).map((i) => i.id), offeredCounters({ live: true }).map((k) => (PLAYER_COUNTERS.includes(k) && ['monarch', 'initiative', 'blessing'].includes(k) ? `flag:${k}` : `counter:${k}:+1`))); }
 console.log(`All ${checks} player counter checks passed.`);

@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.233</span></h1>
-    <p class="lede">233 entries, Oct 25 to Nov 18, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
+    <h1>Build log <span class="version">Version 0.234</span></h1>
+    <p class="lede">234 entries, Oct 25 to Nov 18, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
   </div>
 </header>
 
@@ -24,7 +24,7 @@
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
-<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">20</span></a>
+<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">21</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
 <a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">29 things friends asked for</span></a>
 <a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">26 open, 71 done</span></a>
@@ -3604,7 +3604,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-2" aria-labelledby="week-2-title">
-<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">20 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">21 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-2-days">
 <div class="day">
 <h3 class="day-title">Monday 16 November <span class="day-count">5</span></h3>
@@ -3840,7 +3840,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Wednesday 18 November <span class="day-count">6</span></h3>
+<h3 class="day-title">Wednesday 18 November <span class="day-count">7</span></h3>
 <div class="entries">
 <article class="entry" id="entry-228" data-n="228">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-228-body">
@@ -3933,6 +3933,22 @@
 <p><strong>What changed</strong> (<code>frontend/src/confirm-box.js</code> (new), <code>frontend/src/deck-importer.js</code>, <code>frontend/src/printing-picker.js</code>, <code>frontend/src/style.css</code>, <code>scripts/check-deck-ui.mjs</code>)</p>
 <ul><li>A small window opens in the middle of the page over a dimmed background: <code>Delete &quot;Deck name&quot;?</code>, &quot;It is removed from this browser.&quot;, and Cancel and Delete buttons. Cancel has the focus, so Enter does nothing by accident; Escape, Cancel or a click on the dark space keep the deck. Only Delete removes it. The same code runs on the deck page and in the lobby, so both ask.</li><li>The change printing window asked for the small picture (146 px wide), which looks blurry in a tile. It asks for the normal size now. The pictures still load only when they scroll into view, and they come from Scryfall's image server, not its API.</li></ul>
 <p><strong>What I checked:</strong> <code>scripts/check-deck-ui.mjs</code> has 281 checks now (it was 277): Delete opens the window with the deck's name and Cancel focused and nothing is deleted yet, Cancel keeps the deck, Escape keeps it, Delete removes it and says so, and every tile picture in the printing window asks for the normal size. All of the deck page's old delete steps now press Delete in the window. I looked at a screenshot of the window (and fixed the Delete button's text, which was hard to read on the light red in the dark theme). I did not look at the real printing pictures, only at what size they ask for, because the checks use stand-in pictures.</p>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-234" data-n="234">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-234-body">
+    <span class="num">234</span>
+    <span class="head-text"><span class="title">Deck list tidy-up, Move all to, a Counters dropdown, and foil</span><span class="sum">Deck list: keep the &quot;...&quot; next to the mana symbols always shown, a button to go back to the deck list, and the card of CSS should only show the card count of the main deck.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-234-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>Deck list: keep the &quot;...&quot; next to the mana symbols always shown, a button to go back to the deck list, and the card of CSS should only show the card count of the main deck. Then foil effects on cards.</li><li>Solo table: a &quot;Move All to...&quot; option on the hand with Library Top, Library Bottom, Graveyard and Exile, and a wide dropdown button to add any of the player counters, with the counter and its amount shown next to it.</li><li>The AI asked what foil should mean. I chose a per-card choice from the card's menu.</li></ul>
+<p><strong>What changed</strong> (<code>frontend/src/deck-importer.js</code>, <code>frontend/src/style.css</code>, <code>shared/hand-menu.mjs</code>, <code>shared/group-menu.mjs</code>, <code>shared/player-counters.mjs</code>, <code>shared/zones.mjs</code>, <code>shared/card-menu.mjs</code>, <code>frontend/src/card-nodes.js</code>, <code>frontend/pages/solo/index.html</code>, <code>frontend/pages/solo/solo.js</code>, and the tests)</p>
+<ul><li><strong>Deck page:</strong> the &quot;...&quot; on each line of the text list is always shown (on card pictures it still waits for the pointer). &quot;‹ All decks&quot; is on the deck screen on the deck page too (it was only in the lobby). A saved deck's card ends with only the number of cards of the main deck, with no format and no note about lines left out.</li><li><strong>Move all to:</strong> the hand's menu has it, with the four places. It uses the same code as the menu of picked cards, so Library top and Library bottom first ask for the order in the order window, and Graveyard and Exile move at once. A hand of one card says &quot;1 card&quot;, not &quot;1 cards&quot;.</li><li><strong>Counters:</strong> a wide &quot;Counters&quot; button in the life piece opens a list of every counter and mark (poison, energy, experience, rad, ticket, speed, the Ring, monarch, initiative, city's blessing) with what I have, like &quot;Poison: 1&quot;. One click adds 1 (a mark switches on or off). The chips under the button show each with its amount.</li><li><strong>Foil:</strong> a &quot;Foil&quot; line in a card's menu (hand, battlefield, graveyard, exile, command zone; solo table only) makes the card shimmer with a rainbow sheen that sweeps over its picture, a little faster while the pointer is on it, and a still sheen under reduced motion. &quot;Remove foil&quot; turns it off. The mark goes with the card when it moves, and a copy on the stack keeps it. It is not saved or sent: the live table's rules do not know the field.</li></ul>
+<p><strong>What I checked:</strong> <code>scripts/check-deck-ui.mjs</code> (283 checks) for the three deck page changes; <code>scripts/test-hand-menu.mjs</code> (29), <code>scripts/test-player-counters.mjs</code> (154) and the new <code>scripts/test-foil.mjs</code> (8) for the logic; <code>scripts/check-history-and-select-ui.mjs</code> (24) for the Counters dropdown, Foil and Move all to in a real browser; the solo check (471) after I updated the menu lists. <code>npm run test:quick</code> passes 77 suites. I looked at screenshots of the Counters list with a poison chip and of a foil card. The foil screenshot is on a flat stand-in picture, so I have not seen it on real card art. In the solo check one earlier run failed five checks after the hand menu got its new line; four were old lists I had not updated and one looked like a knock-on that did not repeat, and I did not find out why it happened.</p>
+<p class="sub"><strong>Decisions</strong></p>
+<ul><li>Foil is per card and not saved, because the card list has no foil data and the live table cannot store it.</li><li>Clicking a counter adds 1; to take counters away or add more at once, the right-click menu on the life piece still has the steps.</li></ul>
   </div></div></div>
 </article>
 </div>

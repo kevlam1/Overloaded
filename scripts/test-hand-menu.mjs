@@ -1,6 +1,7 @@
 // Tests for shared/hand-menu.mjs: the menu of the hand (Mulligan, Shuffle hand into library, Discard X at random, Discard hand).
 import { makeGame, checkGame, seededRandom, ZONES } from '../shared/zones.mjs';
-import { handMenuItems, handAction } from '../shared/hand-menu.mjs';
+import { handMenuItems, handAction, MOVE_ALL, moveAllGroupId } from '../shared/hand-menu.mjs';
+import { groupAction } from '../shared/group-menu.mjs';
 
 let checks = 0;
 const fail = (label, detail) => { console.log(`FAILED CHECK: ${label}: ${detail}`); process.exit(1); };
@@ -14,7 +15,20 @@ const uids = (game, zone) => game.zones[zone].map((c) => c.uid);
 const total = (game) => ZONES.reduce((sum, zone) => sum + game.zones[zone].length, 0);
 
 // the items
-same('a hand with cards: Mulligan, Shuffle hand into library, Discard X at random, Discard hand', handMenuItems(7).map((i) => [i.id, i.label, i.ask ?? null]), [['mulligan', 'Mulligan', null], ['shuffleinto', 'Shuffle hand into library', null], ['discardrandom', 'Discard X at random...', { max: 7, unit: 'cards' }], ['discardall', 'Discard hand', null]]);
+same('a hand with cards: Mulligan, Shuffle hand into library, Move all to, Discard X at random, Discard hand', handMenuItems(7).map((i) => [i.id, i.label, i.ask ?? null]), [['mulligan', 'Mulligan', null], ['shuffleinto', 'Shuffle hand into library', null], ['moveall', 'Move all to', null], ['discardrandom', 'Discard X at random...', { max: 7, unit: 'cards' }], ['discardall', 'Discard hand', null]]);
+// Move all to (Kevin, 2026-11-18)
+same('Move all to has four places in this order, and every one is a place the group move knows', [handMenuItems(7).find((x) => x.id === 'moveall').items.map((x) => [x.id, x.label]), MOVE_ALL.map(([to]) => moveAllGroupId(`moveall:${to}`))], [[['moveall:top', 'Library top'], ['moveall:bottom', 'Library bottom'], ['moveall:graveyard', 'Graveyard'], ['moveall:exile', 'Exile']], ['group:top', 'group:bottom', 'group:graveyard', 'group:exile']]);
+same('only the four are accepted', [moveAllGroupId('moveall:hand'), moveAllGroupId('discardall'), moveAllGroupId(null), moveAllGroupId('moveall:')], [null, null, null, null]);
+{ const game = fresh(); const all = uids(game, 'hand');
+  const toGraveyard = groupAction(moveAllGroupId('moveall:graveyard'), all).run(game);
+  check('the whole hand goes to the graveyard (7 cards, none lost) and the message counts them', toGraveyard.zones.hand.length === 0 && toGraveyard.zones.graveyard.length === all.length && total(toGraveyard) === total(game));
+  checkGame(toGraveyard); // (it throws when a card is lost or copied)
+  same('the message for the whole hand', groupAction('group:exile', all).message, `Exiled ${all.length} cards.`);
+  const top = groupAction(moveAllGroupId('moveall:top'), all, { order: all }).run(game);
+  same('on top of the library the first of the order is the top card, and the hand is empty', [top.zones.hand.length, uids(top, 'library').slice(0, all.length)], [0, all]);
+  const bottom = groupAction(moveAllGroupId('moveall:bottom'), all, { order: all }).run(game);
+  same('at the bottom the last of the order is the very bottom card', [bottom.zones.hand.length, uids(bottom, 'library').slice(-all.length)], [0, all]);
+  same('a hand of one card says "1 card", not "1 cards"', groupAction('group:graveyard', [all[0]]).message, 'Discarded 1 card.'); }
 same('an empty hand can only mulligan', handMenuItems(0).map((i) => i.id), ['mulligan']);
 same('a hand of one card asks for 1 at most', handMenuItems(1).find((i) => i.ask).ask.max, 1);
 check('there is no Draw line (the library menu has it)', [0, 1, 7].every((n) => handMenuItems(n).every((i) => !/draw/i.test(i.label))));

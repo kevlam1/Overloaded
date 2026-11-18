@@ -17,7 +17,7 @@ import { openCardMenu } from './card-menu.js';
 import { setPrintingInText } from '../../shared/deck-text-edit.mjs';
 import { makePrintsLoader } from './card-prints.js';
 import { openPrintingPicker } from './printing-picker.js';
-import { LIBRARY_KEY, LEGACY_KEY, FORMAT_TITLES, emptyLibrary, readLibrary, serializeLibrary, addDeck, replaceDeck, uniqueName, removeDeck, selectDeck } from '../../shared/deck-library.mjs';
+import { LIBRARY_KEY, LEGACY_KEY, emptyLibrary, readLibrary, serializeLibrary, addDeck, replaceDeck, uniqueName, removeDeck, selectDeck } from '../../shared/deck-library.mjs';
 import { makeSafeStore } from './safe-store.js';
 import { loadCardList } from './card-list.js';
 import { makePrintingLoader } from './printings.js';
@@ -201,8 +201,8 @@ function build() {
 
   const summaryRow = make('div', 'deck-summary');
   const deckNav = make('div', 'deck-nav');
-  // On the deck page the header's Decks link goes back to the list; inside the lobby (which has no such link) a small button does.
-  if (!solo) deckNav.append(button('back-to-decks', '\u2039 All decks', 'link-button'));
+  // A small button back to the list of decks (Kevin, 2026-11-18: on the deck page too, not only in the lobby; the header's Decks link does the same)
+  deckNav.append(button('back-to-decks', '\u2039 All decks', 'link-button'));
   deckNav.append(button('edit-list', 'Edit list', 'link-button'));
   if (solo) deckNav.append(button('deck-play-solo', 'Play solo', 'link-button')); // (Kevin, 2026-11-13: the deck being looked at can be used for the solo table from here too)
   const summary = make('p');
@@ -671,9 +671,7 @@ function deckCard(entry) {
     if (entry.bracketGuess === true) { bracket.classList.add('guessed'); bracket.title = 'Guessed from the Game Changers in the deck. Open the deck to choose one.'; }
     bottom.append(bracket);
   }
-  const facts = [FORMAT_TITLES[entry.format], plural(totalCards(deck), 'card', 'cards')];
-  if (deck.skipped) facts.push(`${plural(deck.skipped, 'line', 'lines')} left out (not matched)`);
-  bottom.append(make('span', 'face-facts', facts.join(' \u00b7 ')));
+  bottom.append(make('span', 'face-facts', plural(totalCards(deck), 'card', 'cards'))); // (Kevin, 2026-11-18: only the number of cards of the main deck, nothing else)
   text.append(bottom);
   faceElement.append(text);
   if (face.colors) faceElement.title = `Colors: ${face.colors.split('').map((color) => COLOR_NAMES[color]).join(', ')}`;

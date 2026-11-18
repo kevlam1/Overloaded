@@ -183,7 +183,7 @@ check('there are no commander or partner boxes; the Commander heading says to ri
   const stored = await selectedSaved();
   check('the browser holds the saved deck, with its text and the cards that were matched', stored.name === 'Problems deck' && stored.cards.length === 3 && stored.skipped === 1 && stored.text.includes('Totally Fake Card'));
   await showList();
-  check('the saved deck is on the list screen: its name, format, size and the line that was left out', !(await $hidden('saved')) && (await $hidden('preview')) && /Problems deck/.test(await $text('saved-list')) && /(Standard|Commander)/.test(await $text('saved-list')) && /3 cards/.test(await $text('saved-list')) && /1 line left out/.test(await $text('saved-list')), await $text('saved-list'));
+  check('the saved deck is on the list screen: its name and only the number of cards of the main deck (no format, no note about lines left out)', !(await $hidden('saved')) && (await $hidden('preview')) && /Problems deck/.test(await $text('saved-list')) && /3 cards/.test(await $text('saved-list')) && !/Standard|Commander|left out/.test(await $text('saved-list')), await $text('saved-list'));
   await load();
   check('after a reload the saved deck is still shown', !(await $hidden('saved')) && /Problems deck/.test(await $text('saved-list')));
   await pressLoad();
@@ -361,7 +361,7 @@ check('there are no commander or partner boxes; the Commander heading says to ri
   const deckE = lib.decks.find((d) => d.deck.name === 'Deck E');
   check('a Commander deck saved with a bracket keeps it next to the format', deckE?.format === 'commander' && deckE.bracket === 3, JSON.stringify(deckE && [deckE.format, deckE.bracket]));
   list = await rows();
-  check('the saved deck row shows the bracket', /Deck E.*Bracket 3.*Commander/.test(list.find((r) => /Deck E/.test(r.text)).text), list.map((r) => r.text).join(' | '));
+  check('the saved deck row shows the bracket and the number of cards', /Deck E.*Bracket 3.*\d+ cards?/.test(list.find((r) => /Deck E/.test(r.text)).text), list.map((r) => r.text).join(' | '));
   check('a Commander deck saved on Auto stores the guess (no Game Changers: bracket 2) marked as a guess, and its row says so', /Bracket 2/.test(list.find((r) => /Deck C/.test(r.text)).text) && !/guess/.test(list.find((r) => /Deck C/.test(r.text)).text) && lib.decks.find((d) => d.deck.name === 'Deck C').bracket === 2 && lib.decks.find((d) => d.deck.name === 'Deck C').bracketGuess === true);
   await setField('deck-bracket', '5'); await setField('deck-format', 'standard'); await setField('deck-name', 'Deck F'); await press('save');
   lib = await library();
@@ -616,7 +616,9 @@ check('there are no commander or partner boxes; the Commander heading says to ri
   check('... Cancel returns to the deck, unchanged', (await screenOf()) === 'deck' && (await $text('summary')) === '2 cards');
   await ev(`window.__marker = 7`);
   await showList();
-  check('the Decks link in the header goes to the list without loading the page again (a marker set on the page is still there): the saved deck with its buttons, and a New deck button; there is no All decks button', (await screenOf()) === 'list' && (await ev(`window.__marker`)) === 7 && (await ev(`document.getElementById('back-to-decks')`)) === null && !(await $hidden('saved')) && /Screens/.test(await $text('saved-list')) && !(await ev(`document.getElementById('new-deck').hidden`)) && (await $hidden('preview')));
+  check('the Decks link in the header goes to the list without loading the page again (a marker set on the page is still there): the saved deck with its buttons, and a New deck button', (await screenOf()) === 'list' && (await ev(`window.__marker`)) === 7 && !(await $hidden('saved')) && /Screens/.test(await $text('saved-list')) && !(await ev(`document.getElementById('new-deck').hidden`)) && (await $hidden('preview')));
+  await pressLoad();
+  check('the deck screen has an All decks button, shown, and it goes back to the list', (await screenOf()) === 'deck' && (await ev(`document.getElementById('back-to-decks').offsetParent !== null`)) && (await ev(`document.getElementById('back-to-decks').click(), true`)) && (await screenOf()) === 'list');
   await ev(`document.getElementById('new-deck').click()`);
   check('New deck goes to an empty box, and Cancel there goes back to the list (nothing is open)', (await screenOf()) === 'paste' && (await ev(`document.getElementById('deck-text').value`)) === '');
   await ev(`document.getElementById('cancel-paste').click()`);
@@ -643,6 +645,7 @@ check('there are no commander or partner boxes; the Commander heading says to ri
   const commanders = async () => { const group = await ev(`[...document.querySelectorAll('#sections [data-group="commander"] .name')].map((n) => n.textContent)`); return { group, first: group[0] ?? '', second: group[1] ?? 'No partner' }; };
   const escapeKey = async () => { await browser.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await sleep(80); };
   check('every card has a "..." button with its own label (and the commander too)', (await ev(`document.querySelectorAll('#sections .card-line .row-menu').length`)) === 85 && (await ev(`document.querySelector('#sections .row-menu').getAttribute('aria-label')`)) === 'Options for Krenko, Mob Boss');
+  check('the "..." of every line of the text list is shown without the pointer on it', await ev(`[...document.querySelectorAll('#sections .card-line .row-menu')].every((b) => getComputedStyle(b).opacity === '1')`));
   await rightClick('Goblin Chieftain');
   const m1 = await lineMenu();
   check('a right-click on a card in a Commander deck offers to make it the commander or the partner', m1 && m1.title === 'Goblin Chieftain' && JSON.stringify(m1.items) === JSON.stringify(['Change printing...', 'Make commander', 'Make partner']), JSON.stringify(m1));
@@ -913,7 +916,7 @@ check('there are no commander or partner boxes; the Commander heading says to ri
   await saveDeck('Commander\n1 Krenko, Mob Boss\n\n1 Sol Ring\n10 Mountain', 'One Commander');
   await saveDeck('4 Lightning Bolt\n4 Counterspell\n20 Island', 'Plain UR');
   const cards = await ev(`[...document.querySelectorAll('#saved-list .deck-face')].map((f) => ({ name: f.querySelector('.saved-name').textContent, colors: f.dataset.colors, split: f.dataset.split ?? '', halves: f.querySelectorAll('.face-half').length, tints: [...f.querySelectorAll('.face-half')].map((h) => h.style.getPropertyValue('--tint')), commanders: [...f.querySelectorAll('.face-commander')].map((c) => c.textContent), pips: f.querySelectorAll('.face-colors img, .face-colors .pip').length, bracket: f.querySelector('.face-bracket')?.textContent ?? '', format: f.querySelector('.face-facts').textContent, label: f.getAttribute('aria-label') ?? '' }))`);
-  check('each saved deck is a card: its name, format, colors as symbols and (for Commander) its bracket with "guess"', cards.length === 3 && cards.every((c) => c.name && c.format) && cards[0].bracket === 'Bracket 3' && cards[1].bracket === 'Bracket 2' && cards[2].bracket === '' && cards[1].colors === 'R' && cards[1].pips === 1 && cards[2].colors === 'UR' && cards[2].pips === 2 && cards[2].commanders.length === 0 && /^Standard/.test(cards[2].format), JSON.stringify(cards));
+  check('each saved deck is a card: its name, colors as symbols, its bracket and only the number of cards (no format)', cards.length === 3 && cards.every((c) => c.name && /^\d+ cards?$/.test(c.format)) && cards[0].bracket === 'Bracket 3' && cards[1].bracket === 'Bracket 2' && cards[2].bracket === '' && cards[1].colors === 'R' && cards[1].pips === 1 && cards[2].colors === 'UR' && cards[2].pips === 2 && cards[2].commanders.length === 0, JSON.stringify(cards));
   check('two commanders: the card is split, the first commander\'s colors on the upper left and the second\'s on the lower right, both names shown, the colors the two together', cards[0].split === '1' && cards[0].halves === 2 && cards[0].tints[0] !== cards[0].tints[1] && cards[0].commanders.length === 2 && cards[0].colors.length === 4 && cards[0].pips === 4 && /Open: /.test(cards[0].label), JSON.stringify(cards[0]));
   const geometry = await ev(`(() => { const face = document.querySelector('#saved-list .deck-face[data-split="1"]'); const a = getComputedStyle(face.querySelector('.face-a')).clipPath; const b = getComputedStyle(face.querySelector('.face-b')).clipPath; return { a, b, line: getComputedStyle(face, '::after').backgroundImage.includes('to bottom right') || getComputedStyle(face, '::after').backgroundImage.includes('linear-gradient') }; })()`);
   check('the split is a diagonal from the upper right to the lower left (two triangles), with a thin line along it', /polygon\(0(px)? 0(px)?, 100% 0(px)?, 0(px)? 100%\)/.test(geometry.a) && /polygon\(100% 0(px)?, 100% 100%, 0(px)? 100%\)/.test(geometry.b) && geometry.line, JSON.stringify(geometry));
