@@ -18,7 +18,7 @@ This is how I am planning Overloaded. The open work comes first, then what I dro
 - [ ] **Play a real game with two players on the table page.** Most changes since Nov 11 (hand fan, floating bar, menus, card details, pile windows, 7 by 10 cards) were made and tested on the solo page only. Run `npm run test:live` and play once with two real browsers.
 - [ ] **Decide what the table page gets from the solo page before Dec 7.** The hand fan, the floating bar and the pile windows are solo only.
 - [ ] **Re-measure the cards with three opponents.** The old numbers (26 px tall at 1366 by 650) were for bigger cards. Maybe fewer columns or rows, or a slimmer opponent panel.
-- [ ] **Shorten the solo browser check.** `scripts/check-solo-ui.mjs` has about 800 checks and takes 5 minutes. Cut it down to one check per thing a player does, like the newer checks.
+- [x] **Shorten the solo browser check.** Cut from 783 to 471 checks and 3,540 to 1,964 lines (about 3.5 minutes instead of 5) by taking out whole sections; the full file is in git at commit c44edd4 (log entry 229).
 - [ ] **Understand the flaky browser checks.** The solo check sometimes fails the hand lowering, "two cards played together" and the drawn-card flight checks (they pass on a rerun), and `--screenshot` crashes near the end.
 - [ ] **Fan content.** Re-read Wizards' policy in a browser (only a summarizer was read), put the disclaimer on every public page (the solo and table pages only have it under Settings), and decide about the Mana icons and the real card back.
 - [ ] **Sound files.** The source and licence of all four are not recorded (`frontend/public/sfx/credits.md`), so check them or replace them. Keep or delete the three uncommitted `commander-play-*.mp3` files.

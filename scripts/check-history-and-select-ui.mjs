@@ -81,6 +81,32 @@ try {
   const picked = await ev("document.querySelectorAll('#hand > .card.selected').length");
   check('dragging a rectangle from the area of the hand over some cards shows the rectangle and picks those cards of the hand', during === 1 && picked >= 2 && /cards picked/.test(await ev("document.getElementById('status').textContent")), JSON.stringify({ where, during, picked }));
   check('the battlefield has nothing picked by it', (await ev("document.querySelectorAll('#battlefield .card.selected').length")) === 0);
+  // ---- the hand: Alt shows a larger picture, Shift+click picks cards, and a card is dragged to a new place ----
+  await mouse('mouseMoved', 5, 5); await ev("document.getElementById('new-game').click()"); await sleep(500);
+  const cardAt = async (i, dx = null) => ev(`(() => { const r = document.querySelectorAll('#hand > .card')[${i}].getBoundingClientRect(); return { x: r.x + ${dx === null ? 'r.width / 2' : dx}, y: r.y + 60 }; })()`);
+  const raise = async (i) => { for (let n = 0; n < 2; n++) { const p = await cardAt(i); await mouse('mouseMoved', p.x, p.y); await sleep(450); } return cardAt(i); };
+  const key = (type, name, modifiers) => browser.send('Input.dispatchKeyEvent', { type, key: name, code: name + 'Left', windowsVirtualKeyCode: name === 'Alt' ? 18 : 16, modifiers });
+  const p0 = await raise(1);
+  await key('rawKeyDown', 'Alt', 1); await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p0.x + 1, y: p0.y, modifiers: 1 }); await sleep(250);
+  const shown = await ev("(() => { const b = document.getElementById('card-hover'); return Boolean(b) && !b.hidden && b.getBoundingClientRect().width > 100; })()");
+  await key('keyUp', 'Alt', 0); await sleep(150);
+  check('holding Alt over a card of the hand shows a larger picture, and letting go hides it', shown && (await ev("document.getElementById('card-hover').hidden")));
+  const q = await raise(2);
+  await mouse('mouseMoved', q.x, q.y); await mouse('mousePressed', q.x, q.y, 1); await mouse('mouseReleased', q.x, q.y); await sleep(150);
+  const r = await raise(5); // (a card well away from the one that was clicked: that one came up and its neighbours moved aside)
+  await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: r.x, y: r.y, button: 'left', buttons: 1, clickCount: 1, modifiers: 8 }); await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: r.x, y: r.y, button: 'left', buttons: 0, clickCount: 1, modifiers: 8 }); await sleep(200);
+  check('a click, then Shift+click, picks two cards of the hand', (await ev("document.querySelectorAll('#hand > .card.selected').length")) === 2 && /2 cards picked/.test(await ev("document.getElementById('status').textContent")), await ev("document.getElementById('status').textContent"));
+  await mouse('mouseMoved', 5, 5); await ev("document.getElementById('new-game').click()"); await sleep(500);
+  const order = () => ev("[...document.querySelectorAll('#hand > .card')].map((c) => c.dataset.uid)");
+  const before = await order();
+  await raise(0);
+  const from = await cardAt(0, 12); // (the left edge of the first card: the next card covers its middle)
+  const last = await cardAt(before.length - 1);
+  await mouse('mousePressed', from.x, from.y, 1);
+  for (let n = 1; n <= 12; n++) await mouse('mouseMoved', from.x + ((last.x - from.x) * n) / 12, from.y, 1);
+  await mouse('mouseReleased', last.x, from.y); await sleep(500);
+  const after = await order();
+  check('dragging the first card of the hand to the far end puts it last and keeps the others in order', after.length === before.length && after.at(-1) === before[0] && after.slice(0, -1).join() === before.slice(1).join(), JSON.stringify({ before, after }));
   check('no page errors', (await ev('window.__errors || []')).length === 0);
   await closeAllBrowsers();
 } finally {

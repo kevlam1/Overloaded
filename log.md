@@ -4552,6 +4552,23 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **My AI's mistakes this time:** the history bar first sat over the Settings menu (the same level and later in the page), which broke the Settings pill test; I gave the bar a lower level. The first hand test started the rectangle on a card, then on a spot the battlefield did not cover, which showed the listener had to be on the board. A shell command with a quote failed and ran nothing, so I wrote those files another way. I also first put the draw-pace import one folder too shallow.
 
+## 229. The solo browser check shortened (2026-11-18)
+
+**What I asked for**
+- I said the tests had become far too long. When the AI offered to prune the solo browser check, I said to shorten it and be careful.
+
+**What changed** (`scripts/check-solo-ui.mjs`, `scripts/check-history-and-select-ui.mjs`, `docs/todo.md`, `CLAUDE.md`)
+- `scripts/check-solo-ui.mjs` went from 783 checks and 3,540 lines to 471 checks and 1,964 lines, and from about 5 minutes to about 3.5. I removed whole sections, not single lines, because each section is its own block: sound, the dealing animation, the hand bar and sorts and the pile names, the Alt picture, the hand fan and its motion, picking hand cards with Shift, the pile drawing, a tapped card carried, the hand cap at 7 cards, and a card carried over the hand. The full file is in git at commit c44edd4. The header of the file says what was taken out.
+- Three of the dropped behaviours had no other browser check, so I added them to `scripts/check-history-and-select-ui.mjs` (13 checks now): holding Alt over a card of the hand shows a larger picture, a click and a Shift+click pick two cards of the hand, and dragging the first card of the hand to the far end puts it last.
+
+**What I checked:** the shortened file passes all 471 checks. To see if it can still catch real breakage, the AI broke five behaviours one at a time and ran it: drawing doing nothing, the Tap line of the menu spelled wrong, life changing by one too many, the floating bar not moving, and moving a card to the graveyard doing nothing. All five were caught (6, 6, 13, 3 and 5 checks failed, in that order), and every file was restored and checked by hash. Not covered any more by a browser check: the sounds (unit tests of the settings remain), the dealing animation (`scripts/test-deal-sequence.mjs`), the hand sort buttons (`scripts/test-hand.mjs`), the pile drawing (`scripts/test-stacks.mjs`) and the hand's motion; a change in how these look or feel would not be caught.
+
+**Decisions**
+- Cut the sections that have unit tests of their logic and were also the flaky ones (the hand), and kept the main path of playing: deal, draw, turns, life, selecting, moving, piles, menus, counters, marks, drag and drop, the floating bar.
+- Not done: making the check faster without removing anything. A lot of the 3.5 minutes is waiting.
+
+**My AI's mistakes this time:** my first test for picking hand cards clicked a card whose neighbours had moved aside, and the first reorder test pressed on the middle of a card that the next card covers; both were mistakes in the tests, fixed.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.
