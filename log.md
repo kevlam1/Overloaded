@@ -4499,6 +4499,16 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 - Taking an empty note away on blur, so there are no empty boxes left behind. I did not ask about that; it is easy to turn off.
 - Not done: the list does not scroll by itself when a card is dragged near its top or bottom edge, and the Alt picture does not show over the stack's cards.
 
+## 226. The order window no longer shows a scroll bar when a card is moved past the edge (2026-11-17)
+
+**What I asked for**
+- I said that when I move a card in the order window past the right edge, a scroll bar appears and the window thinks there is more to it.
+
+**What changed** (`frontend/src/order-window.js`, `frontend/src/style.css`, `scripts/check-solo-ui.mjs`)
+- The cause: the window scrolls when its content is taller or wider than it is, and a card carried past the edge (or gliding home afterwards, which is a move from that place) counts as content. While a card is carried, and for a moment after it is let go, the window now has the class `order-active`, which turns scrolling off. The rest of the time it scrolls as before.
+
+**What I checked:** a new check in the solo check (798 checks now, all passed) carries a card to the far right edge of the page and looks for a scroll bar, then checks that scrolling is back after the card is let go and the glide is over. My first version of that check used a browser name in Node and crashed the run; I fixed it. I did not look at a screenshot of it, because a scroll bar is a number (the window's width minus what its content takes), and the check reads that number.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

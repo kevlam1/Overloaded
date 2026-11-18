@@ -138,6 +138,7 @@ export function openOrderWindow({ title, note, cards, onDone, places = null }) {
       const dy = move.clientY - startY;
       if (!dragging && Math.hypot(dx, dy) < DRAG_START_PX) return;
       dragging = true;
+      panel.classList.add('order-active'); // (no scroll bars while a card is carried: a card moved past the edge made the window think there was more to scroll to)
       item.classList.add('order-dragging');
       item.style.translate = `${dx}px ${dy}px`;
       const next = nearest(move.clientX, move.clientY);
@@ -150,6 +151,7 @@ export function openOrderWindow({ title, note, cards, onDone, places = null }) {
       if (!dragging) return;
       if (up.type !== 'pointercancel' && to !== from) { order.splice(from, 1); order.splice(to, 0, uid); }
       draw();
+      setTimeout(() => panel.classList.remove('order-active'), GLIDE_MS + 80); // (the cards still glide home: they must not make a scroll bar either)
     };
     document.addEventListener('pointermove', onMove, true);
     document.addEventListener('pointerup', onUp, true);

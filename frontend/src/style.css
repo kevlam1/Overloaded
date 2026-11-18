@@ -1579,3 +1579,4 @@ body.playing.solo .pile-head .pile-caret { width: 1.05rem; height: 1.05rem; bord
 .stack-grip { display: block; height: 0.9rem; cursor: grab; background: radial-gradient(circle, var(--muted) 1.2px, transparent 1.6px) center / 0.45rem 0.45rem repeat-x; opacity: 0.7; }
 .stack-note { display: block; width: 100%; resize: vertical; min-height: 2.6rem; padding: 0.3rem 0.4rem; border: 1px solid var(--line); border-radius: 0.4rem; background: var(--bg); color: var(--text); font: inherit; font-size: 0.85rem; cursor: text; }
 .stack-empty { padding: 1rem 0.5rem; color: var(--muted); font-size: 0.85rem; text-align: center; }
+.order-window.order-active { overflow: hidden; } /* while a card is carried and gliding home: no scroll bars (Kevin, 2026-11-17: a card moved past the right edge made the window show one) */

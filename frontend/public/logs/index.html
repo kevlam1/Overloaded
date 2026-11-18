@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.225</span></h1>
-    <p class="lede">225 entries, Oct 25 to Nov 17, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
+    <h1>Build log <span class="version">Version 0.226</span></h1>
+    <p class="lede">226 entries, Oct 25 to Nov 17, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
   </div>
 </header>
 
@@ -24,7 +24,7 @@
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
-<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">12</span></a>
+<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">13</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
 <a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">29 things friends asked for</span></a>
 <a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">28 open, 68 done</span></a>
@@ -3604,7 +3604,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-2" aria-labelledby="week-2-title">
-<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">12 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">13 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-2-days">
 <div class="day">
 <h3 class="day-title">Monday 16 November <span class="day-count">5</span></h3>
@@ -3691,7 +3691,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Tuesday 17 November <span class="day-count">7</span></h3>
+<h3 class="day-title">Tuesday 17 November <span class="day-count">8</span></h3>
 <div class="entries">
 <article class="entry" id="entry-219" data-n="219">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-219-body">
@@ -3804,6 +3804,20 @@
 <p><strong>What I checked:</strong> <code>scripts/check-stack-ui.mjs</code> now has 61 checks (it was 41), in real headless Chrome: no buttons in the list, the menus for the top card, the bottom card and a text box, the keyboard keys, a real mouse drag where the passed items get a <code>translate</code> and a transition, a text box dragged by its strip, and with animation on that animations are running right after a drop and have settled after half a second. I looked at a screenshot at desktop width. I did not check how the glide looks to a person, only that it runs; I did not check phone width or touch.</p>
 <p class="sub"><strong>Decisions</strong></p>
 <ul><li>Drag by the card itself, and by the strip for a text box, because the textarea has to stay clickable for typing.</li><li>Taking an empty note away on blur, so there are no empty boxes left behind. I did not ask about that; it is easy to turn off.</li><li>Not done: the list does not scroll by itself when a card is dragged near its top or bottom edge, and the Alt picture does not show over the stack's cards.</li></ul>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-226" data-n="226">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-226-body">
+    <span class="num">226</span>
+    <span class="head-text"><span class="title">The order window no longer shows a scroll bar when a card is moved past the edge</span><span class="sum">I said that when I move a card in the order window past the right edge, a scroll bar appears and the window thinks there is more to it.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-226-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>I said that when I move a card in the order window past the right edge, a scroll bar appears and the window thinks there is more to it.</li></ul>
+<p><strong>What changed</strong> (<code>frontend/src/order-window.js</code>, <code>frontend/src/style.css</code>, <code>scripts/check-solo-ui.mjs</code>)</p>
+<ul><li>The cause: the window scrolls when its content is taller or wider than it is, and a card carried past the edge (or gliding home afterwards, which is a move from that place) counts as content. While a card is carried, and for a moment after it is let go, the window now has the class <code>order-active</code>, which turns scrolling off. The rest of the time it scrolls as before.</li></ul>
+<p><strong>What I checked:</strong> a new check in the solo check (798 checks now, all passed) carries a card to the far right edge of the page and looks for a scroll bar, then checks that scrolling is back after the card is let go and the glide is over. My first version of that check used a browser name in Node and crashed the run; I fixed it. I did not look at a screenshot of it, because a scroll bar is a number (the window's width minus what its content takes), and the check reads that number.</p>
   </div></div></div>
 </article>
 </div>

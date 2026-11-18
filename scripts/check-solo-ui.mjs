@@ -2021,8 +2021,14 @@ try {
       const gapLeft = await ev("Math.round(document.querySelectorAll('.order-window .scry-card')[1].getBoundingClientRect().left)");
       await mm('mouseMoved', ps[0].x + 20, ps[0].y, 1); await sleep(350);
       const back = await ev("document.querySelectorAll('.order-window .scry-card')[1].style.translate");
+      // a card carried far past the right edge of the window does not make a scroll bar (Kevin, 2026-11-17), neither while it is carried nor while it glides home
+      await mm('mouseMoved', (await ev('innerWidth')) - 4, ps[0].y, 1); await sleep(200);
+      const carriedFar = await ev("(() => { const w = document.querySelector('.order-window'); const cs = getComputedStyle(w); return { overflow: cs.overflow, bar: w.offsetWidth - w.clientWidth - parseFloat(cs.borderLeftWidth) - parseFloat(cs.borderRightWidth), barY: w.offsetHeight - w.clientHeight - parseFloat(cs.borderTopWidth) - parseFloat(cs.borderBottomWidth) }; })()");
+      await mm('mouseMoved', ps[0].x + 20, ps[0].y, 1); await sleep(200);
       await mm('mouseReleased', ps[0].x + 20, ps[0].y, 0); await sleep(300);
       check('while a card is dragged over the next one that card slides to the other side to open the place (and slides back when the card goes back), like the hand', /px/.test(shifted.translate) && gapLeft < Math.round(ps[1].x - 20) - 20 && back === '', JSON.stringify({ shifted, gapLeft, back, ps }));
+      await sleep(250); // (the glide home takes 220 ms and the window keeps scrolling off a little longer)
+      check('no scroll bar appeared while the card was carried far past the edge, and scrolling is back after it was let go', carriedFar.overflow === 'hidden' && carriedFar.bar < 1 && carriedFar.barY < 1 && (await ev("getComputedStyle(document.querySelector('.order-window')).overflow")) === 'auto' && (await ev("document.querySelector('.order-window').classList.contains('order-active')")) === false, JSON.stringify(carriedFar));
     }
     // drag the first picture past the second one with a real mouse
     const centres = await ev("[...document.querySelectorAll('.order-window .scry-picture')].map((p) => { const r = p.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + Math.min(r.height, innerHeight - r.top) / 2 }; })");
