@@ -15,6 +15,9 @@ const html = readFileSync(new URL('../frontend/public/logs/index.html', import.m
 const log = readFileSync(new URL('../log.md', import.meta.url), 'utf8');
 const logCount = (log.match(/^## \d+\. /gm) ?? []).length;
 const todo = readFileSync(new URL('../docs/todo.md', import.meta.url), 'utf8');
+const feedback = readFileSync(new URL('../docs/feedback.md', import.meta.url), 'utf8');
+const feedbackSections = (feedback.match(/^## /gm) ?? []).length;
+const feedbackItems = (feedback.split(/^## /m).slice(2).join('\n').match(/^- /gm) ?? []).length;
 const todoSections = (todo.match(/^## /gm) ?? []).length;
 const todoOpen = (todo.match(/^- \[ \] /gm) ?? []).length;
 const todoDone = (todo.match(/^- \[x\] /gm) ?? []).length;
@@ -33,11 +36,25 @@ try {
   const ev = (code) => browser.eval(code);
 
   const names = await ev(`Array.from(document.querySelectorAll('.week-link .wl-name')).map((n) => n.textContent)`);
-  check('the week bar lists Week -1, Week 0, Week 1, the reflection and the to-do list', JSON.stringify(names.slice(0, 3)) === JSON.stringify(['Week -1', 'Week 0', 'Week 1']) && names.at(-2) === 'Reflection' && names.at(-1) === 'To-do list', JSON.stringify(names));
+  check('the week bar lists Week -1, Week 0, Week 1, the reflection, the feedback and the to-do list', JSON.stringify(names.slice(0, 3)) === JSON.stringify(['Week -1', 'Week 0', 'Week 1']) && names.at(-3) === 'Reflection' && names.at(-2) === 'Feedback' && names.at(-1) === 'To-do list', JSON.stringify(names));
   const ranges = await ev(`Array.from(document.querySelectorAll('.week-link .wl-range')).map((n) => n.textContent)`);
   check('the weeks run Oct 25 to Nov 1, Nov 2 to Nov 8 and Nov 9 to Nov 15', ranges[0] === 'Oct 25 to Nov 1' && ranges[1] === 'Nov 2 to Nov 8' && ranges[2] === 'Nov 9 to Nov 15', JSON.stringify(ranges));
-  const placed = await ev(`Array.from(document.querySelectorAll('.week .entry')).filter((e) => e.closest('#reflection') === null && e.closest('#todo') === null).length`);
+  const placed = await ev(`Array.from(document.querySelectorAll('.week .entry')).filter((e) => e.closest('#reflection') === null && e.closest('#feedback') === null && e.closest('#todo') === null).length`);
   check('every numbered entry is under a week', placed === logCount, String(placed));
+  // the feedback, built from docs/feedback.md: what my friends asked for and what changed (Kevin, 2026-11-17)
+  const fb = await ev(`({
+    entries: document.querySelectorAll('#feedback .entry').length,
+    items: Array.from(document.querySelectorAll('#feedback .entry')).slice(1).reduce((sum, e) => sum + e.querySelectorAll('li').length, 0),
+    titles: Array.from(document.querySelectorAll('#feedback .entry .title')).map((t) => t.textContent),
+    folded: document.getElementById('feedback').classList.contains('collapsed'),
+    log: Array.from(document.querySelectorAll('#feedback .entry')).slice(1).every((e) => /log entr(y|ies) \\d+/.test(e.querySelector('.title').textContent)),
+  })`);
+  check('the feedback section has one entry for each "##" part of docs/feedback.md, each list naming its log entry, and starts folded', fb.entries === feedbackSections && fb.folded && fb.log, JSON.stringify(fb));
+  check('every thing my friends asked for in docs/feedback.md is on the page', fb.items === feedbackItems && feedbackItems > 20, JSON.stringify({ page: fb.items, file: feedbackItems }));
+  await ev(`location.hash = ''; location.hash = '#feedback-2'`);
+  await sleep(300);
+  check('the address ending in #feedback-2 opens the feedback section and that list', await ev(`!document.getElementById('feedback').classList.contains('collapsed') && document.getElementById('feedback-2').classList.contains('open')`));
+  await ev(`document.getElementById('collapse-all').click()`);
   // the to-do list, built from docs/todo.md (Kevin, 2026-11-17)
   const todoPage = await ev(`({
     entries: document.querySelectorAll('#todo .entry').length,

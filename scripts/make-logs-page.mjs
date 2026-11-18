@@ -4,7 +4,8 @@
 // The entries are split into weeks, Monday to Sunday (Kevin, 2026-11-13): Week -1 is 25 October (a Sunday, put there as an exception) to Sunday 1 November, Week 0 is Monday 2 to Sunday 8 November,
 // Week 1 is Monday 9 to Sunday 15 November, and so on. A week with no entry is left out. Every week starts folded (the page opens on the list of weeks); a click, a search, a week link or an entry link opens one.
 // It stops if log.md is not numbered 1, 2, 3 ... or has a section it does not know, and it checks that every word of log.md is on the page, so nothing is dropped without being noticed.
-// The last section of the page is the to-do list (Kevin, 2026-11-17: my professors can see how I am planning), built from docs/todo.md the same way, with the same word check. Run this script again after docs/todo.md changes too.
+// The last two sections of the page are the feedback (docs/feedback.md: what my friends said and what it changed, for my professors, 2026-11-17) and the to-do list (docs/todo.md: how I am planning), built the same way,
+// with the same word check. Run this script again after either file changes too.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { SUMMARIES, REFLECTION_SUMMARIES } from './log-summaries.mjs';
 import { versionFromLog } from '../shared/version.mjs';
@@ -176,6 +177,33 @@ ${entryHtml({ id: 'reflection-decisions', badge: '•', title: decisions.title, 
 </div></div></div>
 </section>`;
 
+// ---------- The feedback, from docs/feedback.md: the same kind of file as the log (paragraphs and bullets, one entry for each "##" part) ----------
+const feedbackText = readFileSync(new URL('../docs/feedback.md', here), 'utf8').replace(/\r\n/g, '\n');
+const feedbackIntro = []; const feedbackSections = [];
+for (const line of feedbackText.split('\n')) {
+  if (line.startsWith('# ')) continue; // the title of the file: the section has its own
+  if (line.startsWith('## ')) feedbackSections.push({ title: line.slice(3).trim(), lines: [] });
+  else if (feedbackSections.length > 0) feedbackSections[feedbackSections.length - 1].lines.push(line);
+  else feedbackIntro.push(line);
+}
+if (feedbackSections.length === 0) throw new Error('docs/feedback.md has no "##" section.');
+const bulletsIn = (lines) => lines.filter((line) => /^- /.test(line)).length;
+const feedbackIntroBody = renderBlock(feedbackIntro);
+checks.push(['Feedback, introduction', feedbackIntro, feedbackIntroBody]);
+const feedbackEntries = feedbackSections.map((section, i) => entryHtml({
+  id: `feedback-${i + 1}`, badge: '\u2022', title: section.title,
+  summary: `${bulletsIn(section.lines)} ${bulletsIn(section.lines) === 1 ? 'item' : 'items'}`, lines: section.lines,
+})).join('\n');
+const feedbackItems = feedbackSections.slice(1).reduce((sum, section) => sum + bulletsIn(section.lines), 0); // the first part says who played; the rest are things they asked for
+const feedbackHtml = `<section class="week collapsed" id="feedback" aria-labelledby="feedback-title">
+<h2 class="week-head" id="feedback-title"><button type="button" aria-expanded="false" aria-controls="feedback-days"><span class="wname">Feedback</span><span class="range">${feedbackItems} things my friends asked for, and what changed</span><span class="caret" aria-hidden="true"></span></button></h2>
+<div class="days" id="feedback-days"><div class="day">
+<div class="todo-intro">${feedbackIntroBody}</div>
+<div class="entries">
+${feedbackEntries}
+</div></div></div>
+</section>`;
+
 // ---------- The to-do list, from docs/todo.md ----------
 const todoText = readFileSync(new URL('../docs/todo.md', here), 'utf8').replace(/\r\n/g, '\n');
 const todoIntro = []; const todoSections = [];
@@ -250,6 +278,7 @@ const weekNav = [
     return `<a class="week-link" href="#${weekId(w.week)}" data-target="${weekId(w.week)}"><span class="wl-name">${weekName(w.week)}</span><span class="wl-range">${esc(weekRange(w.week))}</span><span class="wl-count">${count}</span></a>`;
   }),
   '<a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>',
+  `<a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">${feedbackItems} things friends asked for</span></a>`,
   `<a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">${todoOpen} open, ${todoDone} done</span></a>`,
 ].join('\n');
 
@@ -272,6 +301,7 @@ const parts = {
   SETOUT: setOutHtml,
   WEEKS: weeksHtml,
   REFLECTION: reflectionHtml,
+  FEEDBACK: feedbackHtml,
   TODO: todoHtml,
 };
 let page = template;
@@ -280,4 +310,4 @@ if (/\{\{[A-Z]+\}\}/.test(page)) throw new Error('The template has a placeholder
 const expectedLength = template.length - Object.keys(parts).reduce((sum, name) => sum + `{{${name}}}`.length, 0) + Object.values(parts).reduce((sum, value) => sum + value.length, 0);
 if (page.length !== expectedLength) throw new Error(`The page is ${page.length} characters but should be ${expectedLength}. Something was added or repeated.`);
 writeFileSync(new URL('../frontend/public/logs/index.html', here), page);
-console.log(`Wrote frontend/public/logs/index.html: ${numbered.length} entries in ${weeks.length} weeks (${weeks.map((w) => weekName(w.week)).join(', ')}), plus the reflection and the to-do list (${todoOpen} open, ${todoDone} done). Every word of log.md and docs/todo.md is on the page.`);
+console.log(`Wrote frontend/public/logs/index.html: ${numbered.length} entries in ${weeks.length} weeks (${weeks.map((w) => weekName(w.week)).join(', ')}), plus the reflection, the feedback (${feedbackItems} items) and the to-do list (${todoOpen} open, ${todoDone} done). Every word of log.md, docs/feedback.md and docs/todo.md is on the page.`);

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Overloaded build log</title>
-<meta name="description" content="The build log of Overloaded, week by week: what I planned, asked the AI for, decided and dropped, and my to-do list.">
+<meta name="description" content="The build log of Overloaded, week by week: what I planned, asked the AI for, decided and dropped, what my friends said, and my to-do list.">
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="/logs/logs.css">
 <script src="/logs/logs.js" defer></script>
@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.221</span></h1>
-    <p class="lede">221 entries, Oct 25 to Nov 17, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last section is my to-do list, the plan for what is left.</p>
+    <h1>Build log <span class="version">Version 0.222</span></h1>
+    <p class="lede">222 entries, Oct 25 to Nov 17, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
   </div>
 </header>
 
@@ -24,8 +24,9 @@
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
-<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">8</span></a>
+<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">9</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
+<a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">29 things friends asked for</span></a>
 <a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">25 open, 68 done</span></a>
     </div>
     <div class="tools">
@@ -3603,7 +3604,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-2" aria-labelledby="week-2-title">
-<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">8 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">9 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-2-days">
 <div class="day">
 <h3 class="day-title">Monday 16 November <span class="day-count">5</span></h3>
@@ -3690,7 +3691,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Tuesday 17 November <span class="day-count">3</span></h3>
+<h3 class="day-title">Tuesday 17 November <span class="day-count">4</span></h3>
 <div class="entries">
 <article class="entry" id="entry-219" data-n="219">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-219-body">
@@ -3739,6 +3740,23 @@
 <p><strong>My mistakes this round:</strong> last round I put the finished items back word for word, which brought back items that were paragraphs long. Earlier I also said that only entries 205 to 218 had no written summary; <code>SUMMARIES</code> in <code>scripts/log-summaries.mjs</code> is empty, so none of the entries has one. The list now says so.</p>
   </div></div></div>
 </article>
+<article class="entry" id="entry-222" data-n="222">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-222-body">
+    <span class="num">222</span>
+    <span class="head-text"><span class="title">The friend feedback written down, and shown on the build log page</span><span class="sum">My professor's feedback for Artifact 5 was to record in the log when someone outside the team plays the game and what they said, and to note which friend feedback led to each change in the UI overhaul.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-222-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>My professor's feedback for Artifact 5 was to record in the log when someone outside the team plays the game and what they said, and to note which friend feedback led to each change in the UI overhaul. The long lists of things to change that I sent in one message were my friends' feedback (one of them was Q turning the Alt picture, another was the wheel zoom). I asked for a feedback.md that is also shown on /logs.</li></ul>
+<p><strong>What changed</strong> (<code>docs/feedback.md</code>, <code>scripts/make-logs-page.mjs</code>, <code>scripts/logs-template.html</code>, <code>scripts/check-logs-page.mjs</code>)</p>
+<ul><li><code>docs/feedback.md</code> has four lists of friend feedback, 29 things in all: log entry 173 (the wheel zoom, the hand count, the pile names and arrows, the hand sort), entry 176 (eleven changes, including Q to tap and D to draw), entries 210 and 211 (the eight points, including Q and E turning the Alt picture, the Mana icons and Add counter) and entry 212 (rulings, overlapping cards, the missing counters). Each thing is written as what they asked for and what I changed, and each list names its log entry.</li><li>/logs has a new section, &quot;Feedback&quot;, before the to-do list, with its own button in the week bar. It is built from <code>docs/feedback.md</code> by the same script as the log, which checks that every word of the file is on the page.</li><li>The first part of the file says plainly what is not recorded: who played and on which day. The dates in it are the days I gave each list to the AI.</li></ul>
+<p class="sub"><strong>Decisions</strong></p>
+<ul><li>Which messages were friend feedback is my answer, not something the log shows: entries 173, 176, 210 and 212. I added entry 211 to the 210 list because it holds points 7 and 8 of the same eight-point message. The other long lists (entries 184, 206 and 208) are not in the file.</li><li>The file says &quot;friends&quot; and gives no names.</li></ul>
+<p><strong>What I checked:</strong> the logs page check (36, all passed, with new checks that the section has one entry for each part of the file, that each list names its log entry, that all 29 things are on the page, and that the address #feedback-2 opens it). I looked at a screenshot of the section opened.</p>
+<p><strong>My mistakes this round:</strong> none found. I did not guess which messages were from friends; I listed the long ones from the log and asked.</p>
+  </div></div></div>
+</article>
 </div>
 </div>
 </div>
@@ -3764,6 +3782,63 @@
   </button></h4>
   <div class="body" id="reflection-decisions-body"><div class="body-in"><div class="body-pad">
 <ul><li>Not building a full rules engine or an AI opponent in the first plan. They can come back after the requirements are expanded.</li><li>Moved the deck builder to a stretch goal (entry 4). Importing a decklist as text comes first.</li><li>No user accounts (entry 4). Players pick a name in each lobby.</li><li>Skipped Forge's rules engine for now (entry 5). Casual mode only, where players manage their own cards.</li><li>(2026-11-06, entry 95) The real card back is used for face-down cards, against Claude's advice. If Wizards objects, a plain design replaces it. Not built yet.</li><li>(2026-11-06, entry 95) Turn over covers transform and modal cards only (list format 5). Flip, meld and reversible printings are left out for now.</li><li>(2026-11-06, entry 96) Play back is only for modal cards, which needed a new list field (md, list format 6). A copy copies only the face that shows.</li><li>(2026-11-06, entry 97) Commander damage is one entry and one node per player, so it can be moved into a specific player's panel later without changing the logic. Poison 10 and commander damage 21 from one commander are shown as lethal but never enforced.</li><li>(2026-11-06, entry 98) Summoning sickness is hybrid: automatic on a creature that comes in without printed haste, cleared by one click, and ended by the owner's next turn. &quot;Doesn't untap&quot; is set by hand only, because the card data cannot tell. Passing the turn is one small record on the passer's own branch, so it needs no database rule.</li><li>(2026-11-06, entry 99) Starting a turn at a table does not draw or untap for the player: players draw their own card and untap with the buttons, because some turns have exceptions. Only the turn number and summoning sickness are automatic.</li></ul>
+  </div></div></div>
+</article>
+</div></div></div>
+</section>
+<section class="week collapsed" id="feedback" aria-labelledby="feedback-title">
+<h2 class="week-head" id="feedback-title"><button type="button" aria-expanded="false" aria-controls="feedback-days"><span class="wname">Feedback</span><span class="range">29 things my friends asked for, and what changed</span><span class="caret" aria-hidden="true"></span></button></h2>
+<div class="days" id="feedback-days"><div class="day">
+<div class="todo-intro"><p>My friends played the game and gave me feedback, and I passed their lists to the AI as they were written. This page keeps each thing they asked for, what I changed because of it, and the log entry where the change is written up. It answers two comments from my professor: &quot;For Artifact 5, record in the log when someone outside the team plays the game and what they said&quot;, and &quot;When you do the UI overhaul, note in the log which friend feedback led to each change.&quot;</p></div>
+<div class="entries">
+<article class="entry" id="feedback-1" data-n="•">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="feedback-1-body">
+    <span class="num">•</span>
+    <span class="head-text"><span class="title">Who played, and what is not recorded yet</span><span class="sum">2 items</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="feedback-1-body"><div class="body-in"><div class="body-pad">
+<ul><li>Friends played the solo table and gave me four lists of feedback. Two lists reached the log on 13 November 2026 and two on 15 November 2026.</li><li>I did not write down who played or on which day, so the dates here are the days I gave each list to the AI. From now on I add each playtest here when it happens, with the day, who played and what they said.</li></ul>
+  </div></div></div>
+</article>
+<article class="entry" id="feedback-2" data-n="•">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="feedback-2-body">
+    <span class="num">•</span>
+    <span class="head-text"><span class="title">List 1, 13 November (log entry 173)</span><span class="sum">5 items</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="feedback-2-body"><div class="body-in"><div class="body-pad">
+<ul><li><strong>Wheel zoom on the Alt picture.</strong> While holding Alt over a card, the scroll wheel should make the larger picture bigger or smaller. Up now makes it a tenth bigger and down a tenth smaller, between half and double the normal size, and the size is kept in the browser.</li><li><strong>A smaller drop area for an empty hand.</strong> The dotted box shown when you drag a card from the battlefield to an empty hand was too big. With no cards in the hand, the drop area now starts at the bottom of the battlefield.</li><li><strong>A card count for the hand.</strong> They wanted to see how many cards they hold, like &quot;Hand: 7&quot;, when the pointer is over the hand. A small pill under the middle of the hand now shows it.</li><li><strong>Pile names with menu arrows.</strong> The library, graveyard and exile should be named above the pile like the command zone, with an arrow that opens a menu. Each pile now has its name above it and an arrow that opens the pile's menu.</li><li><strong>Sorting the hand.</strong> They wanted the hand sort that I had been skipping. I added Color, Type and Cost buttons that change how the hand is shown without changing its real order.</li></ul>
+  </div></div></div>
+</article>
+<article class="entry" id="feedback-3" data-n="•">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="feedback-3-body">
+    <span class="num">•</span>
+    <span class="head-text"><span class="title">List 2, 13 November (log entry 176)</span><span class="sum">11 items</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="feedback-3-body"><div class="body-in"><div class="body-pad">
+<ul><li><strong>Q taps and untaps.</strong> Q should do what E does. It now does.</li><li><strong>The commander tax above each commander.</strong> The tax counter now sits above each commander.</li><li><strong>Words under the command zone.</strong> The words &quot;Command zone&quot; now sit below the two slots, centred between them.</li><li><strong>Bigger pile numbers.</strong> The number on a pile should be twice as large, at the bottom of the top card, or at the bottom right when the pile is tapped. It is now twice as large and placed there.</li><li><strong>Picking several cards at once.</strong> Dragging a rectangle over empty battlefield now picks every card it touches, and E, Q and F act on all of them. Moving the whole group together was not part of this change.</li><li><strong>Mana costs only on hover.</strong> The cost of a card in the hand now shows only on the card under the pointer or the clicked card.</li><li><strong>A switch for sorting.</strong> A &quot;Sort: On / Off&quot; switch now sits next to the sort buttons.</li><li><strong>Cards you place by hand stay put.</strong> A card dragged by hand in a sorted hand now keeps its new place until a sort changes.</li><li><strong>Land order in Settings.</strong> Settings now has a row for the order of non-basic and basic lands.</li><li><strong>No text picking, and Tab opens Settings.</strong> Cards can no longer be picked up like text or reached with Tab, and Tab now opens Settings.</li><li><strong>D draws.</strong> D now draws a card.</li></ul>
+  </div></div></div>
+</article>
+<article class="entry" id="feedback-4" data-n="•">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="feedback-4-body">
+    <span class="num">•</span>
+    <span class="head-text"><span class="title">List 3, 15 November, eight points (log entries 210 and 211)</span><span class="sum">8 items</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="feedback-4-body"><div class="body-in"><div class="body-pad">
+<ul><li><strong>The carried group looked alone.</strong> Dragging picked cards showed one card with the others as a separate pile behind it. The cards are now layers inside one picture, with a count like &quot;2x&quot;.</li><li><strong>An empty order window.</strong> Clicking outside the order window left it empty, because it borrowed the hand's card buttons. It now draws its own pictures, and a click on the dark space around it does nothing else.</li><li><strong>The order window should shift cards aside.</strong> While a card is dragged, the cards between its old and new place now slide aside like in the hand, and the arrows are new icons.</li><li><strong>Blurry pile windows.</strong> The pile windows looked blurry and had a border round each card. They now use the normal-size pictures, have no frame and are wider.</li><li><strong>Q and E turn the Alt picture.</strong> With Alt held over a card, Q and E now turn the larger picture a quarter turn each way.</li><li><strong>Mana symbols.</strong> They suggested the open-source Mana icons for the tap symbol and others. I added 43 of them and draw them in a card's rules text and on counters.</li><li><strong>Add counter.</strong> A menu item on battlefield cards with the common counters, using the wiki's full list as the reference. It has 99 counters, a search box and a Custom option.</li><li><strong>A question about rulings.</strong> They asked if the card details would include rulings. I measured the cost, and built them after I said yes (list 4).</li></ul>
+  </div></div></div>
+</article>
+<article class="entry" id="feedback-5" data-n="•">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="feedback-5-body">
+    <span class="num">•</span>
+    <span class="head-text"><span class="title">List 4, 15 November (log entry 212)</span><span class="sum">5 items</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="feedback-5-body"><div class="body-in"><div class="body-pad">
+<ul><li><strong>Rulings in the card details.</strong> They said to add them, and that the storage cost on the player's side is fine. The card details now end with a Rulings section with each ruling's date and author.</li><li><strong>Picked hand cards in a row overlap.</strong> Picked cards that are next to each other should overlap as if resting. They now do.</li><li><strong>Dragged hand cards overlap on the battlefield.</strong> Several cards dragged from the hand should overlap on the battlefield and not go to a corner. The one dragged lands where it is let go and the others sit behind it.</li><li><strong>Missing counters.</strong> They asked me to check the wiki's list for counters I had missed. I compared it with the rules text of our cards and added 119, so there are 218.</li><li><strong>Top and Bottom labels off centre.</strong> The labels in the library window pushed the card off centre. The label is now drawn over the card's top edge and the card keeps its place.</li></ul>
   </div></div></div>
 </article>
 </div></div></div>

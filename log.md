@@ -4423,6 +4423,26 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 ---
 
+## 222. The friend feedback written down, and shown on the build log page (2026-11-17)
+
+**What I asked for**
+- My professor's feedback for Artifact 5 was to record in the log when someone outside the team plays the game and what they said, and to note which friend feedback led to each change in the UI overhaul. The long lists of things to change that I sent in one message were my friends' feedback (one of them was Q turning the Alt picture, another was the wheel zoom). I asked for a feedback.md that is also shown on /logs.
+
+**What changed** (`docs/feedback.md`, `scripts/make-logs-page.mjs`, `scripts/logs-template.html`, `scripts/check-logs-page.mjs`)
+- `docs/feedback.md` has four lists of friend feedback, 29 things in all: log entry 173 (the wheel zoom, the hand count, the pile names and arrows, the hand sort), entry 176 (eleven changes, including Q to tap and D to draw), entries 210 and 211 (the eight points, including Q and E turning the Alt picture, the Mana icons and Add counter) and entry 212 (rulings, overlapping cards, the missing counters). Each thing is written as what they asked for and what I changed, and each list names its log entry.
+- /logs has a new section, "Feedback", before the to-do list, with its own button in the week bar. It is built from `docs/feedback.md` by the same script as the log, which checks that every word of the file is on the page.
+- The first part of the file says plainly what is not recorded: who played and on which day. The dates in it are the days I gave each list to the AI.
+
+**Decisions**
+- Which messages were friend feedback is my answer, not something the log shows: entries 173, 176, 210 and 212. I added entry 211 to the 210 list because it holds points 7 and 8 of the same eight-point message. The other long lists (entries 184, 206 and 208) are not in the file.
+- The file says "friends" and gives no names.
+
+**What I checked:** the logs page check (36, all passed, with new checks that the section has one entry for each part of the file, that each list names its log entry, that all 29 things are on the page, and that the address #feedback-2 opens it). I looked at a screenshot of the section opened.
+
+**My mistakes this round:** none found. I did not guess which messages were from friends; I listed the long ones from the log and asked.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.
