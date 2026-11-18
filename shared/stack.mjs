@@ -18,8 +18,8 @@ export const emptyStack = () => ({ items: [], arrows: [], next: 1, past: [] });
 
 const fail = (message) => { throw new Error(message); };
 const indexOfItem = (stack, id) => stack.items.findIndex((item) => item.id === id);
-const need = (stack, id) => { const index = indexOfItem(stack, id); if (index < 0) fail('That is not on the stack.'); return index; };
-const full = (stack) => { if (stack.items.length >= MAX_ITEMS) fail(`The stack is full (${MAX_ITEMS} items at most).`); };
+const need = (stack, id) => { const index = indexOfItem(stack, id); if (index < 0) fail('Not on the stack.'); return index; };
+const full = (stack) => { if (stack.items.length >= MAX_ITEMS) fail('Stack full.'); };
 
 // The arrows that still have both ends: the ones whose item (and target item) are in the list.
 const stillThere = (arrows, items) => arrows.filter((arrow) => items.some((item) => item.id === arrow.from) && (arrow.to.item === undefined || items.some((item) => item.id === arrow.to.item)));
@@ -124,25 +124,25 @@ const CARD_UID = /^[A-Za-z0-9_-]{1,40}$/; // the uid of a real card of the game 
 // from a text box and more than MAX_ARROWS are refused in words. Returns { stack, id } (the id of the arrow) like addText.
 export function addArrow(stack, fromId, to) {
   const from = stack.items[need(stack, fromId)];
-  if (from.kind !== 'card') fail('An arrow can only start from a card of the stack.');
+  if (from.kind !== 'card') fail('Arrows start at cards.');
   let target;
   if (to && typeof to === 'object' && typeof to.item === 'string') {
-    if (to.item === fromId) fail('A card cannot point at itself.');
+    if (to.item === fromId) fail('Not itself.');
     const item = stack.items[need(stack, to.item)];
-    if (item.kind !== 'card') fail('An arrow can only point at a card.');
+    if (item.kind !== 'card') fail('Point at a card.');
     target = { item: to.item };
   } else if (to && typeof to === 'object' && typeof to.card === 'string' && CARD_UID.test(to.card)) {
     target = { card: to.card };
-  } else fail('Point the arrow at a card.');
-  if (stack.arrows.some((arrow) => arrow.from === fromId && arrow.to.item === target.item && arrow.to.card === target.card)) fail('That arrow is already there.');
-  if (stack.arrows.length >= MAX_ARROWS) fail(`There are too many arrows (${MAX_ARROWS} at most).`);
+  } else fail('Point at a card.');
+  if (stack.arrows.some((arrow) => arrow.from === fromId && arrow.to.item === target.item && arrow.to.card === target.card)) fail('Already there.');
+  if (stack.arrows.length >= MAX_ARROWS) fail('Too many arrows.');
   const id = `a${stack.next}`;
   const arrows = [...stack.arrows, { id, from: fromId, to: target }];
   return { stack: changed(stack, stack.items, { arrows, next: stack.next + 1 }), id };
 }
 
 export function removeArrow(stack, arrowId) {
-  if (!stack.arrows.some((arrow) => arrow.id === arrowId)) fail('There is no such arrow.');
+  if (!stack.arrows.some((arrow) => arrow.id === arrowId)) fail('No such arrow.');
   return changed(stack, stack.items, { arrows: stack.arrows.filter((arrow) => arrow.id !== arrowId) });
 }
 

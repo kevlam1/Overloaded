@@ -13,11 +13,12 @@ This is how I am planning Overloaded. The open work comes first, then what I dro
 
 ## Next, before the Dec 7 show and tell (proposed, not agreed)
 - [x] **Stack window, step 2: arrows.** Shift and drag from a stack card to another stack card or to a card on the battlefield, or use "Point an arrow at..." in the card's menu. The arrows follow the cards, go with the card they belong to, and are covered by Undo (log entry 227).
-- [ ] **Stack window, step 3: game history.** A log of the moves (played, tapped, drew) in its own floating window that slides out like the stack. Nothing like it exists yet; the status line only shows the last move.
+- [x] **Stack window, step 3: game history.** A thin "Game history" bar that floats like the action bar, latches to an edge, and opens downward to list the moves (log entry 228).
 - [ ] **Stack window on the live table.** Only the solo page has it. On the live table every player must see the stack and its arrows, which needs new database fields and a rules change that I paste into Firebase, so it waits until the solo version feels right.
 - [ ] **Play a real game with two players on the table page.** Most changes since Nov 11 (hand fan, floating bar, menus, card details, pile windows, 7 by 10 cards) were made and tested on the solo page only. Run `npm run test:live` and play once with two real browsers.
 - [ ] **Decide what the table page gets from the solo page before Dec 7.** The hand fan, the floating bar and the pile windows are solo only.
 - [ ] **Re-measure the cards with three opponents.** The old numbers (26 px tall at 1366 by 650) were for bigger cards. Maybe fewer columns or rows, or a slimmer opponent panel.
+- [ ] **Shorten the solo browser check.** `scripts/check-solo-ui.mjs` has about 800 checks and takes 5 minutes. Cut it down to one check per thing a player does, like the newer checks.
 - [ ] **Understand the flaky browser checks.** The solo check sometimes fails the hand lowering, "two cards played together" and the drawn-card flight checks (they pass on a rerun), and `--screenshot` crashes near the end.
 - [ ] **Fan content.** Re-read Wizards' policy in a browser (only a summarizer was read), put the disclaimer on every public page (the solo and table pages only have it under Settings), and decide about the Mana icons and the real card back.
 - [ ] **Sound files.** The source and licence of all four are not recorded (`frontend/public/sfx/credits.md`), so check them or replace them. Keep or delete the three uncommitted `commander-play-*.mp3` files.

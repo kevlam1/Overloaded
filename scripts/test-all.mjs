@@ -54,6 +54,8 @@ const suites = [
   { name: 'how much of a card shows when the hand is resting', cmd: node, args: ['scripts/test-hand-rest.mjs'] },
   { name: 'the stack window (a list of card copies and text boxes, with Undo)', cmd: node, args: ['scripts/test-stack.mjs'] },
   { name: 'where the stack window arrows start and end', cmd: node, args: ['scripts/test-arrow-geometry.mjs'] },
+  { name: 'the pause between the cards of Draw X', cmd: node, args: ['scripts/test-draw-pace.mjs'] },
+  { name: 'the game history list', cmd: node, args: ['scripts/test-game-history.mjs'] },
   { name: 'card rulings: the files the details window reads under the rules', cmd: node, args: ['scripts/test-card-rulings.mjs'] },
   { name: 'counters a card can be given: the catalog and named counters', cmd: node, args: ['scripts/test-counter-catalog.mjs'] },
   { name: 'card rules: the files the details window reads', cmd: node, args: ['scripts/test-card-rules.mjs'] },
@@ -94,6 +96,7 @@ if (!quick) {
   suites.push({ name: 'deck page in headless Chrome (needs the card list)', cmd: node, args: ['scripts/check-deck-ui.mjs'] });
   suites.push({ name: 'solo table in headless Chrome (needs the card list)', cmd: node, args: ['scripts/check-solo-ui.mjs'] });
   suites.push({ name: 'stack window in headless Chrome (needs the card list)', cmd: node, args: ['scripts/check-stack-ui.mjs'] });
+  suites.push({ name: 'history bar and hand selection in headless Chrome (needs the card list)', cmd: node, args: ['scripts/check-history-and-select-ui.mjs'] });
   suites.push({ name: 'database rules (local emulator)', cmd: process.platform === 'win32' ? 'npm.cmd' : 'npm', args: ['test'], cwd: 'backend', shell: true });
 }
 if (live) {

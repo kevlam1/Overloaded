@@ -9,8 +9,9 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 
 // bar: the element that floats (position: absolute in a full-screen parent). grip: the button inside it that moves it. store: a safe store (get, set). key: where the place is kept.
 // Returns { reset(), place() }.
-export function mountFloatingBar({ bar, grip, store, key = 'overloaded.actionBar' }) {
-  let place = readPlace(store?.get(key) ?? null) ?? { ...DEFAULT_PLACE };
+// growDown: the bar gets taller or shorter (the history bar opens downward): its top edge stays where it is instead of following its fraction of the free space.
+export function mountFloatingBar({ bar, grip, store, key = 'overloaded.actionBar', defaultPlace = DEFAULT_PLACE, growDown = false }) {
+  let place = readPlace(store?.get(key) ?? null) ?? { ...defaultPlace };
   let drag = null; // { dx, dy, pixels } while the grip is held
 
   // the three hints shown while the bar is dragged (fixed to the window, they take no mouse)
@@ -118,10 +119,17 @@ export function mountFloatingBar({ bar, grip, store, key = 'overloaded.actionBar
     }
   });
 
-  function reset() { place = { ...DEFAULT_PLACE }; show(); save(); }
+  function reset() { place = { ...defaultPlace }; show(); save(); }
 
   window.addEventListener('resize', () => { if (!drag) show(); });
-  if (typeof ResizeObserver === 'function') new ResizeObserver(() => { if (!drag) put(placeToPixels(anchored(place), size())); }).observe(bar); // its width changes when a button appears or its text does
+  let lastTop = null;
+  if (typeof ResizeObserver === 'function') new ResizeObserver(() => {
+    if (drag) return;
+    if (growDown && lastTop !== null && place.dock !== 'bottom' && place.dock !== 'top') place = { ...place, fy: pixelsToPlace({ left: bar.offsetLeft, top: lastTop }, size()).fy }; // (the same top edge: its place is worked out again for the new height)
+    put(placeToPixels(anchored(place), size()));
+    lastTop = bar.offsetTop;
+  }).observe(bar); // its width changes when a button appears or its text does
   show();
+  lastTop = bar.offsetTop;
   return { reset, place: () => ({ ...place }) };
 }

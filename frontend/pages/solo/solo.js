@@ -8,6 +8,8 @@ import { mountPileStyle } from '../../src/pile-style.js';
 import { restHidden, mountHandRestSetting } from '../../src/hand-rest.js';
 import { mountPileViewer } from '../../src/pile-viewer.js';
 import { mountStackWindow } from '../../src/stack-window.js';
+import { mountHistoryBar } from '../../src/history-bar.js';
+import { drawPause } from '../../../shared/draw-pace.mjs';
 import { mountSettingsMenu } from '../../src/settings-menu.js';
 import { createHandSort } from '../../src/hand-sort-ui.js';
 import { sortHand, anySortOn, applyPins } from '../../../shared/hand-sort.mjs';
@@ -237,7 +239,7 @@ function apply(run, message = '') {
   let made = true;
   try {
     game = run();
-    if (message) say(message);
+    if (message) { say(message); record(message); }
   } catch (error) {
     made = false;
     say(error.message, true);
@@ -370,6 +372,8 @@ function deal({ pause = 0 } = {}) {
   document.body.classList.add('playing', 'solo'); // the one-screen layout (src/style.css)
   $('blocked').hidden = true;
   dealer.start(game.zones.hand.length, { pause }); // draws the table, and deals the hand one card at a time
+  historyBar.clear();
+  record(`New game: ${plural(game.zones.hand.length, 'card', 'cards')} dealt.`);
   say(`Dealt ${plural(game.zones.hand.length, 'card', 'cards')}. ${game.zones.command.length ? `Your commander is in the command zone. Life is ${game.life}.` : `Life is ${game.life}.`}`);
 }
 
@@ -378,11 +382,12 @@ function drawOne() {
   game = result.game;
   if (!result.short) play('draw');
   say(result.short ? 'Your library is empty.' : `Drew ${game.zones.hand.find((c) => c.uid === result.drawn[0]).n}.`, result.short);
+  if (!result.short) record(`Drew ${game.zones.hand.find((c) => c.uid === result.drawn[0]).n}.`);
   render();
   if (!result.short) flyDrawn(result.drawn[0]);
 }
 
-// Draw X from the library menu: one card after another, each flying out of the library like the Draw button's (a small pause between them; under reduced motion they come at once).
+// Draw X from the library menu: one card after another, each flying out of the library like the Draw button's (a small pause between them, shorter every 5 cards after the first 10; under reduced motion they come at once).
 let drawing = false;
 async function drawCards(n) {
   if (n <= 1) { drawOne(); return; }
@@ -398,8 +403,9 @@ async function drawCards(n) {
       play('draw');
       render();
       flyDrawn(result.drawn[0]);
-      if (i < n - 1 && !reducedMotion()) await new Promise((resolve) => setTimeout(resolve, 140));
+      if (i < n - 1 && !reducedMotion()) await new Promise((resolve) => setTimeout(resolve, drawPause(i + 1))); // (faster every 5 cards after the first 10)
     }
+    if (drawn > 0) record(`Drew ${plural(drawn, 'card', 'cards')}.`);
     say(drawn === 0 ? 'Your library is empty.' : drawn < n ? `Drew ${drawn} cards: your library ran out.` : `Drew ${drawn} cards.`, drawn < n);
   } finally { drawing = false; }
 }
@@ -411,6 +417,7 @@ function goNextTurn() {
   if (!result.short) play('draw');
   const drewName = result.short ? null : game.zones.hand.find((c) => c.uid === result.drawn[0]).n;
   const untapped = held ? `everything untapped except ${held} that do not untap` : 'everything untapped';
+  record(`Turn ${game.turn}${drewName ? `: drew ${drewName}` : ''}.`);
   say(`Turn ${game.turn}: ${untapped}${drewName ? ` and you drew ${drewName}` : '. Your library is empty, so nothing was drawn'}.`, result.short);
   render();
   if (!result.short) flyDrawn(result.drawn[0]);
@@ -429,6 +436,7 @@ async function doMulligan() {
   mulliganing = false;
   try { game = mulligan(game); } catch (error) { say(error.message, true); render(); return; }
   dealer.start(game.zones.hand.length, { pause: reducedMotion() ? SHUFFLE_PAUSE_MS : 0 }); // (under reduced motion the shuffle sound still gets its pause; otherwise the animation was the pause) then the new hand one card at a time
+  record(`Mulligan ${game.mulligans}.`);
   say(`Mulligan ${game.mulligans}: a new hand of ${plural(game.zones.hand.length, 'card', 'cards')}. Put ${plural(game.mulligans, 'card', 'cards')} on the bottom of your library with the card buttons.`);
 }
 
@@ -481,6 +489,8 @@ $('untap-all').addEventListener('click', () => { play('tap'); apply(() => untapA
 mountSoundSettings($('sound-settings'));
 // ---- piles drawn diagonally or horizontally (shared/pile-style.mjs), a double click taps a card, a click on empty space deselects ----
 mountPileStyle($('pile-style-settings'));
+const historyBar = mountHistoryBar({ root: $('history-bar'), store }); // (Kevin, 2026-11-18: a thin bar like the action bar that opens downward to show the moves of this game)
+const record = (message) => historyBar.add(message, game?.turn);
 const stackWindow = mountStackWindow({ root: $('stack-window'), printedStats: (card) => printedOf(card, lookup), say }); // (Kevin, 2026-11-17: a window that slides out from the left with copies of cards, text boxes and arrows; a visual aid, the game is not touched)
 mountHandRestSetting($('hand-rest-settings'), { onChange: () => handView.arrange() }); // (the hand is made further down, but the slider only works after it is)
 const viewer = mountPileViewer({ root: $('viewer'), nodeFor: (card) => cardNodes.nodeFor(card, false), onClose: () => { viewing = null; viewTop = null; viewBottom = false; viewReveal = false; if (game) render(); } });
@@ -618,12 +628,15 @@ document.addEventListener('keydown', (event) => {
 // (Tab opens and closes Settings, and does nothing else: src/settings-menu.js)
 
 // Dragging a rectangle over the empty part of the battlefield picks up every card it touches (Kevin, 2026-11-13). E, Q and F then act on all of them; a click on empty space, Escape or a click on another card lets the group go.
+// A rectangle that starts in the area of the hand picks the cards of the HAND it touches instead (Kevin, 2026-11-18); the two are never mixed.
 // (Moving the group together is not built.)
 let marquee = null;
 let marqueeEnded = false;
-$('battlefield').addEventListener('pointerdown', (event) => {
+$('my-board').addEventListener('pointerdown', (event) => { // (the board reaches down behind the hand, so a rectangle can start in the area of the hand as well as on the battlefield)
   if (!game || event.button !== 0 || event.pointerType === 'touch' || event.target.closest('.card, .stack-hold-ring')) return;
-  marquee = { x: event.clientX, y: event.clientY, box: null, hits: new Set(), more: event.shiftKey ? new Set(multi) : new Set() };
+  const zone = handView.over(event.clientX, event.clientY) ? 'hand' : event.target.closest('#battlefield') ? 'battlefield' : null;
+  if (!zone) return;
+  marquee = { x: event.clientX, y: event.clientY, box: null, zone, hits: new Set(), more: event.shiftKey && multiZone === zone ? new Set(multi) : new Set() };
 });
 document.addEventListener('pointermove', (event) => {
   if (!marquee) return;
@@ -637,7 +650,7 @@ document.addEventListener('pointermove', (event) => {
   const right = Math.max(marquee.x, event.clientX); const bottom = Math.max(marquee.y, event.clientY);
   Object.assign(marquee.box.style, { left: `${left}px`, top: `${top}px`, width: `${right - left}px`, height: `${bottom - top}px` });
   marquee.hits = new Set(marquee.more);
-  for (const card of $('battlefield').querySelectorAll(':scope > .card')) {
+  for (const card of $(marquee.zone === 'hand' ? 'hand' : 'battlefield').querySelectorAll(':scope > .card')) {
     const r = card.getBoundingClientRect();
     const touches = r.width > 0 && r.left < right && r.right > left && r.top < bottom && r.bottom > top;
     if (touches) marquee.hits.add(card.dataset.uid);
@@ -653,10 +666,10 @@ document.addEventListener('pointerup', () => {
   marqueeEnded = true;
   setTimeout(() => { marqueeEnded = false; }, 0);
   multi.clear();
-  multiZone = 'battlefield';
+  multiZone = done.zone;
   for (const uid of done.hits) multi.add(uid);
   selected = null;
-  say(multi.size > 1 ? `${multi.size} cards picked. E or Q taps them, F flips them.` : '');
+  say(multi.size > 1 ? (done.zone === 'hand' ? `${multi.size} cards picked.` : `${multi.size} cards picked. E or Q taps them, F flips them.`) : '');
   render();
 });
 document.addEventListener('click', (event) => {

@@ -3,7 +3,7 @@
 // The list shows only the cards and the text boxes, no buttons beside them (Kevin, 2026-11-17): a card is moved by dragging it (the others glide aside to open its place, like the cards of the hand and
 // the ordering window), and everything else is in the right-click menu of the card or text box. Keyboard: Tab to an item, Alt+Up and Alt+Down move it, Delete takes it off, the Menu key opens its menu.
 // Cards are drawn with their own set of card buttons (read-only, keyed by the copy's own uid), so counters, power and toughness and badges look like they do on the battlefield.
-import { makeCardNodes } from './card-nodes.js';
+import { makeCardNodes, sharpenPicture } from './card-nodes.js';
 import { openCardMenu } from './card-menu.js';
 import { emptyStack, addCard, addText, setText, moveItem, removeItem, resolveTop, clearStack, undo, canUndo, cardCount, summary, addArrow, removeArrow, removeArrowsOf, arrowsOf, MAX_TEXT } from '../../shared/stack.mjs';
 import { arrowPath, overlaps, visible } from '../../shared/arrow-geometry.mjs';
@@ -41,12 +41,12 @@ export function mountStackWindow({ root, printedStats = () => null, say = () => 
   head.append(make('h2', 'stack-title', 'The stack'));
   const buttons = make('div', 'stack-buttons');
   const button = (label, title, onClick) => { const b = make('button', 'secondary stack-button', label); b.type = 'button'; b.title = title; b.addEventListener('click', onClick); return b; };
-  const resolveButton = button('Resolve top', 'Take the top card off the stack (and the text boxes above it). Nothing happens to your game.', () => { const result = resolveTop(stack); if (!result.resolved) return; stack = result.stack; say(`Resolved ${result.resolved.n} (it left the stack; your game is unchanged).`); draw(); });
-  const undoButton = button('Undo', 'Take back the last change to the stack', () => { if (!canUndo(stack)) return; stack = undo(stack); say('Undid the last change to the stack.'); draw(); });
-  const textButton = button('Add text', 'Add a text box at the top of the stack', () => addNote(0));
-  const clearButton = button('Clear', 'Take everything off the stack (Undo brings it back)', () => { stack = clearStack(stack); say('Cleared the stack.'); draw(); });
+  const resolveButton = button('Resolve top', 'Remove the top card', () => { const result = resolveTop(stack); if (!result.resolved) return; stack = result.stack; say(`Resolved ${result.resolved.n}.`); draw(); });
+  const undoButton = button('Undo', 'Undo', () => { if (!canUndo(stack)) return; stack = undo(stack); say('Undone.'); draw(); });
+  const textButton = button('Add note', 'Add a note at the top', () => addNote(0));
+  const clearButton = button('Clear', 'Remove everything', () => { stack = clearStack(stack); say('Cleared.'); draw(); });
   buttons.append(resolveButton, undoButton, textButton, clearButton);
-  head.append(buttons, make('p', 'stack-hint', 'The top of the stack is the highest. Drag a card to move it. Hold Shift and drag from a card to another card to point an arrow at it. Right-click a card or a text box for more.'));
+  head.append(buttons, make('p', 'stack-hint', 'Drag to reorder. Shift+drag a card to aim an arrow.'));
   const live = make('p', 'sr-only');
   live.setAttribute('role', 'status');
   live.setAttribute('aria-live', 'polite');
@@ -61,6 +61,9 @@ export function mountStackWindow({ root, printedStats = () => null, say = () => 
   const head2 = svgEl('marker', { id: 'stack-arrowhead', viewBox: '0 0 12 12', markerWidth: 13, markerHeight: 13, refX: 9, refY: 6, orient: 'auto', markerUnits: 'userSpaceOnUse' });
   head2.append(svgEl('path', { d: 'M1 1 L11 6 L1 11 L3.5 6 Z', fill: 'currentColor' }));
   defs.append(head2);
+  const dot = svgEl('marker', { id: 'stack-arrowdot', viewBox: '0 0 10 10', markerWidth: 10, markerHeight: 10, refX: 5, refY: 5, orient: 'auto', markerUnits: 'userSpaceOnUse' }); // (a small dot where the arrow starts)
+  dot.append(svgEl('circle', { cx: 5, cy: 5, r: 4, fill: 'currentColor' }));
+  defs.append(dot);
   layer.append(defs);
   document.body.append(layer);
   window.addEventListener('resize', () => { layer.setAttribute('width', String(window.innerWidth)); layer.setAttribute('height', String(window.innerHeight)); });
@@ -68,7 +71,7 @@ export function mountStackWindow({ root, printedStats = () => null, say = () => 
   let draft = null; // an arrow being drawn: { from, x, y, path }
   let frameId = 0;
   let hoverTarget = null; // the element the arrow being drawn would point at (it gets a mark)
-  const draftPath = svgEl('path', { class: 'stack-arrow-draft', fill: 'none', 'marker-end': 'url(#stack-arrowhead)' });
+  const draftPath = svgEl('path', { class: 'stack-arrow-draft', fill: 'none', 'marker-start': 'url(#stack-arrowdot)', 'marker-end': 'url(#stack-arrowhead)' });
   draftPath.style.display = 'none';
   layer.append(draftPath);
 
@@ -116,11 +119,11 @@ export function mountStackWindow({ root, printedStats = () => null, say = () => 
       const g = svgEl('g', { class: 'stack-arrow' });
       g.dataset.id = arrow.id;
       const halo = svgEl('path', { class: 'stack-arrow-halo', fill: 'none' });
-      const line = svgEl('path', { class: 'stack-arrow-line', fill: 'none', 'marker-end': 'url(#stack-arrowhead)' });
+      const line = svgEl('path', { class: 'stack-arrow-line', fill: 'none', 'marker-start': 'url(#stack-arrowdot)', 'marker-end': 'url(#stack-arrowhead)' });
       const hit = svgEl('path', { class: 'stack-arrow-hit', fill: 'none' });
       hit.addEventListener('contextmenu', (event) => {
         event.preventDefault();
-        openCardMenu({ title: 'Arrow', items: [{ id: 'remove', label: 'Remove arrow' }], x: event.clientX, y: event.clientY, returnFocus: tab, onPick: () => act((s) => removeArrow(s, arrow.id), 'Removed an arrow.') });
+        openCardMenu({ title: 'Arrow', items: [{ id: 'remove', label: 'Remove' }], x: event.clientX, y: event.clientY, returnFocus: tab, onPick: () => act((s) => removeArrow(s, arrow.id), 'Arrow removed.') });
       });
       g.append(halo, line, hit);
       layer.insertBefore(g, draftPath);
@@ -167,12 +170,12 @@ export function mountStackWindow({ root, printedStats = () => null, say = () => 
       if (draft !== mine) return false; // (it was cancelled already: Escape, a right click, or the window slid away)
       const hit = targetAt(event.clientX, event.clientY, fromId);
       stop(); endDraft();
-      if (!hit) { say('No arrow drawn: let go on a card.'); return false; }
-      try { const made = addArrow(stack, fromId, hit.target); stack = made.stack; say(`Pointed ${sourceName} at ${hit.name}.`); draw(); } catch (error) { say(error.message, true); }
+      if (!hit) { say('No target.'); return false; }
+      try { const made = addArrow(stack, fromId, hit.target); stack = made.stack; say(`Arrow: ${sourceName} to ${hit.name}.`); draw(); } catch (error) { say(error.message, true); }
       return true;
     };
     const cancel = () => { if (draft !== mine) return; stop(); endDraft(); };
-    const key = (event) => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); cancel(); say('No arrow drawn.'); } };
+    const key = (event) => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); cancel(); say('Cancelled.'); } };
     document.addEventListener('pointermove', move, true);
     document.addEventListener('keydown', key, true);
     document.addEventListener('contextmenu', cancel, true);
@@ -196,7 +199,7 @@ export function mountStackWindow({ root, printedStats = () => null, say = () => 
     };
     aim = startArrow(fromId, null, null, () => document.removeEventListener('pointerdown', down, true));
     if (!aim) return;
-    say('Click the card the arrow should point at. Escape cancels.');
+    say('Click a target. Esc cancels.');
     document.addEventListener('pointerdown', down, true);
   }
 
@@ -206,7 +209,7 @@ export function mountStackWindow({ root, printedStats = () => null, say = () => 
     if (open) scheduleFrame(); else if (draft) endDraft();
     root.dataset.open = open ? 'true' : 'false';
     tab.setAttribute('aria-expanded', String(open));
-    tab.title = open ? 'Slide the stack away' : 'Slide the stack out';
+    tab.title = open ? 'Hide the stack' : 'Show the stack';
     panel.inert = !open; // (hidden from the keyboard and screen readers while it is slid away)
     if (open && focus) (list.querySelector('.stack-item') ?? tab).focus({ preventScroll: true });
   }
@@ -229,12 +232,12 @@ export function mountStackWindow({ root, printedStats = () => null, say = () => 
     if (at < last) lines.push({ id: 'down', label: 'Move down' });
     if (at > 0) lines.push({ id: 'top', label: 'Move to top' });
     if (at < last) lines.push({ id: 'bottom', label: 'Move to bottom' });
-    lines.push({ id: 'text', label: 'Add text below' });
+    lines.push({ id: 'text', label: 'Note below' });
     if (item.kind === 'card') {
-      lines.push({ id: 'arrow', label: 'Point an arrow at...' });
-      if (arrowsOf(stack, item.id).length > 0) lines.push({ id: 'unarrow', label: 'Remove its arrows' });
+      lines.push({ id: 'arrow', label: 'Aim arrow...' });
+      if (arrowsOf(stack, item.id).length > 0) lines.push({ id: 'unarrow', label: 'Remove arrows' });
     }
-    lines.push({ id: 'remove', label: item.kind === 'card' ? 'Take off the stack' : 'Remove text box' });
+    lines.push({ id: 'remove', label: 'Remove' });
     return lines;
   }
   function pick(item, choice) {
@@ -246,15 +249,15 @@ export function mountStackWindow({ root, printedStats = () => null, say = () => 
     else if (choice === 'bottom') act((s) => moveItem(s, item.id, s.items.length - 1), '', item.id);
     else if (choice === 'text') addNote(at + 1);
     else if (choice === 'arrow') aimByClick(item.id);
-    else if (choice === 'unarrow') act((s) => removeArrowsOf(s, item.id), 'Removed its arrows.');
-    else if (choice === 'remove') act((s) => removeItem(s, item.id), item.kind === 'card' ? `Took ${item.card.n} off the stack.` : 'Removed a text box.');
+    else if (choice === 'unarrow') act((s) => removeArrowsOf(s, item.id), 'Arrows removed.');
+    else if (choice === 'remove') act((s) => removeItem(s, item.id), item.kind === 'card' ? `Removed ${item.card.n}.` : 'Removed note.');
   }
   function openMenu(item, li, event) {
     event.preventDefault();
     const fromKeyboard = event.clientX === 0 && event.clientY === 0;
     const box = li.getBoundingClientRect();
     openCardMenu({
-      title: item.kind === 'card' ? item.card.n : 'Text box',
+      title: item.kind === 'card' ? item.card.n : 'Note',
       items: menuFor(item),
       x: fromKeyboard ? box.left + box.width / 2 : event.clientX, y: fromKeyboard ? box.top + box.height / 2 : event.clientY,
       returnFocus: li,
@@ -273,9 +276,9 @@ export function mountStackWindow({ root, printedStats = () => null, say = () => 
     li.dataset.id = item.id;
     li.dataset.kind = 'card';
     li.tabIndex = 0;
-    li.setAttribute('aria-label', `${item.card.n}${item.id === topId ? ', top of the stack' : ''}. Alt and the arrow keys move it, Delete takes it off the stack.`);
+    li.setAttribute('aria-label', `${item.card.n}${item.id === topId ? ', top' : ''}. Alt+arrows move, Delete removes.`);
     if (item.id === topId) li.dataset.top = 'true';
-    li.append(nodes.nodeFor(item.card, true));
+    li.append(sharpenPicture(nodes.nodeFor(item.card, true))); // (the normal size of the picture: the small one was blurry at this size)
     li.addEventListener('contextmenu', (event) => openMenu(item, li, event));
     li.addEventListener('keydown', (event) => onItemKey(item, event));
     return li;
@@ -286,16 +289,16 @@ export function mountStackWindow({ root, printedStats = () => null, say = () => 
     li.dataset.id = item.id;
     li.dataset.kind = 'text';
     li.tabIndex = 0;
-    li.setAttribute('aria-label', 'Text box. Alt and the arrow keys move it, Delete removes it.');
+    li.setAttribute('aria-label', 'Note. Alt+arrows move, Delete removes.');
     const grip = make('span', 'stack-grip');
     grip.setAttribute('aria-hidden', 'true');
-    grip.title = 'Drag to move this text box';
+    grip.title = 'Drag';
     const field = make('textarea', 'stack-note');
     field.value = item.text;
     field.rows = 2;
     field.maxLength = MAX_TEXT;
-    field.placeholder = 'Write a note (for example: target, or what it does)';
-    field.setAttribute('aria-label', 'Text box on the stack');
+    field.placeholder = 'Note';
+    field.setAttribute('aria-label', 'Note');
     // The change is kept when the box is left (one step for Undo, not one per letter). A box left empty is taken away: nothing to keep.
     field.addEventListener('blur', () => {
       if (!field.isConnected || indexOf(item.id) < 0) return;
@@ -315,7 +318,7 @@ export function mountStackWindow({ root, printedStats = () => null, say = () => 
     const before = new Map([...list.children].filter((node) => node.dataset.id).map((node) => [node.dataset.id, node.getBoundingClientRect()]));
     const topId = stack.items.find((item) => item.kind === 'card')?.id ?? null;
     const items = stack.items.map((item) => (item.kind === 'card' ? cardItem(item, topId) : textItem(item)));
-    if (items.length === 0) items.push(make('li', 'stack-empty', 'Nothing on the stack. Right-click a card and choose "Add to the stack".'));
+    if (items.length === 0) items.push(make('li', 'stack-empty', 'Right-click a card to add it.'));
     list.replaceChildren(...items);
     const count = cardCount(stack);
     tabCount.textContent = String(count);
@@ -415,7 +418,7 @@ export function mountStackWindow({ root, printedStats = () => null, say = () => 
   return {
     // Puts a copy of the card on top of the stack and slides the window out so the player sees it.
     add(card) {
-      try { stack = addCard(stack, card); say(`Added ${card.n} to the stack.`); setOpen(true); draw(); return true; } catch (error) { say(error.message, true); return false; }
+      try { stack = addCard(stack, card); say(`Stacked ${card.n}.`); setOpen(true); draw(); return true; } catch (error) { say(error.message, true); return false; }
     },
     open: () => setOpen(true),
     close: () => setOpen(false),

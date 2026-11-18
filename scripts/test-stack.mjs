@@ -46,7 +46,7 @@ const edited = setText(withText.stack, 's3', '  new   words ');
 same('setting the text changes it, tidied', names(edited), ['Lightning Bolt', '[new words]', 'Grizzly Bears']);
 same('the same text is not a change (the same stack, no step for Undo)', setText(edited, 's3', 'new words') === edited, true);
 throws('a card has no text to set', () => setText(stack, 's1', 'x'), /text box/);
-throws('an item that is not there has no text', () => setText(stack, 'nope', 'x'), /not on the stack/);
+throws('an item that is not there has no text', () => setText(stack, 'nope', 'x'), /Not on the stack/);
 
 // moving
 let moved = moveItem(stack, 's1', 0);
@@ -55,12 +55,12 @@ same('moving where it already is changes nothing (the same stack)', moveItem(sta
 same('moving the LAST item past the end, or the FIRST before the start, is not a change (the same stack, no step for Undo)', [moveItem(stack, 's1', 50) === stack, moveItem(stack, 's2', -5) === stack], [true, true]);
 same('a place past the end is the bottom, before the start the top', [names(moveItem(stack, 's2', 50)), names(moveItem(stack, 's1', -3))], [['Grizzly Bears', 'Lightning Bolt'], ['Grizzly Bears', 'Lightning Bolt']]);
 same('a card moves past a text box', names(moveItem(withText.stack, 's2', 2)), ['[target: Bears]', 'Grizzly Bears', 'Lightning Bolt']);
-throws('moving what is not there is refused', () => moveItem(stack, 'nope', 0), /not on the stack/);
+throws('moving what is not there is refused', () => moveItem(stack, 'nope', 0), /Not on the stack/);
 throws('moving to a place that is not a number is refused', () => moveItem(stack, 's1', 'top'), /place in the list/);
 
 // removing
 same('an item can be taken off from the middle', names(removeItem(withText.stack, 's3')), ['Lightning Bolt', 'Grizzly Bears']);
-throws('removing what is not there is refused', () => removeItem(stack, 'nope'), /not on the stack/);
+throws('removing what is not there is refused', () => removeItem(stack, 'nope'), /Not on the stack/);
 
 // the top card and resolving
 same('the top card is the first card, a text box above it does not count', topCard(addText(stack, 0, 'note').stack).card.n, 'Lightning Bolt');
@@ -107,26 +107,26 @@ const toItem = addArrow(ar, 's3', { item: 's1' });
 same('an arrow from one card of the stack to another', toItem.stack.arrows, [{ id: 'a4', from: 's3', to: { item: 's1' } }]);
 same('adding an arrow does not change the stack it started from (frozen), keeps the items, and uses the next id', [ar.arrows, toItem.stack.items === ar.items, toItem.stack.next], [[], true, 5]);
 same('an arrow can be undone, and Undo gives the arrows back as they were', [undo(toItem.stack).arrows, undo(undo(toItem.stack)).arrows.length], [[], 0]);
-throws('an arrow from an item that is not there is refused', () => addArrow(ar, 'nope', { card: 'c1' }), /not on the stack/);
-throws('an arrow to an item that is not there is refused', () => addArrow(ar, 's3', { item: 'nope' }), /not on the stack/);
+throws('an arrow from an item that is not there is refused', () => addArrow(ar, 'nope', { card: 'c1' }), /Not on the stack/);
+throws('an arrow to an item that is not there is refused', () => addArrow(ar, 's3', { item: 'nope' }), /Not on the stack/);
 throws('a card cannot point at itself', () => addArrow(ar, 's3', { item: 's3' }), /itself/);
-throws('an arrow cannot start from a text box', () => addArrow(addText(ar, 0, 'note').stack, 's4', { card: 'c1' }), /start from a card/);
-throws('an arrow cannot point at a text box', () => addArrow(addText(ar, 0, 'note').stack, 's3', { item: 's4' }), /point at a card/);
-throws('no target, junk and a bad uid are refused', () => addArrow(ar, 's3', null), /Point the arrow/);
-throws('a target that is a number is refused', () => addArrow(ar, 's3', 7), /Point the arrow/);
-throws('a uid with odd characters is refused', () => addArrow(ar, 's3', { card: 'c1 <b>' }), /Point the arrow/);
-throws('a uid that is empty is refused', () => addArrow(ar, 's3', { card: '' }), /Point the arrow/);
-throws('a uid that is too long is refused', () => addArrow(ar, 's3', { card: 'c'.repeat(41) }), /Point the arrow/);
+throws('an arrow cannot start from a text box', () => addArrow(addText(ar, 0, 'note').stack, 's4', { card: 'c1' }), /start at cards/);
+throws('an arrow cannot point at a text box', () => addArrow(addText(ar, 0, 'note').stack, 's3', { item: 's4' }), /Point at a card/);
+throws('no target, junk and a bad uid are refused', () => addArrow(ar, 's3', null), /Point at a card/);
+throws('a target that is a number is refused', () => addArrow(ar, 's3', 7), /Point at a card/);
+throws('a uid with odd characters is refused', () => addArrow(ar, 's3', { card: 'c1 <b>' }), /Point at a card/);
+throws('a uid that is empty is refused', () => addArrow(ar, 's3', { card: '' }), /Point at a card/);
+throws('a uid that is too long is refused', () => addArrow(ar, 's3', { card: 'c'.repeat(41) }), /Point at a card/);
 same('a uid of 40 letters is fine', addArrow(ar, 's3', { card: 'c'.repeat(40) }).stack.arrows.length, 1);
-throws('the same arrow twice is refused', () => addArrow(toItem.stack, 's3', { item: 's1' }), /already there/);
+throws('the same arrow twice is refused', () => addArrow(toItem.stack, 's3', { item: 's1' }), /Already there/);
 same('two arrows from one card to different targets, and the same target from different cards', [addArrow(toItem.stack, 's3', { item: 's2' }).stack.arrows.length, addArrow(toItem.stack, 's2', { item: 's1' }).stack.arrows.length], [2, 2]);
 same('an arrow to a card of the stack and one to a real card with the same text are different', addArrow(addArrow(ar, 's3', { card: 's1' }).stack, 's3', { item: 's1' }).stack.arrows.length, 2);
 { let many = ar; for (let n = 0; n < MAX_ARROWS; n++) many = addArrow(many, 's3', { card: 'c' + n }).stack;
   same('the stack holds 24 arrows', many.arrows.length, MAX_ARROWS);
-  throws('a 25th arrow is refused in words', () => addArrow(many, 's3', { card: 'extra' }), /too many/); }
+  throws('a 25th arrow is refused in words', () => addArrow(many, 's3', { card: 'extra' }), /Too many/); }
 // removing arrows
 same('an arrow is removed by its id', removeArrow(toItem.stack, 'a4').arrows, []);
-throws('removing an arrow that is not there is refused', () => removeArrow(toItem.stack, 'a99'), /no such arrow/);
+throws('removing an arrow that is not there is refused', () => removeArrow(toItem.stack, 'a99'), /No such arrow/);
 same('removing one of two arrows keeps the other', removeArrow(addArrow(toItem.stack, 's2', { card: 'c9' }).stack, 'a4').arrows.map((x) => x.id), ['a5']);
 same('removing an arrow can be undone', undo(removeArrow(toItem.stack, 'a4')).arrows.length, 1);
 const two = addArrow(toItem.stack, 's2', { card: 'c9' }).stack;

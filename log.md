@@ -4530,6 +4530,28 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **My AI's mistakes this time:** my first version of "Point an arrow at..." swallowed every click for 400 ms after it, so a quick click on the next thing was lost (the check for removing an arrow caught it; it now swallows only that one click). `isRect` returned `null` instead of `false`, and one test of mine assumed the arrow ended at the centre of the target's bottom edge when it leans toward where it starts.
 
+## 228. Right-angle arrows, a game history bar, hand drag-select, and shorter texts and tests (2026-11-18)
+
+**What I asked for**
+- A list in one message: shorter UI texts (the AI writes too much), fix the stack, arrows with straight lines and 90 degree corners instead of curves, stack cards that are low in opacity and blurry, drag-select for the cards of the hand, Draw X speeding up after 10 cards every 5 cards, a game history bar that works like the control bar (thin, opens downward, latches to a side, can be dragged out), and shorter tests.
+
+**What changed** (`shared/arrow-geometry.mjs`, `shared/stack.mjs`, `frontend/src/stack-window.js`, `shared/draw-pace.mjs`, `shared/game-history.mjs`, `frontend/src/history-bar.js`, `frontend/src/floating-bar.js`, `frontend/pages/solo/solo.js`, `frontend/pages/solo/index.html`, `frontend/src/style.css`, and the tests)
+- **Texts:** every text of the stack window is a few words now ("Drag to reorder. Shift+drag a card to aim an arrow.", "Stack full.", "Resolved Sol Ring.", "Note below", "Remove"). The refusals in `shared/stack.mjs` are short too.
+- **Stack cards:** they were greyed because a read-only card button is a disabled button, and blurry because they used the small picture. They are fully opaque now and use the normal-size picture.
+- **Arrows:** straight segments with right-angle corners (rounded by 7 px so they look clean), a dot where the arrow starts and an arrowhead where it ends. Between two stack cards it runs out to the right, along and back in; to a battlefield card it goes across, up or down, and into the middle of the nearest side (or the top or bottom edge when the card is above or below). `shared/arrow-geometry.mjs` was rewritten.
+- **Hand drag-select:** a rectangle that starts in the area of the hand picks the cards of the hand it touches (the old rectangle on the battlefield still picks battlefield cards; the two are never mixed). The listener moved to the board, which reaches down behind the hand.
+- **Draw X:** 140 ms between cards for the first 10, then 30% shorter every 5 cards, down to 25 ms (`shared/draw-pace.mjs`).
+- **Game history bar:** a thin bar "Game history" with a grip, a count and a chevron. It floats with the same code as the action bar (drag by the grip, a strip and dotted lines show where it latches, near an edge it docks, drag it out and it is free) and opens downward when its title is clicked, listing the moves with the newest first (played, moved, tapped, drew, next turn, mulligan). It starts docked at the right edge, keeps its place and whether it is open, and a new game empties it. `mountFloatingBar` got two options for it: a default place, and `growDown` so the top edge stays where it is when the bar opens.
+
+**What I checked:** the tests got smaller, as asked. `scripts/check-stack-ui.mjs` went from 88 checks to 25; the new `scripts/check-history-and-select-ui.mjs` has 10; `scripts/test-arrow-geometry.mjs` 15 (it was 24), `scripts/test-draw-pace.mjs` 6 and `scripts/test-game-history.mjs` 7. I looked at screenshots of the arrows and of the open history bar. The solo check (798 checks, 5 minutes) is the long one and I did not shorten it; it is on the to-do list. I did not check phone width, a light theme screenshot, or how the speed-up feels.
+
+**Decisions**
+- Straight lines with small rounded corners, not sharp ones, because a sharp polyline looked rough; the radius is a constant if I want it sharp.
+- The history bar docks to the right edge by default, below the menu button, so it does not cover the action bar or the life total.
+- The history keeps only successful moves, not hints or refusals.
+
+**My AI's mistakes this time:** the history bar first sat over the Settings menu (the same level and later in the page), which broke the Settings pill test; I gave the bar a lower level. The first hand test started the rectangle on a card, then on a spot the battlefield did not cover, which showed the listener had to be on the board. A shell command with a quote failed and ran nothing, so I wrote those files another way. I also first put the draw-pace import one folder too shallow.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.
