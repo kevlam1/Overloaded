@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.224</span></h1>
-    <p class="lede">224 entries, Oct 25 to Nov 17, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
+    <h1>Build log <span class="version">Version 0.225</span></h1>
+    <p class="lede">225 entries, Oct 25 to Nov 17, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
   </div>
 </header>
 
@@ -24,7 +24,7 @@
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
-<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">11</span></a>
+<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">12</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
 <a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">29 things friends asked for</span></a>
 <a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">28 open, 68 done</span></a>
@@ -3604,7 +3604,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-2" aria-labelledby="week-2-title">
-<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">11 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">12 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-2-days">
 <div class="day">
 <h3 class="day-title">Monday 16 November <span class="day-count">5</span></h3>
@@ -3691,7 +3691,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Tuesday 17 November <span class="day-count">6</span></h3>
+<h3 class="day-title">Tuesday 17 November <span class="day-count">7</span></h3>
 <div class="entries">
 <article class="entry" id="entry-219" data-n="219">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-219-body">
@@ -3788,6 +3788,22 @@
 <p class="sub"><strong>Decisions</strong></p>
 <ul><li>Left edge, in the middle, so it stays clear of the life total at the top left and the hand and zones at the bottom.</li><li>A copy, not a pointer to the real card, because I asked for the counters and the power and toughness at that time to stay with it.</li><li>Resolve top removes the text boxes above the top card too, because they were notes about it.</li><li>Not in this step: the arrows (step 2), the game history window (step 3), and the live table. The live table needs new database fields and a rules change, so it waits until the solo version feels right. The three steps are in <code>docs/todo.md</code>.</li><li>The stack cards do not take the pointer, so the enlarged picture on Alt does not work over them yet.</li></ul>
 <p><strong>My AI's mistakes this time:</strong> it wrote <code>\u</code> escapes that the editing tool turned into real invisible characters (the hygiene check caught that), a shell command removed a backslash from <code>\s</code> (the test caught that), and my first drag check compared card names when two cards had the same name.</p>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-225" data-n="225">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-225-body">
+    <span class="num">225</span>
+    <span class="head-text"><span class="title">The stack window without buttons, with smooth moving</span><span class="sum">After looking at the first stack window I said the stack should just be the card with no buttons next to it, because that looked horrible.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-225-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>After looking at the first stack window I said the stack should just be the card with no buttons next to it, because that looked horrible. Moving a card should be smooth and flexible like in the hand or the ordering window. The text box looked fine, but I wanted its buttons gone too.</li></ul>
+<p><strong>What changed</strong> (<code>frontend/src/stack-window.js</code>, <code>frontend/src/style.css</code>, <code>scripts/check-stack-ui.mjs</code>, <code>CLAUDE.md</code>)</p>
+<ul><li>A card in the stack is only the card now, and a text box is only the box with a dotted strip at its top to drag it by. The Up, Down, Text below and Remove buttons are gone. The window is narrower (13.5rem instead of 19.5rem). The four buttons at the top (Resolve top, Undo, Add text, Clear) stay, and a small line of words says how it works.</li><li>A card is dragged with the mouse and follows the pointer. The cards it passes slide aside to open its place, the same way as in the ordering window, and when it is let go everything glides to its place. A new card fades in from a little above, and when one is taken away the ones below glide up. Under reduced motion they change places at once.</li><li>Everything the buttons did is in the right-click menu of a card or text box (Move up, Move down, Move to top, Move to bottom, Add text below, Take off the stack or Remove text box). The keyboard works too: Tab to an item, Alt and the up or down arrow move it, Delete takes it off, the Menu key opens its menu. I took away the &quot;Top of the stack&quot; label on the first card, so the first card is only marked for screen readers; the line at the top of the window says the top is the highest.</li><li>A text box that is left empty is taken away when you click out of it.</li></ul>
+<p><strong>What I checked:</strong> <code>scripts/check-stack-ui.mjs</code> now has 61 checks (it was 41), in real headless Chrome: no buttons in the list, the menus for the top card, the bottom card and a text box, the keyboard keys, a real mouse drag where the passed items get a <code>translate</code> and a transition, a text box dragged by its strip, and with animation on that animations are running right after a drop and have settled after half a second. I looked at a screenshot at desktop width. I did not check how the glide looks to a person, only that it runs; I did not check phone width or touch.</p>
+<p class="sub"><strong>Decisions</strong></p>
+<ul><li>Drag by the card itself, and by the strip for a text box, because the textarea has to stay clickable for typing.</li><li>Taking an empty note away on blur, so there are no empty boxes left behind. I did not ask about that; it is easy to turn off.</li><li>Not done: the list does not scroll by itself when a card is dragged near its top or bottom edge, and the Alt picture does not show over the stack's cards.</li></ul>
   </div></div></div>
 </article>
 </div>

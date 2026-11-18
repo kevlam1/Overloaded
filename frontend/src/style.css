@@ -1550,42 +1550,32 @@ body.playing.solo .pile-head .pile-caret { width: 1.05rem; height: 1.05rem; bord
 .viewer-overlay { align-items: flex-start; }
 .viewer-window { min-height: min(34rem, 100%); }
 
-/* The stack window (Kevin, 2026-11-17, solo table): a panel that slides out from the left edge with copies of cards (the top of the stack highest) and text boxes between them. The tab stays at the edge. */
-.stack-window { --stack-w: 18rem; position: fixed; left: 0; top: 6.5rem; bottom: 13rem; z-index: 47; display: flex; align-items: stretch; transform: translateX(calc(-1 * var(--stack-w))); pointer-events: none; }
+/* The stack window (Kevin, 2026-11-17, solo table): a panel that slides out from the left edge with copies of cards (the top of the stack highest) and text boxes between them. The tab stays at the edge.
+   The list shows only the cards and the text boxes, no buttons beside them: a card is dragged, and the rest is in its right-click menu. */
+.stack-window { --stack-w: 13.5rem; position: fixed; left: 0; top: 6.5rem; bottom: 13rem; z-index: 47; display: flex; align-items: stretch; transform: translateX(calc(-1 * var(--stack-w))); pointer-events: none; }
 .stack-window[data-open="true"] { transform: translateX(0); }
 @media (prefers-reduced-motion: no-preference) { .stack-window { transition: transform 0.22s ease; } }
 .stack-panel { width: var(--stack-w); display: flex; flex-direction: column; gap: 0.4rem; padding: 0.5rem; background: var(--card); color: var(--text); border: 1px solid var(--line); border-left: 0; border-radius: 0 0.7rem 0.7rem 0; box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.35); pointer-events: auto; min-height: 0; }
 .stack-head { display: flex; flex-direction: column; gap: 0.35rem; }
 .stack-title { margin: 0; font-size: 1rem; }
-.stack-buttons { display: flex; flex-wrap: wrap; gap: 0.3rem; }
-.stack-button { padding: 0.2rem 0.55rem; font-size: 0.82rem; min-height: 0; }
-.stack-button:disabled, .stack-small:disabled { opacity: 0.45; cursor: default; }
+.stack-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 0.3rem; }
+.stack-button { padding: 0.2rem 0.4rem; font-size: 0.8rem; min-height: 0; white-space: nowrap; }
+.stack-button:disabled { opacity: 0.45; cursor: default; }
+.stack-hint { margin: 0; color: var(--muted); font-size: 0.72rem; line-height: 1.3; }
 .stack-tab { align-self: center; pointer-events: auto; display: flex; flex-direction: column; align-items: center; gap: 0.35rem; padding: 0.7rem 0.35rem; border: 1px solid var(--line); border-left: 0; border-radius: 0 0.6rem 0.6rem 0; background: var(--card); color: var(--text); box-shadow: 0 0.3rem 1rem rgba(0, 0, 0, 0.3); cursor: pointer; font: inherit; }
 .stack-tab:hover { background: color-mix(in srgb, var(--accent) 12%, var(--card)); }
 .stack-tab:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 .stack-tab-word { writing-mode: vertical-rl; letter-spacing: 0.08em; font-size: 0.85rem; font-weight: 600; }
 .stack-tab-count { min-width: 1.3rem; padding: 0 0.3rem; border-radius: 0.7rem; background: var(--accent); color: var(--accent-text); font-size: 0.75rem; font-weight: 700; text-align: center; }
-.stack-list { list-style: none; margin: 0; padding: 0.1rem; display: flex; flex-direction: column; gap: 0.45rem; overflow-y: auto; min-height: 0; flex: 1 1 auto; }
-.stack-item { position: relative; display: flex; flex-direction: column; align-items: center; gap: 0.25rem; padding: 0.3rem; border-radius: 0.5rem; border: 1px dashed transparent; touch-action: pan-y; }
-.stack-card { cursor: grab; }
-.stack-item.dragging { z-index: 2; opacity: 0.9; cursor: grabbing; box-shadow: 0 0.4rem 1rem rgba(0, 0, 0, 0.4); background: var(--card); }
-.stack-item.drop-before::before, .stack-item.drop-end::after { content: ""; position: absolute; left: 0.2rem; right: 0.2rem; height: 3px; border-radius: 2px; background: var(--accent); }
-.stack-item.drop-before::before { top: -0.3rem; }
-.stack-item.drop-end::after { bottom: -0.3rem; }
-.stack-label { align-self: stretch; padding: 0 0.45rem; border-radius: 0.7rem; background: var(--accent); color: var(--accent-text); font-size: 0.68rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; text-align: center; }
-.stack-card-box { width: 8.5rem; }
-.stack-card-box .card { width: 100%; height: auto; aspect-ratio: 488 / 680; position: relative; pointer-events: none; border: 0; padding: 0; background: none; box-shadow: none; border-radius: 4.8% / 3.4%; }
-.stack-card-box .card .face { width: 100%; height: 100%; border-radius: 4.8% / 3.4%; overflow: hidden; }
-.stack-controls { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.25rem; }
-.stack-small { padding: 0.1rem 0.4rem; font-size: 0.72rem; min-height: 0; border: 1px solid var(--line); border-radius: 0.4rem; background: transparent; color: var(--text); cursor: pointer; font-family: inherit; }
-.stack-small:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 12%, transparent); }
-.stack-text { align-items: stretch; border-color: var(--line); background: color-mix(in srgb, var(--text) 4%, transparent); }
-.stack-note { width: 100%; resize: vertical; min-height: 2.6rem; padding: 0.3rem 0.4rem; border: 1px solid var(--line); border-radius: 0.4rem; background: var(--bg); color: var(--text); font: inherit; font-size: 0.85rem; }
+.stack-list { list-style: none; margin: 0; padding: 0.2rem 0.1rem; display: flex; flex-direction: column; gap: 0.5rem; overflow-y: auto; overflow-x: hidden; min-height: 0; flex: 1 1 auto; }
+.stack-item { position: relative; border-radius: 0.5rem; touch-action: pan-y; }
+.stack-item:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.stack-card { width: 9.5rem; align-self: center; flex: none; cursor: grab; }
+.stack-item.dragging { z-index: 2; cursor: grabbing; filter: drop-shadow(0 0.4rem 0.7rem rgba(0, 0, 0, 0.5)); }
+.stack-item.dragging, .stack-item.dragging * { transition: none; }
+.stack-card .card { width: 100%; height: auto; aspect-ratio: 488 / 680; position: relative; pointer-events: none; border: 0; padding: 0; background: none; box-shadow: none; border-radius: 4.8% / 3.4%; }
+.stack-card .card .face { width: 100%; height: 100%; border-radius: 4.8% / 3.4%; overflow: hidden; }
+.stack-text { flex: none; padding: 0 0.3rem 0.3rem; border: 1px dashed var(--line); background: color-mix(in srgb, var(--text) 4%, transparent); cursor: grab; }
+.stack-grip { display: block; height: 0.9rem; cursor: grab; background: radial-gradient(circle, var(--muted) 1.2px, transparent 1.6px) center / 0.45rem 0.45rem repeat-x; opacity: 0.7; }
+.stack-note { display: block; width: 100%; resize: vertical; min-height: 2.6rem; padding: 0.3rem 0.4rem; border: 1px solid var(--line); border-radius: 0.4rem; background: var(--bg); color: var(--text); font: inherit; font-size: 0.85rem; cursor: text; }
 .stack-empty { padding: 1rem 0.5rem; color: var(--muted); font-size: 0.85rem; text-align: center; }
-/* the stack window, tidier: the buttons of a card sit beside it (a column), so a card takes less height, and the window is a little wider so its four buttons fit on one line */
-.stack-window { --stack-w: 19.5rem; }
-.stack-card { flex-direction: row; flex-wrap: wrap; justify-content: center; align-items: center; gap: 0.3rem 0.5rem; }
-.stack-card .stack-label { flex: 1 0 100%; }
-.stack-card .stack-controls { flex-direction: column; flex-wrap: nowrap; align-items: stretch; width: 6.2rem; }
-.stack-card .stack-small { width: 100%; text-align: center; }
-.stack-text .stack-controls { flex-wrap: nowrap; }

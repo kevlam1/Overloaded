@@ -4481,6 +4481,24 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **My AI's mistakes this time:** it wrote `\u` escapes that the editing tool turned into real invisible characters (the hygiene check caught that), a shell command removed a backslash from `\s` (the test caught that), and my first drag check compared card names when two cards had the same name.
 
+## 225. The stack window without buttons, with smooth moving (2026-11-17)
+
+**What I asked for**
+- After looking at the first stack window I said the stack should just be the card with no buttons next to it, because that looked horrible. Moving a card should be smooth and flexible like in the hand or the ordering window. The text box looked fine, but I wanted its buttons gone too.
+
+**What changed** (`frontend/src/stack-window.js`, `frontend/src/style.css`, `scripts/check-stack-ui.mjs`, `CLAUDE.md`)
+- A card in the stack is only the card now, and a text box is only the box with a dotted strip at its top to drag it by. The Up, Down, Text below and Remove buttons are gone. The window is narrower (13.5rem instead of 19.5rem). The four buttons at the top (Resolve top, Undo, Add text, Clear) stay, and a small line of words says how it works.
+- A card is dragged with the mouse and follows the pointer. The cards it passes slide aside to open its place, the same way as in the ordering window, and when it is let go everything glides to its place. A new card fades in from a little above, and when one is taken away the ones below glide up. Under reduced motion they change places at once.
+- Everything the buttons did is in the right-click menu of a card or text box (Move up, Move down, Move to top, Move to bottom, Add text below, Take off the stack or Remove text box). The keyboard works too: Tab to an item, Alt and the up or down arrow move it, Delete takes it off, the Menu key opens its menu. I took away the "Top of the stack" label on the first card, so the first card is only marked for screen readers; the line at the top of the window says the top is the highest.
+- A text box that is left empty is taken away when you click out of it.
+
+**What I checked:** `scripts/check-stack-ui.mjs` now has 61 checks (it was 41), in real headless Chrome: no buttons in the list, the menus for the top card, the bottom card and a text box, the keyboard keys, a real mouse drag where the passed items get a `translate` and a transition, a text box dragged by its strip, and with animation on that animations are running right after a drop and have settled after half a second. I looked at a screenshot at desktop width. I did not check how the glide looks to a person, only that it runs; I did not check phone width or touch.
+
+**Decisions**
+- Drag by the card itself, and by the strip for a text box, because the textarea has to stay clickable for typing.
+- Taking an empty note away on blur, so there are no empty boxes left behind. I did not ask about that; it is easy to turn off.
+- Not done: the list does not scroll by itself when a card is dragged near its top or bottom edge, and the Alt picture does not show over the stack's cards.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.
