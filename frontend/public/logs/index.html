@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.219</span></h1>
-    <p class="lede">219 entries, Oct 25 to Nov 17, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
+    <h1>Build log <span class="version">Version 0.220</span></h1>
+    <p class="lede">220 entries, Oct 25 to Nov 17, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it.</p>
   </div>
 </header>
 
@@ -24,7 +24,7 @@
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
-<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">6</span></a>
+<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">7</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
     </div>
     <div class="tools">
@@ -3602,7 +3602,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-2" aria-labelledby="week-2-title">
-<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">6 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">7 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-2-days">
 <div class="day">
 <h3 class="day-title">Monday 16 November <span class="day-count">5</span></h3>
@@ -3689,7 +3689,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Tuesday 17 November <span class="day-count">1</span></h3>
+<h3 class="day-title">Tuesday 17 November <span class="day-count">2</span></h3>
 <div class="entries">
 <article class="entry" id="entry-219" data-n="219">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-219-body">
@@ -3706,6 +3706,21 @@
 <ul><li>Dropped: the week-by-week schedule and the progress card at the end of each of Weeks 6 to 9 (the portfolio card is already updated), the old test plan (the checks exist), Cloud Functions for cleanup (they need the paid plan), and the round icon from the screen recording whose meaning was never shown.</li><li>Parked as polish, not planned: marking low-resolution printings, preferring a paper printing for a title on several printings, and matching translated names. The Stack stays parked until after Dec 7.</li><li>Questions for Kevin that the list now carries: fewer columns or rows with three opponents, and whether the real card back and the Mana icons are acceptable under Wizards' policy.</li></ul>
 <p><strong>What I checked:</strong> I read the whole old list and the code for the four facts above. I did not check the live site or run the tests for this change, since only a document changed.</p>
 <p><strong>My mistakes this round:</strong> the old list had been &quot;cleaned up&quot; on 2026-10-29 and still grew stale in two and a half weeks, because I added to it and did not close items when they were finished.</p>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-220" data-n="220">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-220-body">
+    <span class="num">220</span>
+    <span class="head-text"><span class="title">development merged into main, and the production build checked</span><span class="sum">Push development into main, and go over the to-do list (entry 219).</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-220-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>Push development into main, and go over the to-do list (entry 219).</li></ul>
+<p class="sub"><strong>What changed</strong></p>
+<ul><li><code>main</code> was fast-forwarded to <code>development</code> (<code>fb9d53e..e717e85</code>, 18 commits, no merge commit, no force): the menus, the card details with rules and rulings, Add counter, the smaller battlefield cards on a taller board, the pile windows with the eye button and the Type and Mana value filters, and the to-do rewrite. The temporary copy of the old solo page and its two rewrites in <code>vercel.json</code> were taken out first, so <code>/solo</code> is the solo table.</li><li>The card list on Vercel had never been built with the rules and rulings files (list format 11, three downloads). It did on this push.</li></ul>
+<p><strong>What I checked</strong> (against the live site, with plain requests and <code>check-deploy-config.mjs</code> pointed at it): <code>/data/cards.info.json</code> says it rebuilt (34,250 cards, 34,200 with rules, 19,875 with rulings, 773 printing sets); <code>/solo</code> is the new page (it has the eye button and the filters); the old routes answer 404; a rules file and a rulings file are served; 59 of 59 deploy config checks passed, including a table made and joined through a link on the real address. Before the push the same check passed 57 locally. I did not look at the live site in a browser, and I did not run the two-browser live check.</p>
+<p><strong>My mistakes this round:</strong> none found.</p>
   </div></div></div>
 </article>
 </div>

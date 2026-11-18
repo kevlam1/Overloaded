@@ -4392,6 +4392,21 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 ---
 
+## 220. development merged into main, and the production build checked (2026-11-17)
+
+**What I asked for**
+- Push development into main, and go over the to-do list (entry 219).
+
+**What changed**
+- `main` was fast-forwarded to `development` (`fb9d53e..e717e85`, 18 commits, no merge commit, no force): the menus, the card details with rules and rulings, Add counter, the smaller battlefield cards on a taller board, the pile windows with the eye button and the Type and Mana value filters, and the to-do rewrite. The temporary copy of the old solo page and its two rewrites in `vercel.json` were taken out first, so `/solo` is the solo table.
+- The card list on Vercel had never been built with the rules and rulings files (list format 11, three downloads). It did on this push.
+
+**What I checked** (against the live site, with plain requests and `check-deploy-config.mjs` pointed at it): `/data/cards.info.json` says it rebuilt (34,250 cards, 34,200 with rules, 19,875 with rulings, 773 printing sets); `/solo` is the new page (it has the eye button and the filters); the old routes answer 404; a rules file and a rulings file are served; 59 of 59 deploy config checks passed, including a table made and joined through a link on the real address. Before the push the same check passed 57 locally. I did not look at the live site in a browser, and I did not run the two-browser live check.
+
+**My mistakes this round:** none found.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.
