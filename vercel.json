@@ -4,8 +4,7 @@
     { "source": "/lobby", "destination": "/pages/lobby/index.html" },
     { "source": "/lobby/:code", "destination": "/pages/lobby/index.html" },
     { "source": "/deck", "destination": "/pages/deck/index.html" },
-    { "source": "/solo", "destination": "/classic/pages/solo/index.html" },
-    { "source": "/solo-new", "destination": "/pages/solo/index.html" },
+    { "source": "/solo", "destination": "/pages/solo/index.html" },
     { "source": "/logs", "destination": "/logs/index.html" },
     { "source": "/table/:code", "destination": "/pages/table/index.html" }
   ],

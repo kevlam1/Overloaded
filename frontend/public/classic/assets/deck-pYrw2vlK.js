@@ -1,1 +1,0 @@
-import{n as e}from"./deck-importer-CVhADwy-.js";import"./deck-library-CWjViq5R.js";var t=new URLSearchParams(location.search);e({sampleId:t.has(`sample`)?t.get(`sample`):void 0,autoPlay:t.has(`play`),playButtons:!0});
