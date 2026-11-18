@@ -4599,6 +4599,16 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **What I checked:** the history and select check has 19 checks now. Two changed: the first row is the new game and the last row is the latest draw, and with 16 moves the list is longer than its window and is scrolled to the bottom. I looked at a screenshot of the long list. The solo check does not touch the history rows, so I did not run it again. My first scroll check was too weak (8 rows do not need scrolling), so it now adds 8 more moves first.
 
+## 232. A card dragged in the stack no longer sticks after a right click (2026-11-18)
+
+**What I asked for**
+- A small bug: when I drag a card in the stack window, hold the left button and right-click outside, the card thinks the left button is still down and keeps moving.
+
+**What changed** (`frontend/src/stack-window.js`, `scripts/check-stack-ui.mjs`)
+- The cause: the right click opens the browser's menu, which can swallow the release of the left button, so the drag never got its "let go". A drag now ends, and the card goes back where it was, when: a move arrives that says the left button is no longer down, a context menu opens while a card is carried, the pointer capture is lost, or the window loses focus. The arrow drawn with Shift and a drag got the first guard too.
+
+**What I checked:** a new check in `scripts/check-stack-ui.mjs` (26 checks now) holds the left button on a card, right-clicks outside, never sends the left release, and then moves the pointer: the card must be back in its place with nothing lifted or shifted. I ran it against the old code first and it failed there, then it passed with the fix. The Shift-drag arrow has the same guard but no check of its own.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

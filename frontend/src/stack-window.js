@@ -377,9 +377,12 @@ export function mountStackWindow({ root, printedStats = () => null, say = () => 
       event.preventDefault();
       const aim = startArrow(li.dataset.id, event.clientX, event.clientY);
       if (!aim) return;
-      const up = (done) => { document.removeEventListener('pointerup', up, true); document.removeEventListener('pointercancel', up, true); if (done.type === 'pointerup') aim.finish(done); else aim.cancel(); };
+      const stop = () => { document.removeEventListener('pointerup', up, true); document.removeEventListener('pointercancel', up, true); document.removeEventListener('pointermove', lost, true); };
+      const up = (done) => { stop(); if (done.type === 'pointerup') aim.finish(done); else aim.cancel(); };
+      const lost = (move) => { if ((move.buttons & 1) === 0) { stop(); aim.cancel(); } }; // (the left button is not down any more: its release was lost)
       document.addEventListener('pointerup', up, true);
       document.addEventListener('pointercancel', up, true);
+      document.addEventListener('pointermove', lost, true);
       return;
     }
     const items = [...list.children].filter((node) => node.dataset.id);
@@ -390,6 +393,7 @@ export function mountStackWindow({ root, printedStats = () => null, say = () => 
   });
   list.addEventListener('pointermove', (event) => {
     if (!drag || event.pointerId !== drag.pointerId) return;
+    if ((event.buttons & 1) === 0) { const finished = endDrag(); if (finished?.active) draw(); return; } // the left button is not down any more (its release was lost): the card goes home, it does not keep following the pointer
     const dy = event.clientY - drag.startY;
     if (!drag.active) {
       if (Math.abs(dy) < DRAG_START) return;
@@ -410,7 +414,11 @@ export function mountStackWindow({ root, printedStats = () => null, say = () => 
     if (finished.to !== finished.from) act((s) => moveItem(s, finished.id, finished.to), '', finished.id);
     else draw(); // (it goes home)
   });
-  list.addEventListener('pointercancel', () => { const finished = endDrag(); if (finished?.active) draw(); });
+  const cancelDrag = () => { const finished = endDrag(); if (finished?.active) draw(); };
+  list.addEventListener('pointercancel', cancelDrag);
+  list.addEventListener('lostpointercapture', () => { if (drag?.active) cancelDrag(); });
+  document.addEventListener('contextmenu', () => { if (drag?.active) cancelDrag(); }, true); // (a right click while a card is carried puts it back)
+  window.addEventListener('blur', cancelDrag);
   document.addEventListener('keydown', (event) => { if (drag?.active && event.key === 'Escape') { event.stopPropagation(); event.preventDefault(); const finished = endDrag(); if (finished) draw(); } }, true);
 
   setOpen(false);

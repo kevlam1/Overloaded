@@ -99,6 +99,15 @@ try {
   const dragging = await ev(`({ lifted: document.querySelectorAll('#stack-window .dragging').length, aside: [...document.querySelectorAll('#stack-window .stack-item:not(.dragging)')].filter((li) => li.style.translate).length })`);
   await mouse('mouseReleased', a.cx, b.cy + b.h * 0.6); await sleep(150);
   check('dragging lifts the card and slides the other aside; letting go below it swaps them', dragging.lifted === 1 && dragging.aside === 1 && (await ids()).join() === [before[1], before[0]].join(), JSON.stringify({ dragging, before, after: await ids() }));
+  // a right click outside while a card is held: the left release never arrives, and the card must go back, not keep following the pointer
+  const order = (await ids()).join();
+  const held = await rectOf('#stack-window .stack-card', 0);
+  await mouse('mouseMoved', held.cx, held.cy); await mouse('mousePressed', held.cx, held.cy, 'left', 1);
+  for (let n = 1; n <= 6; n++) await mouse('mouseMoved', held.cx, held.cy + n * 12, 'left', 1);
+  await mouse('mousePressed', 700, 300, 'right', 3); await mouse('mouseReleased', 700, 300, 'right', 1);
+  await mouse('mouseMoved', 700, 500, 'none', 0); await mouse('mouseMoved', held.cx, held.cy + 250, 'none', 0); await sleep(150);
+  check('a right click outside while a card is held puts it back and it does not keep following the pointer', (await count('#stack-window .dragging')) === 0 && (await ev("[...document.querySelectorAll('#stack-window .stack-item')].filter((li) => li.style.translate).length")) === 0 && (await ids()).join() === order);
+  await mouse('mouseReleased', held.cx, held.cy, 'left', 0);
 
   // ---- Resolve top, Undo, Clear ----
   const handNow = await count('#hand > .card');
