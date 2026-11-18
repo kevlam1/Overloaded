@@ -4458,6 +4458,29 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 - 50% is the default and 20% the least, because below that too little of the cards is left to find the hand with the pointer.
 - The hand test aiming had to change: with half a card below the window, the middle of a card is off screen. The tests now bring the pointer into the visible part so the hand rises, then aim. The test helper also stopped scrolling the page to centre a hand card, which closed the card menu (a test mistake, not something a player does).
 
+## 224. A stack window that slides out from the left, step 1 (2026-11-17)
+
+**What I asked for**
+- I asked for a game history in its own floating window, and a stack window where a player right-clicks a card and chooses "add to the stack". It should work like a conveyor belt with the top of the stack as the highest card. Players can move cards, drag an arrow from one card to another to show a target, and add text boxes between the cards. A button on the left or right of the screen should slide the window out.
+- The AI said how it read it and proposed three steps: the stack window, then the arrows, then the game history. I answered: the solo page only for now, a copy of the card keeping everything on it (counters, power and toughness at that time), and a visual aid with a Resolve top button and an Undo. We started with step 1.
+
+**What changed** (`shared/stack.mjs`, `frontend/src/stack-window.js`, `shared/card-menu.mjs`, `frontend/pages/solo/solo.js`, `frontend/pages/solo/index.html`, `frontend/src/style.css`, `scripts/test-stack.mjs`, `scripts/check-stack-ui.mjs`, `scripts/test-card-menu.mjs`, `scripts/check-solo-ui.mjs`, `scripts/test-all.mjs`, `docs/todo.md`)
+- A card of the hand, battlefield, graveyard, exile or command zone has a new line in its right-click menu, "Add to the stack", before "View details". It puts a COPY of the card on top of the stack, with every field of the card as it is then (counters, the power and toughness change, tapped, marks, printing). The real card does not move and later changes to it do not reach the copy.
+- The stack window slides out from a tab at the middle of the left edge (the tab shows how many cards are on the stack). It lists the cards with the top one highest and labelled "Top of the stack". Each card has Up, Down, Text below and Remove buttons beside it, a right-click menu (Move to top, Move to bottom, Add text below, Take off the stack) and can be dragged with the mouse to a new place, with a line showing where it will land. Text boxes sit between the cards.
+- The window has Resolve top (takes the top card and the text boxes above it off the stack; the game is not touched), Undo (30 steps), Add text and Clear. Escape or the tab slides it away. It holds 40 items. Nothing is saved or sent anywhere; a refresh starts with an empty stack.
+- The rules are in `shared/stack.mjs`, plain logic with no browser code. The window uses a second, read-only set of the same card buttons the battlefield uses, so counters, power and toughness and badges look the same.
+
+**What I checked:** `scripts/test-stack.mjs` (52 checks, with frozen objects so a change in place throws) and 24 broken copies of `shared/stack.mjs`: 20 caught at first, three survivors got new tests and were then caught, and one broken copy never ran because my script lost a backslash (so that change, removing the tidying of spaces, was not tried). `scripts/check-stack-ui.mjs` (41 checks in real headless Chrome with the real card list: the tab and the closed window, the menu line, a copy that keeps its counter while the real card is tapped and gets another counter, Up and Down, text boxes, a real mouse drag, Resolve top, Undo, Clear, Escape, and the 40 limit). I looked at a screenshot of the open window at desktop width. I did not check phone width, a light theme screenshot, or a drag with touch (touch uses the Up and Down buttons). `npm run test:quick` passes 73 suites. The solo check had five failures at first because they listed the menu without the new line; I updated those five expectations.
+
+**Decisions**
+- Left edge, in the middle, so it stays clear of the life total at the top left and the hand and zones at the bottom.
+- A copy, not a pointer to the real card, because I asked for the counters and the power and toughness at that time to stay with it.
+- Resolve top removes the text boxes above the top card too, because they were notes about it.
+- Not in this step: the arrows (step 2), the game history window (step 3), and the live table. The live table needs new database fields and a rules change, so it waits until the solo version feels right. The three steps are in `docs/todo.md`.
+- The stack cards do not take the pointer, so the enlarged picture on Alt does not work over them yet.
+
+**My AI's mistakes this time:** it wrote `\u` escapes that the editing tool turned into real invisible characters (the hygiene check caught that), a shell command removed a backslash from `\s` (the test caught that), and my first drag check compared card names when two cards had the same name.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

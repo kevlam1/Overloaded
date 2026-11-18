@@ -1,6 +1,6 @@
 // Checks shared/card-menu.mjs: which choices a card's right-click menu offers in each zone, and what each choice does to a real game.
 // Run from the repo root:  node scripts/test-card-menu.mjs
-import { menuItems, menuAction, turnLabel, turnMessage, playBackLabel, PLAY_BACK_ZONES, noUntapLabel, sickLabel, untapMessage, ZONE_NAMES, MOVE_TARGETS, COUNTER_ASK } from '../shared/card-menu.mjs';
+import { menuItems, menuAction, turnLabel, turnMessage, playBackLabel, PLAY_BACK_ZONES, noUntapLabel, sickLabel, untapMessage, ZONE_NAMES, MOVE_TARGETS, COUNTER_ASK, STACK_ZONES } from '../shared/card-menu.mjs';
 import { makeGame, moveCard, createToken, changeCounter, seededRandom, ZONES, checkGame, isLandCard, battlefieldRows, setTapped, setNoUntap } from '../shared/zones.mjs';
 
 let checks = 0;
@@ -297,4 +297,14 @@ same('no card, no action', [menuAction('tap', null), menuAction('tap', undefined
   })());
 }
 
+// Add to the stack (Kevin, 2026-11-17): only when the page asks (the solo table), and only for a card of a zone whose cards are in the game and visible to its owner
+same('the stack zones are the zones whose cards the player can see and use', STACK_ZONES, ['hand', 'battlefield', 'graveyard', 'exile', 'command']);
+for (const zone of ZONES) {
+  const asked = menuItems({ n: 'Sol Ring' }, zone, { stack: true }).filter((i) => i.id === 'stack');
+  same(`Add to the stack is offered when asked, in ${zone}, only for the stack zones`, asked.map((i) => i.label), STACK_ZONES.includes(zone) ? ['Add to the stack'] : []);
+  check(`...and is not in the menu unless the page asks (${zone})`, !menuItems({ n: 'Sol Ring' }, zone).some((i) => i.id === 'stack'));
+}
+same('a missing card gets no stack line', menuItems(null, 'battlefield', { stack: true }).some((i) => i.id === 'stack'), false);
+same('the stack line comes before View details', (() => { const ids = menuItems({ n: 'Sol Ring' }, 'battlefield', { stack: true, details: true }).map((i) => i.id); return ids.indexOf('stack') < ids.indexOf('details') && ids.indexOf('stack') >= 0; })(), true);
+same('menuAction has nothing to run for it (the page puts the copy on the stack)', menuAction('stack', { uid: 'c1', n: 'Sol Ring' }), null);
 console.log(`All ${checks} card menu checks passed.`);

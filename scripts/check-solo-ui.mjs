@@ -218,7 +218,7 @@ try {
   check('selecting a card says what it is and where', new RegExp(`^${landName}: .*Land.*, in your hand\\.$`).test(await $text('selected-line')), await $text('selected-line'));
   check('the selected card is marked', (await count('#hand .card.selected')) === 1 && (await ev(`document.querySelector('#hand .card.selected').getAttribute('aria-pressed')`)) === 'true');
   const labels = await actionLabels();
-  check('the right-click menu of a hand card: Play, Discard, Exile, Move to command zone, Move to top of library, Move to bottom of library (no sideboard, no Move to heading), and no Tap', JSON.stringify(labels) === JSON.stringify(['Play', 'Discard', 'Exile', 'Move to command zone', 'Move to top of library', 'Move to bottom of library', 'View details']), JSON.stringify({ labels }));
+  check('the right-click menu of a hand card: Play, Discard, Exile, Move to command zone, Move to top of library, Move to bottom of library (no sideboard, no Move to heading), and no Tap', JSON.stringify(labels) === JSON.stringify(['Play', 'Discard', 'Exile', 'Move to command zone', 'Move to top of library', 'Move to bottom of library', 'Add to the stack', 'View details']), JSON.stringify({ labels }));
   const handBefore = await count('#hand .card');
   await clickAction('To battlefield');
   check('moving a land to the battlefield puts it in the lands row', (await count('#battlefield .card[data-kind="land"]')) === 1 && (await count('#battlefield .card[data-kind="other"]')) === 0 && (await count('#hand .card')) === handBefore - 1 && (await $text('status')) === `Moved ${landName} to the battlefield.`, await $text('status'));
@@ -1758,7 +1758,7 @@ try {
   check('there is no menu before a right click', (await menuState()) === null);
   await mouse('#battlefield .card[data-kind="other"]', { button: 'right', dy: 64 });
   let menu = await menuState();
-  check('a right click on a creature opens its menu: its name, then Modify, Tap, the counter and the counters X..., Create copy and Move to (with the two marks after Tap: Elves came in sick)', menu && menu.title === 'Llanowar Elves' && menu.role === 'menu' && JSON.stringify(menu.items) === JSON.stringify(['Modify...', 'Tap', 'Flip', "Doesn't untap", 'Not summoning sick', '+1/+1 counter', '+1/+1 counters X...', 'Add counter', 'Create copy', 'View details', 'Move to']), JSON.stringify(menu));
+  check('a right click on a creature opens its menu: its name, then Modify, Tap, the counter and the counters X..., Create copy and Move to (with the two marks after Tap: Elves came in sick)', menu && menu.title === 'Llanowar Elves' && menu.role === 'menu' && JSON.stringify(menu.items) === JSON.stringify(['Modify...', 'Tap', 'Flip', "Doesn't untap", 'Not summoning sick', '+1/+1 counter', '+1/+1 counters X...', 'Add counter', 'Create copy', 'Add to the stack', 'View details', 'Move to']), JSON.stringify(menu));
   check('the menu is inside the window and the first item has the focus', menu.inside && menu.focused === 'Modify...', JSON.stringify(menu));
   check('the right click also selected the card', (await $text('selected-line')).startsWith('Llanowar Elves'), await $text('selected-line'));
   await ev(`window.__plays = []; HTMLMediaElement.prototype.play = function () { window.__plays.push({ src: new URL(this.src).pathname, volume: Math.round(this.volume * 10000) / 10000 }); return Promise.resolve(); };`);
@@ -1790,7 +1790,7 @@ try {
   await raiseHand();
   await mouse('#hand .card', { button: 'right', dy: 64 });
   menu = await menuState();
-  check('a card in the hand offers Play, Discard, Exile, Move to command zone, Move to top of library and Move to bottom of library', menu && JSON.stringify(menu.items) === JSON.stringify(['Play', 'Discard', 'Exile', 'Move to command zone', 'Move to top of library', 'Move to bottom of library', 'View details']), JSON.stringify(menu));
+  check('a card in the hand offers Play, Discard, Exile, Move to command zone, Move to top of library and Move to bottom of library', menu && JSON.stringify(menu.items) === JSON.stringify(['Play', 'Discard', 'Exile', 'Move to command zone', 'Move to top of library', 'Move to bottom of library', 'Add to the stack', 'View details']), JSON.stringify(menu));
   await clickMenuItem('Play');
   check('and Play puts it on the battlefield', (await count('#battlefield .card')) === 1 && (await menuState()) === null);
   // keyboard
@@ -2386,7 +2386,7 @@ try {
   await raiseHand();
   await mouse('#hand .card', { button: 'right', dy: 64 });
   const handMenu = await menuState();
-  check('the right-click menu of the modal card in the hand offers Play Valakut Stoneforge after the look at the other face, before View details', handMenu && JSON.stringify(handMenu.items.slice(-3)) === JSON.stringify(['Flip double-faced card', 'Play Valakut Stoneforge', 'View details']), JSON.stringify(handMenu?.items));
+  check('the right-click menu of the modal card in the hand offers Play Valakut Stoneforge after the look at the other face, then Add to the stack, before View details', handMenu && JSON.stringify(handMenu.items.slice(-3)) === JSON.stringify(['Play Valakut Stoneforge', 'Add to the stack', 'View details']), JSON.stringify(handMenu?.items));
   await clickMenuItem('Play Valakut Stoneforge');
   check('choosing it plays the land the same way', (await count('#hand .card')) === 0 && (await rowOf('Valakut Awakening')) === 'row-lands' && /, turned over/.test(await labelOf('Valakut Awakening')), JSON.stringify({ hand: await count('#hand .card'), row: await rowOf('Valakut Awakening'), label: await labelOf('Valakut Awakening'), status: await $text('status') }));
   await clickAction('Deselect');
@@ -2401,7 +2401,7 @@ try {
   const tokensBefore = await count('.card[aria-label^="Sephiroth, One-Winged"]');
   await mouse(cardAt('Sephiroth, Fabled'), { button: 'right', dy: 64 });
   const sephMenu = await menuState();
-  check('the menu of a battlefield card offers Create copy, after the counter and before Move to', sephMenu && sephMenu.items.includes('Create copy') && sephMenu.items.indexOf('Create copy') === sephMenu.items.indexOf('Move to') - 2 && sephMenu.items.indexOf('View details') === sephMenu.items.indexOf('Move to') - 1, JSON.stringify(sephMenu?.items));
+  check('the menu of a battlefield card offers Create copy, after the counter, then Add to the stack and View details, before Move to', sephMenu && sephMenu.items.includes('Create copy') && sephMenu.items.indexOf('Create copy') === sephMenu.items.indexOf('Move to') - 3 && sephMenu.items.indexOf('Add to the stack') === sephMenu.items.indexOf('Move to') - 2 && sephMenu.items.indexOf('View details') === sephMenu.items.indexOf('Move to') - 1, JSON.stringify(sephMenu?.items));
   await clickMenuItem('Create copy');
   check('the status names the face that was copied', (await $text('status')) === 'Made a token copy of Sephiroth, One-Winged Angel.', await $text('status'));
   const copySel = '.card[aria-label^="Sephiroth, One-Winged"]';

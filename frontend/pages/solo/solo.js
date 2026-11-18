@@ -7,6 +7,7 @@ import { play, mountSoundSettings } from '../../src/sound.js';
 import { mountPileStyle } from '../../src/pile-style.js';
 import { restHidden, mountHandRestSetting } from '../../src/hand-rest.js';
 import { mountPileViewer } from '../../src/pile-viewer.js';
+import { mountStackWindow } from '../../src/stack-window.js';
 import { mountSettingsMenu } from '../../src/settings-menu.js';
 import { createHandSort } from '../../src/hand-sort-ui.js';
 import { sortHand, anySortOn, applyPins } from '../../../shared/hand-sort.mjs';
@@ -271,7 +272,7 @@ function openMenuFor(uid, where) {
   if (!found) return;
   if (found.zone === 'hand' && multi.size > 1 && multi.has(uid)) { openGroupMenu(where); return; } // (several cards of the hand picked: the menu is for all of them)
   select(uid);
-  openCardMenu({ title: found.card.n, items: menuItems(found.card, found.zone, { peek: true, details: true, counters: true }), x: where.x, y: where.y, returnFocus: where.element, onPick: (id, amount) => pickFromMenu(uid, id, amount) });
+  openCardMenu({ title: found.card.n, items: menuItems(found.card, found.zone, { peek: true, details: true, counters: true, stack: true }), x: where.x, y: where.y, returnFocus: where.element, onPick: (id, amount) => pickFromMenu(uid, id, amount) });
 }
 
 // The menu of the picked cards of the hand: Play, Discard, Exile, Top and Bottom of library (each asks for the order first) and Move to. The cards go in the order they have in the hand.
@@ -306,6 +307,7 @@ function pickFromGroupMenu(id, uids) {
 function pickFromMenu(uid, id, amount) {
   const found = findCard(uid);
   if (!found) return;
+  if (id === 'stack') { stackWindow.add(found.card); return; } // a copy of the card as it is now goes on top of the stack window
   if (id === 'modify') { modifyOpen = true; render(); $('marks-amount').focus(); return; } // opens the Modify window next to the card
   if (id === 'counteradd:custom') { // a counter with a name of your own: ask for the name, then add one
     const box = document.querySelector(`.card[data-uid="${uid}"]`)?.getBoundingClientRect();
@@ -479,6 +481,7 @@ $('untap-all').addEventListener('click', () => { play('tap'); apply(() => untapA
 mountSoundSettings($('sound-settings'));
 // ---- piles drawn diagonally or horizontally (shared/pile-style.mjs), a double click taps a card, a click on empty space deselects ----
 mountPileStyle($('pile-style-settings'));
+const stackWindow = mountStackWindow({ root: $('stack-window'), printedStats: (card) => printedOf(card, lookup), say }); // (Kevin, 2026-11-17: a window that slides out from the left with copies of cards, text boxes and arrows; a visual aid, the game is not touched)
 mountHandRestSetting($('hand-rest-settings'), { onChange: () => handView.arrange() }); // (the hand is made further down, but the slider only works after it is)
 const viewer = mountPileViewer({ root: $('viewer'), nodeFor: (card) => cardNodes.nodeFor(card, false), onClose: () => { viewing = null; viewTop = null; viewBottom = false; viewReveal = false; if (game) render(); } });
 for (const tab of document.querySelectorAll('#viewer .viewer-tab')) tab.addEventListener('click', () => { if (game) openPile(tab.dataset.view); });

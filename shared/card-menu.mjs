@@ -40,7 +40,8 @@ export const playBackLabel = (card) => `Play ${backNameOf(card) ?? 'its back fac
 // The items for a card in a zone: { id, label } for a choice, { id, label, ask } for a line that asks for a number first ("+1/+1 counters X..."), { id, label, items } for a heading that opens more.
 // Tap, counters and Modify belong to a card on the battlefield; moving is offered everywhere (not to the zone it is already in).
 // live: this is a table with other players, so a card in a public zone can also be pinged to them (shared/ping.mjs); the solo table has nobody to ping.
-export function menuItems(card, zone, { live = false, peek = false, details = false, counters = false } = {}) {
+export const STACK_ZONES = ['hand', 'battlefield', 'graveyard', 'exile', 'command']; // a card here can be copied onto the stack window (not the library or the sideboard: their cards are hidden or not in the game)
+export function menuItems(card, zone, { live = false, peek = false, details = false, counters = false, stack = false } = {}) {
   const items = [];
   if (zone === 'battlefield') {
     items.push({ id: 'modify', label: 'Modify...' });
@@ -60,6 +61,7 @@ export function menuItems(card, zone, { live = false, peek = false, details = fa
     if (peek && card?.b === 1) items.push({ id: 'peek', label: turnLabel() });
   }
   if (card?.md === 1 && card.b === 1 && PLAY_BACK_ZONES.includes(zone)) items.push({ id: 'playback', label: playBackLabel(card) });
+  if (stack && card && STACK_ZONES.includes(zone)) items.push({ id: 'stack', label: 'Add to the stack' }); // (Kevin, 2026-11-17: the solo table passes stack: a copy of the card, as it is now, goes on top of the stack window; the page does it, so menuAction has nothing to run)
   if (details && card && !card.tok) items.push({ id: 'details', label: 'View details' }); // (Kevin, 2026-11-15: the rules, mana value, type and the rest of the card in a window; the page opens it. A token is not a card of the list)
   if (live && canPing(zone)) items.push({ id: 'ping', label: 'Ping card' }); // the page sends the ping itself (it is not a change to the game), so menuAction has nothing to run for it
   if (zone === 'hand') return items; // (the hand has every move as a line of its own, and no sideboard: Kevin, 2026-11-15)

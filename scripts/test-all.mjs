@@ -52,6 +52,7 @@ const suites = [
   { name: 'the right-click menu of a pile: shuffle, draw, mill, move all', cmd: node, args: ['scripts/test-pile-menu.mjs'] },
   { name: 'the type and mana value filters of the pile windows', cmd: node, args: ['scripts/test-pile-filter.mjs'] },
   { name: 'how much of a card shows when the hand is resting', cmd: node, args: ['scripts/test-hand-rest.mjs'] },
+  { name: 'the stack window (a list of card copies and text boxes, with Undo)', cmd: node, args: ['scripts/test-stack.mjs'] },
   { name: 'card rulings: the files the details window reads under the rules', cmd: node, args: ['scripts/test-card-rulings.mjs'] },
   { name: 'counters a card can be given: the catalog and named counters', cmd: node, args: ['scripts/test-counter-catalog.mjs'] },
   { name: 'card rules: the files the details window reads', cmd: node, args: ['scripts/test-card-rules.mjs'] },
@@ -91,6 +92,7 @@ if (!quick) {
   suites.push({ name: 'the table fits one screen: 5 window sizes, 0 to 3 other players (headless Chrome)', cmd: node, args: ['scripts/check-table-layout.mjs'] });
   suites.push({ name: 'deck page in headless Chrome (needs the card list)', cmd: node, args: ['scripts/check-deck-ui.mjs'] });
   suites.push({ name: 'solo table in headless Chrome (needs the card list)', cmd: node, args: ['scripts/check-solo-ui.mjs'] });
+  suites.push({ name: 'stack window in headless Chrome (needs the card list)', cmd: node, args: ['scripts/check-stack-ui.mjs'] });
   suites.push({ name: 'database rules (local emulator)', cmd: process.platform === 'win32' ? 'npm.cmd' : 'npm', args: ['test'], cwd: 'backend', shell: true });
 }
 if (live) {
