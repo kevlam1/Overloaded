@@ -1,4 +1,4 @@
-// The "Game history" bar of the solo table (Kevin, 2026-11-18): a thin bar that floats like the action bar and opens downward when its title is clicked, to show the moves of this game, newest first.
+// The "Game history" bar of the solo table (Kevin, 2026-11-18): a thin bar that floats like the action bar and opens downward when its title is clicked, to show the moves of this game, the newest at the bottom (the list stays scrolled to it).
 // The whole top of the bar is the handle: a click opens or closes it, a drag moves it, and let go near an edge it attaches to the edge like the stack window (no gap, square on that side); drag it out and it
 // is free. The place and whether it is open are kept in this browser. The entries are in shared/game-history.mjs.
 import { mountFloatingBar } from './floating-bar.js';
@@ -29,15 +29,17 @@ export function mountHistoryBar({ root, store }) {
     head.setAttribute('aria-expanded', String(open));
     list.hidden = !open;
     store?.set(OPEN_KEY, open ? '1' : '0');
+    if (open) list.scrollTop = list.scrollHeight; // (the newest move is at the bottom)
   }
   function draw() {
     count.textContent = String(history.length);
-    const rows = history.slice().reverse().map((entry) => { // newest first
+    const rows = history.map((entry) => { // oldest first: the newest is at the bottom
       const row = make('li', 'history-row');
       row.append(make('span', 'history-turn', `T${entry.turn}`), make('span', 'history-text', entry.text));
       return row;
     });
     list.replaceChildren(...(rows.length ? rows : [make('li', 'history-empty', 'No moves yet.')]));
+    if (open) list.scrollTop = list.scrollHeight;
   }
   head.addEventListener('click', () => setOpen(!open));
   mountFloatingBar({ bar: root, grip: head, store, key: 'overloaded.historyBar', defaultPlace: { dock: 'right', fx: 1, fy: 0.14 }, growDown: true, flush: true, clickThrough: true });

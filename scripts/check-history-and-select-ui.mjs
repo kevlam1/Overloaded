@@ -48,10 +48,12 @@ try {
   await ev("document.getElementById('draw').click()"); await sleep(100);
   await click('.history-head');
   const opened = await bar();
-  check('a click on the top of the bar opens it downward (its top edge stays) and it lists the moves, newest first', opened.open === 'true' && opened.h > first.h + 20 && opened.rows === 2 && opened.top === first.top && /^Drew /.test(await ev("document.querySelector('.history-row .history-text').textContent")), JSON.stringify(opened));
+  check('a click on the top of the bar opens it downward (its top edge stays) and it lists the moves with the newest at the bottom', opened.open === 'true' && opened.h > first.h + 20 && opened.rows === 2 && opened.top === first.top && /^New game/.test(await ev("document.querySelector('.history-row .history-text').textContent")) && /^Drew /.test(await ev("document.querySelector('.history-row:last-child .history-text').textContent")), JSON.stringify(opened));
   const tops = [];
   for (let n = 0; n < 6; n++) { await ev("document.getElementById('draw').click()"); await sleep(90); tops.push((await bar()).top); }
   check('new moves add rows and the count follows, and the window does not jump (the top edge never changes)', (await bar()).count === '8' && new Set(tops).size === 1 && tops[0] === opened.top, JSON.stringify(tops));
+  for (let n = 0; n < 8; n++) { await ev("document.getElementById('draw').click()"); await sleep(40); } // (enough moves for the list to need scrolling)
+  check('the newest move is the last row, and a long list is scrolled to the bottom', await ev(`(() => { const l = document.getElementById('history-list'); return l.scrollHeight > l.clientHeight + 20 && l.scrollTop + l.clientHeight >= l.scrollHeight - 2 && l.lastElementChild.querySelector('.history-turn') !== null; })()`));
   if (process.argv.includes('--screenshot')) await browser.screenshot('scratch-history.png');
   // the whole top is the handle: drag it into the middle of the screen (it is free there, and a drag does not close it), then to the left edge (it attaches, flush)
   const drag = async (from, to) => { await mouse('mouseMoved', from.cx, from.cy); await mouse('mousePressed', from.cx, from.cy, 1); for (let n = 1; n <= 10; n++) await mouse('mouseMoved', from.cx + ((to.x - from.cx) * n) / 10, from.cy + ((to.y - from.cy) * n) / 10, 1); await mouse('mouseReleased', to.x, to.y); await sleep(450); };

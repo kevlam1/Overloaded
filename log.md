@@ -4589,6 +4589,16 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **My AI's mistakes this time:** I first tried to fix the thin height with a rule that lost to a more specific one in the style sheet (and the bar's own padding came from a generic section rule); the life piece's width changed with its place and made the browser log "ResizeObserver loop" messages (fixed with a fixed width); and several old tests assumed the first set of edge hints on the page was the action bar's.
 
+## 231. The newest move at the bottom of the game history (2026-11-18)
+
+**What I asked for**
+- In the history window, have the newest move at the bottom.
+
+**What changed** (`frontend/src/history-bar.js`, `scripts/check-history-and-select-ui.mjs`, `CLAUDE.md`)
+- The list is oldest first now, so the newest move is the last row. The list stays scrolled to the bottom when it is opened and when a move is added, so you always see the newest one, even when the list is longer than the window.
+
+**What I checked:** the history and select check has 19 checks now. Two changed: the first row is the new game and the last row is the latest draw, and with 16 moves the list is longer than its window and is scrolled to the bottom. I looked at a screenshot of the long list. The solo check does not touch the history rows, so I did not run it again. My first scroll check was too weak (8 rows do not need scrolling), so it now adds 8 more moves first.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

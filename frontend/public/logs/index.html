@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.230</span></h1>
-    <p class="lede">230 entries, Oct 25 to Nov 18, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
+    <h1>Build log <span class="version">Version 0.231</span></h1>
+    <p class="lede">231 entries, Oct 25 to Nov 18, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
   </div>
 </header>
 
@@ -24,7 +24,7 @@
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
-<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">17</span></a>
+<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">18</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
 <a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">29 things friends asked for</span></a>
 <a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">26 open, 71 done</span></a>
@@ -3604,7 +3604,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-2" aria-labelledby="week-2-title">
-<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">17 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">18 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-2-days">
 <div class="day">
 <h3 class="day-title">Monday 16 November <span class="day-count">5</span></h3>
@@ -3840,7 +3840,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Wednesday 18 November <span class="day-count">3</span></h3>
+<h3 class="day-title">Wednesday 18 November <span class="day-count">4</span></h3>
 <div class="entries">
 <article class="entry" id="entry-228" data-n="228">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-228-body">
@@ -3891,6 +3891,20 @@
 <p class="sub"><strong>Decisions</strong></p>
 <ul><li>Only the solo page has the new life piece; the table page keeps its old one, with the later circle.</li><li>The life piece can sit on top of the first cards played at the top left. It can be dragged away, and the solo check starts it at the right edge.</li><li>Known: if the history bar is docked at the left edge in the middle, the Stack tab sits on top of it.</li></ul>
 <p><strong>My AI's mistakes this time:</strong> I first tried to fix the thin height with a rule that lost to a more specific one in the style sheet (and the bar's own padding came from a generic section rule); the life piece's width changed with its place and made the browser log &quot;ResizeObserver loop&quot; messages (fixed with a fixed width); and several old tests assumed the first set of edge hints on the page was the action bar's.</p>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-231" data-n="231">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-231-body">
+    <span class="num">231</span>
+    <span class="head-text"><span class="title">The newest move at the bottom of the game history</span><span class="sum">In the history window, have the newest move at the bottom.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-231-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>In the history window, have the newest move at the bottom.</li></ul>
+<p><strong>What changed</strong> (<code>frontend/src/history-bar.js</code>, <code>scripts/check-history-and-select-ui.mjs</code>, <code>CLAUDE.md</code>)</p>
+<ul><li>The list is oldest first now, so the newest move is the last row. The list stays scrolled to the bottom when it is opened and when a move is added, so you always see the newest one, even when the list is longer than the window.</li></ul>
+<p><strong>What I checked:</strong> the history and select check has 19 checks now. Two changed: the first row is the new game and the last row is the latest draw, and with 16 moves the list is longer than its window and is scrolled to the bottom. I looked at a screenshot of the long list. The solo check does not touch the history rows, so I did not run it again. My first scroll check was too weak (8 rows do not need scrolling), so it now adds 8 more moves first.</p>
   </div></div></div>
 </article>
 </div>
