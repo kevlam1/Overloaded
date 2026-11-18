@@ -79,7 +79,7 @@ export async function openPrintingPicker({ root, name, defaultId, currentId, loa
     if (printing.id === currentId) button.setAttribute('aria-current', 'true');
     const picture = make('span', 'tile-art');
     picture.setAttribute('aria-hidden', 'true');
-    const url = imageUrl(printing.id, 'small');
+    const url = imageUrl(printing.id, 'normal'); // (the normal size: the small picture is 146 px wide and looked blurry in a tile)
     const fallback = () => { picture.replaceChildren(make('span', 'tile-name', name)); picture.classList.add('noimage'); };
     if (url) {
       const image = new Image();

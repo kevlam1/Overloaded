@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.232</span></h1>
-    <p class="lede">232 entries, Oct 25 to Nov 18, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
+    <h1>Build log <span class="version">Version 0.233</span></h1>
+    <p class="lede">233 entries, Oct 25 to Nov 18, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
   </div>
 </header>
 
@@ -24,7 +24,7 @@
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
-<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">19</span></a>
+<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">20</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
 <a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">29 things friends asked for</span></a>
 <a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">26 open, 71 done</span></a>
@@ -3604,7 +3604,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-2" aria-labelledby="week-2-title">
-<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">19 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">20 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-2-days">
 <div class="day">
 <h3 class="day-title">Monday 16 November <span class="day-count">5</span></h3>
@@ -3840,7 +3840,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Wednesday 18 November <span class="day-count">5</span></h3>
+<h3 class="day-title">Wednesday 18 November <span class="day-count">6</span></h3>
 <div class="entries">
 <article class="entry" id="entry-228" data-n="228">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-228-body">
@@ -3919,6 +3919,20 @@
 <p><strong>What changed</strong> (<code>frontend/src/stack-window.js</code>, <code>scripts/check-stack-ui.mjs</code>)</p>
 <ul><li>The cause: the right click opens the browser's menu, which can swallow the release of the left button, so the drag never got its &quot;let go&quot;. A drag now ends, and the card goes back where it was, when: a move arrives that says the left button is no longer down, a context menu opens while a card is carried, the pointer capture is lost, or the window loses focus. The arrow drawn with Shift and a drag got the first guard too.</li></ul>
 <p><strong>What I checked:</strong> a new check in <code>scripts/check-stack-ui.mjs</code> (26 checks now) holds the left button on a card, right-clicks outside, never sends the left release, and then moves the pointer: the card must be back in its place with nothing lifted or shifted. I ran it against the old code first and it failed there, then it passed with the fix. The Shift-drag arrow has the same guard but no check of its own.</p>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-233" data-n="233">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-233-body">
+    <span class="num">233</span>
+    <span class="head-text"><span class="title">Deleting a deck asks first, and the change-printing pictures are sharper</span><span class="sum">On the deck list, the Delete button should open a pop-up to confirm.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-233-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>On the deck list, the Delete button should open a pop-up to confirm. The pictures in the change printing window are blurry.</li></ul>
+<p><strong>What changed</strong> (<code>frontend/src/confirm-box.js</code> (new), <code>frontend/src/deck-importer.js</code>, <code>frontend/src/printing-picker.js</code>, <code>frontend/src/style.css</code>, <code>scripts/check-deck-ui.mjs</code>)</p>
+<ul><li>A small window opens in the middle of the page over a dimmed background: <code>Delete &quot;Deck name&quot;?</code>, &quot;It is removed from this browser.&quot;, and Cancel and Delete buttons. Cancel has the focus, so Enter does nothing by accident; Escape, Cancel or a click on the dark space keep the deck. Only Delete removes it. The same code runs on the deck page and in the lobby, so both ask.</li><li>The change printing window asked for the small picture (146 px wide), which looks blurry in a tile. It asks for the normal size now. The pictures still load only when they scroll into view, and they come from Scryfall's image server, not its API.</li></ul>
+<p><strong>What I checked:</strong> <code>scripts/check-deck-ui.mjs</code> has 281 checks now (it was 277): Delete opens the window with the deck's name and Cancel focused and nothing is deleted yet, Cancel keeps the deck, Escape keeps it, Delete removes it and says so, and every tile picture in the printing window asks for the normal size. All of the deck page's old delete steps now press Delete in the window. I looked at a screenshot of the window (and fixed the Delete button's text, which was hard to read on the light red in the dark theme). I did not look at the real printing pictures, only at what size they ask for, because the checks use stand-in pictures.</p>
   </div></div></div>
 </article>
 </div>

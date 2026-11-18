@@ -60,7 +60,11 @@ try {
   const library = async () => JSON.parse((await ev(`localStorage.getItem('overloaded.decks')`)) ?? 'null');
   const selectedSaved = async () => { const lib = await library(); return lib?.decks.find((entry) => entry.id === lib.selected)?.deck ?? null; };
   // A saved deck's card opens it; Play solo and Delete are two small buttons on it.
-  const clickSaved = (action, index = 0) => (action === 'load' ? ev(`document.querySelectorAll('#saved-list .deck-face')[${index}].click()`) : ev(`document.querySelectorAll('#saved-list [data-action="${action}"]')[${index}].click()`));
+  // Delete asks first (Kevin, 2026-11-18): the helper presses the button and then Delete in the window; askDelete only presses the button
+  const askDelete = (index = 0) => ev(`document.querySelectorAll('#saved-list [data-action="delete"]')[${index}].click()`);
+  const confirmOpen = () => ev(`Boolean(document.querySelector('.confirm-box'))`);
+  const answer = async (which) => { await waitFor(async () => (await confirmOpen()) || null, 3000, 30); await ev(`document.querySelector('.confirm-${which}').click()`); await sleep(60); };
+  const clickSaved = async (action, index = 0) => { if (action === 'load') return ev(`document.querySelectorAll('#saved-list .deck-face')[${index}].click()`); if (action !== 'delete') return ev(`document.querySelectorAll('#saved-list [data-action="${action}"]')[${index}].click()`); await askDelete(index); await answer('yes'); };
   const pressLoad = async (index = 0) => { await clickSaved('load', index); await settled(); };
   const deleteAllSaved = async () => { for (let n = 0; n < 25 && (await ev(`document.querySelectorAll('#saved-list .deck-face').length`)); n++) await clickSaved('delete'); };
   const ready = () => waitFor(async () => (await ev(`!document.getElementById('check').disabled`)) || null, 15000, 50);
@@ -186,6 +190,19 @@ check('there are no commander or partner boxes; the Commander heading says to ri
   const loaded = await ev(`({ text: document.getElementById('deck-text').value, name: document.getElementById('deck-name').value, preview: !document.getElementById('preview').hidden })`);
   check('loading puts the list and the name back and checks it', loaded.text.includes('Insectile Aberration') && loaded.name === 'Problems deck' && loaded.preview);
   check('opening a deck does not save it again (its saved time is unchanged)', (await selectedSaved()).savedAt === stored.savedAt);
+  // Delete asks first: Cancel and Escape keep the deck, Delete removes it
+  await showList();
+  const decksBefore = (await library()).decks.length;
+  await askDelete(0); await sleep(100);
+  check('Delete opens a window that names the deck, with Cancel (focused) and Delete, and nothing is deleted yet', (await confirmOpen()) && /^Delete "Problems deck"\?$/.test(await ev(`document.querySelector('.confirm-title').textContent`)) && (await ev(`document.activeElement.classList.contains('confirm-no')`)) && (await library()).decks.length === decksBefore);
+  if (process.argv.includes('--screenshot')) await browser.screenshot('scratch-confirm.png');
+  await answer('no');
+  check('Cancel closes the window and keeps the deck', !(await confirmOpen()) && (await library()).decks.length === decksBefore);
+  await askDelete(0); await sleep(100);
+  await ev(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`); await sleep(80);
+  check('Escape closes it and keeps the deck too', !(await confirmOpen()) && (await library()).decks.length === decksBefore);
+  await clickSaved('delete', 0);
+  check('Delete in the window removes the deck and says so', (await library()).decks.length === decksBefore - 1 && /Deleted "Problems deck"/.test(await $text('deck-status')), await $text('deck-status'));
   await deleteAllSaved();
   check('deleting removes it from the browser and the page, and leaves an empty library so an old deck cannot come back', (await library())?.decks.length === 0 && (await ev(`localStorage.getItem('overloaded.deck')`)) === null && (await ev(`document.querySelectorAll('#saved-list li').length`)) === 0);
 
@@ -678,6 +695,7 @@ check('there are no commander or partner boxes; the Commander heading says to ri
   await waitFor(async () => (await ev(`document.querySelectorAll('.picker-tile').length`)) > 50 || null, 8000, 50).catch(() => null);
   const picker = await ev(`({ dialog: document.querySelector('.picker')?.getAttribute('aria-label'), tiles: document.querySelectorAll('.picker-tile').length, focus: document.activeElement?.className, message: document.querySelector('.picker-message').textContent, resetHidden: document.querySelector('.picker-reset').hidden, defaults: document.querySelectorAll('.tile-default').length, placeholder: document.querySelector('.picker-filter').placeholder })`);
   check('"Change printing..." opens a window with a picture for every printing of the card (Sol Ring has well over 100), the search box focused, no "Use the default" button (nothing was chosen) and at most one picture marked Default', picker.dialog === 'Printings of Sol Ring' && picker.tiles > 100 && /picker-filter/.test(picker.focus) && picker.message === '' && picker.resetHidden && picker.defaults <= 1 && /set name, set code, number or id/.test(picker.placeholder), JSON.stringify(picker));
+  check('the printing pictures ask for the normal size (the small one was blurry)', await ev(`(() => { const imgs = [...document.querySelectorAll('.picker-tile img')]; return imgs.length > 50 && imgs.every((img) => img.getAttribute('src').includes('/normal/')); })()`));
   const layout = await ev(`(() => { const tiles = [...document.querySelectorAll('.picker-tile')]; const box = (t) => { const r = t.getBoundingClientRect(); return { left: Math.round(r.left), top: Math.round(r.top) }; }; const years = tiles.slice(0, 80).map((t) => Number(/(\\d{4})$/.exec(t.querySelector('.tile-caption span').textContent)?.[1] ?? 0)); return { a: box(tiles[0]), b: box(tiles[1]), c: box(tiles[2]), d: box(tiles[3]), sorted: years.every((y, i) => i === 0 || years[i - 1] >= y), images: tiles.filter((t) => t.querySelector('img')).length, lazy: tiles.every((t) => t.querySelector('img')?.loading === 'lazy'), loaded: tiles.filter((t) => { const i = t.querySelector('img'); return i && i.complete && i.naturalWidth > 0; }).length }; })()`);
   check('the pictures are in columns of three, left to right then down, newest first (the years never go up)', layout.a.top === layout.b.top && layout.b.top === layout.c.top && layout.a.left < layout.b.left && layout.b.left < layout.c.left && layout.d.left === layout.a.left && layout.d.top > layout.a.top && layout.sorted, JSON.stringify(layout));
   check('every tile is a picture loaded lazily, and far fewer than all of them were fetched (only what is on screen)', layout.images === picker.tiles && layout.lazy && layout.loaded < 40 && layout.loaded >= 3, JSON.stringify({ images: layout.images, loaded: layout.loaded }));

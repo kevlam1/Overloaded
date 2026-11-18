@@ -28,6 +28,7 @@ import { guessBracket, gameChangersIn } from '../../shared/deck-bracket.mjs';
 import { deckFace, colorsAsCost, tintGradient, COLOR_NAMES } from '../../shared/deck-colors.mjs';
 import { manaNode } from './mana-pips.js';
 import { imageUrl } from '../../shared/card-image.mjs';
+import { askConfirm } from './confirm-box.js';
 
 const store = makeSafeStore();
 const PROBE_KEY = 'overloaded.storage-probe';
@@ -830,7 +831,12 @@ export function mountDeckImporter({ root: container, sampleId, autoPlay = false,
     if (!clicked || !entry) return;
     if (clicked.dataset.action === 'load') loadSaved(entry.id);
     else if (clicked.dataset.action === 'play') { if (commit(selectDeck(library, entry.id), `"${entry.deck.name}" is now the deck for the solo table.`)) location.assign('/solo'); }
-    else if (clicked.dataset.action === 'delete') commit(removeDeck(library, entry.id), `Deleted "${entry.deck.name}".`);
+    else if (clicked.dataset.action === 'delete') { // (asks first: a deleted deck cannot come back)
+      askConfirm({ title: `Delete "${entry.deck.name}"?`, message: 'It is removed from this browser.', confirmLabel: 'Delete', returnFocus: clicked }).then((yes) => {
+        const still = yes ? library.decks.find((candidate) => candidate.id === entry.id) : null;
+        if (still) commit(removeDeck(library, still.id), `Deleted "${still.deck.name}".`);
+      });
+    }
   });
 
   // Can this browser keep anything? If not, the page still works; it just cannot remember a deck.

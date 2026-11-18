@@ -4609,6 +4609,17 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **What I checked:** a new check in `scripts/check-stack-ui.mjs` (26 checks now) holds the left button on a card, right-clicks outside, never sends the left release, and then moves the pointer: the card must be back in its place with nothing lifted or shifted. I ran it against the old code first and it failed there, then it passed with the fix. The Shift-drag arrow has the same guard but no check of its own.
 
+## 233. Deleting a deck asks first, and the change-printing pictures are sharper (2026-11-18)
+
+**What I asked for**
+- On the deck list, the Delete button should open a pop-up to confirm. The pictures in the change printing window are blurry.
+
+**What changed** (`frontend/src/confirm-box.js` (new), `frontend/src/deck-importer.js`, `frontend/src/printing-picker.js`, `frontend/src/style.css`, `scripts/check-deck-ui.mjs`)
+- A small window opens in the middle of the page over a dimmed background: `Delete "Deck name"?`, "It is removed from this browser.", and Cancel and Delete buttons. Cancel has the focus, so Enter does nothing by accident; Escape, Cancel or a click on the dark space keep the deck. Only Delete removes it. The same code runs on the deck page and in the lobby, so both ask.
+- The change printing window asked for the small picture (146 px wide), which looks blurry in a tile. It asks for the normal size now. The pictures still load only when they scroll into view, and they come from Scryfall's image server, not its API.
+
+**What I checked:** `scripts/check-deck-ui.mjs` has 281 checks now (it was 277): Delete opens the window with the deck's name and Cancel focused and nothing is deleted yet, Cancel keeps the deck, Escape keeps it, Delete removes it and says so, and every tile picture in the printing window asks for the normal size. All of the deck page's old delete steps now press Delete in the window. I looked at a screenshot of the window (and fixed the Delete button's text, which was hard to read on the light red in the dark theme). I did not look at the real printing pictures, only at what size they ask for, because the checks use stand-in pictures.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

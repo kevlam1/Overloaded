@@ -1626,3 +1626,13 @@ body.playing.solo #life-area .life-step:hover { border-color: var(--ring); }
 body.playing.solo #life-area .life-step:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 body.playing.solo #life-area .life-number { min-width: 2.8rem; padding: 0 0.2rem; border: 0; background: none; font-size: 1.35rem; font-weight: 700; line-height: 1.3; }
 body.playing.solo #life-area .life-number:hover { background: color-mix(in srgb, var(--text) 8%, transparent); border-radius: 0.4rem; }
+
+/* the "are you sure?" window (frontend/src/confirm-box.js; Kevin, 2026-11-18: deleting a deck): centred over a dimmed page */
+.confirm-overlay { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; background: rgba(0, 0, 0, 0.55); }
+.confirm-box { width: min(22rem, 92vw); padding: 1rem 1.1rem; border: 1px solid var(--line); border-radius: 0.8rem; background: var(--bg); color: var(--text); box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.6); }
+.confirm-title { margin: 0 0 0.3rem; font-size: 1.05rem; overflow-wrap: anywhere; }
+.confirm-message { margin: 0 0 0.9rem; color: var(--muted); font-size: 0.9rem; }
+.confirm-buttons { display: flex; gap: 0.5rem; justify-content: flex-end; }
+.confirm-buttons button { min-height: 0; padding: 0.3rem 1rem; }
+.confirm-yes { border-color: var(--danger); background: var(--danger); color: var(--bg); font-weight: 700; }
+.confirm-yes:focus-visible, .confirm-no:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
