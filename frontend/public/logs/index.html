@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.222</span></h1>
-    <p class="lede">222 entries, Oct 25 to Nov 17, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
+    <h1>Build log <span class="version">Version 0.223</span></h1>
+    <p class="lede">223 entries, Oct 25 to Nov 17, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
   </div>
 </header>
 
@@ -24,7 +24,7 @@
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
-<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">9</span></a>
+<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">10</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
 <a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">29 things friends asked for</span></a>
 <a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">25 open, 68 done</span></a>
@@ -3604,7 +3604,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-2" aria-labelledby="week-2-title">
-<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">9 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">10 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-2-days">
 <div class="day">
 <h3 class="day-title">Monday 16 November <span class="day-count">5</span></h3>
@@ -3691,7 +3691,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Tuesday 17 November <span class="day-count">4</span></h3>
+<h3 class="day-title">Tuesday 17 November <span class="day-count">5</span></h3>
 <div class="entries">
 <article class="entry" id="entry-219" data-n="219">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-219-body">
@@ -3755,6 +3755,22 @@
 <ul><li>Which messages were friend feedback is my answer, not something the log shows: entries 173, 176, 210 and 212. I added entry 211 to the 210 list because it holds points 7 and 8 of the same eight-point message. The other long lists (entries 184, 206 and 208) are not in the file.</li><li>The file says &quot;friends&quot; and gives no names.</li></ul>
 <p><strong>What I checked:</strong> the logs page check (36, all passed, with new checks that the section has one entry for each part of the file, that each list names its log entry, that all 29 things are on the page, and that the address #feedback-2 opens it). I looked at a screenshot of the section opened.</p>
 <p><strong>My mistakes this round:</strong> none found. I did not guess which messages were from friends; I listed the long ones from the log and asked.</p>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-223" data-n="223">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-223-body">
+    <span class="num">223</span>
+    <span class="head-text"><span class="title">The resting hand shows half of each card, with a slider in Settings</span><span class="sum">I asked how much of a card is hidden when the hand is resting (a quarter, looking at it up and down), then asked for a constant 50% and a setting so players can change how much of the resting hand shows.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-223-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>I asked how much of a card is hidden when the hand is resting (a quarter, looking at it up and down), then asked for a constant 50% and a setting so players can change how much of the resting hand shows.</li></ul>
+<p><strong>What changed</strong> (<code>shared/hand-rest.mjs</code>, <code>frontend/src/hand-rest.js</code>, <code>frontend/src/hand-view.js</code>, <code>frontend/pages/solo/solo.js</code>, <code>frontend/pages/solo/index.html</code>, <code>scripts/test-hand-rest.mjs</code>, <code>scripts/check-solo-ui.mjs</code>, <code>scripts/test-all.mjs</code>)</p>
+<ul><li>The resting hand now hides half of each card instead of a quarter. Settings has a &quot;Resting hand&quot; slider from 20% to 100% of a card showing, in steps of 5, starting at 50%. The choice is kept in this browser (<code>overloaded.handRest</code>) and the hand is laid out again as the slider moves. Junk in storage reads as 50%.</li><li>The rules for the setting are in <code>shared/hand-rest.mjs</code> with no browser code, so Node can test them; <code>hand-view.js</code> asks for the hidden share each time it lays out.</li></ul>
+<p><strong>What I checked:</strong> <code>scripts/test-hand-rest.mjs</code> (16 checks, passed) and the quick test run. The solo table check (797) has one failure, &quot;the two cards played together overlap&quot;, which already passed in some runs and failed in others before this change; I have not fixed that flakiness. I did not look at a screenshot of the resting hand myself; I tried the slider myself and it works.</p>
+<p class="sub"><strong>Decisions</strong></p>
+<ul><li>50% is the default and 20% the least, because below that too little of the cards is left to find the hand with the pointer.</li><li>The hand test aiming had to change: with half a card below the window, the middle of a card is off screen. The tests now bring the pointer into the visible part so the hand rises, then aim. The test helper also stopped scrolling the page to centre a hand card, which closed the card menu (a test mistake, not something a player does).</li></ul>
   </div></div></div>
 </article>
 </div>

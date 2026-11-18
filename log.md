@@ -4443,6 +4443,21 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 ---
 
+## 223. The resting hand shows half of each card, with a slider in Settings (2026-11-17)
+
+**What I asked for**
+- I asked how much of a card is hidden when the hand is resting (a quarter, looking at it up and down), then asked for a constant 50% and a setting so players can change how much of the resting hand shows.
+
+**What changed** (`shared/hand-rest.mjs`, `frontend/src/hand-rest.js`, `frontend/src/hand-view.js`, `frontend/pages/solo/solo.js`, `frontend/pages/solo/index.html`, `scripts/test-hand-rest.mjs`, `scripts/check-solo-ui.mjs`, `scripts/test-all.mjs`)
+- The resting hand now hides half of each card instead of a quarter. Settings has a "Resting hand" slider from 20% to 100% of a card showing, in steps of 5, starting at 50%. The choice is kept in this browser (`overloaded.handRest`) and the hand is laid out again as the slider moves. Junk in storage reads as 50%.
+- The rules for the setting are in `shared/hand-rest.mjs` with no browser code, so Node can test them; `hand-view.js` asks for the hidden share each time it lays out.
+
+**What I checked:** `scripts/test-hand-rest.mjs` (16 checks, passed) and the quick test run. The solo table check (797) has one failure, "the two cards played together overlap", which already passed in some runs and failed in others before this change; I have not fixed that flakiness. I did not look at a screenshot of the resting hand myself; I tried the slider myself and it works.
+
+**Decisions**
+- 50% is the default and 20% the least, because below that too little of the cards is left to find the hand with the pointer.
+- The hand test aiming had to change: with half a card below the window, the middle of a card is off screen. The tests now bring the pointer into the visible part so the hand rises, then aim. The test helper also stopped scrolling the page to centre a hand card, which closed the card menu (a test mistake, not something a player does).
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

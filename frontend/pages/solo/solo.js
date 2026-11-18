@@ -5,6 +5,7 @@
 import { makeSafeStore } from '../../src/safe-store.js';
 import { play, mountSoundSettings } from '../../src/sound.js';
 import { mountPileStyle } from '../../src/pile-style.js';
+import { restHidden, mountHandRestSetting } from '../../src/hand-rest.js';
 import { mountPileViewer } from '../../src/pile-viewer.js';
 import { mountSettingsMenu } from '../../src/settings-menu.js';
 import { createHandSort } from '../../src/hand-sort-ui.js';
@@ -478,6 +479,7 @@ $('untap-all').addEventListener('click', () => { play('tap'); apply(() => untapA
 mountSoundSettings($('sound-settings'));
 // ---- piles drawn diagonally or horizontally (shared/pile-style.mjs), a double click taps a card, a click on empty space deselects ----
 mountPileStyle($('pile-style-settings'));
+mountHandRestSetting($('hand-rest-settings'), { onChange: () => handView.arrange() }); // (the hand is made further down, but the slider only works after it is)
 const viewer = mountPileViewer({ root: $('viewer'), nodeFor: (card) => cardNodes.nodeFor(card, false), onClose: () => { viewing = null; viewTop = null; viewBottom = false; viewReveal = false; if (game) render(); } });
 for (const tab of document.querySelectorAll('#viewer .viewer-tab')) tab.addEventListener('click', () => { if (game) openPile(tab.dataset.view); });
 viewer.onSearch(() => { if (game && viewing) renderViewer(); });
@@ -782,7 +784,7 @@ function dropOnPile({ uid, from, to, slot = null, element = null, flying = null,
   apply(() => moveCard(game, uid, to, to === 'command' ? {} : { position: 'top' }), `Moved ${name} to ${ZONE_WORDS[to]}.`);
 }
 // Your hand as a fan: the page draws the cards, the hand view places them and shows their mana costs; a card of the hand dragged within it opens a gap and is put there when let go.
-const handView = mountHand({ container: $('hand'), costOf: (uid) => { const card = game?.zones.hand.find((c) => c.uid === uid); const known = card ? lookup?.(card) : null; return known?.m ?? ''; } });
+const handView = mountHand({ container: $('hand'), restHidden, costOf: (uid) => { const card = game?.zones.hand.find((c) => c.uid === uid); const known = card ? lookup?.(card) : null; return known?.m ?? ''; } });
 function reorderInHand({ uid, x, picture }) {
   if (!game || !game.zones.hand.some((c) => c.uid === uid)) return;
   const to = handView.holeFor(uid, x); // the place it was last shown over

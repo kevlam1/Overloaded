@@ -51,6 +51,7 @@ const suites = [
   { name: 'searching a pile: names, letters in order, types', cmd: node, args: ['scripts/test-card-search.mjs'] },
   { name: 'the right-click menu of a pile: shuffle, draw, mill, move all', cmd: node, args: ['scripts/test-pile-menu.mjs'] },
   { name: 'the type and mana value filters of the pile windows', cmd: node, args: ['scripts/test-pile-filter.mjs'] },
+  { name: 'how much of a card shows when the hand is resting', cmd: node, args: ['scripts/test-hand-rest.mjs'] },
   { name: 'card rulings: the files the details window reads under the rules', cmd: node, args: ['scripts/test-card-rulings.mjs'] },
   { name: 'counters a card can be given: the catalog and named counters', cmd: node, args: ['scripts/test-counter-catalog.mjs'] },
   { name: 'card rules: the files the details window reads', cmd: node, args: ['scripts/test-card-rules.mjs'] },

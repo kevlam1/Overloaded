@@ -9,7 +9,7 @@
 // While a card of the hand is carried the places do NOT change (shared/hand-layout.mjs): the carried card is over one of them (the hole), the other cards take the rest in order, and the
 // ones beside the hole lean away. A card let go starts from where the carried picture was (noteDrop) and eases into its place, so it does not fly in from where it was picked up.
 //
-// The hand sits LOWERED: a quarter of the cards' height is below the bottom edge of the window, so the board is easier to see. When the pointer is in the area of the hand (inside the width
+// The hand sits LOWERED: half of the cards' height is below the bottom edge of the window (a quarter until 2026-11-17, and now a setting, 20% to 100% showing: restHidden below), so the board is easier to see. When the pointer is in the area of the hand (inside the width
 // the cards cover, from the top of the visible cards down) the cards rise by that quarter, and when the pointer leaves, also while a card is being carried out of it, they go down again.
 // The card under the pointer is shown lifted and straight by a COPY of it drawn on top in a layer of its own (.hand-lift-layer) that never takes the mouse; the real cards keep their places and
 // their stacking, so the card that answers to the pointer is always the one you can see there (a lifted card that kept a higher stacking number kept the pointer over its neighbours).
@@ -26,9 +26,10 @@ const SELECTED_SCALE = 1.1; // closer than this to its place a card is at it
 const round2 = (value) => Math.round(value * 100) / 100;
 const prefersReducedMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-// container: the #hand element. costOf(uid): the mana cost text of the hand card with this uid ('' for none, a land has none).
+// container: the #hand element. costOf(uid): the mana cost text of the hand card with this uid ('' for none, a land has none). restHidden(): the share of a card's height that is below the bottom edge
+// of the window while the hand rests (0.5 for half; the player's setting, frontend/src/hand-rest.js), asked again at every layout.
 // Returns { arrange(), carry(info | null), holeFor(uid, x, external), noteDrop(uid, from), zone(), over(x, y), isRaised() }.
-export function mountHand({ container, costOf = () => '' }) {
+export function mountHand({ container, costOf = () => '', restHidden = () => 0.5 }) {
   // px kept free at each side for the turn of the outer cards: they swing out by about a fifth of a card's height, so it grows with the cards (a fixed 14 px clipped the first card once the hand was 50% larger)
   const margin = () => Math.max(14, Math.round((container.querySelector(':scope > .card')?.offsetHeight ?? 0) * 0.2));
   let carried = null; // the uid of the card being carried (it is over `hole` and is left out of the places of the others)
@@ -140,13 +141,14 @@ export function mountHand({ container, costOf = () => '' }) {
     frame = requestAnimationFrame(tick);
   }
 
-  // How far a lowered hand is below its raised place: a quarter of the height of a card.
-  // (plus the gap the cards keep above the bottom of the box, so that exactly a quarter of a card is below the bottom edge of the window)
+  // How far a lowered hand is below its raised place: the resting share of the height of a card (half to start, the player's setting).
+  // (plus the gap the cards keep above the bottom of the box, so that exactly that share of a card is below the bottom edge of the window)
+  const hiddenShare = () => { const share = Number(restHidden()); return Number.isFinite(share) ? Math.min(0.8, Math.max(0, share)) : 0.5; };
   const dropDistance = () => {
     const card = container.querySelector(':scope > .card');
-    if (!card) return Math.round(cardHeightOf(null) * 0.25 + 2.8 * remPixels()); // an empty hand: the drop a card of the hand would have (a quarter of its height, and the 2.8 rem the cards keep above the bottom of the box)
+    if (!card) return Math.round(cardHeightOf(null) * hiddenShare() + 2.8 * remPixels()); // an empty hand: the drop a card of the hand would have (a quarter of its height, and the 2.8 rem the cards keep above the bottom of the box)
     const inset = parseFloat(getComputedStyle(card).bottom) || 0;
-    return Math.round(card.offsetHeight * 0.25 + inset);
+    return Math.round(card.offsetHeight * hiddenShare() + inset);
   };
 
   // Where the card picture let go at `from` (its top left corner in viewport pixels, its turn in degrees) is, as the numbers of a card of the hand: so that the card starts where the picture was.
