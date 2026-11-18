@@ -41,34 +41,56 @@ try {
   const rectOf = (selector) => ev(`(() => { const e = document.querySelector(${JSON.stringify(selector)}); if (!e) return null; const r = e.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height, cx: r.x + r.width / 2, cy: r.y + r.height / 2, right: r.right, bottom: r.bottom }; })()`);
 
   // ---- the Game history bar ----
-  const bar = () => ev(`(() => { const p = document.getElementById('history-bar'); const r = p.getBoundingClientRect(); return { left: r.left, top: r.top, right: r.right, h: r.height, open: p.dataset.open, expanded: document.querySelector('.history-toggle').getAttribute('aria-expanded'), listShown: !document.getElementById('history-list').hidden, rows: document.querySelectorAll('.history-row').length, count: document.querySelector('.history-count').textContent }; })()`);
+  const bar = () => ev(`(() => { const p = document.getElementById('history-bar'); const r = p.getBoundingClientRect(); const cs = getComputedStyle(p); return { left: r.left, top: r.top, right: r.right, h: r.height, open: p.dataset.open, dock: p.dataset.dock, borderRight: cs.borderRightWidth, borderLeft: cs.borderLeftWidth, rows: document.querySelectorAll('.history-row').length, count: document.querySelector('.history-count').textContent }; })()`);
+  const click = async (selector) => { const r = await rectOf(selector); await mouse('mouseMoved', r.cx, r.cy); await mouse('mousePressed', r.cx, r.cy, 1); await mouse('mouseReleased', r.cx, r.cy); await sleep(150); };
   const first = await bar();
-  check('the history bar is a thin bar called Game history, closed, docked at the right edge', first.open === 'false' && first.expanded === 'false' && !first.listShown && first.h < 50 && first.right > 1280 - 16 && (await ev("document.querySelector('.history-title').textContent")) === 'Game history', JSON.stringify(first));
+  check('the bar is thin, called Game history, closed, and attached to the right edge (no gap, no border on that side)', first.open === 'false' && first.h < 32 && first.right === 1280 && first.dock === 'right' && first.borderRight === '0px' && (await ev("document.querySelector('.history-title').textContent")) === 'Game history', JSON.stringify(first));
   await ev("document.getElementById('draw').click()"); await sleep(100);
-  await ev("document.querySelector('.history-toggle').click()"); await sleep(100);
+  await click('.history-head');
   const opened = await bar();
-  check('clicking the title opens it downward and it lists the move (the new game, then the draw), newest first', opened.listShown && opened.expanded === 'true' && opened.h > first.h + 20 && opened.rows === 2 && /^Drew /.test(await ev("document.querySelector('.history-row .history-text').textContent")) && opened.top === first.top, JSON.stringify(opened));
-  await ev("document.getElementById('draw').click()"); await sleep(100);
+  check('a click on the top of the bar opens it downward (its top edge stays) and it lists the moves, newest first', opened.open === 'true' && opened.h > first.h + 20 && opened.rows === 2 && opened.top === first.top && /^Drew /.test(await ev("document.querySelector('.history-row .history-text').textContent")), JSON.stringify(opened));
+  const tops = [];
+  for (let n = 0; n < 6; n++) { await ev("document.getElementById('draw').click()"); await sleep(90); tops.push((await bar()).top); }
+  check('new moves add rows and the count follows, and the window does not jump (the top edge never changes)', (await bar()).count === '8' && new Set(tops).size === 1 && tops[0] === opened.top, JSON.stringify(tops));
   if (process.argv.includes('--screenshot')) await browser.screenshot('scratch-history.png');
-  check('each move adds a row and the count follows', (await bar()).rows === 3 && (await bar()).count === '3');
-  // drag it out by its grip into the middle of the screen: it is free there, and docks again near the left edge
-  const grip = await rectOf('.history-grip');
+  // the whole top is the handle: drag it into the middle of the screen (it is free there, and a drag does not close it), then to the left edge (it attaches, flush)
   const drag = async (from, to) => { await mouse('mouseMoved', from.cx, from.cy); await mouse('mousePressed', from.cx, from.cy, 1); for (let n = 1; n <= 10; n++) await mouse('mouseMoved', from.cx + ((to.x - from.cx) * n) / 10, from.cy + ((to.y - from.cy) * n) / 10, 1); await mouse('mouseReleased', to.x, to.y); await sleep(450); };
-  await drag(grip, { x: 600, y: 300 });
+  await drag(await rectOf('.history-head'), { x: 600, y: 300 });
   const free = await bar();
-  check('dragged by the grip into the middle of the screen it stays there, free, and stays open', free.left > 300 && free.left < 900 && free.top > 150 && free.open === 'true', JSON.stringify(free));
-  const grip2 = await rectOf('.history-grip');
-  await drag(grip2, { x: 4, y: 400 });
+  check('dragged by its top into the middle of the screen it stays there, free, and still open (the drag was not a click)', free.left > 300 && free.left < 900 && free.top > 150 && free.dock === '' && free.open === 'true', JSON.stringify(free));
+  await drag(await rectOf('.history-head'), { x: 4, y: 400 });
   const latched = await bar();
-  check('dragged near the left edge it latches onto it', latched.left <= 10, JSON.stringify(latched));
-  await ev("document.querySelector('.history-toggle').click()"); await sleep(100);
-  check('clicking the title again closes it', (await bar()).open === 'false');
+  check('dragged near the left edge it attaches to it: touching the edge, no border on that side', latched.left === 0 && latched.dock === 'left' && latched.borderLeft === '0px', JSON.stringify(latched));
+  await click('.history-head');
+  check('clicking the top again closes it', (await bar()).open === 'false');
   await ev("document.getElementById('new-game').click()"); await sleep(200);
-  await ev("document.querySelector('.history-toggle').click()"); await sleep(100);
+  await click('.history-head');
   check('a new game starts an empty history with one row for the new game', (await bar()).rows === 1);
 
+  // ---- the life piece: Life above the number, - and +, a quick click shows no circle, and it can be dragged ----
+  const life = () => ev("Number(document.getElementById('life').textContent)");
+  const l0 = await life();
+  await click('#life-minus'); await click('#life-plus'); await click('#life-plus');
+  check('the - and + buttons change life by 1', (await life()) === l0 + 1, String(await life()));
+  const num = await rectOf('#life');
+  await mouse('mouseMoved', num.cx, num.cy); await mouse('mousePressed', num.cx, num.cy, 1); await sleep(120);
+  const ringDuringClick = await ev("document.querySelector('.life-ring').classList.contains('holding')");
+  await mouse('mouseReleased', num.cx, num.cy); await sleep(100);
+  check('a click on the number gains 1 and the circle never shows', (await life()) === l0 + 2 && ringDuringClick === false);
+  await mouse('mousePressed', num.cx, num.cy, 1); await sleep(400);
+  const ringHeld = await ev("document.querySelector('.life-ring').classList.contains('holding')");
+  await mouse('mouseReleased', num.cx, num.cy); await sleep(300);
+  await ev("document.querySelector('.life-input')?.blur()");
+  check('holding the number longer does show the circle', ringHeld === true);
+  if (process.argv.includes('--screenshot')) await browser.screenshot('scratch-life.png');
+  const lifeBox = await rectOf('#life-area');
+  await drag(await rectOf('#life-grip'), { x: 640, y: 420 });
+  const moved = await rectOf('#life-area');
+  check('dragging the word Life moves the whole piece (and it stays where it is let go)', moved.x > lifeBox.x + 300 && moved.y > lifeBox.y + 200, JSON.stringify({ lifeBox, moved }));
+  await drag(await rectOf('#life-grip'), { x: 4, y: 4 });
+  check('and near the corner it docks again', (await rectOf('#life-area')).x < 20);
+
   // ---- drag-selecting the cards of the hand ----
-  await ev("document.querySelector('.history-toggle').click()"); await sleep(100);
   const handCards = await ev(`[...document.querySelectorAll('#hand > .card')].map((c) => { const r = c.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; })`);
   const startX = 8; // (left of the first card, inside the area of the hand: half a card of room at each end)
   const startY = handCards[0].y + 120;

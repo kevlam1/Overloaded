@@ -10,7 +10,9 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 // bar: the element that floats (position: absolute in a full-screen parent). grip: the button inside it that moves it. store: a safe store (get, set). key: where the place is kept.
 // Returns { reset(), place() }.
 // growDown: the bar gets taller or shorter (the history bar opens downward): its top edge stays where it is instead of following its fraction of the free space.
-export function mountFloatingBar({ bar, grip, store, key = 'overloaded.actionBar', defaultPlace = DEFAULT_PLACE, growDown = false }) {
+// flush: docked to an edge it touches the edge (no gap), and the style sheet drops the border and the rounding on that side (data-dock says which edge), like the stack window.
+// clickThrough: the grip is also a button (the whole top of the history bar): a press that moves less than 5 px is a click and is left alone, and a drag does not end in a click.
+export function mountFloatingBar({ bar, grip, store, key = 'overloaded.actionBar', defaultPlace = DEFAULT_PLACE, growDown = false, flush = false, clickThrough = false }) {
   let place = readPlace(store?.get(key) ?? null) ?? { ...defaultPlace };
   let drag = null; // { dx, dy, pixels } while the grip is held
 
@@ -26,11 +28,18 @@ export function mountFloatingBar({ bar, grip, store, key = 'overloaded.actionBar
   host.append(snapHint, centerHint, cornerHint);
 
   const size = () => ({ width: window.innerWidth, height: window.innerHeight, barWidth: bar.offsetWidth, barHeight: bar.offsetHeight });
-  const put = (pixels) => { bar.style.left = `${pixels.left}px`; bar.style.top = `${pixels.top}px`; bar.style.translate = 'none'; };
+  let lastPut = null; // where the bar was last put (not where it is now: it may still be gliding there)
+  const put = (pixels) => { lastPut = pixels; bar.style.left = `${pixels.left}px`; bar.style.top = `${pixels.top}px`; bar.style.translate = 'none'; };
+  const pixelsFor = (p) => {
+    const r = size();
+    const base = placeToPixels(anchored(p), r);
+    if (!flush) return base;
+    return { left: p.dock === 'left' ? 0 : p.dock === 'right' ? Math.max(0, r.width - r.barWidth) : base.left, top: p.dock === 'top' ? 0 : p.dock === 'bottom' ? Math.max(0, r.height - r.barHeight) : base.top };
+  };
   const current = () => ({ left: bar.offsetLeft, top: bar.offsetTop });
   const save = () => store?.set(key, writePlace(place));
   const orient = () => { bar.dataset.vertical = String(isVertical(place)); }; // (a column on the left and the right: its size changes, so it is set before the size is read)
-  const show = () => { orient(); put(placeToPixels(anchored(place), size())); };
+  const show = () => { orient(); bar.dataset.dock = flush && place.dock ? place.dock : ''; put(pixelsFor(place)); };
 
   function hideHints() { snapHint.hidden = true; centerHint.hidden = true; cornerHint.hidden = true; }
   // What letting go now would do, shown: a strip along the edge, a dotted line when the bar is lined up with the middle of the edge, a dotted triangle in the corner it would go into.
@@ -66,17 +75,26 @@ export function mountFloatingBar({ bar, grip, store, key = 'overloaded.actionBar
   }
 
   // While the grip is held the whole page listens to the pointer (not only the grip, which the pointer leaves as soon as it moves), as the drag of a card does.
-  grip.addEventListener('pointerdown', (event) => {
-    if (event.button !== 0 || drag) return;
-    event.preventDefault();
+  let pending = null; // clickThrough: a press that may still turn out to be a click
+  function begin(x, y) {
     const box = bar.getBoundingClientRect();
-    drag = { dx: event.clientX - box.left, dy: event.clientY - box.top, pixels: current() };
+    drag = { dx: x - box.left, dy: y - box.top, pixels: current() };
     bar.classList.add('dragging');
+    bar.dataset.dock = ''; // (free while it is held: the square edge goes)
+  }
+  grip.addEventListener('pointerdown', (event) => {
+    if (event.button !== 0 || drag || pending) return;
+    if (clickThrough) pending = { x: event.clientX, y: event.clientY }; else { event.preventDefault(); begin(event.clientX, event.clientY); }
     document.addEventListener('pointermove', move);
     document.addEventListener('pointerup', release);
     document.addEventListener('pointercancel', release);
   });
   function move(event) {
+    if (pending) {
+      if (Math.hypot(event.clientX - pending.x, event.clientY - pending.y) < 5) return;
+      begin(pending.x, pending.y); // (from where the press was, so the bar does not jump)
+      pending = null;
+    }
     if (!drag) return;
     const r = size();
     // free while it is held (it keeps the shape it had: a row stays a row until it is let go), only kept inside the window
@@ -87,10 +105,22 @@ export function mountFloatingBar({ bar, grip, store, key = 'overloaded.actionBar
     showHints(dockPlan(pixelsToPlace(drag.pixels, r), r, isVertical(place)));
   }
   function release() {
+    if (pending) { // it was a click: nothing moved
+      pending = null;
+      document.removeEventListener('pointermove', move);
+      document.removeEventListener('pointerup', release);
+      document.removeEventListener('pointercancel', release);
+      return;
+    }
     if (!drag) return;
     document.removeEventListener('pointermove', move);
     document.removeEventListener('pointerup', release);
     document.removeEventListener('pointercancel', release);
+    if (clickThrough) { // a drag does not end in a click on the button it started on
+      const swallow = (click) => { click.stopImmediatePropagation(); click.preventDefault(); document.removeEventListener('click', swallow, true); };
+      document.addEventListener('click', swallow, true);
+      setTimeout(() => document.removeEventListener('click', swallow, true), 100);
+    }
     const r = size();
     const free = pixelsToPlace(drag.pixels, r);
     const plan = dockPlan(free, r, isVertical(place));
@@ -122,14 +152,17 @@ export function mountFloatingBar({ bar, grip, store, key = 'overloaded.actionBar
   function reset() { place = { ...defaultPlace }; show(); save(); }
 
   window.addEventListener('resize', () => { if (!drag) show(); });
-  let lastTop = null;
   if (typeof ResizeObserver === 'function') new ResizeObserver(() => {
-    if (drag) return;
-    if (growDown && lastTop !== null && place.dock !== 'bottom' && place.dock !== 'top') place = { ...place, fy: pixelsToPlace({ left: bar.offsetLeft, top: lastTop }, size()).fy }; // (the same top edge: its place is worked out again for the new height)
-    put(placeToPixels(anchored(place), size()));
-    lastTop = bar.offsetTop;
+    if (drag || pending) return;
+    if (growDown && lastPut && place.dock !== 'bottom') {
+      // the top edge stays exactly where it was put (not where it is now: it may be gliding, and reading that moved the bar a little at every new row), and its place is worked out again for the new height
+      const keep = lastPut.top;
+      if (place.dock !== 'top') place = { ...place, fy: pixelsToPlace({ left: lastPut.left, top: keep }, size()).fy };
+      const next = pixelsFor(place);
+      if (place.dock !== 'top') next.top = keep;
+      put(next);
+    } else put(pixelsFor(place));
   }).observe(bar); // its width changes when a button appears or its text does
   show();
-  lastTop = bar.offsetTop;
   return { reset, place: () => ({ ...place }) };
 }

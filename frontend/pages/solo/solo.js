@@ -864,6 +864,9 @@ mountBoardDrag({ board: () => $('battlefield'), onDrop: dropOnBoard, groupOf: (u
 $('mulligan').addEventListener('click', doMulligan);
 $('new-game').addEventListener('click', () => { if (confirm('Start a new game? This one will be lost.')) { play('shuffle'); deal({ pause: SHUFFLE_PAUSE_MS }); } });
 // the life total is the number itself: click, right-click, Shift for 5, hold to set (src/life-control.js)
+// the life piece floats like the action bar (Kevin, 2026-11-18): the word Life above the number is the handle, and a - and a + sit beside the number
+mountFloatingBar({ bar: $('life-area'), grip: $('life-grip'), store, key: 'overloaded.lifeBar', defaultPlace: { dock: 'top', fx: 0, fy: 0 } });
+for (const [id, sign] of [['life-minus', -1], ['life-plus', 1]]) $(id).addEventListener('click', (event) => apply(() => adjustLife(game, sign * (event.shiftKey ? 5 : 1)), ''));
 mountLifeControl({ button: $('life'), say, onDelta: (delta) => apply(() => adjustLife(game, delta), ''), onSet: (value) => apply(() => adjustLife(game, value - game.life), `Life is ${value}.`) });
 for (const zone of ['graveyard', 'exile', 'sideboard']) $(`pile-${zone}`).addEventListener('click', () => togglePile(zone)); // (the library is opened from its menu: View library, Kevin 2026-11-15)
 $('retry').addEventListener('click', start);

@@ -4,6 +4,7 @@
 import { lifeDelta, lifeKeyDelta, parseLife, HOLD_MS, LIFE_HINT } from '../../shared/life-input.mjs';
 
 const SVG = 'http://www.w3.org/2000/svg';
+const RING_DELAY_MS = 250; // a click is quicker than this: the circle shows only once the press is clearly a hold (Kevin, 2026-11-18: a click on the number must not show it)
 
 export function mountLifeControl({ button, onDelta, onSet, say = () => {}, holdMs = HOLD_MS }) {
   const wrap = button.parentElement;
@@ -26,14 +27,16 @@ export function mountLifeControl({ button, onDelta, onSet, say = () => {}, holdM
   circle.setAttribute('fill', 'none');
   ring.append(circle);
   wrap.append(ring);
-  ring.style.setProperty('--hold', `${holdMs}ms`);
+  ring.style.setProperty('--hold', `${Math.max(100, holdMs - RING_DELAY_MS)}ms`); // (the circle fills in what is left of the hold after its delay)
 
-  let timer = null; // set while the number is held and the circle is filling
+  let timer = null; // set while the number is held (the box opens when it ends)
+  let ringTimer = null; // set while the press is still short enough to be a click: the circle waits for it
   let held = false; // the hold finished: the box is open, and the release that follows is not a click
   let editor = null; // the box to type in, while it is open
 
   const stopHold = () => {
     if (timer !== null) { clearTimeout(timer); timer = null; }
+    if (ringTimer !== null) { clearTimeout(ringTimer); ringTimer = null; }
     ring.classList.remove('holding');
   };
 
@@ -82,8 +85,7 @@ export function mountLifeControl({ button, onDelta, onSet, say = () => {}, holdM
     if (event.button !== 0) return;
     held = false;
     stopHold();
-    void ring.getBoundingClientRect(); // restart the circle's animation
-    ring.classList.add('holding');
+    ringTimer = setTimeout(() => { ringTimer = null; void ring.getBoundingClientRect(); ring.classList.add('holding'); }, Math.min(RING_DELAY_MS, holdMs)); // (restarts the circle's animation when it appears)
     timer = setTimeout(() => { timer = null; held = true; ring.classList.remove('holding'); openEditor(); }, holdMs);
   });
   button.addEventListener('pointerup', (event) => {

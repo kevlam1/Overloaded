@@ -74,7 +74,7 @@ try {
   const names = (selector) => ev(`Array.from(document.querySelectorAll(${JSON.stringify(selector)})).map((b) => b.getAttribute('aria-label') || b.textContent)`);
   const asked = await browser.fakeImages('https://cards.scryfall.io/*', cardArt);
   const backsAsked = await browser.fakeImages('https://backs.scryfall.io/*', null); // the card back of the library
-  const seed = async (json) => { await browser.goto(ORIGIN + '/pages/solo/index.html'); await ev(`localStorage.removeItem('overloaded.decks'); ` + (json === null ? `localStorage.removeItem('overloaded.deck')` : `localStorage.setItem('overloaded.deck', ${JSON.stringify(json)})`)); }; // the old single-deck key; a library, if there were one, would win over it
+  const seed = async (json) => { await browser.goto(ORIGIN + '/pages/solo/index.html'); await ev(`localStorage.removeItem('overloaded.decks'); localStorage.setItem('overloaded.lifeBar', '{"dock":"right","fx":1,"fy":0.45}'); ` + (json === null ? `localStorage.removeItem('overloaded.deck')` : `localStorage.setItem('overloaded.deck', ${JSON.stringify(json)})`)); }; // the old single-deck key; a library, if there were one, would win over it
   const open = async (json = DECK_JSON) => { await seed(json); await browser.goto(PAGE); await waitFor(async () => (!(await $hidden('game')) || !(await $hidden('blocked'))) || null, 15000, 50); };
   const pileCount = (zone) => ev(`document.getElementById('pile-${zone}').textContent`);
   const handNames = () => names('#hand .card');
@@ -164,7 +164,7 @@ try {
   const lifeKey = async (name, shift = false, alt = false) => { const vk = { ArrowUp: 38, ArrowDown: 40, ArrowLeft: 37, ArrowRight: 39, Enter: 13, Escape: 27 }[name]; await browser.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: name, code: name, windowsVirtualKeyCode: vk, modifiers: (shift ? 8 : 0) | (alt ? 1 : 0) }); await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: name, code: name, windowsVirtualKeyCode: vk }); await sleep(60); };
   const editorOpen = () => ev("Boolean(document.querySelector('.life-input'))");
   const typeLife = (text) => ev("(() => { const i = document.querySelector('.life-input'); i.value = " + JSON.stringify(text) + "; })()");
-  check('the four old life buttons are gone: the number is the only button in the life area', (await ev("document.querySelectorAll('#life-area button').length")) === 1 && (await ev("document.getElementById('life').tagName")) === 'BUTTON');
+  check('the life piece has the word Life above the number, a - on its left and a + on its right', await ev(`(() => { const r = (id) => document.getElementById(id).getBoundingClientRect(); return document.getElementById('life-grip').textContent === 'Life' && r('life-grip').bottom <= r('life').top + 4 && r('life-minus').right <= r('life').left + 2 && r('life-plus').left >= r('life').right - 2; })()`));
   await lifeClick('left');
   check('a left click on the number gains 1', (await $text('life')) === '41', await $text('life'));
   await lifeClick('left', true);
@@ -179,7 +179,7 @@ try {
     const base = { x: p.x, y: p.y, button: 'left', clickCount: 1 };
     await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p.x, y: p.y });
     await browser.send('Input.dispatchMouseEvent', { ...base, type: 'mousePressed', buttons: 1 });
-    await sleep(200);
+    await sleep(350); // (the circle waits a moment so that a click never shows it)
     const filling = await ev("document.querySelector('.life-ring').classList.contains('holding') && getComputedStyle(document.querySelector('.life-ring')).opacity === '1'");
     check('while the number is held a circle is shown, filling', filling === true && !(await editorOpen()));
     await sleep(700);
@@ -420,7 +420,7 @@ try {
     const floating = await ev(`(() => { const r = (sel) => document.querySelector(sel).getBoundingClientRect(); const bar = r('.actions-panel'); const life = r('#life-area'); const menu = r('#settings-button'); const turn = r('.actions-panel .turn-stat'); const piles = r('.side-panels'); const board = r('#my-board'); const panelBorders = ['#my-board', '.right-column', '.side-panels', '.hand-section'].map((s) => getComputedStyle(document.querySelector(s)).borderTopWidth); return { barPosition: getComputedStyle(document.querySelector('.actions-panel')).position, barTop: Math.round(bar.top), grip: Boolean(document.querySelector('.actions-panel #bar-grip')), buttons: [...document.querySelectorAll('.actions-panel .actions button')].map((b) => b.id), barButtons: document.querySelectorAll('.bar .actions button').length, lifeLeft: Math.round(life.left), lifeTop: Math.round(life.top), menuRight: Math.round(innerWidth - menu.right), menuTop: Math.round(menu.top), turnInBar: turn.top >= bar.top && turn.bottom <= bar.bottom && turn.left >= bar.left && turn.right <= bar.right, pilesRight: Math.round(innerWidth - piles.right), pilesBottom: Math.round(innerHeight - piles.bottom), boardFills: Math.round(board.width) === innerWidth && Math.round(board.height) === innerHeight, panelBorders, footer: document.querySelector('footer') !== null }; })()`);
     check('no panels: the board fills the window and the board and the piles have no border; the action buttons are a floating bar with a grip (not in the top strip); there is no footer', floating.boardFills && floating.panelBorders.every((w) => w === '0px') && floating.barPosition === 'absolute' && floating.grip && floating.buttons.includes('draw') && floating.buttons.includes('untap-all') && !floating.buttons.includes('settings-button') && floating.barButtons === 0 && !floating.footer, JSON.stringify(floating));
     check('the battlefield has a 2 px line round it, drawn outside it (an outline: it takes no room), and it is in the middle of the window: as much room on the left as on the right', await ev("(() => { const b = document.getElementById('battlefield'); const r = b.getBoundingClientRect(); const o = getComputedStyle(b); return o.outlineWidth === '2px' && o.outlineStyle === 'solid' && Math.abs(r.left - (innerWidth - r.right)) <= 1; })()"));
-    check('the pieces float where a table has them: life at the top left, the menu button at the top right and the turn inside the floating bar, the piles and the command zone at the bottom right', floating.lifeLeft < 40 && floating.lifeTop < 40 && floating.menuRight < 40 && floating.menuTop < 40 && floating.turnInBar && floating.pilesRight < 40 && floating.pilesBottom < 40, JSON.stringify(floating));
+    check('the pieces float where a table has them: the menu button at the top right and the turn inside the floating bar, the piles and the command zone at the bottom right (the life piece can be dragged: this run starts it at the right edge)', floating.menuRight < 40 && floating.menuTop < 40 && floating.turnInBar && floating.pilesRight < 40 && floating.pilesBottom < 40, JSON.stringify(floating));
     const legal = await ev(`(() => { document.getElementById('settings-button').click(); const t = document.querySelector('#settings-menu .settings-legal')?.textContent ?? ''; const shown = !document.getElementById('settings-menu').hidden; document.getElementById('settings-button').click(); return { t, shown }; })()`);
     check('Settings has a way home: a link to the home page and one to your decks', await ev("(() => { const home = document.getElementById('settings-home'); const decks = document.getElementById('settings-decks'); return Boolean(home) && Boolean(decks) && home.getAttribute('href') === '/' && decks.getAttribute('href') === '/deck' && document.getElementById('settings-menu').contains(home) && document.getElementById('settings-menu').contains(decks); })()"));
     check('the fan content notice is in Settings', legal.shown && /unofficial Fan Content/.test(legal.t) && /Not approved\/endorsed by Wizards/.test(legal.t) && /property of Wizards of the Coast/.test(legal.t), JSON.stringify(legal));
@@ -1289,9 +1289,9 @@ try {
   // ---- what a player has on them: chips next to the life total, set from a right-click on the life (real mouse input) ----
   await open();
   const chips = () => ev(`[...document.querySelectorAll('#life-chips .counter-chip')].map((c) => ({ id: c.dataset.id, label: c.getAttribute('aria-label'), number: c.querySelector('.chip-count').hidden ? null : c.querySelector('.chip-count').textContent, icon: (() => { const s = c.querySelector('svg'); return Boolean(s) && s.getAttribute('width') === '16' && s.getAttribute('height') === '16' && s.getAttribute('fill') === 'currentColor'; })(), lethal: c.classList.contains('lethal'), word: !c.querySelector('.chip-lethal').hidden, title: c.title }))`);
-  const lifeMenu = async (...path) => { await mouse('#life-area > .stat', { button: 'right', dx: 6 }); for (const step of path) await clickMenuItem(step); };
+  const lifeMenu = async (...path) => { await mouse('#life-grip', { button: 'right', dx: 6 }); for (const step of path) await clickMenuItem(step); };
   check('a new game shows no chips, and the old counters section and the commander damage block are gone', !(await $hidden('game')) && (await chips()).length === 0 && (await count('#counters, #player-counters, #commander-damage')) === 0);
-  await mouse('#life-area > .stat', { button: 'right', dx: 6 }); // the word Life: a right-click on the NUMBER lowers life
+  await mouse('#life-grip', { button: 'right', dx: 6 }); // the word Life: a right-click on the NUMBER lowers life
   const lifeItems = await menuState();
   check('a right-click on the life opens a menu of every counter a player can have: six counts and three marks', lifeItems && lifeItems.title === 'Your counters' && JSON.stringify(lifeItems.items) === JSON.stringify(['Poison: 0', 'Energy: 0', 'Experience: 0', 'Rad: 0', 'Ticket: 0', 'Speed: 0', 'The Ring tempts you: 0', 'Monarch: off', 'Initiative: off', "City's blessing: off"]), JSON.stringify(lifeItems));
   await escapeKey();
@@ -1315,7 +1315,7 @@ try {
   await lifeMenu('Monarch: off');
   const monarch = await chips();
   check('a mark is one choice: the monarch is a chip with its icon and no number, and the menu now says it is on', monarch.length === 1 && monarch[0].id === 'counter:monarch' && monarch[0].number === null && monarch[0].icon && monarch[0].label === 'Monarch' && (await $text('status')) === 'Monarch: on.', JSON.stringify(monarch));
-  await mouse('#life-area > .stat', { button: 'right', dx: 6 });
+  await mouse('#life-grip', { button: 'right', dx: 6 });
   check('and says "Monarch: on" now', (await menuState()).items.includes('Monarch: on'));
   await escapeKey();
   await lifeMenu('Rad: 0', 'Add 5'); await lifeMenu('Initiative: off'); await lifeMenu('Energy: 0', 'Add 1');
@@ -1795,7 +1795,7 @@ try {
     check('the buttons on the moved bar still work (Untap all says what it did)', /Untapped/.test(await $text('status')) && statusBefore !== (await $text('status')) || /Untapped/.test(await $text('status')), await $text('status'));
     // the bar docks like the control bar of MIDI Companion: near an edge it docks to it (a column on the left and right), near the middle of an edge it goes to the middle, near a corner into the corner
     const dockOf = () => ev("document.querySelector('.actions-panel').dataset.vertical");
-    const hints = () => ev("(() => { const len = (s) => { const r = document.querySelector(s).getBoundingClientRect(); return Math.round(Math.max(r.width, r.height)); }; return { snap: !document.querySelector('.bar-snap-hint').hidden, center: !document.querySelector('.bar-center-hint').hidden, corner: !document.querySelector('.bar-corner-hint').hidden, snapLen: len('.bar-snap-hint'), centerLen: len('.bar-center-hint'), inner: [innerWidth, innerHeight] }; })()");
+    const hints = () => ev("(() => { const host = document.querySelector('.actions-panel').parentElement; const q = (sel) => host.querySelector(sel); const len = (sel) => { const r = q(sel).getBoundingClientRect(); return Math.round(Math.max(r.width, r.height)); }; return { snap: !q('.bar-snap-hint').hidden, center: !q('.bar-center-hint').hidden, corner: !q('.bar-corner-hint').hidden, snapLen: len('.bar-snap-hint'), centerLen: len('.bar-center-hint'), inner: [innerWidth, innerHeight] }; })()"); // (each floating piece has its own hints: these are the action bar's)
     const hold = async (dx, dy) => { // drags the grip and reports the hints while the button is still down
       const p = await centerOfSelector('#bar-grip');
       await mouseAt('mouseMoved', p, 0); await mouseAt('mousePressed', p, 1);

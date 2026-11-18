@@ -4569,6 +4569,26 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **My AI's mistakes this time:** my first test for picking hand cards clicked a card whose neighbours had moved aside, and the first reorder test pressed on the middle of a card that the next card covers; both were mistakes in the tests, fixed.
 
+## 230. History bar fixes, and a life counter I can drag (2026-11-18)
+
+**What I asked for**
+- A bug: the history window gets stuck when it starts in the top left corner under the life, because the life covers its draggable corner. I wanted the whole top of the window to be the handle and the corner piece gone. When a move is added the window jumped up and down. Near a side it should attach to the side like the stack window, and its top should be clean and thin.
+- Rework the life counter: make it draggable, with a clean - and +. Clicking the number to gain life should not show the circular loading. Write "Life" above it.
+
+**What changed** (`frontend/src/floating-bar.js`, `frontend/src/history-bar.js`, `frontend/src/life-control.js`, `frontend/pages/solo/index.html`, `frontend/pages/solo/solo.js`, `frontend/src/style.css`, the tests)
+- **History bar:** the corner piece is gone; the whole top ("Game history", a count and a chevron, 27 px tall) is the handle. A click opens or closes it, a drag moves it, and a drag does not end in a click. Docked to an edge it touches the edge, with no border and square corners on that side, like the stack window. It started out at the right edge.
+- **The jumping:** the top edge was read from where the bar was at that moment, and it was still gliding there (the bar slides to its place), so each new row moved it a little. It now keeps the exact place it was put at, and the top never changes when rows are added.
+- **Life:** the piece floats like the action bar (drag the word Life; it docks near edges and the place is kept). The word Life is above, and a round - and + sit either side of the number. A click on the number still gains 1, a right click loses 1, holding it still opens the box to type a total. The circle now only appears after a quarter of a second of holding, so a click never shows it.
+
+**What I checked:** the history and select check has 18 checks (a real click opens the bar, new moves leave its top edge alone, a drag does not toggle it, it attaches flush at the left edge, the - and + buttons, no circle on a click and a circle on a hold, dragging the life piece). The solo check passes 471 checks; I had to change several of its lines (the life piece is not a single button any more, the circle comes later, the pieces check no longer expects the life at the top left, the Life word moved, and the edge hints now come from the action bar's own set). I looked at screenshots of the history bar and the life piece. I did not check phone width, the table page's life (only the circle delay reaches it), or a light theme screenshot.
+
+**Decisions**
+- Only the solo page has the new life piece; the table page keeps its old one, with the later circle.
+- The life piece can sit on top of the first cards played at the top left. It can be dragged away, and the solo check starts it at the right edge.
+- Known: if the history bar is docked at the left edge in the middle, the Stack tab sits on top of it.
+
+**My AI's mistakes this time:** I first tried to fix the thin height with a rule that lost to a more specific one in the style sheet (and the bar's own padding came from a generic section rule); the life piece's width changed with its place and made the browser log "ResizeObserver loop" messages (fixed with a fixed width); and several old tests assumed the first set of edge hints on the page was the action bar's.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

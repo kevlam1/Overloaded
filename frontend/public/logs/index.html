@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.229</span></h1>
-    <p class="lede">229 entries, Oct 25 to Nov 18, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
+    <h1>Build log <span class="version">Version 0.230</span></h1>
+    <p class="lede">230 entries, Oct 25 to Nov 18, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
   </div>
 </header>
 
@@ -24,7 +24,7 @@
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
-<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">16</span></a>
+<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">17</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
 <a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">29 things friends asked for</span></a>
 <a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">26 open, 71 done</span></a>
@@ -3604,7 +3604,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-2" aria-labelledby="week-2-title">
-<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">16 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">17 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-2-days">
 <div class="day">
 <h3 class="day-title">Monday 16 November <span class="day-count">5</span></h3>
@@ -3840,7 +3840,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Wednesday 18 November <span class="day-count">2</span></h3>
+<h3 class="day-title">Wednesday 18 November <span class="day-count">3</span></h3>
 <div class="entries">
 <article class="entry" id="entry-228" data-n="228">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-228-body">
@@ -3874,6 +3874,23 @@
 <p class="sub"><strong>Decisions</strong></p>
 <ul><li>Cut the sections that have unit tests of their logic and were also the flaky ones (the hand), and kept the main path of playing: deal, draw, turns, life, selecting, moving, piles, menus, counters, marks, drag and drop, the floating bar.</li><li>Not done: making the check faster without removing anything. A lot of the 3.5 minutes is waiting.</li></ul>
 <p><strong>My AI's mistakes this time:</strong> my first test for picking hand cards clicked a card whose neighbours had moved aside, and the first reorder test pressed on the middle of a card that the next card covers; both were mistakes in the tests, fixed.</p>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-230" data-n="230">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-230-body">
+    <span class="num">230</span>
+    <span class="head-text"><span class="title">History bar fixes, and a life counter I can drag</span><span class="sum">A bug: the history window gets stuck when it starts in the top left corner under the life, because the life covers its draggable corner.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-230-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>A bug: the history window gets stuck when it starts in the top left corner under the life, because the life covers its draggable corner. I wanted the whole top of the window to be the handle and the corner piece gone. When a move is added the window jumped up and down. Near a side it should attach to the side like the stack window, and its top should be clean and thin.</li><li>Rework the life counter: make it draggable, with a clean - and +. Clicking the number to gain life should not show the circular loading. Write &quot;Life&quot; above it.</li></ul>
+<p><strong>What changed</strong> (<code>frontend/src/floating-bar.js</code>, <code>frontend/src/history-bar.js</code>, <code>frontend/src/life-control.js</code>, <code>frontend/pages/solo/index.html</code>, <code>frontend/pages/solo/solo.js</code>, <code>frontend/src/style.css</code>, the tests)</p>
+<ul><li><strong>History bar:</strong> the corner piece is gone; the whole top (&quot;Game history&quot;, a count and a chevron, 27 px tall) is the handle. A click opens or closes it, a drag moves it, and a drag does not end in a click. Docked to an edge it touches the edge, with no border and square corners on that side, like the stack window. It started out at the right edge.</li><li><strong>The jumping:</strong> the top edge was read from where the bar was at that moment, and it was still gliding there (the bar slides to its place), so each new row moved it a little. It now keeps the exact place it was put at, and the top never changes when rows are added.</li><li><strong>Life:</strong> the piece floats like the action bar (drag the word Life; it docks near edges and the place is kept). The word Life is above, and a round - and + sit either side of the number. A click on the number still gains 1, a right click loses 1, holding it still opens the box to type a total. The circle now only appears after a quarter of a second of holding, so a click never shows it.</li></ul>
+<p><strong>What I checked:</strong> the history and select check has 18 checks (a real click opens the bar, new moves leave its top edge alone, a drag does not toggle it, it attaches flush at the left edge, the - and + buttons, no circle on a click and a circle on a hold, dragging the life piece). The solo check passes 471 checks; I had to change several of its lines (the life piece is not a single button any more, the circle comes later, the pieces check no longer expects the life at the top left, the Life word moved, and the edge hints now come from the action bar's own set). I looked at screenshots of the history bar and the life piece. I did not check phone width, the table page's life (only the circle delay reaches it), or a light theme screenshot.</p>
+<p class="sub"><strong>Decisions</strong></p>
+<ul><li>Only the solo page has the new life piece; the table page keeps its old one, with the later circle.</li><li>The life piece can sit on top of the first cards played at the top left. It can be dragged away, and the solo check starts it at the right edge.</li><li>Known: if the history bar is docked at the left edge in the middle, the Stack tab sits on top of it.</li></ul>
+<p><strong>My AI's mistakes this time:</strong> I first tried to fix the thin height with a rule that lost to a more specific one in the style sheet (and the bar's own padding came from a generic section rule); the life piece's width changed with its place and made the browser log &quot;ResizeObserver loop&quot; messages (fixed with a fixed width); and several old tests assumed the first set of edge hints on the page was the action bar's.</p>
   </div></div></div>
 </article>
 </div>
