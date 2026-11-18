@@ -87,3 +87,12 @@ mark { background: var(--mark); color: inherit; border-radius: .2rem; }
   .search input { width: 100%; }
   .sum { font-size: .88rem; }
 }
+
+/* the to-do list section (built from docs/todo.md): a box before each item, ticked when it is done */
+.todo-intro { margin: 0 0 .75rem; color: var(--muted); }
+.todo-intro p { margin: .3rem 0; }
+.body-pad ul.todo-list { padding-left: 0; list-style: none; }
+.todo-list li { position: relative; padding-left: 1.6rem; }
+.todo-list li.todo::before { content: "\2610"; position: absolute; left: 0; top: 0; color: var(--accent); font-size: 1.05rem; line-height: 1.45; }
+.todo-list li.todo-done::before { content: "\2611"; color: var(--muted); }
+.todo-list li.todo-done { color: var(--muted); }

@@ -4,6 +4,7 @@
 // The entries are split into weeks, Monday to Sunday (Kevin, 2026-11-13): Week -1 is 25 October (a Sunday, put there as an exception) to Sunday 1 November, Week 0 is Monday 2 to Sunday 8 November,
 // Week 1 is Monday 9 to Sunday 15 November, and so on. A week with no entry is left out. Every week starts folded (the page opens on the list of weeks); a click, a search, a week link or an entry link opens one.
 // It stops if log.md is not numbered 1, 2, 3 ... or has a section it does not know, and it checks that every word of log.md is on the page, so nothing is dropped without being noticed.
+// The last section of the page is the to-do list (Kevin, 2026-11-17: my professors can see how I am planning), built from docs/todo.md the same way, with the same word check. Run this script again after docs/todo.md changes too.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { SUMMARIES, REFLECTION_SUMMARIES } from './log-summaries.mjs';
 import { versionFromLog } from '../shared/version.mjs';
@@ -136,9 +137,9 @@ for (const w of weeks) w.days.sort((a, b) => a.date.localeCompare(b.date));
 
 // ---------- The pieces of the page ----------
 const checks = []; // [name, markdown lines, html] for the word check at the end
-function entryHtml({ id, badge, title, summary, lines, date }) {
-  const body = renderBlock(lines);
-  checks.push([title, lines, body]);
+function entryHtml({ id, badge, title, summary, lines, render = renderBlock, comparable = (l) => l }) {
+  const body = render(lines);
+  checks.push([title, comparable(lines), body]);
   return `<article class="entry" id="${id}" data-n="${esc(badge)}">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="${id}-body">
     <span class="num">${esc(badge)}</span>
@@ -175,6 +176,69 @@ ${entryHtml({ id: 'reflection-decisions', badge: '•', title: decisions.title, 
 </div></div></div>
 </section>`;
 
+// ---------- The to-do list, from docs/todo.md ----------
+const todoText = readFileSync(new URL('../docs/todo.md', here), 'utf8').replace(/\r\n/g, '\n');
+const todoIntro = []; const todoSections = [];
+for (const line of todoText.split('\n')) {
+  if (line.startsWith('# ')) continue; // the title of the file: the section has its own
+  if (line.startsWith('## ')) todoSections.push({ title: line.slice(3).trim(), lines: [] });
+  else if (todoSections.length > 0) todoSections[todoSections.length - 1].lines.push(line);
+  else todoIntro.push(line);
+}
+if (todoSections.length === 0) throw new Error('docs/todo.md has no "##" section.');
+const BOX = /^- \[( |x)\] /;
+const withoutBoxes = (lines) => lines.map((line) => line.replace(BOX, '- '));
+// "- [x] text" is a finished item and "- [ ] text" an open one (a box drawn by the style sheet, and the word Done or Open for a screen reader); "### text" is a small heading; any other "- text" is a plain item.
+function renderTodoBlock(lines) {
+  const html = []; let paragraph = []; let items = null;
+  const flushParagraph = () => { if (paragraph.length > 0) html.push(`<p>${inline(paragraph.join(' '))}</p>`); paragraph = []; };
+  const flushList = () => { if (items !== null) html.push(`<ul class="todo-list">${items.join('')}</ul>`); items = null; };
+  for (const raw of lines) {
+    const line = raw.replace(/\s+$/, '');
+    if (line.trim() === '') { flushParagraph(); continue; }
+    const heading = /^### (.+)$/.exec(line);
+    if (heading) { flushParagraph(); flushList(); html.push(`<p class="sub"><strong>${inline(heading[1])}</strong></p>`); continue; }
+    const boxed = BOX.exec(line);
+    const plain = /^- (.*)$/.exec(line);
+    if (boxed || plain) {
+      flushParagraph();
+      if (items === null) items = [];
+      if (boxed) {
+        const done = boxed[1] === 'x';
+        items.push(`<li class="todo ${done ? 'todo-done' : 'todo-open'}"><span class="visually-hidden">${done ? 'Done' : 'Open'}: </span>${inline(line.slice(boxed[0].length))}</li>`);
+      } else items.push(`<li>${inline(plain[1])}</li>`);
+      continue;
+    }
+    flushList();
+    paragraph.push(line.trim());
+  }
+  flushParagraph(); flushList();
+  return html.join('\n');
+}
+const countIn = (lines, pattern) => lines.filter((line) => pattern.test(line)).length;
+const todoOpen = countIn(todoText.split('\n'), /^- \[ \] /);
+const todoDone = countIn(todoText.split('\n'), /^- \[x\] /);
+const todoSummary = (lines) => {
+  const open = countIn(lines, /^- \[ \] /); const done = countIn(lines, /^- \[x\] /); const plainItems = countIn(lines, /^- (?!\[)/);
+  const parts = [open ? `${open} open` : null, done ? `${done} done` : null, plainItems ? `${plainItems} ${plainItems === 1 ? 'item' : 'items'}` : null].filter(Boolean);
+  return parts.join(', ');
+};
+const introBody = renderBlock(todoIntro);
+checks.push(['To-do list, introduction', todoIntro, introBody]);
+const todoEntries = todoSections.map((section, i) => entryHtml({
+  id: `todo-${i + 1}`,
+  badge: countIn(section.lines, /^- \[ \] /) > 0 ? String(countIn(section.lines, /^- \[ \] /)) : (countIn(section.lines, /^- \[x\] /) > 0 ? '\u2713' : '\u2022'),
+  title: section.title, summary: todoSummary(section.lines), lines: section.lines, render: renderTodoBlock, comparable: withoutBoxes,
+})).join('\n');
+const todoHtml = `<section class="week collapsed" id="todo" aria-labelledby="todo-title">
+<h2 class="week-head" id="todo-title"><button type="button" aria-expanded="false" aria-controls="todo-days"><span class="wname">To-do list</span><span class="range">${todoOpen} open, ${todoDone} done</span><span class="caret" aria-hidden="true"></span></button></h2>
+<div class="days" id="todo-days"><div class="day">
+<div class="todo-intro">${introBody}</div>
+<div class="entries">
+${todoEntries}
+</div></div></div>
+</section>`;
+
 const setOutBody = renderBlock(setOut.lines);
 checks.push(['What I set out to build', setOut.lines, setOutBody]);
 const setOutHtml = `<section class="setout" id="setout"><h2>${esc(setOut.title)}</h2>${setOutBody}</section>`;
@@ -186,12 +250,13 @@ const weekNav = [
     return `<a class="week-link" href="#${weekId(w.week)}" data-target="${weekId(w.week)}"><span class="wl-name">${weekName(w.week)}</span><span class="wl-range">${esc(weekRange(w.week))}</span><span class="wl-count">${count}</span></a>`;
   }),
   '<a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>',
+  `<a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">${todoOpen} open, ${todoDone} done</span></a>`,
 ].join('\n');
 
 // ---------- The word check: everything in log.md has to be on the page ----------
 const words = (text) => text.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 const fromMarkdown = (lines) => words(lines.join(' ').replace(/`/g, ''));
-const fromHtml = (html) => words(html.replace(/<[^>]+>/g, ' ').replace(/&#x[0-9A-F]+;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&amp;/g, '&'));
+const fromHtml = (html) => words(html.replace(/<span class="visually-hidden">[^<]*<\/span>/g, ' ').replace(/<[^>]+>/g, ' ').replace(/&#x[0-9A-F]+;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&amp;/g, '&'));
 for (const [name, lines, html] of checks) {
   if (fromMarkdown(lines) !== fromHtml(html)) throw new Error(`The page text for "${name}" does not match log.md. The converter dropped or changed something.`);
 }
@@ -207,6 +272,7 @@ const parts = {
   SETOUT: setOutHtml,
   WEEKS: weeksHtml,
   REFLECTION: reflectionHtml,
+  TODO: todoHtml,
 };
 let page = template;
 for (const [name, value] of Object.entries(parts)) page = page.replace(`{{${name}}}`, () => value);
@@ -214,4 +280,4 @@ if (/\{\{[A-Z]+\}\}/.test(page)) throw new Error('The template has a placeholder
 const expectedLength = template.length - Object.keys(parts).reduce((sum, name) => sum + `{{${name}}}`.length, 0) + Object.values(parts).reduce((sum, value) => sum + value.length, 0);
 if (page.length !== expectedLength) throw new Error(`The page is ${page.length} characters but should be ${expectedLength}. Something was added or repeated.`);
 writeFileSync(new URL('../frontend/public/logs/index.html', here), page);
-console.log(`Wrote frontend/public/logs/index.html: ${numbered.length} entries in ${weeks.length} weeks (${weeks.map((w) => weekName(w.week)).join(', ')}), plus the reflection. Every word of log.md is on the page.`);
+console.log(`Wrote frontend/public/logs/index.html: ${numbered.length} entries in ${weeks.length} weeks (${weeks.map((w) => weekName(w.week)).join(', ')}), plus the reflection and the to-do list (${todoOpen} open, ${todoDone} done). Every word of log.md and docs/todo.md is on the page.`);

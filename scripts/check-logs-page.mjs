@@ -14,6 +14,11 @@ const check = (name, pass, detail = '') => { results.push({ name, pass }); conso
 const html = readFileSync(new URL('../frontend/public/logs/index.html', import.meta.url), 'utf8');
 const log = readFileSync(new URL('../log.md', import.meta.url), 'utf8');
 const logCount = (log.match(/^## \d+\. /gm) ?? []).length;
+const todo = readFileSync(new URL('../docs/todo.md', import.meta.url), 'utf8');
+const todoSections = (todo.match(/^## /gm) ?? []).length;
+const todoOpen = (todo.match(/^- \[ \] /gm) ?? []).length;
+const todoDone = (todo.match(/^- \[x\] /gm) ?? []).length;
+const todoPlain = (todo.match(/^- (?!\[)/gm) ?? []).length;
 check('the page has no inline script, no inline style and no style attribute (the content policy forbids them)', !/<script(?![^>]*\bsrc=)/i.test(html) && !/<style/i.test(html) && !/\sstyle=/i.test(html));
 check('the logs page shows the version worked out from log.md', html.includes(`Version 0.${(log.match(/^## \d+\. /gm) ?? []).length}<`));
 check('the page is built from this log.md: it has every numbered entry', (html.match(/<article class="entry" id="entry-\d+"/g) ?? []).length === logCount, `${logCount} in log.md`);
@@ -28,11 +33,35 @@ try {
   const ev = (code) => browser.eval(code);
 
   const names = await ev(`Array.from(document.querySelectorAll('.week-link .wl-name')).map((n) => n.textContent)`);
-  check('the week bar lists Week -1, Week 0, Week 1 and the reflection', JSON.stringify(names.slice(0, 3)) === JSON.stringify(['Week -1', 'Week 0', 'Week 1']) && names.at(-1) === 'Reflection', JSON.stringify(names));
+  check('the week bar lists Week -1, Week 0, Week 1, the reflection and the to-do list', JSON.stringify(names.slice(0, 3)) === JSON.stringify(['Week -1', 'Week 0', 'Week 1']) && names.at(-2) === 'Reflection' && names.at(-1) === 'To-do list', JSON.stringify(names));
   const ranges = await ev(`Array.from(document.querySelectorAll('.week-link .wl-range')).map((n) => n.textContent)`);
   check('the weeks run Oct 25 to Nov 1, Nov 2 to Nov 8 and Nov 9 to Nov 15', ranges[0] === 'Oct 25 to Nov 1' && ranges[1] === 'Nov 2 to Nov 8' && ranges[2] === 'Nov 9 to Nov 15', JSON.stringify(ranges));
-  const placed = await ev(`Array.from(document.querySelectorAll('.week .entry')).filter((e) => e.closest('#reflection') === null).length`);
+  const placed = await ev(`Array.from(document.querySelectorAll('.week .entry')).filter((e) => e.closest('#reflection') === null && e.closest('#todo') === null).length`);
   check('every numbered entry is under a week', placed === logCount, String(placed));
+  // the to-do list, built from docs/todo.md (Kevin, 2026-11-17)
+  const todoPage = await ev(`({
+    entries: document.querySelectorAll('#todo .entry').length,
+    open: document.querySelectorAll('#todo li.todo-open').length,
+    done: document.querySelectorAll('#todo li.todo-done').length,
+    plain: document.querySelectorAll('#todo li:not(.todo)').length,
+    folded: document.getElementById('todo').classList.contains('collapsed'),
+    head: document.querySelector('#todo .range').textContent,
+    titles: Array.from(document.querySelectorAll('#todo .entry .title')).map((t) => t.textContent),
+    states: Array.from(document.querySelectorAll('#todo li.todo')).every((li) => /^(Open|Done): /.test(li.querySelector('.visually-hidden').textContent)),
+  })`);
+  check('the to-do list has one entry for each "##" section of docs/todo.md', todoPage.entries === todoSections && todoPage.titles[0] === 'Decided' && todoPage.titles.at(-1) === 'Done and earlier plans', JSON.stringify({ todoSections, todoPage: todoPage.titles }));
+  check('every item of docs/todo.md is on the page, open and finished apart', todoPage.open === todoOpen && todoPage.done === todoDone && todoPage.plain === todoPlain, JSON.stringify({ todoOpen, todoDone, todoPlain, page: [todoPage.open, todoPage.done, todoPage.plain] }));
+  check('the to-do list says how many are open and done, starts folded, and gives each item the word Open or Done for a screen reader', todoPage.head === todoOpen + ' open, ' + todoDone + ' done' && todoPage.folded && todoPage.states, todoPage.head);
+  await ev(`document.querySelector('#todo .week-head button').click()`);
+  await ev(`document.querySelector('#todo-2 .entry-head button').click()`);
+  const boxes = await ev(`(() => { const li = document.querySelector('#todo-2 li.todo-open'); const done = document.querySelector('#todo-1 li.todo-done'); return { open: getComputedStyle(li, '::before').content, done: getComputedStyle(done, '::before').content, shown: getComputedStyle(document.querySelector('#todo-days')).display !== 'none' }; })()`);
+  check('a click on the heading opens the to-do list, an open item has an empty box and a finished one a ticked box', boxes.shown && boxes.open.includes('\u2610') && boxes.done.includes('\u2611'), JSON.stringify(boxes));
+  if (shots) await browser.screenshot('scratch-logs-todo.png');
+  await ev(`document.getElementById('collapse-all').click()`);
+  await ev(`location.hash = ''; location.hash = '#todo'`);
+  await sleep(300);
+  check('the address ending in #todo opens the to-do list', await ev(`!document.getElementById('todo').classList.contains('collapsed')`));
+  await ev(`document.getElementById('collapse-all').click()`);
   // each day heading is in the week its date belongs to
   const wrong = await ev(`(() => {
     const bad = [];
@@ -74,6 +103,10 @@ try {
   await ev(`document.getElementById('collapse-all').click()`);
 
   check('a search opens a folded week that holds a match', await (async () => { await ev(`(() => { const s = document.getElementById('log-search'); s.value = 'riffle'; s.dispatchEvent(new Event('input', { bubbles: true })); })()`); await sleep(500); return ev(`!document.getElementById('week-1').classList.contains('collapsed') && getComputedStyle(document.querySelector('#week-1 .days')).display !== 'none'`); })());
+  await ev(`(() => { const s = document.getElementById('log-search'); s.value = 'riffle'; s.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+  await sleep(500);
+  const todoFound = await (async () => { await ev(`(() => { const s = document.getElementById('log-search'); s.value = 'claimHostSlot'; s.dispatchEvent(new Event('input', { bubbles: true })); })()`); await sleep(500); return ev(`({ inTodo: document.querySelectorAll('#todo .entry:not([hidden])').length, open: !document.getElementById('todo').classList.contains('collapsed') })`); })();
+  check('a search finds words in the to-do list too and opens it', todoFound.inTodo > 0 && todoFound.open, JSON.stringify(todoFound));
   await ev(`(() => { const s = document.getElementById('log-search'); s.value = 'riffle'; s.dispatchEvent(new Event('input', { bubbles: true })); })()`);
   await sleep(500);
   const found = await ev(`({ shown: document.querySelectorAll('.entry:not([hidden])').length, marks: document.querySelectorAll('mark').length, note: document.getElementById('search-note').textContent, hiddenWeeks: document.querySelectorAll('.week[hidden]').length })`);

@@ -4407,6 +4407,22 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 ---
 
+## 221. The to-do list tidied, and shown on the build log page (2026-11-17)
+
+**What I asked for**
+- Tidy up the to-do list, because some items had way too many sentences, and add a section to /logs that shows it.
+
+**What changed** (`docs/todo.md`, `scripts/make-logs-page.mjs`, `scripts/logs-template.html`, `frontend/public/logs/logs.css`, `scripts/check-logs-page.mjs`)
+- Every item of the to-do list is now three sentences or fewer (the open ones keep a bold first sentence that says what it is). The finished items are still there, in a section of their own, shortened to one line each. It is 119 lines with 25 open and 68 finished items.
+- /logs has a new last section, "To-do list", with its own button in the week bar ("25 open, 68 done"). It is built from `docs/todo.md` by the same script that builds the log, so I run `node scripts/make-logs-page.mjs` again after the list changes. Each "##" part of the list is one entry that opens like a log entry, an open item has an empty box and a finished one a ticked box, and the search covers it. The address does not change.
+- The script checks that every word of `docs/todo.md` is on the page, like it does for `log.md`, so nothing can be left out by mistake.
+
+**What I checked:** the logs page check (33, all passed, with new checks that the section has one entry for each part of the file, that the numbers of open, finished and plain items match the file, the boxes, the address #todo, and a search that finds a word from the list), the 71 unit suites, and the deploy check (57). I looked at a screenshot of the section opened at desktop width and of the top of the page at phone width.
+
+**My mistakes this round:** last round I put the finished items back word for word, which brought back items that were paragraphs long. Earlier I also said that only entries 205 to 218 had no written summary; `SUMMARIES` in `scripts/log-summaries.mjs` is empty, so none of the entries has one. The list now says so.
+
+---
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.
