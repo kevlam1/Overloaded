@@ -254,6 +254,10 @@ try {
     if (guestAuth) accounts.push(guestAuth);
   }
 
+  // The foil test page draws its patterns on a canvas and gives them to the style sheet as images (a constructed style sheet and data: images): both must be allowed by the policy.
+  await host.goto(`${ORIGIN}/foils?view=kinds`);
+  await sleep(1500);
+  check('the foil test page makes its patterns under the policy', await host.eval(`['glitter', 'streaks', 'grain', 'confetti', 'shards'].every((name) => getComputedStyle(document.documentElement).getPropertyValue('--tex-' + name).trim().startsWith('url('))`));
   await sleep(500);
   check('nothing was blocked by the content policy (console)', violations().length === 0, violations().slice(0, 2).join(' | '));
   check('no request was blocked by the content policy (network)', blocked().length === 0, blocked().slice(0, 2).map((e) => e.params.errorText).join(' | '));

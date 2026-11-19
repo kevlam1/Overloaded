@@ -2,19 +2,19 @@
 // (`[data-foil="galaxy"]` and so on). A kind goes to the look that is closest to how the real card shines. Plain JavaScript, no browser code, so Node tests can load it (scripts/test-foil-looks.mjs).
 import { KIND_IDS, TRADITIONAL } from './foil-kinds.mjs';
 
-export const LOOK_GROUPS = ['traditional', 'rainbow', 'etched', 'surge', 'galaxy', 'oilslick', 'halo', 'gold', 'silver'];
+export const LOOK_GROUPS = ['traditional', 'rainbow', 'etched', 'silver', 'surge', 'galaxy', 'halo', 'fracture', 'ripple', 'confetti', 'textured', 'oilslick', 'neon', 'compleat', 'mana', 'singularity', 'gold', 'scales', 'retro', 'vault'];
 
-// kind (or 'etched', or 'traditional') to look. Every kind in shared/foil-kinds.mjs is listed (a test checks this), and anything unknown is a traditional foil.
+// kind (or 'etched', or 'traditional') to look. Every kind in shared/foil-kinds.mjs is listed (a test checks this), and anything unknown is a traditional foil. A kind with its own look in the real world has its own look here;
+// a few share one because they shine the same way (raised and embossed foil are a traditional foil with a relief; Cosmic is a scaled-down halo).
 const GROUP_OF = {
-  traditional: 'traditional', raised: 'traditional', textured: 'traditional', embossed: 'traditional', facet: 'traditional', firstplace: 'traditional', serialized: 'traditional', // (silvery foils with a texture or a stamp)
-  rainbow: 'rainbow', doublerainbow: 'rainbow', dazzle: 'rainbow', chocobotrack: 'rainbow', confetti: 'rainbow',
+  traditional: 'traditional', raised: 'traditional', embossed: 'traditional', facet: 'traditional',
+  rainbow: 'rainbow', doublerainbow: 'rainbow', dazzle: 'rainbow', chocobotrack: 'rainbow', serialized: 'rainbow',
   etched: 'etched',
-  surge: 'surge', ripple: 'surge', mana: 'surge',
-  galaxy: 'galaxy', cosmic: 'galaxy', singularity: 'galaxy', stepandcompleat: 'galaxy',
-  oilslick: 'oilslick', neonink: 'oilslick',
-  halo: 'halo', fracture: 'halo',
-  gilded: 'gold', dragonscale: 'gold',
-  silver: 'silver', silverscroll: 'silver', silveretched: 'silver', retro: 'silver', fromthevault: 'silver', inventions: 'silver',
+  silver: 'silver', silverscroll: 'silver', silveretched: 'silver',
+  surge: 'surge', galaxy: 'galaxy', halo: 'halo', cosmic: 'halo', fracture: 'fracture', ripple: 'ripple', confetti: 'confetti', textured: 'textured',
+  oilslick: 'oilslick', neonink: 'neon', stepandcompleat: 'compleat', mana: 'mana', singularity: 'singularity',
+  gilded: 'gold', firstplace: 'gold', dragonscale: 'scales',
+  retro: 'retro', fromthevault: 'vault', inventions: 'vault',
 };
 
 // The look to draw for a foil look from lookOf(): one of LOOK_GROUPS, or null for a card that is not foil.

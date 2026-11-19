@@ -30,7 +30,7 @@ const make = (tag, className, text) => {
 };
 
 // What the page lists. group is the look to draw, or null for a card that is not foil; example is the kind whose real card shows it (shared/foil-examples.mjs).
-const LOOK_EXAMPLE = { traditional: 'traditional', rainbow: 'rainbow', etched: 'etched', surge: 'surge', galaxy: 'galaxy', oilslick: 'oilslick', halo: 'halo', gold: 'gilded', silver: 'silver' };
+const LOOK_EXAMPLE = { traditional: 'traditional', rainbow: 'rainbow', etched: 'etched', silver: 'silver', surge: 'surge', galaxy: 'galaxy', halo: 'halo', fracture: 'fracture', ripple: 'ripple', confetti: 'confetti', textured: 'textured', oilslick: 'oilslick', neon: 'neonink', compleat: 'stepandcompleat', mana: 'mana', singularity: 'singularity', gold: 'gilded', scales: 'dragonscale', retro: 'retro', vault: 'fromthevault' };
 function entries(view) {
   const list = [{ title: 'Not foil', note: 'no foil', group: null, example: 'traditional' }];
   if (view === 'looks') {
