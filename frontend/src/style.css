@@ -1659,7 +1659,7 @@ body.playing.solo #life-area .life-counters[aria-expanded="true"]::after { rotat
 /* the light sheen: on the battlefield, in the hand, on a deck tile and on a printing tile */
 .card.foil .face { position: relative; }
 .card.foil .face::after, .deck-tile.foil .tile-picture::after, .foil-art::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; background: var(--foil-sweep) 100% 100% / 260% 260%; mix-blend-mode: var(--foil-small-blend, color-dodge); opacity: 0.6; animation: foil-sweep 3.6s ease-in-out infinite; }
-#hand .card.foil .face::after, .hand-lift-layer .card.foil .face::after, .deck-tile.foil .tile-picture::after, .foil-art::after { opacity: 1; }
+#hand .card.foil .face::after, .hand-lift-layer .card.foil .face::after, .foil-lab-hand .card.foil .face::after, .deck-tile.foil .tile-picture::after, .foil-art::after { opacity: 1; }
 .card.foil:hover .face::after { animation-duration: 1.6s; }
 .card.foil[data-foil="rainbow"] .face::before { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 1; background: repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.07) 0 2px, transparent 2px 6px); mix-blend-mode: overlay; }
 @keyframes foil-sweep { 0%, 100% { background-position: 100% 100%; } 50% { background-position: 0 0; } }
@@ -1675,3 +1675,23 @@ body.playing.solo #life-area .life-counters[aria-expanded="true"]::after { rotat
 .deck-tile.foil .tile-picture { position: relative; overflow: hidden; }
 .picker-tile .tile-art.foil-art { position: relative; }
 .picker-tile .tile-caption .tile-foil { font-weight: 700; color: var(--text); }
+
+/* the foil test page at /foils (Kevin, 2026-11-18): every look next to a card that is not foil, four ways each */
+.foil-lab-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem 1.2rem; margin: 0 0 1rem; }
+.foil-lab-controls label { display: flex; align-items: center; gap: 0.4rem; margin: 0; white-space: nowrap; }
+.foil-lab-controls input[type="checkbox"] { flex: none; width: 1.05rem; height: 1.05rem; min-width: 0; margin: 0; padding: 0; accent-color: var(--accent); }
+main.foil-lab { max-width: 96rem; }
+.foil-lab-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr)); gap: 1.4rem 1rem; }
+.foil-lab-entry { display: flex; flex-direction: column; gap: 0.4rem; min-width: 0; }
+.foil-lab-entry h2 { margin: 0; font-size: 1rem; text-transform: capitalize; }
+.foil-lab-entry .hint { margin: 0; min-height: 2.4em; font-size: 0.78rem; }
+.foil-lab-row { display: flex; align-items: flex-start; gap: 0.6rem; }
+.foil-lab-row .card { display: block; position: relative; width: 6rem; height: auto; aspect-ratio: 488 / 680; padding: 0; border: 0; background: none; }
+.foil-lab-row .card .face { display: block; width: 100%; height: 100%; border-radius: 4.8% / 3.4%; overflow: hidden; }
+.foil-lab-row .card img, .foil-lab-row .tile-picture img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.foil-lab-row .deck-tile { display: block; width: 6rem; list-style: none; }
+.foil-lab-row .tile-picture { display: block; aspect-ratio: 488 / 680; border-radius: 4.8% / 3.4%; overflow: hidden; }
+.foil-lab-row ul { margin: 0; padding: 0; }
+.foil-lab-big { width: 14rem; max-width: 100%; }
+.foil-lab-big img { display: block; width: 100%; height: auto; aspect-ratio: 488 / 680; border-radius: 4.8% / 3.4%; }
+.foil-lab.still *::before, .foil-lab.still *::after { animation: none !important; }

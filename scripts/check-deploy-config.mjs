@@ -127,6 +127,8 @@ check('and sends the policy with it', deckPage.csp === csp);
 const soloPage = await get('/solo');
 check('the served site serves the solo table at /solo', soloPage.status === 200 && soloPage.type.startsWith('text/html') && /<h1>Solo table/.test(soloPage.body) && soloPage.body !== root.body && soloPage.body !== deckPage.body);
 check('and sends the policy with it', soloPage.csp === csp);
+const foilsPage = await get('/foils');
+check('the served site serves the foil test page at /foils, with the policy', foilsPage.status === 200 && foilsPage.type.startsWith('text/html') && /<h1>Foils/.test(foilsPage.body) && foilsPage.body !== root.body && foilsPage.csp === csp);
 const tablePage = await get('/table/ABC234');
 check('the served site serves the table page at /table/CODE, with built scripts at root-based paths', tablePage.status === 200 && tablePage.type.startsWith('text/html') && /<h1>Table /.test(tablePage.body) && tablePage.body !== root.body && tablePage.body !== soloPage.body && /<script[^>]+src="\/assets\//.test(tablePage.body), tablePage.body.slice(0, 200));
 check('and sends the policy with it', tablePage.csp === csp);

@@ -100,6 +100,7 @@ if (!quick) {
   suites.push({ name: 'solo table in headless Chrome (needs the card list)', cmd: node, args: ['scripts/check-solo-ui.mjs'] });
   suites.push({ name: 'stack window in headless Chrome (needs the card list)', cmd: node, args: ['scripts/check-stack-ui.mjs'] });
   suites.push({ name: 'history bar and hand selection in headless Chrome (needs the card list)', cmd: node, args: ['scripts/check-history-and-select-ui.mjs'] });
+  suites.push({ name: 'the foil test page at /foils in headless Chrome', cmd: node, args: ['scripts/check-foils-page.mjs'] });
   suites.push({ name: 'database rules (local emulator)', cmd: process.platform === 'win32' ? 'npm.cmd' : 'npm', args: ['test'], cwd: 'backend', shell: true });
 }
 if (live) {
