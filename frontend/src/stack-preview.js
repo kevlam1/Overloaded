@@ -3,6 +3,7 @@
 // A row or a tile carries data-preview-id (the Scryfall id of the picture to show), data-card-name and, for a card with a back face, data-two-sided (src/deck-groups.js).
 // A card with a back face shows the back too, smaller, under the front. Plain DOM, no dependencies.
 import { imageUrl } from '../../shared/card-image.mjs';
+import { makeFoilLayer, setFoilLook, driftFoil } from './foil-layer.js';
 
 // aside: the box that holds the picture (an <img> and a name line are made in it). sections: the element that holds the tiles.
 // Returns { refresh(defaultCard, active) }, to call after the tiles were drawn again; a card is { id, name }. active: whether the stacks view is the one showing.
@@ -25,20 +26,37 @@ export function mountStackPreview({ aside, sections }) {
   const name = document.createElement('p');
   name.className = 'stack-preview-name';
   aside.append(picture, name, back);
+  // A foil card shows its foil over the front picture, with a shine that drifts (a row or tile says which foil with data-foil).
+  const shine = makeFoilLayer(null);
+  shine.hidden = true;
+  aside.append(shine);
+  let stopDrift = () => {};
+  const fitShine = () => {
+    if (shine.hidden) return;
+    shine.style.position = 'absolute';
+    shine.style.left = `${picture.offsetLeft}px`;
+    shine.style.top = `${picture.offsetTop}px`;
+    shine.style.width = `${picture.offsetWidth}px`;
+    shine.style.height = `${picture.offsetHeight}px`;
+  };
 
   let selected = null; // the card last clicked, or the default
   let shown = null;
   let active = false; // only the stacks view has the display, and a picture is asked for only while it is shown
   const tileOf = (target) => (target instanceof Element ? target.closest('[data-preview-id]') : null);
-  const read = (tile) => ({ id: tile.dataset.previewId, name: tile.dataset.cardName ?? '', twoSided: tile.dataset.twoSided === '1' });
+  const read = (tile) => ({ id: tile.dataset.previewId, name: tile.dataset.cardName ?? '', twoSided: tile.dataset.twoSided === '1', foil: tile.dataset.foil ?? null });
 
   function show(card) {
     if (!active) return;
-    if (card?.id === shown?.id && card?.name === shown?.name) return;
+    if (card?.id === shown?.id && card?.name === shown?.name && (card?.foil ?? null) === (shown?.foil ?? null)) return;
     shown = card;
     const url = card ? imageUrl(card.id, 'normal') : null;
     picture.hidden = !url;
     name.textContent = card ? card.name : '';
+    stopDrift();
+    setFoilLook(shine, card?.foil ?? null);
+    shine.hidden = !url || !card?.foil;
+    if (!shine.hidden) { stopDrift = driftFoil(shine); fitShine(); }
     if (url) { picture.alt = card.name; picture.src = url; }
     else picture.removeAttribute('src');
     const backUrl = url && card.twoSided ? imageUrl(card.id, 'normal', 'back') : null;
@@ -46,7 +64,8 @@ export function mountStackPreview({ aside, sections }) {
     if (backUrl) { back.alt = `${card.name} (back)`; back.src = backUrl; }
     else back.removeAttribute('src');
   }
-  picture.addEventListener('error', () => { picture.hidden = true; }); // the name line stays
+  picture.addEventListener('load', fitShine);
+  picture.addEventListener('error', () => { picture.hidden = true; shine.hidden = true; stopDrift(); }); // the name line stays
   back.addEventListener('error', () => { back.hidden = true; }); // a back picture that does not exist: the front alone
 
   sections.addEventListener('pointerover', (event) => { const tile = tileOf(event.target); show(tile ? read(tile) : selected); });
@@ -66,9 +85,9 @@ export function mountStackPreview({ aside, sections }) {
   return {
     refresh(defaultCard, isActive) {
       active = Boolean(isActive);
-      if (!active) { shown = null; picture.removeAttribute('src'); return; }
-      const kept = selected && [...sections.querySelectorAll('[data-preview-id]')].some((tile) => tile.dataset.previewId === selected.id);
-      if (!kept) selected = defaultCard ?? null;
+      if (!active) { shown = null; stopDrift(); shine.hidden = true; picture.removeAttribute('src'); return; }
+      const keptTile = selected && [...sections.querySelectorAll('[data-preview-id]')].find((tile) => tile.dataset.previewId === selected.id);
+      selected = keptTile ? read(keptTile) : (defaultCard ?? null); // (read again, so a card made foil or not foil shows it)
       show(selected);
     },
   };

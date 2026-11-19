@@ -4696,11 +4696,13 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 - **Light sheen** on battlefield cards, deck tiles and the printing tiles, a little stronger in the hand. **Full effect** on the Alt picture and the details window: bands that slide and a glare that follows the pointer.
 - **Change printing:** a printing that is foil only, etched only or a special foil shows that foil on its picture and names it under the picture.
 - **Correction (Kevin, same day):** I had drawn a plain foil with the vivid rainbow look from before the real foils. A plain (traditional) foil now has its own look, a silvery shine with a faint warm and cool tint and no stripes, and the vivid rainbow stays only for the real rainbow-type foils. That makes nine looks. I had also put textured, embossed, raised, facet, first-place and serialized foils in the rainbow look, so many decks still showed it; they are traditional now. On the real data only 259 foil printings use the vivid rainbow (rainbow, double rainbow, dazzle, Chocobo track, confetti).
+- **Deck page picture (Kevin, same day):** the card display beside the deck list (`frontend/src/stack-preview.js`), the commander shown by default, and the picture that shows when pointing at a printing in Change printing (`card-peek.js`) now show the foil too, with a shine that drifts by itself (`driftFoil` in `foil-layer.js`; it stays still under reduced motion). A line or tile says which foil with `data-foil`.
 - Reduced motion turns the sweep off. The pointer effect stays, since you drive it.
 
 **What I checked**
 - A scratch page with a real card picture, each look small and big, and I looked at the screenshots. I tuned the blend: `overlay` made the rainbow vanish and `color-dodge` washed it out, `hard-light` was the best.
 - `test-foil` (15), `test-foil-looks` (5, new), the whole quick set (79 suites), the real-Chrome deck check (290), solo check (471), card hover (27).
+- The deck page check has two more checks (292): a foil card in the card display has a foil layer of its look and the shine moves, and a card that is not foil has none. I looked at a screenshot, with the flat stand-in picture, so the real art is not seen there.
 - In the real solo table (real Chrome) the foil Forests in the hand carry the rainbow look and no other card has one (one extra check in `scripts/check-history-and-select-ui.mjs`, 25 now).
 - Not checked: the shine on a real foil picture in the live game, the hand at real size, the printing tiles in the real window, the live table (its rules do not know `foil`), phone width. I did not run broken copies.
 

@@ -79,6 +79,7 @@ function describeCard(element, line) {
   element.dataset.previewId = line.printingId ?? line.card.i;
   element.dataset.printing = line.printingSource ?? 'default'; // 'set', 'title' or 'default': where the picture's printing came from
   element.dataset.cardName = line.name;
+  if (line.foil) element.dataset.foil = lookGroup(line.look ?? 'traditional'); // which foil: the picture beside the list shows it
   if (line.card.b === 1) element.dataset.twoSided = '1'; // a card with a back face: the display shows both faces
 }
 

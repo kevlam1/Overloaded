@@ -931,6 +931,16 @@ check('there are no commander or partner boxes; the Commander heading says to ri
   const foilLines = () => ev(`[...document.querySelectorAll('#sections .card-line.foil-line')].map((l) => l.querySelector('.name').textContent + ' ' + l.querySelector('.qty').textContent + ' ' + l.querySelector('.foil-badge').textContent)`);
   const openLineMenuOf = async (name) => { await ev(`[...document.querySelectorAll('#sections .card-line')].find((l) => l.querySelector('.name').textContent === ${JSON.stringify(name)}).querySelector('.row-menu').click()`); await sleep(150); };
   check('a line with *F* in the pasted list shows a Foil tag (and the other lines do not)', JSON.stringify(await foilLines()) === '["Sol Ring 2 Foil"]', JSON.stringify(await foilLines()));
+  // the picture beside the list shows the foil of a foil card, with a shine that moves, and none for a card that is not foil
+  const ringIndex = await ev(`Array.from(document.querySelectorAll('#sections .card-line')).findIndex((li) => li.dataset.cardName === 'Sol Ring')`);
+  const islandIndex = await ev(`Array.from(document.querySelectorAll('#sections .card-line')).findIndex((li) => li.dataset.cardName === 'Island')`);
+  const shineNow = () => ev(`(() => { const s = document.querySelector('#stack-preview .foil-full'); const r = s ? s.getBoundingClientRect() : null; return s ? { hidden: s.hidden, look: s.dataset.foil, w: r.width, mx: s.style.getPropertyValue('--mx') } : null; })()`);
+  await hover(ringIndex); await sleep(300);
+  const shine1 = await shineNow(); await sleep(700); const shine2 = await shineNow();
+  check('the card display beside the list puts a foil layer of its own look over a foil card, and its shine moves', shine1 && !shine1.hidden && shine1.look === 'traditional' && shine1.w > 100 && shine1.mx !== shine2.mx, JSON.stringify([shine1, shine2]));
+  if (process.argv.includes('--screenshot')) await browser.screenshot('scratch-foil-display.png');
+  await hover(islandIndex); await sleep(300);
+  check('a card that is not foil has no foil layer in the card display', (await shineNow())?.hidden === true);
   await openLineMenuOf('Sol Ring');
   const foilMenu = await ev(`[...document.querySelectorAll('.card-menu [role="menuitem"]')].map((x) => x.textContent)`);
   check('the card\'s menu says Remove foil for a foil card', foilMenu.includes('Remove foil') && !foilMenu.includes('Make foil'), JSON.stringify(foilMenu));

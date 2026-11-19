@@ -98,7 +98,7 @@ export async function openPrintingPicker({ root, name, defaultId, currentId, loa
     // foil: a printing that exists only as foil or etched, or has a special foil, shows that foil and says which (a usual nonfoil-and-foil printing shows nothing)
     const finish = printing.foilOnly ? (hasFoilFinish(printing.finishes) ? 'foil' : 'etched') : printing.kind !== TRADITIONAL ? 'foil' : null;
     const look = finish ? lookOf(printing.kind ?? TRADITIONAL, finish) : null;
-    if (look) { picture.classList.add('foil-art'); setFoilLook(picture, lookGroup(look)); }
+    if (look) { picture.classList.add('foil-art'); setFoilLook(picture, lookGroup(look)); button.dataset.foil = lookGroup(look); }
     const caption = make('span', 'tile-caption');
     caption.append(make('strong', '', code), make('span', '', `${info.name} · ${year}`));
     if (look) caption.append(make('span', 'tile-foil', `${foilLabel(look)}${printing.foilOnly ? ' only' : ''}`));

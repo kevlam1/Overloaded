@@ -29,6 +29,7 @@ import { deckFace, colorsAsCost, tintGradient, COLOR_NAMES } from '../../shared/
 import { manaNode } from './mana-pips.js';
 import { imageUrl } from '../../shared/card-image.mjs';
 import { askConfirm } from './confirm-box.js';
+import { lookGroup } from '../../shared/foil-looks.mjs';
 
 const store = makeSafeStore();
 const PROBE_KEY = 'overloaded.storage-probe';
@@ -434,7 +435,7 @@ function renderSections() {
   $('deck-body').dataset.view = view;
   // Every view has the card display beside it: the commander until the player clicks another card (or the first card when there is none).
   const first = (groups.find((entry) => entry.key === 'commander') ?? groups.find((entry) => entry.lines.some((line) => line.card)))?.lines.find((line) => line.card);
-  stackPreview?.refresh(first ? { id: first.printingId ?? first.card.i, name: first.name } : null, true);
+  stackPreview?.refresh(first ? { id: first.printingId ?? first.card.i, name: first.name, foil: first.foil ? lookGroup(first.look ?? 'traditional') : null } : null, true);
 }
 
 // ---- changing a card's printing: the window of printings (src/printing-picker.js), and the card's line in the text rewritten to name the one that was chosen ----
