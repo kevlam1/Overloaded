@@ -34,7 +34,7 @@ try {
   await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: rect.x + rect.w - 10, y: rect.y + rect.h - 10 });
   await sleep(700);
   check('the foil does not move when the pointer is over the big picture', before === (await look()), before + ' -> ' + (await look()));
-  check('the canvas patterns are made and given to the style sheet (surge, galaxy, confetti, etched, halo, fracture, mana, compleat, scales)', await ev(`['streaks', 'glitter', 'confetti', 'grain', 'strands', 'shards', 'pips', 'glints', 'scales'].every((name) => getComputedStyle(document.documentElement).getPropertyValue('--tex-' + name).trim().startsWith('url('))`));
+  check('the canvas patterns are made and given to the style sheet (surge, galaxy, confetti, etched, halo, fracture, ripple, textured, mana, compleat, dragonscale, gold, singularity)', await ev(`['streaks', 'glitter', 'confetti', 'grain', 'strands', 'shards', 'rings', 'fingers', 'pips', 'glints', 'scalemosaic', 'stipple', 'spiral'].every((name) => getComputedStyle(document.documentElement).getPropertyValue('--tex-' + name).trim().startsWith('url('))`));
   if (real) { await ev(`window.scrollTo(0, 0)`); await browser.screenshot('scratch-foils-looks.png'); }
   await ev(`(() => { const s = document.getElementById('lab-view'); s.value = 'kinds'; s.dispatchEvent(new Event('change')); })()`);
   await sleep(300);
