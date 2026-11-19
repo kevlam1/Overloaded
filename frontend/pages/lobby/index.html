@@ -24,6 +24,7 @@
     <main>
       <h1 id="page-title">Welcome to Overloaded</h1>
       <div id="intro" class="hero">
+        <div class="hero-art" aria-hidden="true"><span class="art-card art-a"></span><span class="art-card art-b"></span><span class="art-card art-c"></span></div>
         <p class="lede">Paste a decklist, shuffle up and play. It is free, there is nothing to install and no account to make.</p>
         <div class="hero-actions">
           <a id="play-solo" class="button-link big" href="/solo">Play solo</a>
@@ -31,11 +32,11 @@
           <a id="import-deck" class="button-link quiet" href="/deck">Import your deck</a>
         </div>
         <ul class="hero-points">
-          <li><strong>Bring your own deck</strong>Paste a list from Moxfield, Archidekt or ManaBox.</li>
-          <li><strong>Test it alone</strong>Draw, mulligan, tap and move cards on the solo table.</li>
-          <li><strong>Then play together</strong>Make a private table and share its code.</li>
+          <li><svg class="point-icon" viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true" focusable="false"><path d="M4 3h11a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm14.5 2.2 2.7 1a2 2 0 0 1 1.2 2.5l-3.4 11.4V5.2z"/></svg><strong>Bring your own deck</strong>Paste a list from Moxfield, Archidekt or ManaBox.</li>
+          <li><svg class="point-icon" viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true" focusable="false"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm-1.5 6.2 6 3.8-6 3.8z"/></svg><strong>Test it alone</strong>Draw, mulligan, tap and move cards on the solo table.</li>
+          <li><svg class="point-icon" viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true" focusable="false"><path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm8 0a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM9 13c-3.3 0-6 1.8-6 4v2h12v-2c0-2.2-2.7-4-6-4zm8.2.2c2.4.3 4.8 1.6 4.8 3.8v2h-5v-2c0-1.4-.6-2.7-1.6-3.6z"/></svg><strong>Then play together</strong>Make a private table and share its code.</li>
         </ul>
-        <p class="friends-lede">Want company? Make a table below and send the code, or join your friends' table with theirs.</p>
+        <p class="friends-lede"><strong>Play with friends</strong>Want company? Make a table below and send the code, or join your friends' table with theirs.</p>
         <p id="resume" class="hint" hidden>You are at table <strong id="resume-code"></strong>. The Lobby link above goes back to it.</p>
       </div>
 
@@ -46,43 +47,46 @@
         <h2 id="who-heading">Who are you?</h2>
         <div class="field">
           <label for="name">Your name at the table</label>
-          <input id="name" name="name" type="text" maxlength="30" autocomplete="nickname" spellcheck="false">
+          <input id="name" name="name" type="text" maxlength="30" autocomplete="nickname" spellcheck="false" placeholder="What should friends call you?">
         </div>
       </section>
 
-      <section id="make-section" aria-labelledby="create-heading">
-        <h2 id="create-heading">Make a table</h2>
-        <div class="row">
-          <div class="field">
-            <label for="seats">Seats</label>
-            <select id="seats" name="seats">
-              <option value="2">2 players</option>
-              <option value="3">3 players</option>
-              <option value="4" selected>4 players</option>
-            </select>
+      <div class="start-pair">
+        <section id="make-section" aria-labelledby="create-heading">
+          <h2 id="create-heading">Make a table</h2>
+          <div class="row">
+            <div class="field">
+              <label for="seats">Seats</label>
+              <select id="seats" name="seats">
+                <option value="2">2 players</option>
+                <option value="3">3 players</option>
+                <option value="4" selected>4 players</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="format">Format</label>
+              <select id="format" name="format">
+                <option value="commander" selected>Commander</option>
+                <option value="standard">Standard</option>
+              </select>
+            </div>
+            <button id="create" type="button">Make table</button>
           </div>
-          <div class="field">
-            <label for="format">Format</label>
-            <select id="format" name="format">
-              <option value="commander" selected>Commander</option>
-              <option value="standard">Standard</option>
-            </select>
-          </div>
-          <button id="create" type="button">Make table</button>
-        </div>
-        <p class="hint">Casual play: the format decides which of your saved decks you can bring.</p>
-      </section>
+          <p class="hint">Casual play: the format decides which of your saved decks you can bring.</p>
+        </section>
 
-      <section id="join-section" aria-labelledby="join-heading">
-        <h2 id="join-heading">Join a table</h2>
-        <div class="row">
-          <div class="field">
-            <label for="join-code">Table code</label>
-            <input id="join-code" name="code" type="text" maxlength="9" autocomplete="off" autocapitalize="characters" spellcheck="false" inputmode="text">
+        <section id="join-section" aria-labelledby="join-heading">
+          <h2 id="join-heading">Join a table</h2>
+          <div class="row">
+            <div class="field">
+              <label for="join-code">Table code</label>
+              <input id="join-code" name="code" type="text" maxlength="9" autocomplete="off" autocapitalize="characters" spellcheck="false" inputmode="text" placeholder="ABC234">
+            </div>
+            <button id="join" type="button">Join</button>
           </div>
-          <button id="join" type="button">Join</button>
-        </div>
-      </section>
+          <p class="hint">Got a link from a friend? Just open it.</p>
+        </section>
+      </div>
 
       <section id="room-join" aria-labelledby="room-join-heading" hidden>
         <h2 id="room-join-heading">Join table <span id="room-join-code" class="code"></span></h2>
@@ -93,45 +97,55 @@
       </section>
 
       <section id="table" aria-labelledby="table-heading" hidden>
-        <h2 id="table-heading">Your table</h2>
+        <h2 id="table-heading" class="sr-only">Your table</h2>
         <p id="connection" class="banner" data-level="urgent" role="status" hidden></p>
-        <p>Share this code: <span id="code" class="code"></span></p>
-        <p>Or this link: <span id="link" class="link"></span></p>
-        <p>You have seat <span id="seat"></span>. Format: <span id="table-format"></span>.</p>
-        <h3>At the table</h3>
-        <ul id="players"></ul>
-
-        <h3>Your deck</h3>
-        <div class="field" id="deck-pick-field">
-          <label for="deck-pick">Deck for this table</label>
-          <select id="deck-pick" name="deck-pick"></select>
-        </div>
-        <p id="deck-note" class="hint"></p>
-        <p id="deck-import" class="hint" hidden>You have no saved deck for this format. <button id="deck-import-open" type="button" class="secondary">Import a deck here</button></p>
-        <div class="actions">
-          <button id="open-importer" type="button" class="secondary" aria-expanded="false" aria-controls="deck-importer">Import or change a deck</button>
-        </div>
-        <section id="deck-importer" aria-label="Your decks" hidden>
-          <div id="deck-app"></div>
-        </section>
-        <div id="card-peek" class="card-peek" hidden aria-hidden="true">
-          <img id="card-peek-image" alt="" width="488" height="680" decoding="async" referrerpolicy="no-referrer">
-          <p id="card-peek-note" class="card-peek-note"></p>
-        </div>
-        <div class="actions">
-          <button id="ready" type="button">Ready</button>
+        <div class="room-head">
+          <div class="room-share">
+            <span class="eyebrow">Table code</span>
+            <span class="room-code-line"><span id="code" class="code"></span><button id="copy-code" type="button" class="secondary copy-button">Copy code</button></span>
+          </div>
+          <div class="room-share room-share-link">
+            <span class="eyebrow">Invite link</span>
+            <span class="room-code-line"><span id="link" class="link"></span><button id="copy-link" type="button" class="secondary copy-button">Copy link</button></span>
+          </div>
+          <p class="room-facts">You have seat <span id="seat"></span>. Format: <span id="table-format"></span>.</p>
         </div>
 
-        <div id="start-box" hidden>
-          <h3>Start the match</h3>
-          <p id="start-note" class="hint"></p>
-          <div class="actions">
-            <button id="start" type="button">Start the match</button>
+        <div class="room-grid">
+          <div class="room-seats">
+            <h3>At the table</h3>
+            <ul id="players"></ul>
+          </div>
+
+          <div class="room-deck">
+            <h3>Your deck</h3>
+            <div class="field sr-only" id="deck-pick-field">
+              <label for="deck-pick">Deck for this table</label>
+              <select id="deck-pick" name="deck-pick" tabindex="-1" aria-hidden="true"></select>
+            </div>
+            <div id="deck-tiles" class="deck-choices" role="group" aria-label="Your saved decks"></div>
+            <p id="deck-note" class="hint"></p>
+            <p id="deck-import" class="hint" hidden>You have no saved deck for this format. <button id="deck-import-open" type="button" class="secondary">Import a deck here</button></p>
+            <div class="actions">
+              <button id="open-importer" type="button" class="secondary" aria-expanded="false" aria-controls="deck-importer">Import or change a deck</button>
+            </div>
+            <section id="deck-importer" aria-label="Your decks" hidden>
+              <div id="deck-app"></div>
+            </section>
+            <div id="card-peek" class="card-peek" hidden aria-hidden="true">
+              <img id="card-peek-image" alt="" width="488" height="680" decoding="async" referrerpolicy="no-referrer">
+              <p id="card-peek-note" class="card-peek-note"></p>
+            </div>
           </div>
         </div>
 
-        <div class="actions">
+        <div class="room-bar">
           <button id="leave-table" type="button" class="secondary">Leave the table</button>
+          <div id="start-box" class="room-start" hidden>
+            <p id="start-note" class="hint"></p>
+            <button id="start" type="button">Start the match</button>
+          </div>
+          <button id="ready" type="button">Ready</button>
         </div>
 
         <p id="take-over-note" class="hint" hidden>The host has been gone for over 5 minutes. The table carries on without them, but only a host can start or end a match. You can take it over.</p>
@@ -143,10 +157,11 @@
       <form method="dialog" id="deck-dialog-form">
         <h2 id="deck-dialog-title">Choose a deck</h2>
         <p id="deck-dialog-text">Pick the deck you will play at this table, then get ready.</p>
-        <div class="field" id="deck-dialog-field">
+        <div class="field sr-only" id="deck-dialog-field">
           <label for="deck-dialog-pick">Deck</label>
-          <select id="deck-dialog-pick" name="deck-dialog-pick"></select>
+          <select id="deck-dialog-pick" name="deck-dialog-pick" tabindex="-1" aria-hidden="true"></select>
         </div>
+        <div id="deck-dialog-tiles" class="deck-choices" role="group" aria-label="Your saved decks"></div>
         <p id="deck-dialog-import" class="hint" hidden><button id="deck-dialog-import-open" type="button" class="secondary">Import a deck here</button></p>
         <div class="actions">
           <button id="deck-dialog-ok" type="submit" value="ok">Use this deck and get ready</button>

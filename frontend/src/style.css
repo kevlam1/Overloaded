@@ -1671,3 +1671,110 @@ body.playing.solo #life-area .life-counters[aria-expanded="true"]::after { rotat
 .foil-star { flex: none; display: inline-flex; align-items: center; color: #c9a227; }
 .picker-tile .tile-art.foil-art { position: relative; }
 .picker-tile .tile-caption .tile-foil { font-weight: 700; color: var(--text); }
+
+/* ---- the lobby page, a more modern layout (Kevin, 2026-11-19): a hero on the start screen, one panel for friends, and a table screen with the seats and your deck side by side. Everything is scoped to the lobby's
+   three screens (body[data-screen]) so no other page changes. The same ids and the same words as before; the seats and the deck picker keep their <select>s and text for the tests and screen readers. ---- */
+:root { --ok: #2e8b57; }
+@media (prefers-color-scheme: dark) { :root { --ok: #5fd39a; } }
+body[data-screen] { background: radial-gradient(60rem 28rem at 12% -6%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 70%), radial-gradient(44rem 24rem at 98% 4%, color-mix(in srgb, #b46bff 12%, transparent), transparent 70%), var(--bg); background-repeat: no-repeat; }
+body[data-screen="start"] main { max-width: 66rem; }
+body[data-screen="room-join"] main { max-width: 38rem; }
+body[data-screen="room"] main.wide { max-width: 74rem; }
+body[data-screen="start"] main { position: relative; padding-top: 2.6rem; }
+body[data-screen] input, body[data-screen] select { min-height: 3rem; border-radius: 0.75rem; }
+body[data-screen] input:focus-visible, body[data-screen] select:focus-visible { outline: 0; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent); }
+body[data-screen] select { appearance: none; padding-right: 2.4rem; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' fill='none' stroke='%23999' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 0.85rem center; }
+body[data-screen] section:not(#deck-importer) { padding: 1.3rem 1.4rem; border-radius: 1.1rem; box-shadow: 0 1px 0 color-mix(in srgb, #fff 6%, transparent) inset, 0 0.9rem 2rem -1.4rem rgba(0, 0, 0, 0.55); }
+body[data-screen] section h2 { margin-bottom: 0.8rem; font-size: 1.2rem; }
+body[data-screen] button:not(.secondary):not(.deck-face):not(.deck-action) { border-radius: 0.8rem; box-shadow: 0 0.35rem 1rem -0.5rem color-mix(in srgb, var(--accent) 70%, transparent); }
+body[data-screen] button.secondary { border-radius: 0.8rem; }
+
+/* start screen: the hero */
+body[data-screen="start"] #page-title { max-width: 42rem; margin: 0 0 0.9rem; font-size: clamp(2.3rem, 5.6vw, 3.7rem); line-height: 1.05; letter-spacing: -0.02em; background: linear-gradient(105deg, var(--text) 30%, color-mix(in srgb, var(--accent) 80%, var(--text))); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.hero .lede { max-width: 34rem; margin-bottom: 0; font-size: 1.2rem; }
+.hero-actions { margin: 1.6rem 0 2.2rem; }
+.hero-actions .button-link.big { min-height: 3.5rem; border-radius: 1rem; background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 60%, #b46bff)); color: var(--accent-text); box-shadow: 0 0.7rem 1.6rem -0.7rem color-mix(in srgb, var(--accent) 80%, transparent); }
+.hero-actions .button-link.quiet { min-height: 3.5rem; display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 1rem; background: color-mix(in srgb, var(--card) 70%, transparent); color: var(--text); }
+.hero-actions .button-link.quiet:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--card)); }
+.hero-points { grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 1rem; }
+.hero-points li { position: relative; padding: 1.1rem 1.2rem 1.1rem 4.3rem; border-radius: 1rem; background: color-mix(in srgb, var(--card) 80%, transparent); box-shadow: 0 0.9rem 2rem -1.5rem rgba(0, 0, 0, 0.6); }
+.hero-points .point-icon { position: absolute; left: 1.1rem; top: 1.1rem; box-sizing: content-box; padding: 0.55rem; border-radius: 0.8rem; background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); }
+.friends-lede { margin: 2.6rem 0 1.1rem; padding-top: 0; border-top: 0; font-size: 1rem; }
+.friends-lede strong { display: block; margin-bottom: 0.15rem; color: var(--text); font-size: 1.5rem; letter-spacing: -0.01em; }
+.hero-art { position: absolute; top: 2rem; right: 1rem; width: 17rem; height: 14.5rem; pointer-events: none; }
+.hero-art .art-card { position: absolute; width: 8.4rem; aspect-ratio: 5 / 7; border-radius: 0.7rem; border: 1px solid color-mix(in srgb, #fff 22%, transparent); box-shadow: 0 1.4rem 2.4rem -1rem rgba(0, 0, 0, 0.7); }
+.hero-art .art-card::after { content: ""; position: absolute; inset: 0.55rem; border-radius: 0.4rem; border: 1px solid color-mix(in srgb, #fff 30%, transparent); background: linear-gradient(160deg, color-mix(in srgb, #fff 22%, transparent), transparent 55%); }
+.hero-art .art-a { left: 0.2rem; top: 2.1rem; rotate: -12deg; background: linear-gradient(150deg, #5b7dff, #7a3cd8); }
+.hero-art .art-b { left: 4.3rem; top: 0.2rem; rotate: 4deg; background: linear-gradient(150deg, #f6b73c, #e4572e); }
+.hero-art .art-c { left: 8.3rem; top: 2.4rem; rotate: 15deg; background: linear-gradient(150deg, #2ec4b6, #2b6cd9); }
+@media (max-width: 62rem) { .hero-art { display: none; } }
+
+/* start screen: the name, then make a table and join a table side by side */
+body[data-screen="start"] #who { margin-bottom: 1rem; }
+.start-pair { display: grid; grid-template-columns: 1.25fr 1fr; gap: 1rem; align-items: stretch; }
+.start-pair section { margin-bottom: 0; }
+body[data-screen="room-join"] .start-pair, body[data-screen="room"] .start-pair { display: none; }
+@media (max-width: 52rem) { .start-pair { grid-template-columns: 1fr; } .start-pair section { margin-bottom: 1rem; } }
+#make-section .row, #join-section .row { align-items: flex-end; flex-wrap: wrap; }
+#make-section .row .field, #join-section .row .field { min-width: 8rem; }
+#create, #join { min-height: 3rem; padding-inline: 1.5rem; }
+#join-code { font-size: 1.3rem; text-align: center; letter-spacing: 0.3em; }
+#join-code::placeholder { letter-spacing: 0.3em; opacity: 0.4; }
+
+/* the table's screen */
+body[data-screen="room"] #page-title { margin-bottom: 1rem; }
+body[data-screen="room"] section#table { padding: 0; border: 0; background: none; box-shadow: none; }
+.room-head { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 1rem 2.5rem; margin-bottom: 1.2rem; padding: 1.2rem 1.5rem; border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line)); border-radius: 1.1rem; background: linear-gradient(120deg, color-mix(in srgb, var(--accent) 16%, var(--card)), var(--card) 65%); }
+.eyebrow { display: block; margin-bottom: 0.15rem; color: var(--muted); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
+.room-code-line { display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap; }
+.room-head .code { font-size: 2.4rem; line-height: 1.1; }
+.room-head .link { font-size: 0.9rem; }
+.copy-button { min-height: 2.2rem; padding: 0 0.85rem; font-size: 0.85rem; }
+.room-facts { flex-basis: 100%; margin: 0; color: var(--muted); font-size: 0.9rem; }
+.room-grid { display: grid; grid-template-columns: minmax(19rem, 24rem) 1fr; gap: 1.2rem; align-items: start; }
+@media (max-width: 58rem) { .room-grid { grid-template-columns: 1fr; } }
+.room-seats, .room-deck { padding: 1.2rem 1.3rem; border: 1px solid var(--line); border-radius: 1.1rem; background: var(--card); box-shadow: 0 0.9rem 2rem -1.5rem rgba(0, 0, 0, 0.6); }
+.room-seats h3, .room-deck h3 { margin: 0 0 0.8rem; color: var(--muted); font-size: 0.78rem; letter-spacing: 0.12em; text-transform: uppercase; }
+#players { display: grid; gap: 0.6rem; margin: 0; padding: 0; list-style: none; }
+.seat { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 0.1rem 0.45rem; min-height: 3.7rem; padding: 0.65rem 0.8rem 0.65rem 3.9rem; border: 1px solid var(--line); border-radius: 0.9rem; background: color-mix(in srgb, var(--bg) 55%, var(--card)); }
+.seat::before { content: attr(data-seat); position: absolute; left: 0.8rem; top: 50%; translate: 0 -50%; display: grid; place-items: center; width: 2.3rem; height: 2.3rem; border-radius: 50%; background: color-mix(in srgb, var(--accent) 22%, var(--card)); color: var(--text); font-weight: 700; }
+.seat.mine { border-color: var(--accent); }
+.seat.mine .seat-name::after { content: " \B7  you"; color: var(--muted); font-weight: 400; }
+.seat[data-ready="1"] { border-color: color-mix(in srgb, var(--ok) 70%, var(--line)); }
+.seat[data-ready="1"]::before { background: color-mix(in srgb, var(--ok) 30%, var(--card)); }
+.seat-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.seat-sep { display: none; }
+.seat-name { font-weight: 700; overflow-wrap: anywhere; }
+.seat-host { font-size: 0; }
+.seat-host::after { content: "Host"; padding: 0.05rem 0.5rem; border-radius: 1rem; background: color-mix(in srgb, #f0b429 28%, transparent); color: var(--text); font-size: 0.7rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+.seat-deck { flex-basis: 100%; color: var(--muted); font-size: 0.85rem; }
+.seat .ready-mark { padding: 0.05rem 0.55rem; border-radius: 1rem; background: color-mix(in srgb, var(--ok) 22%, transparent); color: var(--ok); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+.seat .presence { margin-left: 0; font-size: 0.78rem; }
+.seat.empty-seat { border-style: dashed; background: transparent; color: var(--muted); }
+.seat.empty-seat::before { background: transparent; border: 1px dashed var(--line); color: var(--muted); }
+.seat-empty { font-style: italic; }
+.seat .bot-button { margin-left: auto; min-height: 2rem; padding: 0 0.7rem; font-size: 0.8rem; }
+
+/* your deck: the deck cards of the deck page, to click */
+.deck-choices { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: 0.9rem; margin-bottom: 0.4rem; }
+.deck-choices[hidden], .deck-choices:empty { display: none; }
+.deck-choice { min-height: 9.5rem; }
+.deck-choice .face-top { padding-right: 5.6rem; }
+.deck-choice.chosen { outline: 3px solid var(--accent); outline-offset: 2px; box-shadow: 0 0 0 7px color-mix(in srgb, var(--accent) 22%, transparent), 0 0.8rem 1.6rem rgba(0, 0, 0, 0.4); }
+.choice-badge { position: absolute; top: 0.65rem; right: 0.65rem; z-index: 3; display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.12rem 0.65rem; border-radius: 1rem; background: rgba(0, 0, 0, 0.66); color: #fff; font-size: 0.72rem; font-weight: 700; }
+.choice-badge svg { display: none; }
+.deck-choice.chosen .choice-badge { background: var(--accent); color: var(--accent-text); }
+.deck-choice.chosen .choice-badge svg { display: inline-block; }
+#deck-dialog { width: min(52rem, calc(100vw - 2rem)); border: 1px solid var(--line); border-radius: 1.1rem; background: var(--card); color: var(--text); }
+#deck-dialog::backdrop { background: rgba(8, 8, 12, 0.6); backdrop-filter: blur(3px); }
+
+/* the action bar: leave on the left, then (for the host) start, then ready */
+.room-bar { position: sticky; bottom: 0.8rem; z-index: 5; display: flex; align-items: center; gap: 0.9rem; margin-top: 1.2rem; padding: 0.8rem 1rem; border: 1px solid var(--line); border-radius: 1.1rem; background: color-mix(in srgb, var(--card) 90%, transparent); backdrop-filter: blur(8px); box-shadow: 0 1rem 2rem -1rem rgba(0, 0, 0, 0.7); }
+.room-bar #leave-table { margin-right: auto; }
+.room-start { display: flex; align-items: center; gap: 0.9rem; text-align: right; }
+.room-start[hidden] { display: none; }
+.room-start .hint { margin: 0; }
+.room-bar #ready, .room-bar #start { min-height: 3rem; padding-inline: 1.7rem; font-size: 1.05rem; }
+#take-over-note { margin-top: 1rem; }
+.room-deck:has(#deck-import:not([hidden])) #deck-note { display: none; } /* (the empty state below says it once; the note stays in the page for screen readers and tests) */
+#deck-import:not([hidden]) { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.6rem 1rem; margin: 0 0 0.9rem; padding: 1.1rem 1.2rem; border: 1px dashed var(--line); border-radius: 0.9rem; font-size: 0.95rem; }

@@ -4720,6 +4720,28 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **My AI's mistake this time:** my scratch page had a broken attribute, so the small cards showed no sheen and I almost blamed the CSS.
 
+## 238. A more modern lobby: home screen, table screen and a deck picker you click (2026-11-19)
+
+**What I asked for**
+- Make the multiplayer lobby screen more modern, make the deck selector in it more intuitive, and make the home screen more modern.
+
+**What changed** (`frontend/pages/lobby/index.html`, `lobby.js`, `frontend/src/style.css`, new `frontend/src/deck-face.js` and `deck-tiles.js`, `deck-importer.js`)
+- **Home screen:** a large gradient title, a hero with Play solo as the main button and three quieter ones, three feature cards with icons, a decorative fan of cards on the right, and one "Play with friends" area: your name, then Make a table and Join a table side by side (the code box is large and centred). Every id and word is the same.
+- **Table screen:** a header with the table code and the invite link, each with a Copy button; the seats as cards (a round seat number, the name, Host and Ready chips, the commander and bracket on a second line, dashed cards with Add bot for empty seats); your deck next to them; and an action bar that stays at the bottom (Leave on the left, Start for the host, Ready). The text of every seat is the same as before, only drawn differently, so the checks that read it still work.
+- **Deck picker:** your saved decks of the table's format are now the same cards as on the deck page (the commander's art, its colours, the bracket, the number of cards), and you click one. The one you bring is outlined and says "Bringing", the others say "Bring". The "Choose a deck" popup uses the same cards. The old drop-down lists are still in the page, hidden, as the thing the page reads, so choosing a deck works exactly as before. The colours come from the card list, which loads after the cards are first drawn and only when you have a deck. With no saved deck the screen shows one empty-state box with Import a deck here (it said the same thing twice before).
+- The deck card was moved out of `deck-importer.js` into `deck-face.js` so both pages draw the same one.
+
+**What I checked**
+- Screenshots of the home screen (also at 800 px wide: no sideways scroll), the table screen with a host, a joined player, a bot and an empty seat, a player with no deck, the popup, and the light theme, against the real project.
+- `check-lobby-ui` (66; the heading-order check now expects two subheadings in the table because the Start button has none), `check-room-live` (26), `check-bots-live` (9), `check-presence-live` (11), `check-deck-ui` (292), `test-importer-markup` (56), the deploy check (54), and the quick set (79).
+- `check-lobby-deck-live` has two new checks (the deck cards show the right decks with the right one pressed in, and a click on another card brings that deck) and 45 of 46 pass. The one failure is in the table-page part and was there before: it looks for a "Move to" menu line that the hand menu no longer has since Nov 15.
+
+**Decisions and limits**
+- Phones are still on hold, so only desktop widths were looked at. The look is mine; I kept the colours of the site.
+- Not changed: how a table is made or joined, the rules, or anything on the table page itself.
+
+**My AI's mistakes this time:** my first version of the table screen still had a faint outer box (a plain rule beat mine because of how specific the selectors were), the hero art overlapped the third feature card, and my first deck-card check read the cards before they were redrawn and changed Alice's deck for the checks after it. All three were found by looking at screenshots or by the checks failing, and fixed.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

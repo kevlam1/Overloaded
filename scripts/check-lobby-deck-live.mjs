@@ -168,6 +168,18 @@ try {
   const afterRefresh = await row(alice, 'Alice');
   record('after a refresh Alice is still at her seat with her deck and still ready', afterRefresh.includes('Tymna the Weaver & Thrasios, Triton Hero') && afterRefresh.includes('Ready'), afterRefresh);
   record("and her picker shows the deck she brought", (await alice.eval(`document.getElementById('deck-pick').value`)) === partnersId);
+  // the deck cards: one for each of her two Commander decks (not the Standard one), the one she brought is pressed in, and a click on the other one brings that deck (then she is put back as she was)
+  const tiles = () => alice.eval(`[...document.querySelectorAll('#deck-tiles .deck-choice')].map((tile) => tile.dataset.id + ':' + tile.getAttribute('aria-pressed'))`);
+  const tilesAre = (...states) => waitFor(async () => { const t = JSON.stringify(await tiles()); return t === JSON.stringify(states) ? t : null; }, 10000, 200);
+  record('the deck cards show her two Commander decks with the one she brought pressed in', Boolean(await tilesAre(goblinsId + ':false', partnersId + ':true')), JSON.stringify(await tiles()));
+  const click_ = (id) => alice.eval(`document.querySelector('#deck-tiles .deck-choice[data-id="${id}"]').click()`);
+  await click_(goblinsId);
+  record('a click on the other deck card brings that deck, and its card is the pressed one', Boolean(await tilesAre(goblinsId + ':true', partnersId + ':false')) && (await alice.eval(`document.getElementById('deck-pick').value`)) === goblinsId, JSON.stringify(await tiles()));
+  await click_(partnersId);
+  await tilesAre(goblinsId + ':false', partnersId + ':true');
+  await rowHas(alice, 'Alice', 'Tymna the Weaver & Thrasios, Triton Hero');
+  await click(alice, 'ready');
+  await rowHas(alice, 'Alice', 'Ready');
   entry = await memberEntry(cleanup.alice.token, code, cleanup.alice.uid);
   record('the database still has her ready mark', entry?.ready === 1, JSON.stringify(entry));
 

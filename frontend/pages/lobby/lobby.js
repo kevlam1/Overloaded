@@ -4,6 +4,8 @@
 import { botClient, createTable, joinTable, rejoinTable, findMyTable, watchMembers, heartbeat, watchActivity, watchMeta, watchServerOffset, startPresence, watchPresence, watchConnection, takeOverHost, setDeck, setReady, clearReady, startMatch, leaveTable } from '../../src/db.js';
 import { presenceStatus, presenceText, ownConnectionText, hostIsGone } from '../../../shared/presence.mjs';
 import { startKeepAlive } from '../../src/keep-alive.js';
+import { drawDeckTiles } from '../../src/deck-tiles.js';
+import { loadCardList } from '../../src/card-list.js';
 import { mountSiteHeader } from '../../src/site-header.js';
 import { makeSafeStore } from '../../src/safe-store.js';
 import { normalizeCode, isValidCode } from '../../../shared/table-code.mjs';
@@ -180,30 +182,32 @@ $('players').addEventListener('click', (event) => {
   if (button.dataset.bot === 'add') addBot(button.dataset.seat); else removeBot(button.dataset.seat);
 });
 
+const piece = (tag, className, text) => { const element = document.createElement(tag); element.className = className; element.textContent = text; return element; };
+
 function renderPlayers() {
   const list = $('players');
   list.replaceChildren();
   const now = serverOffset === null ? null : Date.now() + serverOffset;
-  // Names come from other people, so they are put in as text, never as markup.
+  // Names come from other people, so they are put in as text, never as markup. A seat reads "Seat 1: Alice (host), Krenko, Mob Boss, bracket 3 Ready" (the style sheet hides the label, the host's brackets and the comma,
+  // and draws the number as a round avatar, the host and Ready as chips, and the deck on its own line).
   for (const [uid, member] of Object.entries(currentMembers).sort((a, b) => Number(a[1].seat) - Number(b[1].seat))) {
     const item = document.createElement('li');
-    const deckText = seatDeckText(member); // the commander(s) and bracket the player told the table; never the list itself
-    item.textContent = `Seat ${member.seat}: ${member.name}${uid === currentHost ? ' (host)' : ''}${deckText ? `, ${deckText}` : ''}`;
+    item.className = uid === myUid ? 'seat mine' : 'seat';
     item.dataset.uid = uid;
     item.dataset.seat = String(member.seat);
+    item.append(piece('span', 'seat-label', `Seat ${member.seat}: `), piece('span', 'seat-name', String(member.name)));
+    if (uid === currentHost) item.append(piece('span', 'seat-host', ' (host)'));
+    const deckText = seatDeckText(member); // the commander(s) and bracket the player told the table; never the list itself
+    if (deckText) item.append(piece('span', 'seat-sep', ', '), piece('span', 'seat-deck', deckText));
     if (isReady(member, currentMeta)) {
-      const mark = document.createElement('span');
-      mark.className = 'ready-mark';
-      mark.textContent = 'Ready';
-      item.append(' ', mark);
+      item.dataset.ready = '1';
+      item.append(' ', piece('span', 'ready-mark', 'Ready'));
     }
     const status = presenceStatus(currentPresence[uid], now);
     const words = presenceText(status);
     if (words) {
-      const note = document.createElement('span');
-      note.className = 'presence';
+      const note = piece('span', 'presence', words);
       note.dataset.state = status.state;
-      note.textContent = words;
       item.append(' ', note); // a real space, so a screen reader does not read the name and the status as one word
     }
     list.append(item);
@@ -220,9 +224,9 @@ function renderPlayers() {
       if (item && canManageBots && botSeats.has(seat)) item.append(' ', botButton('remove', seat, 'Remove bot'));
     } else if (!taken.has(seat)) {
       const item = document.createElement('li');
-      item.className = 'empty-seat';
+      item.className = 'seat empty-seat';
       item.dataset.seat = seat;
-      item.append(`Seat ${seat}: empty`);
+      item.append(piece('span', 'seat-label', `Seat ${seat}: `), piece('span', 'seat-empty', 'empty'));
       if (canManageBots) item.append(' ', botButton('add', seat, 'Add bot'));
       list.append(item);
     }
@@ -303,6 +307,21 @@ function fillDeckSelect(select, decks, selectedId, withPlaceholder) {
 
 // Sends the chosen deck's commander and bracket to the table and remembers the choice for this table (so a refresh can send
 // it again). Returns { entry, changed }.
+let cardsByName = null; // the card list by name, for the colors on the deck cards (it loads after the cards are first drawn, and only if you have a deck)
+let loadingColors = false;
+function drawTiles() {
+  const decks = decksOfFormat(readMyLibrary(), currentMeta?.format);
+  drawDeckTiles($('deck-tiles'), decks, chosenDeckId, { byName: cardsByName, onPick: (id) => { if (id === chosenDeckId) return; $('deck-pick').value = id; $('deck-pick').dispatchEvent(new Event('change')); } });
+  if (decks.length && !cardsByName && !loadingColors) {
+    loadingColors = true;
+    loadCardList().then((cards) => { cardsByName = new Map(cards.map((card) => [card.n, card])); drawTiles(); if ($('deck-dialog').open) drawDialogTiles(); }).catch(() => { loadingColors = false; /* the cards stay without colors; the next draw tries again */ });
+  }
+}
+function drawDialogTiles() {
+  const decks = decksOfFormat(readMyLibrary(), currentMeta?.format);
+  drawDeckTiles($('deck-dialog-tiles'), decks, $('deck-dialog-pick').value || null, { byName: cardsByName, onPick: (id) => { $('deck-dialog-pick').value = id; drawDialogTiles(); } });
+}
+
 async function bringDeck(id) {
   const entry = readMyLibrary().decks.find((candidate) => candidate.id === id && candidate.format === currentMeta?.format);
   if (!entry) throw new Error('That deck is not saved in this browser any more. Pick another one.');
@@ -342,6 +361,7 @@ async function refreshDeckPicker() {
   if (!decks.some((entry) => entry.id === chosenDeckId)) chosenDeckId = null;
   $('deck-pick-field').hidden = decks.length === 0;
   fillDeckSelect($('deck-pick'), decks, chosenDeckId, true);
+  drawTiles();
   $('deck-import').hidden = decks.length > 0;
   $('deck-note').textContent = decks.length === 0
     ? `You have no saved ${formatTitle(format)} deck.`
@@ -361,7 +381,8 @@ function openDeckDialog() {
   $('deck-dialog-ok').hidden = none; // nothing to confirm without a deck
   $('deck-dialog-cancel').textContent = none ? 'Close' : 'Cancel';
   $('deck-dialog-text').textContent = none ? `You have no saved ${formatTitle(format)} deck for this table.` : 'Pick the deck you will play at this table, then get ready.';
-  if (!none) fillDeckSelect($('deck-dialog-pick'), decks, defaultDeckFor(library, format)?.id ?? null, false);
+  if (!none) { fillDeckSelect($('deck-dialog-pick'), decks, defaultDeckFor(library, format)?.id ?? null, false); drawDialogTiles(); }
+  $('deck-dialog-tiles').hidden = none;
   dialog.returnValue = ''; // Escape closes without setting one, so an earlier "ok" must not linger
   dialog.showModal();
 }
@@ -459,6 +480,20 @@ function show(table) {
     readyBots();
   });
 }
+
+// Copy buttons: the table code and the invite link. With no clipboard (an insecure page) the text is selected instead, ready for Ctrl+C.
+async function copyFrom(button, element, words) {
+  const text = element.textContent.trim();
+  const label = button.dataset.label ?? (button.dataset.label = button.textContent);
+  let ok = false;
+  try { await navigator.clipboard.writeText(text); ok = true; } catch { /* no clipboard: select it below */ }
+  if (!ok) { const range = document.createRange(); range.selectNodeContents(element); const selection = getSelection(); selection.removeAllRanges(); selection.addRange(range); }
+  button.textContent = ok ? 'Copied' : 'Press Ctrl+C';
+  say(ok ? `The ${words} is copied.` : `Press Ctrl+C to copy the ${words}.`);
+  setTimeout(() => { button.textContent = label; }, 1800);
+}
+$('copy-code').addEventListener('click', () => copyFrom($('copy-code'), $('code'), 'table code'));
+$('copy-link').addEventListener('click', () => copyFrom($('copy-link'), $('link'), 'invite link'));
 
 $('take-over').addEventListener('click', () => run(async () => {
   say('Taking over the table...');

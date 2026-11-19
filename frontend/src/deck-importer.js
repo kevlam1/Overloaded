@@ -25,9 +25,7 @@ import { sampleById } from '../../shared/sample-decks.mjs';
 import { setupCardPeek } from './card-peek.js';
 import { renderGroups, mountViewToggle, VIEWS } from './deck-groups.js';
 import { guessBracket, gameChangersIn } from '../../shared/deck-bracket.mjs';
-import { deckFace, colorsAsCost, tintGradient, COLOR_NAMES } from '../../shared/deck-colors.mjs';
-import { manaNode } from './mana-pips.js';
-import { imageUrl } from '../../shared/card-image.mjs';
+import { makeDeckFace } from './deck-face.js';
 import { askConfirm } from './confirm-box.js';
 import { lookGroup } from '../../shared/foil-looks.mjs';
 
@@ -98,7 +96,6 @@ function select(options) {
 }
 
 const plural = (count, one, many) => `${count} ${count === 1 ? one : many}`;
-const totalCards = (deck) => deck.cards.reduce((sum, card) => sum + card.qty, 0);
 
 function say(message, isError = false) {
   $('deck-status').textContent = message;
@@ -632,65 +629,9 @@ function commit(next, message) {
   return true;
 }
 
-// One saved deck as a card of CSS: the art of its commander's printing (two commanders split it diagonally, the first on the upper left) over a tint of its colors, with the deck's name, its commanders, its
-// colors as the mana symbols, its bracket (and "guess" when it was guessed) and its size. The tint shows until the art has loaded, and stays if it cannot be loaded. The whole card is a button that opens the deck;
-// the rest (Play solo, Delete) is in the menu at its corner. The colors come from the card list, so they appear as soon as it has loaded.
+// One saved deck as a card: see frontend/src/deck-face.js (the lobby draws the same one).
 function deckCard(entry) {
-  const { deck } = entry;
-  const face = deckFace(entry, cardsByName);
-  const faceElement = make('button', 'deck-face');
-  faceElement.type = 'button';
-  faceElement.dataset.action = 'load';
-  faceElement.setAttribute('aria-label', `Open: ${deck.name}`);
-  faceElement.dataset.colors = face.colors;
-  const half = (className, colors, picture) => {
-    const element = make('span', `face-half ${className}`);
-    element.style.setProperty('--tint', tintGradient(colors));
-    const url = picture ? imageUrl(picture, 'art_crop') : null;
-    if (url) {
-      const art = new Image();
-      art.alt = '';
-      art.loading = 'lazy';
-      art.decoding = 'async';
-      art.draggable = false;
-      art.addEventListener('load', () => faceElement.classList.add('has-art')); // light text on the art
-      art.addEventListener('error', () => art.remove()); // the tint stays
-      art.src = url;
-      element.append(art);
-    }
-    return element;
-  };
-  if (face.split) {
-    faceElement.dataset.split = '1';
-    faceElement.append(half('face-a', face.commanders[0].colors, face.commanders[0].picture), half('face-b', face.commanders[1].colors, face.commanders[1].picture));
-  } else {
-    faceElement.append(half('face-whole', face.colors, face.commanders[0]?.picture ?? null));
-  }
-  const text = make('span', 'saved-text');
-  const top = make('span', 'face-top');
-  top.append(make('strong', 'saved-name', deck.name));
-  text.append(top);
-  const commanders = face.commanders.map((commander) => commander.name);
-  if (commanders.length) {
-    const line = make('span', 'face-commanders');
-    commanders.forEach((commander, index) => line.append(make('span', 'face-commander', commander), ...(index < commanders.length - 1 ? [make('span', 'face-and', ' & ')] : [])));
-    text.append(line);
-  }
-  const bottom = make('span', 'face-bottom');
-  const pips = face.colors ? manaNode(colorsAsCost(face.colors)) : make('span', 'cost');
-  pips.classList.add('face-colors');
-  if (!face.colors) pips.textContent = cardsByName ? 'Colorless' : '';
-  bottom.append(pips);
-  if (entry.bracket) {
-    const bracket = make('span', 'face-bracket', `Bracket ${entry.bracket}`);
-    if (entry.bracketGuess === true) { bracket.classList.add('guessed'); bracket.title = 'Guessed from the Game Changers in the deck. Open the deck to choose one.'; }
-    bottom.append(bracket);
-  }
-  bottom.append(make('span', 'face-facts', plural(totalCards(deck), 'card', 'cards'))); // (Kevin, 2026-11-18: only the number of cards of the main deck, nothing else)
-  text.append(bottom);
-  faceElement.append(text);
-  if (face.colors) faceElement.title = `Colors: ${face.colors.split('').map((color) => COLOR_NAMES[color]).join(', ')}`;
-  return faceElement;
+  return makeDeckFace(entry, cardsByName, { action: 'load', label: `Open: ${entry.deck.name}` });
 }
 
 // A small round button with a drawn icon (a path in a 16 by 16 box), for a saved deck's card: Play solo and Delete. Width, height and fill are set on the element.

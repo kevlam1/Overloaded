@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.237</span></h1>
-    <p class="lede">237 entries, Oct 25 to Nov 18, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
+    <h1>Build log <span class="version">Version 0.238</span></h1>
+    <p class="lede">238 entries, Oct 25 to Nov 19, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
   </div>
 </header>
 
@@ -24,7 +24,7 @@
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
-<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">24</span></a>
+<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">25</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
 <a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">29 things friends asked for</span></a>
 <a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">26 open, 71 done</span></a>
@@ -3604,7 +3604,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-2" aria-labelledby="week-2-title">
-<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">24 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">25 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-2-days">
 <div class="day">
 <h3 class="day-title">Monday 16 November <span class="day-count">5</span></h3>
@@ -4002,6 +4002,29 @@
 <p class="sub"><strong>Decisions and limits</strong></p>
 <ul><li>The looks are my own gradients and are only close to the real cards. Burst foil has no data. Which kinds go to which look is my guess and easy to change in <code>shared/foil-looks.mjs</code>.</li></ul>
 <p><strong>My AI's mistake this time:</strong> my scratch page had a broken attribute, so the small cards showed no sheen and I almost blamed the CSS.</p>
+  </div></div></div>
+</article>
+</div>
+</div>
+<div class="day">
+<h3 class="day-title">Thursday 19 November <span class="day-count">1</span></h3>
+<div class="entries">
+<article class="entry" id="entry-238" data-n="238">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-238-body">
+    <span class="num">238</span>
+    <span class="head-text"><span class="title">A more modern lobby: home screen, table screen and a deck picker you click</span><span class="sum">Make the multiplayer lobby screen more modern, make the deck selector in it more intuitive, and make the home screen more modern.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-238-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>Make the multiplayer lobby screen more modern, make the deck selector in it more intuitive, and make the home screen more modern.</li></ul>
+<p><strong>What changed</strong> (<code>frontend/pages/lobby/index.html</code>, <code>lobby.js</code>, <code>frontend/src/style.css</code>, new <code>frontend/src/deck-face.js</code> and <code>deck-tiles.js</code>, <code>deck-importer.js</code>)</p>
+<ul><li><strong>Home screen:</strong> a large gradient title, a hero with Play solo as the main button and three quieter ones, three feature cards with icons, a decorative fan of cards on the right, and one &quot;Play with friends&quot; area: your name, then Make a table and Join a table side by side (the code box is large and centred). Every id and word is the same.</li><li><strong>Table screen:</strong> a header with the table code and the invite link, each with a Copy button; the seats as cards (a round seat number, the name, Host and Ready chips, the commander and bracket on a second line, dashed cards with Add bot for empty seats); your deck next to them; and an action bar that stays at the bottom (Leave on the left, Start for the host, Ready). The text of every seat is the same as before, only drawn differently, so the checks that read it still work.</li><li><strong>Deck picker:</strong> your saved decks of the table's format are now the same cards as on the deck page (the commander's art, its colours, the bracket, the number of cards), and you click one. The one you bring is outlined and says &quot;Bringing&quot;, the others say &quot;Bring&quot;. The &quot;Choose a deck&quot; popup uses the same cards. The old drop-down lists are still in the page, hidden, as the thing the page reads, so choosing a deck works exactly as before. The colours come from the card list, which loads after the cards are first drawn and only when you have a deck. With no saved deck the screen shows one empty-state box with Import a deck here (it said the same thing twice before).</li><li>The deck card was moved out of <code>deck-importer.js</code> into <code>deck-face.js</code> so both pages draw the same one.</li></ul>
+<p class="sub"><strong>What I checked</strong></p>
+<ul><li>Screenshots of the home screen (also at 800 px wide: no sideways scroll), the table screen with a host, a joined player, a bot and an empty seat, a player with no deck, the popup, and the light theme, against the real project.</li><li><code>check-lobby-ui</code> (66; the heading-order check now expects two subheadings in the table because the Start button has none), <code>check-room-live</code> (26), <code>check-bots-live</code> (9), <code>check-presence-live</code> (11), <code>check-deck-ui</code> (292), <code>test-importer-markup</code> (56), the deploy check (54), and the quick set (79).</li><li><code>check-lobby-deck-live</code> has two new checks (the deck cards show the right decks with the right one pressed in, and a click on another card brings that deck) and 45 of 46 pass. The one failure is in the table-page part and was there before: it looks for a &quot;Move to&quot; menu line that the hand menu no longer has since Nov 15.</li></ul>
+<p class="sub"><strong>Decisions and limits</strong></p>
+<ul><li>Phones are still on hold, so only desktop widths were looked at. The look is mine; I kept the colours of the site.</li><li>Not changed: how a table is made or joined, the rules, or anything on the table page itself.</li></ul>
+<p><strong>My AI's mistakes this time:</strong> my first version of the table screen still had a faint outer box (a plain rule beat mine because of how specific the selectors were), the hero art overlapped the third feature card, and my first deck-card check read the cards before they were redrawn and changed Alice's deck for the checks after it. All three were found by looking at screenshots or by the checks failing, and fixed.</p>
   </div></div></div>
 </article>
 </div>
