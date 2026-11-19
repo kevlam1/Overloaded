@@ -3,7 +3,7 @@
 // A row or a tile carries data-preview-id (the Scryfall id of the picture to show), data-card-name and, for a card with a back face, data-two-sided (src/deck-groups.js).
 // A card with a back face shows the back too, smaller, under the front. Plain DOM, no dependencies.
 import { imageUrl } from '../../shared/card-image.mjs';
-import { makeFoilLayer, setFoilLook, setFoilSource } from './foil-layer.js';
+import { makeFoilLayer, setFoilLook } from './foil-layer.js';
 
 // aside: the box that holds the picture (an <img> and a name line are made in it). sections: the element that holds the tiles.
 // Returns { refresh(defaultCard, active) }, to call after the tiles were drawn again; a card is { id, name }. active: whether the stacks view is the one showing.
@@ -54,7 +54,7 @@ export function mountStackPreview({ aside, sections }) {
     name.textContent = card ? card.name : '';
     setFoilLook(shine, card?.foil ?? null);
     shine.hidden = !url || !card?.foil;
-    if (!shine.hidden) { setFoilSource(shine, url); fitShine(); }
+    if (!shine.hidden) fitShine();
     if (url) { picture.alt = card.name; picture.src = url; }
     else picture.removeAttribute('src');
     const backUrl = url && card.twoSided ? imageUrl(card.id, 'normal', 'back') : null;

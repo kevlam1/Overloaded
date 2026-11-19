@@ -5,7 +5,7 @@
 // card until Alt is let go or the pointer has left it).
 import { IMAGE_HOST } from '../../shared/card-image.mjs';
 import { makeSafeStore } from './safe-store.js';
-import { makeFoilLayer, setFoilLook, setFoilSource } from './foil-layer.js';
+import { makeFoilLayer, setFoilLook } from './foil-layer.js';
 
 const SMALL = `${IMAGE_HOST}/small/`;
 const NORMAL = `${IMAGE_HOST}/normal/`;
@@ -71,7 +71,6 @@ export function mountCardHover(doc = document) {
     current = button;
     setFoilLook(shine, button.dataset.foil ?? null);
     shine.hidden = !button.dataset.foil;
-    setFoilSource(shine, url);
     picture.onerror = () => { box.hidden = true; }; // no larger picture: show nothing rather than a broken image
     picture.src = url;
     placeFor(button);

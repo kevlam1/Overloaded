@@ -1,14 +1,13 @@
-// Tests for shared/foil-examples.mjs: one real printing for every kind of foil. Run: node scripts/test-foil-examples.mjs
-// The shape is always checked. When the printing files are built here (npm run cards), each example is also looked up in its set file: it must be that card, with that kind of foil.
+// Tests for shared/foil-examples.mjs: a real printing for the traditional foil and the etched foil. Run: node scripts/test-foil-examples.mjs
+// The shape is always checked. When the printing files are built here (npm run cards), each example is also looked up in its set file: it must be that card, with that finish.
 import { existsSync, readFileSync } from 'node:fs';
 import { FOIL_EXAMPLES } from '../shared/foil-examples.mjs';
-import { KIND_IDS } from '../shared/foil-kinds.mjs';
 import { readPrintingValue, cardKey } from '../shared/printings.mjs';
 
 let checks = 0;
 const same = (label, actual, expected) => { checks++; if (JSON.stringify(actual) !== JSON.stringify(expected)) { console.log(`FAILED CHECK: ${label}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`); process.exit(1); } };
 
-same('there is an example for every kind, for etched and for a traditional foil, and nothing else', Object.keys(FOIL_EXAMPLES).sort(), [...KIND_IDS, 'etched', 'traditional'].sort());
+same('there is an example for etched and for a traditional foil, and nothing else', Object.keys(FOIL_EXAMPLES).sort(), ['etched', 'traditional']);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 same('every example has a name, a set code, a number and a printing id', Object.entries(FOIL_EXAMPLES).filter(([, e]) => !(e.name && /^[a-z0-9]{3,6}$/.test(e.set) && e.number && UUID.test(e.id))).map(([k]) => k), []);
 

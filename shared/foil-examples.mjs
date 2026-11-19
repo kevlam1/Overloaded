@@ -1,37 +1,7 @@
-// A real printing of a card for every kind of foil (and etched, and the plain traditional foil), for the foil test page at /foils and for trying the looks on a real card. Picked by hand from the real data on
-// 2026-11-18; scripts/test-foil-examples.mjs checks the shape always and, when the printing files are built here, that each one is the right card with the right kind of foil.
-// { kind: { name, set, number, id } }, id being the printing id (the picture to show).
+// A real printing of a card that shows the foils on the foil test page at /foils: one for the traditional foil and one for the etched foil (a real etched printing). Picked by hand from the real data on 2026-11-18;
+// scripts/test-foil-examples.mjs checks the shape always and, when the printing files are built here, that each one is the right card with the right finish.
+// { look: { name, set, number, id } }, id being the printing id (the picture to show).
 export const FOIL_EXAMPLES = {
-  cosmic: { name: 'The Soul Stone', set: 'spm', number: '242', id: '2c3df372-09d5-42fb-9357-3f97745e07c4' },
-  singularity: { name: 'Sothera, the Supervoid', set: 'eoe', number: '382', id: '07b10f1b-b03b-4f19-bc7e-69d5eaa5ff07' },
-  serialized: { name: 'Blazing Archon', set: 'rvr', number: '302z', id: '44a21b89-f540-4932-bb3d-c5c8d7abdda7' },
-  oilslick: { name: 'Phyrexian Vindicator', set: 'one', number: '347', id: '03a8bb65-07b7-462a-9bbb-0f48cb872b43' },
-  stepandcompleat: { name: 'Archfiend of the Dross', set: 'one', number: '434', id: '01d02c56-bf38-4bd8-9e0b-c1e2cc2e5dfe' },
-  mana: { name: 'Blasphemous Edict', set: 'fdn', number: '382', id: '01e35e15-9456-46eb-b6be-5faab05185b2' },
-  dragonscale: { name: 'Arid Mesa', set: 'spg', number: '114', id: '152ddaab-83dd-4f74-bd7f-8a14c1a9d0f2' },
-  gilded: { name: 'Queza, Augur of Agonies', set: 'snc', number: '391', id: '064a84dd-bb7c-4980-a031-23c778e37f73' },
-  neonink: { name: 'Cavern of Souls', set: 'lci', number: '410c', id: '09f9b3b8-090e-4152-8d44-52d92375905b' },
-  firstplace: { name: 'Chandra, Spark Hunter', set: 'dft', number: '456', id: '625b175a-b63f-46d1-a7e1-95dfc7c03e3f' },
-  halo: { name: 'Lathiel, the Bounteous Dawn', set: 'mul', number: '180', id: '00e84208-b622-424d-b9b7-2f093e75c593' },
-  fracture: { name: 'Loyal Tutor', set: 'fra', number: '414', id: '07cac7ce-0b8d-4b40-8096-caa8a165be16' },
-  ripple: { name: 'Midnight Clock', set: 'm3c', number: '189', id: '0024708a-7f59-4707-97d9-4c5397f7333c' },
-  galaxy: { name: 'Scavenger Grounds', set: 'eos', number: '127', id: '01539181-c6ee-49b3-9136-249712e30ef7' },
-  surge: { name: 'Beast Within', set: 'who', number: '819', id: '0072db20-b134-47bd-9b5b-a19a131ee738' },
-  confetti: { name: 'Sneak Attack', set: 'wot', number: '99', id: '019edeac-ce93-4969-8dcb-787f0bfd9ae7' },
-  silverscroll: { name: 'Crop Rotation', set: 'soa', number: '181', id: '00f97ece-f7c5-4ae9-b680-40f2cbbed22c' },
-  silver: { name: 'Kenrith, the Returned King', set: 'ltc', number: '515', id: '029ff21a-b175-4e81-8712-4dae185ad790' },
-  textured: { name: 'Wrenn and Six', set: '2x2', number: '574', id: '24b1203f-1f4c-4d02-a79f-1f6486904ea6' },
-  embossed: { name: 'Dragon Turtle', set: 'pafr', number: '56a', id: '5d83e4c7-dc4a-4cbe-b43b-a34c47927e5c' },
-  raised: { name: 'Chain Lightning', set: 'sld', number: '2052', id: '3cdbf17f-354e-4e32-9de1-eaf1867400da' },
-  facet: { name: 'Omnipresence', set: 'fra', number: '459', id: '076a0b0f-e818-4e67-b786-16d389371c4c' },
-  rainbow: { name: 'Grenzo, Havoc Raiser', set: 'sld', number: '1621', id: '9b6f7f0e-7a0a-42ae-8bc9-c20f62dd3264' },
-  dazzle: { name: 'Sol Ring', set: 'sld', number: 'IFIYW-10', id: 'd75bfbe3-41a0-44e1-86ce-f56c9bcf57d7' },
-  chocobotrack: { name: 'Snapcaster Mage', set: 'fic', number: '469', id: '4790a887-26dd-4a5f-9b85-10346cb6328b' },
-  doublerainbow: { name: 'Sol Ring', set: 'pfdn', number: '1', id: '120e2b4b-afc7-4bf0-a09f-568e08f6bd8f' },
-  silveretched: { name: 'Mountain', set: 'vow', number: '411', id: '117716bf-43c8-4534-92da-d7948d4b5628' },
-  fromthevault: { name: 'Cabal Ritual', set: 'v16', number: '2', id: '70d8fd1a-8756-4e11-9235-ca119bd11dab' },
-  inventions: { name: 'Mana Crypt', set: 'mps', number: '16', id: '480c2b30-c2c2-4b8b-ae0f-9f03732f92a1' },
   etched: { name: 'Jin-Gitaxias, Core Augur', set: 'mul', number: '76', id: '7886ef8b-56d2-4489-a37d-6ae5b87d41c0' },
   traditional: { name: 'Sol Ring', set: 'cmm', number: '410', id: '46ca0b66-a000-4483-b916-f5b89e710244' },
-  retro: { name: 'Wall of Vipers', set: 'pcy', number: '80', id: '00042443-4d4e-4087-b4e5-5e781e7cc5fa' },
 };

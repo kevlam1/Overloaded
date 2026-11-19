@@ -2,10 +2,8 @@
 // in the hand, as a deck tile, and big (the Alt picture and the details window). For debugging the looks and for trying them on another card. It uses the real pieces: shared/foil-looks.mjs,
 // frontend/src/foil-layer.js, the style sheet and the Alt picture (hold Alt over a small card).
 import { mountSiteHeader } from '../../src/site-header.js';
-import { KINDS, lookOf, foilLabel } from '../../../shared/foil-kinds.mjs';
-import { LOOK_GROUPS, lookGroup } from '../../../shared/foil-looks.mjs';
 import { imageUrl } from '../../../shared/card-image.mjs';
-import { setFoilLook, makeFoilLayer, setFoilSource } from '../../src/foil-layer.js';
+import { setFoilLook, makeFoilLayer } from '../../src/foil-layer.js';
 import { mountCardHover } from '../../src/card-hover.js';
 import { FOIL_EXAMPLES } from '../../../shared/foil-examples.mjs';
 
@@ -29,25 +27,13 @@ const make = (tag, className, text) => {
   return element;
 };
 
-// What the page lists. group is the look to draw, or null for a card that is not foil; example is the kind whose real card shows it (shared/foil-examples.mjs).
-const LOOK_EXAMPLE = { traditional: 'traditional', rainbow: 'rainbow', etched: 'etched', silver: 'silver', surge: 'surge', galaxy: 'galaxy', halo: 'halo', fracture: 'fracture', ripple: 'ripple', confetti: 'confetti', textured: 'textured', oilslick: 'oilslick', neon: 'neonink', compleat: 'stepandcompleat', mana: 'mana', singularity: 'singularity', gold: 'gilded', scales: 'dragonscale', retro: 'retro', vault: 'fromthevault' };
-function entries(view) {
-  const list = [{ title: 'Not foil', note: 'no foil', group: null, example: 'traditional' }];
-  if (view === 'looks') {
-    const kindsOf = (group) => KINDS.filter((kind) => lookGroup(lookOf(kind[0], kind[0] === 'silveretched' ? 'etched' : 'foil')) === group).map((kind) => kind[0]);
-    for (const group of LOOK_GROUPS) {
-      const kinds = group === 'traditional' ? ['plain foil', ...kindsOf(group)] : kindsOf(group);
-      list.push({ title: group, note: group === 'etched' ? 'every etched foil' : kinds.join(', '), group, example: LOOK_EXAMPLE[group] });
-    }
-  } else {
-    list.push({ title: 'Plain foil', note: 'no special kind', group: lookGroup('traditional'), example: 'traditional' });
-    list.push({ title: foilLabel('etched'), note: 'every etched foil but the Moonlit Lands', group: lookGroup(lookOf('traditional', 'etched')), example: 'etched' });
-    for (const [id, code, label, tag] of KINDS) {
-      const group = lookGroup(lookOf(id, id === 'silveretched' ? 'etched' : 'foil'));
-      list.push({ title: label, note: `${tag ?? 'from the set'} · ${code} · ${group}`, group, example: id });
-    }
-  }
-  return list;
+// What the page lists: a card that is not foil, a traditional foil (every kind of foil but etched is drawn this way) and an etched foil. example is the real card that shows it (shared/foil-examples.mjs).
+function entries() {
+  return [
+    { title: 'Not foil', note: 'no foil', group: null, example: 'traditional' },
+    { title: 'Traditional', note: 'every foil but etched', group: 'traditional', example: 'traditional' },
+    { title: 'Etched', note: 'etched foil', group: 'etched', example: 'etched' },
+  ];
 }
 
 function picture(id, size) {
@@ -68,7 +54,7 @@ function smallCard(id, group, size) {
   const face = make('span', 'face');
   face.append(picture(id, size));
   button.append(face);
-  if (group) { button.classList.add('foil'); setFoilLook(button, group); setFoilSource(button, imageUrl(id, 'normal')); }
+  if (group) { button.classList.add('foil'); setFoilLook(button, group); }
   return button;
 }
 
@@ -77,7 +63,7 @@ function deckTile(id, group) {
   const art = make('span', 'tile-picture');
   art.append(picture(id, 'small'));
   item.append(art);
-  if (group) { item.classList.add('foil'); setFoilLook(item, group); setFoilSource(item, imageUrl(id, 'small')); }
+  if (group) { item.classList.add('foil'); setFoilLook(item, group); }
   return item;
 }
 
@@ -87,7 +73,6 @@ function bigCard(id, group) {
   frame.append(picture(id, 'normal'));
   if (group) {
     const layer = makeFoilLayer(group);
-    setFoilSource(layer, imageUrl(id, 'normal'));
     frame.append(layer);
   }
   return frame;
@@ -96,7 +81,7 @@ function bigCard(id, group) {
 function draw() {
   const grid = $('lab-grid');
   const chosen = $('lab-card').value; // 'real' (the default): each entry shows a real card that has that foil
-  grid.replaceChildren(...entries($('lab-view').value).map((entry) => {
+  grid.replaceChildren(...entries().map((entry) => {
     const real = FOIL_EXAMPLES[entry.example];
     const id = chosen === 'real' ? real.id : chosen;
     const box = make('div', 'foil-lab-entry');
@@ -117,11 +102,9 @@ const realOption = make('option', '', 'Real card for each foil'); realOption.val
 for (const [name, cardId] of CARDS) { const option = make('option', '', name); option.value = cardId; $('lab-card').append(option); }
 const params = new URLSearchParams(location.search);
 if (CARDS.some(([, cardId]) => cardId === params.get('card'))) $('lab-card').value = params.get('card');
-if (params.get('view') === 'kinds') $('lab-view').value = 'kinds';
 $('lab-still').checked = params.get('still') === '1';
 const applyStill = () => $('foil-lab').classList.toggle('still', $('lab-still').checked);
 $('lab-card').addEventListener('change', draw);
-$('lab-view').addEventListener('change', draw);
 $('lab-still').addEventListener('change', applyStill);
 applyStill();
 draw();

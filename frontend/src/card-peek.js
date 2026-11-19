@@ -3,7 +3,7 @@
 // carries: the printing the player's list named, or the card's default printing.
 // Rows are found by event delegation, so the list can be redrawn without wiring anything again. Plain DOM, no dependencies.
 import { imageUrl } from '../../shared/card-image.mjs';
-import { makeFoilLayer, setFoilLook, setFoilSource } from './foil-layer.js';
+import { makeFoilLayer, setFoilLook } from './foil-layer.js';
 
 const GAP = 24; // pixels between the pointer and the picture
 const EDGE = 8; // pixels kept free at the window's edge
@@ -81,7 +81,6 @@ export function setupCardPeek({ root, peek, image, note, win = window }) {
       current = row;
       setFoilLook(shine, row.dataset.foil ?? null);
       shine.hidden = !row.dataset.foil || failed.has(url);
-      setFoilSource(shine, url);
       const backUrl = row.dataset.twoSided === '1' ? imageUrl(row.dataset.cardId, 'normal', 'back') : null;
       showBack(backUrl && !failed.has(backUrl) ? backUrl : null, name);
       if (failed.has(url)) {

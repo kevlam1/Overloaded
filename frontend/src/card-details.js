@@ -6,7 +6,7 @@ import { imageUrl } from '../../shared/card-image.mjs';
 import { legalitiesOf } from '../../shared/card-rules.mjs';
 import { manaNode } from './mana-pips.js';
 import { manaIcon } from './mana-icon.js';
-import { makeFoilLayer, setFoilSource } from './foil-layer.js';
+import { makeFoilLayer } from './foil-layer.js';
 import { cardLookGroup } from '../../shared/foil-looks.mjs';
 
 const make = (tag, className, text) => { const element = document.createElement(tag); if (className) element.className = className; if (text !== undefined) element.textContent = text; return element; };
@@ -66,7 +66,6 @@ export function openCardDetails({ card, info = null, loader, rulingsLoader = nul
       if (group) { // a foil card: the foil over the picture (it holds still)
         const frame = make('span', 'foil-frame');
         const layer = makeFoilLayer(group);
-        setFoilSource(layer, url);
         frame.append(image, layer);
         picture.append(frame);
       } else picture.append(image);

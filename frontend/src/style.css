@@ -1643,41 +1643,18 @@ body.playing.solo #life-area .life-counters:hover { border-color: var(--ring); }
 body.playing.solo #life-area .life-counters:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 body.playing.solo #life-area .life-counters[aria-expanded="true"]::after { rotate: 225deg; translate: 0 0.08rem; }
 
-/* foil (Kevin, 2026-11-18): every kind of foil has a look (data-foil on the element, the names are in shared/foil-looks.mjs), built after photos of the real cards. A look is a few variables:
-   --f-img the layers (patterns from src/foil-textures.js and gradients), --f-size and --f-pos their size and place (--mx and --my are fixed at their defaults), --f-blend how they mix with the picture,
-   --f-alpha how strong, --f-mask where. A small card (battlefield, hand, deck tile, printing tile) shows the layers still, with one slow light pass; a big picture (Alt, the details window, the card display
-   beside a deck list) is a foil layer (.foil-full) which holds still. Nothing glows or moves under the pointer and nothing swings back and forth. */
+/* foil (Kevin, 2026-11-18): there are two looks, a traditional foil for every kind of foil and the etched foil (data-foil on the element, the names are in shared/foil-looks.mjs). The 20 looks made from photos were
+   scrapped on 2026-11-18 (git history has them). A look is a few variables: --f-img the layers, --f-size and --f-pos their size and place, --f-blend how they mix with the picture, --f-alpha how strong.
+   A small card (battlefield, hand, deck tile, printing tile) shows the layers still, with one slow pass of light; a big picture (Alt, the details window, the card display beside a deck list) is a foil layer
+   (.foil-full). Nothing glows or moves under the pointer and nothing swings back and forth. */
 :root { --f-mask-text: linear-gradient(to bottom, rgba(0, 0, 0, 0.5) 0, rgba(0, 0, 0, 0.5) 9%, #000 12%, #000 55%, rgba(0, 0, 0, 0.4) 58%, rgba(0, 0, 0, 0.4) 100%); }
-[data-foil] { --f-blend: overlay; --f-alpha: 1; --f-band-a: 0.16; --f-pos: var(--mx, 50%) var(--my, 40%); }
+[data-foil] { --f-blend: overlay; --f-alpha: 1; --f-band-a: 0.16; --f-pos: 50% 40%; }
 [data-foil="traditional"] { --f-img: linear-gradient(115deg, transparent 12%, rgba(255, 110, 150, 0.30) 26%, rgba(255, 205, 110, 0.30) 36%, rgba(120, 235, 160, 0.30) 46%, rgba(100, 190, 255, 0.32) 56%, rgba(180, 130, 255, 0.30) 66%, transparent 80%); --f-size: 240% 240%; --f-blend: hard-light; --f-alpha: 0.32; }
-[data-foil="rainbow"] { --f-img: repeating-linear-gradient(118deg, #ff5a8c 0, #ffc85a 40px, #6ee696 80px, #5ab4ff 120px, #aa78ff 160px, #ff5a8c 200px); --f-size: 320% 320%; --f-blend: hard-light; --f-alpha: 0.5; }
-[data-foil="etched"] { --f-img: var(--tex-grain), linear-gradient(115deg, transparent 10%, rgba(90, 190, 210, 0.18) 35%, rgba(170, 120, 255, 0.16) 55%, rgba(255, 170, 90, 0.16) 75%, transparent 90%); --f-size: 100% auto, 220% 220%; --f-pos: 0 0, var(--mx, 50%) var(--my, 40%); --f-blend: screen; --f-alpha: 0.9; --f-band-a: 0.04; }
-[data-foil="silver"] { --f-img: linear-gradient(110deg, transparent 22%, rgba(205, 215, 235, 0.35) 42%, rgba(255, 255, 255, 0.42) 50%, rgba(195, 205, 230, 0.32) 58%, transparent 78%); --f-size: 230% 230%; --f-blend: screen; --f-alpha: 0.7; }
-[data-foil="surge"] { --f-img: var(--tex-streaks), linear-gradient(100deg, transparent 25%, rgba(255, 160, 80, 0.10) 45%, rgba(80, 200, 240, 0.10) 60%, transparent 80%); --f-size: 160% auto, 200% 200%; --f-pos: 0 0, var(--mx, 50%) var(--my, 40%); --f-blend: screen; --f-alpha: 1; }
-[data-foil="galaxy"] { --f-img: var(--tex-glitter), var(--tex-glitter), radial-gradient(ellipse at 25% 20%, rgba(120, 70, 255, 0.12), transparent 55%), radial-gradient(ellipse at 75% 80%, rgba(40, 150, 255, 0.10), transparent 55%); --f-size: 85% auto, 60% auto, 100% 100%, 100% 100%; --f-pos: 0 0, 40% 30%, 0 0, 0 0; --f-blend: screen; --f-alpha: 1; }
-[data-foil="halo"] { --f-img: var(--tex-strands), var(--tex-strands), linear-gradient(135deg, rgba(150, 230, 255, 0.9), rgba(215, 200, 255, 0.9), rgba(160, 255, 230, 0.9)); --f-size: 130% auto, 95% auto, 100% 100%; --f-pos: 0 0, 60% 40%, 0 0; --f-blend: screen; --f-alpha: 1; }
-[data-foil="fracture"] { --f-img: var(--tex-shards); --f-size: 55% auto; --f-pos: 0 0; --f-blend: screen; --f-alpha: 0.6; }
-[data-foil="ripple"] { --f-img: var(--tex-rings); --f-size: 100% 100%; --f-pos: 0 0; --f-blend: screen; --f-alpha: 0.65; }
-[data-foil="confetti"] { --f-img: var(--tex-confetti); --f-size: 62% auto; --f-pos: 0 0; --f-blend: hard-light; --f-alpha: 0.8; }
-[data-foil="textured"] { --f-img: var(--tex-fingers), linear-gradient(115deg, transparent 10%, rgba(90, 150, 255, 0.30) 30%, rgba(170, 110, 255, 0.30) 48%, rgba(80, 220, 190, 0.30) 66%, transparent 86%); --f-size: 100% 100%, 220% 220%; --f-pos: 0 0, var(--mx, 50%) var(--my, 40%); --f-blend: overlay; --f-alpha: 1; }
-[data-foil="oilslick"] { --f-mask: var(--f-src); }
-/* neon ink glows in the card's own ink colour and is only on the brightest lines: the picture is used as the mask three times over, so only what is bright in all of them stays */
-[data-foil="neon"] { --f-mask: var(--f-src), var(--f-src), var(--f-src); }
-.card.foil[data-foil="neon"] .face::after, .deck-tile.foil[data-foil="neon"] .tile-picture::after, .foil-art[data-foil="neon"]::after, .foil-full[data-foil="neon"] { mask-composite: intersect, intersect; }
-.card.foil[data-foil="oilslick"] .face::after, .card.foil[data-foil="neon"] .face::after, .deck-tile.foil[data-foil="oilslick"] .tile-picture::after, .deck-tile.foil[data-foil="neon"] .tile-picture::after, .foil-art[data-foil="oilslick"]::after, .foil-art[data-foil="neon"]::after, .foil-full[data-foil="oilslick"], .foil-full[data-foil="neon"] { -webkit-mask-mode: luminance; mask-mode: luminance; -webkit-mask-size: 100% 100%; mask-size: 100% 100%; }
-[data-foil="oilslick"] { --f-img: linear-gradient(95deg, rgba(40, 90, 255, 0.9) 0%, rgba(0, 200, 210, 0.85) 20%, rgba(255, 175, 45, 0.9) 42%, rgba(255, 60, 150, 0.85) 64%, rgba(120, 60, 255, 0.9) 84%, rgba(40, 90, 255, 0.9) 100%); --f-size: 300% 100%; --f-pos: var(--mx, 50%) 0; --f-blend: color; --f-alpha: 1; }
-[data-foil="neon"] { --f-img: linear-gradient(rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.7)); --f-size: 100% 100%; --f-pos: 0 0; --f-blend: screen; --f-alpha: 0.85; }
-[data-foil="compleat"] { --f-img: var(--tex-glints), linear-gradient(115deg, transparent 20%, rgba(150, 120, 255, 0.16) 45%, rgba(80, 200, 255, 0.16) 60%, transparent 80%); --f-size: 70% auto, 220% 220%; --f-pos: 0 0, var(--mx, 50%) var(--my, 40%); --f-blend: screen; --f-alpha: 0.9; }
-[data-foil="mana"] { --f-img: var(--tex-pips), linear-gradient(115deg, transparent 20%, rgba(255, 200, 110, 0.18) 45%, rgba(110, 190, 255, 0.18) 60%, transparent 80%); --f-size: 30% auto, 220% 220%; --f-pos: 0 0, var(--mx, 50%) var(--my, 40%); --f-blend: hard-light; --f-alpha: 0.5; }
-[data-foil="singularity"] { --f-img: var(--tex-spiral); --f-size: 100% 100%; --f-pos: 0 0; --f-blend: overlay; --f-alpha: 0.7; }
-[data-foil="gold"] { --f-img: var(--tex-stipple), linear-gradient(180deg, rgba(255, 226, 130, 0.95), rgba(235, 168, 50, 0.95) 60%, rgba(215, 140, 30, 0.95)); --f-size: 70% auto, 100% 100%; --f-pos: 0 0, 0 0; --f-blend: normal; --f-alpha: 0.6; }
-[data-foil="scales"] { --f-img: var(--tex-scalemosaic); --f-size: 40% auto; --f-pos: 0 0; --f-blend: hard-light; --f-alpha: 0.7; }
-[data-foil="retro"] { --f-img: linear-gradient(120deg, #ff6fa8, #ffd36b, #8bf0a5, #62bfff, #b28cff, #ff6fa8); --f-size: 200% 200%; --f-pos: var(--mx, 50%) var(--my, 40%); --f-blend: hard-light; --f-alpha: 0.8; }
-[data-foil="vault"] { --f-img: linear-gradient(90deg, transparent 47%, rgba(70, 190, 255, 0.45) 48%, rgba(120, 255, 170, 0.6) 48.8%, rgba(255, 240, 150, 0.9) 49.5%, rgba(255, 255, 255, 0.95) 50%, rgba(255, 170, 60, 0.9) 50.6%, rgba(255, 90, 60, 0.5) 51.3%, transparent 52.5%), linear-gradient(90deg, transparent 49.2%, rgba(255, 210, 140, 0.35) 50%, transparent 50.8%); --f-size: 300% 100%, 300% 100%; --f-pos: 57.5% 0, 44% 0; --f-blend: screen; --f-alpha: 1; }
+[data-foil="etched"] { --f-img: repeating-linear-gradient(60deg, rgba(255, 255, 255, 0.30) 0 1px, transparent 1px 3px), linear-gradient(115deg, transparent 20%, rgba(255, 255, 255, 0.42) 42%, rgba(255, 226, 190, 0.34) 52%, rgba(190, 215, 255, 0.30) 62%, transparent 82%); --f-size: 100% 100%, 220% 220%; --f-pos: 0 0, 50% 40%; --f-blend: overlay; --f-alpha: 1; --f-band-a: 0.05; }
 
 /* the layers on a small card: still, and a little weaker on the battlefield than in the hand, on a deck tile and on a printing tile */
 .card.foil .face, .deck-tile.foil .tile-picture, .foil-art { position: relative; }
-.card.foil .face::after, .deck-tile.foil .tile-picture::after, .foil-art::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; box-sizing: border-box; background-image: var(--f-img); background-size: var(--f-size); background-position: var(--f-pos); mix-blend-mode: var(--f-blend); opacity: calc(var(--f-alpha) * 0.55); -webkit-mask-image: var(--f-mask, var(--f-mask-text)); mask-image: var(--f-mask, var(--f-mask-text)); }
+.card.foil .face::after, .deck-tile.foil .tile-picture::after, .foil-art::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; box-sizing: border-box; background-image: var(--f-img); background-size: var(--f-size); background-position: var(--f-pos); mix-blend-mode: var(--f-blend); opacity: calc(var(--f-alpha) * 0.55); -webkit-mask-image: var(--f-mask-text); mask-image: var(--f-mask-text); }
 #hand .card.foil .face::after, .hand-lift-layer .card.foil .face::after, .foil-lab-hand .card.foil .face::after, .deck-tile.foil .tile-picture::after, .foil-art::after { opacity: var(--f-alpha); }
 /* one slow pass of light, left to right, then a rest: it never comes back the other way */
 .card.foil .face::before, .deck-tile.foil .tile-picture::before, .foil-art::before { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 1; background: linear-gradient(115deg, transparent 42%, rgba(255, 255, 255, var(--f-band-a)) 50%, transparent 58%) 130% 0 / 250% 100%; mix-blend-mode: screen; animation: foil-pass 10s linear infinite; }
@@ -1685,17 +1662,9 @@ body.playing.solo #life-area .life-counters[aria-expanded="true"]::after { rotat
 .card.foil:hover .face::before, .deck-tile.foil:hover .tile-picture::before, .picker-tile:hover .foil-art::before { animation: none; opacity: 0; }
 @keyframes foil-pass { 0% { background-position: 130% 0; } 40%, 100% { background-position: -30% 0; } }
 @media (prefers-reduced-motion: reduce) { .card.foil .face::before, .deck-tile.foil .tile-picture::before, .foil-art::before { animation: none; background-position: 60% 0; } }
-/* the first foil: only the border is foil (the art and the rules box are not) */
-.card.foil[data-foil="retro"] .face::after, .deck-tile.foil[data-foil="retro"] .tile-picture::after, .foil-art[data-foil="retro"]::after, .foil-full[data-foil="retro"] { padding: 5.5% 5%; -webkit-mask-image: linear-gradient(#000 0 0), linear-gradient(#000 0 0); mask-image: linear-gradient(#000 0 0), linear-gradient(#000 0 0); -webkit-mask-clip: content-box, border-box; mask-clip: content-box, border-box; -webkit-mask-composite: xor; mask-composite: exclude; }
-
-/* halo glows on the light parts of the art: the picture is its mask. Gold is only on the frame: the art window and the rules box are cut out of it. */
-[data-foil="halo"] { --f-mask: var(--f-src); }
-.card.foil[data-foil="halo"] .face::after, .deck-tile.foil[data-foil="halo"] .tile-picture::after, .foil-art[data-foil="halo"]::after, .foil-full[data-foil="halo"] { -webkit-mask-mode: luminance; mask-mode: luminance; -webkit-mask-size: 100% 100%; mask-size: 100% 100%; }
-[data-foil="gold"] { --f-mask: linear-gradient(#000 0 0), linear-gradient(#000 0 0), linear-gradient(#000 0 0); }
-.card.foil[data-foil="gold"] .face::after, .deck-tile.foil[data-foil="gold"] .tile-picture::after, .foil-art[data-foil="gold"]::after, .foil-full[data-foil="gold"] { mask-size: 100% 100%, 84% 45%, 84% 31%; mask-position: 0 0, 50% 20%, 50% 88.4%; mask-repeat: no-repeat; mask-composite: exclude, exclude; }
 
 /* the big picture: a layer over it; it holds still */
-.foil-full { position: absolute; inset: 0; box-sizing: border-box; border-radius: 4.8% / 3.4%; pointer-events: none; mix-blend-mode: var(--f-blend, overlay); opacity: var(--f-alpha, 1); background-image: var(--f-img); background-size: var(--f-size); background-position: var(--f-pos); -webkit-mask-image: var(--f-mask, var(--f-mask-text)); mask-image: var(--f-mask, var(--f-mask-text)); }
+.foil-full { position: absolute; inset: 0; box-sizing: border-box; border-radius: 4.8% / 3.4%; pointer-events: none; mix-blend-mode: var(--f-blend, overlay); opacity: var(--f-alpha, 1); background-image: var(--f-img); background-size: var(--f-size); background-position: var(--f-pos); -webkit-mask-image: var(--f-mask-text); mask-image: var(--f-mask-text); }
 .foil-full[hidden] { display: none; }
 .foil-frame { position: relative; display: inline-block; max-width: 100%; line-height: 0; border-radius: 4.8% / 3.4%; isolation: isolate; }
 
