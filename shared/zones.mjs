@@ -135,7 +135,7 @@ export function makeGame(deck, lookup = () => null, { random = secureRandom, han
     if (!zone) throw new Error(`A card is in a section this game does not know: ${saved.section}`);
     const known = lookup(saved) ?? {};
     for (let copy = 0; copy < saved.qty; copy++) {
-      zones[zone].push({ uid: `c${uid++}`, i: saved.i, ...(saved.p ? { p: saved.p } : {}), n: saved.n, t: known.t ?? '', m: known.m ?? '', k: known.k ?? [], ...(known.b === 1 ? { b: 1, ...(known.md === 1 ? { md: 1 } : {}) } : {}), tapped: false, turnEntered: null });
+      zones[zone].push({ uid: `c${uid++}`, i: saved.i, ...(saved.p ? { p: saved.p } : {}), ...(saved.foil === true ? { foil: true } : {}), n: saved.n, t: known.t ?? '', m: known.m ?? '', k: known.k ?? [], ...(known.b === 1 ? { b: 1, ...(known.md === 1 ? { md: 1 } : {}) } : {}), tapped: false, turnEntered: null });
     }
   }
   zones.library = shuffled(zones.library, random);
@@ -381,14 +381,6 @@ export function setNote(game, uid, text) {
   if (note.length > MAX_NOTE) throw new Error(`A note is at most ${MAX_NOTE} characters.`);
   const { card, at } = onBattlefield(game, uid, 'a note');
   return putBattlefield(game, at, with_(card, 'nt', note, note === ''));
-}
-
-// Foil (Kevin, 2026-11-18): a card of the game can be marked as foil, in any zone; it keeps the mark when it moves. Only the solo table offers it (the live rules do not know the field).
-export function setFoil(game, uid, on) {
-  const { zone, at } = locate(game, uid);
-  const card = game.zones[zone][at];
-  const next = with_(card, 'foil', true, !on);
-  return { ...game, zones: { ...game.zones, [zone]: game.zones[zone].map((each, i) => (i === at ? next : each)) } };
 }
 
 export function setFaceDown(game, uid, down) {

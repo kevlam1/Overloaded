@@ -30,7 +30,7 @@ export const MAX_STALE_MS = 30 * DAY_MS; // a failed rebuild falls back to a lis
 // is rebuilt once instead of being reused for up to a week. 6 added `md`, a modal card (playable as either face). 7 added the printings grouped by card (prints.json in the cache, the files
 // under /data/prints/ on the site: shared/card-prints.mjs), which the deck page reads to let a player change a card's art. 8 added the year of each of those printings. 9 added `ci`, a card's color identity, and `gc`, the Game Changers mark (for the deck colors and the bracket guess).
 // 10 added the rules of every card (rules.json in the cache, the files under /data/rules/ on the site: shared/card-rules.mjs), which the details window reads. 11 added the rulings (rulings.json, /data/rulings/: shared/card-rulings.mjs).
-export const LIST_FORMAT = 11;
+export const LIST_FORMAT = 12; // (12: a foil-only printing has an "f" after its key in the set files)
 export const BULK_DATA_URL = 'https://api.scryfall.com/bulk-data';
 // Scryfall's rules (docs/scryfall.md): every request names the app and says what it accepts.
 export const HEADERS = { 'User-Agent': 'Overloaded/0.1 (+https://github.com/kevlam1/Overloaded)', Accept: 'application/json' };

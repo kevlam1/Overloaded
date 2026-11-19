@@ -374,6 +374,11 @@ try {
   const reversedFile = gz('printed-reversed.jsonl.gz', printedRows.reverse());
   const reversedBuild = await buildFromFiles(oracleFile, reversedFile);
   check('the same printings in the reverse order give identical bytes', serializePrintings(reversedBuild.printingFiles) === serializePrintings(files) && serializeList(reversedBuild.list) === serializeList(withPrintings.list));
+  // foil-only printings get an f after their key (Scryfall's finishes has no nonfoil, and has foil or etched)
+  { const fin = (number, id, finishes) => JSON.stringify({ oracle_id: 'o-Sol Ring', name: 'Sol Ring', digital: false, layout: 'normal', set_type: 'expansion', set: 'fin', collector_number: number, id: uuid(id), ...(finishes ? { finishes } : {}) });
+    const finFile = gz('fin.jsonl.gz', [fin('1', 601, ['foil']), fin('2', 602, ['nonfoil', 'foil']), fin('3', 603, ['etched']), fin('4', 604, ['nonfoil']), fin('5', 605, null), fin('6', 606, ['foil', 'etched']), fin('7', 607, []), printed('Sol Ring', 'cmm', '410', 501)]);
+    const built = await buildFromFiles(oracleFile, finFile);
+    same('foil only: ["foil"], ["etched"] and ["foil","etched"]; not foil only: with a nonfoil finish, only nonfoil, no finishes at all, an empty list', built.printingFiles.fin, { 1: printingValue(uuid(601), 'Sol Ring', true), 2: printingValue(uuid(602), 'Sol Ring'), 3: printingValue(uuid(603), 'Sol Ring', true), 4: printingValue(uuid(604), 'Sol Ring'), 5: printingValue(uuid(605), 'Sol Ring'), 6: printingValue(uuid(606), 'Sol Ring', true), 7: printingValue(uuid(607), 'Sol Ring') }); }
 } finally {
   rmSync(dir, { recursive: true, force: true });
 }

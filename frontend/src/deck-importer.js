@@ -14,7 +14,7 @@ import { mountStackPreview } from './stack-preview.js';
 import { renderDeckInfo, renderDeckFacts } from './deck-stats.js';
 import { commanderMenuItems, applyCommanderChoice, commanderChoiceMessage } from '../../shared/deck-commander.mjs';
 import { openCardMenu } from './card-menu.js';
-import { setPrintingInText } from '../../shared/deck-text-edit.mjs';
+import { setPrintingInText, setFoilInText } from '../../shared/deck-text-edit.mjs';
 import { makePrintsLoader } from './card-prints.js';
 import { openPrintingPicker } from './printing-picker.js';
 import { LIBRARY_KEY, LEGACY_KEY, emptyLibrary, readLibrary, serializeLibrary, addDeck, replaceDeck, uniqueName, removeDeck, selectDeck } from '../../shared/deck-library.mjs';
@@ -441,6 +441,17 @@ function renderSections() {
 function openPicker(line, returnFocus) {
   openPrintingPicker({ root, name: line.name, defaultId: line.card.i, currentId: line.printingSource === 'set' || line.printingSource === 'title' ? line.printingId : null, loader: printsLoader, returnFocus, onPick: (row) => applyPrinting(line, row) });
 }
+// Foil on or off for a card: its line(s) in the text get or lose the *F*, and the page is drawn again from the text like any other change.
+function applyFoil(line) {
+  const edited = setFoilInText(text, line.sourceLines, !line.foil);
+  if (edited.changed === 0) { say(`${line.name}: nothing to change.`); return; }
+  checkRun++; // (a check that was still running no longer applies)
+  text = edited.text;
+  $('deck-text').value = text;
+  refresh();
+  autosave();
+  say(`${line.name}: ${line.foil ? 'not foil' : 'foil'}.`);
+}
 async function applyPrinting(line, row) {
   const edited = setPrintingInText(text, line.sourceLines, line.name, row ? { set: row.set, number: row.number } : null);
   if (edited.changed === 0) { say(`${line.name} already uses that printing.`); return; }
@@ -461,7 +472,9 @@ async function applyPrinting(line, row) {
 // What it offers is in shared/deck-commander.mjs (making a card the commander or the partner, or taking it out; the card that was replaced goes back to its type group).
 function menuItemsFor(line) {
   if (!line || line.status !== 'matched' || !line.card) return [];
-  return [{ id: 'printing', label: 'Change printing...' }, ...commanderMenuItems(line, currentPicks(), { commanderFormat: isCommander() && Boolean(preview) })];
+  // Foil is part of the list (*F*), so it is changed there; a printing that exists only as foil cannot be turned off
+  const foil = line.foilOnly ? [] : [{ id: 'foil', label: line.foil ? 'Remove foil' : 'Make foil' }];
+  return [{ id: 'printing', label: 'Change printing...' }, ...foil, ...commanderMenuItems(line, currentPicks(), { commanderFormat: isCommander() && Boolean(preview) })];
 }
 function lineOf(element) {
   const ref = element instanceof Element ? element.closest('[data-ref]')?.dataset.ref : null;
@@ -476,6 +489,7 @@ function openLineMenu(line, x, y, returnFocus) {
   if (!items.length) return;
   openCardMenu({ title: line.name, items, x, y, returnFocus, onPick: (action) => {
     if (action === 'printing') { openPicker(line, returnFocus); return; }
+    if (action === 'foil') { applyFoil(line); return; }
     picks = applyCommanderChoice(currentPicks(), action, line.card.i);
     picksTouched = true;
     renderCommander();

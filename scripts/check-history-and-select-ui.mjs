@@ -15,7 +15,7 @@ let checks = 0;
 const failures = [];
 const check = (label, pass, detail = '') => { checks++; if (!pass) { failures.push(label); console.log(`FAIL  ${label}${detail ? '  (' + detail + ')' : ''}`); } };
 
-const TEXT = 'COMMANDER:\n1 Eowyn, Lady of Rohan\n\nDECK:\n24 Forest\n4 Sol Ring\n4 Lightning Bolt\n4 Llanowar Elves\n24 Island';
+const TEXT = 'COMMANDER:\n1 Eowyn, Lady of Rohan\n\nDECK:\n24 Forest *F*\n4 Sol Ring\n4 Lightning Bolt\n4 Llanowar Elves\n24 Island';
 const cards = JSON.parse(readFileSync('frontend/public/data/cards.json', 'utf8'));
 const parsed = parseDeckText(TEXT);
 const preview = makePreview(parsed, matchDeck(buildCardIndex(cards), parsed.entries));
@@ -92,7 +92,7 @@ try {
   await drag(await rectOf('#life-grip'), { x: 4, y: 4 });
   check('and near the corner it docks again', (await rectOf('#life-area')).x < 20);
 
-  // ---- the Counters dropdown, Foil, and Move all to (Kevin, 2026-11-18) ----
+  // ---- the Counters dropdown, foil from the deck, and Move all to (Kevin, 2026-11-18) ----
   await mouse('mouseMoved', 5, 5); await ev("document.getElementById('new-game').click()"); await sleep(500);
   const labels = () => ev(`[...document.querySelectorAll('.card-menu [role="menuitem"]')].map((x) => x.textContent.replace(/[^ -~]/g, '').trim())`);
   const pick = async (text) => { const p = await ev(`(() => { const b = [...document.querySelectorAll('.card-menu [role="menuitem"]')].find((x) => x.textContent.replace(/[^ -~]/g, '').trim().startsWith(${JSON.stringify(text)})); if (!b) return null; const r = b.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`); if (!p) return false; await mouse('mouseMoved', p.x, p.y); await mouse('mousePressed', p.x, p.y, 1); await mouse('mouseReleased', p.x, p.y); await sleep(150); return true; };
@@ -104,11 +104,14 @@ try {
   check('choosing Poison adds 1: the list now says Poison: 1 and a chip with the amount shows', (await labels()).includes('Poison: 1') && /1/.test(await ev("document.querySelector('#life-chips .counter-chip')?.textContent ?? ''")), JSON.stringify(await labels()));
   if (process.argv.includes('--screenshot')) await browser.screenshot('scratch-counters.png');
   await mouse('mouseMoved', 5, 5); await ev("document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))"); await sleep(100);
+  // foil comes from the deck (24 Forest *F*): the Forests are foil in the game, the other cards are not, and a card's menu has no foil line
+  for (let n = 0; n < 12 && !(await ev(`[...document.querySelectorAll('#hand > .card')].some((c) => /^Forest/.test(c.getAttribute('aria-label')))`)); n++) { await ev("document.getElementById('draw').click()"); await sleep(80); } // (a hand with at least one Forest, so the check below is not empty)
+  const foilFacts = await ev(`(() => { const all = [...document.querySelectorAll('#hand > .card')]; const forests = all.filter((c) => /^Forest/.test(c.getAttribute('aria-label'))); return { forests: forests.length, foilForests: forests.filter((c) => c.classList.contains('foil')).length, foilOthers: all.filter((c) => !/^Forest/.test(c.getAttribute('aria-label')) && c.classList.contains('foil')).length, sheen: forests[0] ? getComputedStyle(forests[0].querySelector('.face'), '::after').content : 'none' }; })()`);
+  check('the Forests of the deck (24 Forest *F*) are foil in the game with a sheen over the picture, and no other card is', foilFacts.forests > 0 && (foilFacts.foilForests === foilFacts.forests && foilFacts.foilOthers === 0 && foilFacts.sheen !== 'none'), JSON.stringify(foilFacts));
   await ev(`(() => { const c = document.querySelector('#hand > .card'); const r = c.getBoundingClientRect(); c.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: r.x + r.width / 2, clientY: Math.min(r.y + 30, innerHeight - 20) })); })()`); await sleep(150);
-  await pick('Foil'); await sleep(150);
-  check('Foil in a card\'s menu makes it shimmer (a foil card with the sheen drawn over its picture)', (await ev("document.querySelectorAll('#hand > .card.foil').length")) === 1 && (await ev("getComputedStyle(document.querySelector('#hand > .card.foil .face'), '::after').content")) !== 'none');
+  check('a card\'s menu in the game has no foil line (foil is decided in the deck list)', !(await labels()).some((t) => /foil/i.test(t)), JSON.stringify(await labels()));
+  await ev("document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))"); await sleep(100);
   await mouse('mouseMoved', 5, 5); await sleep(300);
-  if (process.argv.includes('--screenshot')) await browser.screenshot('scratch-foil.png');
   const handBefore = await ev("document.querySelectorAll('#hand > .card').length");
   await ev("document.getElementById('hand-caret').click()"); await sleep(150);
   await pick('Move all to'); await sleep(150);
@@ -136,6 +139,7 @@ try {
   const raise = async (i) => { for (let n = 0; n < 2; n++) { const p = await cardAt(i); await mouse('mouseMoved', p.x, p.y); await sleep(450); } return cardAt(i); };
   const key = (type, name, modifiers) => browser.send('Input.dispatchKeyEvent', { type, key: name, code: name + 'Left', windowsVirtualKeyCode: name === 'Alt' ? 18 : 16, modifiers });
   const p0 = await raise(1);
+  if (process.argv.includes('--screenshot')) await browser.screenshot('scratch-foil.png');
   await key('rawKeyDown', 'Alt', 1); await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p0.x + 1, y: p0.y, modifiers: 1 }); await sleep(250);
   const shown = await ev("(() => { const b = document.getElementById('card-hover'); return Boolean(b) && !b.hidden && b.getBoundingClientRect().width > 100; })()");
   await key('keyUp', 'Alt', 0); await sleep(150);

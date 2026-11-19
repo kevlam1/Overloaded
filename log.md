@@ -4639,6 +4639,28 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 - Foil is per card and not saved, because the card list has no foil data and the live table cannot store it.
 - Clicking a counter adds 1; to take counters away or add more at once, the right-click menu on the life piece still has the steps.
 
+## 235. Foil comes from the deck list, not from the game (2026-11-18)
+
+**What I asked for**
+- I said that cards should not be selected to be foil in the game, because that is unintuitive. Cards should be marked as foil already in the decklist and appear as foil in the game. I had thought the AI meant that you can select cards to be foil in the deck list. Decklists copied from elsewhere may already be marked as foil, as we went through in week 1. Some cards only have a foil printing, but that is up to the Scryfall card list we have saved.
+
+**What changed** (`shared/printings.mjs`, `scripts/lib/card-list.mjs`, `scripts/lib/card-list-build.mjs`, `shared/deck-preview.mjs`, `shared/deck-text-edit.mjs`, `shared/zones.mjs`, `shared/stacks.mjs`, `shared/card-menu.mjs`, `frontend/src/deck-importer.js`, `frontend/src/deck-groups.js`, `frontend/src/style.css`, and the tests)
+- **Taken out:** the "Foil" line in a card's menu in the game, and the code behind it. Nothing can be made foil in the game now.
+- **From the list:** a line with `*F*` at the end is foil. The parser already read that mark (Moxfield and Archidekt put it there), but the deck page threw it away. Foil and non-foil copies of a card are separate lines, and a saved deck keeps `foil: true` on the foil ones.
+- **In the deck list:** a Foil tag on the line, and "Make foil" or "Remove foil" in the card's menu, which add or take off the `*F*` in the list text, like Change printing does. The picture views show the sheen on a foil card.
+- **In the game:** a card is foil when its line in the deck was, and it shows the sheen. Foil and non-foil copies of the same card do not pile together.
+- **Foil-only printings:** I printed the raw Scryfall fields first. Every printing has `finishes`; 14,544 of 119,203 have no "nonfoil" (13,612 foil, 892 etched, 40 foil and etched). The per-set printing files mark those with an `f` after the card key (the card list format is 12, so the next Vercel build rebuilds it once). A line that names such a printing (for example `Wall of Roots (F08) 7`) is foil by itself and cannot be turned off. Built from the cached files: 111,357 printings, 14,374 foil only, none unreadable, and spot checks against the raw records agree.
+
+**What I checked:** `scripts/test-foil.mjs` (10 checks: `*F*`, foil-only printings, saving and reading back, the game, piles), `scripts/test-printings.mjs` (44), `scripts/test-card-list.mjs` (244, with foil, etched, both, nonfoil and no `finishes` at all), `scripts/test-deck-text-edit.mjs` (21), the deck page check (290: the Foil tag, Make and Remove foil, the saved deck, and a real foil-only printing) and the small check (25: the Forests of a deck with `24 Forest *F*` are foil in the game and nothing else is, and a card's menu has no foil line). `npm run test:quick` passes 77 suites and the solo check 471. I looked at a screenshot of foil Forests in the hand; it is on flat stand-in pictures, so I have not seen the sheen on real art.
+
+**Decisions and limits**
+- Foil is for a whole line (all copies on it). For one foil copy of four, the list needs two lines (`1 Sol Ring *F*` and `3 Sol Ring`).
+- A card's default printing (no set and number in the list) is never foil-only, because the card list has no finishes for it.
+- A card typed by another title is foil-only only when its set file is loaded (for example when a line with the set and number is in the list too).
+- The live table does not know about foil; it only shows in the solo table.
+
+**My AI's mistake this time:** I read "foil effects on cards" as a per-card choice and built a Foil line in the game's card menu, with no connection to the deck. I asked which cards should shine, but I should have asked where the choice lives, because the deck list already carried the foil mark. The earlier log entry 234 describes that version; this entry replaces it.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

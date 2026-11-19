@@ -1650,3 +1650,9 @@ body.playing.solo #life-area .life-counters[aria-expanded="true"]::after { rotat
 .card.foil .face::before { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 1; background: repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.07) 0 2px, transparent 2px 6px); mix-blend-mode: overlay; }
 @keyframes foil-sweep { 0%, 100% { background-position: 100% 100%; } 50% { background-position: 0 0; } }
 @media (prefers-reduced-motion: reduce) { .card.foil .face::after { animation: none; background-position: 50% 50%; } }
+
+/* foil on the deck page (Kevin, 2026-11-18): a small Foil tag on a line of the text list, and the same sheen as on the table over the picture of a foil card */
+.foil-badge { flex: none; padding: 0 0.4rem; border-radius: 0.7rem; background: linear-gradient(115deg, #d946ef, #38bdf8, #facc15, #4ade80); color: #14141a; font-size: 0.66rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; }
+.deck-tile.foil .tile-picture { position: relative; overflow: hidden; }
+.deck-tile.foil .tile-picture::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; background: linear-gradient(115deg, transparent 18%, rgba(255, 60, 200, 0.34) 30%, rgba(60, 220, 255, 0.34) 40%, rgba(255, 235, 60, 0.30) 50%, rgba(110, 255, 140, 0.30) 60%, rgba(150, 110, 255, 0.30) 70%, transparent 82%) 100% 100% / 260% 260%; mix-blend-mode: color-dodge; animation: foil-sweep 3.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .deck-tile.foil .tile-picture::after { animation: none; background-position: 50% 50%; } }

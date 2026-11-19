@@ -1,7 +1,7 @@
 // What the right-click menu of a card offers and what each choice does. Plain data in, plain data out, no browser code, so Node
 // tests can load it (scripts/test-card-menu.mjs). The menu itself is drawn by frontend/src/card-menu.js; the pages run the
 // action with their own apply() so a refused move leaves the game as it was.
-import { moveCard, setTapped, setFaceDown, setFoil, changeCounter, turnOver, copyAsToken, faceName, setNoUntap, setSick, markSickByFace, heldTapped } from './zones.mjs';
+import { moveCard, setTapped, setFaceDown, changeCounter, turnOver, copyAsToken, faceName, setNoUntap, setSick, markSickByFace, heldTapped } from './zones.mjs';
 import { canPing } from './ping.mjs';
 import { counterMenuItems, counterLabel } from './counter-catalog.mjs';
 
@@ -41,7 +41,7 @@ export const playBackLabel = (card) => `Play ${backNameOf(card) ?? 'its back fac
 // Tap, counters and Modify belong to a card on the battlefield; moving is offered everywhere (not to the zone it is already in).
 // live: this is a table with other players, so a card in a public zone can also be pinged to them (shared/ping.mjs); the solo table has nobody to ping.
 export const STACK_ZONES = ['hand', 'battlefield', 'graveyard', 'exile', 'command']; // a card here can be copied onto the stack window (not the library or the sideboard: their cards are hidden or not in the game)
-export function menuItems(card, zone, { live = false, peek = false, details = false, counters = false, stack = false, foil = false } = {}) {
+export function menuItems(card, zone, { live = false, peek = false, details = false, counters = false, stack = false } = {}) {
   const items = [];
   if (zone === 'battlefield') {
     items.push({ id: 'modify', label: 'Modify...' });
@@ -61,7 +61,6 @@ export function menuItems(card, zone, { live = false, peek = false, details = fa
     if (peek && card?.b === 1) items.push({ id: 'peek', label: turnLabel() });
   }
   if (card?.md === 1 && card.b === 1 && PLAY_BACK_ZONES.includes(zone)) items.push({ id: 'playback', label: playBackLabel(card) });
-  if (foil && card && STACK_ZONES.includes(zone)) items.push({ id: 'foil', label: card.foil ? 'Remove foil' : 'Foil' }); // (Kevin, 2026-11-18: a shimmering foil effect on this card; the solo table passes foil)
   if (stack && card && STACK_ZONES.includes(zone)) items.push({ id: 'stack', label: 'Add to the stack' }); // (Kevin, 2026-11-17: the solo table passes stack: a copy of the card, as it is now, goes on top of the stack window; the page does it, so menuAction has nothing to run)
   if (details && card && !card.tok) items.push({ id: 'details', label: 'View details' }); // (Kevin, 2026-11-15: the rules, mana value, type and the rest of the card in a window; the page opens it. A token is not a card of the list)
   if (live && canPing(zone)) items.push({ id: 'ping', label: 'Ping card' }); // the page sends the ping itself (it is not a change to the game), so menuAction has nothing to run for it
@@ -105,7 +104,6 @@ export function menuAction(id, card, amount = 1, { printed = null } = {}) {
   if (id === 'nountap') return { run: (game) => setNoUntap(game, card.uid, !card.noUntap), message: noUntapMessage(card) };
   if (id === 'sick') return { run: (game) => setSick(game, card.uid, !card.sick), message: sickMessage(card) };
   if (id === 'tap') return { run: (game) => setTapped(game, card.uid, !card.tapped), message: `${card.tapped ? 'Untapped' : 'Tapped'} ${name}.` };
-  if (id === 'foil') return { run: (game) => setFoil(game, card.uid, !card.foil), message: card.foil ? `${name} is not foil.` : `${name} is foil.` };
   if (id === 'flip') return { run: (game) => setFaceDown(game, card.uid, !card.faceDown), message: flipMessage(card) };
   if (id === 'turn') return { run: (game) => turnOver(game, card.uid), message: turnMessage(card) };
   if (id === 'counter') {

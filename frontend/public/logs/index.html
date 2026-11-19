@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.234</span></h1>
-    <p class="lede">234 entries, Oct 25 to Nov 18, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
+    <h1>Build log <span class="version">Version 0.235</span></h1>
+    <p class="lede">235 entries, Oct 25 to Nov 18, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
   </div>
 </header>
 
@@ -24,7 +24,7 @@
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
-<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">21</span></a>
+<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">22</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
 <a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">29 things friends asked for</span></a>
 <a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">26 open, 71 done</span></a>
@@ -3604,7 +3604,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-2" aria-labelledby="week-2-title">
-<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">21 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">22 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-2-days">
 <div class="day">
 <h3 class="day-title">Monday 16 November <span class="day-count">5</span></h3>
@@ -3840,7 +3840,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Wednesday 18 November <span class="day-count">7</span></h3>
+<h3 class="day-title">Wednesday 18 November <span class="day-count">8</span></h3>
 <div class="entries">
 <article class="entry" id="entry-228" data-n="228">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-228-body">
@@ -3949,6 +3949,23 @@
 <p><strong>What I checked:</strong> <code>scripts/check-deck-ui.mjs</code> (283 checks) for the three deck page changes; <code>scripts/test-hand-menu.mjs</code> (29), <code>scripts/test-player-counters.mjs</code> (154) and the new <code>scripts/test-foil.mjs</code> (8) for the logic; <code>scripts/check-history-and-select-ui.mjs</code> (24) for the Counters dropdown, Foil and Move all to in a real browser; the solo check (471) after I updated the menu lists. <code>npm run test:quick</code> passes 77 suites. I looked at screenshots of the Counters list with a poison chip and of a foil card. The foil screenshot is on a flat stand-in picture, so I have not seen it on real card art. In the solo check one earlier run failed five checks after the hand menu got its new line; four were old lists I had not updated and one looked like a knock-on that did not repeat, and I did not find out why it happened.</p>
 <p class="sub"><strong>Decisions</strong></p>
 <ul><li>Foil is per card and not saved, because the card list has no foil data and the live table cannot store it.</li><li>Clicking a counter adds 1; to take counters away or add more at once, the right-click menu on the life piece still has the steps.</li></ul>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-235" data-n="235">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-235-body">
+    <span class="num">235</span>
+    <span class="head-text"><span class="title">Foil comes from the deck list, not from the game</span><span class="sum">I said that cards should not be selected to be foil in the game, because that is unintuitive.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-235-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>I said that cards should not be selected to be foil in the game, because that is unintuitive. Cards should be marked as foil already in the decklist and appear as foil in the game. I had thought the AI meant that you can select cards to be foil in the deck list. Decklists copied from elsewhere may already be marked as foil, as we went through in week 1. Some cards only have a foil printing, but that is up to the Scryfall card list we have saved.</li></ul>
+<p><strong>What changed</strong> (<code>shared/printings.mjs</code>, <code>scripts/lib/card-list.mjs</code>, <code>scripts/lib/card-list-build.mjs</code>, <code>shared/deck-preview.mjs</code>, <code>shared/deck-text-edit.mjs</code>, <code>shared/zones.mjs</code>, <code>shared/stacks.mjs</code>, <code>shared/card-menu.mjs</code>, <code>frontend/src/deck-importer.js</code>, <code>frontend/src/deck-groups.js</code>, <code>frontend/src/style.css</code>, and the tests)</p>
+<ul><li><strong>Taken out:</strong> the &quot;Foil&quot; line in a card's menu in the game, and the code behind it. Nothing can be made foil in the game now.</li><li><strong>From the list:</strong> a line with <code>*F*</code> at the end is foil. The parser already read that mark (Moxfield and Archidekt put it there), but the deck page threw it away. Foil and non-foil copies of a card are separate lines, and a saved deck keeps <code>foil: true</code> on the foil ones.</li><li><strong>In the deck list:</strong> a Foil tag on the line, and &quot;Make foil&quot; or &quot;Remove foil&quot; in the card's menu, which add or take off the <code>*F*</code> in the list text, like Change printing does. The picture views show the sheen on a foil card.</li><li><strong>In the game:</strong> a card is foil when its line in the deck was, and it shows the sheen. Foil and non-foil copies of the same card do not pile together.</li><li><strong>Foil-only printings:</strong> I printed the raw Scryfall fields first. Every printing has <code>finishes</code>; 14,544 of 119,203 have no &quot;nonfoil&quot; (13,612 foil, 892 etched, 40 foil and etched). The per-set printing files mark those with an <code>f</code> after the card key (the card list format is 12, so the next Vercel build rebuilds it once). A line that names such a printing (for example <code>Wall of Roots (F08) 7</code>) is foil by itself and cannot be turned off. Built from the cached files: 111,357 printings, 14,374 foil only, none unreadable, and spot checks against the raw records agree.</li></ul>
+<p><strong>What I checked:</strong> <code>scripts/test-foil.mjs</code> (10 checks: <code>*F*</code>, foil-only printings, saving and reading back, the game, piles), <code>scripts/test-printings.mjs</code> (44), <code>scripts/test-card-list.mjs</code> (244, with foil, etched, both, nonfoil and no <code>finishes</code> at all), <code>scripts/test-deck-text-edit.mjs</code> (21), the deck page check (290: the Foil tag, Make and Remove foil, the saved deck, and a real foil-only printing) and the small check (25: the Forests of a deck with <code>24 Forest *F*</code> are foil in the game and nothing else is, and a card's menu has no foil line). <code>npm run test:quick</code> passes 77 suites and the solo check 471. I looked at a screenshot of foil Forests in the hand; it is on flat stand-in pictures, so I have not seen the sheen on real art.</p>
+<p class="sub"><strong>Decisions and limits</strong></p>
+<ul><li>Foil is for a whole line (all copies on it). For one foil copy of four, the list needs two lines (<code>1 Sol Ring *F*</code> and <code>3 Sol Ring</code>).</li><li>A card's default printing (no set and number in the list) is never foil-only, because the card list has no finishes for it.</li><li>A card typed by another title is foil-only only when its set file is loaded (for example when a line with the set and number is in the list too).</li><li>The live table does not know about foil; it only shows in the solo table.</li></ul>
+<p><strong>My AI's mistake this time:</strong> I read &quot;foil effects on cards&quot; as a per-card choice and built a Foil line in the game's card menu, with no connection to the deck. I asked which cards should shine, but I should have asked where the choice lives, because the deck list already carried the foil mark. The earlier log entry 234 describes that version; this entry replaces it.</p>
   </div></div></div>
 </article>
 </div>

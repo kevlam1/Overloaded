@@ -1,5 +1,5 @@
 // Tests for shared/deck-text-edit.mjs: rewriting a card's line to name another printing.
-import { setPrintingInText } from '../shared/deck-text-edit.mjs';
+import { setPrintingInText, setFoilInText } from '../shared/deck-text-edit.mjs';
 import { parseDeckText } from '../shared/deck-text.mjs';
 import { makePreview } from '../shared/deck-preview.mjs';
 
@@ -36,4 +36,13 @@ const matched = { results: parsed.entries.map((entry) => ({ entry, status: 'matc
 const lines = makePreview(parsed, matched).lines;
 check('a merged preview line lists every text line that holds the card (without the set files a typed printing cannot be told apart, so line 4 merges too)', JSON.stringify(lines.map((l) => [l.name, l.sourceLines])) === JSON.stringify([['Sol Ring', [1, 3, 4]], ['Island', [2]]]), JSON.stringify(lines.map((l) => [l.name, l.sourceLines])));
 
+// foil: *F* added to or taken off the end of a line, nothing else on the line touched (Kevin, 2026-11-18)
+{ const t = ['2 Sol Ring (cmm) 410', '1 Island   ', '1 Krenko, Mob Boss (SLD) 2407 *F*', '// a comment', ''].join('\n');
+  same('foil on adds *F* at the end and keeps the rest of the line', setFoilInText(t, [1], true).text.split('\n')[0], '2 Sol Ring (cmm) 410 *F*');
+  same('trailing spaces do not end up in front of the mark', setFoilInText(t, [2], true).text.split('\n')[1], '1 Island *F*');
+  same('foil off takes the mark away and keeps the rest of the line', setFoilInText(t, [3], false).text.split('\n')[2], '1 Krenko, Mob Boss (SLD) 2407');
+  same('a line that already is as asked, a comment and a line that is not there are left alone (nothing changed)', [setFoilInText(t, [3], true).changed, setFoilInText(t, [1], false).changed, setFoilInText(t, [4, 9, 0, -1, 1.5, 'x'], true).changed], [0, 0, 0]);
+  same('several lines at once, each counted', [setFoilInText(t, [1, 2], true).changed, setFoilInText(t, [1, 1, 2], true).changed], [2, 2]);
+  same('the result is read back as foil by the parser', [parseDeckText(setFoilInText(t, [1], true).text).entries[0].foil, parseDeckText(setFoilInText(t, [3], false).text).entries[2]?.foil ?? parseDeckText(setFoilInText(t, [3], false).text).entries.find((e) => e.name.startsWith('Krenko')).foil], [true, false]);
+  same('not text gives back nothing changed', [setFoilInText(null, [1], true), setFoilInText('1 Sol Ring', 'x', true)], [{ text: '', changed: 0 }, { text: '1 Sol Ring', changed: 0 }]); }
 console.log(`All ${checks} deck text edit checks passed.`);

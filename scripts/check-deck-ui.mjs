@@ -48,7 +48,7 @@ try {
   const $hidden = (id) => ev(`document.getElementById(${JSON.stringify(id)}).hidden`);
   // The paste box is on its own screen now: open it the way a person would (New deck from the list, Edit list from a deck), then fill it.
   const paste = async (value) => { if (await ev(`document.getElementById('paste').hidden`)) await ev(`document.getElementById(document.getElementById('saved').hidden ? 'edit-list' : 'new-deck').click()`); await ev(`(() => { const t = document.getElementById('deck-text'); t.value = ${JSON.stringify(value)}; t.dispatchEvent(new Event('input')); })()`); };
-  // The way back to the list is the header's Decks link (there is no All decks button on the deck page).
+  // The way back to the list is the header's Decks link, and the All decks button on the deck screen.
   const showList = () => ev(`document.querySelector('header.site-header .site-nav a[href="/deck"]').click()`);
   // A list that names sets and numbers fetches those sets' printing files before it is shown, so after Check (or loading the
   // saved deck) the page is given time to finish: the status stops saying "Checking the printings...".
@@ -67,7 +67,7 @@ try {
   const clickSaved = async (action, index = 0) => { if (action === 'load') return ev(`document.querySelectorAll('#saved-list .deck-face')[${index}].click()`); if (action !== 'delete') return ev(`document.querySelectorAll('#saved-list [data-action="${action}"]')[${index}].click()`); await askDelete(index); await answer('yes'); };
   const pressLoad = async (index = 0) => { await clickSaved('load', index); await settled(); };
   const deleteAllSaved = async () => { for (let n = 0; n < 25 && (await ev(`document.querySelectorAll('#saved-list .deck-face').length`)); n++) await clickSaved('delete'); };
-  const ready = () => waitFor(async () => (await ev(`!document.getElementById('check').disabled`)) || null, 15000, 50);
+  const ready = () => waitFor(async () => (await ev(`Boolean(document.getElementById('check')) && !document.getElementById('check').disabled`)) || null, 15000, 50);
   const load = async () => { await browser.goto(PAGE); await ready(); };
 
   const started = Date.now();
@@ -225,7 +225,7 @@ check('there are no commander or partner boxes; the Commander heading says to ri
   const SIGNET_SLD_916 = 'dd1d87e4-f51a-448f-824f-99dffd73403c';
   const SIGNET_CMM_367 = '0539b83c-4459-41b5-a001-d15a1c9ddf23';
   const checked = () => waitFor(async () => (!(await $hidden('preview')) && !/^Checking/.test(await $text('deck-status'))) || null, 15000, 50);
-  const rowsOf = () => ev(`Array.from(document.querySelectorAll('#sections .card-line')).map((li) => ({ name: li.querySelector('.name').textContent, qty: li.querySelector('.qty').textContent, printing: li.querySelector('.printing')?.textContent ?? null, tip: li.querySelector('.printing')?.title ?? '', type: li.querySelector('.name')?.title ?? null, cost: li.querySelector('.cost')?.dataset.cost ?? li.querySelector('.cost')?.textContent ?? null, columns: [...li.children].filter((c) => !c.classList.contains('row-menu')).length, id: li.dataset.previewId ?? null, source: li.dataset.printing ?? null }))`);
+  const rowsOf = () => ev(`Array.from(document.querySelectorAll('#sections .card-line')).map((li) => ({ name: li.querySelector('.name').textContent, qty: li.querySelector('.qty').textContent, printing: li.querySelector('.printing')?.textContent ?? null, tip: li.querySelector('.printing')?.title ?? '', type: li.querySelector('.name')?.title ?? null, cost: li.querySelector('.cost')?.dataset.cost ?? li.querySelector('.cost')?.textContent ?? null, columns: [...li.children].filter((c) => !c.classList.contains('row-menu') && !c.classList.contains('foil-badge')).length, id: li.dataset.previewId ?? null, source: li.dataset.printing ?? null }))`);
   await load();
   const requestsBefore = pictureRequests.length;
   await paste('1 Sol Ring (cmm) 410\n2 Lightning Bolt\n1 Arcane Signet (sld) 916\n1 Arcane Signet (cmm) 367\n1 Heart of the Mountain\n1 Sol Ring (cmm) 5\n1 Sol Ring (cmm) 99999\n1 Not A Real Card (abc) 7');
@@ -648,14 +648,14 @@ check('there are no commander or partner boxes; the Commander heading says to ri
   check('the "..." of every line of the text list is shown without the pointer on it', await ev(`[...document.querySelectorAll('#sections .card-line .row-menu')].every((b) => getComputedStyle(b).opacity === '1')`));
   await rightClick('Goblin Chieftain');
   const m1 = await lineMenu();
-  check('a right-click on a card in a Commander deck offers to make it the commander or the partner', m1 && m1.title === 'Goblin Chieftain' && JSON.stringify(m1.items) === JSON.stringify(['Change printing...', 'Make commander', 'Make partner']), JSON.stringify(m1));
+  check('a right-click on a card in a Commander deck offers to make it the commander or the partner', m1 && m1.title === 'Goblin Chieftain' && JSON.stringify(m1.items) === JSON.stringify(['Change printing...', 'Remove foil', 'Make commander', 'Make partner']), JSON.stringify(m1));
   await pickMenu('Make partner');
   let cmd = await commanders();
   check('Make partner puts it in the Commander group beside Krenko and in the Partner picker, and says so', JSON.stringify(cmd) === JSON.stringify({ group: ['Krenko, Mob Boss', 'Goblin Chieftain'], first: 'Krenko, Mob Boss', second: 'Goblin Chieftain' }) && /^Goblin Chieftain is now the partner\.$/.test(await $text('deck-status')) && !(await lineMenu()), JSON.stringify(cmd));
   check('and it is out of the Creatures group (28 left)', (await ev(`document.querySelector('#sections [data-group="creature"] h3').textContent`)) === 'Creatures (28)');
   await rightClick('Goblin Chieftain');
   const m2 = await lineMenu();
-  check('the partner can be made the commander or removed', m2 && JSON.stringify(m2.items) === JSON.stringify(['Change printing...', 'Make commander', 'Remove as partner']), JSON.stringify(m2));
+  check('the partner can be made the commander or removed', m2 && JSON.stringify(m2.items) === JSON.stringify(['Change printing...', 'Remove foil', 'Make commander', 'Remove as partner']), JSON.stringify(m2));
   await pickMenu('Make commander');
   cmd = await commanders();
   check('making the partner the commander swaps the two', JSON.stringify(cmd) === JSON.stringify({ group: ['Goblin Chieftain', 'Krenko, Mob Boss'], first: 'Goblin Chieftain', second: 'Krenko, Mob Boss' }), JSON.stringify(cmd));
@@ -677,14 +677,14 @@ check('there are no commander or partner boxes; the Commander heading says to ri
   await setField('deck-format', 'standard');
   await rightClick('Goblin Chieftain');
   const standard = await lineMenu();
-  check('in Standard the menu has only "Change printing..." (no commander choices)', standard && JSON.stringify(standard.items) === JSON.stringify(['Change printing...']), JSON.stringify(standard));
+  check('in Standard the menu has only "Change printing..." and the foil choice (no commander choices)', standard && JSON.stringify(standard.items) === JSON.stringify(['Change printing...', 'Remove foil']), JSON.stringify(standard));
   await escapeKey();
   await setField('deck-format', 'commander');
   await paste('Commander\n1 Sol Ring\n\n1 Island\n\nSIDEBOARD:\n1 Annul'); await press('check');
   await ev(`document.querySelector('#sections [data-group="sideboard"] .card-line').scrollIntoView({ block: 'center' })`);
   await rightClick('Annul');
   const sideMenu = await lineMenu();
-  check('a sideboard card can change its printing but cannot be the commander (only the main deck can)', sideMenu && JSON.stringify(sideMenu.items) === JSON.stringify(['Change printing...']), JSON.stringify(sideMenu));
+  check('a sideboard card can change its printing and be made foil but cannot be the commander (only the main deck can)', sideMenu && JSON.stringify(sideMenu.items) === JSON.stringify(['Change printing...', 'Make foil']), JSON.stringify(sideMenu));
   await escapeKey();
   await deleteAllSaved();
 
@@ -926,6 +926,29 @@ check('there are no commander or partner boxes; the Commander heading says to ri
   // the commander's name sits just above the mana symbols and the bracket (not in the middle of the card), and with no commander the colors still sit at the bottom
   const lines = await ev("(() => [...document.querySelectorAll('#saved-list .deck-face')].map((face) => { const card = face.getBoundingClientRect(); const cmd = face.querySelector('.face-commanders')?.getBoundingClientRect() ?? null; const bottom = face.querySelector('.face-bottom').getBoundingClientRect(); const top = face.querySelector('.face-top').getBoundingClientRect(); return { cmdGap: cmd ? Math.round(bottom.top - cmd.bottom) : null, cmdBelowName: cmd ? cmd.top > top.bottom : null, bottomGap: Math.round(card.bottom - bottom.bottom) }; }))()");
   check('on a saved deck the commander name is right above the colors and the bracket (less than 12 px between them), below the deck name, and the colors row is at the bottom of the card', lines.length === 3 && lines.filter((l) => l.cmdGap !== null).every((l) => l.cmdGap >= -2 && l.cmdGap < 12 && l.cmdBelowName) && lines.every((l) => l.bottomGap < 20), JSON.stringify(lines));
+  // ---- foil comes from the deck list: *F* on a line, a Foil tag, and Make foil / Remove foil in the card's menu rewrite the list (Kevin, 2026-11-18) ----
+  await load(); await deleteAllSaved(); await paste('2 Sol Ring *F*\n3 Island'); await press('check');
+  const foilLines = () => ev(`[...document.querySelectorAll('#sections .card-line.foil-line')].map((l) => l.querySelector('.name').textContent + ' ' + l.querySelector('.qty').textContent + ' ' + l.querySelector('.foil-badge').textContent)`);
+  const openLineMenuOf = async (name) => { await ev(`[...document.querySelectorAll('#sections .card-line')].find((l) => l.querySelector('.name').textContent === ${JSON.stringify(name)}).querySelector('.row-menu').click()`); await sleep(150); };
+  check('a line with *F* in the pasted list shows a Foil tag (and the other lines do not)', JSON.stringify(await foilLines()) === '["Sol Ring 2 Foil"]', JSON.stringify(await foilLines()));
+  await openLineMenuOf('Sol Ring');
+  const foilMenu = await ev(`[...document.querySelectorAll('.card-menu [role="menuitem"]')].map((x) => x.textContent)`);
+  check('the card\'s menu says Remove foil for a foil card', foilMenu.includes('Remove foil') && !foilMenu.includes('Make foil'), JSON.stringify(foilMenu));
+  await pickMenu('Remove foil'); await sleep(200);
+  check('Remove foil takes the *F* out of the list and the Foil tag goes', !/\*F\*/.test(await ev(`document.getElementById('deck-text').value`)) && (await foilLines()).length === 0);
+  await openLineMenuOf('Island');
+  await pickMenu('Make foil'); await sleep(200);
+  check('Make foil on another card puts *F* on its line and shows the tag', /3 Island \*F\*/.test(await ev(`document.getElementById('deck-text').value`)) && JSON.stringify(await foilLines()) === '["Island 3 Foil"]', JSON.stringify(await foilLines()));
+  check('the same deck saved and loaded again is still foil (the list is what is saved)', (await library()).decks.length === 1 && (await library()).decks[0].deck.cards.some((c) => c.n === 'Island' && c.foil === true) && !(await library()).decks[0].deck.cards.some((c) => c.n === 'Sol Ring' && c.foil));
+  await deleteAllSaved();
+  // a printing that exists only as foil (real data: Wall of Roots in F08 is foil only) is foil without any mark in the list, cannot be turned off, and a normal printing next to it is not foil
+  await load(); await paste('1 Wall of Roots (F08) 7\n1 Sol Ring (CMM) 410'); await press('check');
+  check('a foil-only printing shows the Foil tag by itself (its tooltip says why), and a normal printing does not', JSON.stringify(await foilLines()) === '["Wall of Roots 1 Foil"]' && /only as foil/.test(await ev(`document.querySelector('#sections .card-line.foil-line .foil-badge').title`)), JSON.stringify(await foilLines()));
+  await openLineMenuOf('Wall of Roots');
+  check('its menu has no foil choice (it cannot be turned off), while the normal printing can be made foil', !(await ev(`[...document.querySelectorAll('.card-menu [role="menuitem"]')].map((x) => x.textContent)`)).some((t) => /foil/i.test(t)) && !(await ev(`document.getElementById('deck-text').value`)).includes('*F*'));
+  await ev(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`);
+
+  await deleteAllSaved();
   if (process.argv.includes('--screenshot')) { // the saved decks with the REAL art (the stand-in pictures are switched off), the pointer on the first card so its "..." shows
     await browser.send('Fetch.disable').catch(() => {});
     await ev('location.reload()'); await sleep(4000);

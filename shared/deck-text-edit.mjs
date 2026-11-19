@@ -5,6 +5,23 @@ import { SET_CODE } from './printings.mjs';
 
 const NEWLINE = /\r\n|\r|\n/;
 
+// Makes the cards of some lines foil or not foil by adding or taking off the *F* at the end of the line (Kevin, 2026-11-18: foil comes from the deck list, as Moxfield and Archidekt export it). Everything else on the line is left
+// exactly as it was. Lines that are not card lines, and lines that already are as asked, are left alone. Returns { text, changed }.
+const FOIL_MARK = /\s\*[Ff]\*\s*$/;
+export function setFoilInText(text, lineNumbers, foil) {
+  if (typeof text !== 'string' || !Array.isArray(lineNumbers)) return { text: typeof text === 'string' ? text : '', changed: 0 };
+  const lines = text.split(NEWLINE);
+  let changed = 0;
+  for (const number of new Set(lineNumbers)) {
+    if (!Number.isInteger(number) || number < 1 || number > lines.length) continue;
+    const entry = parseDeckText(lines[number - 1]).entries[0];
+    if (!entry || (entry.foil === true) === (foil === true)) continue;
+    lines[number - 1] = foil === true ? `${lines[number - 1].replace(/\s+$/, '')} *F*` : lines[number - 1].replace(FOIL_MARK, '');
+    changed++;
+  }
+  return { text: changed ? lines.join('\n') : text, changed };
+}
+
 // text: the pasted list. lineNumbers: the lines (1-based) that hold the card (a preview line knows them, sourceLines). name: the card's real name. printing: { set, number } for a printing, or null for the card's default
 // (the set and number are taken off). Every line is rewritten as "quantity name (SET) number" and keeps its quantity and its foil mark; a line that is not a card line is left alone. The rest of the text is untouched.
 // Returns { text, changed: how many lines were rewritten }.

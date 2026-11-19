@@ -82,6 +82,9 @@ export function toEntry(record, alternateNames = [], alternateIds = []) {
   return entry;
 }
 
+// A printing that exists only as foil: `finishes` (Scryfall's list of finishes) has no "nonfoil" and has "foil" or "etched" (checked on the Default Cards file on 2026-11-18: 13,612 ["foil"], 892 ["etched"], 40 ["foil","etched"]).
+export const isFoilOnly = (printing) => Array.isArray(printing?.finishes) && !printing.finishes.includes('nonfoil') && (printing.finishes.includes('foil') || printing.finishes.includes('etched'));
+
 // What the Default Cards file (every printing) says about each card: has it any printing, and is any of them not digital?
 // A card is online-only only when EVERY printing is digital. "No paper printing" is not enough (preview cards of unreleased
 // sets have none), and a card with no printings at all is NOT online-only: the printings file may simply be older than the
@@ -98,7 +101,7 @@ export class PrintingSummary {
     // other art). Which are kept is decided later, when the list is known (printingFiles): only printings of a card in the
     // list, so a token, an art card or a card that is not in the list has none.
     if (typeof printing.set === 'string' && typeof printing.collector_number === 'string' && typeof printing.id === 'string') {
-      this.records.push([printing.set, printing.collector_number, printing.id, id]);
+      this.records.push([printing.set, printing.collector_number, printing.id, id, isFoilOnly(printing)]);
     }
     if (printing.digital) return;
     this.nonDigital.add(id);
@@ -129,11 +132,11 @@ export class PrintingSummary {
   // is always the same bytes.
   printingFiles(names) {
     const sets = new Map();
-    for (const [set, number, id, oracleId] of this.records) {
+    for (const [set, number, id, oracleId, foilOnly] of this.records) {
       const name = names.get(oracleId);
       if (name === undefined) continue;
       if (!sets.has(set)) sets.set(set, new Map());
-      sets.get(set).set(number, printingValue(id, name));
+      sets.get(set).set(number, printingValue(id, name, foilOnly === true));
     }
     const files = {};
     for (const set of [...sets.keys()].sort(byCodeUnits)) {

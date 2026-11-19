@@ -23,7 +23,7 @@ const mark = (value) => {
   if (value && typeof value === 'object') { const kept = Object.fromEntries(Object.entries(value).filter(([, v]) => v)); return Object.keys(kept).length ? kept : null; }
   return value ? value : null;
 };
-const STATE_KEYS = ['tok', 'tapped', 'sick', 'noUntap', 'ct', 'mp', 'mt', 'nt', 'faceDown', 'turned', 'bk'];
+const STATE_KEYS = ['tok', 'tapped', 'sick', 'noUntap', 'ct', 'mp', 'mt', 'nt', 'faceDown', 'turned', 'bk', 'foil'];
 
 // What two cards must share to be in one stack (apart from being on the same cell).
 export const stackKey = (card) => stable([card.n, ...STATE_KEYS.map((key) => mark(card[key]))]);

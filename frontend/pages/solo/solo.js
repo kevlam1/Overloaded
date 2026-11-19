@@ -285,7 +285,7 @@ function openMenuFor(uid, where) {
   if (!found) return;
   if (found.zone === 'hand' && multi.size > 1 && multi.has(uid)) { openGroupMenu(where); return; } // (several cards of the hand picked: the menu is for all of them)
   select(uid);
-  openCardMenu({ title: found.card.n, items: menuItems(found.card, found.zone, { peek: true, details: true, counters: true, stack: true, foil: true }), x: where.x, y: where.y, returnFocus: where.element, onPick: (id, amount) => pickFromMenu(uid, id, amount) });
+  openCardMenu({ title: found.card.n, items: menuItems(found.card, found.zone, { peek: true, details: true, counters: true, stack: true }), x: where.x, y: where.y, returnFocus: where.element, onPick: (id, amount) => pickFromMenu(uid, id, amount) });
 }
 
 // The menu of the picked cards of the hand: Play, Discard, Exile, Top and Bottom of library (each asks for the order first) and Move to. The cards go in the order they have in the hand.
