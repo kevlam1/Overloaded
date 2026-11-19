@@ -3,6 +3,8 @@
 // opens the viewer and a right-click opens the pile's menu (the page wires both). The only TEXT inside the button is a line for a screen reader ("Library: 53"), so the number and the name
 // drawn on it are not read twice; they come from data attributes through the style sheet.
 import { imageUrl } from '../../shared/card-image.mjs';
+import { makeFoilLayer } from './foil-layer.js';
+import { cardLookGroup } from '../../shared/foil-looks.mjs';
 
 function make(tag, className, content) {
   const element = document.createElement(tag);
@@ -25,7 +27,7 @@ export function mountPileStack(button, { zone, label }) {
   let shown = null; // which picture the face holds now ('' for none)
 
   function showTop(top) {
-    const key = top ? `${top.p ?? top.i}|${top.n}` : '';
+    const key = top ? `${top.p ?? top.i}|${top.n}|${top.foil === true ? 'f' : ''}` : '';
     if (key === shown) return;
     shown = key;
     face.replaceChildren();
@@ -40,6 +42,8 @@ export function mountPileStack(button, { zone, label }) {
     picture.addEventListener('error', () => { picture.remove(); face.dataset.name = String(top.n ?? ''); }); // a picture that cannot be loaded: the name instead
     picture.src = url;
     face.append(picture);
+    const look = cardLookGroup(top);
+    if (look) face.append(makeFoilLayer(look)); // a foil card on top of a pile is foil
   }
 
   // reveal (the library only): its top card is shown face up ("Play with top revealed"), so the face is the card and not the back

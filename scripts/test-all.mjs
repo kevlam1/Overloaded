@@ -59,7 +59,6 @@ const suites = [
   { name: 'foil marks on cards and the Foil menu line', cmd: node, args: ['scripts/test-foil.mjs'] },
   { name: 'foil kinds: finishes, tags, the stored suffix', cmd: node, args: ['scripts/test-foil-kinds.mjs'] },
   { name: 'foil looks: kinds to the 8 drawn looks', cmd: node, args: ['scripts/test-foil-looks.mjs'] },
-  { name: 'foil examples: a real printing for every foil kind', cmd: node, args: ['scripts/test-foil-examples.mjs'] },
   { name: 'card rulings: the files the details window reads under the rules', cmd: node, args: ['scripts/test-card-rulings.mjs'] },
   { name: 'counters a card can be given: the catalog and named counters', cmd: node, args: ['scripts/test-counter-catalog.mjs'] },
   { name: 'card rules: the files the details window reads', cmd: node, args: ['scripts/test-card-rules.mjs'] },
@@ -101,7 +100,6 @@ if (!quick) {
   suites.push({ name: 'solo table in headless Chrome (needs the card list)', cmd: node, args: ['scripts/check-solo-ui.mjs'] });
   suites.push({ name: 'stack window in headless Chrome (needs the card list)', cmd: node, args: ['scripts/check-stack-ui.mjs'] });
   suites.push({ name: 'history bar and hand selection in headless Chrome (needs the card list)', cmd: node, args: ['scripts/check-history-and-select-ui.mjs'] });
-  suites.push({ name: 'the foil test page at /foils in headless Chrome', cmd: node, args: ['scripts/check-foils-page.mjs'] });
   suites.push({ name: 'database rules (local emulator)', cmd: process.platform === 'win32' ? 'npm.cmd' : 'npm', args: ['test'], cwd: 'backend', shell: true });
 }
 if (live) {

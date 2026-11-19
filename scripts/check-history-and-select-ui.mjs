@@ -160,6 +160,31 @@ try {
   await mouse('mouseReleased', last.x, from.y); await sleep(500);
   const after = await order();
   check('dragging the first card of the hand to the far end puts it last and keeps the others in order', after.length === before.length && after.at(-1) === before[0] && after.slice(0, -1).join() === before.slice(1).join(), JSON.stringify({ before, after }));
+  // foil in three more foilPlaces: while a foil card is carried, on top of a pile, and in the order window
+  await mouse('mouseMoved', 5, 5); await ev("document.getElementById('new-game').click()"); await sleep(500);
+  for (let n = 0; n < 15 && !(await ev("Boolean(document.querySelector('#hand > .card.foil'))")); n++) { await ev("document.getElementById('new-game').click()"); await sleep(500); } // (a new hand of seven: a hand with many cards overlaps too much to press the one wanted)
+  const foilAt = await ev("(() => { const cards = [...document.querySelectorAll('#hand > .card')]; return cards.findIndex((c) => c.classList.contains('foil')); })()");
+  await raise(foilAt);
+  const foilFrom = await cardAt(foilAt, 12); // (the left edge: the next card covers the middle of a card of the hand)
+  await mouse('mousePressed', foilFrom.x, foilFrom.y, 1);
+  for (let n = 1; n <= 8; n++) await mouse('mouseMoved', foilFrom.x, foilFrom.y - n * 25, 1);
+  await sleep(200);
+  check('a foil card carried by the pointer is still foil (its picture has the foil layer)', await ev("Boolean(document.querySelector('.drag-ghost .foil-full'))"));
+  await mouse('mouseReleased', foilFrom.x, foilFrom.y - 200); await sleep(300);
+  const foilPlaces = await ev(`(async () => {
+    const piles = await import('/src/pile-stack.js'); const orders = await import('/src/order-window.js');
+    const button = document.createElement('button'); document.body.append(button); const pile = piles.mountPileStack(button, { zone: 'graveyard', label: 'Graveyard' });
+    const top = { i: '7673784e-db4b-43a1-8d55-1bb9fc1e284f', n: 'Lightning Bolt' };
+    pile.update({ count: 2, top: { ...top, foil: true } }); const foilTop = button.querySelectorAll('.stack-face .foil-full').length;
+    pile.update({ count: 2, top }); const plainTop = button.querySelectorAll('.stack-face .foil-full').length;
+    button.remove();
+    orders.openOrderWindow({ title: 'Test', note: '', cards: [{ uid: 'a', ...top, foil: true }, { uid: 'b', ...top }], onDone: () => {} });
+    const inOrder = [...document.querySelectorAll('.order-card')].map((c) => c.querySelectorAll('.foil-full').length);
+    document.querySelector('.order-overlay, .details-overlay, [class*="order"] button')?.click();
+    return { foilTop, plainTop, inOrder };
+  })()`);
+  check('the top card of a pile is foil when the card is, and not when it is not', foilPlaces.foilTop === 1 && foilPlaces.plainTop === 0, JSON.stringify(foilPlaces));
+  check('in the order window a foil card has the foil layer and a plain one has none', JSON.stringify(foilPlaces.inOrder) === '[1,0]', JSON.stringify(foilPlaces));
   check('no page errors', (await ev('window.__errors || []')).length === 0);
   await closeAllBrowsers();
 } finally {

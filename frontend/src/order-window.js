@@ -6,6 +6,8 @@
 // openOrderWindow({ title, note, cards, onDone, places }): cards, the cards in the order to start from (the first is on the left; each has uid, n, and i or p for its picture); onDone(uids) is called with the uids in
 // the order chosen; places(index, count) says what to write above a card. Returns { close }.
 import { imageUrl } from '../../shared/card-image.mjs';
+import { makeFoilLayer } from './foil-layer.js';
+import { cardLookGroup } from '../../shared/foil-looks.mjs';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const make = (tag, className, text) => { const element = document.createElement(tag); if (className) element.className = className; if (text !== undefined) element.textContent = text; return element; };
@@ -71,6 +73,8 @@ export function openOrderWindow({ title, note, cards, onDone, places = null }) {
       image.addEventListener('error', () => { image.replaceWith(make('span', 'order-card-name', card.n ?? '')); });
       image.src = url;
       holder.append(image);
+      const look = cardLookGroup(card);
+      if (look) holder.append(makeFoilLayer(look)); // a foil card is foil here too
     } else holder.append(make('span', 'order-card-name', card.n ?? ''));
     return holder;
   };

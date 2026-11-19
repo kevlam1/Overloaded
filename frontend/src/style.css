@@ -1471,7 +1471,7 @@ body.playing.solo .pile-head .pile-caret { width: 1.05rem; height: 1.05rem; bord
 .details-subhead { margin-top: 1.4rem; }
 
 /* the order window draws its own pictures (frontend/src/order-window.js) */
-.order-card { display: grid; place-items: center; width: 9rem; aspect-ratio: 488 / 680; overflow: hidden; border-radius: 4.8% / 3.4%; background: var(--card); box-shadow: 0 0.2rem 0.6rem rgba(0, 0, 0, 0.35); }
+.order-card { position: relative; display: grid; place-items: center; width: 9rem; aspect-ratio: 488 / 680; overflow: hidden; border-radius: 4.8% / 3.4%; background: var(--card); box-shadow: 0 0.2rem 0.6rem rgba(0, 0, 0, 0.35); }
 .order-card img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .order-card-name { padding: 0.5rem; text-align: center; color: var(--muted); font-size: 0.85rem; }
 .order-window .scry-picture { width: 9rem; }
@@ -1654,7 +1654,7 @@ body.playing.solo #life-area .life-counters[aria-expanded="true"]::after { rotat
 /* the layers on a small card: still, and a little weaker on the battlefield than in the hand, on a deck tile and on a printing tile */
 .card.foil .face, .deck-tile.foil .tile-picture, .foil-art { position: relative; }
 .card.foil .face::after, .deck-tile.foil .tile-picture::after, .foil-art::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; box-sizing: border-box; background-image: var(--f-img); background-size: var(--f-size); background-position: var(--f-pos); mix-blend-mode: var(--f-blend); opacity: calc(var(--f-alpha) * 0.55); -webkit-mask-image: var(--f-mask-text); mask-image: var(--f-mask-text); }
-#hand .card.foil .face::after, .hand-lift-layer .card.foil .face::after, .foil-lab-hand .card.foil .face::after, .deck-tile.foil .tile-picture::after, .foil-art::after { opacity: var(--f-alpha); }
+#hand .card.foil .face::after, .hand-lift-layer .card.foil .face::after, .deck-tile.foil .tile-picture::after, .foil-art::after { opacity: var(--f-alpha); }
 /* one slow pass of light, left to right, then a rest: it never comes back the other way */
 .card.foil .face::before, .deck-tile.foil .tile-picture::before, .foil-art::before { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 1; background: linear-gradient(115deg, transparent 42%, rgba(255, 255, 255, var(--f-band-a)) 50%, transparent 58%) 130% 0 / 250% 100%; mix-blend-mode: screen; animation: foil-pass 10s linear infinite; }
 /* the pass of light stops when the pointer is on the card: a foil never moves under the cursor */
@@ -1671,24 +1671,3 @@ body.playing.solo #life-area .life-counters[aria-expanded="true"]::after { rotat
 .foil-badge { flex: none; padding: 0 0.4rem; border-radius: 0.7rem; background: linear-gradient(115deg, #94a3b8, #e2e8f0, #bfdbfe, #94a3b8); color: #14141a; font-size: 0.66rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; }
 .picker-tile .tile-art.foil-art { position: relative; }
 .picker-tile .tile-caption .tile-foil { font-weight: 700; color: var(--text); }
-
-/* the foil test page at /foils (Kevin, 2026-11-18): every look next to a card that is not foil, four ways each */
-.foil-lab-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem 1.2rem; margin: 0 0 1rem; }
-.foil-lab-controls label { display: flex; align-items: center; gap: 0.4rem; margin: 0; white-space: nowrap; }
-.foil-lab-controls input[type="checkbox"] { flex: none; width: 1.05rem; height: 1.05rem; min-width: 0; margin: 0; padding: 0; accent-color: var(--accent); }
-main.foil-lab { max-width: 96rem; }
-.foil-lab-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr)); gap: 1.4rem 1rem; }
-.foil-lab-entry { display: flex; flex-direction: column; gap: 0.4rem; min-width: 0; }
-.foil-lab-entry h2 { margin: 0; font-size: 1rem; text-transform: capitalize; }
-.foil-lab-entry .hint { margin: 0; min-height: 2.4em; font-size: 0.78rem; }
-.foil-lab-row { display: flex; align-items: flex-start; gap: 0.6rem; }
-.foil-lab-row .card { display: block; position: relative; width: 6rem; height: auto; aspect-ratio: 488 / 680; padding: 0; border: 0; background: none; }
-.foil-lab-row .card .face { display: block; width: 100%; height: 100%; border-radius: 4.8% / 3.4%; overflow: hidden; }
-.foil-lab-row .card img, .foil-lab-row .tile-picture img { display: block; width: 100%; height: 100%; object-fit: cover; }
-.foil-lab-row .deck-tile { display: block; width: 6rem; list-style: none; }
-.foil-lab-row .tile-picture { display: block; aspect-ratio: 488 / 680; border-radius: 4.8% / 3.4%; overflow: hidden; }
-.foil-lab-row ul { margin: 0; padding: 0; }
-.foil-lab-big { width: 14rem; max-width: 100%; }
-.foil-lab-big img { display: block; width: 100%; height: auto; aspect-ratio: 488 / 680; border-radius: 4.8% / 3.4%; }
-.foil-lab.still *::before, .foil-lab.still *::after { animation: none !important; }
-.foil-lab-card { margin: 0; min-height: 1.3em; font-size: 0.78rem; font-weight: 600; }

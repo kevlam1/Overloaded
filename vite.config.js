@@ -42,20 +42,20 @@ export default defineConfig(({ command, mode }) => {
       outDir: '../dist',
       emptyOutDir: true,
       rollupOptions: {
-        input: { lobby: page('./frontend/pages/lobby/index.html'), deck: page('./frontend/pages/deck/index.html'), solo: page('./frontend/pages/solo/index.html'), foils: page('./frontend/pages/foils/index.html'), table: page('./frontend/pages/table/index.html') },
+        input: { lobby: page('./frontend/pages/lobby/index.html'), deck: page('./frontend/pages/deck/index.html'), solo: page('./frontend/pages/solo/index.html'), table: page('./frontend/pages/table/index.html') },
       },
     },
     plugins: [{
       name: 'overloaded-version',
       transformIndexHtml: { order: 'pre', handler: (html) => html.replace(/\{\{VERSION\}\}/g, () => version) },
     }, {
-      // On Vercel /, /deck, /solo, /foils, /logs, /table/CODE and /lobby/CODE are rewritten to their pages (vercel.json); the dev server needs the same rules.
+      // On Vercel /, /deck, /solo, /logs, /table/CODE and /lobby/CODE are rewritten to their pages (vercel.json); the dev server needs the same rules.
       name: 'overloaded-dev-rewrites',
       configureServer(server) {
         server.middlewares.use((request, _response, next) => {
           const url = request.url ?? '';
           const withCode = /^\/(table|lobby)\/[^/?#]+\/?(\?|#|$)/.exec(url);
-          const plain = /^\/(deck|solo|foils)?\/?(\?|#|$)/.exec(url);
+          const plain = /^\/(deck|solo)?\/?(\?|#|$)/.exec(url);
           if (/^\/logs\/?(\?|#|$)/.test(url)) request.url = '/logs/index.html';
           else if (withCode) request.url = `/pages/${withCode[1]}/index.html`;
           else if (plain) request.url = `/pages/${plain[1] ?? 'lobby'}/index.html${url.slice(url.search(/[?#]/) === -1 ? url.length : url.search(/[?#]/))}`;

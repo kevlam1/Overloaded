@@ -5,7 +5,6 @@
     { "source": "/lobby/:code", "destination": "/pages/lobby/index.html" },
     { "source": "/deck", "destination": "/pages/deck/index.html" },
     { "source": "/solo", "destination": "/pages/solo/index.html" },
-    { "source": "/foils", "destination": "/pages/foils/index.html" },
     { "source": "/logs", "destination": "/logs/index.html" },
     { "source": "/table/:code", "destination": "/pages/table/index.html" }
   ],

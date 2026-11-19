@@ -3,6 +3,7 @@
 // touch version is on hold. A drag starts only after the pointer has moved a few pixels, so an ordinary click still selects a card, and a press on a counter or a badge is theirs.
 // Escape, a menu, the window losing focus or letting go outside the board cancels it. This module changes nothing in the game: it reports { uid, from, col, row }.
 import { STACK_HOLD_MS, STACK_VISIBLE } from '../../shared/stacks.mjs';
+import { makeFoilLayer } from './foil-layer.js';
 import { anchorAtPoint, cellAtPoint, shiftedAnchor, BOARD_COLS, CARD_COLS, CARD_ROWS } from '../../shared/board-grid.mjs';
 
 export const DRAG_DISTANCE_PX = 6;
@@ -135,6 +136,7 @@ export function mountBoardDrag({ doc = document, board, onDrop, hand = () => nul
     if (press.picture) { const back = doc.createElement('img'); back.alt = ''; back.draggable = false; back.referrerPolicy = 'no-referrer'; back.src = press.picture; ghost.append(back); } // (the top of a library: a card back)
     else if (picture && !press.button.classList.contains('noimage')) { const copy = picture.cloneNode(); copy.removeAttribute('loading'); ghost.append(copy); } else ghost.textContent = press.button.getAttribute('aria-label') ?? '';
     // a card carried from the hand takes its mana cost with it, above the picture, as it is above the card in the hand (Kevin, 2026-11-13)
+    if (press.button.dataset.foil && !press.picture) ghost.append(makeFoilLayer(press.button.dataset.foil)); // a foil card stays foil while it is carried
     const costHolder = press.from === 'hand' ? press.button.querySelector(':scope > .hand-cost') : null;
     if (costHolder) { ghost.append(costHolder.cloneNode(true)); ghost.classList.add('has-cost'); }
     // the picture is the card at its own size on screen (a tapped card is turned back to portrait and then turned on its side again)
