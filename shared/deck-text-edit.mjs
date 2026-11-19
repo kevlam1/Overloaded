@@ -23,6 +23,24 @@ export function setFoilInText(text, lineNumbers, foil) {
   return { text: changed ? lines.join('\n') : text, changed };
 }
 
+// The same for the three finishes: 'nonfoil' takes the mark off, 'foil' puts *F* on, 'etched' puts *E* on (Kevin, 2026-11-19: choose Non-foil, Foil or Etched in the deck list). Returns { text, changed }.
+export function setFinishInText(text, lineNumbers, finish) {
+  if (typeof text !== 'string' || !Array.isArray(lineNumbers) || !['nonfoil', 'foil', 'etched'].includes(finish)) return { text: typeof text === 'string' ? text : '', changed: 0 };
+  const lines = text.split(NEWLINE);
+  let changed = 0;
+  for (const number of new Set(lineNumbers)) {
+    if (!Number.isInteger(number) || number < 1 || number > lines.length) continue;
+    const entry = parseDeckText(lines[number - 1]).entries[0];
+    if (!entry) continue;
+    const now = entry.etched ? 'etched' : entry.foil ? 'foil' : 'nonfoil';
+    if (now === finish) continue;
+    const bare = lines[number - 1].replace(FOIL_MARK, '').replace(/\s+$/, '');
+    lines[number - 1] = finish === 'nonfoil' ? bare : `${bare} ${finish === 'etched' ? '*E*' : '*F*'}`;
+    changed++;
+  }
+  return { text: changed ? lines.join('\n') : text, changed };
+}
+
 // text: the pasted list. lineNumbers: the lines (1-based) that hold the card (a preview line knows them, sourceLines). name: the card's real name. printing: { set, number } for a printing, or null for the card's default
 // (the set and number are taken off). Every line is rewritten as "quantity name (SET) number" and keeps its quantity and its foil mark; a line that is not a card line is left alone. The rest of the text is untouched.
 // Returns { text, changed: how many lines were rewritten }.

@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.240</span></h1>
-    <p class="lede">240 entries, Oct 25 to Nov 19, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
+    <h1>Build log <span class="version">Version 0.241</span></h1>
+    <p class="lede">241 entries, Oct 25 to Nov 19, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
   </div>
 </header>
 
@@ -24,7 +24,7 @@
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
-<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">27</span></a>
+<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">28</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
 <a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">29 things friends asked for</span></a>
 <a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">26 open, 71 done</span></a>
@@ -3604,7 +3604,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-2" aria-labelledby="week-2-title">
-<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">27 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">28 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-2-days">
 <div class="day">
 <h3 class="day-title">Monday 16 November <span class="day-count">5</span></h3>
@@ -4007,7 +4007,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Thursday 19 November <span class="day-count">3</span></h3>
+<h3 class="day-title">Thursday 19 November <span class="day-count">4</span></h3>
 <div class="entries">
 <article class="entry" id="entry-238" data-n="238">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-238-body">
@@ -4061,6 +4061,22 @@
 <p class="sub"><strong>Decisions and limits</strong></p>
 <ul><li>Not tested in the browser: the Shuffle, life, pile, sort, history and stack keys (they press the same button or call the same function as before; only Mulligan was driven), and the table page's keys on a live table. Phone widths are on hold.</li><li>Not built: keys with Ctrl, Alt or Shift, and keys for the card menu lines.</li></ul>
 <p><strong>My AI's mistakes this time:</strong> my first hold test pressed the mouse where the button was off screen, so the check failed until I scrolled it into view; the first edit script also stopped halfway on a text mismatch and left a half-done test file I had to finish by hand.</p>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-241" data-n="241">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-241-body">
+    <span class="num">241</span>
+    <span class="head-text"><span class="title">Deck list: choose Non-foil, Foil or Etched for a card</span><span class="sum">In the deck list page, players may choose different foils for that specific card: [Non-foil] [Foil] etc.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-241-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>In the deck list page, players may choose different foils for that specific card: [Non-foil] [Foil] etc. (Part of a bigger request with Create token and emblems; this is the first and smallest step.)</li></ul>
+<p><strong>What changed</strong> (<code>shared/deck-text-edit.mjs</code>, <code>shared/deck-preview.mjs</code>, <code>frontend/src/deck-importer.js</code>)</p>
+<ul><li>A card's menu (the &quot;...&quot; button or a right-click) now lists the finishes its printing comes in: Non-foil, Foil and, where the printing has it, Etched. The one it has now carries a tick and does nothing when picked. It replaces Make foil / Remove foil. A printing that has only one finish shows no choice.</li><li>The choice rewrites the card's line in the list (nothing, <code>*F*</code> or <code>*E*</code> at the end), like the old foil toggle did, so it is saved and exported with the deck. A preview line now knows its <code>finish</code> and the <code>finishes</code> of its printing (a card with no printing named is taken as the usual nonfoil and foil).</li><li>The special kinds of foil (surge, galaxy and so on) are not separate choices: they all look like the one traditional foil, as I decided.</li></ul>
+<p class="sub"><strong>What I checked</strong></p>
+<ul><li><code>scripts/test-deck-text-edit.mjs</code> is 26 checks (3 new for the finishes), <code>scripts/test-deck-preview.mjs</code> 263, and <code>scripts/check-deck-ui.mjs</code> is 292 checks in real Chrome with the menu expectations changed to the new labels. The quick set passes. I did not take a screenshot of the new menu, and a card with an etched printing was only covered by the unit test, not the browser.</li></ul>
+<p><strong>My AI's mistakes this time:</strong> my edit scripts turned <code> </code> into real newlines inside two source files and broke them (a syntax error), and I had to repair them by hand with the editor tool.</p>
   </div></div></div>
 </article>
 </div>

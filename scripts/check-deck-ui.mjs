@@ -648,14 +648,14 @@ check('there are no commander or partner boxes; the Commander heading says to ri
   check('the "..." of every line of the text list is shown without the pointer on it', await ev(`[...document.querySelectorAll('#sections .card-line .row-menu')].every((b) => getComputedStyle(b).opacity === '1')`));
   await rightClick('Goblin Chieftain');
   const m1 = await lineMenu();
-  check('a right-click on a card in a Commander deck offers to make it the commander or the partner', m1 && m1.title === 'Goblin Chieftain' && JSON.stringify(m1.items) === JSON.stringify(['Change printing...', 'Remove foil', 'Make commander', 'Make partner']), JSON.stringify(m1));
+  check('a right-click on a card in a Commander deck offers to make it the commander or the partner', m1 && m1.title === 'Goblin Chieftain' && JSON.stringify(m1.items) === JSON.stringify(['Change printing...', 'Non-foil', 'Foil ✓', 'Make commander', 'Make partner']), JSON.stringify(m1));
   await pickMenu('Make partner');
   let cmd = await commanders();
   check('Make partner puts it in the Commander group beside Krenko and in the Partner picker, and says so', JSON.stringify(cmd) === JSON.stringify({ group: ['Krenko, Mob Boss', 'Goblin Chieftain'], first: 'Krenko, Mob Boss', second: 'Goblin Chieftain' }) && /^Goblin Chieftain is now the partner\.$/.test(await $text('deck-status')) && !(await lineMenu()), JSON.stringify(cmd));
   check('and it is out of the Creatures group (28 left)', (await ev(`document.querySelector('#sections [data-group="creature"] h3').textContent`)) === 'Creatures (28)');
   await rightClick('Goblin Chieftain');
   const m2 = await lineMenu();
-  check('the partner can be made the commander or removed', m2 && JSON.stringify(m2.items) === JSON.stringify(['Change printing...', 'Remove foil', 'Make commander', 'Remove as partner']), JSON.stringify(m2));
+  check('the partner can be made the commander or removed', m2 && JSON.stringify(m2.items) === JSON.stringify(['Change printing...', 'Non-foil', 'Foil ✓', 'Make commander', 'Remove as partner']), JSON.stringify(m2));
   await pickMenu('Make commander');
   cmd = await commanders();
   check('making the partner the commander swaps the two', JSON.stringify(cmd) === JSON.stringify({ group: ['Goblin Chieftain', 'Krenko, Mob Boss'], first: 'Goblin Chieftain', second: 'Krenko, Mob Boss' }), JSON.stringify(cmd));
@@ -677,14 +677,14 @@ check('there are no commander or partner boxes; the Commander heading says to ri
   await setField('deck-format', 'standard');
   await rightClick('Goblin Chieftain');
   const standard = await lineMenu();
-  check('in Standard the menu has only "Change printing..." and the foil choice (no commander choices)', standard && JSON.stringify(standard.items) === JSON.stringify(['Change printing...', 'Remove foil']), JSON.stringify(standard));
+  check('in Standard the menu has only "Change printing..." and the foil choice (no commander choices)', standard && JSON.stringify(standard.items) === JSON.stringify(['Change printing...', 'Non-foil', 'Foil ✓']), JSON.stringify(standard));
   await escapeKey();
   await setField('deck-format', 'commander');
   await paste('Commander\n1 Sol Ring\n\n1 Island\n\nSIDEBOARD:\n1 Annul'); await press('check');
   await ev(`document.querySelector('#sections [data-group="sideboard"] .card-line').scrollIntoView({ block: 'center' })`);
   await rightClick('Annul');
   const sideMenu = await lineMenu();
-  check('a sideboard card can change its printing and be made foil but cannot be the commander (only the main deck can)', sideMenu && JSON.stringify(sideMenu.items) === JSON.stringify(['Change printing...', 'Make foil']), JSON.stringify(sideMenu));
+  check('a sideboard card can change its printing and be made foil but cannot be the commander (only the main deck can)', sideMenu && JSON.stringify(sideMenu.items) === JSON.stringify(['Change printing...', 'Non-foil ✓', 'Foil']), JSON.stringify(sideMenu));
   await escapeKey();
   await deleteAllSaved();
 
@@ -943,12 +943,12 @@ check('there are no commander or partner boxes; the Commander heading says to ri
   check('a card that is not foil has no foil layer in the card display', (await shineNow())?.hidden === true);
   await openLineMenuOf('Sol Ring');
   const foilMenu = await ev(`[...document.querySelectorAll('.card-menu [role="menuitem"]')].map((x) => x.textContent)`);
-  check('the card\'s menu says Remove foil for a foil card', foilMenu.includes('Remove foil') && !foilMenu.includes('Make foil'), JSON.stringify(foilMenu));
-  await pickMenu('Remove foil'); await sleep(200);
-  check('Remove foil takes the *F* out of the list and the foil star goes', !/\*F\*/.test(await ev(`document.getElementById('deck-text').value`)) && (await foilLines()).length === 0);
+  check('the card\'s menu offers Non-foil and Foil, with a tick on Foil for a foil card', foilMenu.includes('Foil ✓') && foilMenu.includes('Non-foil'), JSON.stringify(foilMenu));
+  await pickMenu('Non-foil'); await sleep(200);
+  check('Non-foil takes the *F* out of the list and the foil star goes', !/\*F\*/.test(await ev(`document.getElementById('deck-text').value`)) && (await foilLines()).length === 0);
   await openLineMenuOf('Island');
-  await pickMenu('Make foil'); await sleep(200);
-  check('Make foil on another card puts *F* on its line and shows the star', /3 Island \*F\*/.test(await ev(`document.getElementById('deck-text').value`)) && JSON.stringify(await foilLines()) === '["Island 3 Foil"]', JSON.stringify(await foilLines()));
+  await pickMenu('Foil'); await sleep(200);
+  check('Foil on another card puts *F* on its line and shows the star', /3 Island \*F\*/.test(await ev(`document.getElementById('deck-text').value`)) && JSON.stringify(await foilLines()) === '["Island 3 Foil"]', JSON.stringify(await foilLines()));
   check('the same deck saved and loaded again is still foil (the list is what is saved)', (await library()).decks.length === 1 && (await library()).decks[0].deck.cards.some((c) => c.n === 'Island' && c.foil === true) && !(await library()).decks[0].deck.cards.some((c) => c.n === 'Sol Ring' && c.foil));
   await deleteAllSaved();
   // a printing that exists only as foil (real data: Wall of Roots in F08 is foil only) is foil without any mark in the list, cannot be turned off, and a normal printing next to it is not foil

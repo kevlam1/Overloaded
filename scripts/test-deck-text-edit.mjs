@@ -1,5 +1,5 @@
 // Tests for shared/deck-text-edit.mjs: rewriting a card's line to name another printing.
-import { setPrintingInText, setFoilInText } from '../shared/deck-text-edit.mjs';
+import { setPrintingInText, setFoilInText, setFinishInText } from '../shared/deck-text-edit.mjs';
 import { parseDeckText } from '../shared/deck-text.mjs';
 import { makePreview } from '../shared/deck-preview.mjs';
 
@@ -36,6 +36,13 @@ const matched = { results: parsed.entries.map((entry) => ({ entry, status: 'matc
 const lines = makePreview(parsed, matched).lines;
 check('a merged preview line lists every text line that holds the card (without the set files a typed printing cannot be told apart, so line 4 merges too)', JSON.stringify(lines.map((l) => [l.name, l.sourceLines])) === JSON.stringify([['Sol Ring', [1, 3, 4]], ['Island', [2]]]), JSON.stringify(lines.map((l) => [l.name, l.sourceLines])));
 
+// finish: Non-foil, Foil and Etched rewrite the mark at the end of the line (Kevin, 2026-11-19)
+{ const t = ['1 Sol Ring (cmm) 410', '1 Island *F*', '1 Miara (CMR) 566 *E*'].join('\n');
+  const at = (text, n) => text.split('\n')[n];
+  same('Etched puts *E* on a plain line and replaces *F*', [at(setFinishInText(t, [1], 'etched').text, 0), at(setFinishInText(t, [2], 'etched').text, 1)], ['1 Sol Ring (cmm) 410 *E*', '1 Island *E*']);
+  same('Foil replaces *E*, Non-foil takes either mark off', [at(setFinishInText(t, [3], 'foil').text, 2), at(setFinishInText(t, [3], 'nonfoil').text, 2), at(setFinishInText(t, [2], 'nonfoil').text, 1)], ['1 Miara (CMR) 566 *F*', '1 Miara (CMR) 566', '1 Island']);
+  same('a line that already has the finish, and a finish that does not exist, change nothing', [setFinishInText(t, [2], 'foil').changed, setFinishInText(t, [1], 'nonfoil').changed, setFinishInText(t, [1], 'shiny').changed], [0, 0, 0]);
+}
 // foil: *F* added to or taken off the end of a line, nothing else on the line touched (Kevin, 2026-11-18)
 { const t = ['2 Sol Ring (cmm) 410', '1 Island   ', '1 Krenko, Mob Boss (SLD) 2407 *F*', '// a comment', ''].join('\n');
   same('foil on adds *F* at the end and keeps the rest of the line', setFoilInText(t, [1], true).text.split('\n')[0], '2 Sol Ring (cmm) 410 *F*');

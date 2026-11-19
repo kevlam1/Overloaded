@@ -14,7 +14,7 @@ import { mountStackPreview } from './stack-preview.js';
 import { renderDeckInfo, renderDeckFacts } from './deck-stats.js';
 import { commanderMenuItems, applyCommanderChoice, commanderChoiceMessage } from '../../shared/deck-commander.mjs';
 import { openCardMenu } from './card-menu.js';
-import { setPrintingInText, setFoilInText } from '../../shared/deck-text-edit.mjs';
+import { setPrintingInText, setFinishInText } from '../../shared/deck-text-edit.mjs';
 import { makePrintsLoader } from './card-prints.js';
 import { openPrintingPicker } from './printing-picker.js';
 import { LIBRARY_KEY, LEGACY_KEY, emptyLibrary, readLibrary, serializeLibrary, addDeck, replaceDeck, uniqueName, removeDeck, selectDeck } from '../../shared/deck-library.mjs';
@@ -440,15 +440,15 @@ function openPicker(line, returnFocus) {
   openPrintingPicker({ root, name: line.name, defaultId: line.card.i, currentId: line.printingSource === 'set' || line.printingSource === 'title' ? line.printingId : null, loader: printsLoader, returnFocus, onPick: (row) => applyPrinting(line, row) });
 }
 // Foil on or off for a card: its line(s) in the text get or lose the *F*, and the page is drawn again from the text like any other change.
-function applyFoil(line) {
-  const edited = setFoilInText(text, line.sourceLines, !line.foil);
+function applyFinish(line, finish) {
+  const edited = setFinishInText(text, line.sourceLines, finish);
   if (edited.changed === 0) { say(`${line.name}: nothing to change.`); return; }
   checkRun++; // (a check that was still running no longer applies)
   text = edited.text;
   $('deck-text').value = text;
   refresh();
   autosave();
-  say(`${line.name}: ${line.foil ? 'not foil' : 'foil'}.`);
+  say(`${line.name}: ${FINISH_LABELS[finish].toLowerCase()}.`);
 }
 async function applyPrinting(line, row) {
   const edited = setPrintingInText(text, line.sourceLines, line.name, row ? { set: row.set, number: row.number } : null);
@@ -468,10 +468,13 @@ async function applyPrinting(line, row) {
 
 // ---- a card's menu: the "..." button on a card, or a right-click on it ----
 // What it offers is in shared/deck-commander.mjs (making a card the commander or the partner, or taking it out; the card that was replaced goes back to its type group).
+const FINISH_LABELS = { nonfoil: 'Non-foil', foil: 'Foil', etched: 'Etched' };
 function menuItemsFor(line) {
   if (!line || line.status !== 'matched' || !line.card) return [];
   // Foil is part of the list (*F*), so it is changed there; a printing that exists only as foil cannot be turned off
-  const foil = line.foilOnly ? [] : [{ id: 'foil', label: line.foil ? 'Remove foil' : 'Make foil' }];
+  // (a finish the printing does not come in is not offered; the one it has now is marked and does nothing)
+  const finishes = ['nonfoil', 'foil', 'etched'].filter((finish) => (line.finishes & { nonfoil: 1, foil: 2, etched: 4 }[finish]) !== 0 || line.finish === finish);
+  const foil = finishes.length > 1 ? finishes.map((finish) => ({ id: `finish-${finish}`, label: finish === line.finish ? `${FINISH_LABELS[finish]} ✓` : FINISH_LABELS[finish] })) : [];
   return [{ id: 'printing', label: 'Change printing...' }, ...foil, ...commanderMenuItems(line, currentPicks(), { commanderFormat: isCommander() && Boolean(preview) })];
 }
 function lineOf(element) {
@@ -487,7 +490,7 @@ function openLineMenu(line, x, y, returnFocus) {
   if (!items.length) return;
   openCardMenu({ title: line.name, items, x, y, returnFocus, onPick: (action) => {
     if (action === 'printing') { openPicker(line, returnFocus); return; }
-    if (action === 'foil') { applyFoil(line); return; }
+    if (action.startsWith('finish-')) { if (action !== `finish-${line.finish}`) applyFinish(line, action.slice(7)); return; }
     picks = applyCommanderChoice(currentPicks(), action, line.card.i);
     picksTouched = true;
     renderCommander();

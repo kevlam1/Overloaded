@@ -4782,6 +4782,22 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **My AI's mistakes this time:** my first hold test pressed the mouse where the button was off screen, so the check failed until I scrolled it into view; the first edit script also stopped halfway on a text mismatch and left a half-done test file I had to finish by hand.
 
+## 241. Deck list: choose Non-foil, Foil or Etched for a card (2026-11-19)
+
+**What I asked for**
+- In the deck list page, players may choose different foils for that specific card: [Non-foil] [Foil] etc. (Part of a bigger request with Create token and emblems; this is the first and smallest step.)
+
+**What changed** (`shared/deck-text-edit.mjs`, `shared/deck-preview.mjs`, `frontend/src/deck-importer.js`)
+- A card's menu (the "..." button or a right-click) now lists the finishes its printing comes in: Non-foil, Foil and, where the printing has it, Etched. The one it has now carries a tick and does nothing when picked. It replaces Make foil / Remove foil. A printing that has only one finish shows no choice.
+- The choice rewrites the card's line in the list (nothing, `*F*` or `*E*` at the end), like the old foil toggle did, so it is saved and exported with the deck. A preview line now knows its `finish` and the `finishes` of its printing (a card with no printing named is taken as the usual nonfoil and foil).
+- The special kinds of foil (surge, galaxy and so on) are not separate choices: they all look like the one traditional foil, as I decided.
+
+**What I checked**
+- `scripts/test-deck-text-edit.mjs` is 26 checks (3 new for the finishes), `scripts/test-deck-preview.mjs` 263, and `scripts/check-deck-ui.mjs` is 292 checks in real Chrome with the menu expectations changed to the new labels. The quick set passes. I did not take a screenshot of the new menu, and a card with an etched printing was only covered by the unit test, not the browser.
+
+**My AI's mistakes this time:** my edit scripts turned `
+` into real newlines inside two source files and broke them (a syntax error), and I had to repair them by hand with the editor tool.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

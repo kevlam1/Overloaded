@@ -4,7 +4,7 @@
 // deck that is saved in the browser (and reads it back safely). The rules come from docs/deck-import.md.
 import { normalizeName, titlePrintingOf } from './card-match.mjs';
 import { findPrintingInfo, foilInfoById } from './printings.mjs';
-import { lookOf, hasFoilFinish, hasEtchedFinish, TRADITIONAL, KIND_IDS } from './foil-kinds.mjs';
+import { lookOf, hasFoilFinish, hasEtchedFinish, TRADITIONAL, KIND_IDS, DEFAULT_FINISHES } from './foil-kinds.mjs';
 import { scrubText, hasVisibleCharacter } from './player-name.mjs';
 import { MAX_CARDS, MAX_CHARS } from './deck-text.mjs';
 
@@ -167,6 +167,8 @@ export function makePreview(parsed, matched, choices = {}, printingFiles = null)
     // look: which foil it is, when it is foil: an etched line (*E*) or a printing that has only the etched finish is etched; otherwise the printing's own kind of foil ('traditional' when not known)
     const etchedOnly = resolved.finishes !== undefined && hasEtchedFinish(resolved.finishes) && !hasFoilFinish(resolved.finishes);
     const look = foil ? lookOf(resolved.kind ?? TRADITIONAL, entry.etched === true || etchedOnly ? 'etched' : 'foil') : null;
+    // finish: which of nonfoil, foil and etched this line is; finishes: the bits the printing comes in (the usual nonfoil and foil when the printing is not known)
+    const finish = !foil ? 'nonfoil' : (entry.etched === true || etchedOnly ? 'etched' : 'foil');
     const key = `${entry.section}|${card ? `c:${card.i}` : `n:${typedKey}`}|p:${resolved.id ?? ''}|f:${look ?? 0}`;
     const existing = groups.get(key);
     if (existing) {
@@ -180,7 +182,7 @@ export function makePreview(parsed, matched, choices = {}, printingFiles = null)
     // printingId: the printing whose picture to show (null: the card's default one); printingSource: 'set' (the typed set and
     // number), 'title' (the printing that carries the title that was typed) or null; printingProblems: typed set and numbers
     // that could not be found, each with why (see resolvePrinting)
-    groups.set(key, { key, foil, look, foilOnly: resolved.foilOnly === true, section: entry.section, qty: entry.qty, status, card: card ?? null, candidates: card ? [] : result.candidates, typed: entry.name, typedKey, name: card ? card.n : entry.name, viaTitle, printings: printing ? [printing] : [], printingId: resolved.id, printingSource: resolved.source, printingProblems: resolved.problem ? [{ typed: printing, problem: resolved.problem }] : [], firstLine: entry.line, sourceLines: [entry.line], order });
+    groups.set(key, { key, foil, look, finish, finishes: resolved.finishes ?? DEFAULT_FINISHES, foilOnly: resolved.foilOnly === true, section: entry.section, qty: entry.qty, status, card: card ?? null, candidates: card ? [] : result.candidates, typed: entry.name, typedKey, name: card ? card.n : entry.name, viaTitle, printings: printing ? [printing] : [], printingId: resolved.id, printingSource: resolved.source, printingProblems: resolved.problem ? [{ typed: printing, problem: resolved.problem }] : [], firstLine: entry.line, sourceLines: [entry.line], order });
   });
   const lines = [...groups.values()];
 
