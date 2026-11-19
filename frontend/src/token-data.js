@@ -7,7 +7,7 @@ export function loadTokens(fetchImpl = fetch) {
   if (!loading) {
     loading = (async () => {
       try {
-        const response = await fetchImpl(TOKENS_PATH, { credentials: 'omit' });
+        const response = await fetchImpl(TOKENS_PATH);
         if (!response.ok) return null;
         return readTokens(await response.json());
       } catch {
