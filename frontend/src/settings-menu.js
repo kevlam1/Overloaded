@@ -51,7 +51,7 @@ export function mountSettingsMenu({ button, panel }) {
     if (event.key === 'Escape' && isOpen() && !choosingKey()) { event.stopImmediatePropagation(); setOpen(false); button.focus(); }
   }, true);
   document.addEventListener('click', (event) => {
-    if (!isOpen() || panel.contains(event.target) || button.contains(event.target)) return;
+    if (!isOpen() || panel.contains(event.target) || event.target.closest?.('.confirm-overlay') || button.contains(event.target)) return;
     setOpen(false);
   });
   return { close: () => { if (isOpen()) setOpen(false); }, show: (name) => { const tab = tabs.find((each) => each.dataset.tab === name); if (tab) showTab(tab); setOpen(true); } };

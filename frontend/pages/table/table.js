@@ -759,7 +759,7 @@ for (const zone of ['library', 'graveyard', 'exile', 'sideboard']) {
   });
 }
 const settings = mountSettingsMenu({ button: $('settings-button'), panel: $('settings-menu') });
-mountKeybindSettings($('keybind-settings'), { keybinds });
+mountKeybindSettings($('keybind-settings'), { keybinds, page: 'table' });
 $('pile-sideboard').addEventListener('click', () => settings.close()); // the viewer opens over the table; the Settings panel would only be in the way
 
 // Two clicks close together in time and place tap or untap the card under the second one. This is counted here rather than taken from the browser's own double click event, which fires only for
@@ -791,6 +791,17 @@ const cardUnderPointer = () => (pointerAt ? document.elementFromPoint(pointerAt.
 function flipFaceDown(found) {
   apply(() => setFaceDown(game, found.card.uid, !found.card.faceDown), found.card.faceDown ? `Flipped ${found.card.n} face up.` : `Flipped ${found.card.n} face down.`);
 }
+// The other actions a key can do (Settings > Keybinds): the same as pressing the button or menu line; false when there is nothing to press.
+const GAME_KEYS = new Set(['mulligan', 'shuffle', 'arrange', 'lifeUp', 'lifeDown', 'viewLibrary', 'viewGraveyard', 'viewExile']);
+const CLICKS = { mulligan: '#mulligan', arrange: '#arrange', viewLibrary: '#pile-library', viewGraveyard: '#pile-graveyard', viewExile: '#pile-exile' };
+function runGameKey(action) {
+  if (action === 'shuffle') { pickFromPileMenu('library', 'shuffle'); return true; }
+  if (action === 'lifeUp' || action === 'lifeDown') { apply(() => adjustLife(game, action === 'lifeUp' ? 1 : -1), ''); return true; }
+  const target = document.querySelector(CLICKS[action]);
+  if (!target || target.disabled) return false;
+  target.click();
+  return true;
+}
 // The keys come from the player's own choices (src/keybinds.js, Settings > Keybinds): tap, flip, draw, untap all and pass turn. Settings itself is opened by src/settings-menu.js.
 document.addEventListener('keydown', (event) => {
   const action = keybinds.match('table', event);
@@ -798,6 +809,7 @@ document.addEventListener('keydown', (event) => {
   if (event.target instanceof Element && event.target.closest('input, select, textarea, [contenteditable]')) return; // typing a number or a search is not a tap
   if (action === 'draw') { if (game) { event.preventDefault(); drawOne(); } return; }
   if (action === 'untapAll' || action === 'nextTurn') { const button = $(action === 'untapAll' ? 'untap-all' : 'pass-turn'); if (game && button && !button.disabled) { event.preventDefault(); button.click(); } return; }
+  if (GAME_KEYS.has(action)) { if (game && runGameKey(action)) event.preventDefault(); return; }
   const hovered = cardUnderPointer();
   if (!game || !hovered) return;
   const found = findCard(hovered.dataset.uid);

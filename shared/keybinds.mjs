@@ -6,18 +6,46 @@
 // table) and "picture" (keys pressed while Alt shows the big picture of a card), so Q can tap a card and also turn a picture.
 export const KEYBINDS_KEY = 'overloaded.keybinds';
 export const SLOTS = 2;
-export const GROUPS = { table: 'On the table', picture: 'While Alt shows the big picture' };
-
-export const ACTIONS = [
-  { id: 'tap', group: 'table', label: 'Tap or untap', hint: 'The card under the pointer, or the cards you picked.', defaults: ['e', 'q'] },
-  { id: 'flip', group: 'table', label: 'Flip face down', hint: 'The same cards, to the sleeve and back.', defaults: ['f', null] },
-  { id: 'draw', group: 'table', label: 'Draw a card', hint: '', defaults: ['d', null] },
-  { id: 'untapAll', group: 'table', label: 'Untap all', hint: 'Like the Untap all button.', defaults: [null, null] },
-  { id: 'nextTurn', group: 'table', label: 'Next turn', hint: 'Like the Next turn button (Pass turn at a table).', defaults: [null, null] },
-  { id: 'settings', group: 'table', label: 'Open or close Settings', hint: '', defaults: ['tab', null] },
-  { id: 'pictureLeft', group: 'picture', label: 'Turn the picture left', hint: 'For a room, a battle or any card read sideways.', defaults: ['q', null] },
-  { id: 'pictureRight', group: 'picture', label: 'Turn the picture right', hint: '', defaults: ['e', null] },
+// The headings of the list in Settings, in order. An action's `section` says where it is listed; its `group` says which keys it may not share ("table": keys pressed on the table, "picture": keys pressed while Alt
+// shows the big picture). `pages` (when it is not both) says where the action exists: the table page has no hand sorting, game history or stack window.
+export const SECTIONS = [
+  { id: 'cards', title: 'Cards' },
+  { id: 'turn', title: 'Turn' },
+  { id: 'table', title: 'Table' },
+  { id: 'piles', title: 'Piles' },
+  { id: 'sort', title: 'Hand sorting' },
+  { id: 'windows', title: 'Windows' },
+  { id: 'picture', title: 'While Alt shows the big picture' },
 ];
+
+const none = [null, null];
+export const ACTIONS = [
+  { id: 'tap', section: 'cards', group: 'table', label: 'Tap or untap', hint: 'The card under the pointer, or the cards you picked.', defaults: ['e', 'q'] },
+  { id: 'flip', section: 'cards', group: 'table', label: 'Flip face down', hint: 'The same cards, to the sleeve and back.', defaults: ['f', null] },
+  { id: 'draw', section: 'turn', group: 'table', label: 'Draw a card', hint: '', defaults: ['d', null] },
+  { id: 'nextTurn', section: 'turn', group: 'table', label: 'Next turn', hint: 'Like the Next turn button (Pass turn at a table).', defaults: none },
+  { id: 'untapAll', section: 'turn', group: 'table', label: 'Untap all', hint: 'Like the Untap all button.', defaults: none },
+  { id: 'mulligan', section: 'turn', group: 'table', label: 'Mulligan', hint: 'Like the Mulligan button.', defaults: none },
+  { id: 'shuffle', section: 'turn', group: 'table', label: 'Shuffle your library', hint: '', defaults: none },
+  { id: 'arrange', section: 'table', group: 'table', pages: ['table'], label: 'Auto-arrange', hint: 'Tidy your battlefield.', defaults: none },
+  { id: 'lifeUp', section: 'table', group: 'table', label: 'Gain 1 life', hint: '', defaults: none },
+  { id: 'lifeDown', section: 'table', group: 'table', label: 'Lose 1 life', hint: '', defaults: none },
+  { id: 'viewLibrary', section: 'piles', group: 'table', label: 'Open your library', hint: '', defaults: none },
+  { id: 'viewGraveyard', section: 'piles', group: 'table', label: 'Open your graveyard', hint: '', defaults: none },
+  { id: 'viewExile', section: 'piles', group: 'table', label: 'Open your exile', hint: '', defaults: none },
+  { id: 'sortType', section: 'sort', group: 'table', pages: ['solo'], label: 'Sort by type', hint: 'Like the Type button under your hand.', defaults: none },
+  { id: 'sortColor', section: 'sort', group: 'table', pages: ['solo'], label: 'Sort by color', hint: '', defaults: none },
+  { id: 'sortCost', section: 'sort', group: 'table', pages: ['solo'], label: 'Sort by cost', hint: '', defaults: none },
+  { id: 'sortName', section: 'sort', group: 'table', pages: ['solo'], label: 'Sort A-Z', hint: '', defaults: none },
+  { id: 'autoSort', section: 'sort', group: 'table', pages: ['solo'], label: 'Auto sort on or off', hint: 'Like the Auto button.', defaults: none },
+  { id: 'settings', section: 'windows', group: 'table', label: 'Open or close Settings', hint: '', defaults: ['tab', null] },
+  { id: 'history', section: 'windows', group: 'table', pages: ['solo'], label: 'Open or close game history', hint: '', defaults: none },
+  { id: 'stack', section: 'windows', group: 'table', pages: ['solo'], label: 'Open or close the stack', hint: '', defaults: none },
+  { id: 'pictureLeft', section: 'picture', group: 'picture', label: 'Turn the picture left', hint: 'For a room, a battle or any card read sideways.', defaults: ['q', null] },
+  { id: 'pictureRight', section: 'picture', group: 'picture', label: 'Turn the picture right', hint: '', defaults: ['e', null] },
+];
+// The actions that exist on a page ('solo' or 'table').
+export const actionsFor = (page) => ACTIONS.filter((action) => !action.pages || action.pages.includes(page));
 const BY_ID = new Map(ACTIONS.map((action) => [action.id, action]));
 export const actionById = (id) => BY_ID.get(id) ?? null;
 

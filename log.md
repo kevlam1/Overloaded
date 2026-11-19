@@ -4762,6 +4762,26 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **My AI's mistakes this time:** my first Hand sorting cards looked broken because I reused a class name (`order-card`) that the pile order window already owns, and the cards had no room because `body.playing section` out-ranked my rule. Two of my first keybind test expectations were wrong (a swap gives the other action the key you gave up, and a reset gives back keys nobody holds). I also left stray backslashes in a new file.
 
+## 240. Keybinds: a swap popup, a 2-second Reset and more actions (2026-11-19)
+
+**What I asked for**
+- The Reset button must be held for 2 seconds. If someone tries to swap a key another action has, a popup says which action has it and asks if they still want to swap. Add more keybind actions, like shuffle; Mulligan is there as a button but has no key.
+
+**What changed** (`shared/keybinds.mjs`, `frontend/src/keybind-settings.js`, `settings-menu.js`, `confirm-box.js` users, the solo and table pages, `style.css`)
+- **Swap popup:** choosing a key another action has no longer swaps at once. A window says "X is already used", names the action that has it and what each one will get, and Cancel (focused) changes nothing; Swap does it. Moving a key between the two slots of one action needs no popup. The popup sits above the Settings panel, and a click in it no longer closes Settings.
+- **Hold to reset:** the Reset on each row and Reset all keybinds work only after a 2 second hold (mouse, touch, or Enter and Space held); a fill shows the time left, and a plain click does nothing. Under reduced motion the fill does not animate, but the hold still takes 2 seconds. I left the Reset buttons on the Hand sorting page as plain clicks.
+- **More actions, all with no key until you give one:** Mulligan, Shuffle your library, Auto-arrange (table page), Gain 1 life, Lose 1 life, open your library, graveyard or exile, Sort by type, color, cost and A-Z, Auto sort on or off, and open or close the game history and the stack (the last seven on the solo page only). The list is in sections (Cards, Turn, Table, Piles, Hand sorting, Windows, Alt picture) and each page lists only what it has.
+
+**What I checked**
+- `scripts/test-keybinds.mjs` is 39 checks (new actions, sections, the pages, a swap with Shuffle). `scripts/check-settings-ui.mjs` is 16 checks in real Chrome: the popup names Draw, Cancel changes nothing, Swap swaps, a 0.5 second press on Reset all does nothing, a 2.3 second hold works, and a key on Mulligan presses it.
+- The solo check (471), history and select (28), table layout (405), card hover (27) and the quick set (80 suites) still pass. A screenshot of the popup and the new list was looked at.
+
+**Decisions and limits**
+- Not tested in the browser: the Shuffle, life, pile, sort, history and stack keys (they press the same button or call the same function as before; only Mulligan was driven), and the table page's keys on a live table. Phone widths are on hold.
+- Not built: keys with Ctrl, Alt or Shift, and keys for the card menu lines.
+
+**My AI's mistakes this time:** my first hold test pressed the mouse where the button was off screen, so the check failed until I scrolled it into view; the first edit script also stopped halfway on a text mismatch and left a half-done test file I had to finish by hand.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

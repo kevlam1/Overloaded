@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.239</span></h1>
-    <p class="lede">239 entries, Oct 25 to Nov 19, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
+    <h1>Build log <span class="version">Version 0.240</span></h1>
+    <p class="lede">240 entries, Oct 25 to Nov 19, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
   </div>
 </header>
 
@@ -24,7 +24,7 @@
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
-<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">26</span></a>
+<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">27</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
 <a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">29 things friends asked for</span></a>
 <a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">26 open, 71 done</span></a>
@@ -3604,7 +3604,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-2" aria-labelledby="week-2-title">
-<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">26 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">27 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-2-days">
 <div class="day">
 <h3 class="day-title">Monday 16 November <span class="day-count">5</span></h3>
@@ -4007,7 +4007,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Thursday 19 November <span class="day-count">2</span></h3>
+<h3 class="day-title">Thursday 19 November <span class="day-count">3</span></h3>
 <div class="entries">
 <article class="entry" id="entry-238" data-n="238">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-238-body">
@@ -4043,6 +4043,24 @@
 <p class="sub"><strong>Decisions and limits</strong></p>
 <ul><li>Not looked at: the table page's Settings on screen (it is the same panel, checked by the layout test and by the shared code), and phone widths (on hold). The live table's own browser checks were not run for this.</li><li>Not built: keys with Ctrl, Alt or Shift, other actions (Mulligan, Shuffle and the like), and keys for the card menu or the windows.</li></ul>
 <p><strong>My AI's mistakes this time:</strong> my first Hand sorting cards looked broken because I reused a class name (<code>order-card</code>) that the pile order window already owns, and the cards had no room because <code>body.playing section</code> out-ranked my rule. Two of my first keybind test expectations were wrong (a swap gives the other action the key you gave up, and a reset gives back keys nobody holds). I also left stray backslashes in a new file.</p>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-240" data-n="240">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-240-body">
+    <span class="num">240</span>
+    <span class="head-text"><span class="title">Keybinds: a swap popup, a 2-second Reset and more actions</span><span class="sum">The Reset button must be held for 2 seconds.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-240-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>The Reset button must be held for 2 seconds. If someone tries to swap a key another action has, a popup says which action has it and asks if they still want to swap. Add more keybind actions, like shuffle; Mulligan is there as a button but has no key.</li></ul>
+<p><strong>What changed</strong> (<code>shared/keybinds.mjs</code>, <code>frontend/src/keybind-settings.js</code>, <code>settings-menu.js</code>, <code>confirm-box.js</code> users, the solo and table pages, <code>style.css</code>)</p>
+<ul><li><strong>Swap popup:</strong> choosing a key another action has no longer swaps at once. A window says &quot;X is already used&quot;, names the action that has it and what each one will get, and Cancel (focused) changes nothing; Swap does it. Moving a key between the two slots of one action needs no popup. The popup sits above the Settings panel, and a click in it no longer closes Settings.</li><li><strong>Hold to reset:</strong> the Reset on each row and Reset all keybinds work only after a 2 second hold (mouse, touch, or Enter and Space held); a fill shows the time left, and a plain click does nothing. Under reduced motion the fill does not animate, but the hold still takes 2 seconds. I left the Reset buttons on the Hand sorting page as plain clicks.</li><li><strong>More actions, all with no key until you give one:</strong> Mulligan, Shuffle your library, Auto-arrange (table page), Gain 1 life, Lose 1 life, open your library, graveyard or exile, Sort by type, color, cost and A-Z, Auto sort on or off, and open or close the game history and the stack (the last seven on the solo page only). The list is in sections (Cards, Turn, Table, Piles, Hand sorting, Windows, Alt picture) and each page lists only what it has.</li></ul>
+<p class="sub"><strong>What I checked</strong></p>
+<ul><li><code>scripts/test-keybinds.mjs</code> is 39 checks (new actions, sections, the pages, a swap with Shuffle). <code>scripts/check-settings-ui.mjs</code> is 16 checks in real Chrome: the popup names Draw, Cancel changes nothing, Swap swaps, a 0.5 second press on Reset all does nothing, a 2.3 second hold works, and a key on Mulligan presses it.</li><li>The solo check (471), history and select (28), table layout (405), card hover (27) and the quick set (80 suites) still pass. A screenshot of the popup and the new list was looked at.</li></ul>
+<p class="sub"><strong>Decisions and limits</strong></p>
+<ul><li>Not tested in the browser: the Shuffle, life, pile, sort, history and stack keys (they press the same button or call the same function as before; only Mulligan was driven), and the table page's keys on a live table. Phone widths are on hold.</li><li>Not built: keys with Ctrl, Alt or Shift, and keys for the card menu lines.</li></ul>
+<p><strong>My AI's mistakes this time:</strong> my first hold test pressed the mouse where the button was off screen, so the check failed until I scrolled it into view; the first edit script also stopped halfway on a text mismatch and left a half-done test file I had to finish by hand.</p>
   </div></div></div>
 </article>
 </div>

@@ -581,7 +581,7 @@ for (const zone of ['library', 'graveyard', 'exile', 'sideboard']) {
   });
 }
 const settings = mountSettingsMenu({ button: $('settings-button'), panel: $('settings-menu') });
-mountKeybindSettings($('keybind-settings'), { keybinds });
+mountKeybindSettings($('keybind-settings'), { keybinds, page: 'solo' });
 // the action buttons are a floating bar you drag by its grip (src/floating-bar.js)
 mountFloatingBar({ bar: document.querySelector('.actions-panel'), grip: $('bar-grip'), store });
 $('pile-sideboard').addEventListener('click', () => settings.close()); // the viewer opens over the table; the Settings panel would only be in the way
@@ -633,6 +633,17 @@ function flipFaceDown(found) {
   const down = !targets[0].card.faceDown;
   apply(() => targets.reduce((game_, entry) => setFaceDown(game_, entry.card.uid, down), game), targets.length > 1 ? `Flipped ${targets.length} cards face ${down ? 'down' : 'up'}.` : `Flipped ${targets[0].card.n} face ${down ? 'down' : 'up'}.`);
 }
+// The other actions a key can do (Settings > Keybinds): the same as pressing the button or menu line; false when there is nothing to press.
+const GAME_KEYS = new Set(['mulligan', 'shuffle', 'lifeUp', 'lifeDown', 'viewLibrary', 'viewGraveyard', 'viewExile', 'sortType', 'sortColor', 'sortCost', 'sortName', 'autoSort', 'history', 'stack']);
+const CLICKS = { mulligan: '#mulligan', viewLibrary: '#pile-library', viewGraveyard: '#pile-graveyard', viewExile: '#pile-exile', sortType: '.hand-sort[data-sort="type"]', sortColor: '.hand-sort[data-sort="color"]', sortCost: '.hand-sort[data-sort="cost"]', sortName: '.hand-sort[data-sort="name"]', autoSort: '.hand-sort-toggle', history: '#history-bar .history-head', stack: '.stack-tab' };
+function runGameKey(action) {
+  if (action === 'shuffle') { pickFromPileMenu('library', 'shuffle'); return true; }
+  if (action === 'lifeUp' || action === 'lifeDown') { apply(() => adjustLife(game, action === 'lifeUp' ? 1 : -1), ''); return true; }
+  const target = document.querySelector(CLICKS[action]);
+  if (!target || target.disabled) return false;
+  target.click();
+  return true;
+}
 // The keys come from the player's own choices (src/keybinds.js, Settings > Keybinds): tap, flip, draw, untap all and next turn. Settings itself is opened by src/settings-menu.js.
 document.addEventListener('keydown', (event) => {
   const action = keybinds.match('table', event);
@@ -640,6 +651,7 @@ document.addEventListener('keydown', (event) => {
   if (event.target instanceof Element && event.target.closest('input, select, textarea, [contenteditable]')) return; // typing a number or a search is not a tap
   if (action === 'draw') { if (game) { event.preventDefault(); drawOne(); } return; }
   if (action === 'untapAll' || action === 'nextTurn') { const button = $(action === 'untapAll' ? 'untap-all' : 'next-turn'); if (game && button && !button.disabled) { event.preventDefault(); button.click(); } return; }
+  if (GAME_KEYS.has(action)) { if (game && runGameKey(action)) event.preventDefault(); return; }
   const hovered = cardUnderPointer();
   const found = hovered ? findCard(hovered.dataset.uid) : null;
   if (!game || (!found && multi.size === 0)) return;

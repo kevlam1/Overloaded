@@ -38,7 +38,7 @@ try {
     await waitFor(async () => (await ev("!document.getElementById('game').hidden")) || null, 15000, 50);
     await sleep(300);
   };
-  const KEYS = { x: ['x', 'KeyX', 88], d: ['d', 'KeyD', 68], f: ['f', 'KeyF', 70], g: ['g', 'KeyG', 71], Tab: ['Tab', 'Tab', 9], Escape: ['Escape', 'Escape', 27] };
+  const KEYS = { x: ['x', 'KeyX', 88], d: ['d', 'KeyD', 68], f: ['f', 'KeyF', 70], g: ['g', 'KeyG', 71], m: ['m', 'KeyM', 77], h: ['h', 'KeyH', 72], Tab: ['Tab', 'Tab', 9], Escape: ['Escape', 'Escape', 27] };
   const press = async (name) => { const [key, code, vk] = KEYS[name]; const text = key.length === 1 ? key : undefined; await browser.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key, code, windowsVirtualKeyCode: vk, ...(text ? { text } : {}) }); await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key, code, windowsVirtualKeyCode: vk }); await sleep(150); };
   const hand = () => ev("document.querySelectorAll('#hand > .card').length");
   const open = () => ev("!document.getElementById('settings-menu').hidden");
@@ -61,8 +61,16 @@ try {
   check('X now draws a card and D no longer does', afterX === before + 1 && (await hand()) === afterX, `${before} ${afterX} ${await hand()}`);
 
   await ev("document.getElementById('settings-button').click()");
-  await choose('flip', 'x'); // X is Draw's: the two swap
-  check('choosing X for Flip swaps: Flip gets X and Draw gets F', (await keyOf('flip')) === 'X' && (await keyOf('draw')) === 'F' && /Flip face down is on X\. Draw a card is now on F\./.test(await ev("document.querySelector('.kb-status').textContent")));
+  await choose('flip', 'x'); // X is Draw's: a popup asks first
+  const popup = await ev("document.querySelector('.confirm-box')?.textContent ?? ''");
+  check('choosing a key another action has asks first, naming that action', /Draw a card has X/.test(popup) && (await keyOf('draw')) === 'X', popup);
+  await ev("document.querySelector('.confirm-no').click()");
+  await sleep(100);
+  check('Cancel in the popup changes nothing and leaves Settings open', (await keyOf('flip')) === 'F' && (await keyOf('draw')) === 'X' && (await open()));
+  await choose('flip', 'x');
+  await ev("document.querySelector('.confirm-yes').click()");
+  await sleep(100);
+  check('Swap in the popup swaps: Flip gets X and Draw gets F', (await keyOf('flip')) === 'X' && (await keyOf('draw')) === 'F' && /Flip face down is on X\. Draw a card is now on F\./.test(await ev("document.querySelector('.kb-status').textContent")));
   await ev("document.querySelector('.kb-key[data-action=\"draw\"][data-slot=\"0\"]').click()");
   await press('Escape');
   check('Escape while choosing a key cancels it and leaves Settings open', (await open()) && (await keyOf('draw')) === 'F' && (await ev("document.querySelector('[data-listening]')")) === null);
@@ -84,9 +92,18 @@ try {
   await press('g');
   check('the Settings key can be changed: G opens Settings and Tab does not', (await open()) && !tabOpens);
 
-  await ev("document.getElementById('kb-reset-all').click()");
-  check('Reset all keybinds brings every default key back', (await keyOf('draw')) === 'D' && (await keyOf('settings')) === 'Tab' && (await keyOf('tap', 1)) === 'Q');
+  const holdBtn = async (selector, ms) => { const [x, y] = await ev("(() => { document.querySelector('" + selector + "').scrollIntoView({ block: 'center' }); const b = document.querySelector('" + selector + "').getBoundingClientRect(); return [b.x + b.width / 2, b.y + b.height / 2]; })()"); await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y }); await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', clickCount: 1 }); await sleep(ms); await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', clickCount: 1 }); await sleep(150); };
+  await holdBtn('#kb-reset-all', 500);
+  check('a short press on Reset all does nothing', (await keyOf('settings')) === 'G');
+  await holdBtn('#kb-reset-all', 2300);
+  check('Reset all keybinds brings every default key back after a 2 second hold', (await keyOf('draw')) === 'D' && (await keyOf('settings')) === 'Tab' && (await keyOf('tap', 1)) === 'Q', await keyOf('draw') + await keyOf('settings') + await keyOf('tap', 1));
 
+  await choose('mulligan', 'm');
+  await choose('shuffle', 'h');
+  await ev("document.getElementById('settings-close').click()");
+  await press('m');
+  check('a key on Mulligan presses Mulligan', /1 so far/.test(await ev("document.getElementById('mulligan').textContent")));
+  await ev("document.getElementById('settings-button').click()");
   await ev("document.getElementById('tab-hand').click()");
   const types = () => ev("[...document.querySelectorAll('#hand-order-settings .sort-card')[0].querySelectorAll('.type-name')].map((n) => n.textContent).join()");
   const first = await types();

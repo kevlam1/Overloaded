@@ -1,6 +1,10 @@
 // The Keybinds page of Settings (Kevin, 2026-11-19): every action and its keys, to change. Click a key, then press the one you want; if another action already has it the two SWAP; Backspace or Delete empties
 // the key; Escape cancels. Each action has two keys (a first and an alternate). The rules are in shared/keybinds.mjs, the saved keys in src/keybinds.js; this only draws the list and listens for the key.
-import { ACTIONS, GROUPS, SLOTS, actionById, bindKey, clearKey, resetAction, resetAll, isDefault, keyLabel } from '../../shared/keybinds.mjs';
+import { SECTIONS, SLOTS, actionById, actionsFor, bindKey, clearKey, resetAction, resetAll, isDefault, keyLabel, normalizeKey } from '../../shared/keybinds.mjs';
+import { askConfirm } from './confirm-box.js';
+
+export const HOLD_MS = 2000; // a Reset button works only when it is held this long
+
 
 const make = (tag, className, text) => { const element = document.createElement(tag); if (className) element.className = className; if (text !== undefined) element.textContent = text; return element; };
 
@@ -19,9 +23,21 @@ function resetIcon() {
   return svg;
 }
 
+// A button that does its thing only when held for HOLD_MS (mouse, touch, or Enter / Space held): a click does nothing. data-holding="1" runs the fill that shows the time left.
+function holdToConfirm(button, done) {
+  let timer = null;
+  const stop = () => { clearTimeout(timer); timer = null; button.removeAttribute('data-holding'); };
+  const start = () => { if (timer !== null || button.disabled) return; button.dataset.holding = '1'; timer = setTimeout(() => { stop(); done(); }, HOLD_MS); };
+  button.addEventListener('pointerdown', (event) => { if (event.button === 0) start(); });
+  for (const name of ['pointerup', 'pointerleave', 'pointercancel', 'blur']) button.addEventListener(name, stop);
+  button.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); if (!event.repeat) start(); } });
+  button.addEventListener('keyup', stop);
+}
+
 // host: an empty element. keybinds: the instance of src/keybinds.js.
-export function mountKeybindSettings(host, { keybinds }) {
+export function mountKeybindSettings(host, { keybinds, page = 'solo' }) {
   if (!host) return;
+  const ACTIONS = actionsFor(page);
   let listening = null; // { id, slot, button } while a key is being chosen
   const status = make('p', 'kb-status');
   status.setAttribute('role', 'status');
@@ -55,6 +71,21 @@ export function mountKeybindSettings(host, { keybinds }) {
     if (event.shiftKey) { say('Press the key on its own, without Shift.'); return; }
     const result = bindKey(keybinds.binds(), id, slot, event.key);
     if (!result.ok) { say(result.reason); return; } // (still listening: try another key)
+    if (result.swapped) { confirmSwap(id, slot, event.key, result); return; }
+    finish(id, slot, result);
+  }
+  // A key another action has: ask before the two swap (Kevin, 2026-11-19).
+  async function confirmSwap(id, slot, raw, result) {
+    const { button } = listening;
+    stopListening();
+    const key = keyLabel(normalizeKey(raw));
+    const holder = result.swapped;
+    const gets = keybinds.binds()[id][slot];
+    const yes = await askConfirm({ title: `${key} is already used`, message: `${labelOf(holder)} has ${key}. Swap? ${labelOf(id)} gets ${key}, and ${labelOf(holder)} ${gets ? 'gets ' + keyLabel(gets) : 'gets no key'}.`, confirmLabel: 'Swap', returnFocus: button });
+    if (!yes) { say('Not changed.'); draw(id, slot); return; }
+    finish(id, slot, bindKey(keybinds.binds(), id, slot, raw));
+  }
+  function finish(id, slot, result) {
     keybinds.set(result.binds);
     stopListening();
     const row = result.binds[id].filter((key) => key !== null).map(keyLabel).join(' and ');
@@ -88,11 +119,13 @@ export function mountKeybindSettings(host, { keybinds }) {
 
   // Draws the whole list again (the keys are what they are saved as); the key that was just changed gets the focus back.
   function draw(focusId = null, focusSlot = 0) {
-    const groups = Object.keys(GROUPS).map((group) => {
+    const groups = SECTIONS.map((group) => {
+      const actions = ACTIONS.filter((each) => each.section === group.id);
+      if (actions.length === 0) return null;
       const section = make('div', 'kb-group');
-      section.append(make('h4', 'kb-group-title', GROUPS[group]));
+      section.append(make('h4', 'kb-group-title', group.title));
       const list = make('ul', 'kb-list');
-      for (const action of ACTIONS.filter((each) => each.group === group)) {
+      for (const action of actions) {
         const row = make('li', 'kb-row');
         row.dataset.action = action.id;
         const name = make('div', 'kb-name');
@@ -104,23 +137,24 @@ export function mountKeybindSettings(host, { keybinds }) {
         reset.type = 'button';
         reset.dataset.action = action.id;
         reset.disabled = isDefault(keybinds.binds(), action.id);
-        reset.title = reset.disabled ? 'Already the default keys' : 'Back to the default keys';
-        reset.setAttribute('aria-label', `Reset ${action.label} to its default keys`);
+        reset.title = reset.disabled ? 'Already the default keys' : 'Hold 2 seconds: back to the default keys';
+        reset.setAttribute('aria-label', `Reset ${action.label} to its default keys (hold 2 seconds)`);
         reset.append(resetIcon());
-        reset.addEventListener('click', () => { keybinds.set(resetAction(keybinds.binds(), action.id)); say(`${action.label} is back to its default keys.`); draw(); });
+        holdToConfirm(reset, () => { keybinds.set(resetAction(keybinds.binds(), action.id)); say(`${action.label} is back to its default keys.`); draw(); });
         row.append(name, keys, reset);
         list.append(row);
       }
       section.append(list);
       return section;
-    });
-    const intro = make('p', 'kb-intro', 'Click a key, then press the key you want. A key another action already has swaps with it. Backspace empties a key, Escape cancels.');
+    }).filter(Boolean);
+    const intro = make('p', 'kb-intro', 'Click a key, then press the one you want. Backspace empties a key, Escape cancels. Hold a reset button for 2 seconds.');
     const foot = make('div', 'kb-foot');
-    const all = make('button', 'secondary', 'Reset all keybinds');
+    const all = make('button', 'secondary', 'Reset all keybinds (hold)');
     all.type = 'button';
     all.id = 'kb-reset-all';
     all.disabled = ACTIONS.every((action) => isDefault(keybinds.binds(), action.id));
-    all.addEventListener('click', () => { keybinds.set(resetAll()); say('Every key is back to its default.'); draw(); });
+    all.title = 'Hold 2 seconds';
+    holdToConfirm(all, () => { keybinds.set(resetAll()); say('Every key is back to its default.'); draw(); });
     foot.append(all, status);
     host.replaceChildren(intro, ...groups, foot);
     if (focusId) host.querySelector(`.kb-key[data-action="${focusId}"][data-slot="${focusSlot}"]`)?.focus();

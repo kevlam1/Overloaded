@@ -1,5 +1,5 @@
 // Tests for shared/keybinds.mjs: which keys can be bound, swapping, saving and reading back, and which action a key event is for. Run: node scripts/test-keybinds.mjs
-import { ACTIONS, SLOTS, defaultBinds, normalizeKey, whyNot, keyLabel, readBinds, writeBinds, bindKey, clearKey, resetAction, resetAll, isDefault, matchEvent, whereBound, labelsOf } from '../shared/keybinds.mjs';
+import { ACTIONS, SECTIONS, actionsFor, SLOTS, defaultBinds, normalizeKey, whyNot, keyLabel, readBinds, writeBinds, bindKey, clearKey, resetAction, resetAll, isDefault, matchEvent, whereBound, labelsOf } from '../shared/keybinds.mjs';
 
 let checks = 0;
 const same = (label, actual, expected) => { checks++; if (JSON.stringify(actual) !== JSON.stringify(expected)) { console.log(`FAILED CHECK: ${label}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`); process.exit(1); } };
@@ -60,5 +60,13 @@ same('for the picture Alt is held and Q and E turn it left and right', [matchEve
 const moved = bindKey(defaults, 'draw', 0, 'x').binds;
 same('after draw moves to X, X draws and D does nothing', [matchEvent(moved, 'table', press('x')), matchEvent(moved, 'table', press('d'))], ['draw', null]);
 same('the labels of an action skip empty slots', [labelsOf(defaults, 'tap'), labelsOf(defaults, 'flip'), labelsOf(defaults, 'untapAll')], [['E', 'Q'], ['F'], []]);
+
+// ---- the other actions
+same('Shuffle and Mulligan are actions with no key yet', [defaults.shuffle, defaults.mulligan], [[null, null], [null, null]]);
+same('every action is listed under a known section', ACTIONS.every((action) => SECTIONS.some((section) => section.id === action.section)), true);
+same('the table page has no hand sorting, history or stack, and has Auto-arrange; the solo page the reverse', [actionsFor('table').some((a) => a.id === 'sortType' || a.id === 'history' || a.id === 'stack'), actionsFor('table').some((a) => a.id === 'arrange'), actionsFor('solo').some((a) => a.id === 'sortType'), actionsFor('solo').some((a) => a.id === 'arrange')], [false, true, true, false]);
+r = bindKey(defaults, 'shuffle', 0, 'd');
+same('Shuffle on D swaps with Draw, which then has no key', [r.binds.shuffle, r.binds.draw, r.swapped], [['d', null], [null, null], 'draw']);
+same('a key on the new actions matches', matchEvent(bindKey(defaults, 'mulligan', 0, 'm').binds, 'table', press('m')), 'mulligan');
 
 console.log(`All ${checks} keybind checks passed.`);
