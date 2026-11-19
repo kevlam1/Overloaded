@@ -25,6 +25,8 @@ try {
   const byLook = await facts();
   check('the page is at /foils and lists "Not foil" first, then every look in order', byLook.titles.length === LOOK_GROUPS.length + 1 && byLook.titles[0] === 'Not foil' && JSON.stringify(byLook.looks) === JSON.stringify([null, ...LOOK_GROUPS]), JSON.stringify(byLook));
   check('each entry is drawn four ways, and only the foil ones have a foil layer on the big picture', byLook.fourWays && JSON.stringify(byLook.layers) === JSON.stringify([0, ...LOOK_GROUPS.map(() => 1)]));
+  const cards = await ev(`(() => { const entries = [...document.querySelectorAll('.foil-lab-entry')]; return { names: entries.map((e) => e.querySelector('.foil-lab-card').textContent), pictures: new Set(entries.map((e) => e.querySelector('.foil-lab-big img').getAttribute('src'))).size }; })()`);
+  check('each entry shows a real card that has that foil (Surge is Beast Within), so the pictures differ', cards.names[4] === 'Beast Within (WHO 819)' && cards.pictures === byLook.titles.length - 1, JSON.stringify(cards));
   const rect = await ev(`(() => { const f = document.querySelectorAll('.foil-lab-big')[3]; f.scrollIntoView({ block: 'center' }); const r = f.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; })()`);
   await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: rect.x + 10, y: rect.y + 10 });
   const before = await ev(`document.querySelectorAll('.foil-lab-big .foil-full')[2].style.getPropertyValue('--mx')`);

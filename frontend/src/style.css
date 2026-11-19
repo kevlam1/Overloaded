@@ -1695,3 +1695,4 @@ main.foil-lab { max-width: 96rem; }
 .foil-lab-big { width: 14rem; max-width: 100%; }
 .foil-lab-big img { display: block; width: 100%; height: auto; aspect-ratio: 488 / 680; border-radius: 4.8% / 3.4%; }
 .foil-lab.still *::before, .foil-lab.still *::after { animation: none !important; }
+.foil-lab-card { margin: 0; min-height: 1.3em; font-size: 0.78rem; font-weight: 600; }

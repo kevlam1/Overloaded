@@ -7,6 +7,7 @@ import { LOOK_GROUPS, lookGroup } from '../../../shared/foil-looks.mjs';
 import { imageUrl } from '../../../shared/card-image.mjs';
 import { setFoilLook, makeFoilLayer, aimFoil, driftFoil } from '../../src/foil-layer.js';
 import { mountCardHover } from '../../src/card-hover.js';
+import { FOIL_EXAMPLES } from '../../../shared/foil-examples.mjs';
 
 mountSiteHeader();
 mountCardHover();
@@ -28,21 +29,22 @@ const make = (tag, className, text) => {
   return element;
 };
 
-// What the page lists. group is the look to draw, or null for a card that is not foil.
+// What the page lists. group is the look to draw, or null for a card that is not foil; example is the kind whose real card shows it (shared/foil-examples.mjs).
+const LOOK_EXAMPLE = { traditional: 'traditional', rainbow: 'rainbow', etched: 'etched', surge: 'surge', galaxy: 'galaxy', oilslick: 'oilslick', halo: 'halo', gold: 'gilded', silver: 'silver' };
 function entries(view) {
-  const list = [{ title: 'Not foil', note: 'no foil', group: null }];
+  const list = [{ title: 'Not foil', note: 'no foil', group: null, example: 'traditional' }];
   if (view === 'looks') {
     const kindsOf = (group) => KINDS.filter((kind) => lookGroup(lookOf(kind[0], kind[0] === 'silveretched' ? 'etched' : 'foil')) === group).map((kind) => kind[0]);
     for (const group of LOOK_GROUPS) {
       const kinds = group === 'traditional' ? ['plain foil', ...kindsOf(group)] : kindsOf(group);
-      list.push({ title: group, note: group === 'etched' ? 'every etched foil' : kinds.join(', '), group });
+      list.push({ title: group, note: group === 'etched' ? 'every etched foil' : kinds.join(', '), group, example: LOOK_EXAMPLE[group] });
     }
   } else {
-    list.push({ title: 'Plain foil', note: 'no special kind', group: lookGroup('traditional') });
-    list.push({ title: foilLabel('etched'), note: 'every etched foil but the Moonlit Lands', group: lookGroup(lookOf('traditional', 'etched')) });
+    list.push({ title: 'Plain foil', note: 'no special kind', group: lookGroup('traditional'), example: 'traditional' });
+    list.push({ title: foilLabel('etched'), note: 'every etched foil but the Moonlit Lands', group: lookGroup(lookOf('traditional', 'etched')), example: 'etched' });
     for (const [id, code, label, tag] of KINDS) {
       const group = lookGroup(lookOf(id, id === 'silveretched' ? 'etched' : 'foil'));
-      list.push({ title: label, note: `${tag ?? 'from the set'} · ${code} · ${group}`, group });
+      list.push({ title: label, note: `${tag ?? 'from the set'} · ${code} · ${group}`, group, example: id });
     }
   }
   return list;
@@ -98,22 +100,26 @@ function draw() {
   for (const stop of stops) stop();
   stops = [];
   const grid = $('lab-grid');
-  const id = $('lab-card').value;
+  const chosen = $('lab-card').value; // 'real' (the default): each entry shows a real card that has that foil
   const drift = $('lab-drift').checked;
   grid.replaceChildren(...entries($('lab-view').value).map((entry) => {
+    const real = FOIL_EXAMPLES[entry.example];
+    const id = chosen === 'real' ? real.id : chosen;
     const box = make('div', 'foil-lab-entry');
     const title = make('h2', '', entry.title);
     const note = make('p', 'hint', entry.note);
+    const cardLine = make('p', 'hint foil-lab-card', chosen === 'real' ? `${real.name} (${real.set.toUpperCase()} ${real.number})` : '');
     const row = make('div', 'foil-lab-row');
     const small = make('div', 'foil-lab-small'); small.append(smallCard(id, entry.group, 'small'));
     const hand = make('div', 'foil-lab-hand'); hand.append(smallCard(id, entry.group, 'normal'));
     const tile = make('ul', 'foil-lab-tile'); tile.append(deckTile(id, entry.group));
     row.append(small, hand, tile);
-    box.append(title, note, row, bigCard(id, entry.group, drift));
+    box.append(title, note, cardLine, row, bigCard(id, entry.group, drift));
     return box;
   }));
 }
 
+const realOption = make('option', '', 'Real card for each foil'); realOption.value = 'real'; $('lab-card').append(realOption);
 for (const [name, cardId] of CARDS) { const option = make('option', '', name); option.value = cardId; $('lab-card').append(option); }
 const params = new URLSearchParams(location.search);
 if (CARDS.some(([, cardId]) => cardId === params.get('card'))) $('lab-card').value = params.get('card');
