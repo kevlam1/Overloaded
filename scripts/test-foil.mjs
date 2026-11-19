@@ -46,4 +46,17 @@ const lineOf = (p, name, foil) => p.lines.find((l) => l.name === name && l.foil 
   const foilCard = all.find((c) => c.foil);
   same('a card keeps being foil when it moves, and a foil and a normal copy do not make one pile', [moveCard(game, foilCard.uid, 'graveyard').zones.graveyard[0].foil, stackKey({ n: 'Sol Ring', foil: true }) === stackKey({ n: 'Sol Ring' })], [true, false]); }
 
+// which foil it is (the look): a surge printing, an etched-only printing, *E* with no printing, and a plain foil
+{ const kinds = new Map([['cmm', { 410: printingValue(uuid(11), 'Sol Ring'), 413: printingValue(uuid(13), 'Sol Ring', '3s'), 414: printingValue(uuid(14), 'Sol Ring', '4') }]]);
+  const make = (text) => { const parsed = parseDeckText(text); return makePreview(parsed, matchDeck(buildCardIndex(cards), parsed.entries), {}, kinds); };
+  same('a surge printing with *F* has the surge look, an etched-only printing is etched, *E* alone is etched, *F* alone is a plain foil, and a normal card has none', [make('1 Sol Ring (CMM) 413 *F*').lines[0].look, make('1 Sol Ring (CMM) 414').lines[0].look, make('1 Sol Ring *E*').lines[0].look, make('1 Sol Ring *F*').lines[0].look, make('1 Sol Ring (CMM) 413').lines[0].look, make('1 Island').lines[0].look], ['surge', 'etched', 'etched', 'traditional', null, null]);
+  same('the same card in surge and in plain foil are two lines', make('1 Sol Ring (CMM) 413 *F*\n1 Sol Ring *F*').lines.map((l) => l.look), ['surge', 'traditional']);
+  const built = buildSavedDeck(make('1 Sol Ring (CMM) 413 *F*\n1 Sol Ring *F*\n1 Sol Ring *E*\n1 Island'), { name: 'Looks', commanderIds: [] });
+  same('a saved deck stores the look only when it is not a plain foil', built.deck.cards.filter((c) => c.n === 'Sol Ring').map((c) => c.look ?? '').sort(), ['', 'etched', 'surge']);
+  const back = readSavedDeck(serializeDeck(built.deck));
+  same('reading it back keeps the looks, and refuses a look that is not known or is on a card that is not foil', [back.cards.filter((c) => c.look).length, readSavedDeck(serializeDeck({ ...built.deck, cards: built.deck.cards.map((c) => (c.look === 'surge' ? { ...c, look: 'nope' } : c)) })), readSavedDeck(serializeDeck({ ...built.deck, cards: built.deck.cards.map((c) => (c.n === 'Island' ? { ...c, look: 'surge' } : c)) }))], [2, null, null]);
+  const game = makeGame(back, () => ({ t: 'Artifact', m: '', k: [] }), { random: seededRandom(3) });
+  const rings = Object.values(game.zones).flat().filter((c) => c.n === 'Sol Ring');
+  same('the game cards carry the look, and a surge card and a plain foil card do not make one pile', [rings.map((c) => c.look ?? '').sort(), stackKey({ n: 'Sol Ring', foil: true, look: 'surge' }) === stackKey({ n: 'Sol Ring', foil: true })], [['', 'etched', 'surge'], false]); }
+
 console.log(`All ${checks} foil checks passed.`);

@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.236</span></h1>
-    <p class="lede">236 entries, Oct 25 to Nov 18, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
+    <h1>Build log <span class="version">Version 0.237</span></h1>
+    <p class="lede">237 entries, Oct 25 to Nov 18, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
   </div>
 </header>
 
@@ -24,7 +24,7 @@
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
-<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">23</span></a>
+<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">24</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
 <a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">29 things friends asked for</span></a>
 <a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">26 open, 71 done</span></a>
@@ -3604,7 +3604,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-2" aria-labelledby="week-2-title">
-<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">23 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">24 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-2-days">
 <div class="day">
 <h3 class="day-title">Monday 16 November <span class="day-count">5</span></h3>
@@ -3840,7 +3840,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Wednesday 18 November <span class="day-count">9</span></h3>
+<h3 class="day-title">Wednesday 18 November <span class="day-count">10</span></h3>
 <div class="entries">
 <article class="entry" id="entry-228" data-n="228">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-228-body">
@@ -3984,6 +3984,24 @@
 <p class="sub"><strong>Decisions and limits</strong></p>
 <ul><li>The Ponder list has 28 foilings. Burst foil has nothing in Scryfall to find it by, so it is not handled. Amonkhet Invocations (<code>mp2</code>) is a traditional foil for now. A tag the code does not know is a traditional foil, so a new tag never breaks anything. When a printing has two tags the first in priority order wins (serialized over double rainbow, oil-slick over raised).</li><li>A tag only counts when the printing has a foil finish (15 printings have a tag but no foil finish).</li><li>Nonfoil-only printings (about 43,000) also get a <code>1</code>, so the data says they have no foil. It costs almost nothing after compression.</li><li>Next: carry etched and the kind through the deck page and saved decks, then draw the looks (a light one on the battlefield and in the hand, the full one on the Alt picture and the view window).</li></ul>
 <p><strong>My AI's mistake this time:</strong> my first count of foil printings treated <code>nonfoil</code> as a foil because <code>'nonfoil'.includes('foil')</code> is true; the per-tag table disagreed with the summary line, which is how I saw it, and I reran it with the finishes as a list. I also wrote the wrong date (2026-11-19) in three code comments before checking the clock, and a PowerShell command with <code>||</code> that does not exist there. The first run of one new test failed because my test used <code>f</code> as an invalid letter when <code>f</code> had become a valid kind.</p>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-237" data-n="237">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-237-body">
+    <span class="num">237</span>
+    <span class="head-text"><span class="title">Foils are drawn: eight looks, light on the table, full on the big picture</span><span class="sum">Carry the foil kind through the deck page, saved decks and the game, then draw it: a lighter foil on the battlefield, the full foil in the hand, in Change printing, on the picture I get by holding Alt and in the view window.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-237-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>Carry the foil kind through the deck page, saved decks and the game, then draw it: a lighter foil on the battlefield, the full foil in the hand, in Change printing, on the picture I get by holding Alt and in the view window.</li></ul>
+<p><strong>What changed</strong> (<code>shared/foil-looks.mjs</code> and <code>frontend/src/foil-layer.js</code> new, <code>shared/deck-preview.mjs</code>, <code>shared/zones.mjs</code>, <code>shared/stacks.mjs</code>, <code>frontend/src/card-nodes.js</code>, <code>card-hover.js</code>, <code>card-details.js</code>, <code>deck-groups.js</code>, <code>printing-picker.js</code>, <code>style.css</code>)</p>
+<ul><li><strong>The kind is carried:</strong> a deck line gets a <code>look</code> (the printing's own foil, <code>etched</code> for <code>*E*</code> or an etched-only printing, or a plain foil). A saved card stores <code>look</code> only when it is not a plain foil, and the strict reader refuses a look it does not know or one on a card that is not foil. A game card keeps <code>look</code>, and a surge card and a plain foil copy are not one pile.</li><li><strong>Eight looks:</strong> the 28 kinds are drawn with rainbow, etched, surge, galaxy, oil-slick, halo, gold and silver (<code>data-foil</code> on the element, colours and texture in <code>style.css</code>). A kind the list does not name is a rainbow.</li><li><strong>Light sheen</strong> on battlefield cards, deck tiles and the printing tiles, a little stronger in the hand. <strong>Full effect</strong> on the Alt picture and the details window: bands that slide and a glare that follows the pointer.</li><li><strong>Change printing:</strong> a printing that is foil only, etched only or a special foil shows that foil on its picture and names it under the picture.</li><li>Reduced motion turns the sweep off. The pointer effect stays, since you drive it.</li></ul>
+<p class="sub"><strong>What I checked</strong></p>
+<ul><li>A scratch page with a real card picture, each look small and big, and I looked at the screenshots. I tuned the blend: <code>overlay</code> made the rainbow vanish and <code>color-dodge</code> washed it out, <code>hard-light</code> was the best.</li><li><code>test-foil</code> (15), <code>test-foil-looks</code> (5, new), the whole quick set (79 suites), the real-Chrome deck check (290), solo check (471), card hover (27).</li><li>Not checked: a real foil in the live game, the hand at real size, the printing tiles in the real window, the live table (its rules do not know <code>foil</code>), phone width. I did not run broken copies.</li></ul>
+<p class="sub"><strong>Decisions and limits</strong></p>
+<ul><li>The looks are my own gradients and are only close to the real cards. Burst foil has no data. Which kinds go to which look is my guess and easy to change in <code>shared/foil-looks.mjs</code>.</li></ul>
+<p><strong>My AI's mistake this time:</strong> my scratch page had a broken attribute, so the small cards showed no sheen and I almost blamed the CSS.</p>
   </div></div></div>
 </article>
 </div>

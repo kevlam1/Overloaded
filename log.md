@@ -4685,6 +4685,28 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **My AI's mistake this time:** my first count of foil printings treated `nonfoil` as a foil because `'nonfoil'.includes('foil')` is true; the per-tag table disagreed with the summary line, which is how I saw it, and I reran it with the finishes as a list. I also wrote the wrong date (2026-11-19) in three code comments before checking the clock, and a PowerShell command with `||` that does not exist there. The first run of one new test failed because my test used `f` as an invalid letter when `f` had become a valid kind.
 
+## 237. Foils are drawn: eight looks, light on the table, full on the big picture (2026-11-18)
+
+**What I asked for**
+- Carry the foil kind through the deck page, saved decks and the game, then draw it: a lighter foil on the battlefield, the full foil in the hand, in Change printing, on the picture I get by holding Alt and in the view window.
+
+**What changed** (`shared/foil-looks.mjs` and `frontend/src/foil-layer.js` new, `shared/deck-preview.mjs`, `shared/zones.mjs`, `shared/stacks.mjs`, `frontend/src/card-nodes.js`, `card-hover.js`, `card-details.js`, `deck-groups.js`, `printing-picker.js`, `style.css`)
+- **The kind is carried:** a deck line gets a `look` (the printing's own foil, `etched` for `*E*` or an etched-only printing, or a plain foil). A saved card stores `look` only when it is not a plain foil, and the strict reader refuses a look it does not know or one on a card that is not foil. A game card keeps `look`, and a surge card and a plain foil copy are not one pile.
+- **Eight looks:** the 28 kinds are drawn with rainbow, etched, surge, galaxy, oil-slick, halo, gold and silver (`data-foil` on the element, colours and texture in `style.css`). A kind the list does not name is a rainbow.
+- **Light sheen** on battlefield cards, deck tiles and the printing tiles, a little stronger in the hand. **Full effect** on the Alt picture and the details window: bands that slide and a glare that follows the pointer.
+- **Change printing:** a printing that is foil only, etched only or a special foil shows that foil on its picture and names it under the picture.
+- Reduced motion turns the sweep off. The pointer effect stays, since you drive it.
+
+**What I checked**
+- A scratch page with a real card picture, each look small and big, and I looked at the screenshots. I tuned the blend: `overlay` made the rainbow vanish and `color-dodge` washed it out, `hard-light` was the best.
+- `test-foil` (15), `test-foil-looks` (5, new), the whole quick set (79 suites), the real-Chrome deck check (290), solo check (471), card hover (27).
+- Not checked: a real foil in the live game, the hand at real size, the printing tiles in the real window, the live table (its rules do not know `foil`), phone width. I did not run broken copies.
+
+**Decisions and limits**
+- The looks are my own gradients and are only close to the real cards. Burst foil has no data. Which kinds go to which look is my guess and easy to change in `shared/foil-looks.mjs`.
+
+**My AI's mistake this time:** my scratch page had a broken attribute, so the small cards showed no sheen and I almost blamed the CSS.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

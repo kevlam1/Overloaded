@@ -6,6 +6,8 @@ import { imageUrl } from '../../shared/card-image.mjs';
 import { legalitiesOf } from '../../shared/card-rules.mjs';
 import { manaNode } from './mana-pips.js';
 import { manaIcon } from './mana-icon.js';
+import { makeFoilLayer, aimFoil } from './foil-layer.js';
+import { cardLookGroup } from '../../shared/foil-looks.mjs';
 
 const make = (tag, className, text) => { const element = document.createElement(tag); if (className) element.className = className; if (text !== undefined) element.textContent = text; return element; };
 const COLOR_WORDS = { W: 'White', U: 'Blue', B: 'Black', R: 'Red', G: 'Green' };
@@ -60,7 +62,14 @@ export function openCardDetails({ card, info = null, loader, rulingsLoader = nul
       image.draggable = false;
       image.addEventListener('error', () => { image.replaceWith(make('p', 'details-nopicture', name)); });
       image.src = url;
-      picture.append(image);
+      const group = cardLookGroup(card);
+      if (group) { // a foil card: the shine over the picture follows the pointer
+        const frame = make('span', 'foil-frame');
+        const layer = makeFoilLayer(group);
+        frame.addEventListener('pointermove', (event) => aimFoil(layer, frame.getBoundingClientRect(), event.clientX, event.clientY));
+        frame.append(image, layer);
+        picture.append(frame);
+      } else picture.append(image);
     } else picture.append(make('p', 'details-nopicture', name));
     if (hasBack) {
       const flip = make('button', 'secondary details-flip', showing === 'front' ? 'Show the back face' : 'Show the front face'); flip.type = 'button';

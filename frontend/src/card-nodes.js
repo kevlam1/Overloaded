@@ -10,6 +10,8 @@ import { imageUrl, cardBackUrl } from '../../shared/card-image.mjs';
 import { isLandCard } from '../../shared/zones.mjs';
 import { stackInfo, STACK_VISIBLE } from '../../shared/stacks.mjs';
 import { manaIcon } from './mana-icon.js';
+import { setFoilLook } from './foil-layer.js';
+import { cardLookGroup } from '../../shared/foil-looks.mjs';
 import { changeParts, counterChips, marksSentence, markToast, shortNumber, statsOf } from '../../shared/marks.mjs';
 
 function make(tag, className, content) {
@@ -141,6 +143,7 @@ function showFace(button, card) {
   const side = sideShown(card);
   button.classList.toggle('face-down', card.faceDown === true);
   button.classList.toggle('foil', card.foil === true); // (a shimmer over the picture: style.css)
+  setFoilLook(button, cardLookGroup(card)); // (which foil: data-foil, one of the 8 looks)
   button.classList.toggle('exiled-down', card.xd === true); // (exiled face down: you see the card with a label, an opponent would not)
   if (!picture || picture.dataset.side === side) return;
   picture.dataset.side = side;

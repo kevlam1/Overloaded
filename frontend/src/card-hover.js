@@ -5,6 +5,7 @@
 // card until Alt is let go or the pointer has left it).
 import { IMAGE_HOST } from '../../shared/card-image.mjs';
 import { makeSafeStore } from './safe-store.js';
+import { makeFoilLayer, setFoilLook, aimFoil } from './foil-layer.js';
 
 const SMALL = `${IMAGE_HOST}/small/`;
 const NORMAL = `${IMAGE_HOST}/normal/`;
@@ -51,7 +52,8 @@ export function mountCardHover(doc = document) {
   picture.alt = '';
   picture.decoding = 'async';
   picture.referrerPolicy = 'no-referrer';
-  box.append(picture);
+  const shine = makeFoilLayer(null); // the foil over the picture of a foil card, aimed by the pointer
+  box.append(picture, shine);
   doc.body.append(box);
   const store = makeSafeStore();
   let scale = readHoverScale(store.get(HOVER_SCALE.key));
@@ -67,6 +69,8 @@ export function mountCardHover(doc = document) {
     const url = largeAddress(button);
     if (!url || !button.isConnected) return;
     current = button;
+    setFoilLook(shine, button.dataset.foil ?? null);
+    shine.hidden = !button.dataset.foil;
     picture.onerror = () => { box.hidden = true; }; // no larger picture: show nothing rather than a broken image
     picture.src = url;
     placeFor(button);
@@ -90,6 +94,7 @@ export function mountCardHover(doc = document) {
     picture.style.left = `${Math.round((boxWidth - width) / 2)}px`;
     picture.style.top = `${Math.round((boxHeight - height) / 2)}px`;
     picture.style.rotate = `${turns * 90}deg`;
+    for (const property of ['position', 'width', 'height', 'left', 'top', 'rotate']) shine.style[property] = picture.style[property]; // the shine lies exactly over the picture
     box.dataset.turns = String(((turns % 4) + 4) % 4);
     box.hidden = false;
   };
@@ -115,7 +120,10 @@ export function mountCardHover(doc = document) {
     over = to ?? null;
     sync();
   };
-  const onMove = (event) => { if (typeof event.altKey === 'boolean' && event.altKey !== altHeld) setAlt(event.altKey); };
+  const onMove = (event) => {
+    if (typeof event.altKey === 'boolean' && event.altKey !== altHeld) setAlt(event.altKey);
+    if (current && !shine.hidden && current.isConnected) aimFoil(shine, current.getBoundingClientRect(), event.clientX, event.clientY); // the shine follows the pointer over the small card
+  };
   const onAway = () => { if (current) { suppressed = current; hide(); } };
   // Alt alone must not reach the browser: pressed and let go on its own it opens the browser's menu (and a held Alt can open it on release), so both its keydown and its keyup are
   // cancelled whenever no other key is part of the press.

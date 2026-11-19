@@ -3,6 +3,9 @@
 // (data-card-id and friends, see src/card-peek.js), so pointing at a line or at a picture shows the big picture in the card display beside the deck.
 import { imageUrl } from '../../shared/card-image.mjs';
 import { manaNode } from './mana-pips.js';
+import { lookGroup } from '../../shared/foil-looks.mjs';
+import { foilLabel } from '../../shared/foil-kinds.mjs';
+import { setFoilLook } from './foil-layer.js';
 
 export const VIEWS = ['text', 'images', 'stacks'];
 
@@ -96,7 +99,7 @@ function textRow(line, printingCell, withMenu) {
   describeCard(item, line);
   if (line.card) { name.tabIndex = 0; name.title = line.card.t; }
   item.append(make('span', 'qty', String(line.qty)), name);
-  if (line.foil) { const badge = make('span', 'foil-badge', 'Foil'); badge.title = line.foilOnly ? 'This printing exists only as foil' : 'Foil'; item.classList.add('foil-line'); item.append(badge); } // (from *F* in the list, or a foil-only printing)
+  if (line.foil) { const badge = make('span', 'foil-badge', foilLabel(line.look)); badge.title = line.foilOnly ? 'This printing exists only as foil' : foilLabel(line.look); setFoilLook(badge, lookGroup(line.look ?? 'traditional')); item.classList.add('foil-line'); item.append(badge); } // (from *F* in the list, or a foil-only printing)
   const printing = printingCell(line);
   if (printing.textContent) item.append(printing);
   item.append(line.card ? manaNode(line.card.m) : make('span', 'cost', 'not matched'));
@@ -108,7 +111,7 @@ function tile(line, withMenu) {
   const item = make('li', line.status === 'matched' ? 'deck-tile' : 'deck-tile unmatched');
   item.append(make('span', 'sr-only', `${line.qty} ${line.name}`));
   if (line.card) item.dataset.ref = line.card.i; // (also for a picture that cannot be shown, so its menu still works)
-  if (line.foil) item.classList.add('foil'); // (the sheen over the picture: style.css)
+  if (line.foil) { item.classList.add('foil'); setFoilLook(item, lookGroup(line.look ?? 'traditional')); } // (the sheen over the picture: style.css)
   const picture = make('span', 'tile-picture');
   picture.setAttribute('aria-hidden', 'true');
   const fallback = () => { picture.replaceChildren(make('span', 'tile-name', line.name)); picture.classList.add('noimage'); };

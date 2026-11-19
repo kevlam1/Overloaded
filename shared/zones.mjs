@@ -135,7 +135,7 @@ export function makeGame(deck, lookup = () => null, { random = secureRandom, han
     if (!zone) throw new Error(`A card is in a section this game does not know: ${saved.section}`);
     const known = lookup(saved) ?? {};
     for (let copy = 0; copy < saved.qty; copy++) {
-      zones[zone].push({ uid: `c${uid++}`, i: saved.i, ...(saved.p ? { p: saved.p } : {}), ...(saved.foil === true ? { foil: true } : {}), n: saved.n, t: known.t ?? '', m: known.m ?? '', k: known.k ?? [], ...(known.b === 1 ? { b: 1, ...(known.md === 1 ? { md: 1 } : {}) } : {}), tapped: false, turnEntered: null });
+      zones[zone].push({ uid: `c${uid++}`, i: saved.i, ...(saved.p ? { p: saved.p } : {}), ...(saved.foil === true ? { foil: true, ...(typeof saved.look === 'string' ? { look: saved.look } : {}) } : {}), n: saved.n, t: known.t ?? '', m: known.m ?? '', k: known.k ?? [], ...(known.b === 1 ? { b: 1, ...(known.md === 1 ? { md: 1 } : {}) } : {}), tapped: false, turnEntered: null });
     }
   }
   zones.library = shuffled(zones.library, random);
