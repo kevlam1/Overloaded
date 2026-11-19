@@ -10,7 +10,7 @@ import { imageUrl, cardBackUrl } from '../../shared/card-image.mjs';
 import { isLandCard } from '../../shared/zones.mjs';
 import { stackInfo, STACK_VISIBLE } from '../../shared/stacks.mjs';
 import { manaIcon } from './mana-icon.js';
-import { setFoilLook } from './foil-layer.js';
+import { setFoilLook, setFoilSource } from './foil-layer.js';
 import { cardLookGroup } from '../../shared/foil-looks.mjs';
 import { changeParts, counterChips, marksSentence, markToast, shortNumber, statsOf } from '../../shared/marks.mjs';
 
@@ -151,6 +151,7 @@ function showFace(button, card) {
   picture.dataset.sharp = ''; // (the small picture again: the hand asks for the normal size when it needs it)
   button.classList.remove('noimage'); // the other face may have a picture even if this one had none
   picture.src = pictureAddress(card, side, false) ?? '';
+  if (card.foil === true) setFoilSource(button, picture.src);
 }
 
 export function makeCardNodes({ onSelect = () => {}, isSelected = () => false, readOnly = false, onMark = null, onMenu = null, onBadge = null, printedStats = () => null } = {}) {

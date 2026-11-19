@@ -6,7 +6,7 @@ import { setInfo } from '../../shared/card-prints.mjs';
 import { imageUrl } from '../../shared/card-image.mjs';
 import { lookOf, foilLabel, hasFoilFinish, TRADITIONAL } from '../../shared/foil-kinds.mjs';
 import { lookGroup } from '../../shared/foil-looks.mjs';
-import { setFoilLook } from './foil-layer.js';
+import { setFoilLook, setFoilSource } from './foil-layer.js';
 
 function make(tag, className, content) {
   const element = document.createElement(tag);
@@ -98,7 +98,7 @@ export async function openPrintingPicker({ root, name, defaultId, currentId, loa
     // foil: a printing that exists only as foil or etched, or has a special foil, shows that foil and says which (a usual nonfoil-and-foil printing shows nothing)
     const finish = printing.foilOnly ? (hasFoilFinish(printing.finishes) ? 'foil' : 'etched') : printing.kind !== TRADITIONAL ? 'foil' : null;
     const look = finish ? lookOf(printing.kind ?? TRADITIONAL, finish) : null;
-    if (look) { picture.classList.add('foil-art'); setFoilLook(picture, lookGroup(look)); button.dataset.foil = lookGroup(look); }
+    if (look) { picture.classList.add('foil-art'); setFoilLook(picture, lookGroup(look)); button.dataset.foil = lookGroup(look); setFoilSource(picture, imageUrl(printing.id, 'normal')); }
     const caption = make('span', 'tile-caption');
     caption.append(make('strong', '', code), make('span', '', `${info.name} · ${year}`));
     if (look) caption.append(make('span', 'tile-foil', `${foilLabel(look)}${printing.foilOnly ? ' only' : ''}`));

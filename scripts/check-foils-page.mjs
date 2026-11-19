@@ -28,11 +28,12 @@ try {
   const cards = await ev(`(() => { const entries = [...document.querySelectorAll('.foil-lab-entry')]; return { names: entries.map((e) => e.querySelector('.foil-lab-card').textContent), pictures: new Set(entries.map((e) => e.querySelector('.foil-lab-big img').getAttribute('src'))).size }; })()`);
   check('each entry shows a real card that has that foil (Surge is Beast Within), so the pictures differ', cards.names[byLook.titles.indexOf('surge')] === 'Beast Within (WHO 819)' && cards.pictures === byLook.titles.length - 1, JSON.stringify(cards));
   const rect = await ev(`(() => { const f = document.querySelectorAll('.foil-lab-big')[3]; f.scrollIntoView({ block: 'center' }); const r = f.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; })()`);
+  const look = () => ev(`(() => { const l = document.querySelectorAll('.foil-lab-big .foil-full')[2]; const s = getComputedStyle(l); return [l.style.getPropertyValue('--mx'), l.style.getPropertyValue('--my'), s.backgroundPosition].join('|'); })()`);
+  const before = await look();
   await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: rect.x + 10, y: rect.y + 10 });
-  const before = await ev(`document.querySelectorAll('.foil-lab-big .foil-full')[2].style.getPropertyValue('--mx')`);
   await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: rect.x + rect.w - 10, y: rect.y + rect.h - 10 });
-  const after = await ev(`document.querySelectorAll('.foil-lab-big .foil-full')[2].style.getPropertyValue('--mx')`);
-  check('the big picture shine follows the pointer', before !== '' && after !== '' && before !== after, `${before} -> ${after}`);
+  await sleep(700);
+  check('the foil does not move when the pointer is over the big picture', before === (await look()), before + ' -> ' + (await look()));
   check('the canvas patterns are made and given to the style sheet (surge, galaxy, confetti, etched, halo, fracture, mana, compleat, scales)', await ev(`['streaks', 'glitter', 'confetti', 'grain', 'strands', 'shards', 'pips', 'glints', 'scales'].every((name) => getComputedStyle(document.documentElement).getPropertyValue('--tex-' + name).trim().startsWith('url('))`));
   if (real) { await ev(`window.scrollTo(0, 0)`); await browser.screenshot('scratch-foils-looks.png'); }
   await ev(`(() => { const s = document.getElementById('lab-view'); s.value = 'kinds'; s.dispatchEvent(new Event('change')); })()`);

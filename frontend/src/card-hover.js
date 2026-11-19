@@ -5,7 +5,7 @@
 // card until Alt is let go or the pointer has left it).
 import { IMAGE_HOST } from '../../shared/card-image.mjs';
 import { makeSafeStore } from './safe-store.js';
-import { makeFoilLayer, setFoilLook, aimFoil } from './foil-layer.js';
+import { makeFoilLayer, setFoilLook, setFoilSource } from './foil-layer.js';
 
 const SMALL = `${IMAGE_HOST}/small/`;
 const NORMAL = `${IMAGE_HOST}/normal/`;
@@ -52,7 +52,7 @@ export function mountCardHover(doc = document) {
   picture.alt = '';
   picture.decoding = 'async';
   picture.referrerPolicy = 'no-referrer';
-  const shine = makeFoilLayer(null); // the foil over the picture of a foil card, aimed by the pointer
+  const shine = makeFoilLayer(null); // the foil over the picture of a foil card (it holds still)
   box.append(picture, shine);
   doc.body.append(box);
   const store = makeSafeStore();
@@ -71,6 +71,7 @@ export function mountCardHover(doc = document) {
     current = button;
     setFoilLook(shine, button.dataset.foil ?? null);
     shine.hidden = !button.dataset.foil;
+    setFoilSource(shine, url);
     picture.onerror = () => { box.hidden = true; }; // no larger picture: show nothing rather than a broken image
     picture.src = url;
     placeFor(button);
@@ -120,10 +121,7 @@ export function mountCardHover(doc = document) {
     over = to ?? null;
     sync();
   };
-  const onMove = (event) => {
-    if (typeof event.altKey === 'boolean' && event.altKey !== altHeld) setAlt(event.altKey);
-    if (current && !shine.hidden && current.isConnected) aimFoil(shine, current.getBoundingClientRect(), event.clientX, event.clientY); // the shine follows the pointer over the small card
-  };
+  const onMove = (event) => { if (typeof event.altKey === 'boolean' && event.altKey !== altHeld) setAlt(event.altKey); };
   const onAway = () => { if (current) { suppressed = current; hide(); } };
   // Alt alone must not reach the browser: pressed and let go on its own it opens the browser's menu (and a held Alt can open it on release), so both its keydown and its keyup are
   // cancelled whenever no other key is part of the press.

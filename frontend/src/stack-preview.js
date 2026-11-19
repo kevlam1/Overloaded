@@ -3,7 +3,7 @@
 // A row or a tile carries data-preview-id (the Scryfall id of the picture to show), data-card-name and, for a card with a back face, data-two-sided (src/deck-groups.js).
 // A card with a back face shows the back too, smaller, under the front. Plain DOM, no dependencies.
 import { imageUrl } from '../../shared/card-image.mjs';
-import { makeFoilLayer, setFoilLook, driftFoil } from './foil-layer.js';
+import { makeFoilLayer, setFoilLook, setFoilSource } from './foil-layer.js';
 
 // aside: the box that holds the picture (an <img> and a name line are made in it). sections: the element that holds the tiles.
 // Returns { refresh(defaultCard, active) }, to call after the tiles were drawn again; a card is { id, name }. active: whether the stacks view is the one showing.
@@ -26,11 +26,10 @@ export function mountStackPreview({ aside, sections }) {
   const name = document.createElement('p');
   name.className = 'stack-preview-name';
   aside.append(picture, name, back);
-  // A foil card shows its foil over the front picture, with a shine that drifts (a row or tile says which foil with data-foil).
+  // A foil card shows its foil over the front picture, which holds still (a row or tile says which foil with data-foil).
   const shine = makeFoilLayer(null);
   shine.hidden = true;
   aside.append(shine);
-  let stopDrift = () => {};
   const fitShine = () => {
     if (shine.hidden) return;
     shine.style.position = 'absolute';
@@ -53,10 +52,9 @@ export function mountStackPreview({ aside, sections }) {
     const url = card ? imageUrl(card.id, 'normal') : null;
     picture.hidden = !url;
     name.textContent = card ? card.name : '';
-    stopDrift();
     setFoilLook(shine, card?.foil ?? null);
     shine.hidden = !url || !card?.foil;
-    if (!shine.hidden) { stopDrift = driftFoil(shine); fitShine(); }
+    if (!shine.hidden) { setFoilSource(shine, url); fitShine(); }
     if (url) { picture.alt = card.name; picture.src = url; }
     else picture.removeAttribute('src');
     const backUrl = url && card.twoSided ? imageUrl(card.id, 'normal', 'back') : null;
@@ -65,7 +63,7 @@ export function mountStackPreview({ aside, sections }) {
     else back.removeAttribute('src');
   }
   picture.addEventListener('load', fitShine);
-  picture.addEventListener('error', () => { picture.hidden = true; shine.hidden = true; stopDrift(); }); // the name line stays
+  picture.addEventListener('error', () => { picture.hidden = true; shine.hidden = true; }); // the name line stays
   back.addEventListener('error', () => { back.hidden = true; }); // a back picture that does not exist: the front alone
 
   sections.addEventListener('pointerover', (event) => { const tile = tileOf(event.target); show(tile ? read(tile) : selected); });
@@ -85,7 +83,7 @@ export function mountStackPreview({ aside, sections }) {
   return {
     refresh(defaultCard, isActive) {
       active = Boolean(isActive);
-      if (!active) { shown = null; stopDrift(); shine.hidden = true; picture.removeAttribute('src'); return; }
+      if (!active) { shown = null; shine.hidden = true; picture.removeAttribute('src'); return; }
       const keptTile = selected && [...sections.querySelectorAll('[data-preview-id]')].find((tile) => tile.dataset.previewId === selected.id);
       selected = keptTile ? read(keptTile) : (defaultCard ?? null); // (read again, so a card made foil or not foil shows it)
       show(selected);

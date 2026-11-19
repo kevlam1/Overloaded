@@ -3,7 +3,7 @@
 // carries: the printing the player's list named, or the card's default printing.
 // Rows are found by event delegation, so the list can be redrawn without wiring anything again. Plain DOM, no dependencies.
 import { imageUrl } from '../../shared/card-image.mjs';
-import { makeFoilLayer, setFoilLook, driftFoil } from './foil-layer.js';
+import { makeFoilLayer, setFoilLook, setFoilSource } from './foil-layer.js';
 
 const GAP = 24; // pixels between the pointer and the picture
 const EDGE = 8; // pixels kept free at the window's edge
@@ -32,11 +32,10 @@ export function setupCardPeek({ root, peek, image, note, win = window }) {
   backImage.referrerPolicy = 'no-referrer';
   backImage.hidden = true;
   image.after(backImage);
-  // A foil card shows its foil over the front picture, with a shine that drifts (a row says which foil it is with data-foil).
+  // A foil card shows its foil over the front picture, which holds still (a row says which foil it is with data-foil).
   const shine = makeFoilLayer(null);
   shine.hidden = true;
   peek.append(shine);
-  let stopDrift = () => {};
   const fitShine = () => {
     if (shine.hidden) return;
     shine.style.position = 'absolute';
@@ -80,10 +79,9 @@ export function setupCardPeek({ root, peek, image, note, win = window }) {
     const name = row.dataset.cardName ?? '';
     if (row !== current) {
       current = row;
-      stopDrift();
       setFoilLook(shine, row.dataset.foil ?? null);
       shine.hidden = !row.dataset.foil || failed.has(url);
-      if (!shine.hidden) stopDrift = driftFoil(shine, win);
+      setFoilSource(shine, url);
       const backUrl = row.dataset.twoSided === '1' ? imageUrl(row.dataset.cardId, 'normal', 'back') : null;
       showBack(backUrl && !failed.has(backUrl) ? backUrl : null, name);
       if (failed.has(url)) {
@@ -103,7 +101,6 @@ export function setupCardPeek({ root, peek, image, note, win = window }) {
 
   function hide() {
     current = null;
-    stopDrift();
     peek.hidden = true;
   }
 

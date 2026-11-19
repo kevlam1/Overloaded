@@ -5,7 +5,7 @@ import { imageUrl } from '../../shared/card-image.mjs';
 import { manaNode } from './mana-pips.js';
 import { lookGroup } from '../../shared/foil-looks.mjs';
 import { foilLabel } from '../../shared/foil-kinds.mjs';
-import { setFoilLook } from './foil-layer.js';
+import { setFoilLook, setFoilSource } from './foil-layer.js';
 
 export const VIEWS = ['text', 'images', 'stacks'];
 
@@ -117,6 +117,7 @@ function tile(line, withMenu) {
   picture.setAttribute('aria-hidden', 'true');
   const fallback = () => { picture.replaceChildren(make('span', 'tile-name', line.name)); picture.classList.add('noimage'); };
   const url = line.card ? imageUrl(line.printingId ?? line.card.i, 'small') : null;
+  if (line.foil && url) setFoilSource(item, url);
   if (url) {
     describeCard(item, line);
     item.tabIndex = 0;

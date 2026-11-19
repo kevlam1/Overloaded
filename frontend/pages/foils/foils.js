@@ -5,7 +5,7 @@ import { mountSiteHeader } from '../../src/site-header.js';
 import { KINDS, lookOf, foilLabel } from '../../../shared/foil-kinds.mjs';
 import { LOOK_GROUPS, lookGroup } from '../../../shared/foil-looks.mjs';
 import { imageUrl } from '../../../shared/card-image.mjs';
-import { setFoilLook, makeFoilLayer, aimFoil, driftFoil } from '../../src/foil-layer.js';
+import { setFoilLook, makeFoilLayer, setFoilSource } from '../../src/foil-layer.js';
 import { mountCardHover } from '../../src/card-hover.js';
 import { FOIL_EXAMPLES } from '../../../shared/foil-examples.mjs';
 
@@ -50,8 +50,6 @@ function entries(view) {
   return list;
 }
 
-let stops = []; // the drifting shines now running
-
 function picture(id, size) {
   const image = new Image();
   image.alt = '';
@@ -70,7 +68,7 @@ function smallCard(id, group, size) {
   const face = make('span', 'face');
   face.append(picture(id, size));
   button.append(face);
-  if (group) { button.classList.add('foil'); setFoilLook(button, group); }
+  if (group) { button.classList.add('foil'); setFoilLook(button, group); setFoilSource(button, imageUrl(id, 'normal')); }
   return button;
 }
 
@@ -79,29 +77,25 @@ function deckTile(id, group) {
   const art = make('span', 'tile-picture');
   art.append(picture(id, 'small'));
   item.append(art);
-  if (group) { item.classList.add('foil'); setFoilLook(item, group); }
+  if (group) { item.classList.add('foil'); setFoilLook(item, group); setFoilSource(item, imageUrl(id, 'small')); }
   return item;
 }
 
-// The big picture: the foil layer follows the pointer, or drifts by itself when asked.
-function bigCard(id, group, drift) {
+// The big picture: the foil layer over it (it holds still).
+function bigCard(id, group) {
   const frame = make('span', 'foil-frame foil-lab-big');
   frame.append(picture(id, 'normal'));
   if (group) {
     const layer = makeFoilLayer(group);
+    setFoilSource(layer, imageUrl(id, 'normal'));
     frame.append(layer);
-    if (drift) stops.push(driftFoil(layer));
-    else frame.addEventListener('pointermove', (event) => aimFoil(layer, frame.getBoundingClientRect(), event.clientX, event.clientY));
   }
   return frame;
 }
 
 function draw() {
-  for (const stop of stops) stop();
-  stops = [];
   const grid = $('lab-grid');
   const chosen = $('lab-card').value; // 'real' (the default): each entry shows a real card that has that foil
-  const drift = $('lab-drift').checked;
   grid.replaceChildren(...entries($('lab-view').value).map((entry) => {
     const real = FOIL_EXAMPLES[entry.example];
     const id = chosen === 'real' ? real.id : chosen;
@@ -114,7 +108,7 @@ function draw() {
     const hand = make('div', 'foil-lab-hand'); hand.append(smallCard(id, entry.group, 'normal'));
     const tile = make('ul', 'foil-lab-tile'); tile.append(deckTile(id, entry.group));
     row.append(small, hand, tile);
-    box.append(title, note, cardLine, row, bigCard(id, entry.group, drift));
+    box.append(title, note, cardLine, row, bigCard(id, entry.group));
     return box;
   }));
 }
@@ -124,12 +118,10 @@ for (const [name, cardId] of CARDS) { const option = make('option', '', name); o
 const params = new URLSearchParams(location.search);
 if (CARDS.some(([, cardId]) => cardId === params.get('card'))) $('lab-card').value = params.get('card');
 if (params.get('view') === 'kinds') $('lab-view').value = 'kinds';
-$('lab-drift').checked = params.get('drift') === '1';
 $('lab-still').checked = params.get('still') === '1';
 const applyStill = () => $('foil-lab').classList.toggle('still', $('lab-still').checked);
 $('lab-card').addEventListener('change', draw);
 $('lab-view').addEventListener('change', draw);
-$('lab-drift').addEventListener('change', draw);
 $('lab-still').addEventListener('change', applyStill);
 applyStill();
 draw();
