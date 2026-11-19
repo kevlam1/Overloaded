@@ -953,7 +953,7 @@ check('there are no commander or partner boxes; the Commander heading says to ri
   await deleteAllSaved();
   // a printing that exists only as foil (real data: Wall of Roots in F08 is foil only) is foil without any mark in the list, cannot be turned off, and a normal printing next to it is not foil
   await load(); await paste('1 Wall of Roots (F08) 7\n1 Sol Ring (CMM) 410'); await press('check');
-  check('a foil-only printing shows the foil star by itself (its tooltip says why), and a normal printing does not', JSON.stringify(await foilLines()) === '["Wall of Roots 1 Foil"]' && /only as foil/.test(await ev(`document.querySelector('#sections .card-line.foil-line .foil-star').title`)), JSON.stringify(await foilLines()));
+  check('a foil-only printing shows the foil star by itself, and a normal printing does not', JSON.stringify(await foilLines()) === '["Wall of Roots 1 Foil"]' && (await ev(`document.querySelector('#sections .card-line.foil-line .foil-star').title`)) === 'Foil', JSON.stringify(await foilLines()));
   await openLineMenuOf('Wall of Roots');
   check('its menu has no foil choice (it cannot be turned off), while the normal printing can be made foil', !(await ev(`[...document.querySelectorAll('.card-menu [role="menuitem"]')].map((x) => x.textContent)`)).some((t) => /foil/i.test(t)) && !(await ev(`document.getElementById('deck-text').value`)).includes('*F*'));
   await ev(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`);

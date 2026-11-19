@@ -1668,6 +1668,6 @@ body.playing.solo #life-area .life-counters[aria-expanded="true"]::after { rotat
 .foil-frame { position: relative; display: inline-block; max-width: 100%; line-height: 0; border-radius: 4.8% / 3.4%; isolation: isolate; }
 
 /* foil on the deck page: a star on a line of the text list, with the kind of foil as its tooltip */
-.foil-star { flex: none; display: inline-flex; align-items: center; color: #c9a227; cursor: help; }
+.foil-star { flex: none; display: inline-flex; align-items: center; color: #c9a227; }
 .picker-tile .tile-art.foil-art { position: relative; }
 .picker-tile .tile-caption .tile-foil { font-weight: 700; color: var(--text); }

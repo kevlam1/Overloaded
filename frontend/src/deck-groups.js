@@ -93,13 +93,13 @@ function menuButton(line) {
   return button;
 }
 
-// A star on a foil line of the text list, like the star on a foil card (Kevin, 2026-11-18): hovering it says which kind of foil it is ("Foil", "Surge foil", "Etched foil", ...), and says so when the printing exists only as foil.
+// A star on a foil line of the text list, like the star on a foil card: hovering it says which kind of foil it is ("Foil", "Surge foil", "Etched foil", ...).
 function foilStar(line) {
   const words = foilLabel(line.look);
   const star = make('span', 'foil-star');
   star.setAttribute('role', 'img');
   star.setAttribute('aria-label', words);
-  star.title = line.foilOnly ? `${words} (this printing exists only as foil)` : words;
+  star.title = words;
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.setAttribute('viewBox', '0 0 24 24');
   svg.setAttribute('width', '13');
