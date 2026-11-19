@@ -6,7 +6,8 @@ export const LOOK_GROUPS = ['traditional', 'rainbow', 'etched', 'surge', 'galaxy
 
 // kind (or 'etched', or 'traditional') to look. Every kind in shared/foil-kinds.mjs is listed (a test checks this), and anything unknown is a traditional foil.
 const GROUP_OF = {
-  traditional: 'traditional', rainbow: 'rainbow', doublerainbow: 'rainbow', raised: 'rainbow', textured: 'rainbow', embossed: 'rainbow', facet: 'rainbow', dazzle: 'rainbow', chocobotrack: 'rainbow', firstplace: 'rainbow', serialized: 'rainbow', confetti: 'rainbow',
+  traditional: 'traditional', raised: 'traditional', textured: 'traditional', embossed: 'traditional', facet: 'traditional', firstplace: 'traditional', serialized: 'traditional', // (silvery foils with a texture or a stamp)
+  rainbow: 'rainbow', doublerainbow: 'rainbow', dazzle: 'rainbow', chocobotrack: 'rainbow', confetti: 'rainbow',
   etched: 'etched',
   surge: 'surge', ripple: 'surge', mana: 'surge',
   galaxy: 'galaxy', cosmic: 'galaxy', singularity: 'galaxy', stepandcompleat: 'galaxy',

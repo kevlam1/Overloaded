@@ -4695,7 +4695,7 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 - **Nine looks:** the 28 kinds are drawn with traditional, rainbow, etched, surge, galaxy, oil-slick, halo, gold and silver (`data-foil` on the element, colours and texture in `style.css`). A kind the list does not name is a rainbow.
 - **Light sheen** on battlefield cards, deck tiles and the printing tiles, a little stronger in the hand. **Full effect** on the Alt picture and the details window: bands that slide and a glare that follows the pointer.
 - **Change printing:** a printing that is foil only, etched only or a special foil shows that foil on its picture and names it under the picture.
-- **Correction (Kevin, same day):** I had drawn a plain foil with the vivid rainbow look from before the real foils. A plain (traditional) foil now has its own look, a silvery shine with a faint warm and cool tint and no stripes, and the vivid rainbow stays only for the real rainbow-type foils. That makes nine looks.
+- **Correction (Kevin, same day):** I had drawn a plain foil with the vivid rainbow look from before the real foils. A plain (traditional) foil now has its own look, a silvery shine with a faint warm and cool tint and no stripes, and the vivid rainbow stays only for the real rainbow-type foils. That makes nine looks. I had also put textured, embossed, raised, facet, first-place and serialized foils in the rainbow look, so many decks still showed it; they are traditional now. On the real data only 259 foil printings use the vivid rainbow (rainbow, double rainbow, dazzle, Chocobo track, confetti).
 - Reduced motion turns the sweep off. The pointer effect stays, since you drive it.
 
 **What I checked**
