@@ -30,6 +30,9 @@ export function mountCommandZone({ root, place, onTax, showTax = true, keepTaxRo
     return { element, cards, tax, words, setUid: (next) => { uid = next; } };
   });
   root.replaceChildren(...slots.map((slot) => slot.element));
+  const emblemRow = make('div', 'emblem-row'); // emblems (shared/zones.mjs createEmblem) sit in a row of their own beside the slots, whatever the commanders are doing
+  emblemRow.hidden = true;
+  root.after(emblemRow);
 
   // game: the player's game (or null). The command zone is hidden when there is no commander and nothing in it (a Standard game).
   // slotOf(uid) (optional): the slot, 1 or 2, a commander is to be in (the player dragged it there); a commander with no choice, or whose slot is taken, goes in the first free one.
@@ -43,8 +46,12 @@ export function mountCommandZone({ root, place, onTax, showTax = true, keepTaxRo
     }
     for (const entry of rest) { const free = placed.indexOf(null); if (free >= 0) placed[free] = entry; }
     const inZone = game ? game.zones.command : [];
-    const extras = inZone.filter((card) => !entries.some((entry) => entry.uid === card.uid)); // anything else a player put in the command zone (an emblem, say) stays visible
-    root.parentElement.hidden = entries.length === 0 && extras.length === 0;
+    const emblems = inZone.filter((card) => card.emb === true);
+    const extras = inZone.filter((card) => card.emb !== true && !entries.some((entry) => entry.uid === card.uid)); // anything else a player put in the command zone stays visible
+    root.parentElement.hidden = entries.length === 0 && extras.length === 0 && emblems.length === 0;
+    place(emblemRow, emblems);
+    emblemRow.hidden = emblems.length === 0;
+    root.hidden = entries.length === 0 && extras.length === 0; // (only emblems: no empty slots)
     const extraSlot = Math.max(0, placed.indexOf(null)); // other cards put in the command zone sit in the first slot with no commander of its own (the slot under the commander would push them out of view)
     slots.forEach((slot, index) => {
       const entry = placed[index] ?? null;

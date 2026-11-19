@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.243</span></h1>
-    <p class="lede">243 entries, Oct 25 to Nov 19, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
+    <h1>Build log <span class="version">Version 0.244</span></h1>
+    <p class="lede">244 entries, Oct 25 to Nov 19, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
   </div>
 </header>
 
@@ -24,7 +24,7 @@
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
-<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">30</span></a>
+<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">31</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
 <a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">29 things friends asked for</span></a>
 <a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">26 open, 71 done</span></a>
@@ -3604,7 +3604,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-2" aria-labelledby="week-2-title">
-<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">30 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">31 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-2-days">
 <div class="day">
 <h3 class="day-title">Monday 16 November <span class="day-count">5</span></h3>
@@ -4007,7 +4007,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Thursday 19 November <span class="day-count">6</span></h3>
+<h3 class="day-title">Thursday 19 November <span class="day-count">7</span></h3>
 <div class="entries">
 <article class="entry" id="entry-238" data-n="238">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-238-body">
@@ -4111,6 +4111,24 @@
 <p class="sub"><strong>Decisions and limits</strong></p>
 <ul><li>Only the solo page has it. The live table's rules do not know where a custom token's art comes from, so it waits for the rules change. Phones are on hold.</li><li>The printings are shown by set code only, with a &quot;T&quot; in front (Scryfall's token sets are called TFRC, TCMM...); I have no set names for them. A token's keywords and rules text are not shown on the card.</li></ul>
 <p><strong>My AI's mistakes this time:</strong> my new right-click menu broke the solo check at first: a right click on a counter chip opened it and it swallowed the next click, so four P/T checks failed. I made it skip any click that a card layer already handled. I found this only because I ran the old solo check, so it is a reason to keep running it.</p>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-244" data-n="244">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-244-body">
+    <span class="num">244</span>
+    <span class="head-text"><span class="title">Emblems in the command zone</span><span class="sum">Add emblems to the command zone, shown near that zone, and let players create emblems the way they choose tokens.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-244-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>Add emblems to the command zone, shown near that zone, and let players create emblems the way they choose tokens.</li></ul>
+<p><strong>What changed</strong> (<code>shared/zones.mjs</code>, <code>shared/card-menu.mjs</code>, <code>frontend/src/command-zone.js</code>, <code>frontend/pages/solo/solo.js</code>, <code>style.css</code>)</p>
+<ul><li><strong>Making one:</strong> the same window as tokens, called Create emblem: a search bar, &quot;Emblems from your deck&quot; (the emblem of a planeswalker in the game, such as Elspeth, Sun's Champion) and &quot;Every emblem&quot; (89), and an Art button for the printings. It opens from &quot;Create emblem...&quot; in the right-click menu of the empty battlefield, which now lists Create token and Create emblem, and from a right click on the command zone.</li><li><strong>What an emblem is:</strong> <code>createEmblem</code> puts a card-shaped entry in the command zone with <code>emb: true</code>, a type line that starts with Emblem and the Scryfall id of its picture. I did not use the token flag, because the game check rejects <code>tok</code> outside the battlefield. <code>moveCard</code> refuses to move an emblem to any other zone (so a drag or Move all cannot put one in the graveyard), and its menu has one line, Remove emblem (<code>removeEmblem</code>).</li><li><strong>Where it shows:</strong> a row of small cards just above the command slots, over the corner of the battlefield (the command zone sits on the bottom edge of the window, so there was no room below it). A game with only emblems shows the row and no empty slots. Not saved: a refresh deals a new game, like everything on the solo table.</li></ul>
+<p class="sub"><strong>What I checked</strong></p>
+<ul><li><code>scripts/test-zones.mjs</code> is 277 checks (9 new for emblems), <code>scripts/test-card-menu.mjs</code> 251 (3 new) and <code>scripts/check-token-ui.mjs</code> 14 in real Chrome (5 new: the second menu line, the emblem window and its search, Elspeth's emblem showing above the command zone, a right click offering only Remove emblem, and removing it). The solo check (471), table layout (405) and the quick set (81 suites) pass. I looked at screenshots: my first version drew the emblem below the slots and pushed the whole row of piles up, so I moved it above.</li></ul>
+<p class="sub"><strong>Decisions and limits</strong></p>
+<ul><li>Solo page only for now. The live table's database rules do not know an emblem or where a custom token's art comes from, so both wait for the rules change (it also needs <code>emb</code> in <code>shared/game-sync.mjs</code>).</li><li>Emblem text is not shown beside the picture (the picture has it). The Alt big picture and View details for an emblem were not looked at.</li></ul>
+<p><strong>My AI's mistakes this time:</strong> my first test of &quot;the command zone hides again&quot; forgot that the test deck has a commander, so the zone correctly stayed. And the first placement of the emblem row was below the slots, which I only saw in a screenshot.</p>
   </div></div></div>
 </article>
 </div>

@@ -170,6 +170,7 @@ export function moveCard(game, uid, to, { position, cell = null, faceDown = fals
   const { zone: from, at } = locate(game, uid);
   const zones = { ...game.zones };
   const card = game.zones[from][at];
+  if (card.emb === true && to !== 'command') throw new Error(`${card.n} stays in the command zone. Remove it from its menu.`); // an emblem is not a card: it cannot be in another zone
   zones[from] = game.zones[from].filter((_, index) => index !== at);
   const leaving = from === 'battlefield' && to !== 'battlefield';
   if (leaving && card.tok) return { ...game, zones }; // a token that leaves the battlefield stops existing
@@ -436,6 +437,31 @@ export function createToken(game, spec) {
   const uid = `c${game.nextUid}`;
   const token = { uid, i: spec.i, n, t, m: '', k: [], tok: true, ...(spec.pt ? { pt: spec.pt } : {}), ...(spec.cl ? { cl: spec.cl } : {}), ...(entersSick({ t, k: [] }) ? { sick: true } : {}), tapped: false, turnEntered: game.turn };
   return { game: { ...game, zones: { ...game.zones, battlefield: [...game.zones.battlefield, withCell(game, token)] }, nextUid: game.nextUid + 1 }, uid };
+}
+
+// An emblem (Kevin, 2026-11-19): a marker in the command zone that stays for the rest of the game, made from the emblem list (shared/card-tokens.mjs). It is a card-shaped entry with emb: true, a type line that starts with "Emblem" and the
+// Scryfall id of its picture; it cannot be moved to another zone and is only taken away with removeEmblem. Returns { game, uid }.
+export const isEmblem = (card) => card?.emb === true;
+export function createEmblem(game, spec) {
+  const text = (value, what) => {
+    const clean = scrubText(String(value ?? ''));
+    if (clean.length === 0 || clean.length > MAX_TOKEN_TEXT) throw new Error(`An emblem's ${what} is 1 to ${MAX_TOKEN_TEXT} characters.`);
+    return clean;
+  };
+  const n = text(spec?.n, 'name');
+  const t = text(spec?.tt, 'type line');
+  if (!t.startsWith('Emblem')) throw new Error('The type line of an emblem starts with Emblem.');
+  if (typeof spec?.i !== 'string' || !SCRYFALL_ID.test(spec.i)) throw new Error('An emblem needs the Scryfall id of its picture.');
+  if (game.zones.command.length >= MAX_ZONE_CARDS) throw new Error(`The command zone holds at most ${MAX_ZONE_CARDS} cards.`);
+  const uid = `c${game.nextUid}`;
+  const emblem = { uid, i: spec.i, n, t, m: '', k: [], emb: true, tapped: false, turnEntered: null };
+  return { game: { ...game, zones: { ...game.zones, command: [...game.zones.command, emblem] }, nextUid: game.nextUid + 1 }, uid };
+}
+// Takes an emblem away (it is the only way an emblem leaves). Throws for a card that is not an emblem in the command zone.
+export function removeEmblem(game, uid) {
+  const found = game.zones.command.find((card) => card.uid === uid);
+  if (!found || found.emb !== true) throw new Error('That is not an emblem.');
+  return { ...game, zones: { ...game.zones, command: game.zones.command.filter((card) => card.uid !== uid) } };
 }
 
 // A copy of a permanent on the battlefield, as a token (what it looks like and is called; no counters, no modifier). Returns { game, uid }.

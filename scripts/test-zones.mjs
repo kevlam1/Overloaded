@@ -1,7 +1,7 @@
 // Tests for shared/zones.mjs: the zones of one player's game and every move between them. The important properties:
 // no card is ever lost or copied, nothing is changed in place (the games are deep-frozen), the shuffle is fair, and each
 // move leaves the cards where the rules of a paper table say. No browser, no network. Run: node scripts/test-zones.mjs
-import { ZONES, HAND_SIZE, DEFAULT_LIFE, COMMANDER_LIFE, MAX_DRAW, MAX_LIFE_STEP, MAX_LIFE, secureRandom, seededRandom, shuffled, isLandCard, makeGame, moveCard, draw, shuffleLibrary, mulligan, setTapped, untapAll, adjustLife, nextTurn, battlefieldRows, zoneCounts, checkGame } from '../shared/zones.mjs';
+import { ZONES, HAND_SIZE, DEFAULT_LIFE, COMMANDER_LIFE, MAX_DRAW, MAX_LIFE_STEP, MAX_LIFE, secureRandom, seededRandom, shuffled, isLandCard, makeGame, moveCard, draw, shuffleLibrary, mulligan, setTapped, untapAll, adjustLife, nextTurn, battlefieldRows, zoneCounts, checkGame, createEmblem, removeEmblem, isEmblem } from '../shared/zones.mjs';
 
 let checks = 0;
 function check(label, condition, detail = '') {
@@ -376,6 +376,23 @@ check('a word that only contains Land does not count',!isLandCard({ t: 'Creature
   delete noPrinting.zones.hand[0].p;
   check('and accepts a card that has none', checkGame(noPrinting).length === 0);
   check('a saved card whose printing is empty text gets no p', !('p' in makeGame({ cards: [{ ...saved('Forest', 2, 5), p: '' }] }, lookup, { random: seededRandom(3) }).zones.hand[0]));
+}
+
+// ---- emblems (Kevin, 2026-11-19): a marker in the command zone that stays, made and removed by hand
+{
+  const game = deepFreeze(makeGame({ cards: [saved('Forest', 2, 20)] }, lookup, { random: seededRandom(5) }));
+  const spec = { n: 'Elspeth Emblem', tt: 'Emblem' + EM + 'Elspeth', i: uuid(900) };
+  const made = createEmblem(game, spec);
+  const emblem = made.game.zones.command.find((card) => card.uid === made.uid);
+  check('an emblem is made in the command zone, marked as one, and the old game is not changed', isEmblem(emblem) && emblem.n === 'Elspeth Emblem' && emblem.tapped === false && emblem.turnEntered === null && game.zones.command.length === 0);
+  check('the game with an emblem passes the game check, and no card is lost', checkGame(made.game).length === 0 && zoneCounts(made.game).command === 1);
+  throws('an emblem cannot be moved to another zone (hand, battlefield, graveyard, exile, library)', () => { for (const zone of ['hand', 'battlefield', 'graveyard', 'exile', 'library', 'sideboard']) moveCard(made.game, made.uid, zone); }, /stays in the command zone/);
+  check('it can be "moved" to the command zone, and it stays', moveCard(made.game, made.uid, 'command').zones.command.some((card) => card.uid === made.uid));
+  check('removing it takes it out of the game and nothing else', removeEmblem(made.game, made.uid).zones.command.length === 0 && removeEmblem(made.game, made.uid).zones.hand.length === made.game.zones.hand.length);
+  throws('a card that is not an emblem cannot be removed that way', () => removeEmblem(made.game, made.game.zones.hand[0].uid), /not an emblem/);
+  throws('the type line must start with Emblem, the id must be a Scryfall id, and the name must be there and short', () => { for (const bad of [{ ...spec, tt: 'Token Creature' }, { ...spec, i: 'nope' }, { ...spec, n: '' }, { ...spec, n: 'x'.repeat(61) }]) createEmblem(game, bad); });
+  check('two emblems have two different uids', createEmblem(made.game, spec).uid !== made.uid);
+  check('a real card in the command zone is not an emblem', isEmblem(makeGame({ cards: [saved('Forest', 2, 20), saved('Éowyn', 3, 1, 'commander')] }, lookup, { random: seededRandom(5) }).zones.command[0]) === false && makeGame({ cards: [saved('Forest', 2, 20), saved('Éowyn', 3, 1, 'commander')] }, lookup, { random: seededRandom(5) }).zones.command.length === 1);
 }
 
 console.log(`All ${checks} zone checks passed.`);

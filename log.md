@@ -4834,6 +4834,25 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **My AI's mistakes this time:** my new right-click menu broke the solo check at first: a right click on a counter chip opened it and it swallowed the next click, so four P/T checks failed. I made it skip any click that a card layer already handled. I found this only because I ran the old solo check, so it is a reason to keep running it.
 
+## 244. Emblems in the command zone (2026-11-19)
+
+**What I asked for**
+- Add emblems to the command zone, shown near that zone, and let players create emblems the way they choose tokens.
+
+**What changed** (`shared/zones.mjs`, `shared/card-menu.mjs`, `frontend/src/command-zone.js`, `frontend/pages/solo/solo.js`, `style.css`)
+- **Making one:** the same window as tokens, called Create emblem: a search bar, "Emblems from your deck" (the emblem of a planeswalker in the game, such as Elspeth, Sun's Champion) and "Every emblem" (89), and an Art button for the printings. It opens from "Create emblem..." in the right-click menu of the empty battlefield, which now lists Create token and Create emblem, and from a right click on the command zone.
+- **What an emblem is:** `createEmblem` puts a card-shaped entry in the command zone with `emb: true`, a type line that starts with Emblem and the Scryfall id of its picture. I did not use the token flag, because the game check rejects `tok` outside the battlefield. `moveCard` refuses to move an emblem to any other zone (so a drag or Move all cannot put one in the graveyard), and its menu has one line, Remove emblem (`removeEmblem`).
+- **Where it shows:** a row of small cards just above the command slots, over the corner of the battlefield (the command zone sits on the bottom edge of the window, so there was no room below it). A game with only emblems shows the row and no empty slots. Not saved: a refresh deals a new game, like everything on the solo table.
+
+**What I checked**
+- `scripts/test-zones.mjs` is 277 checks (9 new for emblems), `scripts/test-card-menu.mjs` 251 (3 new) and `scripts/check-token-ui.mjs` 14 in real Chrome (5 new: the second menu line, the emblem window and its search, Elspeth's emblem showing above the command zone, a right click offering only Remove emblem, and removing it). The solo check (471), table layout (405) and the quick set (81 suites) pass. I looked at screenshots: my first version drew the emblem below the slots and pushed the whole row of piles up, so I moved it above.
+
+**Decisions and limits**
+- Solo page only for now. The live table's database rules do not know an emblem or where a custom token's art comes from, so both wait for the rules change (it also needs `emb` in `shared/game-sync.mjs`).
+- Emblem text is not shown beside the picture (the picture has it). The Alt big picture and View details for an emblem were not looked at.
+
+**My AI's mistakes this time:** my first test of "the command zone hides again" forgot that the test deck has a commander, so the zone correctly stayed. And the first placement of the emblem row was below the slots, which I only saw in a screenshot.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

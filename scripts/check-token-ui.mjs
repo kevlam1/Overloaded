@@ -44,7 +44,7 @@ try {
   await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'right', clickCount: 1 });
   await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'right', clickCount: 1 });
   await sleep(300);
-  check('a right click on empty battlefield offers Create token', JSON.stringify(await ev("[...document.querySelectorAll('.card-menu [role=menuitem]')].map((x) => x.textContent)")) === '["Create token..."]');
+  check('a right click on empty battlefield offers Create token', (await ev("[...document.querySelectorAll('.card-menu [role=menuitem]')].map((x) => x.textContent)"))[0] === 'Create token...');
   await ev("document.querySelector('.card-menu [role=menuitem]').click()");
   await waitFor(async () => (await ev("document.querySelectorAll('.token-tile').length")) > 0 || null, 8000, 50);
   const sections = await ev("[...document.querySelectorAll('.token-section-title')].map((h) => h.textContent)");
@@ -78,6 +78,29 @@ try {
   await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
   await sleep(200);
   check('Escape closes the window', (await ev("Boolean(document.querySelector('.token-picker'))")) === false);
+  // ---- emblems: the same window, and the emblem sits beside the command zone
+  const rightClick = async (px, py) => { await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: px, y: py }); await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: px, y: py, button: 'right', clickCount: 1 }); await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: px, y: py, button: 'right', clickCount: 1 }); await sleep(300); };
+  await rightClick(x, y);
+  check('the battlefield menu also offers Create emblem', JSON.stringify(await ev("[...document.querySelectorAll('.card-menu [role=menuitem]')].map((x) => x.textContent)")) === '["Create token...","Create emblem..."]');
+  await ev("[...document.querySelectorAll('.card-menu [role=menuitem]')][1].click()");
+  await waitFor(async () => (await ev("document.querySelectorAll('.token-tile').length")) > 0 || null, 8000, 50);
+  check('the emblem window is called Create emblem and has the search bar', (await ev("document.querySelector('.token-picker h2').textContent")) === 'Create emblem' && /emblem/.test(await ev("document.querySelector('.token-picker input[type=search]').placeholder")));
+  await ev("(() => { const f = document.querySelector('.token-picker input[type=search]'); f.value = 'sun'; f.dispatchEvent(new Event('input', { bubbles: true })); })()");
+  await sleep(200);
+  await ev("[...document.querySelectorAll('.token-tile')].find((t) => t.querySelector('strong').textContent === \"Elspeth, Sun's Champion Emblem\").click()");
+  await sleep(300);
+  await browser.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+  await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+  await sleep(200);
+  const emblemBox = () => ev("(() => { const c = document.querySelector('#command-zone .emblem-row .card'); if (!c) return null; const b = c.getBoundingClientRect(), z = document.getElementById('command-zone').getBoundingClientRect(); return { w: Math.round(b.width), inZone: b.left >= z.left - 1 && b.right <= z.right + 1 && b.bottom <= z.top + 1, name: c.dataset.uid }; })()");
+  const emblem = await emblemBox();
+  check('the emblem shows in a row just above the command zone, over its slots', emblem && emblem.w > 20 && emblem.inZone, JSON.stringify(emblem));
+  const [ex, ey] = await ev("(() => { const b = document.querySelector('#command-zone .emblem-row .card').getBoundingClientRect(); return [Math.round(b.left + b.width / 2), Math.round(b.top + b.height / 2)]; })()");
+  await rightClick(ex, ey);
+  check('a right click on the emblem offers only Remove emblem', JSON.stringify(await ev("[...document.querySelectorAll('.card-menu [role=menuitem]')].map((x) => x.textContent)")) === '["Remove emblem"]');
+  await ev("document.querySelector('.card-menu [role=menuitem]').click()");
+  await sleep(300);
+  check('Remove emblem takes it away and the row hides (the commander stays)', (await emblemBox()) === null && (await ev("document.querySelector('#command-zone .emblem-row').hidden")) === true && (await ev("document.getElementById('command-zone').hidden")) === false);
   check('no page errors', (await ev('window.__errors || []')).length === 0);
   if (process.argv.includes('--screenshot')) { /* (the window is closed here; screenshots are taken in the open window below) */ }
   await closeAllBrowsers();

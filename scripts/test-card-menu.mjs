@@ -1,7 +1,7 @@
 // Checks shared/card-menu.mjs: which choices a card's right-click menu offers in each zone, and what each choice does to a real game.
 // Run from the repo root:  node scripts/test-card-menu.mjs
 import { menuItems, menuAction, turnLabel, turnMessage, playBackLabel, PLAY_BACK_ZONES, noUntapLabel, sickLabel, untapMessage, ZONE_NAMES, MOVE_TARGETS, COUNTER_ASK, STACK_ZONES } from '../shared/card-menu.mjs';
-import { makeGame, moveCard, createToken, changeCounter, seededRandom, ZONES, checkGame, isLandCard, battlefieldRows, setTapped, setNoUntap } from '../shared/zones.mjs';
+import { makeGame, moveCard, createToken, changeCounter, seededRandom, ZONES, checkGame, createEmblem, isLandCard, battlefieldRows, setTapped, setNoUntap } from '../shared/zones.mjs';
 
 let checks = 0;
 const fail = (label, detail) => { console.log(`FAILED CHECK: ${label}: ${detail}`); process.exit(1); };
@@ -307,4 +307,13 @@ for (const zone of ZONES) {
 same('a missing card gets no stack line', menuItems(null, 'battlefield', { stack: true }).some((i) => i.id === 'stack'), false);
 same('the stack line comes before View details', (() => { const ids = menuItems({ n: 'Sol Ring' }, 'battlefield', { stack: true, details: true }).map((i) => i.id); return ids.indexOf('stack') < ids.indexOf('details') && ids.indexOf('stack') >= 0; })(), true);
 same('menuAction has nothing to run for it (the page puts the copy on the stack)', menuAction('stack', { uid: 'c1', n: 'Sol Ring' }), null);
+// ---- an emblem in the command zone (2026-11-19): only Remove emblem, which takes it out of the game
+{
+  const base = makeGame({ cards: [{ i: '00000000-0000-4000-8000-000000000002', n: 'Forest', qty: 10, section: 'main' }] }, () => ({ t: 'Basic Land', m: '', k: [] }), { random: seededRandom(1) });
+  const made = createEmblem(base, { n: 'Elspeth Emblem', tt: 'Emblem - Elspeth', i: '00000000-0000-4000-8000-000000000900' });
+  const emblem = made.game.zones.command[0];
+  same('an emblem in the command zone has one line, Remove emblem, even with every option on', menuItems(emblem, 'command', { details: true, stack: true, counters: true, live: true }).map((i) => i.id), ['emblem-remove']);
+  same('Remove emblem takes it out of the command zone, with a message', [menuAction('emblem-remove', emblem).run(made.game).zones.command.length, menuAction('emblem-remove', emblem).message], [0, 'Removed Elspeth Emblem.']);
+  same('a real card in the command zone still has its moves', menuItems({ uid: 'c9', n: 'Elspeth' }, 'command').some((i) => i.id === 'move'), true);
+}
 console.log(`All ${checks} card menu checks passed.`);
