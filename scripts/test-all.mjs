@@ -103,6 +103,7 @@ if (!quick) {
   suites.push({ name: 'stack window in headless Chrome (needs the card list)', cmd: node, args: ['scripts/check-stack-ui.mjs'] });
   suites.push({ name: 'history bar and hand selection in headless Chrome (needs the card list)', cmd: node, args: ['scripts/check-history-and-select-ui.mjs'] });
   suites.push({ name: 'the Settings menu and keybinds in headless Chrome (needs the card list)', cmd: node, args: ['scripts/check-settings-ui.mjs'] });
+  suites.push({ name: 'Create token on the solo table in headless Chrome (needs the card list and tokens file)', cmd: node, args: ['scripts/check-token-ui.mjs'] });
   suites.push({ name: 'database rules (local emulator)', cmd: process.platform === 'win32' ? 'npm.cmd' : 'npm', args: ['test'], cwd: 'backend', shell: true });
 }
 if (live) {

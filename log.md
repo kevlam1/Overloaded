@@ -4814,6 +4814,26 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **My AI's mistakes this time:** my first validation asked for a link from "Ajani, Mentor of Heroes", a card I assumed made a token and does not (the build refused its own list, which is what the check is for). A record with no id made a nameless token until a test found it. And my patch script died halfway and left the build files half changed, so I finished it by hand.
 
+## 243. Create token on the solo table (2026-11-19)
+
+**What I asked for**
+- Right-clicking the battlefield lets me choose Create token: a section of tokens relevant to the cards in my deck, a section of the most common tokens below it, a search bar at the top for every token, and a choice of art printing for a token. (Step 2 of the plan; emblems and the live table come later.)
+
+**What changed** (`frontend/src/token-picker.js`, `frontend/src/token-data.js`, `frontend/pages/solo/solo.js`, `style.css`)
+- A right click on empty battlefield opens a small menu with "Create token...". It opens a window with the search bar on top, "Tokens from your deck" (the tokens that the cards of the game make, most-made first; Krenko gives a Goblin) and "Common tokens" (the 16 we agreed on). Typing in the bar replaces the sections with the results over every token, by name or type line.
+- Pressing a token puts it on the battlefield with its newest art and leaves the window open to make more. The Art button under each token lists its printings (as set code, number and year); pressing one makes the token with that art. Back returns to the list; Escape goes back, then closes. A token is made with `createToken` as before, so it takes its first free place, vanishes when it leaves the battlefield and shows the printed power and toughness from the token data.
+- The tokens file is fetched the first time the window opens (0.17 MB compressed) and kept; if it cannot be loaded the status line says so and a later try asks again.
+
+**What I checked**
+- `scripts/check-token-ui.mjs` (new, 9 checks in real Chrome with the real tokens file and stand-in pictures): the menu, the two sections and the search bar, Krenko's Goblin in the deck section, 16 common tokens starting with Treasure, pressing a token makes a card, the Art list has more than one printing, the second printing's picture is the one used, the search, and Escape. I looked at screenshots of the window and of the art list at desktop width.
+- The solo check (471), settings (16), table layout (405) and source hygiene pass again.
+
+**Decisions and limits**
+- Only the solo page has it. The live table's rules do not know where a custom token's art comes from, so it waits for the rules change. Phones are on hold.
+- The printings are shown by set code only, with a "T" in front (Scryfall's token sets are called TFRC, TCMM...); I have no set names for them. A token's keywords and rules text are not shown on the card.
+
+**My AI's mistakes this time:** my new right-click menu broke the solo check at first: a right click on a counter chip opened it and it swallowed the next click, so four P/T checks failed. I made it skip any click that a card layer already handled. I found this only because I ran the old solo check, so it is a reason to keep running it.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

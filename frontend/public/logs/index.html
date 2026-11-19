@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.242</span></h1>
-    <p class="lede">242 entries, Oct 25 to Nov 19, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
+    <h1>Build log <span class="version">Version 0.243</span></h1>
+    <p class="lede">243 entries, Oct 25 to Nov 19, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
   </div>
 </header>
 
@@ -24,7 +24,7 @@
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
-<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">29</span></a>
+<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">30</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
 <a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">29 things friends asked for</span></a>
 <a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">26 open, 71 done</span></a>
@@ -3604,7 +3604,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-2" aria-labelledby="week-2-title">
-<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">29 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">30 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-2-days">
 <div class="day">
 <h3 class="day-title">Monday 16 November <span class="day-count">5</span></h3>
@@ -4007,7 +4007,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Thursday 19 November <span class="day-count">5</span></h3>
+<h3 class="day-title">Thursday 19 November <span class="day-count">6</span></h3>
 <div class="entries">
 <article class="entry" id="entry-238" data-n="238">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-238-body">
@@ -4093,6 +4093,24 @@
 <p class="sub"><strong>What I checked</strong></p>
 <ul><li><code>scripts/test-card-tokens.mjs</code> (new, 21 checks on made-up records and the real shapes) and <code>scripts/test-card-list-build.mjs</code> (191, with 9 new for the tokens file: published, reused from the cache, damaged, missing, too strict, failing a first build). The quick set passes (81 suites). 10 of 12 broken copies of the tokens module were caught; the other two were one change that does nothing and one that did not apply.</li><li>No menu yet: this step is data only. I did not run the deploy check (it needs the Firebase settings), and the real Vercel build has not run with format 14.</li></ul>
 <p><strong>My AI's mistakes this time:</strong> my first validation asked for a link from &quot;Ajani, Mentor of Heroes&quot;, a card I assumed made a token and does not (the build refused its own list, which is what the check is for). A record with no id made a nameless token until a test found it. And my patch script died halfway and left the build files half changed, so I finished it by hand.</p>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-243" data-n="243">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-243-body">
+    <span class="num">243</span>
+    <span class="head-text"><span class="title">Create token on the solo table</span><span class="sum">Right-clicking the battlefield lets me choose Create token: a section of tokens relevant to the cards in my deck, a section of the most common tokens below it, a search bar at the top for every token, and a choice of art printing for a...</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-243-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>Right-clicking the battlefield lets me choose Create token: a section of tokens relevant to the cards in my deck, a section of the most common tokens below it, a search bar at the top for every token, and a choice of art printing for a token. (Step 2 of the plan; emblems and the live table come later.)</li></ul>
+<p><strong>What changed</strong> (<code>frontend/src/token-picker.js</code>, <code>frontend/src/token-data.js</code>, <code>frontend/pages/solo/solo.js</code>, <code>style.css</code>)</p>
+<ul><li>A right click on empty battlefield opens a small menu with &quot;Create token...&quot;. It opens a window with the search bar on top, &quot;Tokens from your deck&quot; (the tokens that the cards of the game make, most-made first; Krenko gives a Goblin) and &quot;Common tokens&quot; (the 16 we agreed on). Typing in the bar replaces the sections with the results over every token, by name or type line.</li><li>Pressing a token puts it on the battlefield with its newest art and leaves the window open to make more. The Art button under each token lists its printings (as set code, number and year); pressing one makes the token with that art. Back returns to the list; Escape goes back, then closes. A token is made with <code>createToken</code> as before, so it takes its first free place, vanishes when it leaves the battlefield and shows the printed power and toughness from the token data.</li><li>The tokens file is fetched the first time the window opens (0.17 MB compressed) and kept; if it cannot be loaded the status line says so and a later try asks again.</li></ul>
+<p class="sub"><strong>What I checked</strong></p>
+<ul><li><code>scripts/check-token-ui.mjs</code> (new, 9 checks in real Chrome with the real tokens file and stand-in pictures): the menu, the two sections and the search bar, Krenko's Goblin in the deck section, 16 common tokens starting with Treasure, pressing a token makes a card, the Art list has more than one printing, the second printing's picture is the one used, the search, and Escape. I looked at screenshots of the window and of the art list at desktop width.</li><li>The solo check (471), settings (16), table layout (405) and source hygiene pass again.</li></ul>
+<p class="sub"><strong>Decisions and limits</strong></p>
+<ul><li>Only the solo page has it. The live table's rules do not know where a custom token's art comes from, so it waits for the rules change. Phones are on hold.</li><li>The printings are shown by set code only, with a &quot;T&quot; in front (Scryfall's token sets are called TFRC, TCMM...); I have no set names for them. A token's keywords and rules text are not shown on the card.</li></ul>
+<p><strong>My AI's mistakes this time:</strong> my new right-click menu broke the solo check at first: a right click on a counter chip opened it and it swallowed the next click, so four P/T checks failed. I made it skip any click that a card layer already handled. I found this only because I ran the old solo check, so it is a reason to keep running it.</p>
   </div></div></div>
 </article>
 </div>

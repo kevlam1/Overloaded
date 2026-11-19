@@ -41,6 +41,8 @@ import { cardBackUrl } from '../../../shared/card-image.mjs';
 import { makeCardNodes } from '../../src/card-nodes.js';
 import { mountMarksPanel } from '../../src/marks-panel.js';
 import { openCardMenu, closeCardMenu } from '../../src/card-menu.js';
+import { loadTokens } from '../../src/token-data.js';
+import { openTokenPicker } from '../../src/token-picker.js';
 import { mountCounterChips } from '../../src/counter-chips.js';
 import { mountLifeControl } from '../../src/life-control.js';
 import { mountFloatingBar } from '../../src/floating-bar.js';
@@ -48,7 +50,7 @@ import { flyAway, flyDraw, shuffleAnimation, gatherIntoPile, reducedMotion } fro
 import { menuItems, menuAction, turnLabel, turnMessage, playBackLabel, PLAY_BACK_ZONES, noUntapLabel, sickLabel, untapMessage } from '../../../shared/card-menu.mjs';
 import { marksSentence, markClick, printedOf } from '../../../shared/marks.mjs';
 import { chipEntries, playerMenuItems, playerAction, playerAddItems } from '../../../shared/player-counters.mjs';
-import { changeCounter, setFaceDown, makeGame, draw, moveCard, shuffleLibrary, mulligan, setTapped, turnOver, untapAll, heldTapped, adjustLife, nextTurn, boardCells, placeCard, placeStack, placeGroup, zoneCounts, reorderHand } from '../../../shared/zones.mjs';
+import { createToken, changeCounter, setFaceDown, makeGame, draw, moveCard, shuffleLibrary, mulligan, setTapped, turnOver, untapAll, heldTapped, adjustLife, nextTurn, boardCells, placeCard, placeStack, placeGroup, zoneCounts, reorderHand } from '../../../shared/zones.mjs';
 
 const $ = (id) => document.getElementById(id);
 const store = makeSafeStore();
@@ -585,6 +587,26 @@ mountKeybindSettings($('keybind-settings'), { keybinds, page: 'solo' });
 // the action buttons are a floating bar you drag by its grip (src/floating-bar.js)
 mountFloatingBar({ bar: document.querySelector('.actions-panel'), grip: $('bar-grip'), store });
 $('pile-sideboard').addEventListener('click', () => settings.close()); // the viewer opens over the table; the Settings panel would only be in the way
+
+// A right click on empty battlefield offers to make a token (Kevin, 2026-11-19): the window of tokens is src/token-picker.js, the list of them /data/tokens.json (shared/card-tokens.mjs).
+async function openTokens(returnFocus) {
+  if (!game) return;
+  say('Loading the tokens...');
+  const data = await loadTokens();
+  if (!data) { say('The tokens could not be loaded. Check your connection and try again.', true); return; }
+  say('');
+  const deckNames = Object.values(game.zones).flat().filter((card) => !card.tok).map((card) => card.n);
+  openTokenPicker({ data, deckNames, kind: 'token', returnFocus, onCreate: ({ token, printing }) => {
+    const spec = { n: token.name, tt: token.type, i: printing.id, ...(token.pt ? { pt: token.pt } : {}), ...(token.colors ? { cl: token.colors } : {}) };
+    if (!apply(() => createToken(game, spec).game, `Created a ${token.name} token.`)) throw new Error(`Could not make ${token.name}.`);
+    return `Made a ${token.name} token.`;
+  } });
+}
+$('battlefield').addEventListener('contextmenu', (event) => {
+  if (event.defaultPrevented || event.target.closest('.card, [data-mark], [data-badge]') || !game) return;
+  event.preventDefault();
+  openCardMenu({ title: 'Battlefield', items: [{ id: 'token', label: 'Create token...' }], x: event.clientX, y: event.clientY, returnFocus: $('battlefield'), onPick: (id) => { if (id === 'token') openTokens($('battlefield')); } });
+});
 
 // Two clicks close together in time and place tap or untap the card under the second one. This is counted here rather than taken from the browser's own double click event, which fires only for
 // the second click of a run (a third and fourth quick click are not double clicks) and so made fast tapping unreliable. A pair is used up, so four quick clicks are two taps. No waiting time.

@@ -1838,3 +1838,13 @@ body[data-screen="room"] section#table { padding: 0; border: 0; background: none
 .kb-reset > *, #kb-reset-all > * { position: relative; z-index: 1; }
 .kb-section-title { margin-top: 0.4rem; }
 @media (prefers-reduced-motion: reduce) { .kb-reset[data-holding="1"]::after, #kb-reset-all[data-holding="1"]::after { transition: none; } }
+
+/* The Create token window (frontend/src/token-picker.js): sections of token pictures, each with an Art button under it. */
+.token-picker { width: min(56rem, 100%); }
+.token-body { overflow-y: auto; min-height: 0; }
+.token-section-title { margin: 0.6rem 0 0.3rem; font-size: 0.9rem; color: var(--muted); }
+.token-grid { grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr)); overflow: visible; }
+.token-grid > li { display: flex; flex-direction: column; gap: 0.25rem; }
+.token-art { min-height: 0; padding: 0.1rem 0.4rem; font-size: 0.72rem; }
+.picker-message[data-error="1"] { color: var(--danger, #e5484d); }
+.picker-back[hidden] { display: none; }
