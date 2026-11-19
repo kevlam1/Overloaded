@@ -10,6 +10,8 @@ import { play, mountSoundSettings } from '../../src/sound.js';
 import { mountPileStyle } from '../../src/pile-style.js';
 import { mountPileViewer } from '../../src/pile-viewer.js';
 import { mountSettingsMenu } from '../../src/settings-menu.js';
+import { keybinds } from '../../src/keybinds.js';
+import { mountKeybindSettings } from '../../src/keybind-settings.js';
 import { mountPileStack } from '../../src/pile-stack.js';
 import { mountCommandZone } from '../../src/command-zone.js';
 import { taxAction, COMMANDER_TAX_PUBLISHED } from '../../../shared/commander-zone.mjs';
@@ -757,6 +759,7 @@ for (const zone of ['library', 'graveyard', 'exile', 'sideboard']) {
   });
 }
 const settings = mountSettingsMenu({ button: $('settings-button'), panel: $('settings-menu') });
+mountKeybindSettings($('keybind-settings'), { keybinds });
 $('pile-sideboard').addEventListener('click', () => settings.close()); // the viewer opens over the table; the Settings panel would only be in the way
 
 // Two clicks close together in time and place tap or untap the card under the second one. This is counted here rather than taken from the browser's own double click event, which fires only for
@@ -788,17 +791,19 @@ const cardUnderPointer = () => (pointerAt ? document.elementFromPoint(pointerAt.
 function flipFaceDown(found) {
   apply(() => setFaceDown(game, found.card.uid, !found.card.faceDown), found.card.faceDown ? `Flipped ${found.card.n} face up.` : `Flipped ${found.card.n} face down.`);
 }
+// The keys come from the player's own choices (src/keybinds.js, Settings > Keybinds): tap, flip, draw, untap all and pass turn. Settings itself is opened by src/settings-menu.js.
 document.addEventListener('keydown', (event) => {
-  const key = event.key.toLowerCase();
-  if ((key !== 'e' && key !== 'q' && key !== 'f' && key !== 'd') || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || event.repeat) return;
+  const action = keybinds.match('table', event);
+  if (action === null || action === 'settings') return;
   if (event.target instanceof Element && event.target.closest('input, select, textarea, [contenteditable]')) return; // typing a number or a search is not a tap
-  if (key === 'd') { if (game) { event.preventDefault(); drawOne(); } return; } // D draws a card
+  if (action === 'draw') { if (game) { event.preventDefault(); drawOne(); } return; }
+  if (action === 'untapAll' || action === 'nextTurn') { const button = $(action === 'untapAll' ? 'untap-all' : 'pass-turn'); if (game && button && !button.disabled) { event.preventDefault(); button.click(); } return; }
   const hovered = cardUnderPointer();
   if (!game || !hovered) return;
   const found = findCard(hovered.dataset.uid);
   if (!found || found.zone !== 'battlefield') return;
   event.preventDefault();
-  if (key === 'f') flipFaceDown(found); else toggleTapped(found);
+  if (action === 'flip') flipFaceDown(found); else toggleTapped(found);
 });
 document.addEventListener('click', (event) => {
   if (!selected || !game || !event.target.isConnected) return;

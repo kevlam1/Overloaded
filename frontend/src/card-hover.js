@@ -6,6 +6,7 @@
 import { IMAGE_HOST } from '../../shared/card-image.mjs';
 import { makeSafeStore } from './safe-store.js';
 import { makeFoilLayer, setFoilLook } from './foil-layer.js';
+import { keybinds } from './keybinds.js';
 
 const SMALL = `${IMAGE_HOST}/small/`;
 const NORMAL = `${IMAGE_HOST}/normal/`;
@@ -127,9 +128,9 @@ export function mountCardHover(doc = document) {
   const onKeyDown = (event) => {
     if (event.key === 'Alt') { event.preventDefault(); setAlt(true); }
     else if (event.key === 'Escape') onAway();
-    else if ((event.key === 'q' || event.key === 'Q' || event.key === 'e' || event.key === 'E') && altHeld && current && !box.hidden && !event.ctrlKey && !event.metaKey) { // (with Alt held the table does not tap on Q and E, so the keys are free to turn the picture)
+    else if (altHeld && current && !box.hidden && ['pictureLeft', 'pictureRight'].includes(keybinds.match('picture', event))) { // (with Alt held the table does not tap, so the keys are free to turn the picture; they are the player's own choices, Settings > Keybinds)
       event.preventDefault();
-      turns += event.key === 'q' || event.key === 'Q' ? -1 : 1;
+      turns += keybinds.match('picture', event) === 'pictureLeft' ? -1 : 1;
       if (current.isConnected) placeFor(current);
     }
   };

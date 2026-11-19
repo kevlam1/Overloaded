@@ -40,14 +40,22 @@ function chevron(value) {
 
 // A row of pills that can be put in another order: dragged (the pill follows the pointer and the others make way) or moved a place with the arrows on it.
 // names: the words for each key in the row; order(): the keys in the order now; move(from, to): asks for the change. Returns { draw() }.
-function pillRow({ host, title, label, names, order, move }) {
-  const heading = make('p', 'type-order-title', title);
+function pillRow({ host, title, hint, label, names, order, move, reset, isDefault }) {
+  const card = make('section', 'sort-card');
+  const head = make('div', 'sort-card-head');
+  const resetButton = make('button', 'sort-reset secondary', 'Reset');
+  resetButton.type = 'button';
+  resetButton.addEventListener('click', () => reset());
+  head.append(make('h4', 'sort-card-title', title), resetButton);
   const list = make('ol', 'type-order');
   list.setAttribute('aria-label', label);
-  host.append(heading, list);
+  card.append(head, make('p', 'sort-hint', hint), list);
+  host.append(card);
 
   function draw() {
     const keys = order();
+    resetButton.disabled = isDefault();
+    resetButton.title = resetButton.disabled ? 'Already in the default order' : 'Back to the default order';
     list.replaceChildren(...keys.map((key, index) => {
       const item = make('li', 'type-pill');
       item.dataset.type = key;
@@ -62,7 +70,7 @@ function pillRow({ host, title, label, names, order, move }) {
       later.disabled = index === keys.length - 1;
       later.setAttribute('aria-label', `Move ${names[key]} later`);
       later.addEventListener('click', () => move(index, index + 1));
-      item.append(earlier, make('span', 'type-name', names[key]), later);
+      item.append(make('span', 'type-num', String(index + 1)), earlier, make('span', 'type-name', names[key]), later);
       item.addEventListener('pointerdown', (event) => startDrag(event, item, index));
       return item;
     }));
@@ -176,23 +184,30 @@ export function createHandSort({ onChange = () => {}, onSortNow = () => {} } = {
     draw();
   }
 
-  // The two rows of pills in Settings: the order of the card types, and the order of the colour groups.
+  // The Hand sorting page of Settings (Kevin, 2026-11-19: it has its own page): how the hand is sorted, then the order of the card types, of the colour groups and of the lands, each in a card of its own with a
+  // Reset. Drag a pill, or use the arrows on it. The sort buttons themselves stay under the hand.
   function mountOrders(host) {
     host.replaceChildren();
+    const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+    const intro = make('p', 'sort-intro', 'The buttons under your hand (Type, Color, Cost, A-Z) sort it: by type first, then color, then cost, then name. Here you choose the order inside Type and Color. Only how the hand is shown changes.');
+    host.append(intro);
     const typeRow = pillRow({
-      host, title: 'Hand type order (left to right)', label: 'The order of the card types when the hand is sorted by type', names: TYPE_TITLES,
-      order: () => order,
+      host, title: 'Card types', hint: 'The first is on the left of your hand when it is sorted by Type.', label: 'The order of the card types when the hand is sorted by type', names: TYPE_TITLES,
+      order: () => order, isDefault: () => same(order, normalizeTypeOrder(null)),
       move: (from, to) => { order = moveType(order, from, to); store.set(TYPE_ORDER_KEY, JSON.stringify(order)); typeRow.draw(); onChange(); },
+      reset: () => { order = normalizeTypeOrder(null); store.set(TYPE_ORDER_KEY, JSON.stringify(order)); typeRow.draw(); onChange(); },
     });
     const colorRow = pillRow({
-      host, title: 'Hand color order (left to right)', label: 'The order of the colors when the hand is sorted by color', names: COLOR_TITLES,
-      order: () => colors,
+      host, title: 'Colors', hint: 'The order of the color groups when the hand is sorted by Color.', label: 'The order of the colors when the hand is sorted by color', names: COLOR_TITLES,
+      order: () => colors, isDefault: () => same(colors, normalizeColorOrder(null)),
       move: (from, to) => { colors = moveColor(colors, from, to); store.set(COLOR_ORDER_KEY, JSON.stringify(colors)); colorRow.draw(); onChange(); },
+      reset: () => { colors = normalizeColorOrder(null); store.set(COLOR_ORDER_KEY, JSON.stringify(colors)); colorRow.draw(); onChange(); },
     });
     const landRow = pillRow({
-      host, title: 'Hand land order (left to right)', label: 'The order of basic and non-basic lands when the hand is sorted', names: LAND_TITLES,
-      order: () => lands,
+      host, title: 'Lands', hint: 'Which lands come first: basic lands or the others.', label: 'The order of basic and non-basic lands when the hand is sorted', names: LAND_TITLES,
+      order: () => lands, isDefault: () => same(lands, normalizeLandOrder(null)),
       move: (from, to) => { lands = moveLand(lands, from, to); store.set(LAND_ORDER_KEY, JSON.stringify(lands)); landRow.draw(); onChange(); },
+      reset: () => { lands = normalizeLandOrder(null); store.set(LAND_ORDER_KEY, JSON.stringify(lands)); landRow.draw(); onChange(); },
     });
   }
 

@@ -4742,6 +4742,26 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **My AI's mistakes this time:** my first version of the table screen still had a faint outer box (a plain rule beat mine because of how specific the selectors were), the hero art overlapped the third feature card, and my first deck-card check read the cards before they were redrawn and changed Alice's deck for the checks after it. All three were found by looking at screenshots or by the checks failing, and fixed.
 
+## 239. Keybinds, a hand sorting page and a new Settings menu (2026-11-19)
+
+**What I asked for**
+- In Settings, add a whole new feature called keybinds where users can swap and change keys. Also give the sort ordering its own UI, and upgrade the settings menu.
+
+**What changed** (`shared/keybinds.mjs`, `frontend/src/keybinds.js`, `keybind-settings.js`, `settings-menu.js`, `hand-sort-ui.js`, the solo and table pages, `style.css`)
+- **Keybinds:** every action has up to two keys. Tap or untap (E and Q), Flip face down (F), Draw a card (D), Open or close Settings (Tab) and the two keys that turn the big Alt picture (Q and E) are the ones that were fixed before; Untap all and Next turn (Pass turn at a table) are new and have no key until you give them one, so nothing new fires by surprise. You click a key, press the one you want, and a key another action already has swaps with it (the other action gets the key you gave up). Backspace or Delete empties a key, Escape cancels, each action has a Reset and there is a Reset all. Enter, Space, Escape, Backspace, the arrow keys, F5, F11 and F12 are never bound, a key needs no Shift, and the same key may be used in the two groups (E taps a card and also turns the picture). The keys are kept in this browser (`overloaded.keybinds`), read strictly (damaged text gives the defaults, two actions of a group claiming one key leave it with the first), and a change in another tab is picked up. Both table pages, the Alt picture and the Settings key read them through one shared object, so the old hard-coded letters are gone.
+- **Hand sorting** has its own page in Settings: a short explanation of how the sort buttons work and one card each for the card types, the colors and the lands, with numbered pills (drag them or use the arrows), and a Reset on each card. The sort buttons under the hand are unchanged.
+- **Settings menu:** a panel in the middle of the window instead of a popup by the gear, with tabs (General: sound, piles, the resting hand, the sideboard; Hand sorting; Keybinds; About: the links and the Fan Content notice), a close button, and arrow keys to move between the tabs. The table page has the same panel without the Hand sorting tab. Every id is unchanged.
+
+**What I checked**
+- `scripts/test-keybinds.mjs` (new, 34 checks: which keys can be bound, swapping, reset, saving and reading damaged text, and which action a key event is for) and `scripts/check-settings-ui.mjs` (new, 12 checks in real Chrome: the tabs, choosing a key and the swap, that the new key works and the old one does not, Escape cancelling, the keys kept after a reload, changing the Settings key, Reset all, and the Hand sorting page).
+- The solo check (471) with its Tab test, the history and select check (28), the Alt picture check (27), the table layout check (405) and the quick set (80) still pass. Screenshots of every tab, a key being chosen and the light theme.
+
+**Decisions and limits**
+- Not looked at: the table page's Settings on screen (it is the same panel, checked by the layout test and by the shared code), and phone widths (on hold). The live table's own browser checks were not run for this.
+- Not built: keys with Ctrl, Alt or Shift, other actions (Mulligan, Shuffle and the like), and keys for the card menu or the windows.
+
+**My AI's mistakes this time:** my first Hand sorting cards looked broken because I reused a class name (`order-card`) that the pile order window already owns, and the cards had no room because `body.playing section` out-ranked my rule. Two of my first keybind test expectations were wrong (a swap gives the other action the key you gave up, and a reset gives back keys nobody holds). I also left stray backslashes in a new file.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

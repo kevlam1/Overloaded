@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.238</span></h1>
-    <p class="lede">238 entries, Oct 25 to Nov 19, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
+    <h1>Build log <span class="version">Version 0.239</span></h1>
+    <p class="lede">239 entries, Oct 25 to Nov 19, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
   </div>
 </header>
 
@@ -24,7 +24,7 @@
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
-<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">25</span></a>
+<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
 <a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">29 things friends asked for</span></a>
 <a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">26 open, 71 done</span></a>
@@ -3604,7 +3604,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-2" aria-labelledby="week-2-title">
-<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">25 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">26 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-2-days">
 <div class="day">
 <h3 class="day-title">Monday 16 November <span class="day-count">5</span></h3>
@@ -4007,7 +4007,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Thursday 19 November <span class="day-count">1</span></h3>
+<h3 class="day-title">Thursday 19 November <span class="day-count">2</span></h3>
 <div class="entries">
 <article class="entry" id="entry-238" data-n="238">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-238-body">
@@ -4025,6 +4025,24 @@
 <p class="sub"><strong>Decisions and limits</strong></p>
 <ul><li>Phones are still on hold, so only desktop widths were looked at. The look is mine; I kept the colours of the site.</li><li>Not changed: how a table is made or joined, the rules, or anything on the table page itself.</li></ul>
 <p><strong>My AI's mistakes this time:</strong> my first version of the table screen still had a faint outer box (a plain rule beat mine because of how specific the selectors were), the hero art overlapped the third feature card, and my first deck-card check read the cards before they were redrawn and changed Alice's deck for the checks after it. All three were found by looking at screenshots or by the checks failing, and fixed.</p>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-239" data-n="239">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-239-body">
+    <span class="num">239</span>
+    <span class="head-text"><span class="title">Keybinds, a hand sorting page and a new Settings menu</span><span class="sum">In Settings, add a whole new feature called keybinds where users can swap and change keys.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-239-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>In Settings, add a whole new feature called keybinds where users can swap and change keys. Also give the sort ordering its own UI, and upgrade the settings menu.</li></ul>
+<p><strong>What changed</strong> (<code>shared/keybinds.mjs</code>, <code>frontend/src/keybinds.js</code>, <code>keybind-settings.js</code>, <code>settings-menu.js</code>, <code>hand-sort-ui.js</code>, the solo and table pages, <code>style.css</code>)</p>
+<ul><li><strong>Keybinds:</strong> every action has up to two keys. Tap or untap (E and Q), Flip face down (F), Draw a card (D), Open or close Settings (Tab) and the two keys that turn the big Alt picture (Q and E) are the ones that were fixed before; Untap all and Next turn (Pass turn at a table) are new and have no key until you give them one, so nothing new fires by surprise. You click a key, press the one you want, and a key another action already has swaps with it (the other action gets the key you gave up). Backspace or Delete empties a key, Escape cancels, each action has a Reset and there is a Reset all. Enter, Space, Escape, Backspace, the arrow keys, F5, F11 and F12 are never bound, a key needs no Shift, and the same key may be used in the two groups (E taps a card and also turns the picture). The keys are kept in this browser (<code>overloaded.keybinds</code>), read strictly (damaged text gives the defaults, two actions of a group claiming one key leave it with the first), and a change in another tab is picked up. Both table pages, the Alt picture and the Settings key read them through one shared object, so the old hard-coded letters are gone.</li><li><strong>Hand sorting</strong> has its own page in Settings: a short explanation of how the sort buttons work and one card each for the card types, the colors and the lands, with numbered pills (drag them or use the arrows), and a Reset on each card. The sort buttons under the hand are unchanged.</li><li><strong>Settings menu:</strong> a panel in the middle of the window instead of a popup by the gear, with tabs (General: sound, piles, the resting hand, the sideboard; Hand sorting; Keybinds; About: the links and the Fan Content notice), a close button, and arrow keys to move between the tabs. The table page has the same panel without the Hand sorting tab. Every id is unchanged.</li></ul>
+<p class="sub"><strong>What I checked</strong></p>
+<ul><li><code>scripts/test-keybinds.mjs</code> (new, 34 checks: which keys can be bound, swapping, reset, saving and reading damaged text, and which action a key event is for) and <code>scripts/check-settings-ui.mjs</code> (new, 12 checks in real Chrome: the tabs, choosing a key and the swap, that the new key works and the old one does not, Escape cancelling, the keys kept after a reload, changing the Settings key, Reset all, and the Hand sorting page).</li><li>The solo check (471) with its Tab test, the history and select check (28), the Alt picture check (27), the table layout check (405) and the quick set (80) still pass. Screenshots of every tab, a key being chosen and the light theme.</li></ul>
+<p class="sub"><strong>Decisions and limits</strong></p>
+<ul><li>Not looked at: the table page's Settings on screen (it is the same panel, checked by the layout test and by the shared code), and phone widths (on hold). The live table's own browser checks were not run for this.</li><li>Not built: keys with Ctrl, Alt or Shift, other actions (Mulligan, Shuffle and the like), and keys for the card menu or the windows.</li></ul>
+<p><strong>My AI's mistakes this time:</strong> my first Hand sorting cards looked broken because I reused a class name (<code>order-card</code>) that the pile order window already owns, and the cards had no room because <code>body.playing section</code> out-ranked my rule. Two of my first keybind test expectations were wrong (a swap gives the other action the key you gave up, and a reset gives back keys nobody holds). I also left stray backslashes in a new file.</p>
   </div></div></div>
 </article>
 </div>

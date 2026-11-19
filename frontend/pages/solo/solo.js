@@ -11,6 +11,8 @@ import { mountStackWindow } from '../../src/stack-window.js';
 import { mountHistoryBar } from '../../src/history-bar.js';
 import { drawPause } from '../../../shared/draw-pace.mjs';
 import { mountSettingsMenu } from '../../src/settings-menu.js';
+import { keybinds } from '../../src/keybinds.js';
+import { mountKeybindSettings } from '../../src/keybind-settings.js';
 import { createHandSort } from '../../src/hand-sort-ui.js';
 import { sortHand, anySortOn, applyPins } from '../../../shared/hand-sort.mjs';
 import { mountPileStack } from '../../src/pile-stack.js';
@@ -579,6 +581,7 @@ for (const zone of ['library', 'graveyard', 'exile', 'sideboard']) {
   });
 }
 const settings = mountSettingsMenu({ button: $('settings-button'), panel: $('settings-menu') });
+mountKeybindSettings($('keybind-settings'), { keybinds });
 // the action buttons are a floating bar you drag by its grip (src/floating-bar.js)
 mountFloatingBar({ bar: document.querySelector('.actions-panel'), grip: $('bar-grip'), store });
 $('pile-sideboard').addEventListener('click', () => settings.close()); // the viewer opens over the table; the Settings panel would only be in the way
@@ -604,6 +607,12 @@ function keyTargets(found) {
   if (multi.size > 0 && (!found || multi.has(found.card.uid))) return [...multi].map((uid) => findCard(uid)).filter((entry) => entry && entry.zone === 'battlefield');
   return found ? [found] : [];
 }
+// What the keys do to picked cards, in the player's own keys ("E or Q taps them, F flips them."), or nothing when those actions have no key.
+function keyHint() {
+  const part = (id, verb) => { const keys = keybinds.labels(id); return keys.length ? `${keys.join(' or ')} ${verb} them` : ''; };
+  const words = [part('tap', 'taps'), part('flip', 'flips')].filter(Boolean);
+  return words.length ? ` ${words.join(', ')}.` : '';
+}
 // Press E or Q while the pointer is over a card of yours on the battlefield and it taps or untaps (Kevin, 2026-11-12 and 13). The same change as a double click. With a group picked it is the whole group,
 // all set the way the first one is not.
 function toggleTapped(found) {
@@ -624,17 +633,19 @@ function flipFaceDown(found) {
   const down = !targets[0].card.faceDown;
   apply(() => targets.reduce((game_, entry) => setFaceDown(game_, entry.card.uid, down), game), targets.length > 1 ? `Flipped ${targets.length} cards face ${down ? 'down' : 'up'}.` : `Flipped ${targets[0].card.n} face ${down ? 'down' : 'up'}.`);
 }
+// The keys come from the player's own choices (src/keybinds.js, Settings > Keybinds): tap, flip, draw, untap all and next turn. Settings itself is opened by src/settings-menu.js.
 document.addEventListener('keydown', (event) => {
-  const key = event.key.toLowerCase();
-  if ((key !== 'e' && key !== 'q' && key !== 'f' && key !== 'd') || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || event.repeat) return;
+  const action = keybinds.match('table', event);
+  if (action === null || action === 'settings') return;
   if (event.target instanceof Element && event.target.closest('input, select, textarea, [contenteditable]')) return; // typing a number or a search is not a tap
-  if (key === 'd') { if (game) { event.preventDefault(); drawOne(); } return; } // D draws a card (Kevin, 2026-11-13)
+  if (action === 'draw') { if (game) { event.preventDefault(); drawOne(); } return; }
+  if (action === 'untapAll' || action === 'nextTurn') { const button = $(action === 'untapAll' ? 'untap-all' : 'next-turn'); if (game && button && !button.disabled) { event.preventDefault(); button.click(); } return; }
   const hovered = cardUnderPointer();
   const found = hovered ? findCard(hovered.dataset.uid) : null;
   if (!game || (!found && multi.size === 0)) return;
   if (found && found.zone !== 'battlefield') return;
   event.preventDefault();
-  if (key === 'f') flipFaceDown(found); else toggleTapped(found); // (E and Q do the same)
+  if (action === 'flip') flipFaceDown(found); else toggleTapped(found);
 });
 // (Tab opens and closes Settings, and does nothing else: src/settings-menu.js)
 
@@ -680,7 +691,7 @@ document.addEventListener('pointerup', () => {
   multiZone = done.zone;
   for (const uid of done.hits) multi.add(uid);
   selected = null;
-  say(multi.size > 1 ? (done.zone === 'hand' ? `${multi.size} cards picked.` : `${multi.size} cards picked. E or Q taps them, F flips them.`) : '');
+  say(multi.size > 1 ? (done.zone === 'hand' ? `${multi.size} cards picked.` : `${multi.size} cards picked.${keyHint()}`) : '');
   render();
 });
 document.addEventListener('click', (event) => {
