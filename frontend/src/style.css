@@ -1667,7 +1667,7 @@ body.playing.solo #life-area .life-counters[aria-expanded="true"]::after { rotat
 .foil-full[hidden] { display: none; }
 .foil-frame { position: relative; display: inline-block; max-width: 100%; line-height: 0; border-radius: 4.8% / 3.4%; isolation: isolate; }
 
-/* foil on the deck page: a tag on a line of the text list */
-.foil-badge { flex: none; padding: 0 0.4rem; border-radius: 0.7rem; background: linear-gradient(115deg, #94a3b8, #e2e8f0, #bfdbfe, #94a3b8); color: #14141a; font-size: 0.66rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; }
+/* foil on the deck page: a star on a line of the text list, with the kind of foil as its tooltip */
+.foil-star { flex: none; display: inline-flex; align-items: center; color: #c9a227; cursor: help; }
 .picker-tile .tile-art.foil-art { position: relative; }
 .picker-tile .tile-caption .tile-foil { font-weight: 700; color: var(--text); }

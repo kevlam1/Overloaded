@@ -225,7 +225,7 @@ check('there are no commander or partner boxes; the Commander heading says to ri
   const SIGNET_SLD_916 = 'dd1d87e4-f51a-448f-824f-99dffd73403c';
   const SIGNET_CMM_367 = '0539b83c-4459-41b5-a001-d15a1c9ddf23';
   const checked = () => waitFor(async () => (!(await $hidden('preview')) && !/^Checking/.test(await $text('deck-status'))) || null, 15000, 50);
-  const rowsOf = () => ev(`Array.from(document.querySelectorAll('#sections .card-line')).map((li) => ({ name: li.querySelector('.name').textContent, qty: li.querySelector('.qty').textContent, printing: li.querySelector('.printing')?.textContent ?? null, tip: li.querySelector('.printing')?.title ?? '', type: li.querySelector('.name')?.title ?? null, cost: li.querySelector('.cost')?.dataset.cost ?? li.querySelector('.cost')?.textContent ?? null, columns: [...li.children].filter((c) => !c.classList.contains('row-menu') && !c.classList.contains('foil-badge')).length, id: li.dataset.previewId ?? null, source: li.dataset.printing ?? null }))`);
+  const rowsOf = () => ev(`Array.from(document.querySelectorAll('#sections .card-line')).map((li) => ({ name: li.querySelector('.name').textContent, qty: li.querySelector('.qty').textContent, printing: li.querySelector('.printing')?.textContent ?? null, tip: li.querySelector('.printing')?.title ?? '', type: li.querySelector('.name')?.title ?? null, cost: li.querySelector('.cost')?.dataset.cost ?? li.querySelector('.cost')?.textContent ?? null, columns: [...li.children].filter((c) => !c.classList.contains('row-menu') && !c.classList.contains('foil-star')).length, id: li.dataset.previewId ?? null, source: li.dataset.printing ?? null }))`);
   await load();
   const requestsBefore = pictureRequests.length;
   await paste('1 Sol Ring (cmm) 410\n2 Lightning Bolt\n1 Arcane Signet (sld) 916\n1 Arcane Signet (cmm) 367\n1 Heart of the Mountain\n1 Sol Ring (cmm) 5\n1 Sol Ring (cmm) 99999\n1 Not A Real Card (abc) 7');
@@ -928,9 +928,9 @@ check('there are no commander or partner boxes; the Commander heading says to ri
   check('on a saved deck the commander name is right above the colors and the bracket (less than 12 px between them), below the deck name, and the colors row is at the bottom of the card', lines.length === 3 && lines.filter((l) => l.cmdGap !== null).every((l) => l.cmdGap >= -2 && l.cmdGap < 12 && l.cmdBelowName) && lines.every((l) => l.bottomGap < 20), JSON.stringify(lines));
   // ---- foil comes from the deck list: *F* on a line, a Foil tag, and Make foil / Remove foil in the card's menu rewrite the list (Kevin, 2026-11-18) ----
   await load(); await deleteAllSaved(); await paste('2 Sol Ring *F*\n3 Island'); await press('check');
-  const foilLines = () => ev(`[...document.querySelectorAll('#sections .card-line.foil-line')].map((l) => l.querySelector('.name').textContent + ' ' + l.querySelector('.qty').textContent + ' ' + l.querySelector('.foil-badge').textContent)`);
+  const foilLines = () => ev(`[...document.querySelectorAll('#sections .card-line.foil-line')].map((l) => l.querySelector('.name').textContent + ' ' + l.querySelector('.qty').textContent + ' ' + l.querySelector('.foil-star').getAttribute('aria-label'))`);
   const openLineMenuOf = async (name) => { await ev(`[...document.querySelectorAll('#sections .card-line')].find((l) => l.querySelector('.name').textContent === ${JSON.stringify(name)}).querySelector('.row-menu').click()`); await sleep(150); };
-  check('a line with *F* in the pasted list shows a Foil tag (and the other lines do not)', JSON.stringify(await foilLines()) === '["Sol Ring 2 Foil"]', JSON.stringify(await foilLines()));
+  check('a line with *F* in the pasted list shows a foil star (and the other lines do not)', JSON.stringify(await foilLines()) === '["Sol Ring 2 Foil"]', JSON.stringify(await foilLines()));
   // the picture beside the list shows the foil of a foil card, with a shine that moves, and none for a card that is not foil
   const ringIndex = await ev(`Array.from(document.querySelectorAll('#sections .card-line')).findIndex((li) => li.dataset.cardName === 'Sol Ring')`);
   const islandIndex = await ev(`Array.from(document.querySelectorAll('#sections .card-line')).findIndex((li) => li.dataset.cardName === 'Island')`);
@@ -945,15 +945,15 @@ check('there are no commander or partner boxes; the Commander heading says to ri
   const foilMenu = await ev(`[...document.querySelectorAll('.card-menu [role="menuitem"]')].map((x) => x.textContent)`);
   check('the card\'s menu says Remove foil for a foil card', foilMenu.includes('Remove foil') && !foilMenu.includes('Make foil'), JSON.stringify(foilMenu));
   await pickMenu('Remove foil'); await sleep(200);
-  check('Remove foil takes the *F* out of the list and the Foil tag goes', !/\*F\*/.test(await ev(`document.getElementById('deck-text').value`)) && (await foilLines()).length === 0);
+  check('Remove foil takes the *F* out of the list and the foil star goes', !/\*F\*/.test(await ev(`document.getElementById('deck-text').value`)) && (await foilLines()).length === 0);
   await openLineMenuOf('Island');
   await pickMenu('Make foil'); await sleep(200);
-  check('Make foil on another card puts *F* on its line and shows the tag', /3 Island \*F\*/.test(await ev(`document.getElementById('deck-text').value`)) && JSON.stringify(await foilLines()) === '["Island 3 Foil"]', JSON.stringify(await foilLines()));
+  check('Make foil on another card puts *F* on its line and shows the star', /3 Island \*F\*/.test(await ev(`document.getElementById('deck-text').value`)) && JSON.stringify(await foilLines()) === '["Island 3 Foil"]', JSON.stringify(await foilLines()));
   check('the same deck saved and loaded again is still foil (the list is what is saved)', (await library()).decks.length === 1 && (await library()).decks[0].deck.cards.some((c) => c.n === 'Island' && c.foil === true) && !(await library()).decks[0].deck.cards.some((c) => c.n === 'Sol Ring' && c.foil));
   await deleteAllSaved();
   // a printing that exists only as foil (real data: Wall of Roots in F08 is foil only) is foil without any mark in the list, cannot be turned off, and a normal printing next to it is not foil
   await load(); await paste('1 Wall of Roots (F08) 7\n1 Sol Ring (CMM) 410'); await press('check');
-  check('a foil-only printing shows the Foil tag by itself (its tooltip says why), and a normal printing does not', JSON.stringify(await foilLines()) === '["Wall of Roots 1 Foil"]' && /only as foil/.test(await ev(`document.querySelector('#sections .card-line.foil-line .foil-badge').title`)), JSON.stringify(await foilLines()));
+  check('a foil-only printing shows the foil star by itself (its tooltip says why), and a normal printing does not', JSON.stringify(await foilLines()) === '["Wall of Roots 1 Foil"]' && /only as foil/.test(await ev(`document.querySelector('#sections .card-line.foil-line .foil-star').title`)), JSON.stringify(await foilLines()));
   await openLineMenuOf('Wall of Roots');
   check('its menu has no foil choice (it cannot be turned off), while the normal printing can be made foil', !(await ev(`[...document.querySelectorAll('.card-menu [role="menuitem"]')].map((x) => x.textContent)`)).some((t) => /foil/i.test(t)) && !(await ev(`document.getElementById('deck-text').value`)).includes('*F*'));
   await ev(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`);

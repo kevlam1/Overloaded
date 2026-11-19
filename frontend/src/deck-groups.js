@@ -93,6 +93,26 @@ function menuButton(line) {
   return button;
 }
 
+// A star on a foil line of the text list, like the star on a foil card (Kevin, 2026-11-18): hovering it says which kind of foil it is ("Foil", "Surge foil", "Etched foil", ...), and says so when the printing exists only as foil.
+function foilStar(line) {
+  const words = foilLabel(line.look);
+  const star = make('span', 'foil-star');
+  star.setAttribute('role', 'img');
+  star.setAttribute('aria-label', words);
+  star.title = line.foilOnly ? `${words} (this printing exists only as foil)` : words;
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('width', '13');
+  svg.setAttribute('height', '13');
+  svg.setAttribute('fill', 'currentColor');
+  svg.setAttribute('aria-hidden', 'true');
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', 'M12 1.8l3.1 6.6 7.2.9-5.3 5 1.4 7.2L12 17.9 5.6 21.5 7 14.3 1.7 9.3l7.2-.9z');
+  svg.append(path);
+  star.append(svg);
+  return star;
+}
+
 function textRow(line, printingCell, withMenu) {
   const item = make('li', line.status === 'matched' ? 'card-line' : 'card-line unmatched');
   const name = make('span', 'name', line.name);
@@ -100,7 +120,7 @@ function textRow(line, printingCell, withMenu) {
   describeCard(item, line);
   if (line.card) { name.tabIndex = 0; name.title = line.card.t; }
   item.append(make('span', 'qty', String(line.qty)), name);
-  if (line.foil) { const badge = make('span', 'foil-badge', foilLabel(line.look)); badge.title = line.foilOnly ? 'This printing exists only as foil' : foilLabel(line.look); setFoilLook(badge, lookGroup(line.look ?? 'traditional')); item.classList.add('foil-line'); item.append(badge); } // (from *F* in the list, or a foil-only printing)
+  if (line.foil) { item.classList.add('foil-line'); item.append(foilStar(line)); } // (from *F* in the list, or a foil-only printing)
   const printing = printingCell(line);
   if (printing.textContent) item.append(printing);
   item.append(line.card ? manaNode(line.card.m) : make('span', 'cost', 'not matched'));
