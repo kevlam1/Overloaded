@@ -4798,6 +4798,22 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 **My AI's mistakes this time:** my edit scripts turned `
 ` into real newlines inside two source files and broke them (a syntax error), and I had to repair them by hand with the editor tool.
 
+## 242. Token and emblem data for the Create token menus (2026-11-19)
+
+**What I asked for**
+- Right-clicking the battlefield should let me create a token: a section of tokens relevant to cards in my deck, a section of the most common tokens, a search bar for every token, and a choice of art printing for that token. Emblems should work the same way and show near the command zone. We agreed to start with the data, then the solo page, then emblems, and the live table last (it needs a rules change).
+
+**What changed** (`shared/card-tokens.mjs`, `scripts/lib/card-list.mjs`, `scripts/lib/card-list-build.mjs`, `scripts/build-card-list.mjs`; list format 14)
+- Before building I read the real Scryfall file: 3,355 token and emblem printings, which group by `oracle_id` into 1,109 distinct tokens and emblems with no group holding two different names or types (35 printings are Japanese, left out). A card links to its tokens and its emblem through `all_parts`: 14,198 links from 4,162 cards, 82 pointing at a printing that is not in the file.
+- The card list build now also writes ONE file, `/data/tokens.json`: 1,020 tokens, 89 emblems, 3,320 English printings (newest first, as id, set, number, year) and links from 4,075 cards of the list, 0.42 MB, 0.17 MB compressed. It is only fetched when a token menu opens. It is cached with a checksum like the other files, checked before it is published (it refuses a file that is too small, has a bad row, or lacks Treasure, Soldier, Food, Elspeth's emblem or the link from Krenko), and the next Vercel build rebuilds the list once (format 14).
+- `shared/card-tokens.mjs` also has what the menus will use: tokens made by the cards of a deck (most-made first), the 16 common tokens (Treasure, Food, Clue, Blood, Soldier, Spirit, Zombie, Goblin, Beast, Elemental, Angel, Dragon, Bird, Saproling, Human, Wolf; for each name the plain token with most printings) and a word search over name and type. On the real file the common list came out right (Soldier is the white 1/1, Zombie the black 2/2, and so on), Krenko links to Goblin, and Elspeth, Sun's Champion links to her Soldier and her emblem.
+
+**What I checked**
+- `scripts/test-card-tokens.mjs` (new, 21 checks on made-up records and the real shapes) and `scripts/test-card-list-build.mjs` (191, with 9 new for the tokens file: published, reused from the cache, damaged, missing, too strict, failing a first build). The quick set passes (81 suites). 10 of 12 broken copies of the tokens module were caught; the other two were one change that does nothing and one that did not apply.
+- No menu yet: this step is data only. I did not run the deploy check (it needs the Firebase settings), and the real Vercel build has not run with format 14.
+
+**My AI's mistakes this time:** my first validation asked for a link from "Ajani, Mentor of Heroes", a card I assumed made a token and does not (the build refused its own list, which is what the check is for). A record with no id made a nameless token until a test found it. And my patch script died halfway and left the build files half changed, so I finished it by hand.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

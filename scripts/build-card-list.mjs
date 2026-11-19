@@ -22,6 +22,7 @@ import { brotliCompressSync, gzipSync } from 'node:zlib';
 import { buildFromFiles, countPrintings, serializeList, serializePrintings, serializePrints, serializeRules, serializeRulings, validateList, validatePrintings } from './lib/card-list.mjs';
 import { validateRulings, countRulings } from '../shared/card-rulings.mjs';
 import { validateRules, countRules } from '../shared/card-rules.mjs';
+import { validateTokens, countTokens } from '../shared/card-tokens.mjs';
 import { validatePrints, countPrints } from '../shared/card-prints.mjs';
 import { ensureCardList, publish } from './lib/card-list-build.mjs';
 
@@ -43,8 +44,8 @@ async function fromFiles() {
   if (existsSync(outPath)) { try { previousCount = JSON.parse(readFileSync(outPath, 'utf8')).length; } catch { /* an unreadable old file is not a reason to refuse a new list */ } }
   const started = performance.now();
   if (!existsSync(rulingsPath)) { console.error(`Missing ${rulingsPath}. Download Scryfall's rulings bulk file (type "rulings", see https://api.scryfall.com/bulk-data) to that path, or give another with --rulings.`); process.exit(1); }
-  const { list, counts, printingFiles, prints, rules, rulings } = await buildFromFiles(oraclePath, defaultPath, rulingsPath);
-  const problems = [...validateList(list, { previousCount }), ...validatePrintings(printingFiles), ...validatePrints(prints), ...validateRules(rules), ...validateRulings(rulings)];
+  const { list, counts, printingFiles, prints, rules, rulings, tokens } = await buildFromFiles(oraclePath, defaultPath, rulingsPath);
+  const problems = [...validateList(list, { previousCount }), ...validatePrintings(printingFiles), ...validatePrints(prints), ...validateRules(rules), ...validateRulings(rulings), ...validateTokens(tokens)];
   console.log(`Read ${counts.printings} printings and ${counts.oracleRecords} card records in ${((performance.now() - started) / 1000).toFixed(1)} s`);
   console.log(`  not for decks (art cards, vanguards, planes, schemes, tokens, emblems, collectibles): ${counts.notCandidates}`);
   console.log(`  online-only (every printing digital): ${counts.onlineOnly}`);
@@ -83,11 +84,16 @@ async function fromFiles() {
   writeFileSync(`${rulingsOut}.tmp`, rulingsBytes);
   renameSync(`${rulingsOut}.tmp`, rulingsOut);
   console.log(`Wrote ${rulingsOut}: ${mb(rulingsBytes.length)} MB, ${mb(gzipSync(rulingsBytes).length)} MB gzipped (${countRulings(rulings).rows} rulings on ${countRulings(rulings).cards} cards)`);
+  const tokensBytes = Buffer.from(JSON.stringify(tokens));
+  const tokensOut = join(dirname(outPath), 'tokens.json');
+  writeFileSync(`${tokensOut}.tmp`, tokensBytes);
+  renameSync(`${tokensOut}.tmp`, tokensOut);
+  console.log(`Wrote ${tokensOut}: ${mb(tokensBytes.length)} MB, ${mb(gzipSync(tokensBytes).length)} MB gzipped (${countTokens(tokens).tokens} tokens, ${countTokens(tokens).emblems} emblems, ${countTokens(tokens).printings} printings, ${countTokens(tokens).cards} cards linked)`);
   if (args.includes('--site')) {
     // Also put them where the site picks them up (the same step the real build uses), so the pages can be run and checked
     // here without downloading anything. The bytes are the ones that were just checked and written.
     const publicFile = join(root, 'frontend', 'public', 'data', 'cards.json');
-    await publish(publicFile, bytes, printingBytes, printsBytes, rulesBytes, rulingsBytes);
+    await publish(publicFile, bytes, printingBytes, printsBytes, rulesBytes, rulingsBytes, tokensBytes);
     console.log(`Published the list, ${countPrintings(printingFiles).sets} printing files, the printings by card and the rules of ${countRules(rules)} cards to ${dirname(publicFile)}`);
   }
 }

@@ -7,7 +7,7 @@ import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, existsSync, 
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { gzipSync } from 'node:zlib';
-import { decide, ensureCardList, getBulkInfo, downloadFile, loadCached, DAY_MS, MAX_AGE_MS, MAX_STALE_MS, HEADERS, LIST_FORMAT } from './lib/card-list-build.mjs';
+import { decide, ensureCardList, getBulkInfo, downloadFile, loadCached as loadCachedReal, DAY_MS, MAX_AGE_MS, MAX_STALE_MS, HEADERS, LIST_FORMAT } from './lib/card-list-build.mjs';
 import { printingValue } from '../shared/printings.mjs';
 import { shardOf, printingsOf } from '../shared/card-prints.mjs';
 import { shardOf as rulesShardOf, rulesOf } from '../shared/card-rules.mjs';
@@ -44,6 +44,8 @@ const validateOptions = { minCards: 3, mustHave: [] };
 const printingOptions = { minPrintings: 3, minSets: 1 };
 const printsOptions = { minCards: 1, minRows: 1 };
 const rulingsOptions = { minCards: 1, minRows: 1, mustHave: {} };
+const tokensOptions = { minTokens: 0, minPrintings: 0, minCards: 0, mustHave: [], mustLink: [] }; // (the stand-in has no tokens: the real build also insists on Treasure, Soldier and a few links)
+const loadCached = (dir, ...a) => loadCachedReal(dir, a[0], a[1], a[2], a[3], a[4], tokensOptions);
 const rulesOptions = { minCards: 1, mustHave: {} }; // (the stand-in cards have no rules text: the real build also insists on Sol Ring and Lightning Bolt)
 
 // ---- the stand-in Scryfall ----
@@ -80,18 +82,18 @@ let n = 0;
 const fresh = () => { const dir = join(root, `case${++n}`); return { cacheDir: join(dir, 'cache'), publicFile: join(dir, 'public', 'data', 'cards.json') }; };
 const T0 = Date.UTC(2026, 9, 29, 12, 0, 0);
 const logs = []; const warns = [];
-const run = (paths, over = {}) => ensureCardList({ ...paths, now: T0, env: {}, apiUrl: API, validateOptions, printingOptions, printsOptions, rulesOptions, rulingsOptions, retryDelayMs: 0, timeouts: { apiMs: 3000, fileMs: 3000 }, log: (m) => logs.push(m), warn: (m) => warns.push(m), ...over });
+const run = (paths, over = {}) => ensureCardList({ ...paths, now: T0, env: {}, apiUrl: API, validateOptions, printingOptions, printsOptions, rulesOptions, rulingsOptions, tokensOptions, retryDelayMs: 0, timeouts: { apiMs: 3000, fileMs: 3000 }, log: (m) => logs.push(m), warn: (m) => warns.push(m), ...over });
 const names = (paths) => JSON.parse(readFileSync(paths.publicFile, 'utf8')).map((e) => e.n);
 const cacheBytes = (paths) => readFileSync(join(paths.cacheDir, 'cards.json'));
 const setsDir = (paths) => join(paths.publicFile, '..', 'printings');
 const setFiles = (paths) => (existsSync(setsDir(paths)) ? readdirSync(setsDir(paths)).sort() : []);
-const CACHE_FILES = 'cards.json,cards.meta.json,printings.json,prints.json,rules.json,rulings.json';
+const CACHE_FILES = 'cards.json,cards.meta.json,printings.json,prints.json,rules.json,rulings.json,tokens.json';
 
 try {
   // ---- decide: the rule, with its boundaries ----
   const cachedAt = (daysAgo, format = LIST_FORMAT) => ({ meta: { builtAt: new Date(T0 - daysAgo * DAY_MS).toISOString(), format } });
   check('7 days is the reuse limit', MAX_AGE_MS === 7 * DAY_MS && MAX_STALE_MS === 30 * DAY_MS);
-  check('the list format is 13 (3 had the printing of each title and the per-set printing files; 4 added the printed power and toughness; 5 added b and bpt, a back face to turn over; 6 added md, a modal card; 7 added the printings grouped by card; 8 added the year of each; 9 added ci and gc; 10 added the rules of every card; 11 added the rulings; 12 added an f after the key of a foil-only printing; 13 adds a foil suffix, the finishes and the kind of foil, to the set files and to the per-card rows)', LIST_FORMAT === 13);
+  check('the list format is 14 (14 added the tokens and emblems; 3 had the printing of each title and the per-set printing files; 4 added the printed power and toughness; 5 added b and bpt, a back face to turn over; 6 added md, a modal card; 7 added the printings grouped by card; 8 added the year of each; 9 added ci and gc; 10 added the rules of every card; 11 added the rulings; 12 added an f after the key of a foil-only printing; 13 adds a foil suffix, the finishes and the kind of foil, to the set files and to the per-card rows)', LIST_FORMAT === 14);
   check('a 1 day old list is reused', decide({ cached: cachedAt(1), now: T0, env: {} }).action === 'reuse');
   check('a list one millisecond under 7 days is reused', decide({ cached: { meta: { builtAt: new Date(T0 - MAX_AGE_MS + 1).toISOString(), format: LIST_FORMAT } }, now: T0, env: {} }).action === 'reuse');
   check('a recent list in an older format is rebuilt, not reused', decide({ cached: cachedAt(1, 1), now: T0, env: {} }).action === 'rebuild' && /older format/.test(decide({ cached: cachedAt(1, 1), now: T0, env: {} }).reason));
@@ -441,6 +443,33 @@ try {
   state.rulings = gz([{ oracle_id: 'o-Alpha', source: 'wotc', published_at: 'not a date', comment: 'x' }]);
   warns.length = 0;
   await rejects('rulings that are all unusable fail the build (there is nothing to publish)', run(p), /no card list|rulings failed/);
+  reset();
+
+  // ---- the tokens and emblems: one file in the cache and on the site (shared/card-tokens.mjs) ----
+  reset();
+  p = fresh();
+  result = await run(p);
+  const tokensPublished = () => { try { return JSON.parse(readFileSync(join(dirname(p.publicFile), 'tokens.json'), 'utf8')); } catch { return null; } };
+  check('a rebuild publishes tokens.json (the stand-in\'s printings file has no tokens, so it is empty)', tokensPublished()?.v === 1 && Array.isArray(tokensPublished().t) && typeof tokensPublished().l === 'object', JSON.stringify(tokensPublished())?.slice(0, 120));
+  const tokensMeta = JSON.parse(readFileSync(join(p.cacheDir, 'cards.meta.json'), 'utf8'));
+  check('the record has the tokens\' counts and checksum', tokensMeta.tokens.tokens === 0 && /^[0-9a-f]{64}$/.test(tokensMeta.tokensSha256) && existsSync(join(p.cacheDir, 'tokens.json')));
+  rmSync(join(dirname(p.publicFile), 'tokens.json'));
+  state.requests = [];
+  result = await run(p, { now: T0 + 2 * DAY_MS });
+  check('a reuse publishes it again from the cache with no request', result.action === 'reuse' && state.requests.length === 0 && tokensPublished()?.v === 1);
+  const tokensText = readFileSync(join(p.cacheDir, 'tokens.json'), 'utf8');
+  writeFileSync(join(p.cacheDir, 'tokens.json'), tokensText.replace('"v":1', '"v":2'));
+  check('damaged tokens (the checksum no longer fits) mean the cache is not loaded', (await loadCached(p.cacheDir, validateOptions, printingOptions, printsOptions, rulesOptions, rulingsOptions)) === null);
+  writeFileSync(join(p.cacheDir, 'tokens.json'), tokensText);
+  check('and the untouched file loads again', (await loadCached(p.cacheDir, validateOptions, printingOptions, printsOptions, rulesOptions, rulingsOptions)) !== null);
+  rmSync(join(p.cacheDir, 'tokens.json'));
+  check('a cache with no tokens file is not loaded', (await loadCached(p.cacheDir, validateOptions, printingOptions, printsOptions, rulesOptions, rulingsOptions)) === null);
+  writeFileSync(join(p.cacheDir, 'tokens.json'), tokensText);
+  check('tokens that fail stricter checks are not loaded', (await loadCachedReal(p.cacheDir, validateOptions, printingOptions, printsOptions, rulesOptions, rulingsOptions, { ...tokensOptions, minTokens: 100 })) === null);
+  reset();
+  p = fresh();
+  warns.length = 0;
+  await rejects('tokens that fail their checks stop a first build (there is nothing to publish)', run(p, { tokensOptions: { ...tokensOptions, minTokens: 100 } }), /no card list|tokens failed/);
   reset();
 
   // ---- 9. Where downloading is not allowed ----

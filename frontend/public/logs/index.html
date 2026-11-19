@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.241</span></h1>
-    <p class="lede">241 entries, Oct 25 to Nov 19, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
+    <h1>Build log <span class="version">Version 0.242</span></h1>
+    <p class="lede">242 entries, Oct 25 to Nov 19, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
   </div>
 </header>
 
@@ -24,7 +24,7 @@
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
-<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">28</span></a>
+<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">29</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
 <a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">29 things friends asked for</span></a>
 <a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">26 open, 71 done</span></a>
@@ -3604,7 +3604,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-2" aria-labelledby="week-2-title">
-<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">28 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">29 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-2-days">
 <div class="day">
 <h3 class="day-title">Monday 16 November <span class="day-count">5</span></h3>
@@ -4007,7 +4007,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Thursday 19 November <span class="day-count">4</span></h3>
+<h3 class="day-title">Thursday 19 November <span class="day-count">5</span></h3>
 <div class="entries">
 <article class="entry" id="entry-238" data-n="238">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-238-body">
@@ -4077,6 +4077,22 @@
 <p class="sub"><strong>What I checked</strong></p>
 <ul><li><code>scripts/test-deck-text-edit.mjs</code> is 26 checks (3 new for the finishes), <code>scripts/test-deck-preview.mjs</code> 263, and <code>scripts/check-deck-ui.mjs</code> is 292 checks in real Chrome with the menu expectations changed to the new labels. The quick set passes. I did not take a screenshot of the new menu, and a card with an etched printing was only covered by the unit test, not the browser.</li></ul>
 <p><strong>My AI's mistakes this time:</strong> my edit scripts turned <code> </code> into real newlines inside two source files and broke them (a syntax error), and I had to repair them by hand with the editor tool.</p>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-242" data-n="242">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-242-body">
+    <span class="num">242</span>
+    <span class="head-text"><span class="title">Token and emblem data for the Create token menus</span><span class="sum">Right-clicking the battlefield should let me create a token: a section of tokens relevant to cards in my deck, a section of the most common tokens, a search bar for every token, and a choice of art printing for that token.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-242-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>Right-clicking the battlefield should let me create a token: a section of tokens relevant to cards in my deck, a section of the most common tokens, a search bar for every token, and a choice of art printing for that token. Emblems should work the same way and show near the command zone. We agreed to start with the data, then the solo page, then emblems, and the live table last (it needs a rules change).</li></ul>
+<p><strong>What changed</strong> (<code>shared/card-tokens.mjs</code>, <code>scripts/lib/card-list.mjs</code>, <code>scripts/lib/card-list-build.mjs</code>, <code>scripts/build-card-list.mjs</code>; list format 14)</p>
+<ul><li>Before building I read the real Scryfall file: 3,355 token and emblem printings, which group by <code>oracle_id</code> into 1,109 distinct tokens and emblems with no group holding two different names or types (35 printings are Japanese, left out). A card links to its tokens and its emblem through <code>all_parts</code>: 14,198 links from 4,162 cards, 82 pointing at a printing that is not in the file.</li><li>The card list build now also writes ONE file, <code>/data/tokens.json</code>: 1,020 tokens, 89 emblems, 3,320 English printings (newest first, as id, set, number, year) and links from 4,075 cards of the list, 0.42 MB, 0.17 MB compressed. It is only fetched when a token menu opens. It is cached with a checksum like the other files, checked before it is published (it refuses a file that is too small, has a bad row, or lacks Treasure, Soldier, Food, Elspeth's emblem or the link from Krenko), and the next Vercel build rebuilds the list once (format 14).</li><li><code>shared/card-tokens.mjs</code> also has what the menus will use: tokens made by the cards of a deck (most-made first), the 16 common tokens (Treasure, Food, Clue, Blood, Soldier, Spirit, Zombie, Goblin, Beast, Elemental, Angel, Dragon, Bird, Saproling, Human, Wolf; for each name the plain token with most printings) and a word search over name and type. On the real file the common list came out right (Soldier is the white 1/1, Zombie the black 2/2, and so on), Krenko links to Goblin, and Elspeth, Sun's Champion links to her Soldier and her emblem.</li></ul>
+<p class="sub"><strong>What I checked</strong></p>
+<ul><li><code>scripts/test-card-tokens.mjs</code> (new, 21 checks on made-up records and the real shapes) and <code>scripts/test-card-list-build.mjs</code> (191, with 9 new for the tokens file: published, reused from the cache, damaged, missing, too strict, failing a first build). The quick set passes (81 suites). 10 of 12 broken copies of the tokens module were caught; the other two were one change that does nothing and one that did not apply.</li><li>No menu yet: this step is data only. I did not run the deploy check (it needs the Firebase settings), and the real Vercel build has not run with format 14.</li></ul>
+<p><strong>My AI's mistakes this time:</strong> my first validation asked for a link from &quot;Ajani, Mentor of Heroes&quot;, a card I assumed made a token and does not (the build refused its own list, which is what the check is for). A record with no id made a nameless token until a test found it. And my patch script died halfway and left the build files half changed, so I finished it by hand.</p>
   </div></div></div>
 </article>
 </div>

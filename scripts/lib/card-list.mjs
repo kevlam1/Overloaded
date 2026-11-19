@@ -11,6 +11,7 @@ import { readRow } from '../../shared/card-prints.mjs';
 import { foilSuffixOf } from '../../shared/foil-kinds.mjs';
 import { entryFromRecord } from '../../shared/card-rules.mjs';
 import { rowFromRecord } from '../../shared/card-rulings.mjs';
+import { TokenCollector } from '../../shared/card-tokens.mjs';
 
 const byCodeUnits = (a, b) => (a < b ? -1 : a > b ? 1 : 0); // code units, not locale
 
@@ -285,7 +286,8 @@ export async function* readJsonLines(path) {
 export async function buildFromFiles(oraclePath, defaultPath, rulingsPath = null) {
   const printings = new PrintingSummary();
   const counts = { printings: 0, oracleRecords: 0, notCandidates: 0, onlineOnly: 0, noPrintingsKept: 0, kept: 0 };
-  for await (const printing of readJsonLines(defaultPath)) { printings.add(printing); counts.printings++; }
+  const collector = new TokenCollector(); // the tokens and emblems (shared/card-tokens.mjs) come out of the same pass over the printings
+  for await (const printing of readJsonLines(defaultPath)) { printings.add(printing); collector.add(printing); counts.printings++; }
   const list = [];
   const names = new Map(); // the oracle id of each kept card to its name in the list, for the printing files
   const rulesByName = new Map(); // the rules of each kept card (shared/card-rules.mjs), for the details window
@@ -322,5 +324,7 @@ export async function buildFromFiles(oraclePath, defaultPath, rulingsPath = null
     rulings = { cards: Object.fromEntries(Object.keys(rules.cards).filter((name) => byName.has(name)).map((name) => [name, byName.get(name).sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))])) };
     Object.assign(counts, { rulingsCards: Object.keys(rulings.cards).length, rulingsRows: Object.values(rulings.cards).reduce((sum, rows) => sum + rows.length, 0) });
   }
-  return { list, counts, printingFiles, prints, rules, rulings };
+  const tokens = collector.build(names);
+  Object.assign(counts, { tokens: tokens.t.length, tokenLinks: Object.keys(tokens.l).length });
+  return { list, counts, printingFiles, prints, rules, rulings, tokens };
 }
