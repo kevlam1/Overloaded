@@ -4685,16 +4685,17 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **My AI's mistake this time:** my first count of foil printings treated `nonfoil` as a foil because `'nonfoil'.includes('foil')` is true; the per-tag table disagreed with the summary line, which is how I saw it, and I reran it with the finishes as a list. I also wrote the wrong date (2026-11-19) in three code comments before checking the clock, and a PowerShell command with `||` that does not exist there. The first run of one new test failed because my test used `f` as an invalid letter when `f` had become a valid kind.
 
-## 237. Foils are drawn: eight looks, light on the table, full on the big picture (2026-11-18)
+## 237. Foils are drawn: nine looks, light on the table, full on the big picture (2026-11-18)
 
 **What I asked for**
 - Carry the foil kind through the deck page, saved decks and the game, then draw it: a lighter foil on the battlefield, the full foil in the hand, in Change printing, on the picture I get by holding Alt and in the view window.
 
 **What changed** (`shared/foil-looks.mjs` and `frontend/src/foil-layer.js` new, `shared/deck-preview.mjs`, `shared/zones.mjs`, `shared/stacks.mjs`, `frontend/src/card-nodes.js`, `card-hover.js`, `card-details.js`, `deck-groups.js`, `printing-picker.js`, `style.css`)
 - **The kind is carried:** a deck line gets a `look` (the printing's own foil, `etched` for `*E*` or an etched-only printing, or a plain foil). A saved card stores `look` only when it is not a plain foil, and the strict reader refuses a look it does not know or one on a card that is not foil. A game card keeps `look`, and a surge card and a plain foil copy are not one pile.
-- **Eight looks:** the 28 kinds are drawn with rainbow, etched, surge, galaxy, oil-slick, halo, gold and silver (`data-foil` on the element, colours and texture in `style.css`). A kind the list does not name is a rainbow.
+- **Nine looks:** the 28 kinds are drawn with traditional, rainbow, etched, surge, galaxy, oil-slick, halo, gold and silver (`data-foil` on the element, colours and texture in `style.css`). A kind the list does not name is a rainbow.
 - **Light sheen** on battlefield cards, deck tiles and the printing tiles, a little stronger in the hand. **Full effect** on the Alt picture and the details window: bands that slide and a glare that follows the pointer.
 - **Change printing:** a printing that is foil only, etched only or a special foil shows that foil on its picture and names it under the picture.
+- **Correction (Kevin, same day):** I had drawn a plain foil with the vivid rainbow look from before the real foils. A plain (traditional) foil now has its own look, a silvery shine with a faint warm and cool tint and no stripes, and the vivid rainbow stays only for the real rainbow-type foils. That makes nine looks.
 - Reduced motion turns the sweep off. The pointer effect stays, since you drive it.
 
 **What I checked**
