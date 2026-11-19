@@ -4700,7 +4700,8 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 **What I checked**
 - A scratch page with a real card picture, each look small and big, and I looked at the screenshots. I tuned the blend: `overlay` made the rainbow vanish and `color-dodge` washed it out, `hard-light` was the best.
 - `test-foil` (15), `test-foil-looks` (5, new), the whole quick set (79 suites), the real-Chrome deck check (290), solo check (471), card hover (27).
-- Not checked: a real foil in the live game, the hand at real size, the printing tiles in the real window, the live table (its rules do not know `foil`), phone width. I did not run broken copies.
+- In the real solo table (real Chrome) the foil Forests in the hand carry the rainbow look and no other card has one (one extra check in `scripts/check-history-and-select-ui.mjs`, 25 now).
+- Not checked: the shine on a real foil picture in the live game, the hand at real size, the printing tiles in the real window, the live table (its rules do not know `foil`), phone width. I did not run broken copies.
 
 **Decisions and limits**
 - The looks are my own gradients and are only close to the real cards. Burst foil has no data. Which kinds go to which look is my guess and easy to change in `shared/foil-looks.mjs`.
