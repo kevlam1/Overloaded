@@ -7,7 +7,8 @@ const NEWLINE = /\r\n|\r|\n/;
 
 // Makes the cards of some lines foil or not foil by adding or taking off the *F* at the end of the line (Kevin, 2026-11-18: foil comes from the deck list, as Moxfield and Archidekt export it). Everything else on the line is left
 // exactly as it was. Lines that are not card lines, and lines that already are as asked, are left alone. Returns { text, changed }.
-const FOIL_MARK = /\s\*[Ff]\*\s*$/;
+// "Remove foil" takes off either mark (*F* or *E*, etched); "Make foil" adds *F*.
+const FOIL_MARK = /\s\*[FfEe]\*\s*$/;
 export function setFoilInText(text, lineNumbers, foil) {
   if (typeof text !== 'string' || !Array.isArray(lineNumbers)) return { text: typeof text === 'string' ? text : '', changed: 0 };
   const lines = text.split(NEWLINE);
@@ -34,7 +35,7 @@ export function setPrintingInText(text, lineNumbers, name, printing) {
     if (!Number.isInteger(number) || number < 1 || number > lines.length) continue;
     const entry = parseDeckText(lines[number - 1]).entries[0];
     if (!entry) continue;
-    const rewritten = `${entry.qty} ${name.trim()}${printing ? ` (${printing.set.toUpperCase()}) ${printing.number}` : ''}${entry.foil ? ' *F*' : ''}`;
+    const rewritten = `${entry.qty} ${name.trim()}${printing ? ` (${printing.set.toUpperCase()}) ${printing.number}` : ''}${entry.etched ? ' *E*' : entry.foil ? ' *F*' : ''}`;
     if (rewritten !== lines[number - 1]) { lines[number - 1] = rewritten; changed++; }
   }
   return { text: changed ? lines.join('\n') : text, changed };

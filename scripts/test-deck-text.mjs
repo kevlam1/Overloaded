@@ -187,4 +187,9 @@ assert.deepEqual(parseDeckText(Array.from({ length: MAX_CARDS + 1 }, (_, i) => `
 // Text that looks like markup is just a name (the page shows it as text).
 assert.equal(one('<img src=x onerror=alert(1)>')[0].name, '<img src=x onerror=alert(1)>')
 
+// Etched foil: a line ending in *E* is a card with its set and number, foil and etched (a real Moxfield line, 2026-11-19). A *F* line is not etched, and the etched field is absent unless the line has *E*.
+assert.deepEqual(one('1 Decree of Pain (CMM) 508 *E*')[0], { qty: 1, name: 'Decree of Pain', set: 'cmm', number: '508', foil: true, etched: true, section: 'main', line: 1, block: 0 })
+assert.equal(one('1 Sol Ring (CMM) 410 *F*')[0].etched, undefined)
+assert.deepEqual(one('1 Mjölnir, Storm Hammer (ACR) 258 *e*').map((e) => [e.name, e.set, e.number, e.etched]), [['Mjölnir, Storm Hammer', 'acr', '258', true]])
+
 console.log('All deck text checks passed.')

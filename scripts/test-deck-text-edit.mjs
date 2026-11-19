@@ -45,4 +45,8 @@ check('a merged preview line lists every text line that holds the card (without 
   same('several lines at once, each counted', [setFoilInText(t, [1, 2], true).changed, setFoilInText(t, [1, 1, 2], true).changed], [2, 2]);
   same('the result is read back as foil by the parser', [parseDeckText(setFoilInText(t, [1], true).text).entries[0].foil, parseDeckText(setFoilInText(t, [3], false).text).entries[2]?.foil ?? parseDeckText(setFoilInText(t, [3], false).text).entries.find((e) => e.name.startsWith('Krenko')).foil], [true, false]);
   same('not text gives back nothing changed', [setFoilInText(null, [1], true), setFoilInText('1 Sol Ring', 'x', true)], [{ text: '', changed: 0 }, { text: '1 Sol Ring', changed: 0 }]); }
+// Etched lines (*E*): Remove foil takes the mark off, and Change printing keeps *E* (it must not turn an etched line into a plain foil one).
+{ const t = '1 Decree of Pain (CMM) 508 *E*\n1 Sol Ring';
+  same('Remove foil takes *E* off an etched line', setFoilInText(t, [1], false), { text: '1 Decree of Pain (CMM) 508\n1 Sol Ring', changed: 1 });
+  same('Change printing keeps the *E* mark', setPrintingInText(t, [1], 'Decree of Pain', { set: 'cmm', number: '9' }).text.split('\n')[0], '1 Decree of Pain (CMM) 9 *E*'); }
 console.log(`All ${checks} deck text edit checks passed.`);

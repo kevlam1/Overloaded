@@ -10,8 +10,10 @@ export const MAX_LINES = 1000
 // Scryfall set codes are 3 to 6 letters or digits, and collector numbers have no spaces (but can hold
 // stars, daggers, Φ, _ and -), both checked on 119,203 printings on 2026-10-26.
 // The number is optional: "Thrasios, Triton Hero" alone is one card (the entry says so with qtyAssumed).
-const CARD_LINE = /^(?:(\d{1,4})x?\s+)?(.+?)(?:\s+\(([A-Za-z0-9]{3,6})\)\s+(\S+?))?(?:\s+\*[Ff]\*)?\s*$/
-const FOIL = /\s\*[Ff]\*\s*$/
+// A finish mark can end the line: *F* is foil, *E* is etched foil (Moxfield and Archidekt export both; a real etched export from Kevin, 2026-11-19: "1 Decree of Pain (CMM) 508 *E*").
+const CARD_LINE = /^(?:(\d{1,4})x?\s+)?(.+?)(?:\s+\(([A-Za-z0-9]{3,6})\)\s+(\S+?))?(?:\s+\*[FfEe]\*)?\s*$/
+const FOIL = /\s\*[FfEe]\*\s*$/
+const ETCHED = /\s\*[Ee]\*\s*$/
 
 // A line with no number is taken as a card with a count of 1 unless it looks like something else. These shapes were
 // checked against all 34,743 card names and alternate titles on 2026-10-29: none of them matches a real card, so none of
@@ -50,7 +52,8 @@ function headerOf(line) {
 
 // Returns { entries, warnings, errors, counts, total }.
 //   entry:   { qty, name, set (lowercase or null), number (text or null), foil, section, line, block }
-//            plus qtyAssumed: true when the line had no number and was counted as 1 (the field is absent otherwise)
+//            plus qtyAssumed: true when the line had no number and was counted as 1 (the field is absent otherwise),
+//            and etched: true when the line ends in *E* (etched foil; foil is true too; the field is absent otherwise)
 //   section: the last header ('main' before any header), or 'unlabeled' for cards after a blank line
 //            that follows a labeled section (Moxfield plain text puts the commander there). The caller
 //            decides what those are; this never guesses. 'commander' and 'companion' headers cover
@@ -135,6 +138,7 @@ export function parseDeckText(text) {
       line: number,
       block,
       ...(numbered ? {} : { qtyAssumed: true }),
+      ...(ETCHED.test(line) ? { etched: true } : {}),
     })
     sectionHasEntries = true
     waiting = null
