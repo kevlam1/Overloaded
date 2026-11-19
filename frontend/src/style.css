@@ -1857,3 +1857,8 @@ body[data-screen="room"] section#table { padding: 0; border: 0; background: none
 /* On the solo table the command zone is at the bottom edge, so the emblems sit in a row ABOVE its slots, over the corner of the battlefield. */
 body.playing.solo .command-zone { position: relative; }
 body.playing.solo .emblem-row { position: absolute; right: 0; bottom: calc(100% + 0.35rem); z-index: 6; justify-content: flex-end; margin: 0; max-width: none; width: max-content; }
+/* An emblem is just its card (no button padding or border round it, so the picture is not off to one side of a frame). */
+body .emblem-row .card, .emblem-row .card { padding: 0; border: 0; background: transparent; box-shadow: none; outline: 0; }
+.emblem-row .card .face { display: block; }
+body.playing .emblem-row .card .face, .emblem-row .card .face { width: 100%; height: 100%; border-radius: 4.8% / 3.4%; }
+body.playing .side-panels .emblem-row .card, body.playing .emblem-row .card { padding: 0; min-height: 0; } /* (the side panels' button padding is more specific than the plain rule above) */

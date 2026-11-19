@@ -54,6 +54,19 @@ try {
   const commonNames = await names(1);
   check('the deck section holds Krenko\'s Goblin, and the common section 16 tokens starting with Treasure', deckNames.includes('Goblin') && commonNames.length === 16 && commonNames[0] === 'Treasure', JSON.stringify([deckNames, commonNames]));
 
+  // holding Alt over a tile (or any card) shows the larger picture
+  const altOver = async (selector) => {
+    const [ax, ay] = await ev(`(() => { const b = document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect(); return [Math.round(b.left + b.width / 2), Math.round(b.top + b.height / 2)]; })()`);
+    await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 5, y: 5 });
+    await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: ax, y: ay, modifiers: 1 });
+    await sleep(250);
+    const shown = await ev("(() => { const b = document.getElementById('card-hover'); return b && !b.hidden ? b.querySelector('img').getAttribute('src') : null; })()");
+    await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 5, y: 5 });
+    await sleep(150);
+    return shown;
+  };
+  const tileShown = await altOver('.token-section .token-tile');
+  check('holding Alt over a token in the window shows its larger picture (the normal size)', typeof tileShown === 'string' && tileShown.includes('/normal/'), String(tileShown));
   await ev("[...document.querySelectorAll('.token-section')[0].querySelectorAll('.token-tile')].find((t) => t.querySelector('strong').textContent === 'Goblin').click()");
   await sleep(300);
   const after = await tokensOnBoard();
@@ -95,6 +108,10 @@ try {
   const emblemBox = () => ev("(() => { const c = document.querySelector('#command-zone .emblem-row .card'); if (!c) return null; const b = c.getBoundingClientRect(), z = document.getElementById('command-zone').getBoundingClientRect(); return { w: Math.round(b.width), inZone: b.left >= z.left - 1 && b.right <= z.right + 1 && b.bottom <= z.top + 1, name: c.dataset.uid }; })()");
   const emblem = await emblemBox();
   check('the emblem shows in a row just above the command zone, over its slots', emblem && emblem.w > 20 && emblem.inZone, JSON.stringify(emblem));
+  const emblemShown = await altOver('#command-zone .emblem-row .card');
+  check('holding Alt over the emblem shows its larger picture', typeof emblemShown === 'string' && emblemShown.includes('/normal/'), String(emblemShown));
+  const emblemFace = await ev("(() => { const c = document.querySelector('#command-zone .emblem-row .card').getBoundingClientRect(), f = document.querySelector('#command-zone .emblem-row .card .face').getBoundingClientRect(); return [Math.round(c.left - f.left), Math.round(c.top - f.top), Math.round(c.width - f.width), Math.round(c.height - f.height)]; })()");
+  check('the emblem is just its card: the picture fills the button with no frame round it', JSON.stringify(emblemFace) === '[0,0,0,0]', JSON.stringify(emblemFace));
   const [ex, ey] = await ev("(() => { const b = document.querySelector('#command-zone .emblem-row .card').getBoundingClientRect(); return [Math.round(b.left + b.width / 2), Math.round(b.top + b.height / 2)]; })()");
   await rightClick(ex, ey);
   check('a right click on the emblem offers only Remove emblem', JSON.stringify(await ev("[...document.querySelectorAll('.card-menu [role=menuitem]')].map((x) => x.textContent)")) === '["Remove emblem"]');

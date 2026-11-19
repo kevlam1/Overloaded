@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.244</span></h1>
-    <p class="lede">244 entries, Oct 25 to Nov 19, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
+    <h1>Build log <span class="version">Version 0.245</span></h1>
+    <p class="lede">245 entries, Oct 25 to Nov 19, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
   </div>
 </header>
 
@@ -24,7 +24,7 @@
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
-<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">31</span></a>
+<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">32</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
 <a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">29 things friends asked for</span></a>
 <a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">26 open, 71 done</span></a>
@@ -3604,7 +3604,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-2" aria-labelledby="week-2-title">
-<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">31 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">32 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-2-days">
 <div class="day">
 <h3 class="day-title">Monday 16 November <span class="day-count">5</span></h3>
@@ -4007,7 +4007,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Thursday 19 November <span class="day-count">7</span></h3>
+<h3 class="day-title">Thursday 19 November <span class="day-count">8</span></h3>
 <div class="entries">
 <article class="entry" id="entry-238" data-n="238">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-238-body">
@@ -4129,6 +4129,22 @@
 <p class="sub"><strong>Decisions and limits</strong></p>
 <ul><li>Solo page only for now. The live table's database rules do not know an emblem or where a custom token's art comes from, so both wait for the rules change (it also needs <code>emb</code> in <code>shared/game-sync.mjs</code>).</li><li>Emblem text is not shown beside the picture (the picture has it). The Alt big picture and View details for an emblem were not looked at.</li></ul>
 <p><strong>My AI's mistakes this time:</strong> my first test of &quot;the command zone hides again&quot; forgot that the test deck has a commander, so the zone correctly stayed. And the first placement of the emblem row was below the slots, which I only saw in a screenshot.</p>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-245" data-n="245">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-245-body">
+    <span class="num">245</span>
+    <span class="head-text"><span class="title">Preview fix for the token file, a plain emblem card, Alt to enlarge tokens</span><span class="sum">On the development preview the token window said it could not connect.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-245-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>On the development preview the token window said it could not connect. Then: the emblem card is off-centre from some border, so show just the card; and holding Alt should enlarge tokens and emblems.</li></ul>
+<p><strong>What changed</strong> (<code>frontend/src/token-data.js</code>, <code>frontend/src/card-hover.js</code>, <code>style.css</code>)</p>
+<ul><li><strong>Preview:</strong> the preview is behind Vercel login, and my loader fetched <code>/data/tokens.json</code> with <code>credentials: 'omit'</code>, which left out the login cookie, so Vercel redirected the request to its sign-in page. I removed the option (pushed as 2111a79); Kevin confirmed tokens work on the preview afterwards. The live site has no login, so it would not have shown there. I could not check the preview myself: it answered me with the sign-in redirect.</li><li><strong>Emblem card:</strong> the picture sat 7 pixels to the side of its button because the side panels' button padding (more specific than my rule) squeezed the button and the page's card-size rule made the picture wider than the space left. The emblem is now only the card, with no padding, border or frame.</li><li><strong>Alt:</strong> holding Alt over a token in the Create token window (and its Art list) now shows the larger picture, like any card. The picture code listens for <code>.card</code> and now also <code>.token-tile</code>. Tokens on the battlefield and the emblem already used that path, and the emblem is now tested.</li></ul>
+<p class="sub"><strong>What I checked</strong></p>
+<ul><li><code>scripts/check-token-ui.mjs</code> is 17 checks (3 new: Alt over a token in the window shows the normal-size picture, Alt over the emblem does, and the emblem's picture fills its button exactly). The card hover test (27), history and select (28), solo check (471), table layout (405) and source hygiene pass. I looked at a zoomed screenshot of the emblem.</li><li>Not tested: Alt over a token that is on the battlefield (the first token lands under the life piece in my test, so the pointer cannot reach it).</li></ul>
+<p><strong>My AI's mistakes this time:</strong> I added <code>credentials: 'omit'</code> for no good reason, and it broke the feature on any login-protected preview. I also needed three tries to find which of my CSS rules were being outranked.</p>
   </div></div></div>
 </article>
 </div>

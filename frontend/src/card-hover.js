@@ -108,14 +108,14 @@ export function mountCardHover(doc = document) {
 
   const onOver = (event) => {
     if (event.pointerType === 'touch' || event.pointerType === 'pen') return;
-    over = event.target.closest?.('.card') ?? null;
+    over = event.target.closest?.('.card, .token-tile') ?? null;
     if (typeof event.altKey === 'boolean') altHeld = event.altKey;
     sync();
   };
   const onOut = (event) => {
-    const from = event.target.closest?.('.card');
+    const from = event.target.closest?.('.card, .token-tile');
     if (!from) return;
-    const to = event.relatedTarget?.closest?.('.card');
+    const to = event.relatedTarget?.closest?.('.card, .token-tile');
     if (to === from) return; // moved between the parts of the same card
     if (suppressed === from) suppressed = null;
     over = to ?? null;

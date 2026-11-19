@@ -4853,6 +4853,22 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **My AI's mistakes this time:** my first test of "the command zone hides again" forgot that the test deck has a commander, so the zone correctly stayed. And the first placement of the emblem row was below the slots, which I only saw in a screenshot.
 
+## 245. Preview fix for the token file, a plain emblem card, Alt to enlarge tokens (2026-11-19)
+
+**What I asked for**
+- On the development preview the token window said it could not connect. Then: the emblem card is off-centre from some border, so show just the card; and holding Alt should enlarge tokens and emblems.
+
+**What changed** (`frontend/src/token-data.js`, `frontend/src/card-hover.js`, `style.css`)
+- **Preview:** the preview is behind Vercel login, and my loader fetched `/data/tokens.json` with `credentials: 'omit'`, which left out the login cookie, so Vercel redirected the request to its sign-in page. I removed the option (pushed as 2111a79); Kevin confirmed tokens work on the preview afterwards. The live site has no login, so it would not have shown there. I could not check the preview myself: it answered me with the sign-in redirect.
+- **Emblem card:** the picture sat 7 pixels to the side of its button because the side panels' button padding (more specific than my rule) squeezed the button and the page's card-size rule made the picture wider than the space left. The emblem is now only the card, with no padding, border or frame.
+- **Alt:** holding Alt over a token in the Create token window (and its Art list) now shows the larger picture, like any card. The picture code listens for `.card` and now also `.token-tile`. Tokens on the battlefield and the emblem already used that path, and the emblem is now tested.
+
+**What I checked**
+- `scripts/check-token-ui.mjs` is 17 checks (3 new: Alt over a token in the window shows the normal-size picture, Alt over the emblem does, and the emblem's picture fills its button exactly). The card hover test (27), history and select (28), solo check (471), table layout (405) and source hygiene pass. I looked at a zoomed screenshot of the emblem.
+- Not tested: Alt over a token that is on the battlefield (the first token lands under the life piece in my test, so the pointer cannot reach it).
+
+**My AI's mistakes this time:** I added `credentials: 'omit'` for no good reason, and it broke the feature on any login-protected preview. I also needed three tries to find which of my CSS rules were being outranked.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.
