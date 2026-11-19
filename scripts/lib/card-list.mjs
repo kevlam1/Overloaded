@@ -8,6 +8,7 @@ import { createGunzip } from 'node:zlib';
 import { createInterface } from 'node:readline';
 import { printingValue, readPrintingValue, SET_CODE } from '../../shared/printings.mjs';
 import { readRow } from '../../shared/card-prints.mjs';
+import { foilSuffixOf } from '../../shared/foil-kinds.mjs';
 import { entryFromRecord } from '../../shared/card-rules.mjs';
 import { rowFromRecord } from '../../shared/card-rulings.mjs';
 
@@ -82,9 +83,6 @@ export function toEntry(record, alternateNames = [], alternateIds = []) {
   return entry;
 }
 
-// A printing that exists only as foil: `finishes` (Scryfall's list of finishes) has no "nonfoil" and has "foil" or "etched" (checked on the Default Cards file on 2026-11-18: 13,612 ["foil"], 892 ["etched"], 40 ["foil","etched"]).
-export const isFoilOnly = (printing) => Array.isArray(printing?.finishes) && !printing.finishes.includes('nonfoil') && (printing.finishes.includes('foil') || printing.finishes.includes('etched'));
-
 // What the Default Cards file (every printing) says about each card: has it any printing, and is any of them not digital?
 // A card is online-only only when EVERY printing is digital. "No paper printing" is not enough (preview cards of unreleased
 // sets have none), and a card with no printings at all is NOT online-only: the printings file may simply be older than the
@@ -101,13 +99,13 @@ export class PrintingSummary {
     // other art). Which are kept is decided later, when the list is known (printingFiles): only printings of a card in the
     // list, so a token, an art card or a card that is not in the list has none.
     if (typeof printing.set === 'string' && typeof printing.collector_number === 'string' && typeof printing.id === 'string') {
-      this.records.push([printing.set, printing.collector_number, printing.id, id, isFoilOnly(printing)]);
+      this.records.push([printing.set, printing.collector_number, printing.id, id, foilSuffixOf(printing)]);
     }
     if (printing.digital) return;
     this.nonDigital.add(id);
     // The printings a player can choose between for a card (shared/card-prints.mjs): paper ones with a real picture. Which language and in what order is decided in cardPrints().
     if (typeof printing.set === 'string' && typeof printing.collector_number === 'string' && typeof printing.id === 'string' && typeof printing.released_at === 'string' && printing.image_status !== 'placeholder' && printing.image_status !== 'missing') {
-      this.picks.push([id, printing.set, printing.collector_number, printing.id, printing.released_at, printing.lang === 'en']);
+      this.picks.push([id, printing.set, printing.collector_number, printing.id, printing.released_at, printing.lang === 'en', foilSuffixOf(printing)]);
       const known = this.setNames.get(printing.set);
       if (typeof printing.set_name === 'string' && printing.set_name && (!known || printing.released_at < known[1])) this.setNames.set(printing.set, [printing.set_name, printing.released_at]);
     }
@@ -132,11 +130,11 @@ export class PrintingSummary {
   // is always the same bytes.
   printingFiles(names) {
     const sets = new Map();
-    for (const [set, number, id, oracleId, foilOnly] of this.records) {
+    for (const [set, number, id, oracleId, suffix] of this.records) {
       const name = names.get(oracleId);
       if (name === undefined) continue;
       if (!sets.has(set)) sets.set(set, new Map());
-      sets.get(set).set(number, printingValue(id, name, foilOnly === true));
+      sets.get(set).set(number, printingValue(id, name, suffix));
     }
     const files = {};
     for (const set of [...sets.keys()].sort(byCodeUnits)) {
@@ -149,11 +147,11 @@ export class PrintingSummary {
   // then by set code and number; English ones, or all of them for a card with no English printing. Names and sets are in code-unit order so the same data is always the same bytes. `names` maps an oracle id to the card's name.
   cardPrints(names) {
     const byCard = new Map();
-    for (const [oracleId, set, number, id, released, english] of this.picks) {
+    for (const [oracleId, set, number, id, released, english, suffix] of this.picks) {
       const name = names.get(oracleId);
       if (name === undefined) continue;
       if (!byCard.has(name)) byCard.set(name, []);
-      byCard.get(name).push({ set, number, id, released, english });
+      byCard.get(name).push({ set, number, id, released, english, suffix });
     }
     const cards = {};
     const used = new Set();
@@ -164,7 +162,7 @@ export class PrintingSummary {
       const rows = [];
       const seenIds = new Set();
       for (const printing of list) {
-        const row = [printing.set, printing.number, printing.id, printing.released.slice(0, 4)];
+        const row = [printing.set, printing.number, printing.id, printing.released.slice(0, 4), ...(printing.suffix ? [printing.suffix] : [])];
         if (seenIds.has(printing.id) || !readRow(row)) continue;
         seenIds.add(printing.id);
         rows.push(row);

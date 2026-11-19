@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.235</span></h1>
-    <p class="lede">235 entries, Oct 25 to Nov 18, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
+    <h1>Build log <span class="version">Version 0.236</span></h1>
+    <p class="lede">236 entries, Oct 25 to Nov 18, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
   </div>
 </header>
 
@@ -24,7 +24,7 @@
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
-<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">22</span></a>
+<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">23</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
 <a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">29 things friends asked for</span></a>
 <a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">26 open, 71 done</span></a>
@@ -3604,7 +3604,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-2" aria-labelledby="week-2-title">
-<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">22 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">23 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-2-days">
 <div class="day">
 <h3 class="day-title">Monday 16 November <span class="day-count">5</span></h3>
@@ -3840,7 +3840,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Wednesday 18 November <span class="day-count">8</span></h3>
+<h3 class="day-title">Wednesday 18 November <span class="day-count">9</span></h3>
 <div class="entries">
 <article class="entry" id="entry-228" data-n="228">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-228-body">
@@ -3966,6 +3966,24 @@
 <p class="sub"><strong>Decisions and limits</strong></p>
 <ul><li>Foil is for a whole line (all copies on it). For one foil copy of four, the list needs two lines (<code>1 Sol Ring *F*</code> and <code>3 Sol Ring</code>).</li><li>A card's default printing (no set and number in the list) is never foil-only, because the card list has no finishes for it.</li><li>A card typed by another title is foil-only only when its set file is loaded (for example when a line with the set and number is in the list too).</li><li>The live table does not know about foil; it only shows in the solo table.</li></ul>
 <p><strong>My AI's mistake this time:</strong> I read &quot;foil effects on cards&quot; as a per-card choice and built a Foil line in the game's card menu, with no connection to the deck. I asked which cards should shine, but I should have asked where the choice lives, because the deck list already carried the foil mark. The earlier log entry 234 describes that version; this entry replaces it.</p>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-236" data-n="236">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-236-body">
+    <span class="num">236</span>
+    <span class="head-text"><span class="title">Foil kinds in the data, and etched foil in deck lists</span><span class="sum">I sent the Ponder page that lists every kind of foil in Magic and asked whether Scryfall has enough information to know which foil belongs to which printing, so the foils can show in Change printing in the deck list, in the hand, as a...</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-236-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>I sent the Ponder page that lists every kind of foil in Magic and asked whether Scryfall has enough information to know which foil belongs to which printing, so the foils can show in Change printing in the deck list, in the hand, as a lighter version on the battlefield, and in full when I hold Alt or open the view window. I also asked whether we make a new raw Scryfall list every time or replace the old one, and to make sure no useless or unused data lists are left. Then I pasted 22 real lines from Moxfield that end in <code>*E*</code> and said to continue.</li></ul>
+<p><strong>What changed</strong> (<code>shared/foil-kinds.mjs</code> new, <code>shared/printings.mjs</code>, <code>shared/card-prints.mjs</code>, <code>shared/deck-text.mjs</code>, <code>shared/deck-text-edit.mjs</code>, <code>scripts/lib/card-list.mjs</code>, <code>scripts/lib/card-list-build.mjs</code>, <code>scripts/test-all.mjs</code>, and the tests)</p>
+<ul><li><strong>Etched lines (pushed first as <code>f8edc4f</code>):</strong> a line ending in <code>*E*</code> was read as part of the card's name with no set, so it could never match a card. The parser now reads it (<code>foil</code> and <code>etched</code> are true), Remove foil takes it off, and Change printing keeps it.</li><li><strong>What Scryfall tells:</strong> I printed the raw fields first. <code>finishes</code> says which of nonfoil, foil and etched a printing comes in. <code>promo_types</code> has a tag for most special foils (surge, galaxy, silver, ripple, halo, textured, embossed, oil-slick, raised, step-and-compleat, mana, first-place, confetti, fracture, dragonscale, cosmic, singularity, silver scroll, gilded, neon ink, serialized, and a few Ponder does not list). Retro foil, From the Vault and Kaladesh Inventions have no tag, so they come from the set (type, date, code). Everything else is a traditional foil.</li><li><strong>In the data (card list format 13):</strong> each printing that is not the usual &quot;nonfoil and foil, traditional&quot; has a short suffix: a digit for its finishes (nonfoil 1, foil 2, etched 4) and a letter for a special foil. It is in the per-set files after the card key and as a fifth item in the per-card rows that Change printing reads. The old <code>f</code> flag is replaced by this.</li><li><strong>Data lists:</strong> a build downloads the bulk files into a temporary folder and deletes them, and the lists are replaced in place, so nothing piles up. I deleted four unused leftovers (all git-ignored): two scraped wiki pages (<code>wiki-counters.txt</code>, <code>wiki-raw.txt</code>), <code>.vercel/cache/overloaded/</code> and <code>dist/</code>, which held an old-format card list nothing could reuse. I refreshed <code>default_cards.jsonl.gz</code> (it replaced the Oct 26 copy).</li><li>Nothing shows differently to the player yet. The deck page, saved decks and the game do not know about kinds or etched yet.</li></ul>
+<p class="sub"><strong>What I checked</strong></p>
+<ul><li><strong>Data:</strong> the 22 etched lines all have an etched finish in Scryfall (22 of 22). On the real built files, 112,171 printings read back with none unreadable, 24 spot checks against the raw data matched (for example Beast Within <code>who 819</code> is <code>2s</code>, Mountain <code>vow 411</code> is <code>4e</code>, Wall of Vipers is <code>3r</code>), and all 22 etched lines read as etched and foil only. Size barely changed: <code>printings.json</code> 5.23 to 5.32 MB, <code>prints.json</code> 6.50 to 6.77 MB.</li><li><strong>Tests:</strong> <code>scripts/test-foil-kinds.mjs</code> (new, 20 checks), <code>scripts/test-printings.mjs</code> (45), <code>scripts/test-card-prints.mjs</code> (19), <code>scripts/test-card-list.mjs</code> (246), <code>scripts/test-card-list-build.mjs</code> (183), the whole quick set (78 suites), and the deck page check against the real new data (290). I did not run broken copies of the new module.</li></ul>
+<p class="sub"><strong>Decisions and limits</strong></p>
+<ul><li>The Ponder list has 28 foilings. Burst foil has nothing in Scryfall to find it by, so it is not handled. Amonkhet Invocations (<code>mp2</code>) is a traditional foil for now. A tag the code does not know is a traditional foil, so a new tag never breaks anything. When a printing has two tags the first in priority order wins (serialized over double rainbow, oil-slick over raised).</li><li>A tag only counts when the printing has a foil finish (15 printings have a tag but no foil finish).</li><li>Nonfoil-only printings (about 43,000) also get a <code>1</code>, so the data says they have no foil. It costs almost nothing after compression.</li><li>Next: carry etched and the kind through the deck page and saved decks, then draw the looks (a light one on the battlefield and in the hand, the full one on the Alt picture and the view window).</li></ul>
+<p><strong>My AI's mistake this time:</strong> my first count of foil printings treated <code>nonfoil</code> as a foil because <code>'nonfoil'.includes('foil')</code> is true; the per-tag table disagreed with the summary line, which is how I saw it, and I reran it with the finishes as a list. I also wrote the wrong date (2026-11-19) in three code comments before checking the clock, and a PowerShell command with <code>||</code> that does not exist there. The first run of one new test failed because my test used <code>f</code> as an invalid letter when <code>f</code> had become a valid kind.</p>
   </div></div></div>
 </article>
 </div>

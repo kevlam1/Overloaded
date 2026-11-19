@@ -1,11 +1,12 @@
 // All the printings of one card, for choosing which art a deck uses. Plain JavaScript with no browser or network code, so Node tests can load it (scripts/test-card-prints.mjs).
 //
 // The card list build writes them as small files grouped by card (the per-set files of shared/printings.mjs go the other way, from a set and a number to a card). A card's name picks the file:
-//   /data/prints/XX.json    where XX is the first two characters of the card's key (shared/printings.mjs cardKey), 256 files; a file is { "Sol Ring": [["cmm", "410", "<printing id>", "2023"], ...] }, the last being the year the printing came out
+//   /data/prints/XX.json    where XX is the first two characters of the card's key (shared/printings.mjs cardKey), 256 files; a file is { "Sol Ring": [["cmm", "410", "<printing id>", "2023"], ...] }, the last being the year the printing came out (and a fifth item, the foil suffix, on a printing that is not the usual nonfoil-and-foil traditional)
 //                           the printings newest first, then by set code and number, paper only, English (or the card's other language when it has no English printing), no placeholder pictures
 //   /data/prints/sets.json  { "cmm": ["Commander Masters", "2023-08-04"], ... } the name and release date of every set that appears
 // The name is the card's real English name, as in the card list. A file is only fetched when someone opens a card's printings, and only that one (about 9 KB compressed).
 import { cardKey, SET_CODE } from './printings.mjs';
+import { readFoilSuffix } from './foil-kinds.mjs';
 
 export const PRINTS_PATH = '/data/prints';
 export const SETS_FILE = 'sets.json';
@@ -20,12 +21,15 @@ export const shardUrl = (name) => (typeof name === 'string' && name.length > 0 &
 export const shardFileName = (shard) => (typeof shard === 'string' && /^[0-9a-f]{2}$/.test(shard) ? `${shard}.json` : null);
 export const setsUrl = () => `${PRINTS_PATH}/${SETS_FILE}`;
 
-// One printing row as the page uses it: { set, number, id, year }, or null for a row that is not one (never trust what came over the network).
+// One printing row as the page uses it: { set, number, id, year, finishes, kind, foilOnly }, or null for a row that is not one (never trust what came over the network). A row has a fifth item, the foil suffix of
+// shared/foil-kinds.mjs, only when the printing is not the usual "nonfoil and foil, traditional"; the page always gets the three foil fields (finishes in bits, the foil kind, whether it exists only as foil).
 export function readRow(row) {
-  if (!Array.isArray(row) || row.length !== 4) return null;
-  const [set, number, id, year] = row;
+  if (!Array.isArray(row) || (row.length !== 4 && row.length !== 5)) return null;
+  const [set, number, id, year, suffix = ''] = row;
   if (typeof set !== 'string' || !SET_CODE.test(set) || typeof number !== 'string' || number.length === 0 || number.length > 30 || /[\s/\\]/.test(number) || typeof id !== 'string' || !UUID.test(id) || typeof year !== 'string' || !YEAR.test(year)) return null;
-  return { set, number, id, year };
+  if (row.length === 5 && suffix === '') return null; // (the usual printing has no fifth item)
+  const foil = readFoilSuffix(suffix);
+  return foil ? { set, number, id, year, ...foil } : null;
 }
 
 // The printings of a card from a parsed shard: [{ set, number, id, year }] in the file's order (newest first), the bad rows dropped; [] when the card is not in it.

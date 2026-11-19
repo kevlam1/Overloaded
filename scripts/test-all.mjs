@@ -57,6 +57,7 @@ const suites = [
   { name: 'the pause between the cards of Draw X', cmd: node, args: ['scripts/test-draw-pace.mjs'] },
   { name: 'the game history list', cmd: node, args: ['scripts/test-game-history.mjs'] },
   { name: 'foil marks on cards and the Foil menu line', cmd: node, args: ['scripts/test-foil.mjs'] },
+  { name: 'foil kinds: finishes, tags, the stored suffix', cmd: node, args: ['scripts/test-foil-kinds.mjs'] },
   { name: 'card rulings: the files the details window reads under the rules', cmd: node, args: ['scripts/test-card-rulings.mjs'] },
   { name: 'counters a card can be given: the catalog and named counters', cmd: node, args: ['scripts/test-counter-catalog.mjs'] },
   { name: 'card rules: the files the details window reads', cmd: node, args: ['scripts/test-card-rules.mjs'] },

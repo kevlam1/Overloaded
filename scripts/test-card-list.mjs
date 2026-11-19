@@ -374,11 +374,17 @@ try {
   const reversedFile = gz('printed-reversed.jsonl.gz', printedRows.reverse());
   const reversedBuild = await buildFromFiles(oracleFile, reversedFile);
   check('the same printings in the reverse order give identical bytes', serializePrintings(reversedBuild.printingFiles) === serializePrintings(files) && serializeList(reversedBuild.list) === serializeList(withPrintings.list));
-  // foil-only printings get an f after their key (Scryfall's finishes has no nonfoil, and has foil or etched)
-  { const fin = (number, id, finishes) => JSON.stringify({ oracle_id: 'o-Sol Ring', name: 'Sol Ring', digital: false, layout: 'normal', set_type: 'expansion', set: 'fin', collector_number: number, id: uuid(id), ...(finishes ? { finishes } : {}) });
+  // a printing that is not the usual nonfoil-and-foil gets a foil suffix after its key (shared/foil-kinds.mjs): the finishes as a digit (nonfoil 1, foil 2, etched 4)
+  { const fin = (number, id, finishes) => JSON.stringify({ oracle_id: 'o-Sol Ring', name: 'Sol Ring', digital: false, layout: 'normal', set_type: 'expansion', set: 'fin', collector_number: number, id: uuid(id), released_at: '2020-01-01', lang: 'en', ...(finishes ? { finishes } : {}) });
     const finFile = gz('fin.jsonl.gz', [fin('1', 601, ['foil']), fin('2', 602, ['nonfoil', 'foil']), fin('3', 603, ['etched']), fin('4', 604, ['nonfoil']), fin('5', 605, null), fin('6', 606, ['foil', 'etched']), fin('7', 607, []), printed('Sol Ring', 'cmm', '410', 501)]);
     const built = await buildFromFiles(oracleFile, finFile);
-    same('foil only: ["foil"], ["etched"] and ["foil","etched"]; not foil only: with a nonfoil finish, only nonfoil, no finishes at all, an empty list', built.printingFiles.fin, { 1: printingValue(uuid(601), 'Sol Ring', true), 2: printingValue(uuid(602), 'Sol Ring'), 3: printingValue(uuid(603), 'Sol Ring', true), 4: printingValue(uuid(604), 'Sol Ring'), 5: printingValue(uuid(605), 'Sol Ring'), 6: printingValue(uuid(606), 'Sol Ring', true), 7: printingValue(uuid(607), 'Sol Ring') }); }
+    same('suffixes: ["foil"] 2, ["etched"] 4, ["foil","etched"] 6, ["nonfoil"] 1; the usual (nonfoil and foil), no finishes at all and an empty list have none', built.printingFiles.fin, { 1: printingValue(uuid(601), 'Sol Ring', '2'), 2: printingValue(uuid(602), 'Sol Ring'), 3: printingValue(uuid(603), 'Sol Ring', '4'), 4: printingValue(uuid(604), 'Sol Ring', '1'), 5: printingValue(uuid(605), 'Sol Ring'), 6: printingValue(uuid(606), 'Sol Ring', '6'), 7: printingValue(uuid(607), 'Sol Ring') });
+    const rows = Object.fromEntries(built.prints.cards['Sol Ring'].filter((row) => row[0] === 'fin').map((row) => [row[1], row[4]]));
+    same('the per-card rows carry the same suffix as a fifth item, and the usual printing has no fifth item', rows, { 1: '2', 3: '4', 4: '1', 6: '6' }); }
+  { const tagged = (number, id, extra) => JSON.stringify({ oracle_id: 'o-Sol Ring', name: 'Sol Ring', digital: false, layout: 'normal', set_type: 'expansion', set: 'tag', collector_number: number, id: uuid(id), released_at: '2020-01-01', lang: 'en', finishes: ['nonfoil', 'foil'], ...extra });
+    const tagFile = gz('tag.jsonl.gz', [tagged('1', 701, { promo_types: ['surgefoil'] }), tagged('2', 702, { promo_types: ['boosterfun'] }), tagged('3', 703, { promo_types: ['serialized', 'doublerainbow'] }), printed('Sol Ring', 'cmm', '410', 501)]);
+    const built = await buildFromFiles(oracleFile, tagFile);
+    same('a special foil adds its letter after the digit (the first tag in priority order wins); an untagged nonfoil-and-foil printing has no suffix', built.printingFiles.tag, { 1: printingValue(uuid(701), 'Sol Ring', '3s'), 2: printingValue(uuid(702), 'Sol Ring'), 3: printingValue(uuid(703), 'Sol Ring', '3i') }); }
 } finally {
   rmSync(dir, { recursive: true, force: true });
 }

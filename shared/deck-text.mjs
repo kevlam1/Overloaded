@@ -10,7 +10,7 @@ export const MAX_LINES = 1000
 // Scryfall set codes are 3 to 6 letters or digits, and collector numbers have no spaces (but can hold
 // stars, daggers, Φ, _ and -), both checked on 119,203 printings on 2026-10-26.
 // The number is optional: "Thrasios, Triton Hero" alone is one card (the entry says so with qtyAssumed).
-// A finish mark can end the line: *F* is foil, *E* is etched foil (Moxfield and Archidekt export both; a real etched export from Kevin, 2026-11-19: "1 Decree of Pain (CMM) 508 *E*").
+// A finish mark can end the line: *F* is foil, *E* is etched foil (Moxfield and Archidekt export both; a real etched export from Kevin, 2026-11-18: "1 Decree of Pain (CMM) 508 *E*").
 const CARD_LINE = /^(?:(\d{1,4})x?\s+)?(.+?)(?:\s+\(([A-Za-z0-9]{3,6})\)\s+(\S+?))?(?:\s+\*[FfEe]\*)?\s*$/
 const FOIL = /\s\*[FfEe]\*\s*$/
 const ETCHED = /\s\*[Ee]\*\s*$/

@@ -12,7 +12,7 @@ const same = (label, actual, expected) => { checks++; if (JSON.stringify(actual)
 
 const uuid = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const cards = [{ n: 'Sol Ring', t: 'Artifact', m: '{1}', k: [], i: uuid(1) }, { n: 'Island', t: 'Basic Land', m: '', k: [], i: uuid(2) }];
-const files = new Map([['cmm', { 410: printingValue(uuid(11), 'Sol Ring'), 411: printingValue(uuid(12), 'Sol Ring', true) }]]); // 411 exists only as foil
+const files = new Map([['cmm', { 410: printingValue(uuid(11), 'Sol Ring'), 411: printingValue(uuid(12), 'Sol Ring', '2') }]]); // 411 exists only as foil
 const preview = (text) => { const parsed = parseDeckText(text); return makePreview(parsed, matchDeck(buildCardIndex(cards), parsed.entries), {}, files); };
 const lineOf = (p, name, foil) => p.lines.find((l) => l.name === name && l.foil === foil);
 

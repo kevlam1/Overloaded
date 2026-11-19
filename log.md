@@ -4661,6 +4661,30 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **My AI's mistake this time:** I read "foil effects on cards" as a per-card choice and built a Foil line in the game's card menu, with no connection to the deck. I asked which cards should shine, but I should have asked where the choice lives, because the deck list already carried the foil mark. The earlier log entry 234 describes that version; this entry replaces it.
 
+## 236. Foil kinds in the data, and etched foil in deck lists (2026-11-18)
+
+**What I asked for**
+- I sent the Ponder page that lists every kind of foil in Magic and asked whether Scryfall has enough information to know which foil belongs to which printing, so the foils can show in Change printing in the deck list, in the hand, as a lighter version on the battlefield, and in full when I hold Alt or open the view window. I also asked whether we make a new raw Scryfall list every time or replace the old one, and to make sure no useless or unused data lists are left. Then I pasted 22 real lines from Moxfield that end in `*E*` and said to continue.
+
+**What changed** (`shared/foil-kinds.mjs` new, `shared/printings.mjs`, `shared/card-prints.mjs`, `shared/deck-text.mjs`, `shared/deck-text-edit.mjs`, `scripts/lib/card-list.mjs`, `scripts/lib/card-list-build.mjs`, `scripts/test-all.mjs`, and the tests)
+- **Etched lines (pushed first as `f8edc4f`):** a line ending in `*E*` was read as part of the card's name with no set, so it could never match a card. The parser now reads it (`foil` and `etched` are true), Remove foil takes it off, and Change printing keeps it.
+- **What Scryfall tells:** I printed the raw fields first. `finishes` says which of nonfoil, foil and etched a printing comes in. `promo_types` has a tag for most special foils (surge, galaxy, silver, ripple, halo, textured, embossed, oil-slick, raised, step-and-compleat, mana, first-place, confetti, fracture, dragonscale, cosmic, singularity, silver scroll, gilded, neon ink, serialized, and a few Ponder does not list). Retro foil, From the Vault and Kaladesh Inventions have no tag, so they come from the set (type, date, code). Everything else is a traditional foil.
+- **In the data (card list format 13):** each printing that is not the usual "nonfoil and foil, traditional" has a short suffix: a digit for its finishes (nonfoil 1, foil 2, etched 4) and a letter for a special foil. It is in the per-set files after the card key and as a fifth item in the per-card rows that Change printing reads. The old `f` flag is replaced by this.
+- **Data lists:** a build downloads the bulk files into a temporary folder and deletes them, and the lists are replaced in place, so nothing piles up. I deleted four unused leftovers (all git-ignored): two scraped wiki pages (`wiki-counters.txt`, `wiki-raw.txt`), `.vercel/cache/overloaded/` and `dist/`, which held an old-format card list nothing could reuse. I refreshed `default_cards.jsonl.gz` (it replaced the Oct 26 copy).
+- Nothing shows differently to the player yet. The deck page, saved decks and the game do not know about kinds or etched yet.
+
+**What I checked**
+- **Data:** the 22 etched lines all have an etched finish in Scryfall (22 of 22). On the real built files, 112,171 printings read back with none unreadable, 24 spot checks against the raw data matched (for example Beast Within `who 819` is `2s`, Mountain `vow 411` is `4e`, Wall of Vipers is `3r`), and all 22 etched lines read as etched and foil only. Size barely changed: `printings.json` 5.23 to 5.32 MB, `prints.json` 6.50 to 6.77 MB.
+- **Tests:** `scripts/test-foil-kinds.mjs` (new, 20 checks), `scripts/test-printings.mjs` (45), `scripts/test-card-prints.mjs` (19), `scripts/test-card-list.mjs` (246), `scripts/test-card-list-build.mjs` (183), the whole quick set (78 suites), and the deck page check against the real new data (290). I did not run broken copies of the new module.
+
+**Decisions and limits**
+- The Ponder list has 28 foilings. Burst foil has nothing in Scryfall to find it by, so it is not handled. Amonkhet Invocations (`mp2`) is a traditional foil for now. A tag the code does not know is a traditional foil, so a new tag never breaks anything. When a printing has two tags the first in priority order wins (serialized over double rainbow, oil-slick over raised).
+- A tag only counts when the printing has a foil finish (15 printings have a tag but no foil finish).
+- Nonfoil-only printings (about 43,000) also get a `1`, so the data says they have no foil. It costs almost nothing after compression.
+- Next: carry etched and the kind through the deck page and saved decks, then draw the looks (a light one on the battlefield and in the hand, the full one on the Alt picture and the view window).
+
+**My AI's mistake this time:** my first count of foil printings treated `nonfoil` as a foil because `'nonfoil'.includes('foil')` is true; the per-tag table disagreed with the summary line, which is how I saw it, and I reran it with the finishes as a list. I also wrote the wrong date (2026-11-19) in three code comments before checking the clock, and a PowerShell command with `||` that does not exist there. The first run of one new test failed because my test used `f` as an invalid letter when `f` had become a valid kind.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

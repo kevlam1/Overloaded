@@ -1,7 +1,7 @@
 // Tests for shared/printings.mjs: the card key, the stored value, the per-set file address, and finding a printing in a set
 // file without ever accepting one that belongs to another card. Known answers are written out by hand (the hash values come
 // from the FNV-1a definition, not from this code). No browser, no network. Run: node scripts/test-printings.mjs
-import { cardKey, printingValue, readPrintingValue, setFileUrl, setFileName, findPrinting, findPrintingInfo, foilOnlyById, FOIL_ONLY_FLAG, SET_CODE, KEY_LENGTH, PRINTINGS_PATH } from '../shared/printings.mjs';
+import { cardKey, printingValue, readPrintingValue, setFileUrl, setFileName, findPrinting, findPrintingInfo, foilOnlyById, foilInfoById, SET_CODE, KEY_LENGTH, PRINTINGS_PATH } from '../shared/printings.mjs';
 
 let checks = 0;
 function check(label, condition, detail = '') {
@@ -54,14 +54,16 @@ check('property names of objects are not collector numbers', ['toString', 'const
 check('a file made with a property called __proto__ in its own data still works as data', (() => { const own = JSON.parse(`{"__proto__":"${printingValue(uuid(14), 'Sol Ring')}"}`); return findPrinting(own, '__proto__', 'Sol Ring') === uuid(14); })());
 check('the card is compared by the name in the list, exactly', findPrinting(file, '410', 'Sol Ring ') === null && findPrinting(file, '410', 'sol ring') === null);
 
-// ---- foil-only printings: one more character, f, after the key ----
-{ const foilValue = printingValue(uuid(21), 'Sol Ring', true);
-  check('a foil-only printing has the key and then an f (41 characters), a normal one is unchanged (40)', foilValue === printingValue(uuid(21), 'Sol Ring') + FOIL_ONLY_FLAG && foilValue.length === 41 && printingValue(uuid(21), 'Sol Ring', false).length === 40);
-  same('it reads back with foilOnly, and a normal value has no such field', [readPrintingValue(foilValue), readPrintingValue(printingValue(uuid(21), 'Sol Ring'))], [{ id: uuid(21), key: cardKey('Sol Ring'), foilOnly: true }, { id: uuid(21), key: cardKey('Sol Ring') }]);
-  check('any other last character, or two extra, is refused', [foilValue.slice(0, 40) + 'x', foilValue + 'f', foilValue.slice(0, 40) + 'F'].every((bad) => readPrintingValue(bad) === null));
-  const foilFile = { 1: foilValue, 2: printingValue(uuid(22), 'Sol Ring') };
-  same('findPrintingInfo says whether the printing is foil only, and findPrinting still gives the id', [findPrintingInfo(foilFile, '1', 'Sol Ring'), findPrintingInfo(foilFile, '2', 'Sol Ring'), findPrintingInfo(foilFile, '1', 'Island'), findPrinting(foilFile, '1', 'Sol Ring')], [{ id: uuid(21), foilOnly: true }, { id: uuid(22), foilOnly: false }, null, uuid(21)]); }
-// foilOnlyById: found by the printing's id in the set files that are loaded
-{ const loaded = new Map([['cmm', { 1: printingValue(uuid(31), 'Sol Ring', true), 2: printingValue(uuid(32), 'Sol Ring') }], ['xyz', null], ['bad', 'text']]);
-  same('a foil-only id is true, a normal one false, an id in no loaded set false, and bad input false', [foilOnlyById(uuid(31), loaded), foilOnlyById(uuid(32), loaded), foilOnlyById(uuid(99), loaded), foilOnlyById(null, loaded), foilOnlyById(uuid(31), null), foilOnlyById(uuid(31), new Map())], [true, false, false, false, false, false]); }
+// ---- the foil suffix after the key (shared/foil-kinds.mjs): a digit for the finishes, and a letter for a special foil ----
+{ const foilValue = printingValue(uuid(21), 'Sol Ring', '2');
+  const surgeValue = printingValue(uuid(23), 'Sol Ring', '3s');
+  check('a foil-only printing has the key and then a 2 (41 characters), a special foil a digit and a letter (42), a normal one is unchanged (40)', foilValue === printingValue(uuid(21), 'Sol Ring') + '2' && foilValue.length === 41 && surgeValue.length === 42 && printingValue(uuid(21), 'Sol Ring', '').length === 40);
+  same('it reads back with the finishes (and foilOnly, and the kind), and a normal value has none of those fields', [readPrintingValue(foilValue), readPrintingValue(surgeValue), readPrintingValue(printingValue(uuid(21), 'Sol Ring'))], [{ id: uuid(21), key: cardKey('Sol Ring'), finishes: 2, foilOnly: true }, { id: uuid(23), key: cardKey('Sol Ring'), finishes: 3, kind: 'surge' }, { id: uuid(21), key: cardKey('Sol Ring') }]);
+  check('a suffix that is not a finishes digit, an unknown letter, or three characters is refused', [foilValue.slice(0, 40) + 'x', foilValue.slice(0, 40) + '0', foilValue.slice(0, 40) + '8', foilValue + '?', surgeValue.slice(0, 41) + '?', surgeValue + 's'].every((bad) => readPrintingValue(bad) === null));
+  const foilFile = { 1: foilValue, 2: printingValue(uuid(22), 'Sol Ring'), 3: surgeValue };
+  same('findPrintingInfo gives the finishes and the kind (the usual: 3 and traditional), and findPrinting still gives the id', [findPrintingInfo(foilFile, '1', 'Sol Ring'), findPrintingInfo(foilFile, '2', 'Sol Ring'), findPrintingInfo(foilFile, '3', 'Sol Ring'), findPrintingInfo(foilFile, '1', 'Island'), findPrinting(foilFile, '1', 'Sol Ring')], [{ id: uuid(21), foilOnly: true, finishes: 2, kind: 'traditional' }, { id: uuid(22), foilOnly: false, finishes: 3, kind: 'traditional' }, { id: uuid(23), foilOnly: false, finishes: 3, kind: 'surge' }, null, uuid(21)]); }
+// foilInfoById and foilOnlyById: found by the printing's id in the set files that are loaded
+{ const loaded = new Map([['cmm', { 1: printingValue(uuid(31), 'Sol Ring', '2'), 2: printingValue(uuid(32), 'Sol Ring'), 3: printingValue(uuid(33), 'Sol Ring', '3g') }], ['xyz', null], ['bad', 'text']]);
+  same('a foil-only id is true, a normal one false, an id in no loaded set false, and bad input false', [foilOnlyById(uuid(31), loaded), foilOnlyById(uuid(32), loaded), foilOnlyById(uuid(99), loaded), foilOnlyById(null, loaded), foilOnlyById(uuid(31), null), foilOnlyById(uuid(31), new Map())], [true, false, false, false, false, false]);
+  same('foilInfoById gives the finishes and the kind, or null when the printing is not in a loaded set', [foilInfoById(uuid(31), loaded), foilInfoById(uuid(32), loaded), foilInfoById(uuid(33), loaded), foilInfoById(uuid(99), loaded), foilInfoById(null, loaded)], [{ foilOnly: true, finishes: 2, kind: 'traditional' }, { foilOnly: false, finishes: 3, kind: 'traditional' }, { foilOnly: false, finishes: 3, kind: 'galaxy' }, null, null]); }
 console.log(`All ${checks} printings checks passed.`);
