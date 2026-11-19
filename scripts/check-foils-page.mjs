@@ -21,10 +21,9 @@ try {
   await sleep(400);
   const facts = () => ev(`(() => { const entries = [...document.querySelectorAll('.foil-lab-entry')]; return { titles: entries.map((e) => e.querySelector('h2').textContent), looks: entries.map((e) => e.querySelector('.foil-lab-small .card').dataset.foil ?? null), fourWays: entries.every((e) => e.querySelectorAll('.foil-lab-small .card, .foil-lab-hand .card, .foil-lab-tile .deck-tile, .foil-lab-big img').length === 4), layers: entries.map((e) => e.querySelectorAll('.foil-full').length) }; })()`);
   const byLook = await facts();
-  check('the page is at /foils and lists "Not foil", then the traditional foil and the etched foil', JSON.stringify(byLook.titles) === JSON.stringify(['Not foil', 'Traditional', 'Etched']) && JSON.stringify(byLook.looks) === JSON.stringify([null, 'traditional', 'etched']), JSON.stringify(byLook));
-  check('each entry is drawn four ways, and only the foil ones have a foil layer on the big picture', byLook.fourWays && JSON.stringify(byLook.layers) === JSON.stringify([0, 1, 1]));
+  check('the page is at /foils and lists "Not foil" and the traditional foil', JSON.stringify(byLook.titles) === JSON.stringify(['Not foil', 'Traditional']) && JSON.stringify(byLook.looks) === JSON.stringify([null, 'traditional']), JSON.stringify(byLook));
+  check('each entry is drawn four ways, and only the foil ones have a foil layer on the big picture', byLook.fourWays && JSON.stringify(byLook.layers) === JSON.stringify([0, 1]));
   const cards = await ev(`(() => { const entries = [...document.querySelectorAll('.foil-lab-entry')]; return entries.map((e) => e.querySelector('.foil-lab-card').textContent); })()`);
-  check('the etched entry shows a real etched printing (Jin-Gitaxias) and the foil ones a real card', cards[2] === 'Jin-Gitaxias, Core Augur (MUL 76)' && cards[1] === 'Sol Ring (CMM 410)', JSON.stringify(cards));
   const rect = await ev(`(() => { const f = document.querySelectorAll('.foil-lab-big')[1]; f.scrollIntoView({ block: 'center' }); const r = f.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; })()`);
   const look = () => ev(`(() => { const l = document.querySelectorAll('.foil-lab-big .foil-full')[0]; const s = getComputedStyle(l); return [l.style.getPropertyValue('--mx'), l.style.getPropertyValue('--my'), s.backgroundPosition].join('|'); })()`);
   const before = await look();

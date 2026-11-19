@@ -1643,14 +1643,13 @@ body.playing.solo #life-area .life-counters:hover { border-color: var(--ring); }
 body.playing.solo #life-area .life-counters:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 body.playing.solo #life-area .life-counters[aria-expanded="true"]::after { rotate: 225deg; translate: 0 0.08rem; }
 
-/* foil (Kevin, 2026-11-18): there are two looks, a traditional foil for every kind of foil and the etched foil (data-foil on the element, the names are in shared/foil-looks.mjs). The 20 looks made from photos were
+/* foil (Kevin, 2026-11-18): there is one look, a traditional foil for every kind of foil, etched included (data-foil on the element, the names are in shared/foil-looks.mjs). The 20 looks made from photos were
    scrapped on 2026-11-18 (git history has them). A look is a few variables: --f-img the layers, --f-size and --f-pos their size and place, --f-blend how they mix with the picture, --f-alpha how strong.
    A small card (battlefield, hand, deck tile, printing tile) shows the layers still, with one slow pass of light; a big picture (Alt, the details window, the card display beside a deck list) is a foil layer
    (.foil-full). Nothing glows or moves under the pointer and nothing swings back and forth. */
 :root { --f-mask-text: linear-gradient(to bottom, rgba(0, 0, 0, 0.5) 0, rgba(0, 0, 0, 0.5) 9%, #000 12%, #000 55%, rgba(0, 0, 0, 0.4) 58%, rgba(0, 0, 0, 0.4) 100%); }
 [data-foil] { --f-blend: overlay; --f-alpha: 1; --f-band-a: 0.16; --f-pos: 50% 40%; }
 [data-foil="traditional"] { --f-img: linear-gradient(115deg, transparent 12%, rgba(255, 110, 150, 0.30) 26%, rgba(255, 205, 110, 0.30) 36%, rgba(120, 235, 160, 0.30) 46%, rgba(100, 190, 255, 0.32) 56%, rgba(180, 130, 255, 0.30) 66%, transparent 80%); --f-size: 240% 240%; --f-blend: hard-light; --f-alpha: 0.32; }
-[data-foil="etched"] { --f-img: repeating-linear-gradient(60deg, rgba(255, 255, 255, 0.30) 0 1px, transparent 1px 3px), linear-gradient(115deg, transparent 20%, rgba(255, 255, 255, 0.42) 42%, rgba(255, 226, 190, 0.34) 52%, rgba(190, 215, 255, 0.30) 62%, transparent 82%); --f-size: 100% 100%, 220% 220%; --f-pos: 0 0, 50% 40%; --f-blend: overlay; --f-alpha: 1; --f-band-a: 0.05; }
 
 /* the layers on a small card: still, and a little weaker on the battlefield than in the hand, on a deck tile and on a printing tile */
 .card.foil .face, .deck-tile.foil .tile-picture, .foil-art { position: relative; }

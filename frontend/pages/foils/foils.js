@@ -27,12 +27,11 @@ const make = (tag, className, text) => {
   return element;
 };
 
-// What the page lists: a card that is not foil, a traditional foil (every kind of foil but etched is drawn this way) and an etched foil. example is the real card that shows it (shared/foil-examples.mjs).
+// What the page lists: a card that is not foil and the traditional foil (every kind of foil, etched too, is drawn this way). example is the real card that shows it (shared/foil-examples.mjs).
 function entries() {
   return [
     { title: 'Not foil', note: 'no foil', group: null, example: 'traditional' },
-    { title: 'Traditional', note: 'every foil but etched', group: 'traditional', example: 'traditional' },
-    { title: 'Etched', note: 'etched foil', group: 'etched', example: 'etched' },
+    { title: 'Traditional', note: 'every foil, etched too', group: 'traditional', example: 'traditional' },
   ];
 }
 
