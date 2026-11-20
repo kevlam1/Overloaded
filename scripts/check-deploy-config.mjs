@@ -112,7 +112,7 @@ const server = LIVE ? null : createServer((request, response) => {
   response.writeHead(200, { 'content-type': TYPES[extname(file)] ?? 'application/octet-stream', ...headers });
   response.end(readFileSync(file));
 });
-if (server) await new Promise((ok) => server.listen(0, '127.0.0.1', ok));
+if (server) await new Promise((ok) => server.listen(5173, '127.0.0.1', ok) /* the one local port the web API key allows (Google Cloud > Credentials > website restrictions) */);
 const ORIGIN = LIVE || `http://127.0.0.1:${server.address().port}`;
 
 // The server (the stand-in locally, the real Vercel with DEPLOY_URL), checked before anything relies on it
@@ -267,7 +267,7 @@ try {
     try { await fetch(`${DB}/hosts/${hostAuth.uid}.json?auth=${encodeURIComponent(hostAuth.token)}`, { method: 'DELETE' }); } catch {}
   }
   for (const account of accounts) {
-    try { await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:delete?key=${API_KEY}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ idToken: account.token }) }); } catch {}
+    try { await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:delete?key=${API_KEY}`, { method: 'POST', headers: { 'content-type': 'application/json', Referer: 'https://overloaded-spell.vercel.app/' }, body: JSON.stringify({ idToken: account.token }) }); } catch {}
   }
   await closeAllBrowsers();
   server?.close();

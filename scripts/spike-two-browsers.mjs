@@ -12,7 +12,7 @@ const mySeat = (page) => waitFor(async () => (await page.eval(`document.querySel
 import { createServer } from 'vite';
 import { openBrowser, closeAllBrowsers, waitFor, authOf, sleep, median, text, tableShown, setValue, click, players } from './lib/browser.mjs';
 
-const PORT = 5199;
+const PORT = 5173; // the one local port the web API key allows besides the real sites (Google Cloud > Credentials > website restrictions)
 const PAGE = `http://127.0.0.1:${PORT}/pages/lobby/index.html`;
 const DB = (process.env.FIREBASE_DATABASE_URL ?? '').replace(/\/$/, '');
 const API_KEY = process.env.FIREBASE_API_KEY ?? '';
@@ -32,11 +32,11 @@ async function rest(method, path, token, body) {
   return { status: response.status, json, ms: performance.now() - start };
 }
 async function newStranger() {
-  const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${API_KEY}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ returnSecureToken: true }) });
+  const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${API_KEY}`, { method: 'POST', headers: { 'content-type': 'application/json', Referer: 'https://overloaded-spell.vercel.app/' }, body: JSON.stringify({ returnSecureToken: true }) });
   const json = await response.json();
   return { uid: json.localId, token: json.idToken };
 }
-const deleteAccount = (token) => fetch(`https://identitytoolkit.googleapis.com/v1/accounts:delete?key=${API_KEY}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ idToken: token }) }).catch(() => {});
+const deleteAccount = (token) => fetch(`https://identitytoolkit.googleapis.com/v1/accounts:delete?key=${API_KEY}`, { method: 'POST', headers: { 'content-type': 'application/json', Referer: 'https://overloaded-spell.vercel.app/' }, body: JSON.stringify({ idToken: token }) }).catch(() => {});
 
 // When a step fails, show what the page said and what its console logged. Table codes and account ids are masked.
 const mask = (s) => String(s).replace(/\b[A-HJ-NP-Z2-9]{6}\b/g, '******').replace(/\b[A-Za-z0-9]{28}\b/g, '<id>').slice(0, 260);

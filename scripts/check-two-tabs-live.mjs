@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import { chromePath, sleep } from './lib/browser.mjs';
 
 const API_KEY = process.env.FIREBASE_API_KEY ?? '';
-const PORT = 5198;
+const PORT = 5173; // the one local port the web API key allows besides the real sites (Google Cloud > Credentials > website restrictions)
 const PAGE = `http://127.0.0.1:${PORT}/pages/lobby/index.html`;
 const profile = mkdtempSync(join(tmpdir(), 'cdp-twotabs-'));
 const dport = 9300 + Math.floor(Math.random() * 600);
@@ -51,7 +51,7 @@ try {
   console.log(pass ? 'All 1 two-tab checks passed: both tabs are the same player and the browser holds one account.' : 'FAILED: the two tabs are different players, or the browser holds a different number of accounts.');
   process.exitCode = pass ? 0 : 1;
 } finally {
-  for (const token of tokens) await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:delete?key=${API_KEY}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ idToken: token }) }).catch(() => {});
+  for (const token of tokens) await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:delete?key=${API_KEY}`, { method: 'POST', headers: { 'content-type': 'application/json', Referer: 'https://overloaded-spell.vercel.app/' }, body: JSON.stringify({ idToken: token }) }).catch(() => {});
   try { child?.kill(); } catch {}
   await sleep(1500);
   try { rmSync(profile, { recursive: true, force: true }); } catch {}

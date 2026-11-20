@@ -19,14 +19,14 @@ let checks = 0;
 const failures = [];
 
 async function newAccount() {
-  const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${API_KEY}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ returnSecureToken: true }) });
+  const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${API_KEY}`, { method: 'POST', headers: { 'content-type': 'application/json', Referer: 'https://overloaded-spell.vercel.app/' }, body: JSON.stringify({ returnSecureToken: true }) });
   const json = await response.json();
   if (!json.idToken) throw new Error('could not create a throwaway account');
   const account = { uid: json.localId, token: json.idToken };
   accounts.push(account);
   return account;
 }
-const deleteAccount = (token) => fetch(`https://identitytoolkit.googleapis.com/v1/accounts:delete?key=${API_KEY}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ idToken: token }) }).catch(() => {});
+const deleteAccount = (token) => fetch(`https://identitytoolkit.googleapis.com/v1/accounts:delete?key=${API_KEY}`, { method: 'POST', headers: { 'content-type': 'application/json', Referer: 'https://overloaded-spell.vercel.app/' }, body: JSON.stringify({ idToken: token }) }).catch(() => {});
 
 async function call(who, method, path, body) {
   const response = await fetch(`${DB}/${path}.json?auth=${encodeURIComponent(who.token)}`, { method, body: body === undefined ? undefined : JSON.stringify(body) });

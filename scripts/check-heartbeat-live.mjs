@@ -15,7 +15,7 @@ const DB = (process.env.FIREBASE_DATABASE_URL ?? '').replace(/\/$/, '');
 const API_KEY = process.env.FIREBASE_API_KEY ?? '';
 if (!DB || !API_KEY) { console.log('The Firebase settings are not in the environment. Run: node --env-file=.env scripts/check-heartbeat-live.mjs'); process.exit(1); }
 
-const PORT = 5196;
+const PORT = 5173; // the one local port the web API key allows besides the real sites (Google Cloud > Credentials > website restrictions)
 const ORIGIN = `http://127.0.0.1:${PORT}`;
 let checks = 0;
 const failures = [];
@@ -70,7 +70,7 @@ try {
   if (auth && code) {
     try { await fetch(`${DB}/tables/${code}.json?auth=${encodeURIComponent(auth.token)}`, { method: 'DELETE' }); } catch {}
     try { await fetch(`${DB}/hosts/${auth.uid}.json?auth=${encodeURIComponent(auth.token)}`, { method: 'DELETE' }); } catch {}
-    try { await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:delete?key=${API_KEY}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ idToken: auth.token }) }); } catch {}
+    try { await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:delete?key=${API_KEY}`, { method: 'POST', headers: { 'content-type': 'application/json', Referer: 'https://overloaded-spell.vercel.app/' }, body: JSON.stringify({ idToken: auth.token }) }); } catch {}
   }
   await closeAllBrowsers();
   if (server) await server.close();

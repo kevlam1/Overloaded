@@ -4976,6 +4976,27 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **My AI's mistakes this time:** my first emblem sync test expected only the command zone to be written, but making an emblem also moves the card number counter, so the writes are two; the test was wrong, not the code.
 
+## 251. The web API key rotated and restricted; the live checks follow (2026-11-20)
+
+**What I asked for**
+- Restrict the Firebase web API key (the to-do item). I rotated it first: a new key in Google Cloud, the new value in Vercel (all environments, redeployed) and in my `.env`.
+
+**What changed** (the live check scripts, `CLAUDE.md`)
+- **What I found:** the old key stopped working at once (the live rules check could not make a throwaway account). With the new key set in `.env` it still failed from Node, because the new key was already limited to websites and Node sends no website address. A request with the live site as its Referer worked, and so did the `development` preview; `localhost` and `127.0.0.1` were refused.
+- **Google's list:** it refused `http://localhost:*/*` ("Invalid website domain"), so a wildcard port cannot be used. I added `http://localhost:5173/*` and `http://127.0.0.1:5173/*` and they work after a few minutes.
+- **The scripts:** every live script that signs in from Node (`check-live-rules`, the spike and the cleanups of the others) sends the live site as its Referer. Every live script that serves a page itself (room, lobby deck, bots, presence, heartbeat, takeover, two tabs, the spike, and the deploy check's own server) now uses port 5173, the one local port the key allows.
+- I first tried making Chrome send the live site's address instead, so no local entry would be needed; it stopped the page loading, so I took it out again.
+
+**What I checked** (all against the real project with the new key)
+- Live rules 138 of 138, the spike 36, room 41, bots 9, presence 11, heartbeat 7, two tabs 1, the deploy check 54 (locally) and 59 (against the live site), and the lobby deck check 193 of 193. The takeover check (6.5 minutes) was not run.
+
+**Decisions and limits**
+- A live check cannot run while your own dev server uses port 5173.
+- The key's API restriction (25 APIs, set by Firebase) was left as it is; narrowing it to the two sign-in APIs is optional.
+- I could not check the Google Cloud settings myself: what is saved there is only what the requests show to be allowed or refused.
+
+**My AI's mistakes this time:** I told you to add the address with a wildcard port, which Google does not accept; I did not know the format and said so only partly. I also changed the script ports with a pattern that missed the 52xx ones, so two scripts still failed until I looked at the port numbers.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.
