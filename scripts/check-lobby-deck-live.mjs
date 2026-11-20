@@ -465,14 +465,18 @@ try {
     const handBefore = await count(alice, '#hand .card');
     await alice.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] });
     await alice.eval(`window.__plays = []; HTMLMediaElement.prototype.play = function () { window.__plays.push(new URL(this.src).pathname); return Promise.resolve(); };`); // the page was reloaded since the earlier recorder
+    const oldHandKeys = JSON.stringify(Object.values((await rest('GET', pathOf('private/hand'), cleanup.alice.token)).json ?? {}).map((card) => card.u).sort());
     await click(alice, 'mulligan');
-    await sleep(150);
-    record('Mulligan on the table page plays the shuffle sound and the shown hand is empty while the new hand waits to be dealt', JSON.stringify(await alice.eval(`window.__plays`)) === '["/sfx/shuffle.mp3"]' && (await count(alice, '#hand .card')) === 0);
-    const savedAtOnce = await waitFor(async () => { const r = await rest('GET', pathOf('private/hand'), cleanup.alice.token); return r.json && Object.keys(r.json).length === 7 ? true : null; }, 15000, 250);
-    record('...and the new hand of 7 is saved in the database without waiting for the animation', Boolean(savedAtOnce));
-    await waitFor(async () => (await count(alice, '#hand .card')) === 7 ? true : null, 8000, 50);
+    // (the hand first gathers into the library and the library is shuffled, as on the solo table since 2026-11-20; the shuffle sound comes then, and the new hand is dealt right after the animation)
+    const firstSound = await waitFor(async () => { const plays = await alice.eval(`window.__plays`); return plays.length ? plays : null; }, 8000, 30);
+    record('Mulligan on the table page: the hand gathers into the library, then the shuffle sound, before any card is dealt', Array.isArray(firstSound) && firstSound[0] === '/sfx/shuffle.mp3', JSON.stringify(firstSound));
+    // (the old hand of 7 shows and stays saved until the animation is over, so both waits look for the NEW hand: other cards in the database, and the 7 draw sounds of its deal)
+    const savedAtOnce = await waitFor(async () => { const r = await rest('GET', pathOf('private/hand'), cleanup.alice.token); const keys = JSON.stringify(Object.values(r.json ?? {}).map((card) => card.u).sort()); return r.json && Object.keys(r.json).length === 7 && keys !== oldHandKeys ? true : null; }, 15000, 250);
+    record('...and the new hand of 7 is saved in the database without waiting for the cards to be dealt', Boolean(savedAtOnce));
+    await waitFor(async () => ((await alice.eval(`window.__plays.length`)) >= 8 ? true : null), 8000, 50);
     await sleep(300);
-    record('then 7 draw sounds follow, one for each card, and the hand shows 7', JSON.stringify(await alice.eval(`window.__plays`)) === JSON.stringify(['/sfx/shuffle.mp3', ...Array(7).fill('/sfx/draw.mp3')]) && (await count(alice, '#hand .card')) === 7);
+    const plays = await alice.eval(`window.__plays`);
+    record('then 7 draw sounds follow, one for each card, and the hand shows 7', JSON.stringify(plays) === JSON.stringify(['/sfx/shuffle.mp3', ...Array(7).fill('/sfx/draw.mp3')]) && (await count(alice, '#hand .card')) === 7, `${JSON.stringify(plays)} ${await count(alice, '#hand .card')}`);
     await alice.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
     for (let n = 7; n < handBefore; n++) await click(alice, 'draw'); // back to the size the hand had, as the checks below expect
     await waitFor(async () => (await count(alice, '#hand .card')) === Math.max(handBefore, 7) ? true : null, 8000, 50);

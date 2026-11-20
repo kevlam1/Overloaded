@@ -120,6 +120,34 @@ try {
       await drag(await centre(`#battlefield > .card[data-uid="${placed}"]`), { x: handCard.x, y: myArea.bottom - 12 });
       const returned = await counts();
       record('a battlefield card let go on her hand goes back to her hand', returned.hand === back.hand + 1 && returned.field === back.field - 1, JSON.stringify(returned));
+      // the solo table's hand tools on the table: Shift and a click picks two hand cards, a right-click on one offers the group menu, Discard sends both to the graveyard (and it is saved)
+      const shiftClick = async (selector) => { const p = await handPoint(selector); await mouse('mouseMoved', p.x, p.y); await sleep(250); const q = await handPoint(selector); await alice.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: q.x, y: q.y, button: 'left', buttons: 1, clickCount: 1, modifiers: 8 }); await alice.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: q.x, y: q.y, button: 'left', buttons: 0, clickCount: 1, modifiers: 8 }); await sleep(250); };
+      const pickedUids = await alice.eval(`[...document.querySelectorAll('#hand > .card')].slice(0, 2).map((c) => c.dataset.uid)`);
+      await shiftClick(`#hand > .card[data-uid="${pickedUids[0]}"]`);
+      await shiftClick(`#hand > .card[data-uid="${pickedUids[1]}"]`);
+      const picked = await alice.eval(`document.querySelectorAll('#hand > .card.selected').length`);
+      await alice.eval(`(() => { const c = document.querySelector('#hand > .card[data-uid="${pickedUids[1]}"]'); const r = c.getBoundingClientRect(); c.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: r.x + r.width / 2, clientY: r.y + 12 })); })()`);
+      await sleep(300);
+      const groupTitle = await alice.eval(`document.querySelector('.card-menu')?.querySelector('h2, h3, .card-menu-title')?.textContent ?? ''`);
+      await alice.eval(`[...document.querySelectorAll('.card-menu [role="menuitem"]')].find((x) => x.textContent.trim() === 'Discard')?.click()`);
+      await sleep(500);
+      const discarded = await counts();
+      const savedGrave = await waitFor(async () => { const r = await rest('GET', `tables/${code}/public/${aliceAuth.uid}/graveyard`, aliceAuth.token); return Array.isArray(r.json) && r.json.length === discarded.grave ? r.json.length : null; }, 15000, 300);
+      record('Shift and a click picks two hand cards; the group menu ("2 cards") discards both, and the database has them in her graveyard', picked === 2 && /2 cards/.test(groupTitle) && discarded.grave === returned.grave + 2 && discarded.hand === returned.hand - 2 && savedGrave === discarded.grave, JSON.stringify({ picked, groupTitle, discarded, savedGrave }));
+      // the bar under her raised hand has the sort buttons and the hand menu arrow; the pile window has its Type and Mana value filters and the Graveyard / Exile buttons
+      { const p = await handPoint('#hand > .card'); await mouse('mouseMoved', p.x, p.y); await sleep(400); }
+      const tools = await alice.eval(`({ sorts: document.querySelectorAll('.hand-bar .hand-sort').length, caret: Boolean(document.getElementById('hand-caret')) })`);
+      await alice.eval(`document.getElementById('hand-caret').click()`);
+      await sleep(250);
+      const handMenu = await alice.eval(`[...document.querySelectorAll('.card-menu [role="menuitem"]')].map((x) => x.textContent.trim())`);
+      await alice.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await alice.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await sleep(200);
+      record('the hand has the sort buttons and its menu (Mulligan, Discard hand and the rest)', tools.sorts >= 4 && tools.caret && handMenu.includes('Mulligan') && handMenu.some((t) => t.startsWith('Discard hand')), JSON.stringify({ tools, handMenu }));
+      await alice.eval(`document.getElementById('pile-graveyard').click()`);
+      await sleep(400);
+      const win = await alice.eval(`({ shown: !document.getElementById('viewer').hidden, filters: document.querySelectorAll('#viewer-filters button, #viewer-filters select, #viewer-filters details').length, tabs: !document.getElementById('viewer-tabs').hidden, cards: document.querySelectorAll('#viewer-list .card').length })`);
+      record('her graveyard window has the Type and Mana value filters and the Graveyard / Exile buttons, and shows the 2 cards', win.shown && win.filters >= 2 && win.tabs && win.cards === 2, JSON.stringify(win));
+      await alice.eval(`document.getElementById('viewer-close').click()`);
+      await sleep(200);
       // the counters panel under her life: commander damage from each commander at the table (hers and Bob's), then her counters
       await alice.eval(`document.getElementById('life-counters').click()`);
       await sleep(300);
@@ -141,7 +169,7 @@ try {
       await alice.eval(`[...document.querySelectorAll('#seats-side .seat-slot')][1].querySelector('.slot-head').click()`);
       await sleep(500);
       const bobLarge = await alice.eval(`({ bob: document.querySelector('.opponent').classList.contains('focused'), mineSmall: document.getElementById('seat-me').classList.contains('mini'), handDocked: document.getElementById('hand-section').classList.contains('docked'), handCards: document.querySelectorAll('#hand > .card').length })`);
-      record("...a click on Bob in the column shows his area large; her hand stays along the bottom, still hers", bobLarge.bob && bobLarge.mineSmall && bobLarge.handDocked && bobLarge.handCards === returned.hand, JSON.stringify(bobLarge));
+      record("...a click on Bob in the column shows his area large; her hand stays along the bottom, still hers", bobLarge.bob && bobLarge.mineSmall && bobLarge.handDocked && bobLarge.handCards === discarded.hand, JSON.stringify(bobLarge));
       if (process.argv.includes('--screenshot')) await alice.screenshot('scratch-seats-sidebar-bob.png');
       await alice.eval(`document.getElementById('view-toggle').click()`);
       await sleep(400);

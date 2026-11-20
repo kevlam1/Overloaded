@@ -64,7 +64,7 @@ same('the labels of an action skip empty slots', [labelsOf(defaults, 'tap'), lab
 // ---- the other actions
 same('Shuffle and Mulligan are actions with no key yet', [defaults.shuffle, defaults.mulligan], [[null, null], [null, null]]);
 same('every action is listed under a known section', ACTIONS.every((action) => SECTIONS.some((section) => section.id === action.section)), true);
-same('the table page has no hand sorting, history or stack, and has Auto-arrange; the solo page the reverse', [actionsFor('table').some((a) => a.id === 'sortType' || a.id === 'history' || a.id === 'stack'), actionsFor('table').some((a) => a.id === 'arrange'), actionsFor('solo').some((a) => a.id === 'sortType'), actionsFor('solo').some((a) => a.id === 'arrange')], [false, true, true, false]);
+same('both pages sort the hand; the table page has no history or stack yet and has Auto-arrange; the solo page has no Auto-arrange', [actionsFor('table').some((a) => a.id === 'sortType'), actionsFor('table').some((a) => a.id === 'history' || a.id === 'stack'), actionsFor('table').some((a) => a.id === 'arrange'), actionsFor('solo').some((a) => a.id === 'sortType'), actionsFor('solo').some((a) => a.id === 'arrange')], [true, false, true, true, false]);
 r = bindKey(defaults, 'shuffle', 0, 'd');
 same('Shuffle on D swaps with Draw, which then has no key', [r.binds.shuffle, r.binds.draw, r.swapped], [['d', null], [null, null], 'draw']);
 same('a key on the new actions matches', matchEvent(bindKey(defaults, 'mulligan', 0, 'm').binds, 'table', press('m')), 'mulligan');

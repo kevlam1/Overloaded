@@ -5086,6 +5086,26 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **My AI's mistakes this time:** the first try left my battlefield overlapping my piles by under a pixel at 1280 wide (the pile's offset layers stick out); a small gap fixed it.
 
+## 256. The solo table's tools on the Seats table, first batch (2026-11-20)
+
+**What I asked for**
+- Bring the rest of the solo table over, the pieces that need no database change first (my choice in entry 255).
+
+**What changed** (`frontend/pages/table/table.js`, `index.html`, `shared/keybinds.mjs`)
+- Claude had a helper compare the two pages line by line first, to get a full list of what the table lacked (it also found a bug: dragging a whole pile of the battlefield into the hand moved only the top card on the table).
+- **The hand:** the bar under the raised hand now has the menu arrow (Mulligan, Shuffle hand into library, Move all to, Discard X at random, Discard hand) and the sort buttons (Auto, Sort, Color, Type, Cost, A-Z, with the orders in a new Settings > Hand sorting tab, and a card moved by hand in a sorted hand pinned there); Shift and a click picks several hand cards, and a right-click on one opens the group menu (Play, Discard, Exile, Move to command zone, top or bottom of the library in an order I choose); "Flip double-faced card" in a hand card's menu shows its back (only to me); the Resting hand setting from entry 254 stays.
+- **Picking several cards:** a rectangle over empty battlefield (or the hand) picks every card it touches; E, Q and F act on all of them, a drag carries all of them, Escape or a click on empty space lets them go. Dragging a whole pile or a group into the hand moves all of it (the bug).
+- **The library menu:** Draw X draws one card at a time, each flying out of the library; Scry X and Surveil X open the same window as on the solo table; Shuffle shows the shuffle. A card dropped on a pile flies into it, the mulligan gathers the hand into the library and shuffles it, and a dealt or drawn card flies out of the library and turns face up (all off under reduced motion).
+- **The pile window:** the Type and Mana value filters, the Graveyard / Exile buttons (also when I look at another player's graveyard or exile) and the eye that hides the window.
+- **Smaller things:** battlefield and command zone pictures are the sharp size, a commander can be put in either command slot, the "Your hand is empty" hint shows, and the five sort keys can be bound on the table (Settings > Keybinds).
+- Left out on purpose: Reveal top X and Play with top revealed (only I would see the cards, which is not a reveal: the table must be told, a later step), Exile face down and named counters (the database does not keep them yet), and the history and the stack (shared, with the rules paste).
+
+**What I checked**
+- `scripts/check-seats-live.mjs` 27 of 27 (3 new: two hand cards picked with Shift and discarded from the group menu, with the database showing them in my graveyard; the sort buttons and the hand menu; the graveyard window's filters and buttons with the 2 cards). I looked at a screenshot with the hand raised.
+- `npm test` 93 of 93 suites (`test-keybinds` updated: the table now sorts the hand), `check-lobby-deck-live` 193 of 193 twice in a row after its mulligan block was updated (see below).
+
+**My AI's mistakes this time:** the live check's mulligan block still expected the old instant mulligan. Claude's first fix to it was also wrong: while the gather animation plays the OLD hand of 7 still shows and is still saved, so its waits for "7 cards" and "saved" passed at once on the old hand and it then found no draw sounds. It now waits for different cards in the database and for the 7 draw sounds. In one of those broken runs a page error ("Cannot read properties of null (reading 'textContent')") was reported once; Claude found no page code that could cause it, and two full runs after the fix had none, so it is noted, not explained. The keybind test still said the table had no hand sorting (the old fact) and was brought up to date.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-20, entry 254) Claude kept the hands and piles of the multiplayer table cautious and apart from the boards; I had to say it should give every player a full solo-table area and use the space.
 - (2026-11-20, entry 253) Claude's first Seats table floated the life, buttons, piles and hand over my battlefield as on the solo table; on a shared table that blocked cards and drops, and I had to ask for the boards to move to the side.
