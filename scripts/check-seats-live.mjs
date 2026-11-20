@@ -87,7 +87,7 @@ try {
     const areas = await alice.eval(`[...document.querySelectorAll('#opponent-list .opponent')].map((s) => { const r = s.getBoundingClientRect(); return [Math.round(r.left), Math.round(r.top), Math.round(r.width)]; })`);
     const mine = await box(alice, '#battlefield');
     const life = await box(alice, '#life-area');
-    const bar = await box(alice, '.actions-panel');
+    const bar = await box(alice, '.actions-panel .actions');
     const handTop = await alice.eval(`Math.round(Math.min(...[...document.querySelectorAll('#hand .card')].map((c) => c.getBoundingClientRect().top)))`);
     record(`${seats} seats: the page is the Seats table (the solo look for her own area)`, await alice.eval(`document.body.classList.contains('playing') && document.body.classList.contains('seats')`));
     record(`${seats} seats: the other players' areas are across the top, ${others} side by side and the same width`, Boolean(opp) && opp.top === 0 && areas.length === others && areas.every((a) => Math.abs(a[1] - areas[0][1]) <= 1 && Math.abs(a[2] - areas[0][2]) <= 2) && areas.every((a, n) => n === 0 || a[0] > areas[n - 1][0]), JSON.stringify(areas));
@@ -100,6 +100,34 @@ try {
       await alice.eval(`document.getElementById('facing-upright').click()`);
       record('...and upright when she chooses Upright in Settings (kept in her browser)', (await facing()) === 'none' && (await alice.eval(`localStorage.getItem('overloaded.facing')`)) === 'upright', await facing());
       await alice.eval(`document.getElementById('facing-turned').click()`);
+      // Real mouse drags between her hand, her battlefield and her piles (Kevin, 2026-11-20: a card let go near the bottom of the battlefield went back into the hand, and a card let go on the graveyard landed on the board)
+      const mouse = (type, x, y, buttons = 0) => alice.send('Input.dispatchMouseEvent', { type, x, y, button: type === 'mouseMoved' ? 'none' : 'left', buttons, clickCount: 1 });
+      const drag = async (from, to) => { await mouse('mouseMoved', from.x, from.y); await sleep(60); await mouse('mousePressed', from.x, from.y, 1); for (let n = 1; n <= 12; n++) { await mouse('mouseMoved', from.x + ((to.x - from.x) * n) / 12, from.y + ((to.y - from.y) * n) / 12, 1); await sleep(16); } await mouse('mouseReleased', to.x, to.y); await sleep(700); };
+      const centre = (selector) => alice.eval(`(() => { const e = document.querySelector(${JSON.stringify(selector)}); if (!e) return null; const r = e.getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) }; })()`);
+      const counts = () => alice.eval(`({ hand: document.querySelectorAll('#hand > .card').length, field: document.querySelectorAll('#battlefield > .card').length, grave: Number(document.getElementById('pile-graveyard').dataset.count) })`);
+      const field = await box(alice, '#battlefield');
+      if (process.argv.includes('--screenshot')) { const c = await centre('#hand > .card:nth-child(3)'); await mouse('mouseMoved', c.x, c.y); await sleep(400); await alice.screenshot('scratch-seats-hover.png'); }
+      const before = await counts();
+      await drag(await centre('#hand > .card'), { x: field.left + Math.round(field.width * 0.3), y: field.bottom - 6 });
+      const played = await counts();
+      record('a hand card let go on the bottom edge of her battlefield is played there', played.hand === before.hand - 1 && played.field === before.field + 1, JSON.stringify({ before, played }));
+      const placed = await alice.eval(`[...document.querySelectorAll('#battlefield > .card')].map((c) => c.dataset.uid).pop()`);
+      await drag(await centre(`#battlefield > .card[data-uid="${placed}"]`), await centre('#pile-graveyard'));
+      const buried = await counts();
+      record('a battlefield card let go on her graveyard goes to the graveyard', buried.grave === played.grave + 1 && buried.field === played.field - 1, JSON.stringify(buried));
+      await drag(await centre('#pile-graveyard'), { x: field.left + Math.round(field.width / 2), y: field.top + Math.round(field.height / 2) });
+      const back = await counts();
+      record('the top card of her graveyard dragged onto the battlefield comes back', back.grave === buried.grave - 1 && back.field === buried.field + 1, JSON.stringify(back));
+      const hand = await box(alice, '#hand-section');
+      await drag(await centre(`#battlefield > .card[data-uid="${placed}"]`), { x: hand.left + 40, y: hand.top + 8 });
+      const returned = await counts();
+      record('a battlefield card let go anywhere in the hand strip goes back to her hand', returned.hand === back.hand + 1 && returned.field === back.field - 1, JSON.stringify(returned));
+      // Bob's piles: his library cannot be opened; his exile opens in the pile window to look at
+      await alice.eval(`document.querySelector('#opponent-list .opp-pile[data-zone="exile"]').click()`);
+      await sleep(300);
+      const opened = await alice.eval(`({ shown: !document.getElementById('viewer').hidden, title: document.getElementById('viewer-title').textContent, library: document.querySelector('#opponent-list .opp-pile[data-zone="library"]').disabled })`);
+      record("Bob's exile opens in the pile window; his library cannot be opened", opened.shown && /^Exile of Bob/.test(opened.title) && opened.library, JSON.stringify(opened));
+      await alice.eval(`document.getElementById('viewer-close').click()`);
     }
     record(`${seats} seats: no page errors`, ![alice, bob].some((b) => b.logs.some((l) => /^exception:/.test(l))), [alice, bob].flatMap((b) => b.logs).filter((l) => /^exception:/.test(l)).join(' | ').slice(0, 300));
     accounts.push(...(await accountsOf(alice)), ...(await accountsOf(bob)));

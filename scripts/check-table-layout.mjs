@@ -24,23 +24,26 @@ const FILL = (opponents) => `(() => {
   // a battlefield is a 112 by 50 grid, a card 7 by 10 (shared/board-grid.mjs): lands from the bottom-left, the rest from the top-left
   const board = (grid, lands, others, tappedEvery) => { grid.replaceChildren(); const put = (n, col, row, kind) => { const b = card(n, tappedEvery && n % tappedEvery === 0); b.dataset.col = String(col); b.dataset.row = String(row); b.dataset.kind = kind; grid.append(b); }; for (let i = 0; i < lands; i++) put(i, (i % 16) * 7, 40 - 10 * Math.floor(i / 16), 'land'); for (let i = 0; i < others; i++) put(100 + i, (i % 16) * 7, 10 * Math.floor(i / 16), 'other'); };
   document.body.classList.add('playing', 'seats');
+  document.body.dataset.seats = String(${opponents} + 1);
   document.getElementById('game').hidden = false;
   document.getElementById('opponents').hidden = false;
   document.getElementById('blocked').hidden = true;
   document.getElementById('opponents').style.setProperty('--opp-n', String(${opponents}));
   const list = document.getElementById('opponent-list');
   list.replaceChildren();
+  // a pile as src/pile-stack.js draws it
+  const pile = (zone, label, count) => { const b = make('button', 'opp-pile pile-stack'); b.type = 'button'; b.dataset.zone = zone; b.dataset.label = label; b.dataset.count = String(count); b.dataset.empty = 'false'; const layers = make('span', 'stack-layers'); layers.append(make('span', 'stack-layer'), make('span', 'stack-layer'), make('span', 'stack-face' + (zone === 'library' ? ' back' : ''))); b.append(layers); return b; };
   for (let n = 1; n <= ${opponents}; n++) {
     const section = make('section', 'opponent' + (n === 1 ? ' active' : ''));
     const title = make('h3', '', 'Seat ' + (n + 1) + ': Opponent number ' + n); if (n === 1) title.append(make('span', 'turn-mark', 'their turn'));
     const counters = make('div', 'opponent-counters counter-chips'); for (const text of ['3', '2', '21']) { const chip = make('span', 'counter-chip'); chip.append(make('strong', 'chip-count', text)); counters.append(chip); }
-    const info = make('div', 'opp-info'); info.append(title, make('p', 'hint', 'Life 40. Hand: 7 cards. Library: 61 cards.'), counters);
+    const info = make('div', 'opp-info'); info.append(title, make('strong', 'opp-life', '40'), make('p', 'hint', 'Hand 7 · Library 61'), counters);
     const waiting = make('p', 'hint', 'Has not been dealt a game yet.'); waiting.hidden = true;
     const grid = make('div', 'battlefield'); board(grid, 12, 14, 4);
     const field = make('div', 'opp-field'); field.append(grid);
-    const command = make('div', 'row'); fill(command, 2);
-    const pile = (label) => { const details = make('details'); details.append(make('summary', '', label + ': 12'), make('ul', 'pile-list')); return details; };
-    const zones = make('div', 'opp-zones'); zones.append(make('h4', '', 'Command zone'), command, pile('Graveyard'), pile('Exile'));
+    const command = make('div', 'row opp-command'); fill(command, 2);
+    const commandBox = make('div', 'opp-command-zone'); commandBox.append(command, make('span', 'opp-zone-label', 'Command'));
+    const zones = make('div', 'opp-zones'); zones.append(pile('library', 'Library', 61), pile('graveyard', 'Graveyard', 12), pile('exile', 'Exile', 3), commandBox);
     const body = make('div', 'opp-body'); body.append(field, zones);
     section.append(info, waiting, body);
     list.append(section);
@@ -62,11 +65,13 @@ const RECTS = `(() => {
     opponentsBox: r(document.getElementById('opponents')),
     areas: [...document.querySelectorAll('.opponent')].map(r),
     fields: [...document.querySelectorAll('.opp-field')].map((f) => ({ field: r(f), grid: r(f.querySelector('.battlefield')) })),
-    areaOverflow: [...document.querySelectorAll('.opponent')].map((p) => p.scrollHeight - p.clientHeight),
-    mine: r(document.getElementById('battlefield')), life: r(document.getElementById('life-area')), bar: r(document.querySelector('.actions-panel')), menu: r(document.getElementById('settings-button')),
-    piles: r(document.querySelector('.side-panels')),
+    areaOverflow: [...document.querySelectorAll('.opponent')].map((p) => Math.max(p.scrollHeight - p.clientHeight, p.scrollWidth - p.clientWidth)),
+    oppPiles: [...document.querySelectorAll('.opponent')].map((p) => ({ area: r(p), piles: [...p.querySelectorAll('.opp-pile, .opp-command-zone')].map(r) })),
+    mine: r(document.getElementById('battlefield')), life: r(document.getElementById('life-area')), bar: r(document.querySelector('.actions-panel .actions')), turnLine: r(document.querySelector('.turn-line')), menu: r(document.getElementById('settings-button')),
+    panel: r(document.getElementById('right-column')), piles: r(document.querySelector('.side-panels')),
+    myPiles: [...document.querySelectorAll('#piles-section .pile-stack, #command .cmd-slot')].map(r),
     hand: r(document.getElementById('hand-section')),
-    handCardH: tall('#hand > .card'), mineCardH: tall('#battlefield > .card'), oppCardH: tall('.opponent .battlefield > .card'),
+    handCardH: tall('#hand > .card'), mineCardH: tall('#battlefield > .card'), oppCardH: tall('.opponent .battlefield > .card'), pileW: [...document.querySelectorAll('#piles-section .pile-stack .stack-layers')].map((e) => e.getBoundingClientRect().width),
   };
 })()`;
 
@@ -87,15 +92,16 @@ try {
       await sleep(200);
       const m = await browser.eval(RECTS);
       const win = { left: 0, top: 0, right: m.win.w, bottom: m.win.h };
-      const myArea = { left: 0, top: m.opponentsBox.bottom, right: m.win.w, bottom: m.win.h };
       check(`${label}: the page does not scroll`, m.scroll.docH <= m.win.h + 1 && m.scroll.docW <= m.win.w + 1, JSON.stringify(m.scroll));
       check(`${label}: the other players' areas are across the top, side by side, the same size, and nothing in them is cut off`, m.areas.length === opponents && m.areas.every((a) => inside(a, m.opponentsBox) && Math.abs(a.width - m.areas[0].width) <= 2 && Math.abs(a.top - m.areas[0].top) <= 1) && m.areas.every((a, n) => n === 0 || a.left >= m.areas[n - 1].right - 1) && m.areaOverflow.every((o) => o <= 1), JSON.stringify(m.areas));
       check(`${label}: each other player's battlefield fits inside its area`, m.fields.every(({ field, grid }) => inside(grid, field, 1.5) && grid.width > 60), JSON.stringify(m.fields));
+      check(`${label}: each other player's piles are inside their area and apart from their battlefield`, m.oppPiles.every(({ area, piles }, n) => piles.length === 4 && piles.every((p) => inside(p, area, 1) && apart(p, m.fields[n].grid))), JSON.stringify(m.oppPiles[0]));
       check(`${label}: your battlefield is below them, in the window`, m.mine.top >= m.opponentsBox.bottom - 1 && inside(m.mine, win) && m.mine.height > 150, JSON.stringify(m.mine));
-      check(`${label}: the life piece, the action bar and the menu button are in your own area and apart`, [m.life, m.bar, m.menu].every((b) => inside(b, myArea)) && apart(m.life, m.bar) && apart(m.bar, m.menu) && apart(m.life, m.menu), JSON.stringify({ life: m.life, bar: m.bar, menu: m.menu }));
-      check(`${label}: the room for the hand is along the bottom of the window, left of the piles (the page lays the cards out in it: src/hand-view.js)`, Math.abs(m.hand.bottom - m.win.h) <= 2 && m.hand.right <= m.piles.left + 1 && m.hand.width > 300, JSON.stringify({ hand: m.hand, piles: m.piles }));
-      const minHand = Math.min(...m.handCardH); const minMine = Math.min(...m.mineCardH); const minOpp = Math.min(...m.oppCardH);
-      check(`${label}: cards are big enough to see: hand ${Math.round(minHand)} px, yours ${Math.round(minMine)} px, theirs ${Math.round(minOpp)} px (at least 90, 36 and 20)`, minHand >= 90 && minMine >= 36 && minOpp >= 20);
+      check(`${label}: your panel is beside your battlefield, with the life piece, the turn, the buttons (one row) and the menu button in it, apart`, m.panel.left >= m.mine.right && [m.life, m.turnLine, m.bar, m.menu].every((b) => inside(b, m.panel, 1)) && [m.life, m.turnLine, m.bar, m.menu].every((a, i, all) => all.every((b, j) => i === j || apart(a, b))) && m.bar.height < 45, JSON.stringify({ panel: m.panel, life: m.life, turn: m.turnLine, bar: m.bar, menu: m.menu }));
+      check(`${label}: your piles and command slots are whole, in the panel, below the actions and apart from each other`, m.myPiles.length === 5 && m.myPiles.every((p) => inside(p, m.piles, 1) && p.top >= m.bar.bottom - 1) && m.myPiles.every((p, i) => m.myPiles.every((q, j) => i === j || apart(p, q))), JSON.stringify(m.myPiles));
+      check(`${label}: the hand is a strip along the bottom, the width of the window, under your battlefield`, Math.abs(m.hand.bottom - m.win.h) <= 2 && m.hand.width >= m.win.w - 2 && m.hand.top >= m.mine.bottom, JSON.stringify(m.hand));
+      const minHand = Math.min(...m.handCardH); const minMine = Math.min(...m.mineCardH); const minOpp = Math.min(...m.oppCardH); const minPile = Math.min(...m.pileW);
+      check(`${label}: cards are big enough to see: hand ${Math.round(minHand)} px, yours ${Math.round(minMine)} px, theirs ${Math.round(minOpp)} px, your piles ${Math.round(minPile)} px wide (at least 110, 36, 20 and 55)`, minHand >= 110 && minMine >= 36 && minOpp >= 20 && minPile >= 55);
       if (process.argv.includes('--screenshot') && (w === 1366 || w === 1920)) await browser.screenshot(`scratch-layout-${w}x${h}-${opponents}.png`);
     }
     await closeAllBrowsers();

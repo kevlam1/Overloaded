@@ -288,7 +288,7 @@ try {
   })()`);
   const bobSeesAliceBoard = await waitFor(async () => { const p = await panelOf(bob, 'Alice'); return p && p.life === '35' && p.onBattlefield === 1 ? p : null; }, 30000, 250);
   record("Bob's page shows Alice's board live: life 35, one card on her battlefield, two in her command zone", Boolean(bobSeesAliceBoard) && bobSeesAliceBoard.inCommandZone === 2, JSON.stringify(bobSeesAliceBoard ?? await panelOf(bob, 'Alice')));
-  record("...and how many cards she holds, but not which: hand 7 and library 22", /Hand: 7 cards. Library: 22 cards./.test(bobSeesAliceBoard?.stats ?? ''), bobSeesAliceBoard?.stats);
+  record("...and how many cards she holds, but not which: hand 7 and library 22", /Hand 7 · Library 22/.test(bobSeesAliceBoard?.stats ?? ''), bobSeesAliceBoard?.stats);
   record("...and only her public cards are on his page (the battlefield and the command zone: 3 cards), all of them read-only", bobSeesAliceBoard?.allCards === 3 && bobSeesAliceBoard.allReadOnly === true, JSON.stringify(bobSeesAliceBoard));
   record("...and her battlefield card is on the cell she stored (column 0, row 40: a land goes to the bottom-left block of the 112 by 50 grid)", JSON.stringify(bobSeesAliceBoard?.cells) === JSON.stringify(['0,40']), JSON.stringify(bobSeesAliceBoard?.cells));
   // Alice drags her card on the grid with the real mouse; the move is saved as one small write and Bob sees the new cell
@@ -326,7 +326,7 @@ try {
   }
   record("...with her name and seat as a heading", /^Seat 1: Alice/.test(bobSeesAliceBoard?.heading ?? ''));
   const aliceSeesBobBoard = await waitFor(async () => { const p = await panelOf(alice, 'Bob'); return p && p.life === '40' && p.inCommandZone === 1 ? p : null; }, 30000, 250);
-  record("Alice's page shows Bob's board too: life 40, his commander in the command zone, hand 7", Boolean(aliceSeesBobBoard) && /Hand: 7 cards/.test(aliceSeesBobBoard.stats), JSON.stringify(aliceSeesBobBoard ?? await panelOf(alice, 'Bob')));
+  record("Alice's page shows Bob's board too: life 40, his commander in the command zone, hand 7", Boolean(aliceSeesBobBoard) && /Hand 7 · Library/.test(aliceSeesBobBoard.stats), JSON.stringify(aliceSeesBobBoard ?? await panelOf(alice, 'Bob')));
   record("...and nobody sees themselves in the list of other players", (await panelOf(alice, 'Alice')) === null && (await panelOf(bob, 'Bob')) === null);
   await lifeClick(alice, 'left');
   const liveUpdate = await waitFor(async () => { const p = await panelOf(bob, 'Alice'); return p && p.life === '36' ? p : null; }, 20000, 250);

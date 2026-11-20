@@ -5020,7 +5020,35 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **My AI's mistakes this time:** the old 2x2 layout's rules (placing each other player's panel by its number, and the parts inside it) still applied and put the third player's area under the second, and the information line in the wrong column; I scoped them to the old layout. The action bar first started on top of an opponent's area, and the menu button sat on one too.
 
+## 253. The Seats table, version 2: boards on the left, piles beside them, the hand in its own strip (2026-11-20)
+
+**What I asked for**
+- Lots of issues even in 1v1: dragging a card from the battlefield to a pile was taken as a drop on the board, the graveyard sat on top of the board so I could not grab a card under it, there was so much empty space at the side, and my hand covered the bottom of the battlefield so a card dropped there went back into my hand. Move both boards to the side and reorganize the UI. I asked Claude to take its time, look at references and how tables are organized, and aim for perfection over speed.
+
+**What changed** (`frontend/pages/table/index.html`, `table.js`, `frontend/src/style.css`, `frontend/src/hand-view.js`)
+- **The layout is one grid with nothing floating over a battlefield.** Claude looked at how online tabletops and paper players lay a game out: the battlefield in front of you, the library, graveyard and exile together beside it, the hand along your own edge, the other players across from you. So now: the other players along the top; my battlefield on the left with my panel beside it; my hand in a strip of its own along the bottom, the width of the window. In 1v1 Bob's area mirrors mine: his battlefield exactly above mine and the same size, his panel above mine.
+- **My panel**, three lines: my life (minus, the number, plus, the Counters dropdown) next to the turn, whose turn it is and the turn clock; the five buttons in one row; then my library, graveyard, exile and the two command slots side by side, as big as the room left allows (about 105 px wide at 1366x768). The floating life piece and action bar are not used on this table.
+- **The hand strip:** the cards fill it, and ALL of the strip is the hand, so a card let go anywhere in it goes to the hand and a card let go on the bottom edge of the battlefield is played there (a `fillBox` option of the hand view, used only by this table).
+- **Piles take drops and give cards** like on the solo table: a battlefield card dropped on my graveyard, exile or library goes there, the top card of a pile can be dragged out, and only MY piles take a drop.
+- **The other players' piles are real stacks** now, not text lists: their library (back and count), graveyard and exile (the top card) and their command zone. A click on their graveyard or exile opens it in the pile window, read-only, titled "Exile of Bob"; their library cannot be opened. Their life is a big number with the hand and library counts beside it ("Hand 6 · Library 23").
+- **Three and four players:** with two others, each area has a column of piles beside the battlefield (that makes the battlefield larger), and the board and its piles stay together in the middle on a wide window. With three others, the name and the piles share the top line of each area and the battlefield takes the rest.
+- The news line (what just happened, whose turn it is) moved to the left end of the hand strip, so it no longer covers the top of my battlefield.
+- Found on the way: an old rule of the 2x2 layout (`main:not([data-opponents])`) still moved my battlefield into the hand's row until the page set the number of opponents; it is scoped to the old layout now.
+
+**What I checked**
+- `scripts/check-seats-live.mjs` (25 checks, real browsers against the real project at 2, 3 and 4 seats), with five new ones driven by a real mouse: a hand card let go on the bottom edge of my battlefield is played there, a battlefield card let go on my graveyard goes there, the graveyard's top card dragged onto the battlefield comes back, a battlefield card let go anywhere in the hand strip goes to the hand, and Bob's exile opens read-only while his library cannot be opened. I looked at screenshots at 2, 3 and 4 seats and with the pointer over the hand.
+- `scripts/check-table-layout.mjs` (135 checks, 5 window sizes from 1280x720 to 1920x950, 1 to 3 other players): no page scroll, their areas and piles fit, their piles are apart from their battlefield, my panel is beside my battlefield with the life, the turn line, the one row of buttons and the menu apart, my five piles are whole and apart, the hand strip is along the bottom under my battlefield, and cards and piles are big enough.
+- `npm test` 92 of 93 suites: the one failure was a timing slip in the history and select check (a foil card carried), which passed twice on its own right after. `check-lobby-deck-live` 193 of 193 (two expected texts changed to "Hand 7 · Library 22"), deploy 54.
+
+**Decisions and limits**
+- Not yet on this table (phase 2): the hand's menus, sorting and resting hand, Draw X, Scry and the order window, the pile window's extras, picking several cards, the card flights and the game history.
+- At 1366x650 my piles are about 58 px wide; the layout was designed for 1366x768 and up.
+- Phones are on hold; checked at desktop sizes only.
+
+**My AI's mistakes this time:** version 1 (entry 252) put the solo table's floating pieces over my battlefield, so the graveyard covered cards and the hand covered the bottom rows, and no check dragged a card, which is why I found it by playing. One of its new style rules went wrong before the layout check caught it: the box of my piles lost its height (the panel centred its rows), so the piles were 0 px wide on the larger windows.
+
 ## Where AI misread me, or I had to correct course
+- (2026-11-20, entry 253) Claude's first Seats table floated the life, buttons, piles and hand over my battlefield as on the solo table; on a shared table that blocked cards and drops, and I had to ask for the boards to move to the side.
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.
 - (2026-11-12, entry 154) Claude's end-of-hand drag check only worked for hands that were not exactly 10 cards, because it estimated the pointer from layout boxes of tilted cards; I never found out why the estimate was 48 px off.

@@ -42,19 +42,6 @@
 
       <div id="game" hidden>
         <p id="deck-line" class="lede"></p>
-        <button id="settings-button" type="button" class="hud-menu" aria-haspopup="dialog" aria-expanded="false" aria-controls="settings-menu" aria-label="Menu and settings" title="Menu and settings"><svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor" aria-hidden="true"><rect x="2" y="4" width="14" height="2" rx="1"/><rect x="2" y="8" width="14" height="2" rx="1"/><rect x="2" y="12" width="14" height="2" rx="1"/></svg></button>
-        <section class="bar" aria-label="Your game">
-          <div id="life-area" class="life" role="group" aria-label="Life total and counters" title="Right-click next to the number for counters (poison and so on)">
-            <button id="life-grip" type="button" class="life-grip" aria-label="Life: drag to move, arrow keys also move it" title="Drag to move">Life</button>
-            <div class="life-row">
-              <button id="life-minus" type="button" class="life-step" aria-label="Lose 1 life (Shift: 5)" title="Lose 1 (Shift: 5)">&minus;</button>
-              <span><button id="life" type="button">20</button></span>
-              <button id="life-plus" type="button" class="life-step" aria-label="Gain 1 life (Shift: 5)" title="Gain 1 (Shift: 5)">+</button>
-            </div>
-            <button id="life-counters" type="button" class="life-counters" aria-haspopup="menu" aria-expanded="false">Counters</button>
-            <div id="life-chips" class="counter-chips" role="group" aria-label="Your counters"></div>
-          </div>
-        </section>
 
         <section id="my-board" class="board mine" aria-labelledby="battlefield-heading">
           <h2 id="battlefield-heading" class="sr-only">Your battlefield</h2>
@@ -66,12 +53,26 @@
           <div id="hand" class="row" data-empty="Your hand is empty."></div>
         </section>
 
-        <aside id="right-column" class="right-column" aria-label="Your actions, the players and your piles">
+        <aside id="right-column" class="right-column" aria-label="You: life, actions and piles">
+          <button id="settings-button" type="button" class="hud-menu" aria-haspopup="dialog" aria-expanded="false" aria-controls="settings-menu" aria-label="Menu and settings" title="Menu and settings"><svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor" aria-hidden="true"><rect x="2" y="4" width="14" height="2" rx="1"/><rect x="2" y="8" width="14" height="2" rx="1"/><rect x="2" y="12" width="14" height="2" rx="1"/></svg></button>
+          <section class="bar" aria-label="Your game">
+            <div id="life-area" class="life" role="group" aria-label="Life total and counters" title="Right-click next to the number for counters (poison and so on)">
+              <button id="life-grip" type="button" class="life-grip" aria-label="Life (right-click for counters)">Life</button>
+              <div class="life-row">
+                <button id="life-minus" type="button" class="life-step" aria-label="Lose 1 life (Shift: 5)" title="Lose 1 (Shift: 5)">&minus;</button>
+                <span><button id="life" type="button">20</button></span>
+                <button id="life-plus" type="button" class="life-step" aria-label="Gain 1 life (Shift: 5)" title="Gain 1 (Shift: 5)">+</button>
+              </div>
+              <button id="life-counters" type="button" class="life-counters" aria-haspopup="menu" aria-expanded="false">Counters</button>
+              <div id="life-chips" class="counter-chips" role="group" aria-label="Your counters"></div>
+            </div>
+          </section>
           <section class="actions-panel" aria-label="Your actions">
-            <button id="bar-grip" type="button" class="bar-grip" aria-label="Move the action bar: drag it, or use the arrow keys (Home puts it back)" title="Drag to move the bar"><svg width="12" height="18" viewBox="0 0 12 18" fill="currentColor" aria-hidden="true"><circle cx="3" cy="3" r="1.6"/><circle cx="9" cy="3" r="1.6"/><circle cx="3" cy="9" r="1.6"/><circle cx="9" cy="9" r="1.6"/><circle cx="3" cy="15" r="1.6"/><circle cx="9" cy="15" r="1.6"/></svg></button>
-            <p class="stat turn-stat">Turn <strong id="turn">1</strong></p>
-            <p id="turn-whose" class="stat turn-whose"></p>
-            <p id="turn-clock" class="stat turn-clock" hidden></p>
+            <div class="turn-line">
+              <p class="stat turn-stat">Turn <strong id="turn">1</strong></p>
+              <p id="turn-whose" class="stat turn-whose"></p>
+              <p id="turn-clock" class="stat turn-clock" hidden></p>
+            </div>
             <div class="actions" role="group" aria-label="Actions">
               <button id="draw" type="button">Draw</button>
               <button id="pass-turn" type="button">Pass turn</button>
@@ -130,9 +131,9 @@
                 <button id="concede" type="button" class="secondary">Concede</button>
                 <button id="end-match" type="button" class="secondary" hidden>End the match</button>
                 <button id="leave" type="button" class="secondary">Leave the table</button>
-              </div>
+            </div>
               <p id="save-state" class="hint" role="status" aria-live="polite"></p>
-            </section>
+          </section>
             <section class="settings-card"><h3>Other players</h3><div id="facing-settings" class="sound-settings"></div></section>
             <section class="settings-card"><h3>Sound</h3><div id="sound-settings"></div></section>
             <section class="settings-card"><h3>Piles</h3><div id="pile-style-settings"></div></section>

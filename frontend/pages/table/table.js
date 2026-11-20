@@ -6,6 +6,7 @@
 import { rejoinTable, watchMembers, watchMeta, watchPresence, watchServerOffset, watchConnection, startPresence, heartbeat, watchActivity, saveGame, loadGame, watchPublic, concede, endMatch, leaveTable } from '../../src/db.js';
 import { startKeepAlive } from '../../src/keep-alive.js';
 import { makeSafeStore } from '../../src/safe-store.js';
+import { cardBackUrl } from '../../../shared/card-image.mjs';
 import { play, mountSoundSettings } from '../../src/sound.js';
 import { mountTurnClock } from '../../src/turn-clock.js';
 import { mountPileStyle } from '../../src/pile-style.js';
@@ -27,7 +28,6 @@ import { loadCardList } from '../../src/card-list.js';
 import { makeCardNodes } from '../../src/card-nodes.js';
 import { mountMarksPanel } from '../../src/marks-panel.js';
 import { openCardMenu, closeCardMenu } from '../../src/card-menu.js';
-import { mountFloatingBar } from '../../src/floating-bar.js';
 import { mountFacing } from '../../src/facing.js';
 import { loadTokens } from '../../src/token-data.js';
 import { openTokenPicker } from '../../src/token-picker.js';
@@ -214,6 +214,13 @@ function render() {
 }
 
 function renderViewer() {
+  if (viewingOther) {
+    const panel = opponents.get(viewingOther.uid);
+    if (!panel?.view) { viewingOther = null; viewer.hide(); return; } // (they left, or their game is gone)
+    const cards = panel.view.zones[viewingOther.zone];
+    viewer.show({ label: `${viewingOther.zone === 'graveyard' ? 'Graveyard' : 'Exile'} of ${panel.name}`, cards, total: cards.length, noteText: viewingOther.zone === 'graveyard' ? 'The newest card is first.' : '' });
+    return;
+  }
   if (!viewing) { viewer.hide(); return; }
   const all = game.zones[viewing];
   const cards = viewTop ? (viewBottom ? all.slice(Math.max(0, all.length - viewTop)) : all.slice(0, viewTop)) : all;
@@ -520,12 +527,15 @@ function checkStart() {
 let publicAll = {}; // uid -> what that player's public branch holds now
 const opponents = new Map(); // uid -> the panel for that player, kept so card pictures are not loaded again
 
-function pileDetails(label) {
-  const details = make('details');
-  const summary = make('summary');
-  const list = make('ul', 'pile-list');
-  details.append(summary, list);
-  return { label, details, summary, list };
+// Another player's library, graveyard and exile, drawn as stacks like your own (src/pile-stack.js): the library shows its back and its count, the graveyard and the exile their top card. A click on the
+// graveyard or the exile opens it in the pile window, read-only. Only your own piles take a dropped card (pileAt looks only in #piles-section).
+function otherPile(uid, zone, label) {
+  const button = make('button', 'opp-pile');
+  button.type = 'button';
+  const stack = mountPileStack(button, { zone, label });
+  if (zone === 'library') button.disabled = true; // (nobody may look at it)
+  else button.addEventListener('click', () => openOtherPile(uid, zone));
+  return { button, stack };
 }
 
 function opponentPanel(uid) {
@@ -534,20 +544,21 @@ function opponentPanel(uid) {
   const section = make('section', 'opponent');
   section.dataset.uid = uid;
   const board = make('div', 'battlefield');
-  const command = make('div', 'row'); command.dataset.empty = 'Empty.';
-  const graveyard = pileDetails('Graveyard');
-  const exile = pileDetails('Exile');
-  panel = { section, title: make('h3'), stats: make('p', 'hint'), waiting: make('p', 'hint', 'Has not been dealt a game yet.'), body: make('div'), board, command, graveyard, exile, nodes: makeCardNodes({ readOnly: true, printedStats: (card) => printedOf(card, lookup) }) };
+  const command = make('div', 'row opp-command'); command.dataset.empty = 'Empty.';
+  const piles = { library: otherPile(uid, 'library', 'Library'), graveyard: otherPile(uid, 'graveyard', 'Graveyard'), exile: otherPile(uid, 'exile', 'Exile') };
+  panel = { section, title: make('h3'), life: make('strong', 'opp-life'), stats: make('p', 'hint'), waiting: make('p', 'hint', 'Has not been dealt a game yet.'), body: make('div'), board, command, piles, view: null, nodes: makeCardNodes({ readOnly: true, printedStats: (card) => printedOf(card, lookup) }) };
   // Another player's counters and the commander damage they have taken: the same nodes as yours, read-only, shown only once something has happened.
   const countersBox = make('div', 'opponent-counters counter-chips'); countersBox.setAttribute('role', 'group'); countersBox.setAttribute('aria-label', 'Counters and commander damage'); countersBox.hidden = true;
   panel.countersBox = countersBox;
   panel.counterList = mountCounterChips(countersBox);
   // (on the Seats table: who it is on one line, then their battlefield beside a narrow column with their command zone and piles; the battlefield is wrapped so the style sheet can turn it to face you)
   const field = make('div', 'opp-field'); field.append(board);
-  const zones = make('div', 'opp-zones'); zones.append(make('h4', '', 'Command zone'), command, graveyard.details, exile.details);
+  const commandBox = make('div', 'opp-command-zone'); commandBox.append(command, make('span', 'opp-zone-label', 'Command'));
+  const zones = make('div', 'opp-zones'); zones.append(piles.library.button, piles.graveyard.button, piles.exile.button, commandBox);
   panel.body.className = 'opp-body';
   panel.body.append(field, zones);
-  const info = make('div', 'opp-info'); info.append(panel.title, panel.stats, countersBox);
+  panel.life.title = 'Life';
+  const info = make('div', 'opp-info'); info.append(panel.title, panel.life, panel.stats, countersBox);
   section.append(info, panel.waiting, panel.body);
   opponents.set(uid, panel);
   return panel;
@@ -563,6 +574,7 @@ async function renderOpponents() {
   const others = Object.entries(members).filter(([uid]) => uid !== myUid).sort((a, b) => Number(a[1].seat) - Number(b[1].seat));
   document.querySelector('main').dataset.opponents = String(Math.min(others.length, 3)); // how the boards are placed on the one-screen layout
   $('opponents').style.setProperty('--opp-n', String(Math.max(1, Math.min(others.length, 3)))); // (the Seats table: one area per other player, side by side)
+  document.body.dataset.seats = String(Math.min(others.length, 3) + 1); // 2, 3 or 4: the layout of the Seats table
   const panels = [];
   const turnNow = game !== null ? currentTurnInfo() : null; // worked out once for all the panels, not once per player
   for (const [uid, member] of others) {
@@ -573,23 +585,26 @@ async function renderOpponents() {
     if (theirTurn) panel.title.append(make('span', 'turn-mark', 'their turn'));
     // A public branch left over from an earlier match does not count: this match's game is the one with this match's number.
     const view = publicAll[uid]?.match === meta.match ? readPublic(publicAll[uid], known) : null;
+    panel.view = view;
+    panel.name = member.name;
     panel.waiting.hidden = view !== null;
     panel.body.hidden = view === null;
     panel.stats.hidden = view === null;
+    panel.life.hidden = view === null;
     if (!view) panel.countersBox.hidden = true;
     if (view) {
       panel.countersBox.hidden = !panel.counterList.update(chipEntries(view.pc, view.cd, commanderDamageSeatsFor(members, view.cd, meta?.format)));
-      panel.stats.textContent = `Life ${view.life}. Hand: ${plural(view.counts.hand, 'card', 'cards')}. Library: ${plural(view.counts.library, 'card', 'cards')}.`;
+      panel.life.textContent = String(view.life);
+      panel.life.setAttribute('aria-label', `Life ${view.life}`);
+      panel.stats.textContent = `Hand ${view.counts.hand} · Library ${view.counts.library}`;
       panel.section.dataset.life = String(view.life);
       panel.nodes.place(panel.board, view.zones.battlefield, { battlefield: true, cells: placeAll(view.zones.battlefield, isLandCard) }); // their battlefield on the same grid, each card on the cell they stored
       panel.nodes.place(panel.command, view.zones.command);
       drawEmblemCounts(panel.command, view.zones.command); // (an emblem with a count shows it on the other players' panels too)
-      for (const pile of [panel.graveyard, panel.exile]) {
-        const cards = view.zones[pile.label.toLowerCase()];
-        pile.summary.textContent = `${pile.label}: ${cards.length}`;
-        pile.list.replaceChildren(...cards.map((card) => make('li', undefined, card.n)));
-      }
+      panel.piles.library.stack.update({ count: view.counts.library });
+      for (const zone of ['graveyard', 'exile']) panel.piles[zone].stack.update({ count: view.zones[zone].length, top: view.zones[zone][0] ?? null });
     }
+    if (viewingOther?.uid === uid) renderViewer(); // their pile is open in the window: show it as it is now
     panels.push(panel.section);
   }
   for (const [uid, panel] of opponents) if (!others.some(([other]) => other === uid)) { opponents.delete(uid); panel.section.remove(); }
@@ -757,10 +772,20 @@ const turnClock = mountTurnClock({ element: $('turn-clock'), store, serverOffset
 turnClock.mountSetting($('turn-clock-settings'));
 // ---- piles drawn diagonally or horizontally (shared/pile-style.mjs), a double click taps a card, a click on empty space deselects ----
 mountPileStyle($('pile-style-settings'));
-const viewer = mountPileViewer({ root: $('viewer'), nodeFor: (card) => cardNodes.nodeFor(card, false), onClose: () => { viewing = null; viewTop = null; viewBottom = false; if (game) render(); } });
-viewer.onSearch(() => { if (game && viewing) renderViewer(); });
+let viewingOther = null; // { uid, zone }: another player's graveyard or exile is open in the pile window (read-only)
+const viewer = mountPileViewer({ root: $('viewer'), nodeFor: (card) => (viewingOther ? opponents.get(viewingOther.uid)?.nodes.nodeFor(card, false) ?? cardNodes.nodeFor(card, false) : cardNodes.nodeFor(card, false)), onClose: () => { viewing = null; viewingOther = null; viewTop = null; viewBottom = false; if (game) render(); } });
+viewer.onSearch(() => { if (game && (viewing || viewingOther)) renderViewer(); });
+function openOtherPile(uid, zone) {
+  if (!game) return;
+  if (viewingOther?.uid === uid && viewingOther.zone === zone) { viewer.close(); return; } // a second click closes it
+  viewing = null; viewTop = null; viewBottom = false;
+  viewingOther = { uid, zone };
+  viewer.clearSearch();
+  render();
+}
 // ---- the piles: a click opens the viewer (the cards and a search bar), a right-click opens the menu of the pile (search, shuffle, draw, look, mill, move all) ----
 function openPile(zone, { look = null, search = false, bottom = false } = {}) {
+  viewingOther = null;
   viewing = zone;
   viewTop = look;
   viewBottom = bottom;
@@ -807,8 +832,6 @@ for (const zone of ['library', 'graveyard', 'exile', 'sideboard']) {
   });
 }
 const settings = mountSettingsMenu({ button: $('settings-button'), panel: $('settings-menu') });
-mountFloatingBar({ bar: document.querySelector('.actions-panel'), grip: $('bar-grip'), store, key: 'overloaded.seatsBar', defaultPlace: { dock: null, fx: 0.5, fy: 0.47 } });
-mountFloatingBar({ bar: $('life-area'), grip: $('life-grip'), store, key: 'overloaded.seatsLife', defaultPlace: { dock: 'left', fx: 0, fy: 0.62 } });
 mountFacing($('facing-settings'), { store });
 mountKeybindSettings($('keybind-settings'), { keybinds, page: 'table' });
 $('pile-sideboard').addEventListener('click', () => settings.close()); // the viewer opens over the table; the Settings panel would only be in the way
@@ -920,7 +943,7 @@ function dropOnBoard({ uid, from, col, row, whole = false }) {
       apply(() => moved.game, `Moved the pile of ${moved.moved} ${found.card.n}.`);
       return;
     }
-    if (from === 'hand') { apply(() => moveCard(game, uid, 'battlefield', { cell: { col, row } }), `Played ${found.card.n}.`); return; }
+    if (from !== 'battlefield') { apply(() => moveCard(game, uid, 'battlefield', { cell: { col, row } }), from === 'hand' ? `Played ${found.card.n}.` : `Moved ${from === 'library' ? 'the top card of your library' : found.card.n} to the battlefield.`); return; }
     const result = placeCard(game, uid, col, row);
     if (result.game === game) return; // dropped on its own cell
     const other = result.swapped ? result.game.zones.battlefield.find((card) => card.uid === result.swapped) : null;
@@ -948,16 +971,46 @@ document.addEventListener('keydown', (event) => {
 $('arrange').addEventListener('click', () => { if (!game) return; apply(() => arrangeBoard(game), 'Tidied the battlefield: lands along the bottom, everything else along the top, cards with the same name side by side.'); });
 // A card of yours dragged from the battlefield and let go over your hand goes back into the hand (a token that leaves the battlefield stops existing, like every other way of moving it).
 function dropOnHand({ uid, from, x, picture }) {
-  if (!game || from !== 'battlefield') return;
+  if (!game || from === 'hand') return;
   const found = findCard(uid);
-  if (!found || found.zone !== 'battlefield') return;
+  if (!found || found.zone !== from) return;
+  if (from === 'library') play('draw');
   const place = handView.holeFor(uid, x ?? 0, true); // the place that was open in the hand when it was let go
   handView.noteDrop(uid, picture); // the card starts from where its picture was let go and eases into its place
   apply(() => { const moved = moveCard(game, uid, 'hand'); return moved.zones.hand.some((c) => c.uid === uid) ? reorderHand(moved, uid, place) : moved; }, // (a token that leaves the battlefield stops existing: there is nothing to put in its place)
-     `Moved ${found.card.n} back to your hand.`);
+     from === 'battlefield' ? `Moved ${found.card.n} back to your hand.` : `Moved ${from === 'library' ? 'the top card of your library' : found.card.n} to your hand.`);
+}
+// Your piles and the command zone are places to take a card from (the top of the library, the graveyard or the exile, or a card of the command zone) and to drop one on (frontend/src/board-drag.js),
+// as on the solo table. Only YOUR piles count: the other players' areas show piles too, and a card dropped there must not land in your own.
+function zoneSource(target) {
+  if (!game || !(target instanceof Element)) return null;
+  const stack = target.closest('#piles-section .pile-stack');
+  if (stack) {
+    const zone = stack.dataset.zone;
+    const top = ['library', 'graveyard', 'exile'].includes(zone) ? game.zones[zone][0] : null; // the top of the library is its first card; of the graveyard and the exile, the newest
+    if (!top) return null;
+    return { button: stack, uid: top.uid, from: zone, picture: zone === 'library' ? cardBackUrl('small') : null };
+  }
+  const slot = target.closest('#command .card');
+  return slot ? { button: slot, uid: slot.dataset.uid, from: 'command' } : null;
+}
+function pileAt(x, y) {
+  const element = document.elementFromPoint(x, y);
+  const stack = element?.closest?.('#piles-section .pile-stack');
+  if (stack?.dataset.zone) return { zone: stack.dataset.zone, element: stack };
+  const slot = element?.closest?.('#command .cmd-slot');
+  return slot ? { zone: 'command', slot: Number(slot.dataset.slot), element: slot } : null;
+}
+function dropOnPile({ uid, from, to, flying = null }) {
+  flying?.remove();
+  const found = game ? findCard(uid) : null;
+  if (!found || found.zone !== from || from === to || !ZONE_WORDS[to]) return;
+  if (from === 'library' && to === 'hand') play('draw');
+  const name = from === 'library' ? 'the top card of your library' : found.card.n;
+  apply(() => moveCard(game, uid, to, to === 'command' ? {} : { position: 'top' }), `Moved ${name} to ${ZONE_WORDS[to]}.`);
 }
 // Your hand as a fan: the page draws the cards, the hand view places them and shows their mana costs; a card of the hand dragged within it opens a gap and is put there when let go.
-const handView = mountHand({ container: $('hand'), costOf: (uid) => { const card = game?.zones.hand.find((c) => c.uid === uid); const known = card ? lookup?.(card) : null; return known?.m ?? ''; } });
+const handView = mountHand({ container: $('hand'), restHidden: () => 0, fillBox: true, costOf: (uid) => { const card = game?.zones.hand.find((c) => c.uid === uid); const known = card ? lookup?.(card) : null; return known?.m ?? ''; } });
 function reorderInHand({ uid, x, picture }) {
   if (!game || !game.zones.hand.some((c) => c.uid === uid)) return;
   const to = handView.holeFor(uid, x); // the place it was last shown over
@@ -966,7 +1019,7 @@ function reorderInHand({ uid, x, picture }) {
   if (next === game) { handView.arrange(); return; }
   apply(() => next, '');
 }
-mountBoardDrag({ board: () => $('battlefield'), onDrop: dropOnBoard, hand: () => $('hand-section'), onDropHand: dropOnHand, onHandOver: (over) => handView.carry(over), onReorderHand: reorderInHand, handZone: () => handView.zone(), handHit: (x, y) => handView.over(x, y), isEnabled: () => Boolean(game) });
+mountBoardDrag({ board: () => $('battlefield'), onDrop: dropOnBoard, hand: () => $('hand-section'), onDropHand: dropOnHand, onHandOver: (over) => handView.carry(over), onReorderHand: reorderInHand, handZone: () => handView.zone(), handHit: (x, y) => handView.over(x, y), zoneSource, pileAt, onDropPile: dropOnPile, isEnabled: () => Boolean(game) });
 
 $('mulligan').addEventListener('click', () => { if (game) doMulligan(); });
 // the life total is the number itself: click, right-click, Shift for 5, hold to set (src/life-control.js)

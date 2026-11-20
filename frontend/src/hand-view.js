@@ -28,8 +28,9 @@ const prefersReducedMotion = () => typeof matchMedia === 'function' && matchMedi
 
 // container: the #hand element. costOf(uid): the mana cost text of the hand card with this uid ('' for none, a land has none). restHidden(): the share of a card's height that is below the bottom edge
 // of the window while the hand rests (0.5 for half; the player's setting, frontend/src/hand-rest.js), asked again at every layout.
+// fillBox: the hand has a strip of its own that nothing else uses (the Seats table): the whole box is its area, to drop a card on and to raise it, not just the width the cards cover.
 // Returns { arrange(), carry(info | null), holeFor(uid, x, external), noteDrop(uid, from), zone(), over(x, y), isRaised() }.
-export function mountHand({ container, costOf = () => '', restHidden = () => 0.5 }) {
+export function mountHand({ container, costOf = () => '', restHidden = () => 0.5, fillBox = false }) {
   // px kept free at each side for the turn of the outer cards: they swing out by about a fifth of a card's height, so it grows with the cards (a fixed 14 px clipped the first card once the hand was 50% larger)
   const margin = () => Math.max(14, Math.round((container.querySelector(':scope > .card')?.offsetHeight ?? 0) * 0.2));
   let carried = null; // the uid of the card being carried (it is over `hole` and is left out of the places of the others)
@@ -299,7 +300,7 @@ export function mountHand({ container, costOf = () => '', restHidden = () => 0.5
   // How far below the top of the box the drop area starts (and where a lowered hand starts to rise): the visible part of a lowered hand is the box less the drop, and the area is the lower three quarters of that
   // (Kevin, 2026-11-14: it was all of it, 25% taller).
   const AREA_SHARE = 0.75;
-  const areaInset = (boxHeight) => { const drop = dropDistance(); return Math.round(boxHeight - AREA_SHARE * Math.max(0, boxHeight - drop)); };
+  const areaInset = (boxHeight) => { if (fillBox) return 0; const drop = dropDistance(); return Math.round(boxHeight - AREA_SHARE * Math.max(0, boxHeight - drop)); };
   // Is the point (x, y) in the area of the hand? The width the cards cover; from the top of the box down while raised, from the start of the drop area while lowered.
   function inArea(x, y) {
     const z = zone();
@@ -378,6 +379,7 @@ export function mountHand({ container, costOf = () => '', restHidden = () => 0.5
   // With no cards it is a few cards wide in the middle, so a card can still be put back into an empty hand.
   function zone() {
     const box = container.getBoundingClientRect();
+    if (fillBox) return { left: box.left, right: box.right, top: box.top, bottom: box.bottom }; // the hand has a strip of its own (the table page): all of it is the hand
     const all = buttons();
     const cardWidth = all[0] ? all[0].offsetWidth : cardHeightOf(null) / 1.4015; // (an empty hand: the width a card of the hand would have)
     const slack = cardWidth / 2;
