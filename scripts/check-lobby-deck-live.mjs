@@ -225,7 +225,15 @@ try {
     await page.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: p.x, y: p.y, button: 'left', buttons: 0, clickCount: 1 });
     await sleep(40);
   };
-  const act = async (page, label) => { if (!(await openSelectedMenu(page))) throw new Error(`no selected card for "${label}"`); for (const step of MENU_PATHS[label] ?? [label]) await pressMenuEntry(page, step); };
+  // A card of the hand has each move as a line of its own (Play, Discard, Exile, ...), and no "Move to": use that line when the menu has it (2026-11-20; this was the old failure that stopped this file).
+  const HAND_LINES = { 'To battlefield': 'Play', 'To graveyard': 'Discard', 'To exile': 'Exile', 'To command zone': 'Move to command zone', 'Top of library': 'Move to top of library', 'Bottom of library': 'Move to bottom of library' };
+  const hasMenuLine = (page, label) => page.eval(`[...document.querySelectorAll('.card-menu [role="menuitem"]')].some((x) => x.textContent.replace(String.fromCharCode(0x25b8), '').trim() === ${JSON.stringify(label)})`);
+  const act = async (page, label) => {
+    if (!(await openSelectedMenu(page))) throw new Error(`no selected card for "${label}"`);
+    const direct = HAND_LINES[label];
+    if (direct && (await hasMenuLine(page, direct))) { await pressMenuEntry(page, direct); return; }
+    for (const step of MENU_PATHS[label] ?? [label]) await pressMenuEntry(page, step);
+  };
   const buttonLabels = async (page = alice) => { if (!(await openSelectedMenu(page))) return []; const labels = await page.eval(`[...document.querySelectorAll('.card-menu [role="menuitem"]')].filter((x) => !x.closest('[hidden]')).map((x) => x.textContent.replace(String.fromCharCode(0x25b8), '').trim())`); await page.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await page.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await sleep(40); return labels; };
   // "public" or "private/hand": the branch, then Alice's id, then the rest (the layout is tables/CODE/BRANCH/UID/REST)
   const pathOf = (where) => { const [branch, ...rest] = where.split('/'); return `tables/${code}/${branch}/${cleanup.alice.uid}${rest.length ? `/${rest.join('/')}` : ''}`; };
@@ -662,8 +670,11 @@ try {
   await bob.eval(`window.__plays = []; HTMLMediaElement.prototype.play = function () { window.__plays.push(new URL(this.src).pathname); return Promise.resolve(); };`);
   await click(alice, 'pass-turn');
   record('passing your OWN turn asks nothing (no popup)', alice.dialogs.length === aliceDialogsBefore, JSON.stringify(alice.dialogs.slice(aliceDialogsBefore)));
+  const timeOf = (p) => (p && typeof p.at === 'number' && Math.abs(Date.now() - p.at) < 120000 ? 'time ok' : `bad time ${p?.at}`);
+  const withoutTime = (p) => { if (!p) return p; const { at: _at, ...rest } = p; return rest; };
   const passStored = await waitFor(async () => { const p = (await rest('GET', pathOf('public/pass'), cleanup.bob.token)).json; return p && p.n === 2 ? p : null; }, 15000, 250);
-  record('Pass turn writes exactly one small record on Alice\'s own branch: turn 2, to seat 2 (and nothing for the first turn, which it replaced)', Boolean(passStored) && JSON.stringify(passStored) === '{"n":2,"to":"2"}', JSON.stringify(passStored));
+  record('Pass turn writes exactly one small record on Alice\'s own branch: turn 2, to seat 2 (and nothing for the first turn, which it replaced)', Boolean(passStored) && JSON.stringify(withoutTime(passStored)) === '{"n":2,"to":"2"}' && timeOf(passStored) === 'time ok', JSON.stringify(passStored));
+  record('...and it carries the time of the pass from the database clock (a recent number, not one the page made up)', timeOf(passStored) === 'time ok', timeOf(passStored));
   const bobStarted = await waitFor(async () => { const t = (await rest('GET', bobPath('turn'), cleanup.alice.token)).json; return t === 2 ? true : null; }, 20000, 250);
   record("Bob's page starts Bob's turn by itself: his own turn number becomes 2 in the database, and he did NOT draw (players draw their own card)", Boolean(bobStarted) && (await handCount(cleanup.bob.uid)) === bobHandBefore, `${bobHandBefore} -> ${await handCount(cleanup.bob.uid)}`);
   const bobBanner = await waitFor(async () => { const f = await turnFacts(bob); return /^It is your turn \(turn 2\)\./.test(f.banner) ? f : null; }, 20000, 250);
@@ -671,6 +682,17 @@ try {
   record("Bob's page plays the your-turn sound once when his turn begins by itself (Alice's page plays none)", JSON.stringify(await bob.eval(`window.__plays`)) === '["/sfx/yourturn.mp3"]' && !String(JSON.stringify(await alice.eval(`window.__plays`))).includes('yourturn'), JSON.stringify(await bob.eval(`window.__plays`)));
   const aliceAfterPass = await waitFor(async () => { const f = await turnFacts(alice); return f.banner === "Turn 2: Seat 2: Bob's turn" && !f.mine && f.whose === "Seat 2: Bob's turn" ? f : null; }, 20000, 250);
   record("Alice's banner is plain again (Turn 2: Seat 2: Bob's turn), her button now skips Bob's turn, she can take her pass back, and her title is the plain one", Boolean(aliceAfterPass) && aliceAfterPass.pass === "Skip Seat 2: Bob's turn" && aliceAfterPass.takeBack && !/^Your turn/.test(aliceAfterPass.title) && aliceAfterPass.turn === '2', JSON.stringify(aliceAfterPass));
+  // The turn clock (2026-11-20): counts up from the pass, from the database's clock, the same on every page.
+  const clockSecs = (page) => page.eval(`(() => { const e = document.getElementById('turn-clock'); const m = e && !e.hidden ? /(\\d+):(\\d\\d)/.exec(e.textContent) : null; return m ? Number(m[1]) * 60 + Number(m[2]) : null; })()`);
+  const clockA = await clockSecs(alice);
+  const clockB = await clockSecs(bob);
+  record('the turn clock shows on both pages, counting this turn from the pass, and the two agree to within two seconds', clockA !== null && clockB !== null && Math.abs(clockA - clockB) <= 2 && clockA < 120, `${clockA} ${clockB}`);
+  await sleep(2200);
+  record('...and it counts up', (await clockSecs(bob)) >= clockB + 1);
+  await bob.eval(`document.getElementById('turn-clock-on').click()`);
+  record('"Show the turn clock" in Settings hides it on that page only, and the choice is kept in the browser', (await clockSecs(bob)) === null && (await clockSecs(alice)) !== null && (await bob.eval(`localStorage.getItem('overloaded.turnClock')`)) === '0');
+  await bob.eval(`document.getElementById('turn-clock-on').click()`);
+  record('...and switching it on shows it again', (await clockSecs(bob)) !== null);
   record("Alice's own turn number stayed 1 (a player only starts their own turns)", (await rest('GET', pathOf('public/turn'), cleanup.bob.token)).json === 1);
   const bobActive = await waitFor(async () => { const s = await panelState(alice, cleanup.bob.uid); return s && s.active && s.mark ? s : null; }, 20000, 250);
   record("Bob's panel on Alice's page is now the marked one", Boolean(bobActive));
@@ -679,7 +701,7 @@ try {
   const aliceHandBefore = await handCount(cleanup.alice.uid);
   await click(bob, 'pass-turn');
   const bobPassStored = await waitFor(async () => { const p = (await rest('GET', bobPath('pass'), cleanup.alice.token)).json; return p && p.n === 3 ? p : null; }, 15000, 250);
-  record("Bob's pass is turn 3, to seat 1, and remembers the turn it replaced (turn 2, seat 2), so it can be taken back", Boolean(bobPassStored) && JSON.stringify(bobPassStored) === '{"from":{"n":2,"to":"2"},"n":3,"to":"1"}' || JSON.stringify(bobPassStored) === '{"n":3,"to":"1","from":{"n":2,"to":"2"}}', JSON.stringify(bobPassStored));
+  record("Bob's pass is turn 3, to seat 1, and remembers the turn it replaced (turn 2, seat 2), so it can be taken back", Boolean(bobPassStored) && (JSON.stringify(withoutTime(bobPassStored)) === '{"from":{"n":2,"to":"2"},"n":3,"to":"1"}' || JSON.stringify(withoutTime(bobPassStored)) === '{"n":3,"to":"1","from":{"n":2,"to":"2"}}') && timeOf(bobPassStored) === 'time ok', JSON.stringify(bobPassStored));
   const aliceStarted = await waitFor(async () => { const t = (await rest('GET', pathOf('public/turn'), cleanup.bob.token)).json; return t === 3 ? true : null; }, 20000, 250);
   record("Alice's page starts Alice's turn by itself: her own turn number becomes 3 and she did NOT draw", Boolean(aliceStarted) && (await handCount(cleanup.alice.uid)) === aliceHandBefore, `${aliceHandBefore} -> ${await handCount(cleanup.alice.uid)}`);
   const afterStart = await delverStored();
@@ -691,10 +713,11 @@ try {
 
   // A refresh must not start the turn again (no second draw).
   const turnHandBeforeRefresh = await handCount(cleanup.alice.uid);
-  await alice.goto(`http://127.0.0.1:${PORT}/table/${code}`);
+  const clockBeforeRefresh = await clockSecs(alice);  await alice.goto(`http://127.0.0.1:${PORT}/table/${code}`);
   const afterRefreshTurn = await waitFor(async () => { const f = await turnFacts(alice); return /^It is your turn \(turn 3\)\./.test(f.banner) ? f : null; }, 30000, 250);
   await sleep(1500);
   record('after a refresh it is still turn 3 and Alice\'s turn, and the turn did not start twice: her hand and her own turn number are as they were', Boolean(afterRefreshTurn) && (await handCount(cleanup.alice.uid)) === turnHandBeforeRefresh && (await rest('GET', pathOf('public/turn'), cleanup.bob.token)).json === 3, `${turnHandBeforeRefresh} -> ${await handCount(cleanup.alice.uid)}`);
+  record('the turn clock carries on across a refresh (the database time of the pass): it does not start again from 0:00', (await clockSecs(alice)) !== null && (await clockSecs(alice)) >= clockBeforeRefresh, `${clockBeforeRefresh} -> ${await clockSecs(alice)}`);
 
   // Skipping: it is Alice's turn, and Bob presses his button (she is not there): Bob confirms, and the turn goes round to him.
   const bobHandBeforeSkip = await handCount(cleanup.bob.uid);

@@ -4,7 +4,7 @@ import {
   validPass, seatOrder, latestPass, currentTurn, nextSeatAfter, nextPass, passAction, canTakeBack, takeBackAction, turnToStart, turnWords, whoseWords,
 } from '../shared/turn-order.mjs';
 import { makeGame, beginTurn, seededRandom, checkGame, MAX_TURN } from '../shared/zones.mjs';
-import { splitGame, joinGame, gameWrites, readPublic } from '../shared/game-sync.mjs';
+import { splitGame, joinGame, gameWrites, readPublic, SERVER_TIME } from '../shared/game-sync.mjs';
 
 let checks = 0;
 const fail = (label, detail) => { console.log(`FAILED CHECK: ${label}: ${detail}`); process.exit(1); };
@@ -138,7 +138,7 @@ same('a "from" with extra fields keeps only n and to', validPass({ n: 5, to: '2'
   const lookup = () => ({ t: 'Basic Land', m: '', k: [] });
   const base = makeGame(deck, lookup, { random: seededRandom(2) });
   const withFrom = { ...base, pass: { n: 5, to: '2', from: { n: 4, to: '1' } } };
-  same('a record with its from is stored whole', gameWrites('me', base, withFrom), { 'public/me/pass': { n: 5, to: '2', from: { n: 4, to: '1' } } });
+  same('a record with its from is stored whole, stamped with the database time', gameWrites('me', base, withFrom), { 'public/me/pass': { n: 5, to: '2', from: { n: 4, to: '1' }, at: SERVER_TIME } });
   const sides = splitGame(withFrom);
   same('and read back whole, by the game and by another player', [joinGame(sides.public, sides.private, lookup).pass, readPublic(sides.public, lookup).pass], [{ n: 5, to: '2', from: { n: 4, to: '1' } }, { n: 5, to: '2', from: { n: 4, to: '1' } }]);
   check('changing only the from writes the record again', Object.keys(gameWrites('me', withFrom, { ...base, pass: { n: 5, to: '2', from: { n: 3, to: '3' } } })).join() === 'public/me/pass');
@@ -160,7 +160,15 @@ check('no one is never "your turn", even with no uid asked', whoseWords({ turn: 
   const lookup = () => ({ t: 'Basic Land', m: '', k: [] });
   const before = makeGame(deck, lookup, { random: seededRandom(2) });
   const after = { ...before, pass: { n: 2, to: '2' } };
-  same('passing writes exactly one small piece: the pass record', gameWrites('me', before, after), { 'public/me/pass': { n: 2, to: '2' } });
+  same('passing writes exactly one small piece: the pass record, stamped with the database time', gameWrites('me', before, after), { 'public/me/pass': { n: 2, to: '2', at: SERVER_TIME } });
+  // the time of a pass (Kevin, 2026-11-20): the database's clock, so every page shows the same turn time
+  const stamped = { ...after, pass: { n: 2, to: '2', at: 1700000000000 } };
+  same('a pass that already has its time keeps it (one read back from the database is not stamped again)', gameWrites('me', null, stamped)['public/me/pass'], { n: 2, to: '2', at: 1700000000000 });
+  same('a pass with the same time as before writes nothing', gameWrites('me', stamped, stamped), {});
+  same('a pass read back from the database keeps its time in the game and in what other players read', [joinGame(splitGame(stamped).public, splitGame(stamped).private, lookup).pass, readPublic(splitGame(stamped).public, lookup).pass], [{ n: 2, to: '2', at: 1700000000000 }, { n: 2, to: '2', at: 1700000000000 }]);
+  same('a pass taken back to an earlier turn is stamped again (its old time is gone)', gameWrites('me', { ...after, pass: { n: 3, to: '3', from: { n: 2, to: '2' }, at: 1700000000500 } }, { ...after, pass: { n: 2, to: '2' } }), { 'public/me/pass': { n: 2, to: '2', at: SERVER_TIME } });
+  same('only a time that is a whole positive number is read', [validPass({ n: 2, to: '1', at: 5 }).at, validPass({ n: 2, to: '1', at: 0 }).at, validPass({ n: 2, to: '1', at: -4 }).at, validPass({ n: 2, to: '1', at: 1.5 }).at, validPass({ n: 2, to: '1', at: '5' }).at, validPass({ n: 2, to: '1', at: { '.sv': 'timestamp' } }).at], [5, undefined, undefined, undefined, undefined, undefined]);
+  same('the newest pass across the table carries its time', latestPass({ a: { pass: { n: 2, to: '2', at: 100 } }, b: { pass: { n: 3, to: '3', at: 200 } } }), { uid: 'b', n: 3, to: '3', at: 200 });
   same('taking it back writes a delete of that one piece', gameWrites('me', after, before), { 'public/me/pass': null });
   same('a pass that has not changed writes nothing', gameWrites('me', after, after), {});
   same('a new game (no record) clears an old one', gameWrites('me', after, makeGame(deck, lookup, { random: seededRandom(5) })).hasOwnProperty('public/me/pass'), true);

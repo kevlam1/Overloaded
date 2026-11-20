@@ -7,6 +7,7 @@ import { rejoinTable, watchMembers, watchMeta, watchPresence, watchServerOffset,
 import { startKeepAlive } from '../../src/keep-alive.js';
 import { makeSafeStore } from '../../src/safe-store.js';
 import { play, mountSoundSettings } from '../../src/sound.js';
+import { mountTurnClock } from '../../src/turn-clock.js';
 import { mountPileStyle } from '../../src/pile-style.js';
 import { mountPileViewer } from '../../src/pile-viewer.js';
 import { mountSettingsMenu } from '../../src/settings-menu.js';
@@ -367,7 +368,10 @@ function drawOne() {
 function currentTurnInfo() {
   const byUid = {};
   for (const [uid, branch] of Object.entries(publicAll)) if (branch?.match === meta?.match) byUid[uid] = branch;
-  if (game && myUid) byUid[myUid] = { pass: game.pass };
+  if (game && myUid) {
+    const echoed = publicAll[myUid]?.pass;
+    byUid[myUid] = { pass: game.pass && echoed && echoed.n === game.pass.n && echoed.to === game.pass.to && game.pass.at === undefined ? { ...game.pass, at: echoed.at } : game.pass }; // (the database time of my pass, once it has come back)
+  }
   return currentTurn(byUid, members);
 }
 const conceded = (uid) => hasConceded(members[uid], meta);
@@ -392,6 +396,7 @@ function renderTurn() {
   pass.classList.toggle('secondary', !mine);
   pass.hidden = meta?.status !== 'playing';
   $('take-back').hidden = !canTakeBack(info, myUid);
+  turnClock.update({ key: `${meta?.match ?? 0}:${info.turn}`, at: info.last?.at ?? null });
   const banner = $('turn-banner');
   banner.hidden = false; // always during a match: whose turn it is, and louder when it is yours
   banner.classList.toggle('mine', mine);
@@ -724,6 +729,8 @@ $('pass-turn').addEventListener('click', () => {
 $('take-back').addEventListener('click', () => { if (game) { const action = takeBackAction(currentTurnInfo()); apply(() => action.run(game), action.message); } });
 $('untap-all').addEventListener('click', () => { if (game) { play('tap'); apply(() => untapAll(game), untapMessage(game)); } });
 mountSoundSettings($('sound-settings'));
+const turnClock = mountTurnClock({ element: $('turn-clock'), store, serverOffset: () => serverOffset });
+turnClock.mountSetting($('turn-clock-settings'));
 // ---- piles drawn diagonally or horizontally (shared/pile-style.mjs), a double click taps a card, a click on empty space deselects ----
 mountPileStyle($('pile-style-settings'));
 const viewer = mountPileViewer({ root: $('viewer'), nodeFor: (card) => cardNodes.nodeFor(card, false), onClose: () => { viewing = null; viewTop = null; viewBottom = false; if (game) render(); } });

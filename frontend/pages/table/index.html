@@ -51,6 +51,7 @@
         <section class="bar" aria-label="Your game">
           <p class="stat">Turn <strong id="turn">1</strong></p>
           <p id="turn-whose" class="stat"></p>
+          <p id="turn-clock" class="stat turn-clock" hidden></p>
           <div id="life-area" class="life" role="group" aria-label="Life total and counters" title="Right-click next to the number for counters (poison and so on)">
             <p class="stat">Life <span><button id="life" type="button">20</button></span></p>
             <div id="life-chips" class="counter-chips" role="group" aria-label="Your counters"></div>
@@ -126,6 +127,7 @@
           <div role="tabpanel" id="page-general" class="settings-page" aria-labelledby="tab-general">
             <section class="settings-card"><h3>Sound</h3><div id="sound-settings"></div></section>
             <section class="settings-card"><h3>Piles</h3><div id="pile-style-settings"></div></section>
+            <section class="settings-card"><h3>Turns</h3><div id="turn-clock-settings" class="sound-settings"></div></section>
             <section class="settings-card"><h3>Sideboard</h3><div class="settings-row"><button id="pile-sideboard" type="button" class="secondary" data-zone="sideboard" aria-pressed="false">Sideboard: 0</button></div></section>
           </div>
           <div role="tabpanel" id="page-keys" class="settings-page" aria-labelledby="tab-keys" hidden><div id="keybind-settings"></div></div>

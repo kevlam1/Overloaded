@@ -187,6 +187,9 @@
                   ".validate": false
                 }
               },
+              "at": {
+                ".validate": "newData.isNumber() && newData.val() > 0 && newData.val() <= now"
+              },
               "$other": {
                 ".validate": false
               }

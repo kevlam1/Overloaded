@@ -4913,6 +4913,29 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **My AI's mistakes this time:** my first seat cards had their text pushed to the middle because the old seat rule still said `align-items: center` (I only saw it in a screenshot). I loaded the 1.4 MB card list for every table, which broke an existing check that says it is only fetched when needed, so I made it wait until it is used. And three of my edit scripts lost backslashes or apostrophes again.
 
+## 248. The turn clock: counts up from each pass, with the database's time (2026-11-19)
+
+**What I asked for**
+- The turn timer starts from 0 every time the turn changes, so it should not need saving. I said we could do it without saving, and then "lets add that fix then": give each pass the database's time so a refresh and every player agree.
+
+**What changed** (`shared/turn-order.mjs`, `shared/game-sync.mjs`, `backend/database.rules.json`, `shared/turn-clock.mjs`, `frontend/src/turn-clock.js`, the table page)
+- **A time on every pass:** the pass record on a player's own branch can now carry `at`, the database's own clock when it was written. A pass that is new (or taken back) is written with Firebase's server-time placeholder; one read back from the database keeps the time it has. Turn 1 and old passes have none.
+- **The rules:** `at` must be a number above 0 that is not in the future. It is the only change to the rules file (3 lines).
+- **The clock:** "Turn time 1:23" beside whose turn it is, on the table page, counting up from 0 at each pass. It counts from the database time of the pass, so every page agrees and a refresh keeps counting; with no time it counts from when the page first saw the turn. The passer's own page takes the time from the database when it comes back a moment later.
+- **Not a table setting:** showing the clock is a personal option in Settings > General (`Show the turn clock`, on until you turn it off, kept in this browser). Nothing is enforced and nothing counts down.
+
+**What I checked**
+- `scripts/test-turn-clock.mjs` (new, 16 checks), `scripts/test-turn-order.mjs` 132 (6 new for the time), `scripts/test-game-sync.mjs` 78. `backend/test-rules-game.mjs` is 2,231 checks (7 new for `at`, including the server-time placeholder, and the five random games of the pages' own writes are still all accepted); one broken copy of the new rule (accepting any value) was caught. `test-rules` 567, solo 471 and table layout 405 pass.
+- `scripts/check-live-rules.mjs` has 4 new requests and `scripts/check-lobby-deck-live.mjs` 6 new checks (the clock on both pages agreeing within two seconds, counting up, the Settings option, and a refresh that carries on), plus the stored pass now checked for a recent database time. **None of the live ones have been run with the new rules: the old rules refuse `at`.**
+- I also fixed the old failure that stopped `check-lobby-deck-live` early (a hand card's menu has Play, Discard and so on, not "Move to"), so the rest of that file runs again for the first time since entry 238: everything before the pass-turn part passed, and the pass-turn part failed only on the stored record not having a time yet.
+
+**Decisions and limits**
+- **Do not push this to the preview before the rules are pasted.** The page now writes `at`, and the old rules refuse that write, which stops the whole save, so passing a turn would fail.
+- The clock is off in the seconds before the database's clock is known (it counts from when the page saw the turn) and a take-back restarts it at the moment of the take-back. The passer's own page can show a turn that is a second or two different from the others for the moment before the database's time comes back.
+- Not looked at: how the clock looks in a screenshot of the table page, and the solo table (no turns to pass).
+
+**My AI's mistakes this time:** I nearly missed that the page and the rules have to change together and the preview deploys at once; I only saw it while writing the rule tests. My first test of the old hand-menu fix was cut short by a pipe, so I read the output file instead of guessing.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

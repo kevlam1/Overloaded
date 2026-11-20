@@ -21,13 +21,15 @@ const SEATS = COMMANDER_SEATS; // '1' to '4': the seats a table has
 
 const validTurnAndSeat = (raw) => Boolean(raw) && typeof raw === 'object' && !Array.isArray(raw) && Number.isInteger(raw.n) && raw.n >= 2 && raw.n <= MAX_TURN && typeof raw.to === 'string' && SEATS.includes(raw.to);
 
-// A stored pass record, checked: { n, to, from? } or null. n is a whole number from 2 (turn 1 needs no pass) to the largest turn; to is a
+// A stored pass record, checked: { n, to, from?, at? } or null. n is a whole number from 2 (turn 1 needs no pass) to the largest turn; to is a
 // seat. from is the turn this pass replaced ({ n, to }, with a smaller n; none when it replaced turn 1): a player keeps only their LATEST
 // record, so without it a pass written right after another of their own (skipping a player) could not be taken back to the right turn.
 // A damaged from is dropped; the rest of the record still counts.
+// at (optional): when the pass was made, in the database's own time (milliseconds), so every page can show how long the turn has taken (shared/turn-clock.mjs); a pass from before there was a clock has none.
 export function validPass(raw) {
   if (!validTurnAndSeat(raw)) return null;
   const pass = { n: raw.n, to: raw.to };
+  if (Number.isSafeInteger(raw.at) && raw.at > 0) pass.at = raw.at;
   if (validTurnAndSeat(raw.from) && raw.from.n < raw.n) pass.from = { n: raw.from.n, to: raw.from.to };
   return pass;
 }

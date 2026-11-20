@@ -1938,3 +1938,7 @@ body[data-screen] .deck-import-tile:not(.secondary) { box-shadow: none; border-r
 .import-head h2 { margin: 0; font-size: 1.3rem; }
 .import-panel section#deck-importer { padding: 0; border: 0; background: none; box-shadow: none; }
 .seat:not(.empty-seat) { align-items: stretch; }
+
+/* The turn clock: a number that counts up; it does not change the size of the bar as it grows (digits of one width). */
+.turn-clock { font-variant-numeric: tabular-nums; color: var(--muted); }
+.turn-clock[hidden] { display: none; }

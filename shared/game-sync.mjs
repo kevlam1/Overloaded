@@ -136,7 +136,7 @@ export function splitGame(game) {
       life: game.life, turn: game.turn, mulligans: game.mulligans, next: game.nextUid, counts,
       ...(game.pc ? { pc: { ...game.pc } } : {}), // poison, energy, experience: only counts above 0 are stored
       ...(game.cd ? { cd: { ...game.cd } } : {}), // commander damage by seat
-      ...(game.pass ? { pass: { n: game.pass.n, to: game.pass.to, ...(game.pass.from ? { from: { n: game.pass.from.n, to: game.pass.from.to } } : {}) } } : {}), // the turn this player last passed (and the one it replaced): shared/turn-order.mjs
+      ...(game.pass ? { pass: { n: game.pass.n, to: game.pass.to, ...(game.pass.from ? { from: { n: game.pass.from.n, to: game.pass.from.to } } : {}), ...(Number.isSafeInteger(game.pass.at) && game.pass.at > 0 ? { at: game.pass.at } : {}) } } : {}), // the turn this player last passed (and the one it replaced): shared/turn-order.mjs
       ...Object.fromEntries(PUBLIC_ZONES.map((zone) => [zone, game.zones[zone].map(packCard)])),
     },
     private: Object.fromEntries(PRIVATE_ZONES.map((zone) => [zone, game.zones[zone].map(packCard)])),
@@ -184,16 +184,20 @@ export function readPublic(stored, lookup) {
 // The writes for a move: a map from a path under tables/CODE to its new value, holding only the pieces that differ between
 // `before` and `after` (both games, or `before` null to write everything). An empty zone is written as null (deleted).
 // life, turn, mulligans, next and the hidden counts are separate small pieces; each zone is one piece.
+export const SERVER_TIME = Object.freeze({ '.sv': 'timestamp' }); // Firebase's placeholder for "the server's time when this is written"
 export function gameWrites(uid, before, after) {
   const now = splitGame(after);
   const then = before ? splitGame(before) : null;
   const writes = {};
-  const put = (path, value, old) => {
-    if (JSON.stringify(value) !== JSON.stringify(old)) writes[path] = value;
+  const put = (path, value, old, compare = value) => {
+    if (JSON.stringify(compare) !== JSON.stringify(old)) writes[path] = value;
   };
   for (const key of ['life', 'turn', 'mulligans', 'next']) put(`public/${uid}/${key}`, now.public[key], then?.public[key]);
   for (const zone of PRIVATE_ZONES) put(`public/${uid}/counts/${zone}`, now.public.counts[zone], then?.public.counts[zone]);
-  for (const key of ['pc', 'cd', 'pass']) put(`public/${uid}/${key}`, now.public[key] ?? null, then ? (then.public[key] ?? null) : undefined);
+  for (const key of ['pc', 'cd']) put(`public/${uid}/${key}`, now.public[key] ?? null, then ? (then.public[key] ?? null) : undefined);
+  // A pass that is new (or taken back) is stamped with the database's own clock, so every page can show how long the turn has taken. A pass that already carries its time (one read back from the database) keeps it.
+  const passNow = now.public.pass ?? null;
+  put(`public/${uid}/pass`, passNow && !('at' in passNow) ? { ...passNow, at: SERVER_TIME } : passNow, then ? (then.public.pass ?? null) : undefined, passNow);
   // A zone is written as ONE piece, except when it holds the same number of cards as before and only a few places changed (a tap, a counter, a drag on the grid): then only those
   // places are written, one small write each (about 100 bytes). A card put on top of the others moves every card after it one place, so that is written as the whole zone.
   const MAX_PIECES = 4; // more changed places than this and one write of the whole zone is smaller and simpler

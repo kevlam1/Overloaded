@@ -186,6 +186,11 @@ try {
   await expect('the table\'s match number (2) is allowed', call(member, 'PUT', `${pub}/match`, 2), 'allowed');
   await expect('a pass record for turn 2 is allowed', call(member, 'PUT', `${pub}/pass`, { n: 2, to: '1' }), 'allowed');
   await expect('a pass record for turn 1 is refused', call(member, 'PUT', `${pub}/pass`, { n: 1, to: '1' }), 'refused');
+  // The time of a pass (2026-11-20): the database clock, so every page shows the same turn time. The OLD rules refused the key, so these pass only once the new file is published.
+  await expect('a pass record with the server time is allowed', call(member, 'PUT', `${pub}/pass`, { n: 2, to: '1', at: { '.sv': 'timestamp' } }), 'allowed');
+  await expect('a pass record with a past time is allowed', call(member, 'PUT', `${pub}/pass`, { n: 2, to: '1', at: 1700000000000 }), 'allowed');
+  await expect('a pass record with a time in the future is refused', call(member, 'PUT', `${pub}/pass`, { n: 2, to: '1', at: 9e15 }), 'refused');
+  await expect('a pass record with a time that is not a number is refused', call(member, 'PUT', `${pub}/pass`, { n: 2, to: '1', at: 'now' }), 'refused');
   await expect('an unknown key in the public branch is refused', call(member, 'PUT', `${pub}/foo`, 1), 'refused');
   // A ping (added 2026-11-06, shared/ping.mjs): { k, card } on the player's own public branch. The OLD rules refused the key, so these pass only once the new file is published.
   await expect('a ping (a number and a card) is allowed', call(member, 'PUT', `${pub}/ping`, { k: 1800000000, card }), 'allowed');

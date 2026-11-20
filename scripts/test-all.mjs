@@ -62,6 +62,7 @@ const suites = [
   { name: 'foil looks: kinds to the 8 drawn looks', cmd: node, args: ['scripts/test-foil-looks.mjs'] },
   { name: 'card rulings: the files the details window reads under the rules', cmd: node, args: ['scripts/test-card-rulings.mjs'] },
   { name: 'card tokens: tokens and emblems for the Create token menus', cmd: node, args: ['scripts/test-card-tokens.mjs'] },
+  { name: 'the turn clock: text, time taken, the page memory of the turn', cmd: node, args: ['scripts/test-turn-clock.mjs'] },
   { name: 'counters a card can be given: the catalog and named counters', cmd: node, args: ['scripts/test-counter-catalog.mjs'] },
   { name: 'card rules: the files the details window reads', cmd: node, args: ['scripts/test-card-rules.mjs'] },
   { name: 'the menu of several cards picked in the hand', cmd: node, args: ['scripts/test-group-menu.mjs'] },
