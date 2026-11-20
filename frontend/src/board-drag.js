@@ -25,7 +25,7 @@ const AXIS_STICK_PX = 12; // ...and it changes from the row to the column (or ba
 // Piles and the command zone (Kevin, 2026-11-12): a card can be taken from the top of the library, the graveyard or the exile, or from the command zone, and a card can be dropped on any of them. The page says
 // what is a pile: zoneSource(target) gives { button, uid, from, picture? } for the element pressed (the top card of a pile, or a card of the command zone; picture: an address for the picture carried, for a
 // library, whose top card is not shown), pileAt(x, y) gives { zone, element } for the pile under a point, and onDropPile({ uid, from, to }) is called when a card is let go over one.
-export function mountBoardDrag({ doc = document, board, onDrop, hand = () => null, onDropHand = () => {}, onHandOver = () => {}, onReorderHand = () => {}, handZone = () => null, handHit = null, zoneSource = () => null, pileAt = () => null, onDropPile = () => {}, groupOf = () => null, isEnabled = () => true }) {
+export function mountBoardDrag({ doc = document, board, onDrop, hand = () => null, onDropHand = () => {}, onHandOver = () => {}, onReorderHand = () => {}, handZone = () => null, handHit = null, zoneSource = () => null, pileAt = () => null, onDropPile = () => {}, groupOf = () => null, isEnabled = () => true, boardFirst = false }) {
   // groupOf(uid) (optional): the uids of the cards picked up together (by a rectangle) when the card pressed is one of them, or null. Pressing one of them carries all of them, each keeping its place relative to
   // the others, and onDrop is called with { group } (Kevin, 2026-11-14). A group is carried over the board or into the hand (all its cards go there), not onto a pile.
   let press = null; // the card the pointer went down on, before it has moved far enough to be a drag
@@ -265,7 +265,9 @@ export function mountBoardDrag({ doc = document, board, onDrop, hand = () => nul
     const inZone = Boolean(handRect) && x >= handRect.left && x < handRect.right && y >= handRect.top && y < handRect.bottom;
     // a card of the hand being rearranged uses the whole zone (the gap it opens would flicker if only the cards counted); a card carried from the battlefield only returns to the hand when the pointer is over a card of it, so
     // the rest of the bottom of the board stays the battlefield
-    const over = drag.from !== 'hand' && handHit ? handHit(x, y) : inZone;
+    // boardFirst (the table page): where the battlefield is under the pointer it wins, unless the pointer is on the resting cards of the hand; so a card from the hand can be put on the bottom rows of the
+    // battlefield even though the box of the raised hand reaches over them (Kevin, 2026-11-20)
+    const over = drag.from !== 'hand' && handHit ? handHit(x, y) : inZone && !(boardFirst && cell && !(handHit && handHit(x, y)));
     // over a pile (the library, the graveyard, the exile or the command zone) the card goes onto it: the hand and the board are not under the pointer then
     const pileHere = pileAt(x, y);
     const pile = pileHere && (!drag.group || drag.from === 'hand') && (pileHere.zone !== drag.from || pileHere.zone === 'command') ? pileHere : null; // (a commander may be moved from one slot of the command zone to the other)

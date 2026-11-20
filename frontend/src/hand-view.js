@@ -28,9 +28,10 @@ const prefersReducedMotion = () => typeof matchMedia === 'function' && matchMedi
 
 // container: the #hand element. costOf(uid): the mana cost text of the hand card with this uid ('' for none, a land has none). restHidden(): the share of a card's height that is below the bottom edge
 // of the window while the hand rests (0.5 for half; the player's setting, frontend/src/hand-rest.js), asked again at every layout.
-// fillBox: the hand has a strip of its own that nothing else uses (the Seats table): the whole box is its area, to drop a card on and to raise it, not just the width the cards cover.
+// fillBox: the hand has a strip of its own that nothing else uses: the whole box is its area, to drop a card on and to raise it, not just the width the cards cover.
+// raiseFloor(): a line on screen (a y) above which the pointer raises the hand only while it stays on a raised card, or null (the table page gives the bottom of your battlefield).
 // Returns { arrange(), carry(info | null), holeFor(uid, x, external), noteDrop(uid, from), zone(), over(x, y), isRaised() }.
-export function mountHand({ container, costOf = () => '', restHidden = () => 0.5, fillBox = false }) {
+export function mountHand({ container, costOf = () => '', restHidden = () => 0.5, fillBox = false, raiseFloor = () => null }) {
   // px kept free at each side for the turn of the outer cards: they swing out by about a fifth of a card's height, so it grows with the cards (a fixed 14 px clipped the first card once the hand was 50% larger)
   const margin = () => Math.max(14, Math.round((container.querySelector(':scope > .card')?.offsetHeight ?? 0) * 0.2));
   let carried = null; // the uid of the card being carried (it is over `hole` and is left out of the places of the others)
@@ -303,6 +304,10 @@ export function mountHand({ container, costOf = () => '', restHidden = () => 0.5
   const areaInset = (boxHeight) => { if (fillBox) return 0; const drop = dropDistance(); return Math.round(boxHeight - AREA_SHARE * Math.max(0, boxHeight - drop)); };
   // Is the point (x, y) in the area of the hand? The width the cards cover; from the top of the box down while raised, from the start of the drop area while lowered.
   function inArea(x, y) {
+    // raiseFloor (the table page): above that line (the bottom of the battlefield) the pointer raises the hand only by staying on a card of the raised hand, so a card on the bottom row of the battlefield
+    // is never covered by the hand when the pointer comes to it from above
+    const floor = raiseFloor();
+    if (floor !== null && y < floor) return raised && carried === null && cardAt(x, y) !== null; // (a card carried up over the battlefield lowers the hand, so the bottom row shows where it may be put)
     const z = zone();
     const top = z.top + (raised ? 0 : areaInset(z.bottom - z.top));
     return x >= z.left && x < z.right && y >= top && y <= z.bottom + 1;

@@ -83,17 +83,13 @@ try {
     if (process.argv.includes('--screenshot')) await alice.screenshot(`scratch-seats-${seats}.png`);
 
     const others = seats - 1;
-    const opp = await box(alice, '#opponents');
-    const areas = await alice.eval(`[...document.querySelectorAll('#opponent-list .opponent')].map((s) => { const r = s.getBoundingClientRect(); return [Math.round(r.left), Math.round(r.top), Math.round(r.width)]; })`);
+    const myArea = await box(alice, '#seat-me');
+    const areas = await alice.eval(`[...document.querySelectorAll('#opponent-list .opponent')].map((s) => { const r = s.getBoundingClientRect(); return { top: Math.round(r.top), bottom: Math.round(r.bottom), left: Math.round(r.left), right: Math.round(r.right) }; })`);
     const mine = await box(alice, '#battlefield');
-    const life = await box(alice, '#life-area');
-    const bar = await box(alice, '.actions-panel .actions');
-    const handTop = await alice.eval(`Math.round(Math.min(...[...document.querySelectorAll('#hand .card')].map((c) => c.getBoundingClientRect().top)))`);
-    record(`${seats} seats: the page is the Seats table (the solo look for her own area)`, await alice.eval(`document.body.classList.contains('playing') && document.body.classList.contains('seats')`));
-    record(`${seats} seats: the other players' areas are across the top, ${others} side by side and the same width`, Boolean(opp) && opp.top === 0 && areas.length === others && areas.every((a) => Math.abs(a[1] - areas[0][1]) <= 1 && Math.abs(a[2] - areas[0][2]) <= 2) && areas.every((a, n) => n === 0 || a[0] > areas[n - 1][0]), JSON.stringify(areas));
-    record(`${seats} seats: her battlefield is below them, with room left`, Boolean(mine) && mine.top >= opp.bottom && mine.height > 150, JSON.stringify({ opp, mine }));
-    record(`${seats} seats: the life piece and the action bar are in her own area and do not overlap`, Boolean(life && bar) && life.top >= opp.bottom && bar.top >= opp.bottom && (life.right <= bar.left || bar.right <= life.left || life.bottom <= bar.top || bar.bottom <= life.top), JSON.stringify({ life, bar }));
-    record(`${seats} seats: her hand is at the bottom of the window`, handTop > 768 * 0.7, String(handTop));
+    const handBottom = await alice.eval(`Math.round(Math.max(...[...document.querySelectorAll('#hand .card')].map((c) => c.getBoundingClientRect().bottom)))`);
+    record(`${seats} seats: Grid view, every player has an area like the solo table (${others} other${others === 1 ? '' : 's'}), hers at the bottom`, await alice.eval(`document.body.classList.contains('seats') && document.body.dataset.view === 'grid'`) && areas.length === others && myArea.bottom >= 760 && areas.every((a) => a.right <= myArea.left + 2 || a.left >= myArea.right - 2 || a.bottom <= myArea.top + 2), JSON.stringify({ myArea, areas }));
+    record(`${seats} seats: her battlefield, hand and piles are in her area; her hand is along its bottom edge`, Boolean(mine) && mine.top >= myArea.top && mine.bottom <= myArea.bottom && mine.height > 150 && handBottom >= myArea.bottom - 2 && await alice.eval(`document.getElementById('seat-me').contains(document.getElementById('piles-section'))`), JSON.stringify({ mine, handBottom }));
+    record(`${seats} seats: each other player shows a fan of card backs for their hand (Bob holds 6)`, (await alice.eval(`document.querySelector('#opponent-list .opponent .opp-backs').children.length`)) === 6 && /Hand 6/.test(await alice.eval(`document.querySelector('#opponent-list .opponent .opp-hand-pill').textContent`)));
     if (seats === 2) {
       const facing = () => alice.eval(`getComputedStyle(document.querySelector('#opponent-list .opponent .battlefield')).rotate`);
       record("Bob's battlefield is turned to face her by default", (await facing()) === '180deg', await facing());
@@ -104,11 +100,13 @@ try {
       const mouse = (type, x, y, buttons = 0) => alice.send('Input.dispatchMouseEvent', { type, x, y, button: type === 'mouseMoved' ? 'none' : 'left', buttons, clickCount: 1 });
       const drag = async (from, to) => { await mouse('mouseMoved', from.x, from.y); await sleep(60); await mouse('mousePressed', from.x, from.y, 1); for (let n = 1; n <= 12; n++) { await mouse('mouseMoved', from.x + ((to.x - from.x) * n) / 12, from.y + ((to.y - from.y) * n) / 12, 1); await sleep(16); } await mouse('mouseReleased', to.x, to.y); await sleep(700); };
       const centre = (selector) => alice.eval(`(() => { const e = document.querySelector(${JSON.stringify(selector)}); if (!e) return null; const r = e.getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) }; })()`);
+      const handPoint = (selector) => alice.eval(`(() => { const e = document.querySelector(${JSON.stringify(selector)}); if (!e) return null; const r = e.getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + 14) }; })()`); // (the hand rests half below the window: press on the part that shows)
       const counts = () => alice.eval(`({ hand: document.querySelectorAll('#hand > .card').length, field: document.querySelectorAll('#battlefield > .card').length, grave: Number(document.getElementById('pile-graveyard').dataset.count) })`);
       const field = await box(alice, '#battlefield');
-      if (process.argv.includes('--screenshot')) { const c = await centre('#hand > .card:nth-child(3)'); await mouse('mouseMoved', c.x, c.y); await sleep(400); await alice.screenshot('scratch-seats-hover.png'); }
+      if (process.argv.includes('--screenshot')) { const c = await handPoint('#hand > .card:nth-child(3)'); await mouse('mouseMoved', c.x, c.y); await sleep(400); await alice.screenshot('scratch-seats-hover.png'); }
       const before = await counts();
-      await drag(await centre('#hand > .card'), { x: field.left + Math.round(field.width * 0.3), y: field.bottom - 6 });
+      { const resting = await handPoint('#hand > .card'); await mouse('mouseMoved', resting.x, resting.y); await sleep(400); } // (the pointer on the resting hand raises it, as on the solo table: the card is then pressed where it has risen to)
+      await drag(await handPoint('#hand > .card'), { x: field.left + Math.round(field.width * 0.3), y: field.bottom - 6 });
       const played = await counts();
       record('a hand card let go on the bottom edge of her battlefield is played there', played.hand === before.hand - 1 && played.field === before.field + 1, JSON.stringify({ before, played }));
       const placed = await alice.eval(`[...document.querySelectorAll('#battlefield > .card')].map((c) => c.dataset.uid).pop()`);
@@ -118,10 +116,37 @@ try {
       await drag(await centre('#pile-graveyard'), { x: field.left + Math.round(field.width / 2), y: field.top + Math.round(field.height / 2) });
       const back = await counts();
       record('the top card of her graveyard dragged onto the battlefield comes back', back.grave === buried.grave - 1 && back.field === buried.field + 1, JSON.stringify(back));
-      const hand = await box(alice, '#hand-section');
-      await drag(await centre(`#battlefield > .card[data-uid="${placed}"]`), { x: hand.left + 40, y: hand.top + 8 });
+      const handCard = await handPoint('#hand > .card');
+      await drag(await centre(`#battlefield > .card[data-uid="${placed}"]`), { x: handCard.x, y: myArea.bottom - 12 });
       const returned = await counts();
-      record('a battlefield card let go anywhere in the hand strip goes back to her hand', returned.hand === back.hand + 1 && returned.field === back.field - 1, JSON.stringify(returned));
+      record('a battlefield card let go on her hand goes back to her hand', returned.hand === back.hand + 1 && returned.field === back.field - 1, JSON.stringify(returned));
+      // the counters panel under her life: commander damage from each commander at the table (hers and Bob's), then her counters
+      await alice.eval(`document.getElementById('life-counters').click()`);
+      await sleep(300);
+      const panel = await alice.eval(`(() => { const p = document.querySelector('.counter-panel'); return p ? { titles: [...p.querySelectorAll('.cp-title')].map((t) => t.textContent), rows: [...p.querySelectorAll('.cp-row')].map((r) => r.querySelector('.cp-label').textContent + '|' + (r.querySelector('.cp-detail')?.textContent ?? '') + '|' + r.querySelector('.cp-count').textContent) } : null; })()`);
+      record('the arrow under her life opens the counters: commander damage from Krenko (hers) and Ezuri (Bob\'s), then poison, energy and experience', Boolean(panel) && panel.titles.join() === 'Commander damage,Counters' && panel.rows.some((r) => r.startsWith('Alice (you)|Krenko, Mob Boss|0')) && panel.rows.some((r) => r.startsWith('Bob|Ezuri, Renegade Leader|0')) && panel.rows.some((r) => r.startsWith('Poison')), JSON.stringify(panel));
+      await alice.eval(`[...document.querySelectorAll('.counter-panel .cp-row')].find((r) => r.querySelector('.cp-label').textContent === 'Bob').querySelector('[data-step="1"]').click()`);
+      await sleep(300);
+      const after = await alice.eval(`[...document.querySelectorAll('.counter-panel .cp-row')].find((r) => r.querySelector('.cp-label').textContent === 'Bob').querySelector('.cp-count').textContent`);
+      record('...and its plus on Bob\'s line records 1 commander damage from Ezuri, the panel staying open', after === '1' && (await alice.eval(`Boolean(document.querySelector('.counter-panel'))`)), after);
+      await alice.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+      await alice.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+      await sleep(200);
+      // Sidebar view: one area large, every player small in a column; Bob's area shown large keeps her hand along the bottom
+      await alice.eval(`document.getElementById('view-toggle').click()`);
+      await sleep(400);
+      const side = await alice.eval(`({ view: document.body.dataset.view, slots: document.querySelectorAll('#seats-side .seat-slot').length, mineLarge: document.getElementById('seat-me').classList.contains('focused'), bobSmall: Boolean(document.querySelector('#seats-side .seat-area.mini')), saved: localStorage.getItem('overloaded.seatsView') })`);
+      record('the view button switches to Sidebar view: her area large, both players in the column (Bob small), kept in her browser', side.view === 'sidebar' && side.slots === 2 && side.mineLarge && side.bobSmall && side.saved === 'sidebar', JSON.stringify(side));
+      if (process.argv.includes('--screenshot')) await alice.screenshot('scratch-seats-sidebar-me.png');
+      await alice.eval(`[...document.querySelectorAll('#seats-side .seat-slot')][1].querySelector('.slot-head').click()`);
+      await sleep(500);
+      const bobLarge = await alice.eval(`({ bob: document.querySelector('.opponent').classList.contains('focused'), mineSmall: document.getElementById('seat-me').classList.contains('mini'), handDocked: document.getElementById('hand-section').classList.contains('docked'), handCards: document.querySelectorAll('#hand > .card').length })`);
+      record("...a click on Bob in the column shows his area large; her hand stays along the bottom, still hers", bobLarge.bob && bobLarge.mineSmall && bobLarge.handDocked && bobLarge.handCards === returned.hand, JSON.stringify(bobLarge));
+      if (process.argv.includes('--screenshot')) await alice.screenshot('scratch-seats-sidebar-bob.png');
+      await alice.eval(`document.getElementById('view-toggle').click()`);
+      await sleep(400);
+      const backToGrid = await alice.eval(`({ view: document.body.dataset.view, handInArea: document.getElementById('seat-me').contains(document.getElementById('hand-section')), minis: document.querySelectorAll('.seat-area.mini').length })`);
+      record('...and back to Grid view, her hand back in her area', backToGrid.view === 'grid' && backToGrid.handInArea && backToGrid.minis === 0, JSON.stringify(backToGrid));
       // Bob's piles: his library cannot be opened; his exile opens in the pile window to look at
       await alice.eval(`document.querySelector('#opponent-list .opp-pile[data-zone="exile"]').click()`);
       await sleep(300);

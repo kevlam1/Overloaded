@@ -33,10 +33,13 @@ import { loadTokens } from '../../src/token-data.js';
 import { openTokenPicker } from '../../src/token-picker.js';
 import { mountCounterChips } from '../../src/counter-chips.js';
 import { mountLifeControl } from '../../src/life-control.js';
+import { mountFloatingBar } from '../../src/floating-bar.js';
+import { restHidden, mountHandRestSetting } from '../../src/hand-rest.js';
+import { createCounterPanel } from '../../src/counter-panel.js';
 import { menuItems, menuAction, turnLabel, turnMessage, playBackLabel, PLAY_BACK_ZONES, noUntapLabel, sickLabel, untapMessage } from '../../../shared/card-menu.mjs';
 import { marksSentence, markClick, printedOf } from '../../../shared/marks.mjs';
 import { currentTurn, passAction, takeBackAction, canTakeBack, turnToStart, whoseWords, turnWords } from '../../../shared/turn-order.mjs';
-import { chipEntries, playerMenuItems, playerAddItems, playerAction, commanderDamageSeatsFor } from '../../../shared/player-counters.mjs';
+import { chipEntries, playerMenuItems, playerAction, commanderDamageSeatsFor, counterPanelRows } from '../../../shared/player-counters.mjs';
 import { presenceStatus, presenceText, ownConnectionText } from '../../../shared/presence.mjs';
 import { tableCodeFromPath } from '../../../shared/lobby-link.mjs';
 import { seatDeckText, defaultDeckFor, hasConceded } from '../../../shared/lobby-deck.mjs';
@@ -137,15 +140,12 @@ $('life-area').addEventListener('contextmenu', (event) => {
   openCardMenu({ title: 'Your counters', items: playerMenuItems(game, { live: true, seats: damageSeats() }), x: fromKeyboard ? box.left + box.width / 2 : event.clientX, y: fromKeyboard ? box.top + box.height / 2 : event.clientY, returnFocus: event.currentTarget, onPick: (id) => { if (!game) return; const action = playerAction(id, game, { live: true, names: seatNames() }); if (action) apply(() => action.run(game), action.message); } });
 });
 
-{
-  const button = $('life-counters');
-  button.addEventListener('click', () => {
-    if (!game) return;
-    const box = button.getBoundingClientRect();
-    button.setAttribute('aria-expanded', 'true');
-    openCardMenu({ title: 'Add a counter', items: playerAddItems(game, { live: true }), x: box.left, y: box.bottom + 4, returnFocus: button, toggleOn: button, onClose: () => button.setAttribute('aria-expanded', 'false'), onPick: (id) => { if (!game) return; const action = playerAction(id, game, { live: true, names: seatNames() }); if (action) apply(() => action.run(game), action.message); } });
-  });
-}
+// The arrow under the life total opens the counters panel (src/counter-panel.js): commander damage from each seat's commander, then poison and the other counters, each with a minus and a plus.
+const counterPanel = createCounterPanel({
+  anchor: $('life-counters'),
+  groups: () => (game ? counterPanelRows(game, { live: true, seats: damageSeats(), me: myUid }) : []),
+  onStep: (id, delta) => { if (!game) return; const action = playerAction(`${id}:${delta < 0 ? '-' : '+'}${Math.abs(delta)}`, game, { live: true, names: seatNames() }); if (action) apply(() => action.run(game), action.message); },
+});
 for (const [id, sign] of [['life-minus', -1], ['life-plus', 1]]) $(id).addEventListener('click', (event) => { if (game) apply(() => adjustLife(game, sign * (event.shiftKey ? 5 : 1)), ''); });
 
 const cardNodes = makeCardNodes({ onSelect: (uid) => select(uid), isSelected: (uid) => uid === selected, onMark: (uid, hit) => markOnCard(uid, hit), onMenu: (uid, where) => openMenuFor(uid, where), onBadge: (uid, kind) => clearBadge(uid, kind), printedStats: (card) => printedOf(card, lookup) });
@@ -191,6 +191,7 @@ function findCard(uid) {
 function renderCounters() {
   if (!game) return;
   lifeChips.update(chipEntries(game.pc, game.cd, commanderDamageSeatsFor(members, game.cd, meta?.format)));
+  if (counterPanel.isOpen()) counterPanel.update();
 }
 
 function render() {
@@ -211,6 +212,7 @@ function render() {
   $('mulligan').textContent = game.mulligans ? `Mulligan (${game.mulligans} so far)` : 'Mulligan';
   renderViewer();
   renderSelected();
+  if (document.body.dataset.view === 'sidebar') layoutSeats(); // (your life in the column)
 }
 
 function renderViewer() {
@@ -237,10 +239,12 @@ function renderViewer() {
 }
 
 // While a game shows, the list of players sits in the right column under the action buttons; otherwise it is in the page where it was (before the other players' panels).
+// The line of news (the topbar) sits in the head of your own area while you play, and at the top of the page otherwise.
 function dockPlayers(on) {
   const section = $('players-section');
-  if (on) $('players-slot').append(section);
-  else $('opponents').before(section);
+  const topbar = document.querySelector('.topbar');
+  if (on) { $('players-slot').append(section); $('topbar-slot').append(topbar); }
+  else { $('blocked').before(section); section.before(topbar); }
 }
 
 function renderSelected() {
@@ -497,8 +501,10 @@ async function beginGame() {
   viewing = null;
   cardNodes.clear();
   $('game').hidden = false;
-  document.body.classList.add('playing', 'seats'); // the Seats table: your area looks like the solo table, the other players' areas are across the top (src/style.css)
+  document.body.classList.add('playing', 'seats'); // the Seats table: every player's area looks like the solo table (src/style.css)
   dockPlayers(true);
+  renderMyHead();
+  layoutSeats();
   clearCorner();
   if (fresh) dealer.start(game.zones.hand.length); // a new hand is dealt one card at a time; a game put back after a refresh shows whole
   else render();
@@ -546,22 +552,36 @@ function opponentPanel(uid) {
   const board = make('div', 'battlefield');
   const command = make('div', 'row opp-command'); command.dataset.empty = 'Empty.';
   const piles = { library: otherPile(uid, 'library', 'Library'), graveyard: otherPile(uid, 'graveyard', 'Graveyard'), exile: otherPile(uid, 'exile', 'Exile') };
-  panel = { section, title: make('h3'), life: make('strong', 'opp-life'), stats: make('p', 'hint'), waiting: make('p', 'hint', 'Has not been dealt a game yet.'), body: make('div'), board, command, piles, view: null, nodes: makeCardNodes({ readOnly: true, printedStats: (card) => printedOf(card, lookup) }) };
+  section.className = 'opponent seat-area';
+  panel = { section, title: make('h3', 'seat-name'), life: make('strong', 'opp-life'), stats: make('p', 'hint opp-stats'), waiting: make('p', 'hint opp-waiting', 'Has not been dealt a game yet.'), body: make('div', 'opp-body'), board, command, piles, backs: make('div', 'opp-backs'), handPill: make('span', 'hand-pill opp-hand-pill'), view: null, nodes: makeCardNodes({ readOnly: true, printedStats: (card) => printedOf(card, lookup) }) };
   // Another player's counters and the commander damage they have taken: the same nodes as yours, read-only, shown only once something has happened.
   const countersBox = make('div', 'opponent-counters counter-chips'); countersBox.setAttribute('role', 'group'); countersBox.setAttribute('aria-label', 'Counters and commander damage'); countersBox.hidden = true;
   panel.countersBox = countersBox;
   panel.counterList = mountCounterChips(countersBox);
-  // (on the Seats table: who it is on one line, then their battlefield beside a narrow column with their command zone and piles; the battlefield is wrapped so the style sheet can turn it to face you)
+  // The area is laid out like your own (the solo table's look): life at the top left and the name at the top in the middle, their battlefield (wrapped so the style sheet can turn it to face you),
+  // their hand as a fan of card backs along the bottom with its count, and their piles and command zone at the bottom right. Their stats line is for a screen reader.
   const field = make('div', 'opp-field'); field.append(board);
-  const commandBox = make('div', 'opp-command-zone'); commandBox.append(command, make('span', 'opp-zone-label', 'Command'));
+  const commandBox = make('div', 'opp-command-zone'); commandBox.append(command, make('span', 'opp-zone-label', 'CMD'));
   const zones = make('div', 'opp-zones'); zones.append(piles.library.button, piles.graveyard.button, piles.exile.button, commandBox);
-  panel.body.className = 'opp-body';
-  panel.body.append(field, zones);
+  const hand = make('div', 'opp-hand'); hand.setAttribute('aria-hidden', 'true'); hand.append(panel.backs);
+  panel.body.append(field, hand, panel.handPill, zones);
   panel.life.title = 'Life';
-  const info = make('div', 'opp-info'); info.append(panel.title, panel.life, panel.stats, countersBox);
-  section.append(info, panel.waiting, panel.body);
+  const lifeBox = make('div', 'opp-life-box'); lifeBox.append(panel.life, countersBox);
+  const head = make('div', 'seat-head opp-info'); head.append(lifeBox, panel.title);
+  section.append(head, panel.stats, panel.waiting, panel.body);
   opponents.set(uid, panel);
   return panel;
+}
+
+// Their hand: as many card backs as they hold (at most 12 drawn; the count says the rest), in a fan. Only the number is known: the cards themselves are in their private branch.
+const MAX_BACKS = 12;
+function drawBacks(panel, count) {
+  const shown = Math.min(count, MAX_BACKS);
+  while (panel.backs.children.length > shown) panel.backs.lastElementChild.remove();
+  while (panel.backs.children.length < shown) panel.backs.append(make('span', 'opp-back'));
+  [...panel.backs.children].forEach((back, index) => { back.style.setProperty('--i', String(index - (shown - 1) / 2)); });
+  panel.backs.style.setProperty('--n', String(shown));
+  panel.handPill.textContent = `Hand ${count}`;
 }
 
 async function renderOpponents() {
@@ -603,13 +623,137 @@ async function renderOpponents() {
       drawEmblemCounts(panel.command, view.zones.command); // (an emblem with a count shows it on the other players' panels too)
       panel.piles.library.stack.update({ count: view.counts.library });
       for (const zone of ['graveyard', 'exile']) panel.piles[zone].stack.update({ count: view.zones[zone].length, top: view.zones[zone][0] ?? null });
+      drawBacks(panel, view.counts.hand);
     }
     if (viewingOther?.uid === uid) renderViewer(); // their pile is open in the window: show it as it is now
     panels.push(panel.section);
   }
-  for (const [uid, panel] of opponents) if (!others.some(([other]) => other === uid)) { opponents.delete(uid); panel.section.remove(); }
-  $('opponent-list').replaceChildren(...panels);
+  for (const [uid, panel] of opponents) if (!others.some(([other]) => other === uid)) { opponents.delete(uid); panel.section.remove(); slots.get(uid)?.slot.remove(); slots.delete(uid); }
+  renderMyHead(turnNow);
+  layoutSeats();
 }
+
+// ---- where the areas are: Grid view (every area at once) or Sidebar view (one large, the others small in a column on the right) ----
+// The areas are the same elements in both views; Sidebar view moves the ones that are not shown large into the column, where each is drawn at the size of the large one and shrunk (a scale), so it
+// looks exactly like a small copy and nothing is laid out twice. Your hand stays yours: when another player is shown large, it moves out of your area and stays along the bottom of the window.
+const VIEW_KEY = 'overloaded.seatsView';
+let seatsView = store.get(VIEW_KEY) === 'sidebar' ? 'sidebar' : 'grid';
+let focusUid = null; // in Sidebar view, the player shown large (null: you)
+const slots = new Map(); // uid -> { slot, head, name, life, body } in the sidebar column
+
+// The other players in turn order after you (clockwise from your seat): the first is the one who plays after you.
+function othersInOrder() {
+  const mine = Number(members[myUid]?.seat ?? 1);
+  return [...opponents.keys()].sort((a, b) => ((Number(members[a]?.seat ?? 0) - mine + 8) % 4) - ((Number(members[b]?.seat ?? 0) - mine + 8) % 4));
+}
+function mySeatTitle() { const me = members[myUid]; return me ? `Seat ${me.seat}: ${me.name} (You)` : 'You'; }
+function renderMyHead(turnNow = game !== null ? currentTurnInfo() : null) {
+  $('my-name').textContent = mySeatTitle();
+  $('seat-me').classList.toggle('active', turnNow !== null && turnNow.uid === myUid);
+}
+function slotFor(uid) {
+  let entry = slots.get(uid);
+  if (entry) return entry;
+  const slot = make('div', 'seat-slot');
+  slot.dataset.uid = uid;
+  const head = make('button', 'slot-head');
+  head.type = 'button';
+  const name = make('span', 'slot-name');
+  const life = make('span', 'slot-life');
+  head.append(name, life);
+  const body = make('div', 'slot-body');
+  body.addEventListener('click', () => focusSeat(uid));
+  head.addEventListener('click', () => focusSeat(uid));
+  slot.append(head, body);
+  entry = { slot, head, name, life, body };
+  slots.set(uid, entry);
+  return entry;
+}
+function focusSeat(uid) {
+  focusUid = uid === myUid ? null : uid;
+  layoutSeats();
+}
+function setView(next) {
+  seatsView = next;
+  store.set(VIEW_KEY, next);
+  layoutSeats();
+}
+$('view-toggle').addEventListener('click', () => setView(seatsView === 'grid' ? 'sidebar' : 'grid'));
+
+function layoutSeats() {
+  const others = othersInOrder();
+  others.forEach((uid, index) => { opponents.get(uid).section.dataset.slot = `o${index + 1}`; });
+  const sidebar = seatsView === 'sidebar' && game !== null;
+  document.body.dataset.view = sidebar ? 'sidebar' : 'grid';
+  const toggle = $('view-toggle');
+  toggle.setAttribute('aria-pressed', String(sidebar));
+  toggle.setAttribute('aria-label', sidebar ? 'Grid view' : 'Sidebar view');
+  toggle.title = sidebar ? 'Grid view: every player at once' : 'Sidebar view: one player large';
+  const me = $('seat-me');
+  const hand = $('hand-section');
+  const areaOf = (uid) => (uid === myUid ? me : opponents.get(uid)?.section ?? null);
+  if (focusUid !== null && !opponents.has(focusUid)) focusUid = null;
+  const focusedArea = sidebar ? areaOf(focusUid ?? myUid) : null;
+  // every area back where the grid wants it, in turn order (the style sheet places them by data-slot)
+  const order = [myUid, ...others];
+  const before = { hand: hand.parentElement, focused: focusedArea };
+  // an area that is not shown small goes back to the grid, in turn order (the style sheet places them by data-slot); nothing is moved that is already in its place
+  const gridAreas = others.map((uid) => opponents.get(uid).section).filter((area) => !(sidebar && area !== focusedArea));
+  for (const area of [me, ...others.map((uid) => opponents.get(uid).section)]) { area.classList.toggle('focused', area === focusedArea); if (!sidebar || area === focusedArea) area.classList.remove('mini'); }
+  placeChildren($('opponent-list'), gridAreas);
+  if ((!sidebar || focusedArea === me) && me.parentElement !== $('seats-stage')) $('seats-stage').append(me);
+  const docked = sidebar && focusedArea !== me;
+  if (docked) { if (hand.parentElement !== focusedArea) focusedArea.append(hand); } else if (hand.parentElement !== me) me.append(hand); // (docked: in the large area, where that player's own hand would be)
+  hand.classList.toggle('docked', docked);
+  $('seats-stage').classList.toggle('hand-docked', docked);
+  const side = $('seats-side');
+  side.hidden = !sidebar;
+  if (!sidebar) { side.replaceChildren(); if (before.hand !== hand.parentElement) handView.arrange(); return; }
+  placeChildren(side, order.map((uid) => slotFor(uid).slot));
+  for (const uid of order) {
+    const entry = slotFor(uid);
+    const area = areaOf(uid);
+    const member = members[uid];
+    entry.name.textContent = uid === myUid ? 'You' : `${member?.name ?? ''}`;
+    const life = uid === myUid ? game?.life : opponents.get(uid)?.view?.life;
+    entry.life.textContent = life === undefined || life === null ? '' : `♥ ${life}`;
+    const isFocused = area === focusedArea;
+    entry.slot.classList.toggle('viewing', isFocused);
+    entry.slot.classList.toggle('active', area?.classList.contains('active') ?? false);
+    entry.head.setAttribute('aria-pressed', String(isFocused));
+    entry.head.setAttribute('aria-label', `${uid === myUid ? 'Your area' : `${member?.name ?? 'This player'}'s area`}${isFocused ? ' (shown large)' : ': show it large'}`);
+    if (isFocused) { if (!entry.body.querySelector(':scope > .slot-eye')) entry.body.replaceChildren(eyeMark()); }
+    else if (area) { area.classList.add('mini'); if (area.parentElement !== entry.body) entry.body.replaceChildren(area); }
+  }
+  sizeMinis();
+  if (before.hand !== hand.parentElement || before.focused !== focusedArea) handView.arrange();
+}
+// The mark in the column for the area that is shown large: an eye (an inline SVG with its size and fill set on it).
+function eyeMark() {
+  const mark = make('span', 'slot-eye');
+  mark.setAttribute('aria-hidden', 'true');
+  mark.innerHTML = '<svg width="34" height="34" viewBox="0 0 24 24" fill="currentColor"><path d="M12 5c5 0 9 4.2 10 7-1 2.8-5 7-10 7S3 14.8 2 12c1-2.8 5-7 10-7Zm0 2.2A4.8 4.8 0 1 0 12 16.8 4.8 4.8 0 0 0 12 7.2Zm0 2.3a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5Z"/></svg>';
+  return mark;
+}
+// Puts these children in this parent in this order, touching the page only when they are not already so (moving an element restarts its animations and loses the pointer's hover).
+function placeChildren(parent, wanted) {
+  const now = [...parent.children];
+  if (now.length === wanted.length && now.every((child, index) => child === wanted[index])) return;
+  parent.replaceChildren(...wanted);
+}
+// The small copies are the large area's size, scaled to the column's width.
+function sizeMinis() {
+  const stage = $('seats-stage');
+  const game_ = $('game');
+  const width = stage.clientWidth;
+  const height = stage.clientHeight;
+  if (!width || !height) return;
+  const slotWidth = $('seats-side').clientWidth - 16;
+  game_.style.setProperty('--stage-w', `${width}px`);
+  game_.style.setProperty('--stage-h', `${height}px`);
+  game_.style.setProperty('--mini', String(Math.max(0.05, slotWidth / width)));
+}
+if (typeof ResizeObserver === 'function') new ResizeObserver(() => { if (document.body.dataset.view === 'sidebar') sizeMinis(); }).observe($('seats-stage'));
 
 // ---- pinging a card (shared/ping.mjs) ----
 // A ping is one record on the pinger's own public branch; every page shows a ping whose number differs from the last one it saw for that player. The first snapshot after the
@@ -819,7 +963,9 @@ for (const [zone, name] of [['library', 'Library'], ['graveyard', 'Graveyard'], 
   caret.title = `${name} options`;
   caret.innerHTML = '<svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" aria-hidden="true"><path d="M1 3l4 4 4-4z"/></svg>';
   caret.addEventListener('click', () => { if (!game) return; if (caret.getAttribute('aria-expanded') === 'true') { closeCardMenu(); return; } const box = caret.getBoundingClientRect(); caret.setAttribute('aria-expanded', 'true'); openPileMenu(zone, { x: box.left, y: box.bottom + 4, element: caret, toggleOn: caret, avoid: box, onClose: () => caret.setAttribute('aria-expanded', 'false') }); });
-  head.append(make('span', 'pile-name', name), caret);
+  const label = make('span', 'pile-name', name);
+  label.dataset.short = { library: 'Lib', graveyard: 'GY', exile: 'Exile' }[zone] ?? name; // (the areas of the table are small: the style sheet shows the short name)
+  head.append(label, caret);
   pile.before(slot);
   slot.append(head, pile);
 }
@@ -833,6 +979,9 @@ for (const zone of ['library', 'graveyard', 'exile', 'sideboard']) {
 }
 const settings = mountSettingsMenu({ button: $('settings-button'), panel: $('settings-menu') });
 mountFacing($('facing-settings'), { store });
+mountHandRestSetting($('hand-rest-settings'), { onChange: () => handView.arrange() });
+// The action bar floats like the solo table's (src/floating-bar.js): drag it by its grip; it starts docked at the bottom of the left edge, beside your own area.
+mountFloatingBar({ bar: document.querySelector('.actions-panel'), grip: $('bar-grip'), store, key: 'overloaded.seatsBar2', defaultPlace: { dock: 'left', fx: 0, fy: 1 } });
 mountKeybindSettings($('keybind-settings'), { keybinds, page: 'table' });
 $('pile-sideboard').addEventListener('click', () => settings.close()); // the viewer opens over the table; the Settings panel would only be in the way
 
@@ -1010,7 +1159,7 @@ function dropOnPile({ uid, from, to, flying = null }) {
   apply(() => moveCard(game, uid, to, to === 'command' ? {} : { position: 'top' }), `Moved ${name} to ${ZONE_WORDS[to]}.`);
 }
 // Your hand as a fan: the page draws the cards, the hand view places them and shows their mana costs; a card of the hand dragged within it opens a gap and is put there when let go.
-const handView = mountHand({ container: $('hand'), restHidden: () => 0, fillBox: true, costOf: (uid) => { const card = game?.zones.hand.find((c) => c.uid === uid); const known = card ? lookup?.(card) : null; return known?.m ?? ''; } });
+const handView = mountHand({ container: $('hand'), restHidden, raiseFloor: () => ($('hand-section').classList.contains('docked') ? null : $('battlefield').getBoundingClientRect().bottom), costOf: (uid) => { const card = game?.zones.hand.find((c) => c.uid === uid); const known = card ? lookup?.(card) : null; return known?.m ?? ''; } });
 function reorderInHand({ uid, x, picture }) {
   if (!game || !game.zones.hand.some((c) => c.uid === uid)) return;
   const to = handView.holeFor(uid, x); // the place it was last shown over
@@ -1019,7 +1168,7 @@ function reorderInHand({ uid, x, picture }) {
   if (next === game) { handView.arrange(); return; }
   apply(() => next, '');
 }
-mountBoardDrag({ board: () => $('battlefield'), onDrop: dropOnBoard, hand: () => $('hand-section'), onDropHand: dropOnHand, onHandOver: (over) => handView.carry(over), onReorderHand: reorderInHand, handZone: () => handView.zone(), handHit: (x, y) => handView.over(x, y), zoneSource, pileAt, onDropPile: dropOnPile, isEnabled: () => Boolean(game) });
+mountBoardDrag({ board: () => $('battlefield'), onDrop: dropOnBoard, hand: () => $('hand-section'), onDropHand: dropOnHand, onHandOver: (over) => handView.carry(over), onReorderHand: reorderInHand, handZone: () => handView.zone(), handHit: (x, y) => handView.over(x, y), zoneSource, pileAt, onDropPile: dropOnPile, isEnabled: () => Boolean(game), boardFirst: true });
 
 $('mulligan').addEventListener('click', () => { if (game) doMulligan(); });
 // the life total is the number itself: click, right-click, Shift for 5, hold to set (src/life-control.js)

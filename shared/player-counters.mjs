@@ -53,7 +53,7 @@ export function commanderDamageSeats(members, cd = null) {
     const seat = String(member?.seat ?? '');
     if (!COMMANDER_SEATS.includes(seat)) continue;
     const hasCommander = typeof member.commander === 'string' && member.commander.trim() !== '';
-    if (hasCommander || whole(cd?.[seat]) > 0) seats.push({ uid, seat, name: typeof member.name === 'string' ? member.name : '' });
+    if (hasCommander || whole(cd?.[seat]) > 0) seats.push({ uid, seat, name: typeof member.name === 'string' ? member.name : '', commander: hasCommander ? member.commander.trim() : '' });
   }
   return seats.sort((a, b) => Number(a.seat) - Number(b.seat));
 }
@@ -125,6 +125,21 @@ export function playerAddItems(game, { live = false } = {}) {
     const entry = counterEntry(kind, game?.pc);
     return entry.flag ? { id: `flag:${kind}`, label: `${entry.label}: ${entry.count ? 'on' : 'off'}` } : { id: `counter:${kind}:+1`, label: `${entry.label}: ${entry.count}` };
   });
+}
+
+// The lines of the counters panel under the life total of the table page (Kevin, 2026-11-20): first the commander damage you have taken from each seat that has a commander (the player and their commander, so
+// partners show as "A & B"), then your counters, each with its count and a minus and a plus. seats: from commanderDamageSeatsFor; me: your own uid (your own commander is listed too, marked as yours).
+// Returns [{ title, rows: [{ id, label, detail, count, lethal }] }], groups with no rows left out. A step is playerAction(`${id}:+1`) or `${id}:-1` (flags are left out: they are not counters).
+export function counterPanelRows(game, { live = false, seats = [], me = null } = {}) {
+  const groups = [];
+  const damage = seats.map(({ uid, seat, name, commander }) => {
+    const entry = commanderDamageEntry(game?.cd, seat, name);
+    return { id: entry.id, label: `${name || `Seat ${seat}`}${uid === me ? ' (you)' : ''}`, detail: commander || '', count: entry.count, lethal: entry.lethal };
+  });
+  if (damage.length) groups.push({ title: 'Commander damage', rows: damage });
+  const counters = offeredCounters({ live }).filter((kind) => !PLAYER_FLAGS.includes(kind)).map((kind) => { const entry = counterEntry(kind, game?.pc); return { id: entry.id, label: entry.label, detail: '', count: entry.count, lethal: entry.lethal }; });
+  if (counters.length) groups.push({ title: 'Counters', rows: counters });
+  return groups;
 }
 
 // What a choice in that menu does: { run(game) -> game, message } or null for an id that is not one. names maps a seat to the player's name (for the words).
