@@ -46,3 +46,10 @@ export function seatDeckText(member) {
   const bracket = bracketOf(member);
   return [commanderOf(member), bracket ? `bracket ${bracket}${member.bracketGuess === true ? ' (guess)' : ''}` : ''].filter(Boolean).join(', ');
 }
+
+// The commander(s) a seat shows ('' when the player has told the table nothing), and its bracket as { number, guess } or null (Kevin, 2026-11-19: the bracket is a pill of its own on the seat, so the two are given apart).
+export const seatCommander = (member) => commanderOf(member);
+export function seatBracket(member) {
+  const number = bracketOf(member);
+  return number ? { number, guess: member.bracketGuess === true } : null;
+}

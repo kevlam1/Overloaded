@@ -110,10 +110,11 @@ try {
   await waitFor(async () => (await dialogOpen(alice)) || null, 5000, 100);
   await choose(alice, 'deck-dialog-pick', goblinsId);
   await click(alice, 'deck-dialog-ok');
-  const aliceRow = await rowHas(alice, 'Alice', 'Krenko, Mob Boss', 'bracket 3', 'Ready');
+  const aliceRow = await rowHas(alice, 'Alice', 'Krenko, Mob Boss', 'Bracket 3', 'Ready');
   record('choosing a deck in the popup brings it to the table and makes Alice ready', Boolean(aliceRow), aliceRow ?? await row(alice, 'Alice'));
-  const bobSeesAlice = await rowHas(bob, 'Alice', 'Krenko, Mob Boss', 'bracket 3', 'Ready');
+  const bobSeesAlice = await rowHas(bob, 'Alice', 'Krenko, Mob Boss', 'Bracket 3', 'Ready');
   record("Bob's page shows Alice's commander, bracket and Ready mark (a second browser, live)", Boolean(bobSeesAlice), bobSeesAlice ?? await row(bob, 'Alice'));
+  if (process.argv.includes('--screenshot')) { await sleep(800); await bob.screenshot('scratch-lobby-room.png'); }
   record("Alice's button now offers to take it back", (await readyText(alice)) === 'Not ready');
 
   // The database holds the commander and bracket, never a deck list.
@@ -123,12 +124,13 @@ try {
 
   // Bob: no deck of this format. The popup says so and offers a link.
   await click(bob, 'ready');
-  await waitFor(async () => (await dialogOpen(bob)) || null, 5000, 100);
-  const bobDialog = await bob.eval(`({ ok: document.getElementById('deck-dialog-ok').hidden && document.getElementById('deck-dialog-ok').disabled, closeWord: document.getElementById('deck-dialog-cancel').textContent === 'Close', importShown: !document.getElementById('deck-dialog-import').hidden, fieldHidden: document.getElementById('deck-dialog-field').hidden, words: document.getElementById('deck-dialog-text').textContent })`);
-  record('with no deck to offer, the popup says so, links to the deck page and has nothing to confirm (only Close)', bobDialog.ok && bobDialog.closeWord && bobDialog.importShown && bobDialog.fieldHidden && /no saved Commander deck/.test(bobDialog.words), JSON.stringify(bobDialog));
-  if (process.argv.includes('--screenshot')) { await sleep(300); await bob.screenshot('scratch-lobby-dialog.png'); }
-  await bob.eval(`document.getElementById('deck-dialog').close()`);
-  record("Bob's page also says it under the picker, with a link", /no saved Commander deck/.test(await text(bob, 'deck-note')) && (await bob.eval(`!document.getElementById('deck-import').hidden && document.getElementById('deck-pick-field').hidden`)));
+  await waitFor(async () => (await bob.eval(`!document.getElementById('import-overlay').hidden`)) || null, 8000, 100);
+  await waitFor(async () => (await bob.eval(`Boolean(document.getElementById('deck-text'))`)) || null, 15000, 100); // (the importer loads when the window first opens)
+  const bobImport = await bob.eval(`({ open: !document.getElementById('import-overlay').hidden, dialogClosed: !document.getElementById('deck-dialog').open, onPaste: Boolean(document.getElementById('deck-text')), title: document.getElementById('import-title').textContent })`);
+  record('with no deck to offer, pressing Ready opens the import window on its box to paste into (not the choose-a-deck popup)', bobImport.open && bobImport.dialogClosed && bobImport.onPaste && bobImport.title === 'Import a deck', JSON.stringify(bobImport));
+  if (process.argv.includes('--screenshot')) { await sleep(300); await bob.screenshot('scratch-lobby-import.png'); }
+  await bob.eval(`document.getElementById('import-close').click()`);
+  record("Bob's page also says it under the picker, and offers the Import a deck card", /no saved Commander deck/.test(await text(bob, 'deck-note')) && (await bob.eval(`Boolean(document.getElementById('deck-tiles-import')) && document.getElementById('deck-pick-field').hidden && document.getElementById('import-overlay').hidden`)));
 
   // Bob saves a deck (as if imported in another tab) and comes back: the refresh puts him back at his seat.
   await bob.eval(`localStorage.setItem(${JSON.stringify(LIBRARY_KEY)}, ${JSON.stringify(serializeLibrary(bobLibrary))})`);
@@ -137,7 +139,7 @@ try {
   const bobOptions = await waitFor(async () => { const o = await bob.eval(`Array.from(document.getElementById('deck-pick').options).map((x) => x.textContent)`); return o.length > 1 ? o : null; }, 15000, 200);
   record("after a refresh Bob's picker lists his new deck", JSON.stringify(bobOptions) === JSON.stringify(['Choose a deck...', 'Elves (Ezuri, Renegade Leader, bracket 2)']), JSON.stringify(bobOptions));
   await choose(bob, 'deck-pick', bobLibrary.decks[0].id);
-  const bobRow = await rowHas(alice, 'Bob', 'Ezuri, Renegade Leader', 'bracket 2');
+  const bobRow = await rowHas(alice, 'Bob', 'Ezuri, Renegade Leader', 'Bracket 2');
   record("choosing a deck in the picker shows Bob's commander on Alice's page, and he is not ready yet", Boolean(bobRow) && !bobRow.includes('Ready'), bobRow ?? await row(alice, 'Bob'));
   await click(bob, 'ready');
   const bobReady = await rowHas(alice, 'Bob', 'Ready');
@@ -150,11 +152,11 @@ try {
   // Alice changes deck: her ready mark must go, on both pages.
   await choose(alice, 'deck-pick', partnersId);
   const changed = await rowHas(alice, 'Alice', 'Tymna the Weaver & Thrasios, Triton Hero');
-  record('choosing another deck shows the new commanders (two joined with " & ") and no bracket', Boolean(changed) && !changed.includes('bracket'), changed ?? await row(alice, 'Alice'));
+  record('choosing another deck shows the new commanders (two joined with " & ") and no bracket', Boolean(changed) && !changed.includes('Bracket'), changed ?? await row(alice, 'Alice'));
   record('and takes Alice\'s ready mark back, on her page', !(await row(alice, 'Alice')).includes('Ready') && (await readyText(alice)) === 'Ready', await row(alice, 'Alice'));
   const bobSawIt = await waitFor(async () => { const t = await row(bob, 'Alice'); return t.includes('Tymna') && !t.includes('Ready') ? t : null; }, 15000, 200);
   record("and on Bob's page", Boolean(bobSawIt), await row(bob, 'Alice'));
-  const saidSo = await waitFor(async () => { const t = await statusText(alice); return /not ready any more: press Ready again/.test(t) ? t : null; }, 10000, 200);
+  const saidSo = await waitFor(async () => { const t = await statusText(alice); return /Not ready: press Ready again/.test(t) ? t : null; }, 10000, 200);
   record('and says so', Boolean(saidSo), await statusText(alice));
   entry = await memberEntry(cleanup.alice.token, code, cleanup.alice.uid);
   record("the database has the new commanders, no bracket and no ready mark for Alice", entry && entry.commander === 'Tymna the Weaver & Thrasios, Triton Hero' && !('bracket' in entry) && !('ready' in entry), JSON.stringify(entry));
@@ -172,6 +174,7 @@ try {
   const tiles = () => alice.eval(`[...document.querySelectorAll('#deck-tiles .deck-choice')].map((tile) => tile.dataset.id + ':' + tile.getAttribute('aria-pressed'))`);
   const tilesAre = (...states) => waitFor(async () => { const t = JSON.stringify(await tiles()); return t === JSON.stringify(states) ? t : null; }, 10000, 200);
   record('the deck cards show her two Commander decks with the one she brought pressed in', Boolean(await tilesAre(goblinsId + ':false', partnersId + ':true')), JSON.stringify(await tiles()));
+  if (process.argv.includes('--screenshot')) { await sleep(2500); await alice.eval(`document.getElementById('deck-tiles').scrollIntoView({ block: 'center' })`); await sleep(300); await alice.screenshot('scratch-lobby-decks.png'); }
   const click_ = (id) => alice.eval(`document.querySelector('#deck-tiles .deck-choice[data-id="${id}"]').click()`);
   await click_(goblinsId);
   record('a click on the other deck card brings that deck, and its card is the pressed one', Boolean(await tilesAre(goblinsId + ':true', partnersId + ':false')) && (await alice.eval(`document.getElementById('deck-pick').value`)) === goblinsId, JSON.stringify(await tiles()));

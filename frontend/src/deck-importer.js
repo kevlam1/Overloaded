@@ -64,7 +64,13 @@ let viewToggle = null;
 let pendingPlay = false; // /deck?sample&play (the demo path from the solo table's empty state): once the sample deck is checked and saved, the solo table opens with it
 let pendingSample; // undefined, or the id of a sample deck to put in the box once the card list has loaded ('' is the first one; a /deck?sample address asks for it)
 let onLibraryChange = () => {};
+let formatFor = null; // the lobby's table decides the format of a deck made there: a format, or a function that gives it (null: the importer guesses, as on /deck)
 let mounted = false;
+// A deck made while formatFor says a format is that format, and the format box no longer follows the guess.
+function applyFormatPolicy() {
+  const wanted = typeof formatFor === 'function' ? formatFor() : formatFor;
+  if (wanted === 'commander' || wanted === 'standard') { $('deck-format').value = wanted; formatTouched = true; }
+}
 
 function make(tag, className, content) {
   const element = document.createElement(tag);
@@ -320,7 +326,7 @@ async function runCheck() {
   if (pasted !== text) {
     choices = {};
     // A new deck starts again from the guesses; a saved deck that is being edited keeps its format, bracket and commander (they save with it).
-    if (!currentId) { picksTouched = false; formatTouched = false; $('deck-bracket').value = ''; }
+    if (!currentId) { picksTouched = false; formatTouched = false; $('deck-bracket').value = ''; applyFormatPolicy(); }
   }
   text = pasted;
   const run = ++checkRun;
@@ -699,7 +705,7 @@ function setView(next) {
 // ---- starting ----
 // root: the element to build the manager in. Options: sampleId (undefined, or the sample deck a /deck?sample address asks for: '' is the first), onLibraryChange (called after
 // the saved decks change, so a page that lists them can look again), play (the saved decks get a "Play solo" button; not inside the lobby). Call it once; a second call does nothing.
-export function mountDeckImporter({ root: container, sampleId, autoPlay = false, onLibraryChange: onChange = () => {}, play = true } = {}) {
+export function mountDeckImporter({ root: container, sampleId, autoPlay = false, onLibraryChange: onChange = () => {}, play = true, startOn = null, format = null } = {}) {
   if (mounted || !container) return;
   mounted = true;
   root = container;
@@ -707,6 +713,7 @@ export function mountDeckImporter({ root: container, sampleId, autoPlay = false,
   pendingSample = sampleId;
   pendingPlay = autoPlay && play;
   onLibraryChange = onChange;
+  formatFor = format;
   build();
   const savedView = store.get(VIEW_KEY);
   view = VIEWS.includes(savedView) ? savedView : 'text';
@@ -737,7 +744,7 @@ export function mountDeckImporter({ root: container, sampleId, autoPlay = false,
   $('check').addEventListener('click', runCheck);
   $('retry').addEventListener('click', loadCards);
   $('sample').addEventListener('click', () => useSample());
-  $('new-deck').addEventListener('click', () => { currentId = null; setSaveState(''); $('deck-text').value = ''; text = ''; preview = null; choices = {}; picksTouched = false; formatTouched = false; $('deck-bracket').value = ''; $('deck-name').value = ''; checkRun++; say(''); showScreen('paste'); });
+  $('new-deck').addEventListener('click', () => { currentId = null; setSaveState(''); $('deck-text').value = ''; text = ''; preview = null; choices = {}; picksTouched = false; formatTouched = false; $('deck-bracket').value = ''; $('deck-name').value = ''; applyFormatPolicy(); checkRun++; say(''); showScreen('paste'); });
   $('cancel-paste').addEventListener('click', () => { say(''); showScreen(preview ? 'deck' : 'list'); });
   $('back-to-decks')?.addEventListener('click', () => { say(''); showScreen('list'); });
   // The header's Decks link, on the deck page: from a deck or the box to paste into it shows the list at once, without loading the page again.
@@ -806,6 +813,7 @@ export function mountDeckImporter({ root: container, sampleId, autoPlay = false,
   setupCardPeek({ root, peek: document.getElementById('card-peek'), image: document.getElementById('card-peek-image'), note: document.getElementById('card-peek-note') });
   // With saved decks (or a message about decks that could not be read) the page starts at the list; with none it starts at the box to paste into.
   const somethingToShow = library.decks.length > 0 || libraryRead.source === 'damaged' || libraryRead.skipped > 0;
-  showScreen(somethingToShow && pendingSample === undefined ? 'list' : 'paste');
+  showScreen(startOn === 'paste' || !(somethingToShow && pendingSample === undefined) ? 'paste' : 'list');
+  applyFormatPolicy();
   loadCards();
 }

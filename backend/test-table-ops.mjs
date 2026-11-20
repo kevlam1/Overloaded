@@ -505,6 +505,33 @@ goOnline(pb.db);
 check('and up again when it returns', await until(async () => connectionSeen.at(-1) === true), JSON.stringify(connectionSeen));
 stopConnection();
 
+console.log('setName and setFormat: your name and the table\'s format in the lobby (2026-11-19)');
+{
+  const host = person('namehost');
+  const guest = person('nameguest');
+  const outsider = person('nameoutsider');
+  const table = await host.ops.createTable({ name: 'Host', seats: 3, format: 'commander' });
+  await guest.ops.joinTable({ code: table.code, name: 'Guest' });
+  const nameOf = (uid) => readAdmin(`tables/${table.code}/members/${uid}/name`);
+  const refused = async (run) => { try { await run(); return null; } catch (error) { return error.message; } };
+
+  check('setName changes your name at the table', JSON.stringify(await guest.ops.setName(table.code, '  Gus  ')) === '{"name":"Gus","changed":true}' && (await nameOf('nameguest')) === 'Gus');
+  check('the same name again changes nothing', JSON.stringify(await guest.ops.setName(table.code, 'Gus')) === '{"name":"Gus","changed":false}');
+  check('a name that is not a name is refused in words and the old one stays', /name/i.test(await refused(() => guest.ops.setName(table.code, '   '))) && (await nameOf('nameguest')) === 'Gus');
+  check('and so is one that is too long', /name/i.test(await refused(() => guest.ops.setName(table.code, 'x'.repeat(31)))) && (await nameOf('nameguest')) === 'Gus');
+  check('someone who is not at the table cannot change a name', /not at that table/.test(await refused(() => outsider.ops.setName(table.code, 'Nope'))));
+  check('setName leaves the seat and the rest of the entry alone', JSON.stringify(Object.keys(await readAdmin(`tables/${table.code}/members/nameguest`)).sort()) === '["name","seat"]');
+
+  check('the host changes the format to Standard', JSON.stringify(await host.ops.setFormat(table.code, 'standard')) === '{"format":"standard","changed":true}' && (await readAdmin(`tables/${table.code}/meta/format`)) === 'standard');
+  check('the same format again changes nothing', JSON.stringify(await host.ops.setFormat(table.code, 'standard')) === '{"format":"standard","changed":false}');
+  check('a guest cannot change the format', /host/.test(await refused(() => guest.ops.setFormat(table.code, 'commander'))) && (await readAdmin(`tables/${table.code}/meta/format`)) === 'standard');
+  check('a format that does not exist is refused before any request', /ormat|Commander|Standard/.test(await refused(() => host.ops.setFormat(table.code, 'modern'))) && (await readAdmin(`tables/${table.code}/meta/format`)) === 'standard');
+  await host.ops.setReady(table.code);
+  await guest.ops.setReady(table.code);
+  await host.ops.startMatch(table.code);
+  check('once the match has started the name and the format cannot change', /started/.test(await refused(() => guest.ops.setName(table.code, 'Late'))) && /started/.test(await refused(() => host.ops.setFormat(table.code, 'commander'))));
+}
+
 console.log('setDeck: what the table learns about your deck (2026-10-30)');
 {
   const host = person('deckhost');

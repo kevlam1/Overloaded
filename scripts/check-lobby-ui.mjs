@@ -33,7 +33,7 @@ try {
       lang: document.documentElement.lang,
       viewport: !!document.querySelector('meta[name=viewport]'),
       h1s: document.querySelectorAll('h1').length,
-      ids: ['name', 'seats', 'format', 'table-format', 'create', 'join-code', 'join', 'status', 'banner', 'table', 'code', 'link', 'seat', 'players'].every((id) => !!byId(id)),
+      ids: ['name', 'seats', 'format', 'table-format', 'create', 'join-code', 'join', 'status', 'banner', 'table', 'code', 'link', 'players', 'format-switch', 'deck-tiles', 'import-overlay'].every((id) => !!byId(id)),
       bannerHiddenAtStart: byId('banner').hidden && byId('banner').textContent === '',
       bannerIsLive: byId('banner').getAttribute('aria-live') === 'polite' && byId('banner').getAttribute('role') === 'status',
       fieldsWithoutLabel: fields.filter((f) => !document.querySelector('label[for="' + f.id + '"]')).map((f) => f.id),
@@ -69,7 +69,7 @@ try {
   check('the disclaimer does not use a Wizards or Magic logo or call the site by the trademarked name in its title', !/Magic: The Gathering/i.test(facts.title));
   check('buttons are at least 44 px tall', facts.buttonHeights.every((h) => h >= 44), facts.buttonHeights.join(','));
   check('nothing scrolls sideways at desktop width', !facts.scrollsSideways);
-  check('headings go h1, five h2 (name, make, join by code, join this table, your table), two h3 inside the table (the players and your deck; the Start button has no heading of its own; the deck manager builds its own headings only when it is opened), then the closed popup own h2', facts.headingOrder === 'H1,H2,H2,H2,H2,H2,H3,H3,H2', facts.headingOrder);
+  check('headings go h1, five h2 (name, make, join by code, join this table, your table), two h3 inside the table (the seats and your deck; the Start button has no heading of its own), then the closed popup own h2 and the import window own h2 (the deck manager builds its own headings only when it is opened)', facts.headingOrder === 'H1,H2,H2,H2,H2,H2,H3,H3,H2,H2', facts.headingOrder);
 
   // ---- loading: nothing from anyone else, and nothing sent to the database yet ----
   const loadRequests = browser.events.filter((e) => e.method === 'Network.requestWillBeSent').map((e) => e.params.request.url);
@@ -187,7 +187,7 @@ try {
     await browser.screenshot('scratch-lobby-ui.png');
     // A real table needs the database, so this shows the table section with made-up text, only to look at the layout.
     await browser.eval(`(() => { document.getElementById('format').value = 'standard'; document.getElementById('table').hidden = false;
-      document.getElementById('code').textContent = 'ABC234'; document.getElementById('seat').textContent = '1';
+      document.getElementById('code').textContent = 'ABC234'; 
       document.getElementById('table-format').textContent = 'Standard'; document.getElementById('table').scrollIntoView(); })()`);
     await sleep(200);
     await browser.screenshot('scratch-lobby-ui-table.png');

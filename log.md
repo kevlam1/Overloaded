@@ -4887,6 +4887,32 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **My AI's mistakes this time:** an old check said two emblems have two different ids, which was true until this change, so it failed and I rewrote it to say the opposite. That is the right fix, but it is worth knowing the old test was protecting the old behaviour.
 
+## 247. The lobby remade, part 1: seats, name, format, deck search, import window (2026-11-19)
+
+**What I asked for**
+- Clicking Lobby on a table that has expired should clear it and make a new table. I should be able to edit my name in the lobby. The bracket should be a pill, with the commander's art behind each player; the table section must not change size with how much text there is. "Bringing" and "Bring" are awkward and "You brought..." is too verbose. A button to change the table's format (Commander and Standard for now), a search bar for decks, and a better way to import a deck straight from the lobby than "Import or change a deck". Then lobby settings: a bracket level 1 to 5 or Any (only a warning next to the name, never stopping anyone) and a clock that counts up on a player's turn. We agreed to do the first part now and the settings (which need a rules change) after.
+
+**What changed** (`frontend/pages/lobby/index.html`, `lobby.js`, `frontend/src/deck-tiles.js`, `deck-importer.js`, `shared/table-ops.mjs`, `shared/lobby-deck.mjs`, `style.css`)
+- **Seats:** each seat is a card of one fixed height in a row (four across on a wide window): the number, the Host chip, the name and the commander on two lines that never grow (a long one is cut with "..."), and pills along the bottom: the bracket (dashed when guessed), Ready and the connection. The first commander's art is behind the card, found by name in the card list, which is only fetched when somebody has a commander or you have decks. An empty seat is a dashed card with Add bot for the host.
+- **Name:** a pencil on your own seat turns the name into a small box with Save and Cancel (Enter and Escape work); `setName` writes it and the other players see it at once. Only in the lobby.
+- **Format:** a Commander / Standard switch in the header. The host can press it in the lobby; everyone else sees it dimmed with the current one lit. `setFormat` writes it; every page then clears its own deck and Ready mark (a player can only write their own entry).
+- **Decks:** a search box (name or commander), an "Import a deck" card first in the grid, and the chosen deck says "Selected" with a tick; the others carry nothing. The "You brought ..." line and the long note are gone: choosing says nothing, except "Not ready: press Ready again." when it took your Ready back.
+- **Import:** the old button and the panel that opened under it are gone. "Import a deck" opens the same importer as the deck page in a window over the lobby, on its box to paste into and with the table's format. Done closes it and the deck just imported is the one you bring. Pressing Ready with no deck opens it too.
+- **Lobby link:** opening the address of a table this browser was at that has closed clears it away; if you were its host you get a new table with the same seats and format, otherwise you are taken to the start page with "That table has closed."
+- **No rules change was needed.** I read the rules first: a member can rewrite their own name, and the host can write the format. Both are now tested against them in the emulator.
+
+**What I checked**
+- `backend/test-table-ops.mjs` (240 checks, 11 new for `setName` and `setFormat`, run against the real rules in the emulator). `check-lobby-ui` 66, `test-importer-markup` 56, the deck page check 292 and the quick set (81 suites) pass.
+- Against the real project with real browsers: `check-room-live` is 35 checks (9 new: the deck search, Bob changing his name and Alice seeing it, the format switch for a host and a guest, Alice switching to Standard and Bob's Commander deck leaving his seat, switching back, and the Lobby link of a deleted table making a new one). `check-bots-live` (9), `check-presence-live` (11), `spike-two-browsers` (36), `check-two-tabs-live` and the deploy check (54) pass. I looked at screenshots of the seats, the deck area and the import window.
+- `check-lobby-deck-live` passes its 45 lobby checks (I changed the ones that read the old seat text and the choose-a-deck popup), then stops at its old failure on the table page ("no menu item Move to": the hand menu has no such line any more), so the rest of that file is not running.
+
+**Decisions and limits**
+- Part 2 (the bracket limit warning and the count-up turn clock) is on the to-do list: both are new table fields, so they need a rules change that you paste into Firebase.
+- Phones are on hold, so the new screen was only looked at at desktop width. The importer inside the lobby keeps its own "All decks" list button; it is the whole importer, not a cut-down one.
+- The Alt big picture and the printing window inside the lobby's import window were not tried.
+
+**My AI's mistakes this time:** my first seat cards had their text pushed to the middle because the old seat rule still said `align-items: center` (I only saw it in a screenshot). I loaded the 1.4 MB card list for every table, which broke an existing check that says it is only fetched when needed, so I made it wait until it is used. And three of my edit scripts lost backslashes or apostrophes again.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

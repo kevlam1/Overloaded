@@ -1,10 +1,11 @@
 // The lobby page. It has two screens, chosen by the address: the start page (/) where you make a table or type a code to join one,
 // and a table's own screen (/lobby/CODE) with only that table: joining it (one button, or no click at all when this browser has a
 // saved name), the seats, your deck, Ready and Start. All database calls live in ../../src/db.js.
-import { botClient, createTable, joinTable, rejoinTable, findMyTable, watchMembers, heartbeat, watchActivity, watchMeta, watchServerOffset, startPresence, watchPresence, watchConnection, takeOverHost, setDeck, setReady, clearReady, startMatch, leaveTable } from '../../src/db.js';
+import { botClient, createTable, joinTable, rejoinTable, findMyTable, watchMembers, heartbeat, watchActivity, watchMeta, watchServerOffset, startPresence, watchPresence, watchConnection, takeOverHost, setDeck, setName, setFormat, closeIfExpired, setReady, clearReady, startMatch, leaveTable } from '../../src/db.js';
 import { presenceStatus, presenceText, ownConnectionText, hostIsGone } from '../../../shared/presence.mjs';
 import { startKeepAlive } from '../../src/keep-alive.js';
 import { drawDeckTiles } from '../../src/deck-tiles.js';
+import { imageUrl } from '../../../shared/card-image.mjs';
 import { loadCardList } from '../../src/card-list.js';
 import { mountSiteHeader } from '../../src/site-header.js';
 import { makeSafeStore } from '../../src/safe-store.js';
@@ -14,7 +15,7 @@ import { friendlyMessage } from '../../../shared/friendly-error.mjs';
 import { codeFromPath, linkForCode, tablePathForCode } from '../../../shared/lobby-link.mjs';
 import { readFormat, formatTitle, FORMATS } from '../../../shared/formats.mjs';
 import { LIBRARY_KEY, LEGACY_KEY, readLibrary, decksOfFormat } from '../../../shared/deck-library.mjs';
-import { deckFieldsOf, defaultDeckFor, deckChoiceLabel, isReady, seatDeckText } from '../../../shared/lobby-deck.mjs';
+import { deckFieldsOf, defaultDeckFor, deckChoiceLabel, isReady, seatDeckText, seatBracket, seatCommander } from '../../../shared/lobby-deck.mjs';
 
 const $ = (id) => document.getElementById(id);
 const nameInput = $('name');
@@ -28,6 +29,7 @@ const statusLine = $('status');
 // Remembered in this browser only (never sent anywhere): your name and the last table, so a refresh puts you back.
 const NAME_KEY = 'overloaded.name';
 const TABLE_KEY = 'overloaded.lastTable';
+const LAST_TABLE_KEY = 'overloaded.lastTableInfo'; // { code, seats, format, host }: what your last table was, so the Lobby link can make you a new one when it has closed
 const TABLE_DECK_KEY = 'overloaded.tableDeck'; // { code, id }: the saved deck you brought to that table, so a refresh can send it again
 // Storage can be unavailable (some privacy settings make it throw); the page must work without it, see src/safe-store.js.
 const store = makeSafeStore();
@@ -98,6 +100,9 @@ let chosenDeckId = null; // the saved deck (an id in this browser's library) you
 let restoringDeck = null; // the promise of putting the remembered deck back (a database write), while it is still going
 let restoredFor = null; // the table whose remembered deck has been looked at already
 let currentPresence = {};
+let deckQuery = ''; // what is typed in the deck search box
+let editingName = null; // null, or { draft } while your own name is being changed
+let lastFormat; // the table's format the last time its meta was seen (undefined before the first look)
 // The host's test bots (Kevin, 2026-11-13): seats held by a second sign-in of this browser so one person can try a full table. botSeats: the seats whose bot this page can act for; botStops: their presence.
 const botSeats = new Set();
 const botStops = new Map();
@@ -184,32 +189,128 @@ $('players').addEventListener('click', (event) => {
 
 const piece = (tag, className, text) => { const element = document.createElement(tag); element.className = className; element.textContent = text; return element; };
 
+// The card list by name, for the commander art behind a seat and the colors on the deck cards. It is 1.4 MB, so it is fetched once, when the table first needs it.
+let cardsByName = null;
+let loadingCards = false;
+function ensureCards() {
+  if (cardsByName || loadingCards) return;
+  loadingCards = true;
+  loadCardList().then((cards) => { cardsByName = new Map(cards.map((card) => [card.n, card])); renderPlayers(); drawTiles(); if ($('deck-dialog').open) drawDialogTiles(); }).catch(() => { loadingCards = false; /* seats stay without art; the next table or refresh tries again */ });
+}
+// The art of the first commander a player named: the whole text first (one name may hold an ampersand), then each name split at " & ". Only our own card list ever gives the picture id.
+function seatArt(member) {
+  const text = seatCommander(member);
+  if (!text || !cardsByName) return null;
+  for (const name of [text, ...text.split(' & ')]) { const card = cardsByName.get(name); if (card) return imageUrl(card.i, 'art_crop'); }
+  return null;
+}
+
+const PENCIL = 'M11.7 1.8a1.6 1.6 0 0 1 2.3 2.3l-8.4 8.4-3.3.9.9-3.3z';
+function pencilIcon() {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  for (const [name, value] of [['viewBox', '0 0 16 16'], ['width', '14'], ['height', '14'], ['fill', 'currentColor'], ['aria-hidden', 'true'], ['focusable', 'false']]) svg.setAttribute(name, value);
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', PENCIL);
+  path.setAttribute('fill', 'currentColor');
+  svg.append(path);
+  return svg;
+}
+
+// Your own name, with a pencil beside it; while it is being changed the name is a small box with a tick and a cross (Enter saves, Escape cancels).
+function nameNode(member, mine) {
+  const wrap = piece('span', 'seat-namerow', '');
+  if (mine && editingName) {
+    const input = document.createElement('input');
+    input.className = 'seat-name-input';
+    input.type = 'text';
+    input.maxLength = 30;
+    input.value = editingName.draft;
+    input.setAttribute('aria-label', 'Your name at the table');
+    input.autocomplete = 'nickname';
+    input.spellcheck = false;
+    input.addEventListener('input', () => { editingName.draft = input.value; });
+    input.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') { event.preventDefault(); saveName(); }
+      else if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); editingName = null; renderPlayers(); }
+    });
+    const save = piece('button', 'seat-save', 'Save');
+    save.type = 'button';
+    save.addEventListener('click', saveName);
+    const cancel = piece('button', 'seat-cancel secondary', 'Cancel');
+    cancel.type = 'button';
+    cancel.addEventListener('click', () => { editingName = null; renderPlayers(); });
+    wrap.append(input, save, cancel);
+    return wrap;
+  }
+  wrap.append(piece('span', 'seat-name', String(member.name)));
+  if (mine && currentMeta?.status === 'lobby') {
+    const edit = document.createElement('button');
+    edit.type = 'button';
+    edit.className = 'seat-edit';
+    edit.title = 'Change your name';
+    edit.setAttribute('aria-label', 'Change your name');
+    edit.append(pencilIcon());
+    edit.addEventListener('click', () => { editingName = { draft: String(member.name) }; renderPlayers(); document.querySelector('.seat-name-input')?.select(); });
+    wrap.append(edit);
+  }
+  return wrap;
+}
+
+async function saveName() {
+  if (!editingName) return;
+  const draft = editingName.draft;
+  await run(async () => {
+    const { name } = await setName(currentCode, draft); // refused in words (an empty or too long name) before any request
+    store.set(NAME_KEY, name);
+    nameInput.value = name;
+    editingName = null;
+    say('');
+    renderPlayers();
+  });
+}
+
 function renderPlayers() {
   const list = $('players');
+  const keepEditFocus = document.activeElement instanceof HTMLElement && document.activeElement.classList.contains('seat-name-input');
   list.replaceChildren();
+  if (!cardsByName && Object.values(currentMembers).some((member) => seatCommander(member))) ensureCards(); // art for the seats
   const now = serverOffset === null ? null : Date.now() + serverOffset;
-  // Names come from other people, so they are put in as text, never as markup. A seat reads "Seat 1: Alice (host), Krenko, Mob Boss, bracket 3 Ready" (the style sheet hides the label, the host's brackets and the comma,
-  // and draws the number as a round avatar, the host and Ready as chips, and the deck on its own line).
+  // Names come from other people, so they are put in as text, never as markup. A seat is a card of a fixed size: the commander's art behind it, the player's name and what they bring on two lines that never grow
+  // (a long one is cut short with "..."), and the bracket, Ready and connection as pills along the bottom. The number of the seat is drawn by the style sheet.
   for (const [uid, member] of Object.entries(currentMembers).sort((a, b) => Number(a[1].seat) - Number(b[1].seat))) {
+    const mine = uid === myUid;
     const item = document.createElement('li');
-    item.className = uid === myUid ? 'seat mine' : 'seat';
+    item.className = mine ? 'seat mine' : 'seat';
     item.dataset.uid = uid;
     item.dataset.seat = String(member.seat);
-    item.append(piece('span', 'seat-label', `Seat ${member.seat}: `), piece('span', 'seat-name', String(member.name)));
-    if (uid === currentHost) item.append(piece('span', 'seat-host', ' (host)'));
-    const deckText = seatDeckText(member); // the commander(s) and bracket the player told the table; never the list itself
-    if (deckText) item.append(piece('span', 'seat-sep', ', '), piece('span', 'seat-deck', deckText));
+    const art = seatArt(member);
+    if (art) { item.classList.add('has-art'); item.style.setProperty('--seat-art', `url("${art}")`); }
+    item.append(piece('span', 'seat-label', `Seat ${member.seat}: `));
+    if (uid === currentHost) item.append(piece('span', 'seat-host', 'Host'));
+    const body = piece('span', 'seat-body', '');
+    body.append(nameNode(member, mine));
+    const commander = seatCommander(member);
+    body.append(commander ? piece('span', 'seat-deck', commander) : piece('span', 'seat-deck seat-nodeck', 'No deck yet'));
+    item.append(body);
+    const pills = piece('span', 'seat-pills', '');
+    const bracket = seatBracket(member);
+    if (bracket) {
+      const pill = piece('span', 'bracket-pill', `Bracket ${bracket.number}`);
+      if (bracket.guess) { pill.classList.add('guessed'); pill.title = 'Guessed from the Game Changers in the deck'; }
+      pills.append(pill);
+    }
     if (isReady(member, currentMeta)) {
       item.dataset.ready = '1';
-      item.append(' ', piece('span', 'ready-mark', 'Ready'));
+      pills.append(piece('span', 'ready-mark', 'Ready'));
     }
     const status = presenceStatus(currentPresence[uid], now);
     const words = presenceText(status);
     if (words) {
       const note = piece('span', 'presence', words);
       note.dataset.state = status.state;
-      item.append(' ', note); // a real space, so a screen reader does not read the name and the status as one word
+      pills.append(note);
     }
+    item.append(pills);
     list.append(item);
   }
   // Empty seats and the bots: the host (in the lobby) can add a bot to an empty seat and take a bot away again.
@@ -221,25 +322,43 @@ function renderPlayers() {
     const member = Object.entries(currentMembers).find(([, m]) => String(m.seat) === seat);
     if (member) {
       const item = [...list.children].find((li) => li.dataset.uid === member[0]);
-      if (item && canManageBots && botSeats.has(seat)) item.append(' ', botButton('remove', seat, 'Remove bot'));
+      if (item && canManageBots && botSeats.has(seat)) item.append(botButton('remove', seat, 'Remove bot'));
     } else if (!taken.has(seat)) {
       const item = document.createElement('li');
       item.className = 'seat empty-seat';
       item.dataset.seat = seat;
-      item.append(piece('span', 'seat-label', `Seat ${seat}: `), piece('span', 'seat-empty', 'empty'));
-      if (canManageBots) item.append(' ', botButton('add', seat, 'Add bot'));
+      item.append(piece('span', 'seat-label', `Seat ${seat}: `), piece('span', 'seat-empty', 'Empty seat'));
+      if (canManageBots) item.append(botButton('add', seat, 'Add bot'));
       list.append(item);
     }
   }
   [...list.children].sort((a, b) => Number(a.dataset.seat) - Number(b.dataset.seat)).forEach((li) => list.append(li)); // (seats in order, the empty ones where they are)
+  if (keepEditFocus) { const input = list.querySelector('.seat-name-input'); if (input) { const at = input.value.length; input.focus(); input.setSelectionRange(at, at); } }
   // Offer the takeover only to someone else at the table, and only when the host has really been gone for 5 minutes
   // (the database makes the same judgement and refuses otherwise).
   const canTakeOver = Boolean(currentHost) && currentHost !== myUid && myUid in currentMembers && hostIsGone(currentPresence[currentHost], now);
   $('take-over').hidden = !canTakeOver;
   $('take-over-note').hidden = !canTakeOver;
   $('ready').textContent = isReady(currentMembers[myUid], currentMeta) ? 'Not ready' : 'Ready';
+  renderFormat();
   renderStart();
 }
+
+// The format switch: the host changes it (Commander or Standard) while the table is in the lobby; everyone else sees which one it is.
+function renderFormat() {
+  const format = currentMeta?.format;
+  const canChange = Boolean(myUid) && currentHost === myUid && currentMeta?.status === 'lobby';
+  for (const button of $('format-switch').querySelectorAll('button[data-format]')) {
+    button.setAttribute('aria-pressed', String(button.dataset.format === format));
+    button.disabled = !canChange && button.dataset.format !== format;
+    button.title = canChange ? '' : 'Only the host can change the format.';
+  }
+}
+$('format-switch').addEventListener('click', (event) => {
+  const button = event.target instanceof Element ? event.target.closest('button[data-format]') : null;
+  if (!button || button.disabled || !currentCode || button.dataset.format === currentMeta?.format) return;
+  run(async () => { await setFormat(currentCode, button.dataset.format); say(''); });
+});
 
 // Only the host starts the match, and only when there are at least two players and every one of them is ready (the flow's
 // own rule in shared/table-ops.mjs, which refuses in words otherwise; the button just says why it waits).
@@ -262,7 +381,7 @@ function stopPresenceParts() {
   if (redrawTimer !== null) { clearInterval(redrawTimer); redrawTimer = null; }
   for (const stop of botStops.values()) stop();
   botStops.clear(); botSeats.clear();
-  currentMembers = {}; currentPresence = {}; serverOffset = null; currentHost = null; currentMeta = null; chosenDeckId = null; restoredFor = null;
+  currentMembers = {}; currentPresence = {}; serverOffset = null; currentHost = null; currentMeta = null; chosenDeckId = null; restoredFor = null; lastFormat = undefined; editingName = null; deckQuery = '';
   $('connection').hidden = true;
   $('take-over').hidden = true;
   $('take-over-note').hidden = true;
@@ -275,12 +394,15 @@ function startPresenceParts(code, uid) {
   myUid = uid;
   stopHostWatch = watchMeta(code, (meta) => {
     const formatChanged = meta?.format !== currentMeta?.format;
+    const formerFormat = lastFormat;
+    if (meta?.format !== undefined) lastFormat = meta.format;
     currentMeta = meta ?? null;
     currentHost = meta?.host ?? null;
     readyBots();
     $('table-format').textContent = formatTitle(meta?.format); // text, never markup: another client could have written any string
     renderPlayers();
-    if (formatChanged || restoredFor !== currentCode) refreshDeckPicker();
+    if (myUid && meta?.host === myUid) store.set(LAST_TABLE_KEY, JSON.stringify({ code: currentCode, seats: meta.seats, format: meta.format, host: true }));
+    if (formatChanged && formerFormat !== undefined && FORMATS.includes(meta?.format)) { formatSwitched().finally(() => refreshDeckPicker()); } else if (formatChanged || restoredFor !== currentCode) refreshDeckPicker(); // (another format: your deck and your ready mark do not fit it)
     // Once the match is on, everyone at the table is taken to the table page (the host's Start and a refresh both end up here).
     if (meta?.status === 'playing' && currentCode) location.assign(tablePathForCode(currentCode));
   });
@@ -305,23 +427,32 @@ function fillDeckSelect(select, decks, selectedId, withPlaceholder) {
   select.value = selectedId ?? (withPlaceholder ? '' : decks[0]?.id ?? '');
 }
 
-// Sends the chosen deck's commander and bracket to the table and remembers the choice for this table (so a refresh can send
-// it again). Returns { entry, changed }.
-let cardsByName = null; // the card list by name, for the colors on the deck cards (it loads after the cards are first drawn, and only if you have a deck)
-let loadingColors = false;
 function drawTiles() {
   const decks = decksOfFormat(readMyLibrary(), currentMeta?.format);
-  drawDeckTiles($('deck-tiles'), decks, chosenDeckId, { byName: cardsByName, onPick: (id) => { if (id === chosenDeckId) return; $('deck-pick').value = id; $('deck-pick').dispatchEvent(new Event('change')); } });
-  if (decks.length && !cardsByName && !loadingColors) {
-    loadingColors = true;
-    loadCardList().then((cards) => { cardsByName = new Map(cards.map((card) => [card.n, card])); drawTiles(); if ($('deck-dialog').open) drawDialogTiles(); }).catch(() => { loadingColors = false; /* the cards stay without colors; the next draw tries again */ });
-  }
+  $('deck-search').hidden = decks.length === 0;
+  drawDeckTiles($('deck-tiles'), decks, chosenDeckId, { byName: cardsByName, query: deckQuery, onImport: () => openImporter(), onPick: (id) => { if (id === chosenDeckId) return; $('deck-pick').value = id; $('deck-pick').dispatchEvent(new Event('change')); } });
+  if (decks.length > 0) ensureCards(); // (the card list is 1.4 MB: only fetched when there is something it is needed for)
 }
 function drawDialogTiles() {
   const decks = decksOfFormat(readMyLibrary(), currentMeta?.format);
   drawDeckTiles($('deck-dialog-tiles'), decks, $('deck-dialog-pick').value || null, { byName: cardsByName, onPick: (id) => { $('deck-dialog-pick').value = id; drawDialogTiles(); } });
 }
+$('deck-search').addEventListener('input', () => { deckQuery = $('deck-search').value; drawTiles(); });
 
+// A format change by the host: a deck of the old format is no longer yours at this table, and nobody is ready for the new format yet. Each player does this for themselves (the database only lets you write your own entry).
+async function formatSwitched() {
+  const decks = decksOfFormat(readMyLibrary(), currentMeta?.format);
+  try {
+    if (!decks.some((entry) => entry.id === chosenDeckId)) {
+      chosenDeckId = null;
+      store.remove(TABLE_DECK_KEY);
+      await setDeck(currentCode, {}); // no commander and no bracket (this also takes the ready mark back when there was something to clear)
+    }
+    if (isReady(currentMembers[myUid], currentMeta)) await clearReady(currentCode);
+  } catch { /* the table may have started or closed meanwhile: the picker just redraws */ }
+}
+
+// Sends the chosen deck's commander and bracket to the table and remembers the choice for this table (so a refresh can send it again). Returns { entry, changed }.
 async function bringDeck(id) {
   const entry = readMyLibrary().decks.find((candidate) => candidate.id === id && candidate.format === currentMeta?.format);
   if (!entry) throw new Error('That deck is not saved in this browser any more. Pick another one.');
@@ -346,7 +477,7 @@ async function refreshDeckPicker() {
   const format = currentMeta?.format;
   const known = FORMATS.includes(format);
   $('deck-pick-field').hidden = !known;
-  if (!known) { $('deck-note').textContent = ''; $('deck-import').hidden = true; return; }
+  if (!known) { $('deck-note').textContent = ''; return; }
   const decks = decksOfFormat(readMyLibrary(), format);
   if (restoredFor !== currentCode) {
     restoredFor = currentCode;
@@ -362,10 +493,7 @@ async function refreshDeckPicker() {
   $('deck-pick-field').hidden = decks.length === 0;
   fillDeckSelect($('deck-pick'), decks, chosenDeckId, true);
   drawTiles();
-  $('deck-import').hidden = decks.length > 0;
-  $('deck-note').textContent = decks.length === 0
-    ? `You have no saved ${formatTitle(format)} deck.`
-    : (chosenDeckId ? 'The table sees only your commander and bracket, not your list.' : 'Choose the deck you will play. The table sees only its commander and bracket, not your list.');
+  $('deck-note').textContent = decks.length === 0 ? `You have no saved ${formatTitle(format)} deck.` : '';
 }
 
 function openDeckDialog() {
@@ -374,15 +502,10 @@ function openDeckDialog() {
   const format = currentMeta?.format;
   const library = readMyLibrary();
   const decks = decksOfFormat(library, format);
-  const none = decks.length === 0;
-  $('deck-dialog-field').hidden = none;
-  $('deck-dialog-import').hidden = !none;
-  $('deck-dialog-ok').disabled = none;
-  $('deck-dialog-ok').hidden = none; // nothing to confirm without a deck
-  $('deck-dialog-cancel').textContent = none ? 'Close' : 'Cancel';
-  $('deck-dialog-text').textContent = none ? `You have no saved ${formatTitle(format)} deck for this table.` : 'Pick the deck you will play at this table, then get ready.';
-  if (!none) { fillDeckSelect($('deck-dialog-pick'), decks, defaultDeckFor(library, format)?.id ?? null, false); drawDialogTiles(); }
-  $('deck-dialog-tiles').hidden = none;
+  if (decks.length === 0) { openImporter(); return; } // nothing to choose from: go straight to importing one
+  $('deck-dialog-field').hidden = false;
+  fillDeckSelect($('deck-dialog-pick'), decks, defaultDeckFor(library, format)?.id ?? null, false);
+  drawDialogTiles();
   dialog.returnValue = ''; // Escape closes without setting one, so an earlier "ok" must not linger
   dialog.showModal();
 }
@@ -390,10 +513,10 @@ function openDeckDialog() {
 $('deck-dialog').addEventListener('close', () => {
   if ($('deck-dialog').returnValue !== 'ok') return;
   run(async () => {
-    const { entry } = await bringDeck($('deck-dialog-pick').value);
+    await bringDeck($('deck-dialog-pick').value);
     refreshDeckPicker();
     await setReady(currentCode);
-    say(`You brought "${entry.deck.name}" and you are ready.`);
+    say('You are ready.');
   });
 });
 
@@ -402,8 +525,8 @@ $('deck-pick').addEventListener('change', () => run(async () => {
   if (!id) { $('deck-pick').value = chosenDeckId ?? ''; return; } // a deck already sent cannot be un-sent, only replaced
   const wasReady = isReady(currentMembers[myUid], currentMeta);
   try {
-    const { entry, changed } = await bringDeck(id);
-    say(`You brought "${entry.deck.name}".${changed && wasReady ? ' You are not ready any more: press Ready again.' : ''}`);
+    const { changed } = await bringDeck(id);
+    say(changed && wasReady ? 'Not ready: press Ready again.' : '');
   } catch (error) {
     $('deck-pick').value = chosenDeckId ?? '';
     throw error;
@@ -429,28 +552,47 @@ $('start').addEventListener('click', () => run(async () => {
   await startMatch(currentCode); // the table's status changes, and watchMeta above takes everyone to the table page
 }));
 
-// ---- importing or changing a deck without leaving the table ----
-// The importer is the same module the /deck page uses (frontend/src/deck-importer.js). It is loaded only when it is first opened, because
-// it brings the card list with it. After a deck is saved or deleted it tells us, and the deck picker is drawn again.
+// ---- importing a deck without leaving the table ----
+// "Import a deck" (the first card of your decks) opens the same importer as the /deck page (frontend/src/deck-importer.js) in a window over the lobby, on its box to paste into, with the table's format. It is loaded only
+// when it is first opened, because it brings the card list with it. When the window is closed, a deck that was just imported for this format is the one you bring, and the deck you were already bringing is sent again in case
+// it was edited there.
 let importerMounted = false;
+let libraryBeforeImport = null;
+const pageParts = () => [document.querySelector('header.site-header'), document.querySelector('main'), document.querySelector('footer.site-footer')].filter(Boolean);
 async function openImporter() {
-  const panel = $('deck-importer');
-  panel.hidden = false;
-  $('open-importer').setAttribute('aria-expanded', 'true');
+  if (!currentCode || !FORMATS.includes(currentMeta?.format)) return;
+  if ($('deck-dialog').open) $('deck-dialog').close();
+  libraryBeforeImport = new Set(readMyLibrary().decks.map((entry) => entry.id));
+  $('import-overlay').hidden = false;
+  for (const part of pageParts()) part.inert = true;
   if (!importerMounted) {
     importerMounted = true;
     const { mountDeckImporter } = await import('../../src/deck-importer.js');
-    mountDeckImporter({ root: $('deck-app'), play: false, onLibraryChange: () => refreshDeckPicker() });
+    mountDeckImporter({ root: $('deck-app'), play: false, startOn: 'paste', format: () => currentMeta?.format, onLibraryChange: () => refreshDeckPicker() });
+  } else {
+    document.getElementById('new-deck')?.click(); // another import starts on the box to paste into
   }
-  panel.scrollIntoView({ block: 'nearest' });
+  ($('deck-text') ?? $('import-close')).focus();
 }
-$('open-importer').addEventListener('click', () => {
-  if ($('deck-importer').hidden) { openImporter(); return; }
-  $('deck-importer').hidden = true; // closing it keeps what was typed: the importer is only hidden
-  $('open-importer').setAttribute('aria-expanded', 'false');
+async function closeImporter() {
+  if ($('import-overlay').hidden) return;
+  $('import-overlay').hidden = true;
+  for (const part of pageParts()) part.inert = false;
+  const before = libraryBeforeImport ?? new Set();
+  const added = readMyLibrary().decks.filter((entry) => !before.has(entry.id) && entry.format === currentMeta?.format).at(-1);
+  await run(async () => {
+    if (added && currentMeta?.status === 'lobby') await bringDeck(added.id);
+    else if (chosenDeckId && currentMeta?.status === 'lobby') await bringDeck(chosenDeckId).catch(() => {});
+  });
+  refreshDeckPicker();
+}
+$('import-close').addEventListener('click', closeImporter);
+document.addEventListener('keydown', (event) => {
+  if (event.key !== 'Escape' || $('import-overlay').hidden) return;
+  if (document.querySelector('.card-menu, .picker-overlay, .confirm-overlay')) return; // those close first
+  event.preventDefault();
+  closeImporter();
 });
-$('deck-import-open').addEventListener('click', () => openImporter());
-$('deck-dialog-import-open').addEventListener('click', () => { $('deck-dialog').close(); openImporter(); });
 
 // A deck may be imported in another tab while this one is open: look again when this tab comes back.
 document.addEventListener('visibilitychange', () => { if (!document.hidden && currentCode && currentMeta) refreshDeckPicker(); });
@@ -462,7 +604,6 @@ function show(table) {
   if (codeFromPath(location.pathname) !== table.code) history.pushState(null, '', `/lobby/${table.code}`);
   $('code').textContent = table.code;
   $('link').textContent = linkForCode(location.origin, table.code);
-  $('seat').textContent = table.seat;
   store.set(TABLE_KEY, table.code);
   keepAlive(table.code);
   startPresenceParts(table.code, table.uid);
@@ -525,6 +666,7 @@ createButton.addEventListener('click', () => run(async () => {
   }
   const table = await createTable({ name, seats: Number(seatsSelect.value), format });
   say(table.replaced ? `Table ${table.code} is ready. Your old table was closed.` : `Table ${table.code} is ready. Share the code.`);
+  store.set(LAST_TABLE_KEY, JSON.stringify({ code: table.code, seats: Number(seatsSelect.value), format, host: true }));
   show(table);
 }));
 
@@ -587,6 +729,34 @@ async function startStart() {
   }
 }
 
+// The table this browser was at has closed (it expired, or its host ended it). It is cleared away, and if you were its host you get a new one with the same seats and format; anyone else is taken to the start page.
+function lastTableInfo(code) {
+  try { const info = JSON.parse(store.get(LAST_TABLE_KEY) ?? 'null'); return info && info.code === code ? info : null; } catch { return null; }
+}
+async function reopenMyTable(code) {
+  const info = lastTableInfo(code);
+  store.remove(TABLE_KEY);
+  store.remove(TABLE_DECK_KEY);
+  await closeIfExpired(code);
+  let saved = null;
+  try { saved = store.get(NAME_KEY) ? cleanPlayerName(store.get(NAME_KEY)) : null; } catch { saved = null; }
+  if (info?.host && saved && SEAT_CHOICES.includes(info.seats)) {
+    await run(async () => {
+      say('Making you a new table...');
+      const table = await createTable({ name: saved, seats: info.seats, format: FORMATS.includes(info.format) ? info.format : 'commander' });
+      store.set(LAST_TABLE_KEY, JSON.stringify({ code: table.code, seats: info.seats, format: info.format, host: true }));
+      history.replaceState(null, '', '/');
+      show(table);
+      say('Your old table closed. This is a new one.');
+    });
+    return;
+  }
+  history.replaceState(null, '', '/');
+  await startStart();
+  say('That table has closed.');
+}
+const SEAT_CHOICES = [2, 3, 4];
+
 // A table's own screen. Already at this table (a refresh, or the deck page's back link): straight to it. Not yet: join it, with no
 // code to type. If this browser has a usable saved name the join happens by itself (Kevin's choice, 2026-10-30, over a one-button
 // join); otherwise the person types a name and presses the one button.
@@ -602,6 +772,7 @@ async function startRoom(code) {
     return;
   }
   if (table) { say(`Back at table ${table.code}.`); show(table); return; }
+  if (store.get(TABLE_KEY) === code) { await reopenMyTable(code); return; } // this is the table this browser was at, and it is not there any more
   let saved = null;
   try { saved = store.get(NAME_KEY) ? cleanPlayerName(store.get(NAME_KEY)) : null; } catch { saved = null; }
   if (saved) { await run(() => joinHere(code)); return; }

@@ -1,4 +1,6 @@
 // The live-play spike: real browsers, one real Firebase project.
+// your own seat, from the seat cards of the lobby (the number is on the card)
+const mySeat = (page) => waitFor(async () => (await page.eval(`document.querySelector('#players .seat.mine')?.dataset.seat ?? null`)) || null, 15000, 200);
 // Run from the repo root:  node --env-file=.env scripts/spike-two-browsers.mjs
 //
 // It starts the page (Vite, in this process), opens headless Chrome windows with separate profile folders
@@ -89,7 +91,7 @@ try {
   const code1 = (await text(alice, 'code')).trim();
   cleanup.tables.push(code1);
   record('Alice makes a table and gets a valid 6-character code', /^[A-HJ-NP-Z2-9]{6}$/.test(code1), code1.replace(/./g, '*'));
-  record('Alice sits in seat 1', (await text(alice, 'seat')).trim() === '1');
+  record('Alice sits in seat 1', (await mySeat(alice)) === '1');
   record('Alice is not warned about an old table when she has none', alice.dialogs.length === 0);
 
   // 2. Bob joins by code; Alice's page should show him without a refresh
@@ -104,7 +106,7 @@ try {
   const aliceSawBobMs = Date.now() - clickedAt;
   record('Bob joins by code (typed lower case with a space)', Boolean(bobShown), `${bobConfirmedMs} ms to confirm`);
   if (!bobShown) await dump(bob);
-  record('Bob gets seat 2', (await text(bob, 'seat')).trim() === '2');
+  record('Bob gets seat 2', (await mySeat(bob)) === '2');
   record("Alice's page shows Bob without a refresh (live sync)", Boolean(aliceSawBob), `${aliceSawBobMs} ms from Bob's click`);
   const bobListStart = Date.now();
   const bobSeesBoth = await waitFor(async () => (await players(bob)).length === 2 || null, 5000, 20);
@@ -150,7 +152,7 @@ try {
   const bobAuthAfter = await authOf(bob);
   record('After a refresh Bob is put back at the table', Boolean(bobBack));
   record('After a refresh Bob keeps the same anonymous account', bobAuthAfter?.uid === bobAuth.uid);
-  record('After a refresh Bob keeps seat 2', (await text(bob, 'seat')).trim() === '2');
+  record('After a refresh Bob keeps seat 2', (await mySeat(bob)) === '2');
   record('After a refresh both players are listed', (await players(bob)).length === 2);
 
   // 5. Timings (HTTPS, not the live socket)

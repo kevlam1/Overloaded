@@ -108,35 +108,31 @@
             <span class="eyebrow">Invite link</span>
             <span class="room-code-line"><span id="link" class="link"></span><button id="copy-link" type="button" class="secondary copy-button">Copy link</button></span>
           </div>
-          <p class="room-facts">You have seat <span id="seat"></span>. Format: <span id="table-format"></span>.</p>
+          <div class="room-share room-format">
+            <span class="eyebrow" id="format-label">Format</span>
+            <div id="format-switch" class="segmented" role="group" aria-labelledby="format-label">
+              <button type="button" data-format="commander">Commander</button>
+              <button type="button" data-format="standard">Standard</button>
+            </div>
+            <span id="table-format" class="sr-only"></span>
+          </div>
         </div>
 
-        <div class="room-grid">
-          <div class="room-seats">
-            <h3>At the table</h3>
-            <ul id="players"></ul>
-          </div>
+        <h3 class="room-title">At the table</h3>
+        <ul id="players" class="seats"></ul>
 
-          <div class="room-deck">
+        <div class="room-deck">
+          <div class="deck-head">
             <h3>Your deck</h3>
-            <div class="field sr-only" id="deck-pick-field">
-              <label for="deck-pick">Deck for this table</label>
-              <select id="deck-pick" name="deck-pick" tabindex="-1" aria-hidden="true"></select>
-            </div>
-            <div id="deck-tiles" class="deck-choices" role="group" aria-label="Your saved decks"></div>
-            <p id="deck-note" class="hint"></p>
-            <p id="deck-import" class="hint" hidden>You have no saved deck for this format. <button id="deck-import-open" type="button" class="secondary">Import a deck here</button></p>
-            <div class="actions">
-              <button id="open-importer" type="button" class="secondary" aria-expanded="false" aria-controls="deck-importer">Import or change a deck</button>
-            </div>
-            <section id="deck-importer" aria-label="Your decks" hidden>
-              <div id="deck-app"></div>
-            </section>
-            <div id="card-peek" class="card-peek" hidden aria-hidden="true">
-              <img id="card-peek-image" alt="" width="488" height="680" decoding="async" referrerpolicy="no-referrer">
-              <p id="card-peek-note" class="card-peek-note"></p>
-            </div>
+            <label for="deck-search" class="sr-only">Search your decks by name or commander</label>
+            <input id="deck-search" type="search" placeholder="Search decks" autocomplete="off" spellcheck="false" hidden>
           </div>
+          <div class="field sr-only" id="deck-pick-field">
+            <label for="deck-pick">Deck for this table</label>
+            <select id="deck-pick" name="deck-pick" tabindex="-1" aria-hidden="true"></select>
+          </div>
+          <div id="deck-tiles" class="deck-choices" role="group" aria-label="Your saved decks"></div>
+          <p id="deck-note" class="hint"></p>
         </div>
 
         <div class="room-bar">
@@ -156,19 +152,35 @@
     <dialog id="deck-dialog" aria-labelledby="deck-dialog-title">
       <form method="dialog" id="deck-dialog-form">
         <h2 id="deck-dialog-title">Choose a deck</h2>
-        <p id="deck-dialog-text">Pick the deck you will play at this table, then get ready.</p>
+        <p id="deck-dialog-text">Pick the deck you will play, then get ready.</p>
         <div class="field sr-only" id="deck-dialog-field">
           <label for="deck-dialog-pick">Deck</label>
           <select id="deck-dialog-pick" name="deck-dialog-pick" tabindex="-1" aria-hidden="true"></select>
         </div>
         <div id="deck-dialog-tiles" class="deck-choices" role="group" aria-label="Your saved decks"></div>
-        <p id="deck-dialog-import" class="hint" hidden><button id="deck-dialog-import-open" type="button" class="secondary">Import a deck here</button></p>
         <div class="actions">
           <button id="deck-dialog-ok" type="submit" value="ok">Use this deck and get ready</button>
           <button id="deck-dialog-cancel" type="submit" value="cancel" class="secondary">Cancel</button>
         </div>
       </form>
     </dialog>
+
+    <!-- The deck importer, in its own window over the lobby. It is a plain layer, not a native dialog, because the importer's menus and its picture of a card are drawn on the page itself and would hide behind a modal dialog. -->
+    <div id="import-overlay" class="import-overlay" role="dialog" aria-modal="true" aria-labelledby="import-title" hidden>
+      <div class="import-panel">
+        <div class="import-head">
+          <h2 id="import-title">Import a deck</h2>
+          <button id="import-close" type="button">Done</button>
+        </div>
+        <section id="deck-importer" aria-label="Your decks">
+          <div id="deck-app"></div>
+        </section>
+        <div id="card-peek" class="card-peek" hidden aria-hidden="true">
+          <img id="card-peek-image" alt="" width="488" height="680" decoding="async" referrerpolicy="no-referrer">
+          <p id="card-peek-note" class="card-peek-note"></p>
+        </div>
+      </div>
+    </div>
 
     <footer class="site-footer">
       <div class="site-footer-inner">

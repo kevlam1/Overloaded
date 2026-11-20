@@ -27,7 +27,7 @@ const pathOf = (browser) => browser.eval('location.pathname');
 const members = async (code, token) => (await rest('GET', `tables/${code}/members`, token)).json ?? {};
 
 let server = null; let exitCode = 0;
-const cleanup = { alice: null, bob: null, carol: null, dave: null, code: null };
+const cleanup = { alice: null, bob: null, carol: null, dave: null, code: null, code2: null };
 try {
   server = await createServer({ configFile: 'vite.config.js', logLevel: 'error', server: { port: PORT, strictPort: true, host: '127.0.0.1' } });
   await server.listen();
@@ -57,17 +57,17 @@ try {
   await click(bob, 'room-join-button');
   await waitFor(async () => (await tableShown(bob)) || null, 20000);
   cleanup.bob = await authOf(bob);
-  record("one press of the button and Bob is at the table, in seat 2, on the same address (no extra step, no reload)", (await text(bob, 'seat')) === '2' && (await pathOf(bob)) === `/lobby/${code}`);
+  record("one press of the button and Bob is at the table, in seat 2, on the same address (no extra step, no reload)", Boolean(await waitFor(async () => ((await bob.eval(`document.querySelector('#players .seat.mine')?.dataset.seat`)) === '2' ? true : null), 15000, 200)) && (await pathOf(bob)) === `/lobby/${code}`);
   record("Alice's page lists Bob", Boolean(await waitFor(async () => (await players(alice)).some((t) => t.includes('Bob')) || null, 20000, 200)));
 
   // Bob has no deck. He imports one inside the lobby, without going to /deck, and brings it to the table.
   const askedForList = () => bob.events.some((e) => e.method === 'Network.requestWillBeSent' && /cards.json/.test(e.params.request.url));
   record('the card list (1.3 MB) has not been fetched yet: the importer is only loaded when it is opened', !askedForList());
-  await waitFor(async () => ((await shown(bob, 'deck-import')) ? true : null), 15000, 200);
-  record('Bob has no deck for this format, so the lobby offers "Import a deck here" (a button in the lobby, not a link to another page)', (await shown(bob, 'deck-import')) &&(await bob.eval(`document.querySelectorAll('#deck-import a').length`)) === 0 && (await shown(bob, 'deck-import-open')));
-  await click(bob, 'open-importer');
+  await waitFor(async () => ((await shown(bob, 'deck-tiles-import')) ? true : null), 15000, 200);
+  record('Bob has no deck for this format, so his deck area offers an Import a deck card (a button in the lobby, not a link to another page)', (await shown(bob, 'deck-tiles-import')) && (await bob.eval(`document.querySelectorAll('#deck-tiles a').length`)) === 0 && !(await shown(bob, 'import-overlay')));
+  await click(bob, 'deck-tiles-import');
   const importerReady = await waitFor(async () => (await shown(bob, 'deck-importer')) && (await bob.eval(`document.getElementById('check')?.disabled === false`)) ? true : null, 30000, 250);
-  record('Import or change a deck opens the importer inside the lobby and loads the card list then', Boolean(importerReady) && askedForList() && (await pathOf(bob)) === `/lobby/${code}`);
+  record('the Import a deck card opens the importer in a window inside the lobby, on its box to paste into, and loads the card list then', Boolean(importerReady) && askedForList() && (await pathOf(bob)) === `/lobby/${code}`);
   await setValue(bob, 'deck-text', 'Commander\n1 Krenko, Mob Boss\n\n1 Sol Ring\n1 Mountain');
   await click(bob, 'check');
   const checked = await waitFor(async () => (await shown(bob, 'preview')) ? true : null, 20000, 250);
@@ -78,11 +78,31 @@ try {
   record('the deck saves itself in this browser (there is no Save button), says Saved in the importer, and leaves the lobby status line alone', Boolean(savedMessage) && !/Bob goblins/.test(await text(bob, 'status')));
   const listed = await waitFor(async () => { const o = await bob.eval(`Array.from(document.getElementById('deck-pick').options).map((x) => x.textContent)`); return o.some((t) => /^Bob goblins \(Krenko, Mob Boss/.test(t)) ? o : null; }, 15000, 250);
   record("the lobby's deck picker lists the new deck straight away, with its commander (no reload, no going back)", Boolean(listed), JSON.stringify(listed));
-  record('and the "no deck" offer is gone', !(await shown(bob, 'deck-import')));
-  const pickedId = await bob.eval(`Array.from(document.getElementById('deck-pick').options).find((o) => /^Bob goblins/.test(o.textContent)).value`);
-  await bob.eval(`(() => { const s = document.getElementById('deck-pick'); s.value = ${JSON.stringify(pickedId)}; s.dispatchEvent(new Event('change')); })()`);
-  record("choosing it shows Bob's commander on Alice's page", Boolean(await waitFor(async () => (await players(alice)).some((t) => t.includes('Bob') && t.includes('Krenko')) || null, 20000, 250)));
-  await click(bob, 'open-importer');
+  await click(bob, 'import-close');
+  const broughtId = await waitFor(async () => { const v = await bob.eval(`document.getElementById('deck-pick').value`); return v || null; }, 15000, 250);
+  record('Done closes the window and the deck just imported is the one Bob brings, with no extra choosing', Boolean(broughtId) && !(await shown(bob, 'import-overlay')) && (await bob.eval(`document.querySelector('#deck-tiles .deck-choice.chosen')?.dataset.id`)) === broughtId);
+  record("and Alice's page shows Bob's commander", Boolean(await waitFor(async () => (await players(alice)).some((t) => t.includes('Bob') && t.includes('Krenko')) || null, 20000, 250)));
+
+  // The deck search box, your own name, and the host's format switch.
+  if (process.argv.includes('--screenshot')) { await sleep(2500); await alice.screenshot('scratch-room-alice.png'); await bob.screenshot('scratch-room-bob.png'); }
+  await setValue(bob, 'deck-search', 'zzz');
+  record('the deck search box hides decks that do not match and says so', (await bob.eval(`document.querySelectorAll('#deck-tiles .deck-choice').length`)) === 0 && /No deck matches/.test(await text(bob, 'deck-tiles')));
+  await setValue(bob, 'deck-search', 'krenko');
+  record('...and finds a deck by its commander', (await bob.eval(`document.querySelectorAll('#deck-tiles .deck-choice').length`)) === 1);
+  await setValue(bob, 'deck-search', '');
+  await bob.eval(`document.querySelector('#players .seat.mine .seat-edit').click()`);
+  await bob.eval(`(() => { const i = document.querySelector('.seat-name-input'); i.value = 'Bobby'; i.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+  await bob.eval(`document.querySelector('.seat-save').click()`);
+  record("Bob changes his name with the pencil, and Alice's page shows the new name", Boolean(await waitFor(async () => (await players(alice)).some((t) => t.includes('Bobby')) || null, 20000, 250)) && (await members(code, cleanup.alice.token))[cleanup.bob.uid]?.name === 'Bobby');
+  record('...and the name box is closed again, with his deck still on his seat', (await bob.eval(`Boolean(document.querySelector('.seat-name-input'))`)) === false && (await players(alice)).some((t) => t.includes('Bobby') && t.includes('Krenko')));
+  const formatButtons = (page) => page.eval(`[...document.querySelectorAll('#format-switch button')].map((b) => b.dataset.format + ':' + b.getAttribute('aria-pressed') + ':' + b.disabled).join()`);
+  record('the host can use the format switch; a guest sees it with the other choice off', (await formatButtons(alice)) === 'commander:true:false,standard:false:false' && (await formatButtons(bob)) === 'commander:true:false,standard:false:true', `${await formatButtons(alice)} | ${await formatButtons(bob)}`);
+  await alice.eval(`document.querySelector('#format-switch button[data-format="standard"]').click()`);
+  record("Alice switches the table to Standard: both pages say so, and Bob's Commander deck is taken off his seat", Boolean(await waitFor(async () => ((await text(alice, 'table-format')) === 'Standard' && (await text(bob, 'table-format')) === 'Standard' && !(await players(alice)).some((t) => t.includes('Bobby') && t.includes('Krenko'))) ? true : null, 20000, 250))
+    && (await members(code, cleanup.alice.token))[cleanup.bob.uid]?.commander === undefined && /no saved Standard deck/.test(await text(bob, 'deck-note')));
+  await alice.eval(`document.querySelector('#format-switch button[data-format="commander"]').click()`);
+  record('and back to Commander: Bob has his deck to choose again, none chosen', Boolean(await waitFor(async () => ((await text(bob, 'table-format')) === 'Commander' && (await bob.eval(`document.querySelectorAll('#deck-tiles .deck-choice').length`)) === 1) ? true : null, 20000, 250)) && (await bob.eval(`document.querySelector('#deck-tiles .deck-choice.chosen')`)) === null);
+
   record('pressing the button again closes the importer panel', !(await shown(bob, 'deck-importer')));
 
   // Carol has a saved name: opening the link is enough.
@@ -91,7 +111,7 @@ try {
   await carol.goto(`${ORIGIN}/lobby/${code}`);
   const carolIn = await waitFor(async () => (await tableShown(carol)) || null, 25000, 200);
   cleanup.carol = await authOf(carol);
-  record('Carol opens the link with a name saved in her browser: she is joined with no click at all, in seat 3', Boolean(carolIn) && (await text(carol, 'seat')) === '3', await text(carol, 'seat'));
+  record('Carol opens the link with a name saved in her browser: she is joined with no click at all, in seat 3', Boolean(carolIn) && (await carol.eval(`document.querySelector('#players .seat.mine')?.dataset.seat`)) === '3', String((await carol.eval(`document.querySelector('#players .seat.mine')?.dataset.seat`))));
   record("...and Alice's page lists Carol", Boolean(await waitFor(async () => (await players(alice)).some((t) => t.includes('Carol')) || null, 20000, 200)));
 
   // A link to a table that does not exist.
@@ -109,7 +129,7 @@ try {
   await bob.goto(`${ORIGIN}/pages/deck/index.html`);
   record("the deck page's header Lobby link goes to /lobby/CODE (not the start page) while he is at the table", (await bob.eval(`document.getElementById('site-lobby').getAttribute('href')`)) === `/lobby/${code}`);
   await bob.goto(`${ORIGIN}/lobby/${code}`);
-  record('...and following it puts him back in the table, still in seat 2', Boolean(await waitFor(async () => (await tableShown(bob)) || null, 20000, 200)) && (await text(bob, 'seat')) === '2');
+  record('...and following it puts him back in the table, still in seat 2', Boolean(await waitFor(async () => (await tableShown(bob)) || null, 20000, 200)) && (await bob.eval(`document.querySelector('#players .seat.mine')?.dataset.seat`)) === '2');
 
   // Leaving.
   await click(bob, 'leave-table'); // the page asks first; the test browser says yes
@@ -119,6 +139,14 @@ try {
   record('...and in the lobby his seat is freed for someone else (seat 2 is empty)', (await rest('GET', `tables/${code}/seats/2`, cleanup.alice.token)).json === null);
   record("...and his start page no longer says he is at a table", !(await shown(bob, 'resume')) || Boolean(await waitFor(async () => !(await shown(bob, 'resume')) ? true : null, 8000, 200)));
   record('no page errors on any page', ![alice, bob, carol, dave].some((b) => b.logs.some((l) => /^exception:/.test(l))), [alice, bob, carol, dave].flatMap((b) => b.logs).filter((l) => /^exception:/.test(l)).join(' | '));
+
+  // The Lobby link of a table that has closed: Alice's table is deleted (as if it had expired), and opening its address gives her a new table with the same seats and format.
+  await rest('DELETE', `tables/${code}`, cleanup.alice.token);
+  await alice.goto(`${ORIGIN}/lobby/${code}`);
+  const reopened = await waitFor(async () => { const p = await pathOf(alice); return (await tableShown(alice)) && p !== `/lobby/${code}` && /^\/lobby\/[A-HJ-NP-Z2-9]{6}$/.test(p) ? p : null; }, 30000, 250);
+  if (reopened) cleanup.code2 = reopened.split('/').pop();
+  record('Alice opens the address of her table after it was deleted: she gets a new table, at a new address, with four seats and Commander', Boolean(reopened) && (await alice.eval(`document.querySelectorAll('#players .seat').length`)) === 4 && (await text(alice, 'table-format')) === 'Commander', String(reopened));
+  record('...and the old table is gone from the database', await (async () => { const r = await rest('GET', `tables/${code}/meta`, cleanup.alice.token); return r.status === 401 || r.json === null; })());
 } catch (error) {
   record('the check script itself ran without an error', false, error.message); exitCode = 1;
 } finally {
@@ -130,6 +158,7 @@ try {
       console.log(`cleanup: throwaway table removed: ${check.status === 401 || check.json === null}`);
     }
   } catch {}
+  if (cleanup.alice?.token && cleanup.code2) { await rest('DELETE', `tables/${cleanup.code2}`, cleanup.alice.token); await rest('DELETE', `hosts/${cleanup.alice.uid}`, cleanup.alice.token); }
   for (const account of [cleanup.dave, cleanup.carol, cleanup.bob, cleanup.alice]) if (account?.token) await deleteAccount(account.token);
   await closeAllBrowsers();
   if (server) await server.close();

@@ -51,7 +51,7 @@ try {
   const members = async () => (await rest('GET', `tables/${code}/members`, alice.token)).json ?? {};
 
   const first = await waitFor(async () => { const lines = await seatLines(browser); return lines.length === 4 ? lines : null; }, 10000, 200);
-  record('on a four-seat table the host sees four seats: hers, and three empty ones, each with an Add bot button', Boolean(first) && first.filter((l) => /: empty/.test(l.text) && l.add).length === 3, JSON.stringify(first));
+  record('on a four-seat table the host sees four seats: hers, and three empty ones, each with an Add bot button', Boolean(first) && first.filter((l) => /: Empty seat/.test(l.text) && l.add).length === 3, JSON.stringify(first));
 
   for (const seat of [2, 3, 4]) {
     await press(browser, 'add', seat);
@@ -69,7 +69,7 @@ try {
   record('the bots show as there (not "Disconnected"): each has a presence', !(await seatLines(browser)).some((l) => /Disconnected/.test(l.text)));
 
   await press(browser, 'remove', 3);
-  await waitFor(async () => { const l = await line(browser, 3); return l && /: empty/.test(l.text) && l.add ? l : null; }, 20000, 250);
+  await waitFor(async () => { const l = await line(browser, 3); return l && /: Empty seat/.test(l.text) && l.add ? l : null; }, 20000, 250);
   record('Remove bot takes a bot away: its seat is empty again with an Add bot button, and the table has three members', Object.keys(await members()).length === 3);
 
   await browser.goto(`${ORIGIN}/lobby/${code}`);
@@ -80,7 +80,7 @@ try {
   accounts = await accountsOf(browser); // (the bots are signed in as their own accounts, kept by the browser)
   record('there are four accounts in the browser: the host and one for each seat that ever had a bot', accounts.length === 4 && new Set(accounts.map((a) => a.uid)).size === 4, JSON.stringify(accounts.map((a) => a.app)));
 
-  for (const seat of [2, 4]) { await press(browser, 'remove', seat); await waitFor(async () => { const l = await line(browser, seat); return l && /: empty/.test(l.text) ? l : null; }, 20000, 250); }
+  for (const seat of [2, 4]) { await press(browser, 'remove', seat); await waitFor(async () => { const l = await line(browser, seat); return l && /: Empty seat/.test(l.text) ? l : null; }, 20000, 250); }
   record('the other bots are taken away too, and only the host is left at the table', Object.keys(await members()).length === 1);
 } finally {
   try {

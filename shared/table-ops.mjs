@@ -269,6 +269,29 @@ export function createTableOps({ sdk, db, getUid, makeCode = makeTableCode }) {
     await update(ref(db), { [`tables/${code}/members/${uid}/ready`]: null });
   }
 
+  // Changes your name at the table (Kevin, 2026-11-19). Only in the lobby. The name is cleaned like the one you joined with (refused in words before any request). Returns { name, changed }.
+  async function setName(code, name) {
+    const clean = cleanPlayerName(name);
+    const { uid, meta, mine } = await look(code);
+    if (!meta || !mine) refuse('You are not at that table.');
+    if (meta.status !== 'lobby') refuse('The match has started, so names can no longer change.');
+    if (mine.name === clean) return { name: clean, changed: false };
+    await update(ref(db), { [`tables/${code}/members/${uid}/name`]: clean });
+    return { name: clean, changed: true };
+  }
+
+  // The host changes the table's format (Commander or Standard). Only in the lobby. Everyone's pages see the change and take their own deck and ready mark back (a player can only write their own entry).
+  async function setFormat(code, format) {
+    const next = readFormat(format); // refused before any request
+    const { uid, meta, mine } = await look(code);
+    if (!meta || !mine) refuse('You are not at that table.');
+    if (meta.host !== uid) refuse('Only the host can change the format.');
+    if (meta.status !== 'lobby') refuse('The match has started, so the format can no longer change.');
+    if (meta.format === next) return { format: next, changed: false };
+    await update(ref(db), { [`tables/${code}/meta/format`]: next });
+    return { format: next, changed: true };
+  }
+
   // Tells the table what it may know about your deck: the commander(s) by card name, the bracket and whether the bracket is
   // a guess (see shared/deck-fields.mjs; the list itself is never sent). Only in the lobby. If anything changed, your ready
   // mark is taken back in the SAME write (the rules refuse a change that leaves you ready), so a table never shows a
@@ -529,5 +552,5 @@ export function createTableOps({ sdk, db, getUid, makeCode = makeTableCode }) {
     );
   }
 
-  return { findMyTable, createTable, closeIfExpired, rejoinTable, joinTable, watchMembers, setReady, clearReady, setDeck, startMatch, concede, endMatch, endTable, leaveTable, passHost, takeOverHost, claimHostSlot, heartbeat, watchActivity, watchMeta, watchServerOffset, watchConnection, startPresence, watchPresence, saveGame, loadGame, watchPublic };
+  return { findMyTable, createTable, closeIfExpired, rejoinTable, joinTable, watchMembers, setReady, clearReady, setName, setFormat, setDeck, startMatch, concede, endMatch, endTable, leaveTable, passHost, takeOverHost, claimHostSlot, heartbeat, watchActivity, watchMeta, watchServerOffset, watchConnection, startPresence, watchPresence, saveGame, loadGame, watchPublic };
 }
