@@ -26,7 +26,9 @@ import { createDealer, SHUFFLE_PAUSE_MS } from '../../../shared/deal-sequence.mj
 import { loadCardList } from '../../src/card-list.js';
 import { makeCardNodes } from '../../src/card-nodes.js';
 import { mountMarksPanel } from '../../src/marks-panel.js';
-import { openCardMenu } from '../../src/card-menu.js';
+import { openCardMenu, closeCardMenu } from '../../src/card-menu.js';
+import { mountFloatingBar } from '../../src/floating-bar.js';
+import { mountFacing } from '../../src/facing.js';
 import { loadTokens } from '../../src/token-data.js';
 import { openTokenPicker } from '../../src/token-picker.js';
 import { mountCounterChips } from '../../src/counter-chips.js';
@@ -34,7 +36,7 @@ import { mountLifeControl } from '../../src/life-control.js';
 import { menuItems, menuAction, turnLabel, turnMessage, playBackLabel, PLAY_BACK_ZONES, noUntapLabel, sickLabel, untapMessage } from '../../../shared/card-menu.mjs';
 import { marksSentence, markClick, printedOf } from '../../../shared/marks.mjs';
 import { currentTurn, passAction, takeBackAction, canTakeBack, turnToStart, whoseWords, turnWords } from '../../../shared/turn-order.mjs';
-import { chipEntries, playerMenuItems, playerAction, commanderDamageSeatsFor } from '../../../shared/player-counters.mjs';
+import { chipEntries, playerMenuItems, playerAddItems, playerAction, commanderDamageSeatsFor } from '../../../shared/player-counters.mjs';
 import { presenceStatus, presenceText, ownConnectionText } from '../../../shared/presence.mjs';
 import { tableCodeFromPath } from '../../../shared/lobby-link.mjs';
 import { seatDeckText, defaultDeckFor, hasConceded } from '../../../shared/lobby-deck.mjs';
@@ -135,6 +137,17 @@ $('life-area').addEventListener('contextmenu', (event) => {
   openCardMenu({ title: 'Your counters', items: playerMenuItems(game, { live: true, seats: damageSeats() }), x: fromKeyboard ? box.left + box.width / 2 : event.clientX, y: fromKeyboard ? box.top + box.height / 2 : event.clientY, returnFocus: event.currentTarget, onPick: (id) => { if (!game) return; const action = playerAction(id, game, { live: true, names: seatNames() }); if (action) apply(() => action.run(game), action.message); } });
 });
 
+{
+  const button = $('life-counters');
+  button.addEventListener('click', () => {
+    if (!game) return;
+    const box = button.getBoundingClientRect();
+    button.setAttribute('aria-expanded', 'true');
+    openCardMenu({ title: 'Add a counter', items: playerAddItems(game, { live: true }), x: box.left, y: box.bottom + 4, returnFocus: button, toggleOn: button, onClose: () => button.setAttribute('aria-expanded', 'false'), onPick: (id) => { if (!game) return; const action = playerAction(id, game, { live: true, names: seatNames() }); if (action) apply(() => action.run(game), action.message); } });
+  });
+}
+for (const [id, sign] of [['life-minus', -1], ['life-plus', 1]]) $(id).addEventListener('click', (event) => { if (game) apply(() => adjustLife(game, sign * (event.shiftKey ? 5 : 1)), ''); });
+
 const cardNodes = makeCardNodes({ onSelect: (uid) => select(uid), isSelected: (uid) => uid === selected, onMark: (uid, hit) => markOnCard(uid, hit), onMenu: (uid, where) => openMenuFor(uid, where), onBadge: (uid, kind) => clearBadge(uid, kind), printedStats: (card) => printedOf(card, lookup) });
 const place = cardNodes.place;
 // The piles as stacks of cards (src/pile-stack.js) and the command zone with its two outlined slots and the commander tax (src/command-zone.js).
@@ -158,7 +171,7 @@ const dealer = createDealer({
 
 function showBlocked(message, { link = true, retry = false } = {}) {
   $('game').hidden = true;
-  document.body.classList.remove('playing');
+  document.body.classList.remove('playing', 'seats');
   dockPlayers(false);
   clearCorner();
   $('blocked').hidden = false;
@@ -477,7 +490,7 @@ async function beginGame() {
   viewing = null;
   cardNodes.clear();
   $('game').hidden = false;
-  document.body.classList.add('playing'); // the one-screen layout (src/style.css)
+  document.body.classList.add('playing', 'seats'); // the Seats table: your area looks like the solo table, the other players' areas are across the top (src/style.css)
   dockPlayers(true);
   clearCorner();
   if (fresh) dealer.start(game.zones.hand.length); // a new hand is dealt one card at a time; a game put back after a refresh shows whole
@@ -492,7 +505,7 @@ function checkStart() {
   begun = false;
   game = null;
   $('game').hidden = true;
-  document.body.classList.remove('playing');
+  document.body.classList.remove('playing', 'seats');
   dockPlayers(false);
   clearCorner();
   $('blocked').hidden = true;
@@ -529,8 +542,13 @@ function opponentPanel(uid) {
   const countersBox = make('div', 'opponent-counters counter-chips'); countersBox.setAttribute('role', 'group'); countersBox.setAttribute('aria-label', 'Counters and commander damage'); countersBox.hidden = true;
   panel.countersBox = countersBox;
   panel.counterList = mountCounterChips(countersBox);
-  panel.body.append(board, make('h4', '', 'Command zone'), command, graveyard.details, exile.details);
-  section.append(panel.title, panel.stats, countersBox, panel.waiting, panel.body);
+  // (on the Seats table: who it is on one line, then their battlefield beside a narrow column with their command zone and piles; the battlefield is wrapped so the style sheet can turn it to face you)
+  const field = make('div', 'opp-field'); field.append(board);
+  const zones = make('div', 'opp-zones'); zones.append(make('h4', '', 'Command zone'), command, graveyard.details, exile.details);
+  panel.body.className = 'opp-body';
+  panel.body.append(field, zones);
+  const info = make('div', 'opp-info'); info.append(panel.title, panel.stats, countersBox);
+  section.append(info, panel.waiting, panel.body);
   opponents.set(uid, panel);
   return panel;
 }
@@ -544,6 +562,7 @@ async function renderOpponents() {
   lookup ??= known; // the same list answers for your own cards and the printed numbers on theirs
   const others = Object.entries(members).filter(([uid]) => uid !== myUid).sort((a, b) => Number(a[1].seat) - Number(b[1].seat));
   document.querySelector('main').dataset.opponents = String(Math.min(others.length, 3)); // how the boards are placed on the one-screen layout
+  $('opponents').style.setProperty('--opp-n', String(Math.max(1, Math.min(others.length, 3)))); // (the Seats table: one area per other player, side by side)
   const panels = [];
   const turnNow = game !== null ? currentTurnInfo() : null; // worked out once for all the panels, not once per player
   for (const [uid, member] of others) {
@@ -588,11 +607,12 @@ let cornerMode = 'selected'; // 'selected', or 'ping' while a pinged card is sho
 function showInCorner(card, marks, uid) {
   cornerUid = uid;
   cornerMode = 'selected';
+  $('spotlight').dataset.mode = 'selected';
   cornerShown = { card, marks };
   spotlight.show({ card, detail: marks, closable: false, key: `${uid}:${card.turned ? 1 : 0}:${card.p ?? card.i}:${marks}` });
 }
-function clearCorner() { cornerUid = null; cornerShown = null; cornerMode = 'selected'; spotlight.hide(); }
-function bringBackSelectionToCorner() { cornerMode = 'selected'; if (cornerShown) spotlight.show({ card: cornerShown.card, detail: cornerShown.marks, closable: false }); }
+function clearCorner() { cornerUid = null; cornerShown = null; cornerMode = 'selected'; $('spotlight').dataset.mode = 'selected'; spotlight.hide(); }
+function bringBackSelectionToCorner() { cornerMode = 'selected'; $('spotlight').dataset.mode = 'selected'; if (cornerShown) spotlight.show({ card: cornerShown.card, detail: cornerShown.marks, closable: false }); }
 let pingSeen = null; // uid -> the number of the last ping seen; null until the first snapshot of the table's public branches (and its match number) has arrived
 let publicSeen = false;
 let lastPingKey = 0; // the number of my own last ping
@@ -611,6 +631,7 @@ function showPing({ uid, card }) {
   const member = members[uid];
   const sentence = pingSentence(typeof member?.name === 'string' ? member.name : 'A player', typeof member?.seat === 'string' ? member.seat : '', card);
   cornerMode = 'ping';
+  $('spotlight').dataset.mode = 'ping';
   spotlight.show({ card, sentence, detail: marksSentence(card, printedOf(card, lookup)), closable: true });
   glowCard(uid, card.uid);
 }
@@ -758,7 +779,24 @@ function pickFromPileMenu(zone, id, amount) {
 }
 function openPileMenu(zone, where) {
   if (!game) return;
-  openCardMenu({ title: `${ZONE_WORDS[zone][0].toUpperCase()}${ZONE_WORDS[zone].slice(1)}`, items: pileMenuItems(zone, game.zones[zone].length), x: where.x, y: where.y, returnFocus: where.element, onPick: (id, amount) => pickFromPileMenu(zone, id, amount) });
+  openCardMenu({ title: `${ZONE_WORDS[zone][0].toUpperCase()}${ZONE_WORDS[zone].slice(1)}`, items: pileMenuItems(zone, game.zones[zone].length), x: where.x, y: where.y, returnFocus: where.element, toggleOn: where.toggleOn ?? null, avoid: where.avoid ?? null, onClose: where.onClose ?? null, onPick: (id, amount) => pickFromPileMenu(zone, id, amount) });
+}
+for (const [zone, name] of [['library', 'Library'], ['graveyard', 'Graveyard'], ['exile', 'Exile']]) {
+  const pile = $(`pile-${zone}`);
+  const slot = make('div', 'pile-slot');
+  const head = make('div', 'pile-head');
+  const caret = make('button', 'pile-caret');
+  caret.type = 'button';
+  caret.id = `pile-caret-${zone}`;
+  caret.setAttribute('aria-haspopup', 'menu');
+  caret.setAttribute('aria-expanded', 'false');
+  caret.setAttribute('aria-label', `${name} options`);
+  caret.title = `${name} options`;
+  caret.innerHTML = '<svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" aria-hidden="true"><path d="M1 3l4 4 4-4z"/></svg>';
+  caret.addEventListener('click', () => { if (!game) return; if (caret.getAttribute('aria-expanded') === 'true') { closeCardMenu(); return; } const box = caret.getBoundingClientRect(); caret.setAttribute('aria-expanded', 'true'); openPileMenu(zone, { x: box.left, y: box.bottom + 4, element: caret, toggleOn: caret, avoid: box, onClose: () => caret.setAttribute('aria-expanded', 'false') }); });
+  head.append(make('span', 'pile-name', name), caret);
+  pile.before(slot);
+  slot.append(head, pile);
 }
 for (const zone of ['library', 'graveyard', 'exile', 'sideboard']) {
   $(`pile-${zone}`).addEventListener('contextmenu', (event) => {
@@ -769,6 +807,9 @@ for (const zone of ['library', 'graveyard', 'exile', 'sideboard']) {
   });
 }
 const settings = mountSettingsMenu({ button: $('settings-button'), panel: $('settings-menu') });
+mountFloatingBar({ bar: document.querySelector('.actions-panel'), grip: $('bar-grip'), store, key: 'overloaded.seatsBar', defaultPlace: { dock: null, fx: 0.5, fy: 0.47 } });
+mountFloatingBar({ bar: $('life-area'), grip: $('life-grip'), store, key: 'overloaded.seatsLife', defaultPlace: { dock: 'left', fx: 0, fy: 0.62 } });
+mountFacing($('facing-settings'), { store });
 mountKeybindSettings($('keybind-settings'), { keybinds, page: 'table' });
 $('pile-sideboard').addEventListener('click', () => settings.close()); // the viewer opens over the table; the Settings panel would only be in the way
 

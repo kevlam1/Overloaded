@@ -117,6 +117,7 @@ if (live) {
   suites.push({ name: 'LIVE: lobby decks, Ready and the popup (two browsers)', cmd: node, args: ['--env-file=.env', 'scripts/check-lobby-deck-live.mjs'] });
   suites.push({ name: 'LIVE: the table screen and joining from its link (four browsers)', cmd: node, args: ['--env-file=.env', 'scripts/check-room-live.mjs'] });
   suites.push({ name: 'LIVE: the host adds and removes test bots (one browser)', cmd: node, args: ['--env-file=.env', 'scripts/check-bots-live.mjs'] });
+  suites.push({ name: 'LIVE: the Seats table layout for 2, 3 and 4 seats (real browsers and bots)', cmd: node, args: ['--env-file=.env', 'scripts/check-seats-live.mjs'] });
 }
 
 let failed = 0;

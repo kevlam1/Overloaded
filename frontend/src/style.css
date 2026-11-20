@@ -389,25 +389,25 @@ body.playing .bar .actions { gap: 0.3rem; }
 
 /* the boards: yours at the bottom-left, the other players around it, all the same size. 0 others: yours fills the middle; 1: one board on top and yours below, both across;
    2: two on top and yours across the bottom; 3: two on top, yours bottom-left and the third bottom-right. */
-body.playing main:not([data-opponents]), body.playing main[data-opponents="0"] { --cw-mine: clamp(3rem, 13vh, 8.5rem); }
-body.playing main[data-opponents="1"] { --cw-mine: clamp(2.8rem, 10.5vh, 7rem); --cw-opp: clamp(2.8rem, 10.5vh, 7rem); }
+body.playing main:not([data-opponents]), body.playing:not(.seats) main[data-opponents="0"] { --cw-mine: clamp(3rem, 13vh, 8.5rem); }
+body.playing:not(.seats) main[data-opponents="1"] { --cw-mine: clamp(2.8rem, 10.5vh, 7rem); --cw-opp: clamp(2.8rem, 10.5vh, 7rem); }
 body.playing .piles-section { --cw: 3.4rem; }
 body.playing .board, body.playing .opponent { display: flex; flex-direction: column; min-width: 0; min-height: 0; margin: 0; padding: 0.25rem 0.4rem; border: 1px solid var(--line); border-radius: 0.5rem; overflow: hidden; }
 body.playing #my-board { grid-column: 1; grid-row: 4; --cw: var(--cw-mine); }
-body.playing main:not([data-opponents]) #my-board, body.playing main[data-opponents="0"] #my-board { grid-column: 1 / 3; grid-row: 3 / 5; }
-body.playing main[data-opponents="1"] #my-board, body.playing main[data-opponents="2"] #my-board { grid-column: 1 / 3; }
+body.playing main:not([data-opponents]) #my-board, body.playing:not(.seats) main[data-opponents="0"] #my-board { grid-column: 1 / 3; grid-row: 3 / 5; }
+body.playing:not(.seats) main[data-opponents="1"] #my-board, body.playing:not(.seats) main[data-opponents="2"] #my-board { grid-column: 1 / 3; }
 body.playing .opponent { position: relative; --cw: var(--cw-opp); }
-body.playing main[data-opponents="1"] .opponent:nth-child(1) { grid-column: 1 / 3; grid-row: 3; }
-body.playing main[data-opponents="2"] .opponent:nth-child(1), body.playing main[data-opponents="3"] .opponent:nth-child(1) { grid-column: 1; grid-row: 3; }
-body.playing main[data-opponents="2"] .opponent:nth-child(2), body.playing main[data-opponents="3"] .opponent:nth-child(2) { grid-column: 2; grid-row: 3; }
-body.playing main[data-opponents="3"] .opponent:nth-child(3) { grid-column: 2; grid-row: 4; }
+body.playing:not(.seats) main[data-opponents="1"] .opponent:nth-child(1) { grid-column: 1 / 3; grid-row: 3; }
+body.playing:not(.seats) main[data-opponents="2"] .opponent:nth-child(1), body.playing:not(.seats) main[data-opponents="3"] .opponent:nth-child(1) { grid-column: 1; grid-row: 3; }
+body.playing:not(.seats) main[data-opponents="2"] .opponent:nth-child(2), body.playing:not(.seats) main[data-opponents="3"] .opponent:nth-child(2) { grid-column: 2; grid-row: 3; }
+body.playing:not(.seats) main[data-opponents="3"] .opponent:nth-child(3) { grid-column: 2; grid-row: 4; }
 body.playing .board .row, body.playing .opponent .row { flex: 1 1 0; min-height: 0; gap: 0.2rem; overflow: auto; align-content: flex-start; }
 body.playing .board .row:empty::before, body.playing .opponent .row:empty::before { font-size: 0.7rem; line-height: 1.2; }
 /* The solo table (Kevin, 2026-11-13): "Your hand is empty" was drawn inside the hand's box and showed for a moment while a hand was being dealt. It is now a small note above the middle of the bottom edge, and only when the hand really is empty. */
 .hand-bar { display: none; }
 /* under the middle of the hand while its cards are up: the count and the sort buttons (src/hand-view.js, src/hand-sort-ui.js) */
-body.playing.solo .hand-bar:not([hidden]) { position: absolute; z-index: 8; bottom: 0.55rem; translate: -50% 0; display: flex; align-items: center; gap: 0.5rem; padding: 0.15rem 0.5rem; border: 1px solid var(--line); border-radius: 1rem; background: var(--glass); backdrop-filter: blur(6px); font-size: 0.8rem; white-space: nowrap; pointer-events: auto; }
-body.playing.solo .hand-count { font-weight: 600; color: var(--text); }
+body.playing:is(.solo, .seats) .hand-bar:not([hidden]) { position: absolute; z-index: 8; bottom: 0.55rem; translate: -50% 0; display: flex; align-items: center; gap: 0.5rem; padding: 0.15rem 0.5rem; border: 1px solid var(--line); border-radius: 1rem; background: var(--glass); backdrop-filter: blur(6px); font-size: 0.8rem; white-space: nowrap; pointer-events: auto; }
+body.playing:is(.solo, .seats) .hand-count { font-weight: 600; color: var(--text); }
 /* the mana cost of a card in the hand shows only while the pointer is on it (its lifted copy) or it is the clicked card (Kevin, 2026-11-13) */
 body.playing #hand > .card .hand-cost { visibility: hidden; }
 body.playing #hand > .card.selected .hand-cost { visibility: visible; }
@@ -422,20 +422,20 @@ body.playing { user-select: none; -webkit-user-select: none; }
 body.playing input, body.playing textarea, body.playing [contenteditable] { user-select: text; -webkit-user-select: text; }
 .marquee { position: fixed; z-index: 40; border: 1px solid var(--ring); background: color-mix(in srgb, var(--ring) 14%, transparent); pointer-events: none; }
 /* the command zone's words are below and between the two slots */
-body.playing.solo .command-zone { display: flex; flex-direction: column; align-items: center; }
-body.playing.solo .command-zone h3 { order: 2; margin: 0.35rem 0 0; text-align: center; }
+body.playing:is(.solo, .seats) .command-zone { display: flex; flex-direction: column; align-items: center; }
+body.playing:is(.solo, .seats) .command-zone h3 { order: 2; margin: 0.35rem 0 0; text-align: center; }
 /* the bar comes in as the hand rises (the cards ease up in about a tenth of a second and settle in a few more), not before it: a short wait, then a fade and a small rise (Kevin, 2026-11-13) */
 @keyframes hand-bar-in { from { opacity: 0; transform: translateY(0.7rem); } to { opacity: 1; transform: none; } }
-body.playing.solo .hand-bar:not([hidden]) { animation: hand-bar-in 0.28s ease-out 0.12s backwards; }
-@media (prefers-reduced-motion: reduce) { body.playing.solo .hand-bar:not([hidden]) { animation: none; } }
-body.playing.solo #hand:empty::before { content: none; }
-body.playing.solo #hand.is-empty:empty::before { content: attr(data-empty); position: absolute; left: 50%; bottom: 3.4rem; translate: -50% 0; padding: 0.25rem 0.9rem; border: 1px solid var(--line); border-radius: 1rem; background: var(--glass); color: var(--muted); font-size: 0.8rem; line-height: 1.3; white-space: nowrap; pointer-events: none; }
-body.playing .opponent h3 { color: var(--text); font-size: 0.85rem; }
-body.playing .opponent h4 { margin: 0.15rem 0 0.05rem; font-size: 0.65rem; }
+body.playing:is(.solo, .seats) .hand-bar:not([hidden]) { animation: hand-bar-in 0.28s ease-out 0.12s backwards; }
+@media (prefers-reduced-motion: reduce) { body.playing:is(.solo, .seats) .hand-bar:not([hidden]) { animation: none; } }
+body.playing:is(.solo, .seats) #hand:empty::before { content: none; }
+body.playing:is(.solo, .seats) #hand.is-empty:empty::before { content: attr(data-empty); position: absolute; left: 50%; bottom: 3.4rem; translate: -50% 0; padding: 0.25rem 0.9rem; border: 1px solid var(--line); border-radius: 1rem; background: var(--glass); color: var(--muted); font-size: 0.8rem; line-height: 1.3; white-space: nowrap; pointer-events: none; }
+body.playing:not(.seats) .opponent h3 { color: var(--text); font-size: 0.85rem; }
+body.playing:not(.seats) .opponent h4 { margin: 0.15rem 0 0.05rem; font-size: 0.65rem; }
 body.playing .opponent .hint, body.playing .opponent-counters { margin: 0; font-size: 0.72rem; }
-body.playing .opponent > div:not(.opponent-counters) { display: flex; flex-direction: column; flex: 1 1 0; min-height: 0; }
-body.playing .opponent details { margin: 0; font-size: 0.75rem; }
-body.playing .opponent details[open] .pile-list { position: absolute; z-index: 6; left: 0.4rem; right: 0.4rem; max-height: 9rem; background: var(--card); }
+body.playing:not(.seats) .opponent > div:not(.opponent-counters) { display: flex; flex-direction: column; flex: 1 1 0; min-height: 0; }
+body.playing:not(.seats) .opponent details { margin: 0; font-size: 0.75rem; }
+body.playing:not(.seats) .opponent details[open] .pile-list { position: absolute; z-index: 6; left: 0.4rem; right: 0.4rem; max-height: 9rem; background: var(--card); }
 
 /* cards: one width variable per area, the height follows; a tapped card is as wide as the card is tall */
 body.playing .card, body.playing .opponent .card { width: var(--cw); height: calc(var(--cw) * 1.4015); border-width: 1px; border-radius: 0.3rem; flex: 0 0 auto; }
@@ -453,7 +453,7 @@ body.playing .card .fallback { font-size: 0.55rem; padding: 0.15rem; }
 /* your hand: along the bottom, one line, scrolling sideways inside itself if it is long */
 /* The hand has no box: it floats over the bottom of your battlefield (the same grid cell as your board, at its bottom edge). Only the cards take the mouse; everything between them is the battlefield. */
 body.playing .hand-section { grid-column: 1 / 3; grid-row: 4; align-self: end; position: relative; z-index: 5; min-width: 0; margin: 0; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; pointer-events: none; --cw: var(--cw-hand); }
-body.playing main[data-opponents="3"] .hand-section { grid-column: 1; }
+body.playing:not(.seats) main[data-opponents="3"] .hand-section { grid-column: 1; }
 body.playing .hand-section h2 { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; } /* the caption (Hand: N) was behind the cards: it is for a screen reader only now */
 body.playing #hand { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; min-height: 0; padding-bottom: 0.15rem; gap: 0.3rem; }
 
@@ -506,18 +506,18 @@ body.playing .card-corner .spot-empty[hidden], body.playing .card-corner .spot-t
 }
 
 /* each other player: the name and the numbers on one line, their counters under it, then the battlefield beside a narrow column for the command zone, graveyard and exile */
-body.playing .opponent { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto auto auto minmax(0, 1fr); column-gap: 0.6rem; row-gap: 0.1rem; }
-body.playing .opponent > h3 { grid-column: 1; grid-row: 1; margin: 0; }
-body.playing .opponent > .hint { grid-column: 2; grid-row: 1; margin: 0; align-self: baseline; }
-body.playing .opponent > .opponent-counters { grid-column: 1 / -1; }
-body.playing .opponent > .opponent-counters[data-for="counters"], body.playing .opponent > .opponent-counters:nth-of-type(1) { grid-row: 2; }
-body.playing .opponent > div:not(.opponent-counters) { grid-column: 1 / -1; grid-row: 5; display: grid; grid-template-columns: minmax(0, 1fr) 6.2rem; grid-template-rows: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 0.15rem 0.4rem; min-height: 0; }
-body.playing .opponent > div > :nth-child(1) { grid-column: 1; grid-row: 1 / 4; }
-body.playing .opponent > div > h4:nth-child(2) { grid-column: 2; grid-row: 1; align-self: start; margin: 0; }
-body.playing .opponent > div > :nth-child(3) { grid-column: 2; grid-row: 1; margin-top: 0.8rem; }
-body.playing .opponent > div > :nth-child(4) { grid-column: 2; grid-row: 2; align-self: start; }
-body.playing .opponent > div > :nth-child(5) { grid-column: 2; grid-row: 3; }
-body.playing .opponent > p.hint:not(:nth-of-type(1)) { grid-column: 1 / -1; grid-row: 4; }
+body.playing:not(.seats) .opponent { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto auto auto minmax(0, 1fr); column-gap: 0.6rem; row-gap: 0.1rem; }
+body.playing:not(.seats) .opponent > h3 { grid-column: 1; grid-row: 1; margin: 0; }
+body.playing:not(.seats) .opponent > .hint { grid-column: 2; grid-row: 1; margin: 0; align-self: baseline; }
+body.playing:not(.seats) .opponent > .opponent-counters { grid-column: 1 / -1; }
+body.playing:not(.seats) .opponent > .opponent-counters[data-for="counters"], body.playing:not(.seats) .opponent > .opponent-counters:nth-of-type(1) { grid-row: 2; }
+body.playing:not(.seats) .opponent > div:not(.opponent-counters) { grid-column: 1 / -1; grid-row: 5; display: grid; grid-template-columns: minmax(0, 1fr) 6.2rem; grid-template-rows: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 0.15rem 0.4rem; min-height: 0; }
+body.playing:not(.seats) .opponent > div > :nth-child(1) { grid-column: 1; grid-row: 1 / 4; }
+body.playing:not(.seats) .opponent > div > h4:nth-child(2) { grid-column: 2; grid-row: 1; align-self: start; margin: 0; }
+body.playing:not(.seats) .opponent > div > :nth-child(3) { grid-column: 2; grid-row: 1; margin-top: 0.8rem; }
+body.playing:not(.seats) .opponent > div > :nth-child(4) { grid-column: 2; grid-row: 2; align-self: start; }
+body.playing:not(.seats) .opponent > div > :nth-child(5) { grid-column: 2; grid-row: 3; }
+body.playing:not(.seats) .opponent > p.hint:not(:nth-of-type(1)) { grid-column: 1 / -1; grid-row: 4; }
 
 /* the right-hand column, tighter */
 body.playing .players-section .sound-settings { flex-wrap: nowrap; gap: 0.5rem; }
@@ -817,7 +817,7 @@ body[data-tapped-pile-style="vertical"] .battlefield > .card.tapped[data-stack-e
 .cmd-slot .tax[hidden] { display: none; }
 /* On the solo table the tax row of an empty slot keeps its room (it is only not drawn), so the two slots line up (Kevin, 2026-11-13) */
 .cmd-slot .tax.tax-off { visibility: hidden; }
-body.playing.solo .cmd-slot .tax { height: 1.7rem; } /* the same height with a number in it and without, so the two slots line up */
+body.playing:is(.solo, .seats) .cmd-slot .tax { height: 1.7rem; } /* the same height with a number in it and without, so the two slots line up */
 
 /* The deck manager (frontend/src/deck-importer.js): three screens, one at a time. */
 .deck-app .screen-head, .deck-app .deck-bar, .deck-app .deck-summary { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem 1rem; }
@@ -1239,45 +1239,45 @@ body.playing .pile-stack .stack-face.back { border: 0; border-radius: 4.8% / 3.4
    No panels. The board fills the window (under a strip kept free at the top for the floating pieces); the life is a small floating piece at the top left, the menu button and the turn at the top right,
    the action bar floats where you put it (frontend/src/floating-bar.js), the card preview floats under the turn, and the piles and the command zone are a row at the bottom right. The hand is at the
    bottom, as before. Only the solo page: the table page keeps its layout until this one is right. */
-body.playing.solo main.table { display: block; position: fixed; inset: 0; margin: 0; padding: 0; overflow: hidden; }
-body.playing.solo { --glass: rgba(22, 22, 30, 0.78); }
-body.playing.solo #my-board { position: absolute; inset: 0; padding: 3.7rem 2.8rem 0; border: 0; border-radius: 0; background: none; } /* the same room at both sides: the battlefield is in the middle of the window (it was flush with the right edge, Kevin 2026-11-14) */
+body.playing:is(.solo, .seats) main.table { display: block; position: fixed; inset: 0; margin: 0; padding: 0; overflow: hidden; }
+body.playing:is(.solo, .seats) { --glass: rgba(22, 22, 30, 0.78); }
+body.playing:is(.solo, .seats) #my-board { position: absolute; inset: 0; padding: 3.7rem 2.8rem 0; border: 0; border-radius: 0; background: none; } /* the same room at both sides: the battlefield is in the middle of the window (it was flush with the right edge, Kevin 2026-11-14) */
 /* a line round the battlefield (2 px: 4 was too thick, Kevin 2026-11-14), drawn outside it so the cells and the places of the cards do not move */
-body.playing.solo .board.mine > .battlefield { align-self: center; outline: 2px solid color-mix(in srgb, var(--text) 40%, transparent); outline-offset: 0; }
-body.playing.solo { --zones-sw: min(6.8rem, calc((100vw - 50.4rem) / 5)); } /* 6.8 rem, less on a window under about 1360 px so that the hand (42 rem across) still fits beside the zones row, which is 5 widths and 5.6 rem across */
-body.playing.solo .zones { --sw: var(--zones-sw); } /* the piles and the command zone are larger (Kevin, 2026-11-12, and again 2026-11-14: 5.4 then 6.8 rem); their pictures are the normal size so they stay sharp */
-body.playing.solo .hand-section { position: absolute; left: 0; right: calc(5 * var(--zones-sw) + 7.2rem); bottom: 0; grid-row: auto; grid-column: auto; } /* the hand is centred in the room left of the zones row (5 widths and 5.6 rem across, 0.8 rem from the right edge, and a little room between) */
-body.playing.solo .right-column { display: contents; }
+body.playing:is(.solo, .seats) .board.mine > .battlefield { align-self: center; outline: 2px solid color-mix(in srgb, var(--text) 40%, transparent); outline-offset: 0; }
+body.playing:is(.solo, .seats) { --zones-sw: min(6.8rem, calc((100vw - 50.4rem) / 5)); } /* 6.8 rem, less on a window under about 1360 px so that the hand (42 rem across) still fits beside the zones row, which is 5 widths and 5.6 rem across */
+body.playing:is(.solo, .seats) .zones { --sw: var(--zones-sw); } /* the piles and the command zone are larger (Kevin, 2026-11-12, and again 2026-11-14: 5.4 then 6.8 rem); their pictures are the normal size so they stay sharp */
+body.playing:is(.solo, .seats) .hand-section { position: absolute; left: 0; right: calc(5 * var(--zones-sw) + 7.2rem); bottom: 0; grid-row: auto; grid-column: auto; } /* the hand is centred in the room left of the zones row (5 widths and 5.6 rem across, 0.8 rem from the right edge, and a little room between) */
+body.playing:is(.solo, .seats) .right-column { display: contents; }
 
 /* the pieces that float: glass, like the control bar of MIDI Companion */
-body.playing.solo .bar { display: contents; }
-body.playing.solo #life-area, body.playing.solo .hud-menu, body.playing.solo .actions-panel { position: absolute; z-index: 15; border: 1px solid var(--line); border-radius: 0.8rem; background: var(--glass); backdrop-filter: blur(8px); box-shadow: 0 0.5rem 1.4rem rgba(0, 0, 0, 0.4); }
-body.playing.solo #life-area { top: 0.55rem; left: 0.6rem; display: flex; align-items: center; gap: 0.5rem; padding: 0.2rem 0.55rem; }
-body.playing.solo #life-area .stat { margin: 0; }
+body.playing:is(.solo, .seats) .bar { display: contents; }
+body.playing:is(.solo, .seats) #life-area, body.playing:is(.solo, .seats) .hud-menu, body.playing:is(.solo, .seats) .actions-panel { position: absolute; z-index: 15; border: 1px solid var(--line); border-radius: 0.8rem; background: var(--glass); backdrop-filter: blur(8px); box-shadow: 0 0.5rem 1.4rem rgba(0, 0, 0, 0.4); }
+body.playing:is(.solo, .seats) #life-area { top: 0.55rem; left: 0.6rem; display: flex; align-items: center; gap: 0.5rem; padding: 0.2rem 0.55rem; }
+body.playing:is(.solo, .seats) #life-area .stat { margin: 0; }
 /* the turn is the first thing in the floating bar (Kevin, 2026-11-12) */
-body.playing.solo .actions-panel .turn-stat { margin: 0; padding: 0 0.5rem 0 0.1rem; white-space: nowrap; border-right: 1px solid var(--line); }
-body.playing.solo .hud-menu { top: 0.55rem; right: 0.6rem; display: grid; place-items: center; width: 2.4rem; height: 2.4rem; min-height: 0; padding: 0; color: var(--text); cursor: pointer; }
-body.playing.solo .hud-menu:hover { border-color: var(--ring); }
-body.playing.solo .topbar { position: absolute; z-index: 14; top: 3.9rem; left: 50%; translate: -50% 0; display: block; max-width: 40rem; padding: 0; pointer-events: none; }
-body.playing.solo .topbar h1 { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-body.playing.solo .topbar .status:not(:empty) { margin: 0; padding: 0.2rem 0.8rem; border: 1px solid var(--line); border-radius: 1rem; background: var(--glass); font-size: 0.8rem; text-align: center; }
+body.playing:is(.solo, .seats) .actions-panel .turn-stat { margin: 0; padding: 0 0.5rem 0 0.1rem; white-space: nowrap; border-right: 1px solid var(--line); }
+body.playing:is(.solo, .seats) .hud-menu { top: 0.55rem; right: 0.6rem; display: grid; place-items: center; width: 2.4rem; height: 2.4rem; min-height: 0; padding: 0; color: var(--text); cursor: pointer; }
+body.playing:is(.solo, .seats) .hud-menu:hover { border-color: var(--ring); }
+body.playing:is(.solo, .seats) .topbar { position: absolute; z-index: 14; top: 3.9rem; left: 50%; translate: -50% 0; display: block; max-width: 40rem; padding: 0; pointer-events: none; }
+body.playing:is(.solo, .seats) .topbar h1 { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+body.playing:is(.solo, .seats) .topbar .status:not(:empty) { margin: 0; padding: 0.2rem 0.8rem; border: 1px solid var(--line); border-radius: 1rem; background: var(--glass); font-size: 0.8rem; text-align: center; }
 
 /* the floating action bar: one row, a grip at its left */
-body.playing.solo .actions-panel { top: 0.55rem; left: 50%; translate: -50% 0; display: flex; align-items: center; gap: 0.35rem; padding: 0.25rem 0.5rem 0.25rem 0.2rem; transition: left 0.25s ease, top 0.25s ease, border-color 0.2s ease, box-shadow 0.2s ease; }
-body.playing.solo .actions-panel.dragging { transition: none; border-color: var(--ring); box-shadow: 0 0.8rem 1.8rem rgba(0, 0, 0, 0.55); }
-body.playing.solo .actions-panel .actions { display: flex; flex-wrap: nowrap; gap: 0.35rem; }
-body.playing.solo .actions-panel .actions button { width: auto; white-space: nowrap; padding: 0.1rem 0.7rem; }
-body.playing.solo .bar-grip { display: grid; place-items: center; width: 1.4rem; min-height: 1.9rem; padding: 0; border: 0; background: none; color: var(--muted); cursor: grab; touch-action: none; user-select: none; }
-body.playing.solo .bar-grip:hover, body.playing.solo .bar-grip:focus-visible { color: var(--text); }
-body.playing.solo .actions-panel.dragging .bar-grip { cursor: grabbing; color: var(--ring); }
-@media (prefers-reduced-motion: reduce) { body.playing.solo .actions-panel { transition: none; } }
+body.playing:is(.solo, .seats) .actions-panel { top: 0.55rem; left: 50%; translate: -50% 0; display: flex; align-items: center; gap: 0.35rem; padding: 0.25rem 0.5rem 0.25rem 0.2rem; transition: left 0.25s ease, top 0.25s ease, border-color 0.2s ease, box-shadow 0.2s ease; }
+body.playing:is(.solo, .seats) .actions-panel.dragging { transition: none; border-color: var(--ring); box-shadow: 0 0.8rem 1.8rem rgba(0, 0, 0, 0.55); }
+body.playing:is(.solo, .seats) .actions-panel .actions { display: flex; flex-wrap: nowrap; gap: 0.35rem; }
+body.playing:is(.solo, .seats) .actions-panel .actions button { width: auto; white-space: nowrap; padding: 0.1rem 0.7rem; }
+body.playing:is(.solo, .seats) .bar-grip { display: grid; place-items: center; width: 1.4rem; min-height: 1.9rem; padding: 0; border: 0; background: none; color: var(--muted); cursor: grab; touch-action: none; user-select: none; }
+body.playing:is(.solo, .seats) .bar-grip:hover, body.playing:is(.solo, .seats) .bar-grip:focus-visible { color: var(--text); }
+body.playing:is(.solo, .seats) .actions-panel.dragging .bar-grip { cursor: grabbing; color: var(--ring); }
+@media (prefers-reduced-motion: reduce) { body.playing:is(.solo, .seats) .actions-panel { transition: none; } }
 /* docked to the left or the right the bar is a column (Kevin, 2026-11-14: like the control bar of MIDI Companion) */
-body.playing.solo .actions-panel[data-vertical="true"] { flex-direction: column; align-items: stretch; gap: 0.3rem; padding: 0.2rem 0.5rem 0.5rem; }
-body.playing.solo .actions-panel[data-vertical="true"] .actions { flex-direction: column; }
-body.playing.solo .actions-panel[data-vertical="true"] .actions button { width: 100%; }
-body.playing.solo .actions-panel[data-vertical="true"] .turn-stat { padding: 0 0 0.3rem; text-align: center; border-right: 0; border-bottom: 1px solid var(--line); }
-body.playing.solo .actions-panel[data-vertical="true"] .bar-grip { width: 100%; min-height: 1.3rem; }
-body.playing.solo .actions-panel[data-vertical="true"] .bar-grip svg { rotate: 90deg; } /* the dots of the handle lie down when the bar stands up */
+body.playing:is(.solo, .seats) .actions-panel[data-vertical="true"] { flex-direction: column; align-items: stretch; gap: 0.3rem; padding: 0.2rem 0.5rem 0.5rem; }
+body.playing:is(.solo, .seats) .actions-panel[data-vertical="true"] .actions { flex-direction: column; }
+body.playing:is(.solo, .seats) .actions-panel[data-vertical="true"] .actions button { width: 100%; }
+body.playing:is(.solo, .seats) .actions-panel[data-vertical="true"] .turn-stat { padding: 0 0 0.3rem; text-align: center; border-right: 0; border-bottom: 1px solid var(--line); }
+body.playing:is(.solo, .seats) .actions-panel[data-vertical="true"] .bar-grip { width: 100%; min-height: 1.3rem; }
+body.playing:is(.solo, .seats) .actions-panel[data-vertical="true"] .bar-grip svg { rotate: 90deg; } /* the dots of the handle lie down when the bar stands up */
 /* what letting go would do, shown while the bar is dragged: a strip along the edge it would dock to, a dotted line through the middle when it is lined up with the middle of the edge, a dotted triangle in the corner it would go into */
 .bar-snap-hint, .bar-center-hint, .bar-corner-hint { position: fixed; z-index: 14; pointer-events: none; animation: bar-hint-in 0.15s ease; }
 .bar-snap-hint { border-radius: 2px; background: var(--accent); box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 70%, transparent); opacity: 0.85; }
@@ -1291,18 +1291,18 @@ body.playing.solo .actions-panel[data-vertical="true"] .bar-grip svg { rotate: 9
 
 
 /* the piles and the command zone: a row at the bottom right */
-body.playing.solo .side-panels { position: absolute; z-index: 9; right: 0.8rem; bottom: 0.2rem; display: block; } /* the bottom of the row nearly touches the bottom of the window (Kevin, 2026-11-14) */
-body.playing.solo .side-panels > section { padding: 0; }
-body.playing.solo .piles-section { display: flex; flex-direction: row; align-items: flex-start; gap: 1rem; }
+body.playing:is(.solo, .seats) .side-panels { position: absolute; z-index: 9; right: 0.8rem; bottom: 0.2rem; display: block; } /* the bottom of the row nearly touches the bottom of the window (Kevin, 2026-11-14) */
+body.playing:is(.solo, .seats) .side-panels > section { padding: 0; }
+body.playing:is(.solo, .seats) .piles-section { display: flex; flex-direction: row; align-items: flex-start; gap: 1rem; }
 /* the name of each pile is above it like the command zone's, with a small arrow that opens its menu (Kevin, 2026-11-13) */
-body.playing.solo .pile-slot { display: flex; flex-direction: column; align-items: flex-start; gap: 0.25rem; }
+body.playing:is(.solo, .seats) .pile-slot { display: flex; flex-direction: column; align-items: flex-start; gap: 0.25rem; }
 /* the piles line up with the command zone: the name row is as high as the tax row above a commander, and the pile starts where a commander's card does inside its frame (the frame's border and 0.2rem more) */
-body.playing.solo .pile-slot .pile-stack { margin-top: 0.2rem; }
-body.playing.solo .pile-head { display: flex; align-items: center; gap: 0.1rem; height: 1.7rem; min-height: 0; font-size: 0.85rem; font-weight: 600; color: var(--muted); }
-body.playing.solo .pile-caret { display: grid; place-items: center; width: 1.3rem; min-height: 0; height: 1.3rem; padding: 0; border: 0; border-radius: 0.3rem; background: transparent; color: var(--muted); cursor: pointer; }
-body.playing.solo .pile-caret:hover, body.playing.solo .pile-caret:focus-visible { background: color-mix(in srgb, var(--ring) 16%, transparent); color: var(--text); }
-body.playing.solo .side-panels .pile-stack { padding: 0; }
-body.playing.solo .pile-stack::after { content: none; }
+body.playing:is(.solo, .seats) .pile-slot .pile-stack { margin-top: 0.2rem; }
+body.playing:is(.solo, .seats) .pile-head { display: flex; align-items: center; gap: 0.1rem; height: 1.7rem; min-height: 0; font-size: 0.85rem; font-weight: 600; color: var(--muted); }
+body.playing:is(.solo, .seats) .pile-caret { display: grid; place-items: center; width: 1.3rem; min-height: 0; height: 1.3rem; padding: 0; border: 0; border-radius: 0.3rem; background: transparent; color: var(--muted); cursor: pointer; }
+body.playing:is(.solo, .seats) .pile-caret:hover, body.playing:is(.solo, .seats) .pile-caret:focus-visible { background: color-mix(in srgb, var(--ring) 16%, transparent); color: var(--text); }
+body.playing:is(.solo, .seats) .side-panels .pile-stack { padding: 0; }
+body.playing:is(.solo, .seats) .pile-stack::after { content: none; }
 .hand-sort-toggle { min-height: 0; padding: 0 0.6rem; border: 1px solid var(--line); border-radius: 1rem; background: transparent; color: var(--text); font-size: 0.75rem; font-weight: 700; line-height: 1.45rem; cursor: pointer; }
 .hand-sort-toggle[data-state="on"] { border-color: var(--ok, #3aa56b); color: var(--ok, #3aa56b); }
 .hand-sort-toggle[data-state="off"] { color: var(--muted); }
@@ -1325,7 +1325,7 @@ body.playing.solo .pile-stack::after { content: none; }
 @media (prefers-reduced-motion: reduce) { .type-pill { transition: none; } }
 .type-move { width: 1.2rem; min-height: 0; height: 1.5rem; padding: 0; border: 0; background: transparent; color: var(--text); cursor: pointer; }
 .type-move:disabled { opacity: 0.3; cursor: default; }
-body.playing.solo .piles-section .zone-stacks { display: flex; flex-wrap: nowrap; gap: 0.5rem 0.9rem; }
+body.playing:is(.solo, .seats) .piles-section .zone-stacks { display: flex; flex-wrap: nowrap; gap: 0.5rem 0.9rem; }
 
 /* Kevin, 2026-11-12: no highlight of the cell a card is carried over on the battlefield (the picture that follows the pointer shows where it will land). The element stays: the drag code and the checks use it. */
 .battlefield > .cell-highlight { visibility: hidden; }
@@ -1365,7 +1365,7 @@ body.dragging-card .pile-stack.drop-target .stack-face, body.dragging-card .cmd-
 /* The solo battlefield reaches the top and both sides of the window (Kevin, 2026-11-14: "extend the battlefield; the control bar, life and settings can live on top of it", "flush with the window sides too, the bottom above
    the hand like before"): no room at the sides or the top (a 2.5 px gap keeps its line from being cut), so the bar, the life and the menu float over its top. It stays 112 by 44 cells, so its bottom is above the hand and the
    zones row. The line round it is drawn outside it. */
-body.playing.solo #my-board { padding: 0.15rem 0 0; }
+body.playing:is(.solo, .seats) #my-board { padding: 0.15rem 0 0; }
 /* the small number box of a menu line such as "Draw X..." (frontend/src/number-box.js; Kevin, 2026-11-15) */
 .number-box { position: fixed; z-index: 45; width: 13rem; padding: 0.6rem 0.7rem 0.7rem; border: 1px solid var(--line); border-radius: 0.6rem; background: var(--panel, var(--bg)); box-shadow: 0 0.5rem 1.4rem rgba(0, 0, 0, 0.45); }
 .number-box-title { margin-bottom: 0.4rem; font-weight: 700; }
@@ -1411,11 +1411,11 @@ body.playing.solo #my-board { padding: 0.15rem 0 0; }
 .pile-caret svg, .hand-caret svg { transition: rotate 0.15s; }
 .pile-caret[aria-expanded="true"] svg, .hand-caret[aria-expanded="true"] svg { rotate: 180deg; }
 @media (prefers-reduced-motion: reduce) { .card-menu .has-sub .card-menu-arrow, .pile-caret svg, .hand-caret svg { transition: none; } }
-body.playing.solo .hand-bar:not([hidden]) { gap: 0.3rem; padding: 0.05rem 0.4rem; border-radius: 0.9rem; font-size: 0.66rem; letter-spacing: 0.05em; text-transform: uppercase; }
-body.playing.solo .hand-bar .hand-sort, body.playing.solo .hand-bar .hand-sort-toggle, body.playing.solo .hand-bar .hand-sort-now { min-height: 0; padding: 0 0.45rem; font-size: 0.64rem; line-height: 1.05rem; }
-body.playing.solo .hand-bar .hand-caret { width: 1.05rem; height: 1.05rem; border-radius: 50%; }
-body.playing.solo .pile-head { align-self: flex-start; height: 1.3rem; margin-block: 0.2rem; padding: 0 0.15rem 0 0.55rem; border: 1px solid var(--line); border-radius: 0.9rem; background: var(--glass); font-size: 0.66rem; letter-spacing: 0.05em; text-transform: uppercase; }
-body.playing.solo .pile-head .pile-caret { width: 1.05rem; height: 1.05rem; border-radius: 50%; }
+body.playing:is(.solo, .seats) .hand-bar:not([hidden]) { gap: 0.3rem; padding: 0.05rem 0.4rem; border-radius: 0.9rem; font-size: 0.66rem; letter-spacing: 0.05em; text-transform: uppercase; }
+body.playing:is(.solo, .seats) .hand-bar .hand-sort, body.playing:is(.solo, .seats) .hand-bar .hand-sort-toggle, body.playing:is(.solo, .seats) .hand-bar .hand-sort-now { min-height: 0; padding: 0 0.45rem; font-size: 0.64rem; line-height: 1.05rem; }
+body.playing:is(.solo, .seats) .hand-bar .hand-caret { width: 1.05rem; height: 1.05rem; border-radius: 50%; }
+body.playing:is(.solo, .seats) .pile-head { align-self: flex-start; height: 1.3rem; margin-block: 0.2rem; padding: 0 0.15rem 0 0.55rem; border: 1px solid var(--line); border-radius: 0.9rem; background: var(--glass); font-size: 0.66rem; letter-spacing: 0.05em; text-transform: uppercase; }
+body.playing:is(.solo, .seats) .pile-head .pile-caret { width: 1.05rem; height: 1.05rem; border-radius: 50%; }
 /* a card exiled face down: you see it, with a label (an opponent would not; the live table does not offer it yet) */
 .card.exiled-down { outline: 2px dashed color-mix(in srgb, var(--text) 55%, transparent); outline-offset: -2px; }
 .card.exiled-down::before { content: 'Face down'; position: absolute; z-index: 3; top: 0.2rem; left: 0.2rem; padding: 0 0.35rem; border-radius: 0.6rem; background: rgba(0, 0, 0, 0.72); color: #fff; font-size: 0.62rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; pointer-events: none; }
@@ -1586,14 +1586,14 @@ body.stack-aiming, body.stack-aiming * { cursor: crosshair !important; }
 .stack-card .card:disabled, .stack-card .card { opacity: 1; filter: none; } /* a read-only card button is greyed by default: not in the stack (Kevin, 2026-11-18) */
 
 /* the Game history bar (Kevin, 2026-11-18): a thin bar that floats like the action bar and opens downward; the whole top is the handle (click opens, drag moves) and docked to an edge it touches the edge like the stack window */
-body.playing.solo .history-panel { position: absolute; top: 0; left: 0; padding: 0; z-index: 12; /* under the menu button, whose Settings menu opens over this corner */ width: 13rem; overflow: hidden; border: 1px solid var(--line); border-radius: 0.7rem; background: var(--glass); backdrop-filter: blur(8px); box-shadow: 0 0.5rem 1.4rem rgba(0, 0, 0, 0.4); transition: left 0.25s ease, top 0.25s ease, border-color 0.2s ease, box-shadow 0.2s ease; }
-body.playing.solo .history-panel.dragging { transition: none; border-color: var(--ring); box-shadow: 0 0.8rem 1.8rem rgba(0, 0, 0, 0.55); }
-@media (prefers-reduced-motion: reduce) { body.playing.solo .history-panel { transition: none; } }
-body.playing.solo .history-panel[data-dock="left"] { border-left: 0; border-radius: 0 0.7rem 0.7rem 0; }
-body.playing.solo .history-panel[data-dock="right"] { border-right: 0; border-radius: 0.7rem 0 0 0.7rem; }
-body.playing.solo .history-panel[data-dock="top"] { border-top: 0; border-radius: 0 0 0.7rem 0.7rem; }
-body.playing.solo .history-panel[data-dock="bottom"] { border-bottom: 0; border-radius: 0.7rem 0.7rem 0 0; }
-body.playing.solo .history-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; width: 100%; height: 1.7rem; min-height: 0; line-height: 1.2; padding: 0 0.7rem; border: 0; background: none; color: var(--text); font: inherit; font-size: 0.78rem; font-weight: 600; text-align: left; cursor: pointer; touch-action: none; user-select: none; }
+body.playing:is(.solo, .seats) .history-panel { position: absolute; top: 0; left: 0; padding: 0; z-index: 12; /* under the menu button, whose Settings menu opens over this corner */ width: 13rem; overflow: hidden; border: 1px solid var(--line); border-radius: 0.7rem; background: var(--glass); backdrop-filter: blur(8px); box-shadow: 0 0.5rem 1.4rem rgba(0, 0, 0, 0.4); transition: left 0.25s ease, top 0.25s ease, border-color 0.2s ease, box-shadow 0.2s ease; }
+body.playing:is(.solo, .seats) .history-panel.dragging { transition: none; border-color: var(--ring); box-shadow: 0 0.8rem 1.8rem rgba(0, 0, 0, 0.55); }
+@media (prefers-reduced-motion: reduce) { body.playing:is(.solo, .seats) .history-panel { transition: none; } }
+body.playing:is(.solo, .seats) .history-panel[data-dock="left"] { border-left: 0; border-radius: 0 0.7rem 0.7rem 0; }
+body.playing:is(.solo, .seats) .history-panel[data-dock="right"] { border-right: 0; border-radius: 0.7rem 0 0 0.7rem; }
+body.playing:is(.solo, .seats) .history-panel[data-dock="top"] { border-top: 0; border-radius: 0 0 0.7rem 0.7rem; }
+body.playing:is(.solo, .seats) .history-panel[data-dock="bottom"] { border-bottom: 0; border-radius: 0.7rem 0.7rem 0 0; }
+body.playing:is(.solo, .seats) .history-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; width: 100%; height: 1.7rem; min-height: 0; line-height: 1.2; padding: 0 0.7rem; border: 0; background: none; color: var(--text); font: inherit; font-size: 0.78rem; font-weight: 600; text-align: left; cursor: pointer; touch-action: none; user-select: none; }
 .history-panel.dragging .history-head { cursor: grabbing; }
 .history-head:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
 .history-count { min-width: 1.2rem; padding: 0 0.3rem; border-radius: 0.7rem; background: color-mix(in srgb, var(--text) 14%, transparent); font-size: 0.68rem; text-align: center; }
@@ -1607,18 +1607,18 @@ body.playing.solo .history-head { display: flex; align-items: center; justify-co
 .history-empty { padding: 0.3rem 0; color: var(--muted); }
 
 /* the life piece of the solo table (Kevin, 2026-11-18): it floats like the action bar. The word Life above the number is the handle; a - and a + sit beside the number. A click on the number still gains 1 (src/life-control.js). */
-body.playing.solo #life-area { width: max-content; min-width: 9.5rem; flex-direction: column; align-items: stretch; gap: 0; padding: 0.1rem 0.5rem 0.35rem; transition: left 0.25s ease, top 0.25s ease, border-color 0.2s ease, box-shadow 0.2s ease; }
-body.playing.solo #life-area.dragging { transition: none; border-color: var(--ring); box-shadow: 0 0.8rem 1.8rem rgba(0, 0, 0, 0.55); }
-@media (prefers-reduced-motion: reduce) { body.playing.solo #life-area { transition: none; } }
-body.playing.solo #life-area .life-grip { width: 100%; min-width: 0; min-height: 0; padding: 0.1rem 0 0.05rem; border: 0; background: none; color: var(--muted); font-size: 0.66rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; text-align: center; cursor: grab; touch-action: none; user-select: none; }
-body.playing.solo #life-area .life-grip:hover, body.playing.solo #life-area .life-grip:focus-visible { color: var(--text); }
-body.playing.solo #life-area.dragging .life-grip { cursor: grabbing; color: var(--ring); }
-body.playing.solo #life-area .life-row { display: flex; align-items: center; justify-content: center; gap: 0.3rem; }
-body.playing.solo #life-area .life-step { display: grid; place-items: center; width: 1.7rem; min-width: 1.7rem; height: 1.7rem; min-height: 0; padding: 0; border: 1px solid var(--line); border-radius: 50%; background: transparent; color: var(--text); font-size: 1.1rem; line-height: 1; cursor: pointer; }
-body.playing.solo #life-area .life-step:hover { border-color: var(--ring); }
-body.playing.solo #life-area .life-step:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
-body.playing.solo #life-area .life-number { min-width: 2.8rem; padding: 0 0.2rem; border: 0; background: none; font-size: 1.35rem; font-weight: 700; line-height: 1.3; }
-body.playing.solo #life-area .life-number:hover { background: color-mix(in srgb, var(--text) 8%, transparent); border-radius: 0.4rem; }
+body.playing:is(.solo, .seats) #life-area { width: max-content; min-width: 9.5rem; flex-direction: column; align-items: stretch; gap: 0; padding: 0.1rem 0.5rem 0.35rem; transition: left 0.25s ease, top 0.25s ease, border-color 0.2s ease, box-shadow 0.2s ease; }
+body.playing:is(.solo, .seats) #life-area.dragging { transition: none; border-color: var(--ring); box-shadow: 0 0.8rem 1.8rem rgba(0, 0, 0, 0.55); }
+@media (prefers-reduced-motion: reduce) { body.playing:is(.solo, .seats) #life-area { transition: none; } }
+body.playing:is(.solo, .seats) #life-area .life-grip { width: 100%; min-width: 0; min-height: 0; padding: 0.1rem 0 0.05rem; border: 0; background: none; color: var(--muted); font-size: 0.66rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; text-align: center; cursor: grab; touch-action: none; user-select: none; }
+body.playing:is(.solo, .seats) #life-area .life-grip:hover, body.playing:is(.solo, .seats) #life-area .life-grip:focus-visible { color: var(--text); }
+body.playing:is(.solo, .seats) #life-area.dragging .life-grip { cursor: grabbing; color: var(--ring); }
+body.playing:is(.solo, .seats) #life-area .life-row { display: flex; align-items: center; justify-content: center; gap: 0.3rem; }
+body.playing:is(.solo, .seats) #life-area .life-step { display: grid; place-items: center; width: 1.7rem; min-width: 1.7rem; height: 1.7rem; min-height: 0; padding: 0; border: 1px solid var(--line); border-radius: 50%; background: transparent; color: var(--text); font-size: 1.1rem; line-height: 1; cursor: pointer; }
+body.playing:is(.solo, .seats) #life-area .life-step:hover { border-color: var(--ring); }
+body.playing:is(.solo, .seats) #life-area .life-step:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+body.playing:is(.solo, .seats) #life-area .life-number { min-width: 2.8rem; padding: 0 0.2rem; border: 0; background: none; font-size: 1.35rem; font-weight: 700; line-height: 1.3; }
+body.playing:is(.solo, .seats) #life-area .life-number:hover { background: color-mix(in srgb, var(--text) 8%, transparent); border-radius: 0.4rem; }
 
 /* the "are you sure?" window (frontend/src/confirm-box.js; Kevin, 2026-11-18: deleting a deck): centred over a dimmed page */
 .confirm-overlay { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; background: rgba(0, 0, 0, 0.55); }
@@ -1629,11 +1629,11 @@ body.playing.solo #life-area .life-number:hover { background: color-mix(in srgb,
 .confirm-buttons button { min-height: 0; padding: 0.3rem 1rem; }
 .confirm-yes { border-color: var(--danger); background: var(--danger); color: var(--bg); font-weight: 700; }
 .confirm-yes:focus-visible, .confirm-no:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
-body.playing.solo #life-area .life-counters { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; width: 100%; min-width: 0; min-height: 0; margin-top: 0.25rem; padding: 0.15rem 0.5rem; border: 1px solid var(--line); border-radius: 0.5rem; background: transparent; color: var(--text); font-size: 0.78rem; font-weight: 600; cursor: pointer; }
-body.playing.solo #life-area .life-counters::after { content: ""; width: 0.38rem; height: 0.38rem; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); rotate: 45deg; translate: 0 -0.1rem; flex: none; }
-body.playing.solo #life-area .life-counters:hover { border-color: var(--ring); }
-body.playing.solo #life-area .life-counters:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
-body.playing.solo #life-area .life-counters[aria-expanded="true"]::after { rotate: 225deg; translate: 0 0.08rem; }
+body.playing:is(.solo, .seats) #life-area .life-counters { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; width: 100%; min-width: 0; min-height: 0; margin-top: 0.25rem; padding: 0.15rem 0.5rem; border: 1px solid var(--line); border-radius: 0.5rem; background: transparent; color: var(--text); font-size: 0.78rem; font-weight: 600; cursor: pointer; }
+body.playing:is(.solo, .seats) #life-area .life-counters::after { content: ""; width: 0.38rem; height: 0.38rem; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); rotate: 45deg; translate: 0 -0.1rem; flex: none; }
+body.playing:is(.solo, .seats) #life-area .life-counters:hover { border-color: var(--ring); }
+body.playing:is(.solo, .seats) #life-area .life-counters:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+body.playing:is(.solo, .seats) #life-area .life-counters[aria-expanded="true"]::after { rotate: 225deg; translate: 0 0.08rem; }
 
 /* foil (Kevin, 2026-11-18): there is one look, a traditional foil for every kind of foil, etched included (data-foil on the element, the names are in shared/foil-looks.mjs). The 20 looks made from photos were
    scrapped on 2026-11-18 (git history has them). A look is a few variables: --f-img the layers, --f-size and --f-pos their size and place, --f-blend how they mix with the picture, --f-alpha how strong.
@@ -1855,8 +1855,8 @@ body[data-screen="room"] section#table { padding: 0; border: 0; background: none
 .emblem-row .card { flex: none; width: calc(var(--sw) * 0.55); height: calc(var(--sw) * 0.55 * 1.4015); margin: 0; padding: 0; box-sizing: border-box; }
 .emblem-row .card .face { width: 100%; height: 100%; }
 /* On the solo table the command zone is at the bottom edge, so the emblems sit in a row ABOVE its slots, over the corner of the battlefield. */
-body.playing.solo .command-zone { position: relative; }
-body.playing.solo .emblem-row { position: absolute; right: 0; bottom: calc(100% + 0.35rem); z-index: 6; justify-content: flex-end; margin: 0; max-width: none; width: max-content; }
+body.playing:is(.solo, .seats) .command-zone { position: relative; }
+body.playing:is(.solo, .seats) .emblem-row { position: absolute; right: 0; bottom: calc(100% + 0.35rem); z-index: 6; justify-content: flex-end; margin: 0; max-width: none; width: max-content; }
 /* An emblem is just its card (no button padding or border round it, so the picture is not off to one side of a frame). */
 body .emblem-row .card, .emblem-row .card { padding: 0; border: 0; background: transparent; box-shadow: none; outline: 0; }
 .emblem-row .card .face { display: block; }
@@ -1948,3 +1948,46 @@ body[data-screen] .deck-import-tile:not(.secondary) { box-shadow: none; border-r
 .seat-warn { flex: none; padding: 0.05rem 0.55rem; border-radius: 1rem; background: #f0b429; color: #1b1300; font-size: 0.68rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
 .seat-warn::before { content: "! "; font-weight: 900; }
 .seat.over-limit:not(.mine) { border-color: color-mix(in srgb, #f0b429 70%, var(--line)); }
+
+/* ---- the Seats table (Kevin, 2026-11-20): your own area is the solo table's look (every body.playing:is(.solo, .seats) rule above), and the other players' areas are across the top, one beside the
+   other (one, two or three of them). Each is a small copy of a board: who it is, life and counts, their battlefield (turned to face you, or upright: body[data-facing]), their command zone and piles. ---- */
+body.playing.seats { --opp-h: 42vh; }
+body.playing.seats #opponents { position: absolute; z-index: 2; top: 0; left: 0; right: 0; height: var(--opp-h); display: flex; flex-direction: column; margin: 0; padding: 0.35rem 0.5rem 0.3rem; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: color-mix(in srgb, var(--bg) 85%, #000); }
+body.playing.seats #opponents[hidden] { display: none; }
+body.playing.seats #opponents > h2, body.playing.seats #opponents > .hint { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+body.playing.seats #opponent-list { display: grid; flex: 1 1 auto; min-height: 0; grid-template-columns: repeat(var(--opp-n, 1), minmax(0, 1fr)); gap: 0.5rem; }
+body.playing.seats #my-board { top: var(--opp-h); }
+body.playing.seats .topbar { top: calc(var(--opp-h) + 3.4rem); }
+body.playing.seats #players-section { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; } /* (the seats are the areas across the top; the list stays for screen readers) */
+body.playing.seats #deck-line, body.playing.seats .hint.extra { display: none; }
+body.playing.seats .actions-panel .turn-whose { margin: 0; padding: 0 0.5rem; white-space: nowrap; border-right: 1px solid var(--line); font-size: 0.85rem; }
+body.playing.seats .actions-panel .turn-clock { margin: 0; padding: 0 0.5rem; white-space: nowrap; border-right: 1px solid var(--line); font-size: 0.85rem; }
+body.playing.seats .actions-panel .turn-clock[hidden] { display: none; }
+body.playing.seats .actions-panel[data-vertical="true"] :is(.turn-whose, .turn-clock) { padding: 0 0 0.3rem; text-align: center; border-right: 0; border-bottom: 1px solid var(--line); }
+body.playing.seats #spotlight { position: absolute; z-index: 16; top: calc(var(--opp-h) + 0.6rem); right: 0.8rem; width: 13rem; }
+body.playing.seats #spotlight:not([data-mode="ping"]) { display: none; } /* (only a pinged card shows here; the selected card does not, as on the solo table) */
+
+/* one other player's area */
+body.playing.seats .opponent { display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; min-height: 0; margin: 0; padding: 0.25rem 0.4rem 0.35rem; overflow: hidden; border: 1px solid var(--line); border-radius: 0.7rem; background: var(--glass, rgba(22, 22, 30, 0.78)); --cw: 2.6rem; }
+body.playing.seats .opponent.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), 0 0 0.8rem color-mix(in srgb, var(--accent) 35%, transparent); }
+body.playing.seats .opp-info { display: flex; flex-wrap: wrap; align-items: center; gap: 0.1rem 0.6rem; min-width: 0; }
+body.playing.seats .opp-info h3 { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.9rem; }
+body.playing.seats .opp-info h3 .turn-mark { margin-left: 0.4rem; }
+body.playing.seats .opp-info > .hint { margin: 0; font-size: 0.78rem; }
+body.playing.seats .opp-info .opponent-counters { margin: 0; }
+body.playing.seats .opponent > .hint { margin: auto; }
+body.playing.seats .opp-body { display: grid; flex: 1 1 auto; grid-template-columns: minmax(0, 1fr) auto; gap: 0.4rem; min-height: 0; }
+body.playing.seats .opp-body[hidden] { display: none; }
+body.playing.seats .opp-field { container-type: size; display: grid; place-items: center; min-width: 0; min-height: 0; }
+body.playing.seats .opp-field > .battlefield { flex: none; align-self: center; width: min(100cqw, calc(100cqh * 2.24)); height: auto; max-width: none; aspect-ratio: 112 / 50; outline: 1px solid color-mix(in srgb, var(--text) 25%, transparent); }
+body[data-facing="turned"].playing.seats .opp-field > .battlefield { rotate: 180deg; } /* as if they sat across from you: their lands along the far edge */
+body.playing.seats .opp-zones { display: flex; flex-direction: column; gap: 0.25rem; min-height: 0; overflow-y: auto; font-size: 0.75rem; }
+body.playing.seats .opp-zones h4 { margin: 0; color: var(--muted); font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase; }
+body.playing.seats .opp-zones .row { display: flex; flex-wrap: wrap; gap: 0.2rem; min-height: 0; }
+body.playing.seats .opp-zones .row:empty::before { content: none; }
+body.playing.seats .opp-zones details summary { cursor: pointer; color: var(--muted); }
+body.playing.seats .hud-menu { top: calc(var(--opp-h) + 0.55rem); } /* (the menu button is in your own area, not on top of another player's) */
+body.playing.seats .topbar { top: calc(var(--opp-h) + 4rem); }
+body.playing.seats .opp-zones .row { flex: none; container-type: normal; overflow: visible; }
+body.playing.seats .opp-zones .row > .card, body.playing.seats .opp-zones .row > .card.tapped { width: var(--cw); height: calc(var(--cw) * 1.4015); }
+body.playing.seats .opp-zones .row > .card .face { width: 100%; height: 100%; }

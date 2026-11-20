@@ -4997,6 +4997,29 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **My AI's mistakes this time:** I told you to add the address with a wildcard port, which Google does not accept; I did not know the format and said so only partly. I also changed the script ports with a pattern that missed the 52xx ones, so two scripts still failed until I looked at the port numbers.
 
+## 252. The Seats table, phase 1: the solo look on the multiplayer table (2026-11-20)
+
+**What I asked for**
+- Bring the solo table's pieces to the multiplayer table, very carefully: cards in hand, table menus, card interactions, zone sizes and more. Rework the layout for 1v1, 1v1v1 and 1v1v1v1. There will be two kinds of table: this one, where each player has their own area but can interact with the others, and later a shared plane. Claude named them **Seats** and **Tabletop**. My answers to the plan: other players' boards turned to face me with an option for upright, three across the top for four players. I also decided that player counters are only poison, energy, experience, rad and tickets, and the rest (the monarch and so on) become things made with "Create Misc" from the battlefield, like a crown passed between players with a golden glow on that player's box: that is for a later phase.
+
+**What changed** (`frontend/pages/table/index.html`, `table.js`, `frontend/src/style.css`, `frontend/src/facing.js`)
+- **One look for both tables:** every style rule of the solo table was written for `body.playing.solo`; they are now `body.playing:is(.solo, .seats)`, and the table page puts `seats` on the page while a match is on. So my own area on the table is the solo table: the floating life piece (drag it by the word Life, minus and plus, the Counters dropdown), the floating action bar (with the turn, whose turn it is and the turn clock in it), the menu button, the hand fan, the piles with their names and arrows, the command slots. They have their own saved places (`overloaded.seatsLife`, `overloaded.seatsBar`), starting in my area.
+- **The other players' areas** are across the top of the window (42% of its height), one, two or three side by side, each with the name, life and counts, counters, their battlefield, their command zone and their graveyard and exile. Their battlefield is turned to face me by default, or upright from Settings > General ("Other players").
+- **Fewer panels:** Concede, End the match and Leave the table moved into Settings (a Match card, same buttons). The list of players stays for screen readers. The card corner shows only a pinged card now, not the selected one, as on the solo table.
+- The old 2x2 layout rules no longer apply to the table page.
+
+**What I checked**
+- `scripts/check-seats-live.mjs` (new, 20 checks, real browsers against the real project, two real players and bots filling the other seats, at 2, 3 and 4 seats): the page is the Seats table, the other areas are across the top side by side and the same width, my battlefield is below them, the life piece and the action bar are in my area apart, the hand is at the bottom, Bob's battlefield is turned and goes upright from Settings, no page errors. I looked at screenshots of all three.
+- `scripts/check-table-layout.mjs` rewritten for the Seats layout (105 checks: 5 window sizes from 1280x720 to 1920x950, 1 to 3 other players: no page scroll, the areas and their boards fit, my area holds the life piece, the bar and the menu, the hand room is left of the piles, cards big enough).
+- `check-lobby-deck-live` 193 of 193 (two selectors updated: the life piece's word Life, and the match buttons are looked at in the menu). Solo 471, history and select 28, settings 16, tokens 20, stack 26, spotlight 31, lobby 66, deploy 54 and the quick set (82 suites) pass.
+
+**Decisions and limits**
+- Not yet on the table: the hand's menus, sorting and resting hand, dropping cards on and from piles, Draw X, Scry and the order window, the pile window's extras, picking several cards, the card flights and the game history. That is phase 2.
+- The other players' graveyard and exile are still text lists, and their cards are small with three opponents (Alt shows the big picture).
+- Phones are on hold; checked at desktop sizes only.
+
+**My AI's mistakes this time:** the old 2x2 layout's rules (placing each other player's panel by its number, and the parts inside it) still applied and put the third player's area under the second, and the information line in the wrong column; I scoped them to the old layout. The action bar first started on top of an opponent's area, and the menu button sat on one too.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

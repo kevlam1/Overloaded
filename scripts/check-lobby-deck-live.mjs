@@ -656,7 +656,7 @@ try {
   // damage for every seat with a commander (hers and Bob's). The damage is stored as one number per seat on HER public branch (she took it), and Bob's page shows it as chips on her panel, read-only.
   // Only the counters the PUBLISHED rules accept are offered on this table (poison, energy, experience); the rest are for the solo table until the rules are changed.
   const rightClickLife = async (page) => {
-    const p = await page.eval(`(() => { const r = document.querySelector('#life-area > .stat').getBoundingClientRect(); return { x: r.x + 6, y: r.y + r.height / 2 }; })()`); // the word Life: a right-click on the NUMBER lowers life
+    const p = await page.eval(`(() => { const r = document.querySelector('#life-grip').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`); // the word Life above the number: a right-click on the NUMBER lowers life
     await page.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p.x, y: p.y });
     await page.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: p.x, y: p.y, button: 'right', buttons: 2, clickCount: 1 });
     await page.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: p.x, y: p.y, button: 'right', buttons: 0, clickCount: 1 });
@@ -820,8 +820,11 @@ try {
   // The match buttons: concede, end the match (host only), leave. Then a second match deals a NEW game (the old one is not restored).
   const shown = (browser, id) => browser.eval(`(() => { const e = document.getElementById(${JSON.stringify(id)}); return Boolean(e) && !e.hidden && !e.closest('[hidden]'); })()`);
   const pathIs = (browser, path) => waitFor(async () => (await browser.eval('location.pathname')) === path ? true : null, 25000, 200);
+  // (on the Seats table they are in the menu: Settings, the Match card)
+  for (const page of [alice, bob]) await page.eval(`document.getElementById('settings-button').click()`);
   const buttonsReady = await waitFor(async () => (await shown(alice, 'end-match')) && (await shown(bob, 'concede')) ? true : null, 30000, 200);
-  record('during the match every player sees Concede and Leave, and only the host sees End the match', Boolean(buttonsReady) && (await shown(alice, 'concede')) && (await shown(alice, 'leave')) && (await shown(bob, 'leave')) && !(await shown(bob, 'end-match')));
+  record('during the match every player sees Concede and Leave in the menu, and only the host sees End the match', Boolean(buttonsReady) && (await shown(alice, 'concede')) && (await shown(alice, 'leave')) && (await shown(bob, 'leave')) && !(await shown(bob, 'end-match')));
+  for (const page of [alice, bob]) await page.eval(`document.getElementById('settings-close').click()`);
   if (process.argv.includes('--screenshot')) { await alice.eval(`window.scrollTo(0, 0)`); await sleep(300); await alice.screenshot('scratch-match-buttons.png'); }
   await click(bob, 'concede'); // the page asks first; the test browser says yes
   const conceded = await waitFor(async () => (await players(alice)).some((t) => t.includes('Bob') && t.includes('(conceded)')) ? true : null, 20000, 250);
