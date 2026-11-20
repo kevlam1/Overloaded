@@ -526,9 +526,20 @@ console.log('setName and setFormat: your name and the table\'s format in the lob
   check('the same format again changes nothing', JSON.stringify(await host.ops.setFormat(table.code, 'standard')) === '{"format":"standard","changed":false}');
   check('a guest cannot change the format', /host/.test(await refused(() => guest.ops.setFormat(table.code, 'commander'))) && (await readAdmin(`tables/${table.code}/meta/format`)) === 'standard');
   check('a format that does not exist is refused before any request', /ormat|Commander|Standard/.test(await refused(() => host.ops.setFormat(table.code, 'modern'))) && (await readAdmin(`tables/${table.code}/meta/format`)) === 'standard');
+  const limitOf = () => readAdmin(`tables/${table.code}/meta/bracketLimit`);
+  await host.ops.setFormat(table.code, 'commander');
+  check('the host sets a bracket limit', JSON.stringify(await host.ops.setBracketLimit(table.code, 3)) === '{"limit":3,"changed":true}' && (await limitOf()) === 3);
+  check('the same limit again changes nothing', JSON.stringify(await host.ops.setBracketLimit(table.code, 3)) === '{"limit":3,"changed":false}');
+  check('Any takes the limit away (nothing is stored)', JSON.stringify(await host.ops.setBracketLimit(table.code, null)) === '{"limit":null,"changed":true}' && (await limitOf()) === null);
+  check('a limit that is not 1 to 5 is refused before any request', (await Promise.all([0, 6, 2.5, '3'].map((value) => refused(() => host.ops.setBracketLimit(table.code, value))))).every((m) => /1 to 5/.test(m ?? '')));
+  check('a guest cannot set the limit', /host/.test(await refused(() => guest.ops.setBracketLimit(table.code, 2))) && (await limitOf()) === null);
+  check('and someone who is not at the table cannot', /not at that table/.test(await refused(() => outsider.ops.setBracketLimit(table.code, 2))));
+  await host.ops.setFormat(table.code, 'standard');
+  check('a Standard table has no brackets, so no limit', /Commander/.test(await refused(() => host.ops.setBracketLimit(table.code, 2))));
   await host.ops.setReady(table.code);
   await guest.ops.setReady(table.code);
   await host.ops.startMatch(table.code);
+  check('once the match has started the bracket limit cannot change', /started/.test(await refused(() => host.ops.setBracketLimit(table.code, 2))));
   check('once the match has started the name and the format cannot change', /started/.test(await refused(() => guest.ops.setName(table.code, 'Late'))) && /started/.test(await refused(() => host.ops.setFormat(table.code, 'commander'))));
 }
 

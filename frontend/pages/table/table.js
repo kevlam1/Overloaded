@@ -14,7 +14,7 @@ import { mountSettingsMenu } from '../../src/settings-menu.js';
 import { keybinds } from '../../src/keybinds.js';
 import { mountKeybindSettings } from '../../src/keybind-settings.js';
 import { mountPileStack } from '../../src/pile-stack.js';
-import { mountCommandZone } from '../../src/command-zone.js';
+import { mountCommandZone, drawEmblemCounts } from '../../src/command-zone.js';
 import { taxAction, COMMANDER_TAX_PUBLISHED } from '../../../shared/commander-zone.mjs';
 import { pileMenuItems, pileAction } from '../../../shared/pile-menu.mjs';
 import { mountCardHover } from '../../src/card-hover.js';
@@ -44,7 +44,7 @@ import { openCardDetails } from '../../src/card-details.js';
 import { makeRulesLoader } from '../../src/card-rules.js';
 import { makeRulingsLoader } from '../../src/card-rulings.js';
 import { friendlyMessage } from '../../../shared/friendly-error.mjs';
-import { setFaceDown, makeGame, draw, moveCard, shuffleLibrary, mulligan, setTapped, turnOver, untapAll, beginTurn, adjustLife, boardCells, settleBoard, isLandCard, placeCard, placeStack, arrangeBoard, zoneCounts, reorderHand, createToken } from '../../../shared/zones.mjs';
+import { setFaceDown, makeGame, draw, moveCard, shuffleLibrary, mulligan, setTapped, turnOver, untapAll, beginTurn, adjustLife, boardCells, settleBoard, isLandCard, placeCard, placeStack, arrangeBoard, zoneCounts, reorderHand, createToken, createEmblem } from '../../../shared/zones.mjs';
 import { gameWrites, joinGame, readPublic } from '../../../shared/game-sync.mjs';
 import { placeAll, stepFrom } from '../../../shared/board-grid.mjs';
 
@@ -564,6 +564,7 @@ async function renderOpponents() {
       panel.section.dataset.life = String(view.life);
       panel.nodes.place(panel.board, view.zones.battlefield, { battlefield: true, cells: placeAll(view.zones.battlefield, isLandCard) }); // their battlefield on the same grid, each card on the cell they stored
       panel.nodes.place(panel.command, view.zones.command);
+      drawEmblemCounts(panel.command, view.zones.command); // (an emblem with a count shows it on the other players' panels too)
       for (const pile of [panel.graveyard, panel.exile]) {
         const cards = view.zones[pile.label.toLowerCase()];
         pile.summary.textContent = `${pile.label}: ${cards.length}`;
@@ -834,15 +835,19 @@ document.addEventListener('click', (event) => {
 });
 
 // A right click on empty battlefield offers to make a token (Kevin, 2026-11-19; on the live table 2026-11-20): the window is src/token-picker.js and the list /data/tokens.json. A token is saved like any card (it
-// carries its own type line, power and toughness and colors), so the other players see it; emblems are not here yet (they need a new field in the rules).
-async function openTokens(returnFocus) {
+// carries its own type line, power and toughness and colors), so the other players see it. An emblem is saved with its type line and a count (em) and sits in the command zone.
+async function openTokens(returnFocus, kind = 'token') {
   if (!game) return;
-  say('Loading the tokens...');
+  say(`Loading the ${kind}s...`);
   const data = await loadTokens();
   if (!data) { say('The tokens could not be loaded. Check your connection and try again.', true); return; }
   say('');
   const deckNames = Object.values(game.zones).flat().filter((card) => !card.tok).map((card) => card.n);
-  openTokenPicker({ data, deckNames, kind: 'token', returnFocus, onCreate: ({ token, printing }) => {
+  openTokenPicker({ data, deckNames, kind, returnFocus, onCreate: ({ token, printing }) => {
+    if (kind === 'emblem') { // an emblem goes in the command zone and stays (several of one are a count)
+      if (!apply(() => createEmblem(game, { n: token.name, tt: token.type, i: printing.id }).game, `Made ${token.name}.`)) throw new Error(`Could not make ${token.name}.`);
+      return `Made ${token.name}.`;
+    }
     const spec = { n: token.name, tt: token.type, i: printing.id, ...(token.pt ? { pt: token.pt } : {}), ...(token.colors ? { cl: token.colors } : {}) };
     if (!apply(() => createToken(game, spec).game, `Created a ${token.name} token.`)) throw new Error(`Could not make ${token.name}.`);
     return `Made a ${token.name} token.`;
@@ -851,7 +856,13 @@ async function openTokens(returnFocus) {
 $('battlefield').addEventListener('contextmenu', (event) => {
   if (event.defaultPrevented || event.target.closest('.card, [data-mark], [data-badge]') || !game) return;
   event.preventDefault();
-  openCardMenu({ title: 'Battlefield', items: [{ id: 'token', label: 'Create token...' }], x: event.clientX, y: event.clientY, returnFocus: $('battlefield'), onPick: (id) => { if (id === 'token') openTokens($('battlefield')); } });
+  openCardMenu({ title: 'Battlefield', items: [{ id: 'token', label: 'Create token...' }, { id: 'emblem', label: 'Create emblem...' }], x: event.clientX, y: event.clientY, returnFocus: $('battlefield'), onPick: (id) => { if (id === 'token' || id === 'emblem') openTokens($('battlefield'), id); } });
+});
+// A right click on the command zone (not on a card) offers an emblem too.
+$('command-zone').addEventListener('contextmenu', (event) => {
+  if (event.defaultPrevented || event.target.closest('.card, button') || !game) return;
+  event.preventDefault();
+  openCardMenu({ title: 'Command zone', items: [{ id: 'emblem', label: 'Create emblem...' }], x: event.clientX, y: event.clientY, returnFocus: $('command-zone'), onPick: (id) => { if (id === 'emblem') openTokens($('command-zone'), 'emblem'); } });
 });
 
 mountCardHover(); // a larger picture of any card the pointer is on while Alt is held (the cards are small on the one-screen layout)

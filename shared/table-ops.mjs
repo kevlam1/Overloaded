@@ -292,6 +292,19 @@ export function createTableOps({ sdk, db, getUid, makeCode = makeTableCode }) {
     return { format: next, changed: true };
   }
 
+  // The host sets the table's bracket limit (1 to 5, or null for Any). Only in the lobby, and only for a Commander table. It only WARNS next to the name of a player whose deck is above it. Returns { limit, changed }.
+  async function setBracketLimit(code, limit) {
+    if (limit !== null && !(Number.isInteger(limit) && limit >= 1 && limit <= 5)) refuse('A bracket limit is 1 to 5, or Any.');
+    const { uid, meta, mine } = await look(code);
+    if (!meta || !mine) refuse('You are not at that table.');
+    if (meta.host !== uid) refuse('Only the host can set the bracket limit.');
+    if (meta.status !== 'lobby') refuse('The match has started, so the bracket limit can no longer change.');
+    if (meta.format !== 'commander') refuse('Only a Commander table has brackets.');
+    if ((meta.bracketLimit ?? null) === limit) return { limit, changed: false };
+    await update(ref(db), { [`tables/${code}/meta/bracketLimit`]: limit });
+    return { limit, changed: true };
+  }
+
   // Tells the table what it may know about your deck: the commander(s) by card name, the bracket and whether the bracket is
   // a guess (see shared/deck-fields.mjs; the list itself is never sent). Only in the lobby. If anything changed, your ready
   // mark is taken back in the SAME write (the rules refuse a change that leaves you ready), so a table never shows a
@@ -552,5 +565,5 @@ export function createTableOps({ sdk, db, getUid, makeCode = makeTableCode }) {
     );
   }
 
-  return { findMyTable, createTable, closeIfExpired, rejoinTable, joinTable, watchMembers, setReady, clearReady, setName, setFormat, setDeck, startMatch, concede, endMatch, endTable, leaveTable, passHost, takeOverHost, claimHostSlot, heartbeat, watchActivity, watchMeta, watchServerOffset, watchConnection, startPresence, watchPresence, saveGame, loadGame, watchPublic };
+  return { findMyTable, createTable, closeIfExpired, rejoinTable, joinTable, watchMembers, setReady, clearReady, setName, setFormat, setBracketLimit, setDeck, startMatch, concede, endMatch, endTable, leaveTable, passHost, takeOverHost, claimHostSlot, heartbeat, watchActivity, watchMeta, watchServerOffset, watchConnection, startPresence, watchPresence, saveGame, loadGame, watchPublic };
 }

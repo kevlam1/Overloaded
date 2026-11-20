@@ -53,3 +53,13 @@ export function seatBracket(member) {
   const number = bracketOf(member);
   return number ? { number, guess: member.bracketGuess === true } : null;
 }
+
+// The bracket limit a table has (Kevin, 2026-11-20): 1 to 5, or null for Any. It only warns: nothing stops a player readying up or playing.
+export const BRACKET_LIMITS = [1, 2, 3, 4, 5];
+export const bracketLimitOf = (meta) => (BRACKET_LIMITS.includes(meta?.bracketLimit) ? meta.bracketLimit : null);
+// Is this player's deck above the table's limit? Only a Commander table has brackets, and only a member who told the table a bracket can be over it.
+export function overBracketLimit(member, meta) {
+  const limit = bracketLimitOf(meta);
+  const bracket = bracketOf(member);
+  return limit !== null && bracket !== null && meta?.format === 'commander' && bracket > limit;
+}

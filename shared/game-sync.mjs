@@ -33,6 +33,8 @@ export function packCard(card) {
     ...(Number.isInteger(card.turnEntered) ? { e: card.turnEntered } : {}),
     // docs/tokens-counters.md: a token carries its own type line (it is not in the card list), counters, the modifier, a note and face-down.
     ...(card.tok ? { tok: 1, tt: card.t, ...(card.pt ? { pt: card.pt } : {}), ...(card.cl ? { cl: card.cl } : {}) } : {}),
+    // an emblem (shared/zones.mjs createEmblem): its type line and how many of it there are (em, 1 to 99); not a token, so it has no tok
+    ...(card.emb ? { em: Number.isInteger(card.ec) && card.ec > 1 ? card.ec : 1, tt: card.t } : {}),
     ...(card.ct ? { ct: { ...card.ct } } : {}),
     ...(card.mp ? { mp: card.mp } : {}),
     ...(card.mt ? { mt: card.mt } : {}),
@@ -67,12 +69,14 @@ export function unpackCard(raw, lookup = () => null) {
   if ('x' in raw && raw.x !== 1) return null;
   if ('e' in raw && !(Number.isInteger(raw.e) && raw.e >= 0 && raw.e <= MAX_TURN)) return null;
   if ('tok' in raw && raw.tok !== 1) return null;
+  const emblem = 'em' in raw;
+  if (emblem && !(Number.isInteger(raw.em) && raw.em >= 1 && raw.em <= 99 && !('tok' in raw) && typeof raw.tt === 'string' && raw.tt.startsWith('Emblem') && raw.tt.length <= MAX_TOKEN_TEXT && !('pt' in raw) && !('cl' in raw))) return null;
   const token = raw.tok === 1;
   if (token) {
     if (typeof raw.tt !== 'string' || raw.tt.length === 0 || raw.tt.length > MAX_TOKEN_TEXT) return null;
     if ('pt' in raw && !(typeof raw.pt === 'string' && TOKEN_POWER_TOUGHNESS.test(raw.pt))) return null;
     if ('cl' in raw && !(typeof raw.cl === 'string' && TOKEN_COLORS.test(raw.cl))) return null;
-  } else if ('tt' in raw || 'pt' in raw || 'cl' in raw) return null; // token fields on a card that is not a token
+  } else if (!emblem && ('tt' in raw || 'pt' in raw || 'cl' in raw)) return null; // token fields on a card that is not a token
   if ('ct' in raw && !validCounters(raw.ct)) return null;
   for (const key of ['mp', 'mt']) if (key in raw && !(Number.isInteger(raw[key]) && raw[key] !== 0 && Math.abs(raw[key]) <= MAX_MODIFIER)) return null;
   if ('f' in raw && raw.f !== 1) return null;
@@ -84,18 +88,19 @@ export function unpackCard(raw, lookup = () => null) {
   // A real card's type, cost and keywords come from the card list. A token's type line is stored with it (a token is not in the list),
   // but its cost and keywords are still looked up BY ID ONLY: a copy of a real card has that card's id and so keeps them, a token picture
   // is not in the list and gets none, and a token that merely shares a name with a real card (87 names do) is never matched by name.
-  const known = lookup(token ? { i: raw.i, n: '' } : { i: raw.i, n: raw.n }) ?? {};
+  const known = lookup(token || emblem ? { i: raw.i, n: '' } : { i: raw.i, n: raw.n }) ?? {};
   return {
     uid: raw.u,
     i: raw.i,
     ...(raw.p ? { p: raw.p } : {}),
     n: raw.n,
-    t: token ? raw.tt : (typeof known.t === 'string' ? known.t : ''),
+    t: token || emblem ? raw.tt : (typeof known.t === 'string' ? known.t : ''),
     m: token && raw.bk === 1 ? '' : typeof known.m === 'string' ? known.m : '', // a copy of a back face has no cost (the list's cost is the front's)
     k: Array.isArray(known.k) ? known.k : [],
     // A back face exists only when this page's card list says so (by id, never for a token): a stored turned-over mark on any
     // other card is ignored, so another player cannot make an ordinary card show a back picture it does not have.
-    ...(!token && known.b === 1 ? { b: 1, ...(known.md === 1 ? { md: 1 } : {}), ...(raw.bk === 1 ? { turned: true } : {}) } : {}),
+    ...(emblem ? { emb: true, ...(raw.em > 1 ? { ec: raw.em } : {}) } : {}),
+    ...(!token && !emblem && known.b === 1 ? { b: 1, ...(known.md === 1 ? { md: 1 } : {}), ...(raw.bk === 1 ? { turned: true } : {}) } : {}),
     // A token that copies a turned-over card shows the back picture of the card it copies. It is no two-sided card (no b), so the mark
     // means only "draw the back picture"; a card that has no such picture shows its name instead.
     ...(token && raw.bk === 1 ? { turned: true } : {}),

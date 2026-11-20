@@ -95,6 +95,20 @@ try {
   await bob.eval(`document.querySelector('.seat-save').click()`);
   record("Bob changes his name with the pencil, and Alice's page shows the new name", Boolean(await waitFor(async () => (await players(alice)).some((t) => t.includes('Bobby')) || null, 20000, 250)) && (await members(code, cleanup.alice.token))[cleanup.bob.uid]?.name === 'Bobby');
   record('...and the name box is closed again, with his deck still on his seat', (await bob.eval(`Boolean(document.querySelector('.seat-name-input'))`)) === false && (await players(alice)).some((t) => t.includes('Bobby') && t.includes('Krenko')));
+  // The bracket limit (2026-11-20): the host sets it; a deck above it is only WARNED about next to the name, and nobody is stopped from readying up.
+  const limitButtons = (page) => page.eval(`[...document.querySelectorAll('#limit-switch button')].map((b) => b.dataset.limit + ':' + b.getAttribute('aria-pressed') + ':' + b.disabled).join()`);
+  const bobBracket = (await members(code, cleanup.alice.token))[cleanup.bob.uid]?.bracket;
+  record('the host can use the bracket limit (Any is on); a guest sees it with the other choices off', (await limitButtons(alice)) === 'any:true:false,1:false:false,2:false:false,3:false:false,4:false:false,5:false:false' && (await limitButtons(bob)) === 'any:true:false,1:false:true,2:false:true,3:false:true,4:false:true,5:false:true', `${await limitButtons(alice)} | ${await limitButtons(bob)}`);
+  const warnOn = (page) => page.eval(`[...document.querySelectorAll('#players .seat')].filter((li) => li.querySelector('.seat-warn')).map((li) => li.textContent.includes('Bobby') ? 'Bobby' : 'other').join()`);
+  record('with no limit nobody has a warning', (await warnOn(alice)) === '' && (await warnOn(bob)) === '');
+  await alice.eval(`document.querySelector('#limit-switch button[data-limit="1"]').click()`);
+  record("with the limit at 1, Bob's deck (bracket " + bobBracket + ") shows an Over limit warning next to his name, on both pages", Number(bobBracket) >= 2 && Boolean(await waitFor(async () => ((await warnOn(alice)) === 'Bobby' && (await warnOn(bob)) === 'Bobby') ? true : null, 20000, 250)), `${await warnOn(alice)} | ${await warnOn(bob)}`);
+  record('the limit is stored on the table', (await rest('GET', `tables/${code}/meta/bracketLimit`, cleanup.alice.token)).json === 1);
+  await click(bob, 'ready');
+  record('the warning does not stop him readying up: he is Ready with the warning still on', Boolean(await waitFor(async () => (await players(alice)).some((t) => t.includes('Bobby') && t.includes('Ready')) || null, 20000, 250)) && (await warnOn(alice)) === 'Bobby');
+  await click(bob, 'ready');
+  await alice.eval(`document.querySelector('#limit-switch button[data-limit="any"]').click()`);
+  record('back to Any: the warning goes, and the limit is removed from the table', Boolean(await waitFor(async () => ((await warnOn(alice)) === '' && (await warnOn(bob)) === '') ? true : null, 20000, 250)) && (await rest('GET', `tables/${code}/meta/bracketLimit`, cleanup.alice.token)).json === null);
   const formatButtons = (page) => page.eval(`[...document.querySelectorAll('#format-switch button')].map((b) => b.dataset.format + ':' + b.getAttribute('aria-pressed') + ':' + b.disabled).join()`);
   record('the host can use the format switch; a guest sees it with the other choice off', (await formatButtons(alice)) === 'commander:true:false,standard:false:false' && (await formatButtons(bob)) === 'commander:true:false,standard:false:true', `${await formatButtons(alice)} | ${await formatButtons(bob)}`);
   await alice.eval(`document.querySelector('#format-switch button[data-format="standard"]').click()`);

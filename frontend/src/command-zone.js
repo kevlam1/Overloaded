@@ -13,6 +13,16 @@ function make(tag, className, content) {
 
 // root: the element that holds the two slots (it is emptied and filled once). place(container, cards): the page's way of drawing card buttons. onTax(uid, delta): one cast more or less.
 // showTax: whether the tax counter is shown at all (the live table hides it until the database accepts it).
+// Several of one emblem are one card with a count on it ("2x"): puts the count on the emblem cards of a container, and takes it off a card that no longer has one. cards: the zone's cards (game cards).
+export function drawEmblemCounts(container, cards) {
+  for (const element of container.querySelectorAll('.card')) {
+    element.querySelector('.emblem-count')?.remove();
+    const card = cards.find((each) => each.uid === element.dataset.uid);
+    const count = card && card.emb === true ? emblemCount(card) : 1;
+    if (count > 1) element.append(make('span', 'emblem-count', `${count}x`));
+  }
+}
+
 export function mountCommandZone({ root, place, onTax, showTax = true, keepTaxRoom = false }) {
   const slots = [1, 2].map((slot) => {
     const element = make('div', 'cmd-slot');
@@ -51,11 +61,7 @@ export function mountCommandZone({ root, place, onTax, showTax = true, keepTaxRo
     const extras = inZone.filter((card) => card.emb !== true && !entries.some((entry) => entry.uid === card.uid)); // anything else a player put in the command zone stays visible
     root.parentElement.hidden = entries.length === 0 && extras.length === 0 && emblems.length === 0;
     place(emblemRow, emblems);
-    for (const element of emblemRow.querySelectorAll('.card')) { // several of one emblem are one card with a count on it
-      element.querySelector('.emblem-count')?.remove();
-      const count = emblemCount(emblems.find((card) => card.uid === element.dataset.uid));
-      if (count > 1) element.append(make('span', 'emblem-count', `${count}x`));
-    }
+    drawEmblemCounts(emblemRow, emblems);
     emblemRow.hidden = emblems.length === 0;
     root.hidden = entries.length === 0 && extras.length === 0; // (only emblems: no empty slots)
     const extraSlot = Math.max(0, placed.indexOf(null)); // other cards put in the command zone sit in the first slot with no commander of its own (the slot under the commander would push them out of view)

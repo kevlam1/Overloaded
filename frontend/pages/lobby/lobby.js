@@ -1,7 +1,7 @@
 // The lobby page. It has two screens, chosen by the address: the start page (/) where you make a table or type a code to join one,
 // and a table's own screen (/lobby/CODE) with only that table: joining it (one button, or no click at all when this browser has a
 // saved name), the seats, your deck, Ready and Start. All database calls live in ../../src/db.js.
-import { botClient, createTable, joinTable, rejoinTable, findMyTable, watchMembers, heartbeat, watchActivity, watchMeta, watchServerOffset, startPresence, watchPresence, watchConnection, takeOverHost, setDeck, setName, setFormat, closeIfExpired, setReady, clearReady, startMatch, leaveTable } from '../../src/db.js';
+import { botClient, createTable, joinTable, rejoinTable, findMyTable, watchMembers, heartbeat, watchActivity, watchMeta, watchServerOffset, startPresence, watchPresence, watchConnection, takeOverHost, setDeck, setName, setFormat, setBracketLimit, closeIfExpired, setReady, clearReady, startMatch, leaveTable } from '../../src/db.js';
 import { presenceStatus, presenceText, ownConnectionText, hostIsGone } from '../../../shared/presence.mjs';
 import { startKeepAlive } from '../../src/keep-alive.js';
 import { drawDeckTiles } from '../../src/deck-tiles.js';
@@ -15,7 +15,7 @@ import { friendlyMessage } from '../../../shared/friendly-error.mjs';
 import { codeFromPath, linkForCode, tablePathForCode } from '../../../shared/lobby-link.mjs';
 import { readFormat, formatTitle, FORMATS } from '../../../shared/formats.mjs';
 import { LIBRARY_KEY, LEGACY_KEY, readLibrary, decksOfFormat } from '../../../shared/deck-library.mjs';
-import { deckFieldsOf, defaultDeckFor, deckChoiceLabel, isReady, seatDeckText, seatBracket, seatCommander } from '../../../shared/lobby-deck.mjs';
+import { deckFieldsOf, defaultDeckFor, deckChoiceLabel, isReady, seatDeckText, seatBracket, seatCommander, bracketLimitOf, overBracketLimit } from '../../../shared/lobby-deck.mjs';
 
 const $ = (id) => document.getElementById(id);
 const nameInput = $('name');
@@ -288,7 +288,15 @@ function renderPlayers() {
     item.append(piece('span', 'seat-label', `Seat ${member.seat}: `));
     if (uid === currentHost) item.append(piece('span', 'seat-host', 'Host'));
     const body = piece('span', 'seat-body', '');
-    body.append(nameNode(member, mine));
+    const nameLine = nameNode(member, mine);
+    if (overBracketLimit(member, currentMeta)) { // a warning only: it never stops anyone readying up or playing
+      const limit = bracketLimitOf(currentMeta);
+      const warn = piece('span', 'seat-warn', 'Over limit');
+      warn.title = `This deck is bracket ${member.bracket}; the table limit is ${limit}. It is only a warning: you can still play.`;
+      nameLine.append(warn);
+      item.classList.add('over-limit');
+    }
+    body.append(nameLine);
     const commander = seatCommander(member);
     body.append(commander ? piece('span', 'seat-deck', commander) : piece('span', 'seat-deck seat-nodeck', 'No deck yet'));
     item.append(body);
@@ -341,6 +349,7 @@ function renderPlayers() {
   $('take-over-note').hidden = !canTakeOver;
   $('ready').textContent = isReady(currentMembers[myUid], currentMeta) ? 'Not ready' : 'Ready';
   renderFormat();
+  renderLimit();
   renderStart();
 }
 
@@ -354,6 +363,24 @@ function renderFormat() {
     button.title = canChange ? '' : 'Only the host can change the format.';
   }
 }
+// The bracket limit: the host picks Any or 1 to 5 in a Commander lobby; everyone else sees it. It only warns beside the name of a player whose deck is above it.
+function renderLimit() {
+  const limit = bracketLimitOf(currentMeta);
+  const commander = currentMeta?.format === 'commander';
+  const canChange = commander && Boolean(myUid) && currentHost === myUid && currentMeta?.status === 'lobby';
+  for (const button of $('limit-switch').querySelectorAll('button[data-limit]')) {
+    button.setAttribute('aria-pressed', String(button.dataset.limit === String(limit ?? 'any')));
+    button.disabled = !canChange && button.getAttribute('aria-pressed') !== 'true';
+    button.title = !commander ? 'Only a Commander table has brackets.' : canChange ? '' : 'Only the host can change the limit.';
+  }
+}
+$('limit-switch').addEventListener('click', (event) => {
+  const button = event.target instanceof Element ? event.target.closest('button[data-limit]') : null;
+  if (!button || button.disabled || !currentCode) return;
+  const wanted = button.dataset.limit === 'any' ? null : Number(button.dataset.limit);
+  if (wanted === bracketLimitOf(currentMeta)) return;
+  run(async () => { await setBracketLimit(currentCode, wanted); say(''); });
+});
 $('format-switch').addEventListener('click', (event) => {
   const button = event.target instanceof Element ? event.target.closest('button[data-format]') : null;
   if (!button || button.disabled || !currentCode || button.dataset.format === currentMeta?.format) return;

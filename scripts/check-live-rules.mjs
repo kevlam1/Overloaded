@@ -191,6 +191,17 @@ try {
   await expect('a pass record with a past time is allowed', call(member, 'PUT', `${pub}/pass`, { n: 2, to: '1', at: 1700000000000 }), 'allowed');
   await expect('a pass record with a time in the future is refused', call(member, 'PUT', `${pub}/pass`, { n: 2, to: '1', at: 9e15 }), 'refused');
   await expect('a pass record with a time that is not a number is refused', call(member, 'PUT', `${pub}/pass`, { n: 2, to: '1', at: 'now' }), 'refused');
+  // Emblems (2026-11-20): a card with a type line and a count (em), in the command zone. The OLD rules refused the key, so these pass only once the new file is published.
+  const emblemCard = { u: 'c1', i: '00000000-0000-4000-8000-000000000001', n: 'Elspeth Emblem', em: 2, tt: 'Emblem - Elspeth' };
+  await expect('an emblem card with its type line and a count is allowed in the command zone', call(member, 'PUT', `${pub}/command/0`, emblemCard), 'allowed');
+  await expect('an emblem with 100 of them is refused', call(member, 'PUT', `${pub}/command/0`, { ...emblemCard, em: 100 }), 'refused');
+  await expect('an emblem that is also a token is refused', call(member, 'PUT', `${pub}/command/0`, { ...emblemCard, tok: 1 }), 'refused');
+  await expect('an emblem whose type line is not Emblem is refused', call(member, 'PUT', `${pub}/command/0`, { ...emblemCard, tt: 'Token Creature' }), 'refused');
+  // The table's bracket limit (2026-11-20): the host sets 1 to 5, or none for Any.
+  await expect('the host sets a bracket limit of 3', call(host, 'PUT', `${T}/meta/bracketLimit`, 3), 'allowed');
+  await expect('a bracket limit of 6 is refused', call(host, 'PUT', `${T}/meta/bracketLimit`, 6), 'refused');
+  await expect('a member who is not the host cannot set a bracket limit', call(member, 'PUT', `${T}/meta/bracketLimit`, 2), 'refused');
+  await expect('the host takes the limit away (Any)', call(host, 'DELETE', `${T}/meta/bracketLimit`), 'allowed');
   await expect('an unknown key in the public branch is refused', call(member, 'PUT', `${pub}/foo`, 1), 'refused');
   // A ping (added 2026-11-06, shared/ping.mjs): { k, card } on the player's own public branch. The OLD rules refused the key, so these pass only once the new file is published.
   await expect('a ping (a number and a card) is allowed', call(member, 'PUT', `${pub}/ping`, { k: 1800000000, card }), 'allowed');

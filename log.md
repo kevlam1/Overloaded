@@ -4955,6 +4955,27 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **My AI's mistakes this time:** my guess that tokens would need a rules change was wrong; I should have read how a token is stored before saying so.
 
+## 250. Emblems on the live table and the bracket limit warning (2026-11-20)
+
+**What I asked for**
+- "Continue": the bundled rules change we agreed on, so that I paste the rules once: emblems on the live table, and the bracket limit that only warns.
+
+**What changed** (`shared/game-sync.mjs`, `backend/database.rules.json`, `shared/table-ops.mjs`, `shared/lobby-deck.mjs`, `frontend/pages/table/table.js`, `frontend/src/command-zone.js`, the lobby page, `style.css`)
+- **Live emblems:** an emblem is saved as a card with its type line and `em`, the count of it (1 to 99), in the command zone. The rules accept `em` only with a type line that starts with Emblem and never together with the token marks or power and toughness. The table page now has Create emblem in the right-click menus of the empty battlefield and the command zone, the emblem row beside the command zone, Remove one and Remove all on it, and the count shows on the other players' panels too. Several of the same emblem are one card with a count, as on the solo table.
+- **Bracket limit:** the table can have `meta/bracketLimit`, 1 to 5 (nothing stored means Any). The host sets it with a row of buttons (Any, 1 to 5) beside the format switch in a Commander lobby, only while in the lobby. A player whose deck bracket is above it gets an amber "Over limit" mark beside their name, with a tooltip saying the bracket and the limit and that it is only a warning. Nothing stops a player readying up or playing.
+- **The rules:** two additions, `em` in the card shape (all 8 places the generator writes it) and `bracketLimit` on the table.
+
+**What I checked**
+- `backend/test-rules-game.mjs` is 2,343 checks (112 new for emblems: counts 1 and 99 accepted, 0, 100, 1.5 and text refused, no type line, a type line that is not an emblem, an emblem that is also a token or has power or colors, a plain card with an Emblem type line); one broken copy of the count limit was caught. `test-rules.mjs` is 578 (11 new for the limit), `test-table-ops.mjs` 248 (8 new for `setBracketLimit`, in the emulator against the real rules), `test-sync-counters` 90, `test-lobby-deck` 48. The quick set (82 suites), table layout (405) and the lobby page check (66) pass.
+- **Not run yet:** the live checks written for this (`check-room-live` for the limit and the warning, `check-lobby-deck-live` for making, counting, seeing, refreshing and removing an emblem, and 8 new requests in `check-live-rules`), because the live rules do not have these fields until you paste the file.
+
+**Decisions and limits**
+- **Do not push this before the rules are pasted:** creating an emblem on the table page would be refused by the old rules, and setting a limit too.
+- The limit is only for Commander tables, and cannot change once the match starts. A warning shows only for a deck whose bracket the player told the table; a Standard table has none.
+- I did not look at the new header in a screenshot: the format and limit switches share one row and the Any/1 to 5 buttons may wrap on a narrow window.
+
+**My AI's mistakes this time:** my first emblem sync test expected only the command zone to be written, but making an emblem also moves the card number counter, so the writes are two; the test was wrong, not the code.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

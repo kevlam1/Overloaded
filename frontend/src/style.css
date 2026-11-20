@@ -1942,3 +1942,9 @@ body[data-screen] .deck-import-tile:not(.secondary) { box-shadow: none; border-r
 /* The turn clock: a number that counts up; it does not change the size of the bar as it grows (digits of one width). */
 .turn-clock { font-variant-numeric: tabular-nums; color: var(--muted); }
 .turn-clock[hidden] { display: none; }
+
+/* the bracket limit: a segmented switch like the format, and a warning beside the name of a player whose deck is above it (only a warning) */
+.room-limit .segmented button { min-width: 2.4rem; padding: 0 0.7rem; }
+.seat-warn { flex: none; padding: 0.05rem 0.55rem; border-radius: 1rem; background: #f0b429; color: #1b1300; font-size: 0.68rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
+.seat-warn::before { content: "! "; font-weight: 900; }
+.seat.over-limit:not(.mine) { border-color: color-mix(in srgb, #f0b429 70%, var(--line)); }

@@ -196,6 +196,12 @@ await ok('host hands the table to a member', update(ref(alice, 'tables/META12/me
 await ok('host starts the game with the playing idle limit', update(ref(alice, 'tables/META11/meta'), { status: 'playing', idleLimit: PLAYING_IDLE }));
 await ok('host sets playing back to lobby (end match)', update(ref(alice, 'tables/META11/meta'), { status: 'lobby', idleLimit: LOBBY_IDLE, match: 2 }));
 await denied('host changes the seat count after creation', update(ref(alice, 'tables/META11/meta'), { seats: 3 }));
+// The table's bracket limit (2026-11-20): 1 to 5, or no value for Any. It only warns on the seats; the host sets it.
+await ok('host sets a bracket limit of 3', update(ref(alice, 'tables/META11/meta'), { bracketLimit: 3 }));
+await ok('host sets the limits 1 and 5', Promise.all([update(ref(alice, 'tables/META11/meta'), { bracketLimit: 1 }), update(ref(alice, 'tables/META11/meta'), { bracketLimit: 5 })]));
+await ok('host takes the limit away again (Any)', update(ref(alice, 'tables/META11/meta'), { bracketLimit: null }));
+for (const [label, value] of [['0', 0], ['6', 6], ['-1', -1], ['1.5', 1.5], ['the text "3"', '3'], ['true', true], ['an object', { n: 3 }]]) await denied('host sets a bracket limit of ' + label, update(ref(alice, 'tables/META11/meta'), { bracketLimit: value }));
+await denied('a member who is not the host sets a bracket limit', update(ref(bob, 'tables/META11/meta'), { bracketLimit: 2 }));
 await ok('member reads meta', get(ref(bob, 'tables/META11/meta')));
 await denied('non-member reads meta', get(ref(carol, 'tables/META11/meta')));
 

@@ -1,6 +1,6 @@
 // Tests for the counters, modifier, tokens, notes, face-down and player counters in shared/game-sync.mjs (docs/tokens-counters.md):
 // how they are stored, read back, and what a hostile or damaged stored card or player branch cannot make a page build.
-import { makeGame, moveCard, changeCounter, changeModifier, setNote, setFaceDown, createToken, copyAsToken, changePlayerCounter, changeCommanderDamage, setTapped, draw, nextTurn, untapAll, adjustLife, checkGame, seededRandom, ZONES, MAX_COUNT, MAX_MODIFIER, COUNTER_KINDS, PLAYER_COUNTERS, COMMANDER_SEATS } from '../shared/zones.mjs';
+import { makeGame, moveCard, changeCounter, changeModifier, setNote, setFaceDown, createToken, createEmblem, removeEmblem, copyAsToken, changePlayerCounter, changeCommanderDamage, setTapped, draw, nextTurn, untapAll, adjustLife, checkGame, seededRandom, ZONES, MAX_COUNT, MAX_MODIFIER, COUNTER_KINDS, PLAYER_COUNTERS, COMMANDER_SEATS } from '../shared/zones.mjs';
 import { packCard, unpackCard, readCards, splitGame, joinGame, readPublic, gameWrites } from '../shared/game-sync.mjs';
 
 let checks = 0;
@@ -161,6 +161,27 @@ for (const seed of [1, 2, 3, 4, 5]) {
     if (checkGame(rebuilt).length) fail(`random game ${seed}, step ${step} (${op})`, checkGame(rebuilt).join('; '));
   }
   check(`random game ${seed}: 1,500 moves with counters, tokens and player counters rebuilt exactly from the changed writes alone`, true);
+}
+
+// ---- emblems (2026-11-20): stored with their type line and a count (em), read back as emblems, never as tokens or real cards
+{
+  const base = makeGame({ cards: [{ i: id(1), n: 'Forest', qty: 10, section: 'main' }] }, (card) => known[card.i] ?? null, { random: seededRandom(3) });
+  const one = createEmblem(base, { n: 'Elspeth Emblem', tt: 'Emblem - Elspeth', i: id(900) });
+  const three = createEmblem(createEmblem(one.game, { n: 'Elspeth Emblem', tt: 'Emblem - Elspeth', i: id(900) }).game, { n: 'Elspeth Emblem', tt: 'Emblem - Elspeth', i: id(900) });
+  const emblem = (game) => game.zones.command[0];
+  same('an emblem is stored with its type line and a count of 1, and no token marks', packCard(emblem(one.game)), { u: emblem(one.game).uid, i: id(900), n: 'Elspeth Emblem', em: 1, tt: 'Emblem - Elspeth' });
+  same('three of them are one card with em 3', packCard(emblem(three.game)).em, 3);
+  same('and read back whole: an emblem with its count and type line, nothing else', unpackCard(packCard(emblem(three.game)), (c) => known[c.i] ?? null), { uid: emblem(three.game).uid, i: id(900), n: 'Elspeth Emblem', t: 'Emblem - Elspeth', m: '', k: [], emb: true, ec: 3, tapped: false, turnEntered: null });
+  same('one of them reads back with no count (ec is only above 1)', 'ec' in unpackCard(packCard(emblem(one.game))), false);
+  same('an emblem is not matched by name or id to a real card: it gets no cost or keywords from the list', unpackCard({ u: 'c5', i: id(3), n: 'Goblin Guide', em: 1, tt: 'Emblem - X' }, (c) => known[c.i] ?? null).k, ['haste']);
+  const bad = (change) => unpackCard({ u: 'c5', i: id(900), n: 'E', em: 1, tt: 'Emblem - E', ...change });
+  same('a damaged emblem is not a card: a count of 0, 100, 1.5 or text, no type line, a type line that is not an emblem, a token mark with it, power and toughness, colors', [bad({ em: 0 }), bad({ em: 100 }), bad({ em: 1.5 }), bad({ em: '2' }), bad({ tt: undefined }), bad({ tt: 'Token Creature' }), bad({ tok: 1 }), bad({ pt: '1/1' }), bad({ cl: 'R' })], Array(9).fill(null));
+  same('an emblem is round-tripped through a whole game save and the writes of making and removing one', (() => {
+    const sides = splitGame(three.game);
+    const back = joinGame(sides.public, sides.private, (c) => known[c.i] ?? null);
+    const writes = gameWrites('me', base, one.game);
+    return [back.zones.command[0].ec, Object.keys(writes).join(), removeEmblem(three.game, emblem(three.game).uid, { all: true }).zones.command.length];
+  })(), [3, 'public/me/next,public/me/command', 0]);
 }
 
 console.log(`All ${checks} counter and token storage checks passed.`);

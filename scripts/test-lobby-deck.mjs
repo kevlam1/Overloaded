@@ -1,6 +1,6 @@
 // Tests for shared/lobby-deck.mjs: what the lobby sends for a saved deck, which deck it offers, and what a seat shows.
 import { emptyLibrary, addDeck } from '../shared/deck-library.mjs';
-import { deckFieldsOf, defaultDeckFor, deckChoiceLabel, isReady, hasConceded, seatDeckText } from '../shared/lobby-deck.mjs';
+import { deckFieldsOf, defaultDeckFor, deckChoiceLabel, isReady, hasConceded, seatDeckText, seatCommander, seatBracket, bracketLimitOf, overBracketLimit, BRACKET_LIMITS } from '../shared/lobby-deck.mjs';
 
 let checks = 0;
 const fail = (label, detail) => { console.log(`FAILED CHECK: ${label}: ${detail}`); process.exit(1); };
@@ -90,5 +90,13 @@ same('values another browser could have written are not trusted', [
   seatDeckText({ bracket: 2.5 }), seatDeckText({ bracket: 0 }), seatDeckText({ commander: null, bracket: null }), seatDeckText(null), seatDeckText(undefined),
 ], ['bracket 3', '', '', '', '', '', '', '', '']);
 same('a commander that looks like markup is returned as is, for the page to show as text', seatDeckText({ commander: '<img src=x onerror=alert(1)>' }), '<img src=x onerror=alert(1)>');
+
+// ---- the seat's commander and bracket apart, and the table's bracket limit (2026-11-20)
+same('a seat gives its commander and its bracket apart (the bracket with whether it was guessed)', [seatCommander({ commander: 'Krenko, Mob Boss', bracket: 3, bracketGuess: true }), seatBracket({ bracket: 3, bracketGuess: true }), seatBracket({ bracket: 2 })], ['Krenko, Mob Boss', { number: 3, guess: true }, { number: 2, guess: false }]);
+same('a seat with no deck, or a damaged one, has no commander and no bracket', [seatCommander({}), seatBracket({}), seatBracket({ bracket: 6 }), seatBracket({ bracket: '3' }), seatCommander({ commander: 5 })], ['', null, null, null, '']);
+same('the limits are 1 to 5, and anything else is Any (null)', [BRACKET_LIMITS, bracketLimitOf({ bracketLimit: 3 }), bracketLimitOf({}), bracketLimitOf({ bracketLimit: 0 }), bracketLimitOf({ bracketLimit: 6 }), bracketLimitOf({ bracketLimit: '2' }), bracketLimitOf(null)], [[1, 2, 3, 4, 5], 3, null, null, null, null, null]);
+const table = { format: 'commander', bracketLimit: 3 };
+same('a deck above the limit is over it; at or below it is not', [overBracketLimit({ bracket: 4 }, table), overBracketLimit({ bracket: 5 }, table), overBracketLimit({ bracket: 3 }, table), overBracketLimit({ bracket: 1 }, table)], [true, true, false, false]);
+same('with no limit (Any), with no bracket told, or on a Standard table, nobody is over', [overBracketLimit({ bracket: 5 }, { format: 'commander' }), overBracketLimit({}, table), overBracketLimit({ bracket: 5 }, { format: 'standard', bracketLimit: 2 }), overBracketLimit(null, table), overBracketLimit({ bracket: 5 }, null)], [false, false, false, false, false]);
 
 console.log(`All ${checks} lobby deck checks passed.`);
