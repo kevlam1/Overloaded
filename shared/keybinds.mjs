@@ -15,7 +15,7 @@ export const SECTIONS = [
   { id: 'piles', title: 'Piles' },
   { id: 'sort', title: 'Hand sorting' },
   { id: 'windows', title: 'Windows' },
-  { id: 'picture', title: 'While Alt shows the big picture' },
+  { id: 'picture', title: 'While Alt shows the big card' },
 ];
 
 const none = [null, null];
@@ -41,8 +41,8 @@ export const ACTIONS = [
   { id: 'settings', section: 'windows', group: 'table', label: 'Open or close Settings', hint: '', defaults: ['tab', null] },
   { id: 'history', section: 'windows', group: 'table', pages: ['solo'], label: 'Open or close game history', hint: '', defaults: none },
   { id: 'stack', section: 'windows', group: 'table', pages: ['solo'], label: 'Open or close the stack', hint: '', defaults: none },
-  { id: 'pictureLeft', section: 'picture', group: 'picture', label: 'Turn the picture left', hint: 'For a room, a battle or any card read sideways.', defaults: ['q', null] },
-  { id: 'pictureRight', section: 'picture', group: 'picture', label: 'Turn the picture right', hint: '', defaults: ['e', null] },
+  { id: 'pictureLeft', section: 'picture', group: 'picture', label: 'Turn the card left', hint: 'For a room, a battle or any card read sideways.', defaults: ['q', null] },
+  { id: 'pictureRight', section: 'picture', group: 'picture', label: 'Turn the card right', hint: '', defaults: ['e', null] },
 ];
 // The actions that exist on a page ('solo' or 'table').
 export const actionsFor = (page) => ACTIONS.filter((action) => !action.pages || action.pages.includes(page));

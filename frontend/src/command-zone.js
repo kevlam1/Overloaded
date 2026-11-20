@@ -2,6 +2,7 @@
 // zone and stays empty (with the outline) while the commander is out, so you can see where it goes back to; under each slot is the commander tax counter. What each slot shows is decided
 // in shared/commander-zone.mjs; this only draws it. Text only, and the elements are kept and updated in place so a pressed button keeps its keyboard focus.
 import { taxEntries, TAX_PER_CAST } from '../../shared/commander-zone.mjs';
+import { emblemCount } from '../../shared/zones.mjs';
 
 function make(tag, className, content) {
   const element = document.createElement(tag);
@@ -50,6 +51,11 @@ export function mountCommandZone({ root, place, onTax, showTax = true, keepTaxRo
     const extras = inZone.filter((card) => card.emb !== true && !entries.some((entry) => entry.uid === card.uid)); // anything else a player put in the command zone stays visible
     root.parentElement.hidden = entries.length === 0 && extras.length === 0 && emblems.length === 0;
     place(emblemRow, emblems);
+    for (const element of emblemRow.querySelectorAll('.card')) { // several of one emblem are one card with a count on it
+      element.querySelector('.emblem-count')?.remove();
+      const count = emblemCount(emblems.find((card) => card.uid === element.dataset.uid));
+      if (count > 1) element.append(make('span', 'emblem-count', `${count}x`));
+    }
     emblemRow.hidden = emblems.length === 0;
     root.hidden = entries.length === 0 && extras.length === 0; // (only emblems: no empty slots)
     const extraSlot = Math.max(0, placed.indexOf(null)); // other cards put in the command zone sit in the first slot with no commander of its own (the slot under the commander would push them out of view)

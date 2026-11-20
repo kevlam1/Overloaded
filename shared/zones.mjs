@@ -442,6 +442,8 @@ export function createToken(game, spec) {
 // An emblem (Kevin, 2026-11-19): a marker in the command zone that stays for the rest of the game, made from the emblem list (shared/card-tokens.mjs). It is a card-shaped entry with emb: true, a type line that starts with "Emblem" and the
 // Scryfall id of its picture; it cannot be moved to another zone and is only taken away with removeEmblem. Returns { game, uid }.
 export const isEmblem = (card) => card?.emb === true;
+export const MAX_EMBLEMS = 99;
+export const emblemCount = (card) => (Number.isInteger(card?.ec) && card.ec > 1 ? card.ec : 1); // how many of this emblem there are (ec is stored only above 1)
 export function createEmblem(game, spec) {
   const text = (value, what) => {
     const clean = scrubText(String(value ?? ''));
@@ -452,15 +454,25 @@ export function createEmblem(game, spec) {
   const t = text(spec?.tt, 'type line');
   if (!t.startsWith('Emblem')) throw new Error('The type line of an emblem starts with Emblem.');
   if (typeof spec?.i !== 'string' || !SCRYFALL_ID.test(spec.i)) throw new Error('An emblem needs the Scryfall id of its picture.');
+  const same = game.zones.command.find((card) => card.emb === true && card.n === n); // a second emblem of the same name is not a second card: it counts up (ec) on the one there (Kevin, 2026-11-19)
+  if (same) {
+    const count = emblemCount(same);
+    if (count >= MAX_EMBLEMS) throw new Error(`You can have at most ${MAX_EMBLEMS} of one emblem.`);
+    return { game: { ...game, zones: { ...game.zones, command: game.zones.command.map((card) => (card.uid === same.uid ? { ...card, ec: count + 1 } : card)) } }, uid: same.uid };
+  }
   if (game.zones.command.length >= MAX_ZONE_CARDS) throw new Error(`The command zone holds at most ${MAX_ZONE_CARDS} cards.`);
   const uid = `c${game.nextUid}`;
   const emblem = { uid, i: spec.i, n, t, m: '', k: [], emb: true, tapped: false, turnEntered: null };
   return { game: { ...game, zones: { ...game.zones, command: [...game.zones.command, emblem] }, nextUid: game.nextUid + 1 }, uid };
 }
-// Takes an emblem away (it is the only way an emblem leaves). Throws for a card that is not an emblem in the command zone.
-export function removeEmblem(game, uid) {
+// Takes an emblem away (it is the only way an emblem leaves): one of them when there are several, or all of them with { all: true }. Throws for a card that is not an emblem in the command zone.
+export function removeEmblem(game, uid, { all = false } = {}) {
   const found = game.zones.command.find((card) => card.uid === uid);
   if (!found || found.emb !== true) throw new Error('That is not an emblem.');
+  if (!all && emblemCount(found) > 1) {
+    const count = emblemCount(found) - 1;
+    return { ...game, zones: { ...game.zones, command: game.zones.command.map((card) => { if (card.uid !== uid) return card; const { ec, ...rest } = card; return count > 1 ? { ...rest, ec: count } : rest; }) } };
+  }
   return { ...game, zones: { ...game.zones, command: game.zones.command.filter((card) => card.uid !== uid) } };
 }
 

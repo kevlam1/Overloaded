@@ -1,7 +1,7 @@
 // Tests for shared/zones.mjs: the zones of one player's game and every move between them. The important properties:
 // no card is ever lost or copied, nothing is changed in place (the games are deep-frozen), the shuffle is fair, and each
 // move leaves the cards where the rules of a paper table say. No browser, no network. Run: node scripts/test-zones.mjs
-import { ZONES, HAND_SIZE, DEFAULT_LIFE, COMMANDER_LIFE, MAX_DRAW, MAX_LIFE_STEP, MAX_LIFE, secureRandom, seededRandom, shuffled, isLandCard, makeGame, moveCard, draw, shuffleLibrary, mulligan, setTapped, untapAll, adjustLife, nextTurn, battlefieldRows, zoneCounts, checkGame, createEmblem, removeEmblem, isEmblem } from '../shared/zones.mjs';
+import { ZONES, HAND_SIZE, DEFAULT_LIFE, COMMANDER_LIFE, MAX_DRAW, MAX_LIFE_STEP, MAX_LIFE, secureRandom, seededRandom, shuffled, isLandCard, makeGame, moveCard, draw, shuffleLibrary, mulligan, setTapped, untapAll, adjustLife, nextTurn, battlefieldRows, zoneCounts, checkGame, createEmblem, removeEmblem, isEmblem, emblemCount } from '../shared/zones.mjs';
 
 let checks = 0;
 function check(label, condition, detail = '') {
@@ -391,7 +391,13 @@ check('a word that only contains Land does not count',!isLandCard({ t: 'Creature
   check('removing it takes it out of the game and nothing else', removeEmblem(made.game, made.uid).zones.command.length === 0 && removeEmblem(made.game, made.uid).zones.hand.length === made.game.zones.hand.length);
   throws('a card that is not an emblem cannot be removed that way', () => removeEmblem(made.game, made.game.zones.hand[0].uid), /not an emblem/);
   throws('the type line must start with Emblem, the id must be a Scryfall id, and the name must be there and short', () => { for (const bad of [{ ...spec, tt: 'Token Creature' }, { ...spec, i: 'nope' }, { ...spec, n: '' }, { ...spec, n: 'x'.repeat(61) }]) createEmblem(game, bad); });
-  check('two emblems have two different uids', createEmblem(made.game, spec).uid !== made.uid);
+  const two = createEmblem(made.game, spec);
+  const three = createEmblem(two.game, spec);
+  check('a second emblem of the same name is the same card with a count (ec 2, then 3), and there is still one card', two.uid === made.uid && three.game.zones.command.length === 1 && emblemCount(made.game.zones.command[0]) === 1 && emblemCount(two.game.zones.command[0]) === 2 && three.game.zones.command[0].ec === 3 && checkGame(three.game).length === 0);
+  check('an emblem of another name is another card', createEmblem(made.game, { ...spec, n: 'Other Emblem' }).game.zones.command.length === 2);
+  check('removing one of three leaves two, then one (no count stored), then none', (() => { const a = removeEmblem(three.game, made.uid); const b = removeEmblem(a, made.uid); return a.zones.command[0].ec === 2 && b.zones.command.length === 1 && !('ec' in b.zones.command[0]) && removeEmblem(b, made.uid).zones.command.length === 0; })());
+  check('remove all takes every one at once', removeEmblem(three.game, made.uid, { all: true }).zones.command.length === 0);
+  throws('at most 99 of one emblem', () => { let g = made.game; for (let n = 0; n < 99; n++) g = createEmblem(g, spec).game; }, /at most 99/);
   check('a real card in the command zone is not an emblem', isEmblem(makeGame({ cards: [saved('Forest', 2, 20), saved('Éowyn', 3, 1, 'commander')] }, lookup, { random: seededRandom(5) }).zones.command[0]) === false && makeGame({ cards: [saved('Forest', 2, 20), saved('Éowyn', 3, 1, 'commander')] }, lookup, { random: seededRandom(5) }).zones.command.length === 1);
 }
 

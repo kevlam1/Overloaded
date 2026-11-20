@@ -4869,6 +4869,24 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **My AI's mistakes this time:** I added `credentials: 'omit'` for no good reason, and it broke the feature on any login-protected preview. I also needed three tries to find which of my CSS rules were being outranked.
 
+## 246. Emblems count up instead of repeating; keybind words say card (2026-11-19)
+
+**What I asked for**
+- If I create more than one of the same emblem, show a counter on it instead. In the keybind settings, call them cards, not pictures.
+
+**What changed** (`shared/zones.mjs`, `shared/card-menu.mjs`, `frontend/src/command-zone.js`, `shared/keybinds.mjs`, `style.css`)
+- **Emblem counter:** making an emblem whose name is already in the command zone no longer adds a second card. The one card gets a count (`ec`, stored only above 1, at most 99) and shows a "2x" badge at its corner. With a count, its right-click menu has Remove one and Remove all; with one it still says Remove emblem. A different emblem is its own card.
+- **Words:** the Keybinds page now says "Turn the card left" and "Turn the card right", under the heading "While Alt shows the big card". The ids and the saved keys did not change, so nobody's chosen keys are lost.
+
+**What I checked**
+- `scripts/test-zones.mjs` is 281 checks (4 new for the count: same name counts up with one card, another name is another card, remove one and remove all, the limit of 99), `scripts/test-card-menu.mjs` 253 (2 new), `scripts/check-token-ui.mjs` 20 in real Chrome (3 new: the second emblem gives a 2x badge on one card, the menu offers Remove one and Remove all, Remove one takes the badge away). The settings (16), solo (471), table layout (405) and quick (81 suites) checks pass. I looked at a zoomed screenshot of the badge.
+
+**Decisions and limits**
+- Emblems of the same name count together even when they were made with different art; the card keeps the art it had first. The Art button of a second emblem does nothing different.
+- I left other uses of the word picture alone (comments, the Alt picture's code, the Settings text outside the Keybinds page). Say if you want those reworded too.
+
+**My AI's mistakes this time:** an old check said two emblems have two different ids, which was true until this change, so it failed and I rewrote it to say the opposite. That is the right fix, but it is worth knowing the old test was protecting the old behaviour.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

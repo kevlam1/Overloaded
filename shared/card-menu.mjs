@@ -1,7 +1,7 @@
 // What the right-click menu of a card offers and what each choice does. Plain data in, plain data out, no browser code, so Node
 // tests can load it (scripts/test-card-menu.mjs). The menu itself is drawn by frontend/src/card-menu.js; the pages run the
 // action with their own apply() so a refused move leaves the game as it was.
-import { removeEmblem, isEmblem, moveCard, setTapped, setFaceDown, changeCounter, turnOver, copyAsToken, faceName, setNoUntap, setSick, markSickByFace, heldTapped } from './zones.mjs';
+import { removeEmblem, isEmblem, emblemCount, moveCard, setTapped, setFaceDown, changeCounter, turnOver, copyAsToken, faceName, setNoUntap, setSick, markSickByFace, heldTapped } from './zones.mjs';
 import { canPing } from './ping.mjs';
 import { counterMenuItems, counterLabel } from './counter-catalog.mjs';
 
@@ -42,7 +42,7 @@ export const playBackLabel = (card) => `Play ${backNameOf(card) ?? 'its back fac
 // live: this is a table with other players, so a card in a public zone can also be pinged to them (shared/ping.mjs); the solo table has nobody to ping.
 export const STACK_ZONES = ['hand', 'battlefield', 'graveyard', 'exile', 'command']; // a card here can be copied onto the stack window (not the library or the sideboard: their cards are hidden or not in the game)
 export function menuItems(card, zone, { live = false, peek = false, details = false, counters = false, stack = false } = {}) {
-  if (zone === 'command' && isEmblem(card)) return [{ id: 'emblem-remove', label: 'Remove emblem' }]; // (an emblem only goes away: it cannot be moved, copied or counted)
+  if (zone === 'command' && isEmblem(card)) return emblemCount(card) > 1 ? [{ id: 'emblem-remove', label: 'Remove one' }, { id: 'emblem-remove-all', label: 'Remove all' }] : [{ id: 'emblem-remove', label: 'Remove emblem' }]; // (an emblem only goes away: it cannot be moved, copied or counted)
   const items = [];
   if (zone === 'battlefield') {
     items.push({ id: 'modify', label: 'Modify...' });
@@ -90,7 +90,8 @@ const MOVES = Object.fromEntries([
 export function menuAction(id, card, amount = 1, { printed = null } = {}) {
   if (typeof id !== 'string' || !card) return null;
   const name = card.n;
-  if (id === 'emblem-remove') return { run: (game) => removeEmblem(game, card.uid), message: `Removed ${name}.` };
+  if (id === 'emblem-remove') return { run: (game) => removeEmblem(game, card.uid), message: emblemCount(card) > 1 ? `Removed one ${name} (${emblemCount(card) - 1} left).` : `Removed ${name}.` };
+  if (id === 'emblem-remove-all') return { run: (game) => removeEmblem(game, card.uid, { all: true }), message: `Removed all ${emblemCount(card)} of ${name}.` };
   if (id === 'copy') return { run: (game) => copyAsToken(game, card.uid, { printed }).game, message: `Made a token copy of ${faceName(card)}.` };
   if (id === 'playback') {
     return {

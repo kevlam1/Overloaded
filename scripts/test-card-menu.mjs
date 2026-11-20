@@ -314,6 +314,10 @@ same('menuAction has nothing to run for it (the page puts the copy on the stack)
   const emblem = made.game.zones.command[0];
   same('an emblem in the command zone has one line, Remove emblem, even with every option on', menuItems(emblem, 'command', { details: true, stack: true, counters: true, live: true }).map((i) => i.id), ['emblem-remove']);
   same('Remove emblem takes it out of the command zone, with a message', [menuAction('emblem-remove', emblem).run(made.game).zones.command.length, menuAction('emblem-remove', emblem).message], [0, 'Removed Elspeth Emblem.']);
+  const twice = createEmblem(made.game, { n: 'Elspeth Emblem', tt: 'Emblem - Elspeth', i: '00000000-0000-4000-8000-000000000900' });
+  const counted = twice.game.zones.command[0];
+  same('with two of an emblem the menu has Remove one and Remove all', menuItems(counted, 'command').map((i) => [i.id, i.label]), [['emblem-remove', 'Remove one'], ['emblem-remove-all', 'Remove all']]);
+  same('Remove one leaves one, Remove all none, each with its message', [menuAction('emblem-remove', counted).run(twice.game).zones.command[0].ec, menuAction('emblem-remove', counted).message, menuAction('emblem-remove-all', counted).run(twice.game).zones.command.length, menuAction('emblem-remove-all', counted).message], [undefined, 'Removed one Elspeth Emblem (1 left).', 0, 'Removed all 2 of Elspeth Emblem.']);
   same('a real card in the command zone still has its moves', menuItems({ uid: 'c9', n: 'Elspeth' }, 'command').some((i) => i.id === 'move'), true);
 }
 console.log(`All ${checks} card menu checks passed.`);

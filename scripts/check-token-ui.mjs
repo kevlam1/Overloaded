@@ -112,6 +112,24 @@ try {
   check('holding Alt over the emblem shows its larger picture', typeof emblemShown === 'string' && emblemShown.includes('/normal/'), String(emblemShown));
   const emblemFace = await ev("(() => { const c = document.querySelector('#command-zone .emblem-row .card').getBoundingClientRect(), f = document.querySelector('#command-zone .emblem-row .card .face').getBoundingClientRect(); return [Math.round(c.left - f.left), Math.round(c.top - f.top), Math.round(c.width - f.width), Math.round(c.height - f.height)]; })()");
   check('the emblem is just its card: the picture fills the button with no frame round it', JSON.stringify(emblemFace) === '[0,0,0,0]', JSON.stringify(emblemFace));
+  // a second emblem of the same name is a count on the same card
+  await rightClick(x, y);
+  await ev("[...document.querySelectorAll('.card-menu [role=menuitem]')][1].click()");
+  await waitFor(async () => (await ev("document.querySelectorAll('.token-tile').length")) > 0 || null, 8000, 50);
+  await ev("(() => { const f = document.querySelector('.token-picker input[type=search]'); f.value = 'sun'; f.dispatchEvent(new Event('input', { bubbles: true })); })()");
+  await sleep(200);
+  await ev("[...document.querySelectorAll('.token-tile')].find((t) => t.querySelector('strong').textContent === \"Elspeth, Sun's Champion Emblem\").click()");
+  await sleep(300);
+  await browser.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+  await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+  await sleep(200);
+  check('making the same emblem again keeps one card and puts a 2x count on it', (await ev("document.querySelectorAll('#command-zone .emblem-row .card').length")) === 1 && (await ev("document.querySelector('#command-zone .emblem-row .emblem-count')?.textContent")) === '2x');
+  const [cx, cy] = await ev("(() => { const b = document.querySelector('#command-zone .emblem-row .card').getBoundingClientRect(); return [Math.round(b.left + b.width / 2), Math.round(b.top + b.height / 2)]; })()");
+  await rightClick(cx, cy);
+  check('with two, its menu offers Remove one and Remove all', JSON.stringify(await ev("[...document.querySelectorAll('.card-menu [role=menuitem]')].map((x) => x.textContent)")) === '["Remove one","Remove all"]');
+  await ev("document.querySelector('.card-menu [role=menuitem]').click()");
+  await sleep(300);
+  check('Remove one takes the count away and leaves the card', (await ev("document.querySelectorAll('#command-zone .emblem-row .card').length")) === 1 && (await ev("document.querySelector('#command-zone .emblem-row .emblem-count')")) === null);
   const [ex, ey] = await ev("(() => { const b = document.querySelector('#command-zone .emblem-row .card').getBoundingClientRect(); return [Math.round(b.left + b.width / 2), Math.round(b.top + b.height / 2)]; })()");
   await rightClick(ex, ey);
   check('a right click on the emblem offers only Remove emblem', JSON.stringify(await ev("[...document.querySelectorAll('.card-menu [role=menuitem]')].map((x) => x.textContent)")) === '["Remove emblem"]');
