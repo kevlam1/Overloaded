@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.248</span></h1>
-    <p class="lede">248 entries, Oct 25 to Nov 19, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
+    <h1>Build log <span class="version">Version 0.249</span></h1>
+    <p class="lede">249 entries, Oct 25 to Nov 20, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
   </div>
 </header>
 
@@ -24,10 +24,10 @@
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
-<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">35</span></a>
+<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">36</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
 <a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">29 things friends asked for</span></a>
-<a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">27 open, 71 done</span></a>
+<a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">26 open, 72 done</span></a>
     </div>
     <div class="tools">
       <label class="search"><span class="visually-hidden">Search the log</span><input id="log-search" type="search" placeholder="Search the log" autocomplete="off"></label>
@@ -3604,7 +3604,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-2" aria-labelledby="week-2-title">
-<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">35 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">36 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-2-days">
 <div class="day">
 <h3 class="day-title">Monday 16 November <span class="day-count">5</span></h3>
@@ -4203,6 +4203,29 @@
 </article>
 </div>
 </div>
+<div class="day">
+<h3 class="day-title">Friday 20 November <span class="day-count">1</span></h3>
+<div class="entries">
+<article class="entry" id="entry-249" data-n="249">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-249-body">
+    <span class="num">249</span>
+    <span class="head-text"><span class="title">Create token on the live table; the stale live checks brought up to date</span><span class="sum">&quot;Continue&quot; after I suggested the next steps: first the four stale live checks, then tokens and emblems on the live table.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-249-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>&quot;Continue&quot; after I suggested the next steps: first the four stale live checks, then tokens and emblems on the live table.</li></ul>
+<p><strong>What changed</strong> (<code>frontend/pages/table/table.js</code>, <code>scripts/check-lobby-deck-live.mjs</code>)</p>
+<ul><li><strong>Live table tokens:</strong> a right click on empty battlefield on the table page offers Create token and opens the same window as the solo page (tokens from your deck, common tokens, search, art). The token is saved like any card, so the other players see it. I looked first at what is stored for a token (<code>tok</code>, its type line, power and toughness, colors, the picture's id) and it already fits the database rules, so <strong>no rules change was needed</strong>.</li><li><strong>Emblems are still solo only.</strong> They need a new field in the saved card and in the rules, and a place for them beside the command zone on the table page, so that is the next rules change.</li><li><strong>Stale checks:</strong> <code>check-lobby-deck-live</code> had four checks that still expected the old board (a land on row 33 of 44, a drag of 4 cells) and the old card menu (counter amounts 2, 3 and 5). I updated them: a land is on row 40 of 50, the drag check now says the card moved 16 columns right and up, and that Bob's page and the database show the same cell (the row differs from the pointer's by a row or two because the card is held where it was grabbed), and the menu list is the current one.</li></ul>
+<p class="sub"><strong>What I checked</strong></p>
+<ul><li>Against the real project with two real browsers, <code>check-lobby-deck-live</code> is 185 of 185 (4 new: the menu offers Create token, the Goblin is saved with its type line, 1/1, red and a picture id, Bob sees it on Alice's board without a refresh, and it is still there after a refresh). The earlier failures that stopped the file in entry 238 are all gone.</li></ul>
+<p class="sub"><strong>Decisions and limits</strong></p>
+<ul><li>On the live table the empty-battlefield menu has only Create token (no Create emblem).</li><li>The drag check is looser than before on the exact row; it would not catch a drag that lands two rows off.</li></ul>
+<p><strong>My AI's mistakes this time:</strong> my guess that tokens would need a rules change was wrong; I should have read how a token is stored before saying so.</p>
+  </div></div></div>
+</article>
+</div>
+</div>
 </div>
 </section>
 <section class="week collapsed" id="reflection" aria-labelledby="reflection-title">
@@ -4288,7 +4311,7 @@
 </div></div></div>
 </section>
 <section class="week collapsed" id="todo" aria-labelledby="todo-title">
-<h2 class="week-head" id="todo-title"><button type="button" aria-expanded="false" aria-controls="todo-days"><span class="wname">To-do list</span><span class="range">27 open, 71 done</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="todo-title"><button type="button" aria-expanded="false" aria-controls="todo-days"><span class="wname">To-do list</span><span class="range">26 open, 72 done</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="todo-days"><div class="day">
 <div class="todo-intro"><p>This is how I am planning Overloaded. The open work comes first, then what I dropped or parked, then the finished items of the earlier versions of this list, shortened. The detail of each finished item is in <code>log.md</code> (the entry numbers are in <code>CLAUDE.md</code>), and the longer wording of this list is in the git history of this file. My design notes are in <code>docs/design-notes.md</code>.</p></div>
 <div class="entries">
@@ -4322,14 +4345,14 @@
 <ul class="todo-list"><li class="todo todo-open"><span class="visually-hidden">Open: </span><strong>Scheduled cleanup of old tables.</strong> An expired table that nobody reopens stays in the database, against &quot;lobbies are deleted when inactive&quot; (whoever opens an expired table already deletes it). The fix is a free scheduled job outside Firebase, because Cloud Functions need the paid plan; it needs <code>firebase-admin</code> and an admin key kept in Vercel. Show Kevin the host, cost, license and key storage first.</li><li class="todo todo-open"><span class="visually-hidden">Open: </span><strong>One more batched rules change, when one is needed.</strong> The other player counters (rad, ticket, speed), the commander tax and commander list, a table-code format check, and a limit on presence tab notes. Then a mutation run, Kevin pastes the rules, and <code>npm run test:live</code>. Add counter and those extra counters are solo only until then.</li><li class="todo todo-open"><span class="visually-hidden">Open: </span><strong>Match flow gaps (checked in the code 2026-11-17).</strong> <code>claimHostSlot</code> is not called by any page. The table page uses four <code>confirm()</code> placeholders and shows no &quot;the host ended the match&quot; message. Nothing ends a match when all but one have conceded, and leaving and returning mid-match is not tested in a real browser.</li><li class="todo todo-open"><span class="visually-hidden">Open: </span><strong>Game sync.</strong> A public zone other than the battlefield is written whole when it changes. Measure a real four-player game and switch to per-card writes if it matters. Old cards stay in the database for a player who never returns.</li><li class="todo todo-open"><span class="visually-hidden">Open: </span><strong>Abuse and security.</strong> Unknown: how many anonymous accounts one address can make, and what to do near the 100-connection limit. Also test slow connections, and run <code>npm audit</code> before a deploy (never <code>npm audit fix --force</code>, it downgrades Firebase). A 6-character table code is fine for now.</li><li class="todo todo-open"><span class="visually-hidden">Open: </span><strong>Smaller known gaps.</strong> One person can sit at several tables, two players can share a name, and a second tab of one browser after leaving is untested. &quot;You're offline&quot; is only unit tested, and the takeover has no screenshot after the click.</li></ul>
   </div></div></div>
 </article>
-<article class="entry" id="todo-4" data-n="10">
+<article class="entry" id="todo-4" data-n="9">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="todo-4-body">
-    <span class="num">10</span>
-    <span class="head-text"><span class="title">Gameplay and table, still open</span><span class="sum">10 open</span></span>
+    <span class="num">9</span>
+    <span class="head-text"><span class="title">Gameplay and table, still open</span><span class="sum">9 open, 1 done</span></span>
     <span class="caret" aria-hidden="true"></span>
   </button></h4>
   <div class="body" id="todo-4-body"><div class="body-in"><div class="body-pad">
-<ul class="todo-list"><li class="todo todo-open"><span class="visually-hidden">Open: </span><strong>Menus (<code>docs/menus.md</code>).</strong> The library, hand, hand group and battlefield card menus, card details and Add counter are built. The rest of that plan (command zone, life, turn, graveyard and exile extras) was not re-audited, and a menu for a picked group on the battlefield is not built.</li><li class="todo todo-open"><span class="visually-hidden">Open: </span><strong>Tokens.</strong> Create copy exists, but the token creator from Scryfall's token list, with related tokens, is not built.</li><li class="todo todo-open"><span class="visually-hidden">Open: </span><strong>Emblems.</strong> The card list drops them, but they should go to the command zone. First check whether Scryfall links a planeswalker to its emblem through <code>all_parts</code>.</li><li class="todo todo-open"><span class="visually-hidden">Open: </span><strong>Two-sided cards.</strong> Flip cards, meld cards and reversible printings are not covered, and a copy of a back face takes its keywords from the whole card.</li><li class="todo todo-open"><span class="visually-hidden">Open: </span><strong>Commander damage.</strong> Two partner commanders of one seat share one number, and the page with a Standard table is not tested.</li><li class="todo todo-open"><span class="visually-hidden">Open: </span><strong>Deck page.</strong> Partner suggestions from keywords, a companion pick, moving cards to the sideboard, a Scryfall lookup for names newer than the list, and ManaBox's export text. Link import stays paste only until a site agrees.</li><li class="todo todo-open"><span class="visually-hidden">Open: </span><strong>Lobby.</strong> Previewing your own deck with sideboard swaps, and a 60-card Standard sample deck (only the Commander sample exists).</li><li class="todo todo-open"><span class="visually-hidden">Open: </span><strong>Playmats and card-back uploads,</strong> kept in the uploader's browser only (<code>docs/tokens-counters.md</code>).</li><li class="todo todo-open"><span class="visually-hidden">Open: </span><strong>Phones and tablets (on hold since 2026-10-28).</strong> Desktop only for now. Later: phone-width and dark-mode screenshots, a real-phone test, touch versions of the hover features, and a long-press menu.</li><li class="todo todo-open"><span class="visually-hidden">Open: </span><strong>The Stack, a shared zone (parked until after Dec 7).</strong> Spells and abilities from every seat, newest on top, anyone may remove one. It needs research first (<code>docs/stack.md</code> was never written) and a database rules change.</li></ul>
+<ul class="todo-list"><li class="todo todo-open"><span class="visually-hidden">Open: </span><strong>Menus (<code>docs/menus.md</code>).</strong> The library, hand, hand group and battlefield card menus, card details and Add counter are built. The rest of that plan (command zone, life, turn, graveyard and exile extras) was not re-audited, and a menu for a picked group on the battlefield is not built.</li><li class="todo todo-done"><span class="visually-hidden">Done: </span><strong>Tokens.</strong> Create token (from Scryfall's token list, with the tokens of your deck first) works on the solo and live tables since 2026-11-19 and 2026-11-20. Emblems are solo only: the live table needs an <code>emb</code> field in the saved card and the rules.</li><li class="todo todo-open"><span class="visually-hidden">Open: </span><strong>Emblems.</strong> The card list drops them, but they should go to the command zone. First check whether Scryfall links a planeswalker to its emblem through <code>all_parts</code>.</li><li class="todo todo-open"><span class="visually-hidden">Open: </span><strong>Two-sided cards.</strong> Flip cards, meld cards and reversible printings are not covered, and a copy of a back face takes its keywords from the whole card.</li><li class="todo todo-open"><span class="visually-hidden">Open: </span><strong>Commander damage.</strong> Two partner commanders of one seat share one number, and the page with a Standard table is not tested.</li><li class="todo todo-open"><span class="visually-hidden">Open: </span><strong>Deck page.</strong> Partner suggestions from keywords, a companion pick, moving cards to the sideboard, a Scryfall lookup for names newer than the list, and ManaBox's export text. Link import stays paste only until a site agrees.</li><li class="todo todo-open"><span class="visually-hidden">Open: </span><strong>Lobby.</strong> Previewing your own deck with sideboard swaps, and a 60-card Standard sample deck (only the Commander sample exists).</li><li class="todo todo-open"><span class="visually-hidden">Open: </span><strong>Playmats and card-back uploads,</strong> kept in the uploader's browser only (<code>docs/tokens-counters.md</code>).</li><li class="todo todo-open"><span class="visually-hidden">Open: </span><strong>Phones and tablets (on hold since 2026-10-28).</strong> Desktop only for now. Later: phone-width and dark-mode screenshots, a real-phone test, touch versions of the hover features, and a long-press menu.</li><li class="todo todo-open"><span class="visually-hidden">Open: </span><strong>The Stack, a shared zone (parked until after Dec 7).</strong> Spells and abilities from every seat, newest on top, anyone may remove one. It needs research first (<code>docs/stack.md</code> was never written) and a database rules change.</li></ul>
   </div></div></div>
 </article>
 <article class="entry" id="todo-5" data-n="•">

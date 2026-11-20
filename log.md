@@ -4936,6 +4936,25 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **My AI's mistakes this time:** I nearly missed that the page and the rules have to change together and the preview deploys at once; I only saw it while writing the rule tests. My first test of the old hand-menu fix was cut short by a pipe, so I read the output file instead of guessing.
 
+## 249. Create token on the live table; the stale live checks brought up to date (2026-11-20)
+
+**What I asked for**
+- "Continue" after I suggested the next steps: first the four stale live checks, then tokens and emblems on the live table.
+
+**What changed** (`frontend/pages/table/table.js`, `scripts/check-lobby-deck-live.mjs`)
+- **Live table tokens:** a right click on empty battlefield on the table page offers Create token and opens the same window as the solo page (tokens from your deck, common tokens, search, art). The token is saved like any card, so the other players see it. I looked first at what is stored for a token (`tok`, its type line, power and toughness, colors, the picture's id) and it already fits the database rules, so **no rules change was needed**.
+- **Emblems are still solo only.** They need a new field in the saved card and in the rules, and a place for them beside the command zone on the table page, so that is the next rules change.
+- **Stale checks:** `check-lobby-deck-live` had four checks that still expected the old board (a land on row 33 of 44, a drag of 4 cells) and the old card menu (counter amounts 2, 3 and 5). I updated them: a land is on row 40 of 50, the drag check now says the card moved 16 columns right and up, and that Bob's page and the database show the same cell (the row differs from the pointer's by a row or two because the card is held where it was grabbed), and the menu list is the current one.
+
+**What I checked**
+- Against the real project with two real browsers, `check-lobby-deck-live` is 185 of 185 (4 new: the menu offers Create token, the Goblin is saved with its type line, 1/1, red and a picture id, Bob sees it on Alice's board without a refresh, and it is still there after a refresh). The earlier failures that stopped the file in entry 238 are all gone.
+
+**Decisions and limits**
+- On the live table the empty-battlefield menu has only Create token (no Create emblem).
+- The drag check is looser than before on the exact row; it would not catch a drag that lands two rows off.
+
+**My AI's mistakes this time:** my guess that tokens would need a rules change was wrong; I should have read how a token is stored before saying so.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.
 - (2026-11-12, entry 156) Claude put an extra card dropped on the command zone under the commander, outside the window, where nobody could see it, and a comment it wrote at the end of a code line broke a file; both were found only by the tests and the syntax check.

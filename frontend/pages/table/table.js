@@ -27,6 +27,8 @@ import { loadCardList } from '../../src/card-list.js';
 import { makeCardNodes } from '../../src/card-nodes.js';
 import { mountMarksPanel } from '../../src/marks-panel.js';
 import { openCardMenu } from '../../src/card-menu.js';
+import { loadTokens } from '../../src/token-data.js';
+import { openTokenPicker } from '../../src/token-picker.js';
 import { mountCounterChips } from '../../src/counter-chips.js';
 import { mountLifeControl } from '../../src/life-control.js';
 import { menuItems, menuAction, turnLabel, turnMessage, playBackLabel, PLAY_BACK_ZONES, noUntapLabel, sickLabel, untapMessage } from '../../../shared/card-menu.mjs';
@@ -42,7 +44,7 @@ import { openCardDetails } from '../../src/card-details.js';
 import { makeRulesLoader } from '../../src/card-rules.js';
 import { makeRulingsLoader } from '../../src/card-rulings.js';
 import { friendlyMessage } from '../../../shared/friendly-error.mjs';
-import { setFaceDown, makeGame, draw, moveCard, shuffleLibrary, mulligan, setTapped, turnOver, untapAll, beginTurn, adjustLife, boardCells, settleBoard, isLandCard, placeCard, placeStack, arrangeBoard, zoneCounts, reorderHand } from '../../../shared/zones.mjs';
+import { setFaceDown, makeGame, draw, moveCard, shuffleLibrary, mulligan, setTapped, turnOver, untapAll, beginTurn, adjustLife, boardCells, settleBoard, isLandCard, placeCard, placeStack, arrangeBoard, zoneCounts, reorderHand, createToken } from '../../../shared/zones.mjs';
 import { gameWrites, joinGame, readPublic } from '../../../shared/game-sync.mjs';
 import { placeAll, stepFrom } from '../../../shared/board-grid.mjs';
 
@@ -829,6 +831,27 @@ document.addEventListener('click', (event) => {
   if (event.target.closest('.card, button, a, input, select, textarea, summary, label, details, .side-panels, .card-menu, .spotlight, .marks-popover')) return;
   selected = null;
   render();
+});
+
+// A right click on empty battlefield offers to make a token (Kevin, 2026-11-19; on the live table 2026-11-20): the window is src/token-picker.js and the list /data/tokens.json. A token is saved like any card (it
+// carries its own type line, power and toughness and colors), so the other players see it; emblems are not here yet (they need a new field in the rules).
+async function openTokens(returnFocus) {
+  if (!game) return;
+  say('Loading the tokens...');
+  const data = await loadTokens();
+  if (!data) { say('The tokens could not be loaded. Check your connection and try again.', true); return; }
+  say('');
+  const deckNames = Object.values(game.zones).flat().filter((card) => !card.tok).map((card) => card.n);
+  openTokenPicker({ data, deckNames, kind: 'token', returnFocus, onCreate: ({ token, printing }) => {
+    const spec = { n: token.name, tt: token.type, i: printing.id, ...(token.pt ? { pt: token.pt } : {}), ...(token.colors ? { cl: token.colors } : {}) };
+    if (!apply(() => createToken(game, spec).game, `Created a ${token.name} token.`)) throw new Error(`Could not make ${token.name}.`);
+    return `Made a ${token.name} token.`;
+  } });
+}
+$('battlefield').addEventListener('contextmenu', (event) => {
+  if (event.defaultPrevented || event.target.closest('.card, [data-mark], [data-badge]') || !game) return;
+  event.preventDefault();
+  openCardMenu({ title: 'Battlefield', items: [{ id: 'token', label: 'Create token...' }], x: event.clientX, y: event.clientY, returnFocus: $('battlefield'), onPick: (id) => { if (id === 'token') openTokens($('battlefield')); } });
 });
 
 mountCardHover(); // a larger picture of any card the pointer is on while Alt is held (the cards are small on the one-screen layout)

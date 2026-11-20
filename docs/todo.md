@@ -36,7 +36,7 @@ This is how I am planning Overloaded. The open work comes first, then what I dro
 
 ## Gameplay and table, still open
 - [ ] **Menus (`docs/menus.md`).** The library, hand, hand group and battlefield card menus, card details and Add counter are built. The rest of that plan (command zone, life, turn, graveyard and exile extras) was not re-audited, and a menu for a picked group on the battlefield is not built.
-- [ ] **Tokens.** Create copy exists, but the token creator from Scryfall's token list, with related tokens, is not built.
+- [x] **Tokens.** Create token (from Scryfall's token list, with the tokens of your deck first) works on the solo and live tables since 2026-11-19 and 2026-11-20. Emblems are solo only: the live table needs an `emb` field in the saved card and the rules.
 - [ ] **Emblems.** The card list drops them, but they should go to the command zone. First check whether Scryfall links a planeswalker to its emblem through `all_parts`.
 - [ ] **Two-sided cards.** Flip cards, meld cards and reversible printings are not covered, and a copy of a back face takes its keywords from the whole card.
 - [ ] **Commander damage.** Two partner commanders of one seat share one number, and the page with a Standard table is not tested.

@@ -584,6 +584,29 @@ try {
   record('after a refresh the copy is still there with the back picture (read back from the database)', Boolean(copyAfterRefresh), JSON.stringify(copyAfterRefresh));
   const delverAfterRefresh = await waitFor(async () => { const d = await delverOf(alice, '#battlefield .card'); return d && d.src?.includes('/back/') ? d : null; }, 30000, 250);
   record('after a refresh Alice\'s Delver is still turned over (read back from the database)', Boolean(delverAfterRefresh) && /turned over/.test(delverAfterRefresh.label), JSON.stringify(delverAfterRefresh));
+  // Create token on the table page (2026-11-20): a token made from the window is saved like any card, so Bob sees it and a refresh keeps it.
+  const tokenInDb = async () => { const r = await rest('GET', pathOf('public/battlefield'), cleanup.bob.token); return r.json ? Object.values(r.json).find((c) => c.tok === 1 && c.n === 'Goblin') ?? null : null; };
+  const rightClickEmpty = async (page) => {
+    const [x, y] = await page.eval(`(() => { const b = document.getElementById('battlefield').getBoundingClientRect(); return [Math.round(b.left + b.width * 0.8), Math.round(b.top + b.height * 0.25)]; })()`);
+    await page.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y });
+    await page.send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'right', clickCount: 1 });
+    await page.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'right', clickCount: 1 });
+    await sleep(300);
+  };
+  await rightClickEmpty(alice);
+  record('a right click on empty battlefield offers Create token on the table page', JSON.stringify(await alice.eval(`[...document.querySelectorAll('.card-menu [role=menuitem]')].map((x) => x.textContent)`)) === '["Create token..."]');
+  await alice.eval(`document.querySelector('.card-menu [role=menuitem]').click()`);
+  await waitFor(async () => ((await alice.eval(`document.querySelectorAll('.token-tile').length`)) > 0) || null, 10000, 100);
+  await alice.eval(`[...document.querySelectorAll('.token-section')].flatMap((section) => [...section.querySelectorAll('.token-tile')]).find((tile) => tile.querySelector('strong').textContent === 'Goblin' && /1\\/1, red/.test(tile.textContent)).click()`);
+  const tokenStored = await waitFor(async () => (await tokenInDb()) ?? null, 15000, 250);
+  record('the Goblin token is saved as a small token: its name, type line, 1/1, red, and the Scryfall id of its picture', Boolean(tokenStored) && /^Token Creature/.test(tokenStored.tt) && tokenStored.pt === '1/1' && tokenStored.cl === 'R' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(tokenStored.i), JSON.stringify(tokenStored));
+  await alice.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+  await alice.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+  const bobToken = await waitFor(async () => { const d = await faceOf(bob, '#opponent-list .opponent .card', 'Goblin'); return d ?? null; }, 20000, 250);
+  record('Bob\'s page shows the Goblin token on Alice\'s board without a refresh, read-only', Boolean(bobToken) && bobToken.disabled === true, JSON.stringify(bobToken));
+  await alice.goto(`http://127.0.0.1:${PORT}/table/${code}`);
+  const tokenAfterRefresh = await waitFor(async () => { const d = await faceOf(alice, '#battlefield .card', 'Goblin'); return d ?? null; }, 30000, 250);
+  record('after a refresh the token is still on Alice\'s battlefield (read back from the database)', Boolean(tokenAfterRefresh), JSON.stringify(tokenAfterRefresh));
   await alice.eval(`Array.from(document.querySelectorAll('#battlefield .card')).find((c) => (c.getAttribute('aria-label') || '').startsWith('Delver')).click()`);
   await act(alice, 'Flip double-faced card');
   const delverBack = await waitFor(async () => { const d = await delverInDb(); return d && d.bk === undefined ? d : null; }, 15000, 250);
