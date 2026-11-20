@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.254</span></h1>
-    <p class="lede">254 entries, Oct 25 to Nov 20, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
+    <h1>Build log <span class="version">Version 0.255</span></h1>
+    <p class="lede">255 entries, Oct 25 to Nov 20, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
   </div>
 </header>
 
@@ -24,7 +24,7 @@
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
-<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">41</span></a>
+<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">42</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
 <a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">29 things friends asked for</span></a>
 <a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">28 open, 73 done</span></a>
@@ -3604,7 +3604,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-2" aria-labelledby="week-2-title">
-<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">41 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">42 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-2-days">
 <div class="day">
 <h3 class="day-title">Monday 16 November <span class="day-count">5</span></h3>
@@ -4204,7 +4204,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Friday 20 November <span class="day-count">6</span></h3>
+<h3 class="day-title">Friday 20 November <span class="day-count">7</span></h3>
 <div class="entries">
 <article class="entry" id="entry-249" data-n="249">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-249-body">
@@ -4312,6 +4312,22 @@
 <p class="sub"><strong>Decisions and limits</strong></p>
 <ul><li>With four players the action bar starts over the left edge of my hand at 1366x768; it can be dragged anywhere and remembers its place.</li><li>Not yet on this table (phase 2): the hand's menus and sorting, Draw X, Scry, picking several cards, the card flights, the history. The lobby (settings, chat) is next; Planechase is on the to-do list for later.</li><li>Phones are on hold; checked at desktop sizes only.</li></ul>
 <p><strong>My AI's mistakes this time:</strong> my battlefield first did not show at all (its holder was a size container with no height, so it clipped the board). The battlefield sat at the left of a narrow area instead of the middle until the rule that keeps it clear of piles beside it was limited to that case. The first hand rule still let the raised hand cover the bottom row of the battlefield, which the live check caught when it picked up a hand card instead of the land it aimed at.</p>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-255" data-n="255">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-255-body">
+    <span class="num">255</span>
+    <span class="head-text"><span class="title">Bigger battlefields on the Seats table, the command zone above the piles</span><span class="sum">The grid view's battlefields should take more space: expand to the top and the sides (the bottom is fine), with the right edge just before the library.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-255-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>The grid view's battlefields should take more space: expand to the top and the sides (the bottom is fine), with the right edge just before the library. Library, graveyard and exile at the bottom right with the command zone above them. Claude explained that the battlefield is a fixed grid (every card's saved place is a cell), so it can only grow in both directions at once; I chose to keep the grid. For the rest of the solo table I chose the pieces with no database change first, and a shared history of everyone's moves.</li></ul>
+<p><strong>What changed</strong> (<code>frontend/src/style.css</code>)</p>
+<ul><li>Each battlefield now starts at the top of its area (the life and the name sit over its top) and reaches down to just above the resting hand; its right edge is just before the piles. In a wide area it is as tall as that room and sits against the piles (the space on its left is where the action bar starts); in a narrow one it is as wide as the room left of the piles. At 1366x768 with two players it is 720 by 322 px (it was 647 by 289).</li><li>The piles are a column at the bottom right: the command zone (with its CMD label above it) over the row of library, graveyard and exile, for me and for the other players.</li></ul>
+<p class="sub"><strong>What I checked</strong></p>
+<ul><li><code>check-table-layout</code> (105, 5 window sizes, 2 to 4 players), now with &quot;the battlefield starts at the top and its right edge is just before the piles&quot;; <code>check-seats-live</code> 24 of 24. I looked at screenshots at 1366x768 and 1920x950.</li></ul>
+<p><strong>My AI's mistakes this time:</strong> the first try left my battlefield overlapping my piles by under a pixel at 1280 wide (the pile's offset layers stick out); a small gap fixed it.</p>
   </div></div></div>
 </article>
 </div>

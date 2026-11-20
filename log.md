@@ -5072,6 +5072,20 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **My AI's mistakes this time:** my battlefield first did not show at all (its holder was a size container with no height, so it clipped the board). The battlefield sat at the left of a narrow area instead of the middle until the rule that keeps it clear of piles beside it was limited to that case. The first hand rule still let the raised hand cover the bottom row of the battlefield, which the live check caught when it picked up a hand card instead of the land it aimed at.
 
+## 255. Bigger battlefields on the Seats table, the command zone above the piles (2026-11-20)
+
+**What I asked for**
+- The grid view's battlefields should take more space: expand to the top and the sides (the bottom is fine), with the right edge just before the library. Library, graveyard and exile at the bottom right with the command zone above them. Claude explained that the battlefield is a fixed grid (every card's saved place is a cell), so it can only grow in both directions at once; I chose to keep the grid. For the rest of the solo table I chose the pieces with no database change first, and a shared history of everyone's moves.
+
+**What changed** (`frontend/src/style.css`)
+- Each battlefield now starts at the top of its area (the life and the name sit over its top) and reaches down to just above the resting hand; its right edge is just before the piles. In a wide area it is as tall as that room and sits against the piles (the space on its left is where the action bar starts); in a narrow one it is as wide as the room left of the piles. At 1366x768 with two players it is 720 by 322 px (it was 647 by 289).
+- The piles are a column at the bottom right: the command zone (with its CMD label above it) over the row of library, graveyard and exile, for me and for the other players.
+
+**What I checked**
+- `check-table-layout` (105, 5 window sizes, 2 to 4 players), now with "the battlefield starts at the top and its right edge is just before the piles"; `check-seats-live` 24 of 24. I looked at screenshots at 1366x768 and 1920x950.
+
+**My AI's mistakes this time:** the first try left my battlefield overlapping my piles by under a pixel at 1280 wide (the pile's offset layers stick out); a small gap fixed it.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-20, entry 254) Claude kept the hands and piles of the multiplayer table cautious and apart from the boards; I had to say it should give every player a full solo-table area and use the space.
 - (2026-11-20, entry 253) Claude's first Seats table floated the life, buttons, piles and hand over my battlefield as on the solo table; on a shared table that blocked cards and drops, and I had to ask for the boards to move to the side.

@@ -1988,22 +1988,20 @@ body.playing.seats .seat-area {
   --pad: 0.4rem;
   --sw: clamp(1.8rem, min(15cqh, 6.5cqw), 4.8rem); /* a pile's width: smaller in a narrow area, so the hand keeps room beside the piles (Alt shows any card large) */
   --zgap: 0.35rem;
-  --Z: calc(5 * (var(--sw) + 0.5rem) + 4 * var(--zgap) + 2 * var(--pad)); /* the width of the piles: library, graveyard, exile and two command slots */
-  --Hz: calc(var(--sw) * 1.4015 + 2.6rem); /* their height with the names above them */
+  --Z: calc(3 * (var(--sw) + 0.5rem) + 2 * var(--zgap) + 2 * var(--pad)); /* the width of the piles at the bottom right: library, graveyard and exile, with the command zone above them (Kevin, 2026-11-20) */
   --hh: clamp(5.5rem, 34cqh, 13rem); /* the box of the hand (its cards are 2.8 rem less, and rest half below the bottom edge: frontend/src/hand-view.js) */
-  --bw: max(min(100cqw - var(--Z) - 2 * var(--pad), (100cqh - var(--T) - 0.5 * (var(--hh) - 2.8rem) - var(--pad)) * 2.24), min(100cqw - 2 * var(--pad), (100cqh - var(--T) - var(--Hz)) * 2.24)); /* (beside: half of a resting card shows under it) */
-  /* where the battlefield's left edge is: in the middle of the area, moved left only as far as it must to stay clear of piles BESIDE it (--clear); when the piles are below it --clear is under the padding,
-     the second term is huge and it is simply centred */
-  --clear: calc(100cqw - var(--Z) - var(--bw) - var(--pad));
-  --bl: max(var(--pad), min((100cqw - var(--bw)) / 2, max(var(--clear), (var(--pad) - var(--clear)) * 1000)));
-  --hw: min(var(--bw), 100cqw - var(--Z) - var(--bl)); /* the hand's width: under the battlefield, never under the piles */
+  /* the battlefield (Kevin, 2026-11-20: "expand to the top and sides, the bottom is fine"): from the top of the area down to just above the resting hand, its right edge just before the piles; it keeps its
+     shape (112 by 50 cells), so in a wide area it is as tall as that room and sits against the piles, and in a narrow one it is as wide as the room left of the piles */
+  --bw: min(100cqw - var(--Z) - var(--pad) - 0.4rem, (100cqh - 0.5 * (var(--hh) - 2.8rem) - 2 * var(--pad)) * 2.24);
+  --bl: max(var(--pad), 100cqw - var(--Z) - var(--bw) - 0.4rem);
+  --hw: var(--bw); /* the hand's width: under the battlefield */
   position: relative; container-type: size; min-width: 0; min-height: 0; margin: 0; padding: 0; overflow: hidden;
   border: 1px solid var(--line); border-radius: 0.6rem; background: color-mix(in srgb, var(--bg) 92%, #000); box-shadow: none; }
 body.playing.seats .seat-area.active { border-color: var(--gold, #d9b45f); box-shadow: inset 0 0 0 1px var(--gold, #d9b45f), 0 0 0.9rem color-mix(in srgb, var(--gold, #d9b45f) 35%, transparent); } /* whose turn it is */
 /* the head: life at the left, the name in the middle, the news (yours) at the right */
 body.playing.seats .seat-head { position: absolute; z-index: 6; top: 0; left: 0; right: 0; height: var(--T); display: flex; align-items: center; gap: 0.5rem; padding: 0 var(--pad); pointer-events: none; }
 body.playing.seats .seat-head > * { pointer-events: auto; }
-body.playing.seats .seat-name { position: absolute; left: 50%; top: 0.35rem; translate: -50% 0; max-width: 40%; margin: 0; padding: 0.15rem 0.7rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-radius: 0.5rem; background: rgba(8, 8, 12, 0.72); color: var(--text); font-size: 0.85rem; font-weight: 700; line-height: 1.3; }
+body.playing.seats .seat-name { position: absolute; left: calc(var(--bl) + var(--bw) / 2); top: 0.35rem; translate: -50% 0; max-width: 40%; margin: 0; padding: 0.15rem 0.7rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-radius: 0.5rem; background: rgba(8, 8, 12, 0.72); color: var(--text); font-size: 0.85rem; font-weight: 700; line-height: 1.3; }
 body.playing.seats .seat-name .turn-mark { margin-left: 0.4rem; }
 /* your life: one line, − 40 + and the arrow that opens the counters panel (frontend/src/counter-panel.js), the chips of what you have after it */
 body.playing.seats #life-area { position: static; inset: auto; translate: none; z-index: auto; display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; gap: 0.25rem; width: auto; min-width: 0; height: calc(var(--T) - 0.5rem); padding: 0 0.35rem 0 0.5rem; transition: none; }
@@ -2030,7 +2028,8 @@ body.playing.seats .opp-waiting[hidden] { display: none; }
 body.playing.seats .opp-body { display: contents; }
 body.playing.seats .opp-body[hidden] > * { display: none; }
 /* the news: one line at the top right of your area's head, never over the battlefield (a lost connection or a warning first, else what just happened; whose turn it is is in the action bar) */
-body.playing.seats .topbar-slot { position: absolute; top: 0.3rem; right: 3.6rem; max-width: calc(50% - 7rem); pointer-events: none; }
+body.playing.seats .topbar-slot { position: absolute; top: 0.3rem; right: var(--pad); max-width: max(10rem, calc(var(--Z) - 2 * var(--pad))); pointer-events: none; } /* (above the piles) */
+body.playing.seats[data-view="sidebar"] .seat-area.focused .topbar-slot { top: 2.9rem; } /* (under the view and menu buttons) */
 body.playing.seats .topbar { position: static; inset: auto; translate: none; z-index: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 0.2rem; max-width: 100%; max-height: calc(var(--T) - 0.5rem); margin: 0; padding: 0; overflow: hidden; pointer-events: none; }
 body.playing.seats .topbar #connection { order: 1; }
 body.playing.seats .topbar #banner { order: 2; }
@@ -2040,15 +2039,16 @@ body.playing.seats .topbar h1 { position: absolute; width: 1px; height: 1px; ove
 body.playing.seats .topbar > * { max-width: 100%; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.75rem; }
 body.playing.seats .topbar > :empty { display: none; }
 
-/* the battlefield: as large as fits (--bw), under the head, in the middle of the area (moved left only as far as it must to stay clear of the piles) */
-body.playing.seats #my-board, body.playing.seats .opp-field { position: absolute; z-index: 1; inset: auto; top: var(--T); left: var(--bl); translate: none; width: var(--bw); height: calc(var(--bw) * 50 / 112); min-height: 0; max-height: none; margin: 0; padding: 0; display: block; overflow: visible; border: 0; background: none; }
+/* the battlefield: as large as fits (--bw), from the top of the area, its right edge just before the piles (the life and the name sit over its top) */
+body.playing.seats #my-board, body.playing.seats .opp-field { position: absolute; z-index: 1; inset: auto; top: var(--pad); left: var(--bl); translate: none; width: var(--bw); height: calc(var(--bw) * 50 / 112); min-height: 0; max-height: none; margin: 0; padding: 0; display: block; overflow: visible; border: 0; background: none; }
 body.playing.seats #my-board > .battlefield, body.playing.seats .opp-field > .battlefield { display: grid; width: 100%; height: auto; max-width: none; max-height: none; aspect-ratio: 112 / 50; margin: 0; }
 body.playing.seats .opp-field > .battlefield { outline: 1px solid color-mix(in srgb, var(--text) 25%, transparent); }
 body[data-facing="turned"].playing.seats .opp-field > .battlefield { rotate: 180deg; } /* as if they sat across from you: their lands along the far edge */
 
-/* the piles: library, graveyard, exile and the command zone in a row at the bottom right, small (Alt shows any card large) */
+/* the piles at the bottom right, small (Alt shows any card large): library, graveyard and exile in a row, the command zone above them */
 body.playing.seats .side-panels { position: absolute; z-index: 4; inset: auto; right: var(--pad); bottom: var(--pad); display: block; }
-body.playing.seats .piles-section { --sw: inherit; display: flex; flex-direction: row; flex-wrap: nowrap; align-items: flex-end; gap: var(--zgap); margin: 0; padding: 0; }
+body.playing.seats .piles-section { --sw: inherit; display: flex; flex-direction: column; flex-wrap: nowrap; align-items: flex-end; gap: 0.45rem; margin: 0; padding: 0; }
+body.playing.seats .piles-section .command-zone { order: -1; }
 body.playing.seats .piles-section .zone-stacks { display: flex; flex-wrap: nowrap; align-items: flex-end; gap: var(--zgap); }
 body.playing.seats .pile-slot { gap: 0.2rem; }
 body.playing.seats .pile-head { height: 1.2rem; margin: 0; padding: 0 0.1rem 0 0.45rem; }
@@ -2063,13 +2063,15 @@ body.playing.seats .command-zone h3 { display: flex; align-items: center; height
 body.playing.seats .command-zone h3::before { content: "CMD"; font-size: 0.6rem; font-weight: 600; letter-spacing: 0.05em; }
 body.playing.seats .command-slots { flex-wrap: nowrap; gap: var(--zgap); }
 body.playing.seats .cmd-slot .tax { height: auto; }
-/* theirs: the same row */
-body.playing.seats .opp-zones { position: absolute; z-index: 4; right: var(--pad); bottom: var(--pad); display: flex; flex-wrap: nowrap; align-items: flex-end; gap: var(--zgap); }
+/* theirs: the same, the command zone above the row of piles */
+body.playing.seats .opp-zones { position: absolute; z-index: 4; right: var(--pad); bottom: var(--pad); display: grid; grid-template-columns: repeat(3, auto); align-items: end; gap: 0.45rem var(--zgap); }
+body.playing.seats .opp-zones > .opp-command-zone { grid-row: 1; grid-column: 1 / -1; justify-self: end; }
 body.playing.seats .opp-pile { flex: none; padding: 0 0 1rem; cursor: pointer; }
 body.playing.seats .opp-pile:disabled { cursor: default; opacity: 1; }
 body.playing.seats .opp-pile::after { content: attr(data-label); bottom: 0; width: calc(var(--sw) + 0.4rem); font-size: 0.6rem; line-height: 1.2; white-space: nowrap; }
-body.playing.seats .opp-command-zone { display: flex; flex: none; flex-direction: column-reverse; align-items: center; gap: 0.1rem; }
-body.playing.seats .opp-zone-label { color: var(--muted); font-size: 0.6rem; line-height: 1.2; }
+body.playing.seats .opp-command-zone { display: flex; flex: none; flex-direction: column-reverse; align-items: center; gap: 0.15rem; } /* (the label above the cards) */
+body.playing.seats .command-zone h3 { order: -1; }
+body.playing.seats .opp-zone-label { display: flex; align-items: center; height: 1.2rem; padding: 0 0.45rem; border: 1px solid var(--line); border-radius: 0.9rem; background: var(--glass); color: var(--muted); font-size: 0.6rem; font-weight: 600; letter-spacing: 0.05em; }
 body.playing.seats .opp-command { display: flex; flex-wrap: nowrap; gap: 0.2rem; min-height: calc(var(--sw) * 1.4015); padding: 0; container-type: normal; overflow: visible; }
 body.playing.seats .opp-command:empty { width: var(--sw); border: 1px dashed color-mix(in srgb, var(--gold, #d9b45f) 55%, transparent); border-radius: 0.3rem; }
 body.playing.seats .opp-command:empty::before { content: none; }
