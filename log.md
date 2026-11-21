@@ -5241,6 +5241,20 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **My AI's mistakes this time:** the old comment said the 7 by 10 box was "a stretch of 2%", but the picture was cut, not stretched, and no check compared a card's box with its picture.
 
+## 265. The game history stays out of the Sidebar column (2026-11-21)
+
+**What I asked for**
+- Whether the game history window disappeared in Sidebar view.
+
+**What changed**
+- It had not gone: it was placed against the right edge of the whole window, which in Sidebar view is under the column of players, so it sat on top of the "You" slot. A floating bar can now be told the room it may move in (`room` in `frontend/src/floating-bar.js`, passed through by `frontend/src/history-bar.js`); on the table page the history bar and the action bar keep out of the column in Sidebar view and are placed again when the column appears (`columnRoom`, `floatingBars` in `frontend/pages/table/table.js`). Docked to the right, the history bar now sits against the column's edge.
+
+**What I checked**
+- The rules I pasted match the file (`check-live-rules` 141 of 141), so the 4-seat run of `check-seats-live` now really plays in Sidebar view: 32 of 32, including a new check that the history bar (208 px wide) ends at the column's left edge and the action bar is left of it. A screenshot shows the history bar beside the column.
+- `npm run test:quick` 84 of 84, `check-history-and-select-ui` 28, `check-table-layout` 145. The solo table passes no room, so its bars behave as before.
+
+**My AI's mistakes this time:** my Sidebar layout check (entry 263) measured the battlefield and the piles but not the floating bars, so it never saw the history bar over the column.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-20, entry 262) Claude said the cells were square because its numbers were, while the lines drawn on the board were not; I had to send a screenshot.
 - (2026-11-20, entry 261) Claude read "keep the grid" as "keep the board 112 by 50" when I meant "keep the cells square", and the board stayed small; I had to say it three times before it filled the area.

@@ -12,7 +12,9 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 // growDown: the bar gets taller or shorter (the history bar opens downward): its top edge stays where it is instead of following its fraction of the free space.
 // flush: docked to an edge it touches the edge (no gap), and the style sheet drops the border and the rounding on that side (data-dock says which edge), like the stack window.
 // clickThrough: the grip is also a button (the whole top of the history bar): a press that moves less than 5 px is a click and is left alone, and a drag does not end in a click.
-export function mountFloatingBar({ bar, grip, store, key = 'overloaded.actionBar', defaultPlace = DEFAULT_PLACE, growDown = false, flush = false, clickThrough = false }) {
+// room: a function giving the pixels kept free at the right of the window ({ right }), so the bar stays out of them (the player column of the table's Sidebar view). Call relayout() after it changes.
+// Returns { reset(), place(), relayout() }.
+export function mountFloatingBar({ bar, grip, store, key = 'overloaded.actionBar', defaultPlace = DEFAULT_PLACE, growDown = false, flush = false, clickThrough = false, room = null }) {
   let place = readPlace(store?.get(key) ?? null) ?? { ...defaultPlace };
   let drag = null; // { dx, dy, pixels } while the grip is held
 
@@ -27,7 +29,7 @@ export function mountFloatingBar({ bar, grip, store, key = 'overloaded.actionBar
   cornerSvg.append(cornerShape); cornerHint.append(cornerSvg);
   host.append(snapHint, centerHint, cornerHint);
 
-  const size = () => ({ width: window.innerWidth, height: window.innerHeight, barWidth: bar.offsetWidth, barHeight: bar.offsetHeight });
+  const size = () => ({ width: Math.max(0, window.innerWidth - Math.max(0, room?.()?.right ?? 0)), height: window.innerHeight, barWidth: bar.offsetWidth, barHeight: bar.offsetHeight }); // (the room it moves in: the window, less what room() keeps free)
   let lastPut = null; // where the bar was last put (not where it is now: it may still be gliding there)
   const put = (pixels) => { lastPut = pixels; bar.style.left = `${pixels.left}px`; bar.style.top = `${pixels.top}px`; bar.style.translate = 'none'; };
   const pixelsFor = (p) => {
@@ -164,5 +166,5 @@ export function mountFloatingBar({ bar, grip, store, key = 'overloaded.actionBar
     } else put(pixelsFor(place));
   }).observe(bar); // its width changes when a button appears or its text does
   show();
-  return { reset, place: () => ({ ...place }) };
+  return { reset, place: () => ({ ...place }), relayout: () => { if (!drag) show(); } };
 }

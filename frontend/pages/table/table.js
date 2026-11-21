@@ -838,6 +838,9 @@ watchBoardSize($('battlefield'));
 // Which view is the TABLE's, picked by the host in the lobby (meta/view; Kevin, 2026-11-20): there is no switch on this page.
 const seatsView = () => (meta?.view === 'sidebar' ? 'sidebar' : 'grid');
 let focusUid = null; // in Sidebar view, the player shown large (null: you)
+const floatingBars = []; // the history bar and the action bar, once they are mounted (further down)
+// The pixels at the right of the window the floating bars keep out of: the player column in Sidebar view (Kevin, 2026-11-21: the history bar sat over the column).
+const columnRoom = () => ({ right: $('seats-side').hidden ? 0 : $('seats-side').offsetWidth });
 const slots = new Map(); // uid -> { slot, head, name, life, body } in the sidebar column
 
 // The other players in turn order after you (clockwise from your seat): the first is the one who plays after you.
@@ -895,7 +898,9 @@ function layoutSeats() {
   hand.classList.toggle('docked', docked);
   $('seats-stage').classList.toggle('hand-docked', docked);
   const side = $('seats-side');
+  const columnChanged = side.hidden === sidebar;
   side.hidden = !sidebar;
+  if (columnChanged) for (const bar of floatingBars) bar.relayout(); // (the floating bars keep out of the column: placed again when it comes or goes)
   if (!sidebar) { side.replaceChildren(); if (before.hand !== hand.parentElement) handView.arrange(); return; }
   placeChildren(side, order.map((uid) => slotFor(uid).slot));
   for (const uid of order) {
@@ -1189,7 +1194,8 @@ for (const zone of ['library', 'graveyard', 'exile', 'sideboard']) {
 }
 const settings = mountSettingsMenu({ button: $('settings-button'), panel: $('settings-menu') });
 // The game history: a thin bar that opens downward (src/history-bar.js, as on the solo table), here with everyone's moves (shared/live-history.mjs); it starts at the right edge, over the column above the piles of the top area.
-const historyBar = mountHistoryBar({ root: $('history-bar'), store, key: 'overloaded.seatsHistoryBar' });
+const historyBar = mountHistoryBar({ root: $('history-bar'), store, key: 'overloaded.seatsHistoryBar', room: columnRoom });
+floatingBars.push(historyBar);
 // The stack window (src/stack-window.js, as on the solo table), shared by the table (shared/stack-sync.mjs): every change here is stored whole, every stored change is shown. Its arrows can point at any
 // player's card; every player's cards are numbered from c1, so an arrow to a card says whose it is.
 let storedStack = null;
@@ -1549,7 +1555,7 @@ mountBoardDrag({ board: () => $('battlefield'), onDrop: dropOnBoard, groupOf: (u
 
 // (Mulligan is in the hand's menu, the arrow next to the hand count: the bar has Draw, Untap all and Next turn only, Kevin 2026-11-20)
 // The action bar floats like the solo table's (src/floating-bar.js); it starts as a row in the bottom left corner, in the strip under the battlefield left of the hand (docked to a side it is a column of icons).
-mountFloatingBar({ bar: document.querySelector('.actions-panel'), grip: $('bar-grip'), store, key: 'overloaded.seatsBar4', defaultPlace: { dock: 'bottom', fx: 0, fy: 1 } });
+floatingBars.push(mountFloatingBar({ bar: document.querySelector('.actions-panel'), grip: $('bar-grip'), store, key: 'overloaded.seatsBar4', defaultPlace: { dock: 'bottom', fx: 0, fy: 1 }, room: columnRoom }));
 // the life total is the number itself: click, right-click, Shift for 5, hold to set (src/life-control.js)
 mountLifeControl({ button: $('life'), say, onDelta: (delta) => { if (game) apply(() => adjustLife(game, delta), ''); }, onSet: (value) => { if (game) apply(() => adjustLife(game, value - game.life), `Life is ${value}.`); } });
 for (const zone of ['library', 'graveyard', 'exile', 'sideboard']) $(`pile-${zone}`).addEventListener('click', () => { if (!game) return; if (viewing === zone && !viewTop) viewer.close(); else openPile(zone); });

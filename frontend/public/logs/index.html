@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.264</span></h1>
-    <p class="lede">264 entries, Oct 25 to Nov 21, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
+    <h1>Build log <span class="version">Version 0.265</span></h1>
+    <p class="lede">265 entries, Oct 25 to Nov 21, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
   </div>
 </header>
 
@@ -24,7 +24,7 @@
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
-<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">51</span></a>
+<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">52</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
 <a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">29 things friends asked for</span></a>
 <a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">29 open, 73 done</span></a>
@@ -3604,7 +3604,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-2" aria-labelledby="week-2-title">
-<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">51 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">52 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-2-days">
 <div class="day">
 <h3 class="day-title">Monday 16 November <span class="day-count">5</span></h3>
@@ -4466,7 +4466,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Saturday 21 November <span class="day-count">1</span></h3>
+<h3 class="day-title">Saturday 21 November <span class="day-count">2</span></h3>
 <div class="entries">
 <article class="entry" id="entry-264" data-n="264">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-264-body">
@@ -4482,6 +4482,22 @@
 <p class="sub"><strong>What I checked</strong></p>
 <ul><li>Real Sol Ring pictures on a Sidebar-sized battlefield: the box was 106 by 151.5 px (0.700) before and is 106 by 147.8 px (0.718) after, the picture's own shape, and the screenshot shows side borders as wide as the top one.</li><li><code>npm test</code>: 95 of 95 suites (the solo table 471, the layout 145).</li><li>Not checked: Sidebar view on the real page, until I paste the rules.</li></ul>
 <p><strong>My AI's mistakes this time:</strong> the old comment said the 7 by 10 box was &quot;a stretch of 2%&quot;, but the picture was cut, not stretched, and no check compared a card's box with its picture.</p>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-265" data-n="265">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-265-body">
+    <span class="num">265</span>
+    <span class="head-text"><span class="title">The game history stays out of the Sidebar column</span><span class="sum">Whether the game history window disappeared in Sidebar view.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-265-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>Whether the game history window disappeared in Sidebar view.</li></ul>
+<p class="sub"><strong>What changed</strong></p>
+<ul><li>It had not gone: it was placed against the right edge of the whole window, which in Sidebar view is under the column of players, so it sat on top of the &quot;You&quot; slot. A floating bar can now be told the room it may move in (<code>room</code> in <code>frontend/src/floating-bar.js</code>, passed through by <code>frontend/src/history-bar.js</code>); on the table page the history bar and the action bar keep out of the column in Sidebar view and are placed again when the column appears (<code>columnRoom</code>, <code>floatingBars</code> in <code>frontend/pages/table/table.js</code>). Docked to the right, the history bar now sits against the column's edge.</li></ul>
+<p class="sub"><strong>What I checked</strong></p>
+<ul><li>The rules I pasted match the file (<code>check-live-rules</code> 141 of 141), so the 4-seat run of <code>check-seats-live</code> now really plays in Sidebar view: 32 of 32, including a new check that the history bar (208 px wide) ends at the column's left edge and the action bar is left of it. A screenshot shows the history bar beside the column.</li><li><code>npm run test:quick</code> 84 of 84, <code>check-history-and-select-ui</code> 28, <code>check-table-layout</code> 145. The solo table passes no room, so its bars behave as before.</li></ul>
+<p><strong>My AI's mistakes this time:</strong> my Sidebar layout check (entry 263) measured the battlefield and the piles but not the floating bars, so it never saw the history bar over the column.</p>
   </div></div></div>
 </article>
 </div>

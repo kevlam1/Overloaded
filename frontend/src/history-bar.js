@@ -9,7 +9,8 @@ const OPEN_KEY = 'overloaded.historyOpen';
 
 // root: an empty <section> that floats (position: absolute in the full-screen table). store: a safe store (get, set).
 // key: where its place is kept. set(entries) replaces the whole list (the live table: everyone's moves, merged from the database); entries are { turn, text, mine? }.
-export function mountHistoryBar({ root, store, key = 'overloaded.historyBar' }) {
+// room: passed on to the floating bar (the pixels kept free at the right); relayout() places it again after that changes.
+export function mountHistoryBar({ root, store, key = 'overloaded.historyBar', room = null }) {
   let history = [];
   let open = store?.get(OPEN_KEY) === '1';
 
@@ -43,7 +44,7 @@ export function mountHistoryBar({ root, store, key = 'overloaded.historyBar' }) 
     if (open) list.scrollTop = list.scrollHeight;
   }
   head.addEventListener('click', () => setOpen(!open));
-  mountFloatingBar({ bar: root, grip: head, store, key, defaultPlace: { dock: 'right', fx: 1, fy: 0.14 }, growDown: true, flush: true, clickThrough: true });
+  const floating = mountFloatingBar({ bar: root, grip: head, store, key, defaultPlace: { dock: 'right', fx: 1, fy: 0.14 }, growDown: true, flush: true, clickThrough: true, room });
   setOpen(open);
   draw();
   return {
@@ -52,5 +53,6 @@ export function mountHistoryBar({ root, store, key = 'overloaded.historyBar' }) 
     set(entries) { const next = Array.isArray(entries) ? entries : []; if (JSON.stringify(next) === JSON.stringify(history)) return; history = next; draw(); },
     isOpen: () => open,
     count: () => history.length,
+    relayout: () => floating.relayout(),
   };
 }
