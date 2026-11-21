@@ -1996,7 +1996,7 @@ body.playing.seats .seat-area {
   --pad: 0.4rem;
   --sw: clamp(1.8rem, min(15cqh, 6.5cqw), 4.8rem); /* a pile's width: smaller in a narrow area, so the hand keeps room beside the piles (Alt shows any card large) */
   --zgap: 0.35rem;
-  --Z: calc(3 * (var(--sw) + 0.5rem) + 2 * var(--zgap) + 2 * var(--pad)); /* the width of the piles at the bottom right: library, graveyard and exile, with the command zone above them (Kevin, 2026-11-20) */
+  --Z: calc(5 * (var(--sw) + 0.5rem) + 4 * var(--zgap) + 2 * var(--pad)); /* the width of the piles at the bottom right: library, graveyard, exile and the command zone in ONE row (Kevin, 2026-11-20, second time) */
   --hh: clamp(7rem, 44cqh, 16rem); /* the box of the hand (its cards are 2.8 rem less, and rest half below the bottom edge: frontend/src/hand-view.js); larger since 2026-11-20 (Kevin) */
   /* the battlefield (Kevin, 2026-11-20): ALL the room from the far left to just before the piles, and from the top to just above the resting hand, with SQUARE cells. The grid has 40 rows (cards one size
      up from the solo table's 50) and as many columns as that room holds (frontend/pages/table/table.js fitBoard, shared/board-grid.mjs setBoardSize: --cols on the battlefield) */
@@ -2006,12 +2006,21 @@ body.playing.seats .seat-area {
   --hw: var(--bw); /* the hand's width: under the battlefield */
   position: relative; container-type: size; min-width: 0; min-height: 0; margin: 0; padding: 0; overflow: hidden;
   border: 1px solid var(--line); border-radius: 0.6rem; background: color-mix(in srgb, var(--bg) 92%, #000); box-shadow: none; }
+/* another player's row has one place in the command zone for each commander (yours always has two slots): one commander or none, four piles wide */
+body.playing.seats .opponent.seat-area:not(:has(.opp-command > .card:nth-child(2))) { --Z: calc(4 * (var(--sw) + 0.5rem) + 3 * var(--zgap) + 2 * var(--pad)); }
+/* Sidebar view (Kevin, 2026-11-20): the large area's battlefield reaches its right edge too, over the row of piles; it stops above the taller of the resting hand and that row. The hand still stops before the piles. */
+body.playing.seats[data-view="sidebar"] .seat-area.focused {
+  --pile-h: calc(var(--sw) * 1.4015 + 1.9rem); /* a pile: its name above, the picture, the count's room */
+  --bw: calc(100cqw - 2 * var(--pad));
+  --bh: calc(100cqh - max(0.5 * (var(--hh) - 2.8rem), var(--pile-h) + var(--pad)) - 2 * var(--pad));
+  --hw: calc(100cqw - var(--Z) - var(--pad) - 0.4rem); }
 body.playing.seats .seat-area.active { border-color: var(--gold, #d9b45f); box-shadow: inset 0 0 0 1px var(--gold, #d9b45f), 0 0 0.9rem color-mix(in srgb, var(--gold, #d9b45f) 35%, transparent); } /* whose turn it is */
 /* the head: life at the left, the name in the middle, the news (yours) at the right */
 body.playing.seats .seat-head { position: absolute; z-index: 6; top: 0; left: 0; right: 0; height: var(--T); display: flex; align-items: center; gap: 0.5rem; padding: 0 var(--pad); pointer-events: none; }
 body.playing.seats .seat-head > * { pointer-events: auto; }
 body.playing.seats .seat-name { position: absolute; left: calc(var(--bl) + var(--bw) / 2); top: 0.35rem; translate: -50% 0; max-width: 40%; margin: 0; padding: 0.15rem 0.7rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-radius: 0.5rem; background: rgba(8, 8, 12, 0.72); color: var(--text); font-size: 0.85rem; font-weight: 700; line-height: 1.3; }
 body.playing.seats .seat-name .turn-mark { margin-left: 0.4rem; }
+@container (width < 60rem) { body.playing.seats .seat-name { position: static; translate: none; flex: 0 1 auto; max-width: none; min-width: 0; } } /* (a narrow area: the name right after the life, never over it) */
 /* your life: one line, − 40 + and the arrow that opens the counters panel (frontend/src/counter-panel.js), the chips of what you have after it */
 body.playing.seats #life-area { position: static; inset: auto; translate: none; z-index: auto; display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; gap: 0.25rem; width: auto; min-width: 0; height: calc(var(--T) - 0.5rem); padding: 0 0.35rem 0 0.5rem; transition: none; }
 body.playing.seats #life-area .life-grip { width: auto; padding: 0 0.15rem 0 0; cursor: context-menu; font-size: 0.6rem; }
@@ -2071,10 +2080,9 @@ body.playing.seats .battlefield > .cell-highlight[data-tapped] { width: var(--ca
 body.playing.seats .opp-field > .battlefield { outline: 1px solid color-mix(in srgb, var(--text) 25%, transparent); }
 body[data-facing="turned"].playing.seats .opp-field > .battlefield { rotate: 180deg; } /* as if they sat across from you: their lands along the far edge */
 
-/* the piles at the bottom right, small (Alt shows any card large): library, graveyard and exile in a row, the command zone above them */
+/* the piles at the bottom right, small (Alt shows any card large): library, graveyard, exile and the command zone in one row */
 body.playing.seats .side-panels { position: absolute; z-index: 4; inset: auto; right: var(--pad); bottom: var(--pad); display: block; }
-body.playing.seats .piles-section { --sw: inherit; display: flex; flex-direction: column; flex-wrap: nowrap; align-items: flex-end; gap: 0.45rem; margin: 0; padding: 0; }
-body.playing.seats .piles-section .command-zone { order: -1; }
+body.playing.seats .piles-section { --sw: inherit; display: flex; flex-direction: row; flex-wrap: nowrap; align-items: flex-end; gap: var(--zgap); margin: 0; padding: 0; }
 body.playing.seats .piles-section .zone-stacks { display: flex; flex-wrap: nowrap; align-items: flex-end; gap: var(--zgap); }
 body.playing.seats .pile-slot { gap: 0.2rem; }
 body.playing.seats .pile-head { height: 1.2rem; margin: 0; padding: 0 0.1rem 0 0.45rem; }
@@ -2089,9 +2097,8 @@ body.playing.seats .command-zone h3 { display: flex; align-items: center; height
 body.playing.seats .command-zone h3::before { content: "CMD"; font-size: 0.6rem; font-weight: 600; letter-spacing: 0.05em; }
 body.playing.seats .command-slots { flex-wrap: nowrap; gap: var(--zgap); }
 body.playing.seats .cmd-slot .tax { height: auto; }
-/* theirs: the same, the command zone above the row of piles */
-body.playing.seats .opp-zones { position: absolute; z-index: 4; right: var(--pad); bottom: var(--pad); display: grid; grid-template-columns: repeat(3, auto); align-items: end; gap: 0.45rem var(--zgap); }
-body.playing.seats .opp-zones > .opp-command-zone { grid-row: 1; grid-column: 1 / -1; justify-self: end; }
+/* theirs: the same row */
+body.playing.seats .opp-zones { position: absolute; z-index: 4; right: var(--pad); bottom: var(--pad); display: flex; flex-wrap: nowrap; align-items: flex-end; gap: var(--zgap); }
 body.playing.seats .opp-pile { flex: none; padding: 0 0 1rem; cursor: pointer; }
 body.playing.seats .opp-pile:disabled { cursor: default; opacity: 1; }
 body.playing.seats .opp-pile::after { content: attr(data-label); bottom: 0; width: calc(var(--sw) + 0.4rem); font-size: 0.6rem; line-height: 1.2; white-space: nowrap; }
@@ -2126,8 +2133,6 @@ body.playing.seats .seats-hud { position: absolute; z-index: 20; top: 0.55rem; r
 body.playing.seats[data-view="sidebar"] .seats-hud { right: calc(var(--side-w) + 0.55rem); }
 body.playing.seats .seats-hud > button { position: static; inset: auto; translate: none; display: grid; place-items: center; width: 2rem; height: 2rem; min-height: 0; padding: 0; border: 1px solid var(--line); border-radius: 0.55rem; background: var(--glass); backdrop-filter: blur(8px); color: var(--text); box-shadow: 0 0.3rem 0.8rem rgba(0, 0, 0, 0.35); cursor: pointer; }
 body.playing.seats .seats-hud > button:hover, body.playing.seats .seats-hud > button:focus-visible { border-color: var(--ring); }
-body.playing.seats #view-toggle .icon-grid, body.playing.seats[data-view="sidebar"] #view-toggle .icon-sidebar { display: none; }
-body.playing.seats[data-view="sidebar"] #view-toggle .icon-grid { display: block; }
 
 /* the column of Sidebar view: every player, small; the one shown large has an eye instead */
 body.playing.seats .seats-side { position: absolute; top: 0; right: 0; bottom: 0; width: var(--side-w); display: flex; flex-direction: column; gap: 0.45rem; padding: 0.45rem 0.5rem; overflow-y: auto; border-left: 1px solid var(--line); background: color-mix(in srgb, var(--bg) 80%, #000); }

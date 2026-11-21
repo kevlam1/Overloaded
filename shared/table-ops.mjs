@@ -292,6 +292,19 @@ export function createTableOps({ sdk, db, getUid, makeCode = makeTableCode }) {
     return { format: next, changed: true };
   }
 
+  // The host sets how the game looks for everyone at the table (Kevin, 2026-11-20): 'grid' (every player's area at once) or 'sidebar' (one area large, the others small in a column). Only in the lobby.
+  // Nothing stored is Grid. Returns { view, changed }.
+  async function setView(code, view) {
+    if (view !== 'grid' && view !== 'sidebar') refuse('The view is Grid or Sidebar.');
+    const { uid, meta, mine } = await look(code);
+    if (!meta || !mine) refuse('You are not at that table.');
+    if (meta.host !== uid) refuse('Only the host can change the view.');
+    if (meta.status !== 'lobby') refuse('The match has started, so the view can no longer change.');
+    if ((meta.view ?? 'grid') === view) return { view, changed: false };
+    await update(ref(db), { [`tables/${code}/meta/view`]: view });
+    return { view, changed: true };
+  }
+
   // The host sets the table's bracket limit (1 to 5, or null for Any). Only in the lobby, and only for a Commander table. It only WARNS next to the name of a player whose deck is above it. Returns { limit, changed }.
   async function setBracketLimit(code, limit) {
     if (limit !== null && !(Number.isInteger(limit) && limit >= 1 && limit <= 5)) refuse('A bracket limit is 1 to 5, or Any.');
@@ -571,5 +584,5 @@ export function createTableOps({ sdk, db, getUid, makeCode = makeTableCode }) {
     );
   }
 
-  return { findMyTable, createTable, closeIfExpired, rejoinTable, joinTable, watchMembers, setReady, clearReady, setName, setFormat, setBracketLimit, setDeck, startMatch, concede, endMatch, endTable, leaveTable, passHost, takeOverHost, claimHostSlot, heartbeat, watchActivity, watchMeta, watchServerOffset, watchConnection, startPresence, watchPresence, saveGame, loadGame, watchPublic, saveStack, watchStack };
+  return { findMyTable, createTable, closeIfExpired, rejoinTable, joinTable, watchMembers, setReady, clearReady, setName, setFormat, setView, setBracketLimit, setDeck, startMatch, concede, endMatch, endTable, leaveTable, passHost, takeOverHost, claimHostSlot, heartbeat, watchActivity, watchMeta, watchServerOffset, watchConnection, startPresence, watchPresence, saveGame, loadGame, watchPublic, saveStack, watchStack };
 }

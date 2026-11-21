@@ -835,8 +835,8 @@ watchBoardSize($('battlefield'));
 // ---- where the areas are: Grid view (every area at once) or Sidebar view (one large, the others small in a column on the right) ----
 // The areas are the same elements in both views; Sidebar view moves the ones that are not shown large into the column, where each is drawn at the size of the large one and shrunk (a scale), so it
 // looks exactly like a small copy and nothing is laid out twice. Your hand stays yours: when another player is shown large, it moves out of your area and stays along the bottom of the window.
-const VIEW_KEY = 'overloaded.seatsView';
-let seatsView = store.get(VIEW_KEY) === 'sidebar' ? 'sidebar' : 'grid';
+// Which view is the TABLE's, picked by the host in the lobby (meta/view; Kevin, 2026-11-20): there is no switch on this page.
+const seatsView = () => (meta?.view === 'sidebar' ? 'sidebar' : 'grid');
 let focusUid = null; // in Sidebar view, the player shown large (null: you)
 const slots = new Map(); // uid -> { slot, head, name, life, body } in the sidebar column
 
@@ -872,22 +872,11 @@ function focusSeat(uid) {
   focusUid = uid === myUid ? null : uid;
   layoutSeats();
 }
-function setView(next) {
-  seatsView = next;
-  store.set(VIEW_KEY, next);
-  layoutSeats();
-}
-$('view-toggle').addEventListener('click', () => setView(seatsView === 'grid' ? 'sidebar' : 'grid'));
-
 function layoutSeats() {
   const others = othersInOrder();
   others.forEach((uid, index) => { opponents.get(uid).section.dataset.slot = `o${index + 1}`; });
-  const sidebar = seatsView === 'sidebar' && game !== null;
+  const sidebar = seatsView() === 'sidebar' && game !== null;
   document.body.dataset.view = sidebar ? 'sidebar' : 'grid';
-  const toggle = $('view-toggle');
-  toggle.setAttribute('aria-pressed', String(sidebar));
-  toggle.setAttribute('aria-label', sidebar ? 'Grid view' : 'Sidebar view');
-  toggle.title = sidebar ? 'Grid view: every player at once' : 'Sidebar view: one player large';
   const me = $('seat-me');
   const hand = $('hand-section');
   const areaOf = (uid) => (uid === myUid ? me : opponents.get(uid)?.section ?? null);

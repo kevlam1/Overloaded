@@ -68,6 +68,14 @@ try {
       await alice.eval(`document.querySelector('#players button[data-bot="add"][data-seat="${seat}"]').click()`);
       await waitFor(async () => (await alice.eval(`[...document.querySelectorAll('#players .seat')].filter((s) => s.dataset.ready === '1').length`)) >= seat || null, 30000, 300);
     }
+    // The view is the table's, picked by the host in the lobby (Kevin, 2026-11-20): the 4-seat run plays in Sidebar view; needs the rules with meta/view pasted
+    const sidebar = seats === 4;
+    if (sidebar) {
+      await alice.eval(`document.querySelector('#view-switch button[data-view="sidebar"]').click()`);
+      const seen = await waitFor(async () => (await bob.eval(`document.querySelector('#view-switch button[data-view="sidebar"]').getAttribute('aria-pressed')`)) === 'true' || null, 15000, 250).catch(() => false);
+      const bobCannot = await bob.eval(`document.querySelector('#view-switch button[data-view="grid"]').disabled`);
+      record('4 seats: the host picks Sidebar view in the lobby; Bob sees it and cannot change it', Boolean(seen) && bobCannot, JSON.stringify({ seen, bobCannot }));
+    }
     await waitFor(async () => (await alice.eval(`!document.getElementById('start').disabled`)) || null, 20000, 250);
     await click(alice, 'start');
     await waitFor(async () => ((await alice.eval(`document.querySelectorAll('#hand .card').length`)) === 7) || null, 40000, 300);
@@ -87,8 +95,23 @@ try {
     const areas = await alice.eval(`[...document.querySelectorAll('#opponent-list .opponent')].map((s) => { const r = s.getBoundingClientRect(); return { top: Math.round(r.top), bottom: Math.round(r.bottom), left: Math.round(r.left), right: Math.round(r.right) }; })`);
     const mine = await box(alice, '#battlefield');
     const handBottom = await alice.eval(`Math.round(Math.max(...[...document.querySelectorAll('#hand .card')].map((c) => c.getBoundingClientRect().bottom)))`);
-    record(`${seats} seats: Grid view, every player has an area like the solo table (${others} other${others === 1 ? '' : 's'}), hers at the bottom`, await alice.eval(`document.body.classList.contains('seats') && document.body.dataset.view === 'grid'`) && areas.length === others && myArea.bottom >= 760 && areas.every((a) => a.right <= myArea.left + 2 || a.left >= myArea.right - 2 || a.bottom <= myArea.top + 2), JSON.stringify({ myArea, areas }));
-    record(`${seats} seats: her battlefield, hand and piles are in her area; her hand is along its bottom edge`, Boolean(mine) && mine.top >= myArea.top && mine.bottom <= myArea.bottom && mine.height > 150 && handBottom >= myArea.bottom - 2 && await alice.eval(`document.getElementById('seat-me').contains(document.getElementById('piles-section'))`), JSON.stringify({ mine, handBottom }));
+    if (!sidebar) record(`${seats} seats: Grid view, every player has an area like the solo table (${others} other${others === 1 ? '' : 's'}), hers at the bottom`, await alice.eval(`document.body.classList.contains('seats') && document.body.dataset.view === 'grid' && !document.getElementById('view-toggle')`) && areas.length === others && myArea.bottom >= 760 && areas.every((a) => a.right <= myArea.left + 2 || a.left >= myArea.right - 2 || a.bottom <= myArea.top + 2), JSON.stringify({ myArea, areas }));
+    record(`${seats} seats: her command zone is in one row with her library, graveyard and exile`, await alice.eval(`(() => { const tops = ['#command-zone', '#pile-library', '#pile-graveyard', '#pile-exile'].map((s) => document.querySelector(s)?.getBoundingClientRect()); return tops.every(Boolean) && tops.every((r) => Math.abs(r.bottom - tops[1].bottom) < 4); })()`), await alice.eval(`JSON.stringify(['#command-zone', '#pile-library', '#pile-graveyard', '#pile-exile'].map((s) => { const r = document.querySelector(s)?.getBoundingClientRect(); return r && [Math.round(r.left), Math.round(r.top), Math.round(r.bottom)]; }))`));
+    if (sidebar) {
+      // Sidebar view, picked in the lobby: her area large with its battlefield reaching its right edge (the piles under it), every player small in the column
+      const side = await alice.eval(`({ view: document.body.dataset.view, slots: document.querySelectorAll('#seats-side .seat-slot').length, mineLarge: document.getElementById('seat-me').classList.contains('focused'), smalls: document.querySelectorAll('#seats-side .seat-area.mini').length, toggle: Boolean(document.getElementById('view-toggle')) })`);
+      record('4 seats: the match opens in Sidebar view: her area large, all four players in the column, no view button on the table', side.view === 'sidebar' && side.slots === 4 && side.mineLarge && side.smalls === 3 && !side.toggle, JSON.stringify(side));
+      const reach = await alice.eval(`(() => { const b = document.getElementById('battlefield').getBoundingClientRect(); const p = document.getElementById('piles-section').getBoundingClientRect(); const a = document.getElementById('seat-me').getBoundingClientRect(); return { boardLeft: Math.round(b.left - a.left), boardRightGap: Math.round(a.right - b.right), boardBottom: Math.round(b.bottom), pilesTop: Math.round(p.top) }; })()`);
+      record('...her battlefield runs from the left edge of her area to its right edge, her piles under it', reach.boardLeft <= 12 && reach.boardRightGap <= 12 && reach.pilesTop >= reach.boardBottom - 1, JSON.stringify(reach));
+      if (process.argv.includes('--screenshot')) await alice.screenshot('scratch-seats-sidebar-me.png');
+      const handNow = await alice.eval(`document.querySelectorAll('#hand > .card').length`);
+      if (side.slots > 1) await alice.eval(`[...document.querySelectorAll('#seats-side .seat-slot')][1].querySelector('.slot-head').click()`); // (no column when the table did not open in Sidebar view: the check below then fails)
+      await sleep(500);
+      const bobLarge = await alice.eval(`({ focused: document.querySelector('.opponent.focused')?.textContent.includes('Bob') ?? false, mineSmall: document.getElementById('seat-me').classList.contains('mini'), handDocked: document.getElementById('hand-section').classList.contains('docked'), handCards: document.querySelectorAll('#hand > .card').length })`);
+      record("...a click on Bob in the column shows his area large; her hand stays along the bottom, still hers", bobLarge.focused && bobLarge.mineSmall && bobLarge.handDocked && bobLarge.handCards === handNow, JSON.stringify(bobLarge));
+      if (process.argv.includes('--screenshot')) await alice.screenshot('scratch-seats-sidebar-bob.png');
+    }
+    if (!sidebar) record(`${seats} seats: her battlefield, hand and piles are in her area; her hand is along its bottom edge`, Boolean(mine) && mine.top >= myArea.top && mine.bottom <= myArea.bottom && mine.height > 150 && handBottom >= myArea.bottom - 2 && await alice.eval(`document.getElementById('seat-me').contains(document.getElementById('piles-section'))`), JSON.stringify({ mine, handBottom }));
     record(`${seats} seats: each other player shows a fan of card backs for their hand (Bob holds 6)`, (await alice.eval(`document.querySelector('#opponent-list .opponent .opp-backs').children.length`)) === 6 && /Hand 6/.test(await alice.eval(`document.querySelector('#opponent-list .opponent .opp-hand-pill').textContent`)));
     if (seats === 2) {
       const facing = () => alice.eval(`getComputedStyle(document.querySelector('#opponent-list .opponent .battlefield')).rotate`);
@@ -171,21 +194,6 @@ try {
       await alice.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
       await alice.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
       await sleep(200);
-      // Sidebar view: one area large, every player small in a column; Bob's area shown large keeps her hand along the bottom
-      await alice.eval(`document.getElementById('view-toggle').click()`);
-      await sleep(400);
-      const side = await alice.eval(`({ view: document.body.dataset.view, slots: document.querySelectorAll('#seats-side .seat-slot').length, mineLarge: document.getElementById('seat-me').classList.contains('focused'), bobSmall: Boolean(document.querySelector('#seats-side .seat-area.mini')), saved: localStorage.getItem('overloaded.seatsView') })`);
-      record('the view button switches to Sidebar view: her area large, both players in the column (Bob small), kept in her browser', side.view === 'sidebar' && side.slots === 2 && side.mineLarge && side.bobSmall && side.saved === 'sidebar', JSON.stringify(side));
-      if (process.argv.includes('--screenshot')) await alice.screenshot('scratch-seats-sidebar-me.png');
-      await alice.eval(`[...document.querySelectorAll('#seats-side .seat-slot')][1].querySelector('.slot-head').click()`);
-      await sleep(500);
-      const bobLarge = await alice.eval(`({ bob: document.querySelector('.opponent').classList.contains('focused'), mineSmall: document.getElementById('seat-me').classList.contains('mini'), handDocked: document.getElementById('hand-section').classList.contains('docked'), handCards: document.querySelectorAll('#hand > .card').length })`);
-      record("...a click on Bob in the column shows his area large; her hand stays along the bottom, still hers", bobLarge.bob && bobLarge.mineSmall && bobLarge.handDocked && bobLarge.handCards === discarded.hand, JSON.stringify(bobLarge));
-      if (process.argv.includes('--screenshot')) await alice.screenshot('scratch-seats-sidebar-bob.png');
-      await alice.eval(`document.getElementById('view-toggle').click()`);
-      await sleep(400);
-      const backToGrid = await alice.eval(`({ view: document.body.dataset.view, handInArea: document.getElementById('seat-me').contains(document.getElementById('hand-section')), minis: document.querySelectorAll('.seat-area.mini').length })`);
-      record('...and back to Grid view, her hand back in her area', backToGrid.view === 'grid' && backToGrid.handInArea && backToGrid.minis === 0, JSON.stringify(backToGrid));
       // Bob's piles: his library cannot be opened; his exile opens in the pile window to look at
       await alice.eval(`document.querySelector('#opponent-list .opp-pile[data-zone="exile"]').click()`);
       await sleep(300);

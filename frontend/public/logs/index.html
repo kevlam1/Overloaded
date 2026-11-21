@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.262</span></h1>
-    <p class="lede">262 entries, Oct 25 to Nov 20, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
+    <h1>Build log <span class="version">Version 0.263</span></h1>
+    <p class="lede">263 entries, Oct 25 to Nov 20, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
   </div>
 </header>
 
@@ -24,7 +24,7 @@
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
-<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">49</span></a>
+<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">50</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
 <a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">29 things friends asked for</span></a>
 <a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">29 open, 73 done</span></a>
@@ -3604,7 +3604,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-2" aria-labelledby="week-2-title">
-<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">49 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">50 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-2-days">
 <div class="day">
 <h3 class="day-title">Monday 16 November <span class="day-count">5</span></h3>
@@ -4204,7 +4204,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Friday 20 November <span class="day-count">14</span></h3>
+<h3 class="day-title">Friday 20 November <span class="day-count">15</span></h3>
 <div class="entries">
 <article class="entry" id="entry-249" data-n="249">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-249-body">
@@ -4443,6 +4443,24 @@
 <p class="sub"><strong>What I checked</strong></p>
 <ul><li>A new check in <code>check-table-layout</code> measures the line spacing the browser really uses: 135 of 135 pass; with the fix taken out it fails 15 times (&quot;10.28 by 5.12 px&quot;), so it does catch what I saw. <code>check-seats-live</code> 29 of 29. A 4x zoomed screenshot of my board shows square cells.</li></ul>
 <p><strong>My AI's mistakes this time:</strong> entry 261's check measured the grid's arithmetic, not what is drawn, so it passed while the lines I could see were still stretched.</p>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-263" data-n="263">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-263-body">
+    <span class="num">263</span>
+    <span class="head-text"><span class="title">The view is picked in the lobby; the command zone joins the pile row</span><span class="sum">Move how the game looks into the lobby, as part of the lobby remake: Grid or Sidebar is chosen there and can't be switched during a game.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-263-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>Move how the game looks into the lobby, as part of the lobby remake: Grid or Sidebar is chosen there and can't be switched during a game. The Sidebar view's battlefield should reach the far right. The command zone moves down into the same row as the library, graveyard and exile.</li></ul>
+<p class="sub"><strong>What changed</strong></p>
+<ul><li>The view is the table's, like the format: the host picks Grid or Sidebar with a new View switch next to Format in the lobby header (<code>frontend/pages/lobby/</code>), only while the table is in the lobby; everyone else sees it greyed. It is stored as <code>meta/view</code> (<code>setView</code> in <code>shared/table-ops.mjs</code>, a new rule in <code>backend/database.rules.json</code> that takes only <code>grid</code> or <code>sidebar</code>). The table page reads it and the view button at the top right is gone; in Sidebar view I can still click a player in the column to see them large.</li><li>Every area's piles are one row at the bottom right again: library, graveyard, exile, then the command zone (<code>frontend/src/style.css</code>). Another player's row is four piles wide when they have one commander, five with two.</li><li>In Sidebar view the large area's battlefield now reaches the right edge of the area, over the pile row; it stops above the taller of the resting hand and that row. The hand still stops before the piles.</li><li>In a narrow area (4 players) the player's name sits right after the life instead of in the middle of the battlefield, where it covered my life buttons once the pile row got wider.</li></ul>
+<p class="sub"><strong>What I checked</strong></p>
+<ul><li><code>check-table-layout</code>: 145 of 145, with a new Sidebar case at every window size (the battlefield reaches both edges of the large area, the piles are under it, the cells are square). The first run failed 15 times because the other players' piles left an 80 px gap beside their battlefield (their command zone holds one card, mine two slots); fixed.</li><li>The emulator tests of <code>setView</code> (host only, lobby only, only the two values): 254 of 254 table logic checks; the rules 578 and 2,389. <code>npm test</code>: 95 of 95 suites.</li><li>Against the real project: <code>check-lobby-deck-live</code> 193 of 193, <code>check-room-live</code> 41 of 41 (a screenshot shows the View switch next to Format), <code>check-seats-live</code> 27 of 31: the 4 that fail are the new Sidebar ones, because the published rules refuse <code>meta/view</code> until I paste them, so the table opened in Grid view. Screenshots of 2 and 4 players show the command zone in the pile row.</li><li>Not checked yet: Sidebar view on the real page (it needs the paste).</li></ul>
+<p class="sub"><strong>Decisions</strong></p>
+<ul><li>The view is a table setting the host picks, not a personal one, as I asked. The rest of the lobby settings (starting player, mulligan type, allow sideboard, chat) are still the next part of the lobby remake.</li></ul>
+<p><strong>My AI's mistakes this time:</strong> its first command zone check expected the command zone to be the left end of the row, but it is the right end; and its first PowerShell edit of a check script added a byte-order mark to the file, removed before running it.</p>
   </div></div></div>
 </article>
 </div>

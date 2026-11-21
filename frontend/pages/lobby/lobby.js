@@ -1,7 +1,7 @@
 // The lobby page. It has two screens, chosen by the address: the start page (/) where you make a table or type a code to join one,
 // and a table's own screen (/lobby/CODE) with only that table: joining it (one button, or no click at all when this browser has a
 // saved name), the seats, your deck, Ready and Start. All database calls live in ../../src/db.js.
-import { botClient, createTable, joinTable, rejoinTable, findMyTable, watchMembers, heartbeat, watchActivity, watchMeta, watchServerOffset, startPresence, watchPresence, watchConnection, takeOverHost, setDeck, setName, setFormat, setBracketLimit, closeIfExpired, setReady, clearReady, startMatch, leaveTable } from '../../src/db.js';
+import { botClient, createTable, joinTable, rejoinTable, findMyTable, watchMembers, heartbeat, watchActivity, watchMeta, watchServerOffset, startPresence, watchPresence, watchConnection, takeOverHost, setDeck, setName, setFormat, setView, setBracketLimit, closeIfExpired, setReady, clearReady, startMatch, leaveTable } from '../../src/db.js';
 import { presenceStatus, presenceText, ownConnectionText, hostIsGone } from '../../../shared/presence.mjs';
 import { startKeepAlive } from '../../src/keep-alive.js';
 import { drawDeckTiles } from '../../src/deck-tiles.js';
@@ -349,6 +349,7 @@ function renderPlayers() {
   $('take-over-note').hidden = !canTakeOver;
   $('ready').textContent = isReady(currentMembers[myUid], currentMeta) ? 'Not ready' : 'Ready';
   renderFormat();
+  renderView();
   renderLimit();
   renderStart();
 }
@@ -363,6 +364,21 @@ function renderFormat() {
     button.title = canChange ? '' : 'Only the host can change the format.';
   }
 }
+// The view switch (Kevin, 2026-11-20): how the game looks for everyone at the table, Grid (every player's area at once) or Sidebar (one large, everyone small in a column). The host picks it in the lobby;
+// the table page has no switch. Nothing stored is Grid.
+function renderView() {
+  const view = currentMeta?.view === 'sidebar' ? 'sidebar' : 'grid';
+  const canChange = Boolean(myUid) && currentHost === myUid && currentMeta?.status === 'lobby';
+  for (const button of $('view-switch').querySelectorAll('button[data-view]')) {
+    button.setAttribute('aria-pressed', String(button.dataset.view === view));
+    button.disabled = !canChange && button.dataset.view !== view;
+  }
+}
+$('view-switch').addEventListener('click', (event) => {
+  const button = event.target instanceof Element ? event.target.closest('button[data-view]') : null;
+  if (!button || button.disabled || !currentCode || button.dataset.view === (currentMeta?.view === 'sidebar' ? 'sidebar' : 'grid')) return;
+  run(async () => { await setView(currentCode, button.dataset.view); say(''); });
+});
 // The bracket limit: the host picks Any or 1 to 5 in a Commander lobby; everyone else sees it. It only warns beside the name of a player whose deck is above it.
 function renderLimit() {
   const limit = bracketLimitOf(currentMeta);

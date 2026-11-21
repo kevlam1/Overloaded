@@ -526,6 +526,12 @@ console.log('setName and setFormat: your name and the table\'s format in the lob
   check('the same format again changes nothing', JSON.stringify(await host.ops.setFormat(table.code, 'standard')) === '{"format":"standard","changed":false}');
   check('a guest cannot change the format', /host/.test(await refused(() => guest.ops.setFormat(table.code, 'commander'))) && (await readAdmin(`tables/${table.code}/meta/format`)) === 'standard');
   check('a format that does not exist is refused before any request', /ormat|Commander|Standard/.test(await refused(() => host.ops.setFormat(table.code, 'modern'))) && (await readAdmin(`tables/${table.code}/meta/format`)) === 'standard');
+  const viewOf = () => readAdmin(`tables/${table.code}/meta/view`);
+  check('the host sets the table\'s view to Sidebar (how the game looks for everyone)', JSON.stringify(await host.ops.setView(table.code, 'sidebar')) === '{"view":"sidebar","changed":true}' && (await viewOf()) === 'sidebar');
+  check('the same view again changes nothing', JSON.stringify(await host.ops.setView(table.code, 'sidebar')) === '{"view":"sidebar","changed":false}');
+  check('a view that does not exist is refused before any request', /Grid or Sidebar/.test(await refused(() => host.ops.setView(table.code, 'tabletop'))) && (await viewOf()) === 'sidebar');
+  check('a guest cannot change the view', /host/.test(await refused(() => guest.ops.setView(table.code, 'grid'))) && (await viewOf()) === 'sidebar');
+  check('back to Grid', JSON.stringify(await host.ops.setView(table.code, 'grid')) === '{"view":"grid","changed":true}' && (await viewOf()) === 'grid');
   const limitOf = () => readAdmin(`tables/${table.code}/meta/bracketLimit`);
   await host.ops.setFormat(table.code, 'commander');
   check('the host sets a bracket limit', JSON.stringify(await host.ops.setBracketLimit(table.code, 3)) === '{"limit":3,"changed":true}' && (await limitOf()) === 3);
@@ -541,6 +547,7 @@ console.log('setName and setFormat: your name and the table\'s format in the lob
   await host.ops.startMatch(table.code);
   check('once the match has started the bracket limit cannot change', /started/.test(await refused(() => host.ops.setBracketLimit(table.code, 2))));
   check('once the match has started the name and the format cannot change', /started/.test(await refused(() => guest.ops.setName(table.code, 'Late'))) && /started/.test(await refused(() => host.ops.setFormat(table.code, 'commander'))));
+  check('...nor the view', /started/.test(await refused(() => host.ops.setView(table.code, 'sidebar'))));
 }
 
 console.log('setDeck: what the table learns about your deck (2026-10-30)');

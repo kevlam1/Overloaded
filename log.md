@@ -5203,6 +5203,28 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **My AI's mistakes this time:** entry 261's check measured the grid's arithmetic, not what is drawn, so it passed while the lines I could see were still stretched.
 
+## 263. The view is picked in the lobby; the command zone joins the pile row (2026-11-20)
+
+**What I asked for**
+- Move how the game looks into the lobby, as part of the lobby remake: Grid or Sidebar is chosen there and can't be switched during a game. The Sidebar view's battlefield should reach the far right. The command zone moves down into the same row as the library, graveyard and exile.
+
+**What changed**
+- The view is the table's, like the format: the host picks Grid or Sidebar with a new View switch next to Format in the lobby header (`frontend/pages/lobby/`), only while the table is in the lobby; everyone else sees it greyed. It is stored as `meta/view` (`setView` in `shared/table-ops.mjs`, a new rule in `backend/database.rules.json` that takes only `grid` or `sidebar`). The table page reads it and the view button at the top right is gone; in Sidebar view I can still click a player in the column to see them large.
+- Every area's piles are one row at the bottom right again: library, graveyard, exile, then the command zone (`frontend/src/style.css`). Another player's row is four piles wide when they have one commander, five with two.
+- In Sidebar view the large area's battlefield now reaches the right edge of the area, over the pile row; it stops above the taller of the resting hand and that row. The hand still stops before the piles.
+- In a narrow area (4 players) the player's name sits right after the life instead of in the middle of the battlefield, where it covered my life buttons once the pile row got wider.
+
+**What I checked**
+- `check-table-layout`: 145 of 145, with a new Sidebar case at every window size (the battlefield reaches both edges of the large area, the piles are under it, the cells are square). The first run failed 15 times because the other players' piles left an 80 px gap beside their battlefield (their command zone holds one card, mine two slots); fixed.
+- The emulator tests of `setView` (host only, lobby only, only the two values): 254 of 254 table logic checks; the rules 578 and 2,389. `npm test`: 95 of 95 suites.
+- Against the real project: `check-lobby-deck-live` 193 of 193, `check-room-live` 41 of 41 (a screenshot shows the View switch next to Format), `check-seats-live` 27 of 31: the 4 that fail are the new Sidebar ones, because the published rules refuse `meta/view` until I paste them, so the table opened in Grid view. Screenshots of 2 and 4 players show the command zone in the pile row.
+- Not checked yet: Sidebar view on the real page (it needs the paste).
+
+**Decisions**
+- The view is a table setting the host picks, not a personal one, as I asked. The rest of the lobby settings (starting player, mulligan type, allow sideboard, chat) are still the next part of the lobby remake.
+
+**My AI's mistakes this time:** its first command zone check expected the command zone to be the left end of the row, but it is the right end; and its first PowerShell edit of a check script added a byte-order mark to the file, removed before running it.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-20, entry 262) Claude said the cells were square because its numbers were, while the lines drawn on the board were not; I had to send a screenshot.
 - (2026-11-20, entry 261) Claude read "keep the grid" as "keep the board 112 by 50" when I meant "keep the cells square", and the board stayed small; I had to say it three times before it filled the area.

@@ -40,6 +40,9 @@
           "bracketLimit": {
             ".validate": "newData.isNumber() && newData.val() % 1 === 0 && newData.val() >= 1 && newData.val() <= 5"
           },
+          "view": {
+            ".validate": "newData.isString() && (newData.val() === 'grid' || newData.val() === 'sidebar')"
+          },
           "$other": {
             ".validate": false
           }

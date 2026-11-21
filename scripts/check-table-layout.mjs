@@ -106,9 +106,23 @@ try {
       check(`${label}: cards are big enough to see: hand ${Math.round(minHand)} px, yours ${Math.round(minMine)} px, theirs ${Math.round(minOpp)} px, piles ${Math.round(minPile)} px wide (at least 60, 28, 28 and 28)`, minHand >= 60 && minMine >= 28 && minOpp >= 28 && minPile >= 28);
       if (process.argv.includes('--screenshot') && (w === 1366 || w === 1920) && h !== 650) await browser.screenshot(`scratch-layout-${w}x${h}-${opponents + 1}.png`);
     }
+    // Sidebar view (picked in the lobby): your area large, the column on the right (left empty here); the battlefield reaches the area's right edge, over the row of piles
+    {
+      const label = `${w}x${h}, Sidebar view`;
+      await browser.goto(`${ORIGIN}/table/ABCDEF`);
+      await browser.eval(FILL(3));
+      await browser.eval(`(() => { document.body.dataset.view = 'sidebar'; document.getElementById('seat-me').classList.add('focused'); document.querySelectorAll('#opponent-list .opponent').forEach((o) => o.remove()); document.getElementById('seats-side').hidden = false; window.dispatchEvent(new Event('resize')); })()`);
+      await sleep(300);
+      const m = await browser.eval(RECTS);
+      const mine = m.areas.find((a) => a.mine);
+      const pilesTop = Math.min(...mine.piles.map((p) => p.top));
+      check(`${label}: the battlefield runs from the left edge of the large area to its right edge, the piles under it`, mine.board.left - mine.area.left <= 10 && mine.area.right - mine.board.right <= 10 && pilesTop >= mine.board.bottom - 1 && mine.piles.every((p) => inside(p, mine.area, 1)), JSON.stringify({ area: mine.area, board: mine.board, pilesTop }));
+      check(`${label}: ...its cells are square (${m.myCols} columns) and no resting hand card covers it`, Number.isInteger(m.myCols) && Math.abs(m.myCols - mine.board.width / (mine.board.height / 40)) < 1 && Math.abs(m.lines.x - m.lines.y) / m.lines.y < 0.02 && mine.resting.every((c) => apart(c, mine.board, 3)), JSON.stringify({ cols: m.myCols, lines: m.lines, handTop: Math.min(...mine.resting.map((c) => c.top)), boardBottom: mine.board.bottom }));
+      if (process.argv.includes('--screenshot') && w === 1366 && h === 768) await browser.screenshot('scratch-layout-sidebar.png');
+    }
     await closeAllBrowsers();
   }
-  console.log(`checked ${SIZES.length} window sizes with 2 to 4 players each`);
+  console.log(`checked ${SIZES.length} window sizes with 2 to 4 players each, and Sidebar view`);
 } finally {
   await closeAllBrowsers();
   if (server) await server.close();
