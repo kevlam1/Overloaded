@@ -35,6 +35,8 @@ import { mountCounterChips } from '../../src/counter-chips.js';
 import { mountLifeControl } from '../../src/life-control.js';
 import { restHidden, mountHandRestSetting } from '../../src/hand-rest.js';
 import { createCounterPanel } from '../../src/counter-panel.js';
+import { mountHistoryBar } from '../../src/history-bar.js';
+import { describeMove, makeEntry, slotFor as logSlotFor, lastK, mergeHistory } from '../../../shared/live-history.mjs';
 import { drawPause } from '../../../shared/draw-pace.mjs';
 import { createHandSort } from '../../src/hand-sort-ui.js';
 import { sortHand, anySortOn, applyPins } from '../../../shared/hand-sort.mjs';
@@ -58,7 +60,7 @@ import { makeRulesLoader } from '../../src/card-rules.js';
 import { makeRulingsLoader } from '../../src/card-rulings.js';
 import { friendlyMessage } from '../../../shared/friendly-error.mjs';
 import { setFaceDown, makeGame, draw, moveCard, shuffleLibrary, mulligan, setTapped, turnOver, untapAll, beginTurn, adjustLife, boardCells, settleBoard, isLandCard, placeCard, placeStack, placeGroup, arrangeBoard, zoneCounts, reorderHand, createToken, createEmblem } from '../../../shared/zones.mjs';
-import { gameWrites, joinGame, readPublic } from '../../../shared/game-sync.mjs';
+import { gameWrites, joinGame, readPublic, SERVER_TIME } from '../../../shared/game-sync.mjs';
 import { placeAll, stepFrom } from '../../../shared/board-grid.mjs';
 
 const $ = (id) => document.getElementById(id);
@@ -349,7 +351,7 @@ function sync() {
     saveState('Saving...');
     try {
       const writes = gameWrites(myUid, lastSaved, target);
-      if (lastSaved === null) writes[`public/${myUid}/match`] = meta.match; // which match this game belongs to
+      if (lastSaved === null) { writes[`public/${myUid}/match`] = meta.match; writes[`public/${myUid}/log`] = null; } // which match this game belongs to; a new match starts an empty history
       await saveGame(tableCode, writes);
       lastSaved = target;
       if (game === target) saveState('Saved.');
@@ -359,10 +361,27 @@ function sync() {
   });
 }
 
+// ---- the shared game history (shared/live-history.mjs): after each move, one short entry on your own public branch, worked out from what changed (never naming a card in a hand or library) ----
+let logK = 0; // the number of your last entry (a refresh carries on from the entries already stored)
+const seatName = (seat) => Object.values(members).find((member) => String(member.seat) === String(seat))?.name || `seat ${seat}`;
+function logMove(before, after, note = null) {
+  if (!before || !after || before === after || !myUid || !tableCode) return;
+  const text = describeMove(before, after, { note, seatName });
+  if (!text) return;
+  logK = Math.max(logK, lastK(publicAll[myUid]?.match === meta?.match ? publicAll[myUid]?.log : null)) + 1;
+  const entry = makeEntry({ k: logK, text, turn: after.turn, at: SERVER_TIME });
+  saving = saving.then(() => saveGame(tableCode, { [`public/${myUid}/log/${logSlotFor(entry.k)}`]: entry })).catch(() => {}); // (after the game's own save, so the first save of a match, which clears the old history, comes first)
+}
+function renderHistory() {
+  const names = Object.fromEntries(Object.entries(members).map(([uid, member]) => [uid, member.name]));
+  historyBar.set(mergeHistory(publicAll, { names, me: myUid, match: meta?.match ?? null }));
+}
+
 // Runs a move on the game; the old game is never changed, so a refused move leaves everything as it was.
-// Returns whether the move was made (a refused move leaves the game as it was).
-function apply(run, message = '') {
+// Returns whether the move was made (a refused move leaves the game as it was). note: what the history should know that the game does not say ('shuffle').
+function apply(run, message = '', { note = null } = {}) {
   let made = true;
+  const before = game;
   try {
     game = run();
     if (message) say(message);
@@ -372,6 +391,7 @@ function apply(run, message = '') {
   }
   render();
   sync();
+  if (made) logMove(before, game, note);
   return made;
 }
 
@@ -486,12 +506,14 @@ function markOnCard(uid, hit) {
 }
 
 function drawOne() {
+  const before = game;
   const result = draw(game, 1);
   game = result.game;
   if (!result.short) play('draw');
   say(result.short ? 'Your library is empty.' : `Drew ${game.zones.hand.find((c) => c.uid === result.drawn[0]).n}.`, result.short);
   render();
   sync();
+  logMove(before, game);
   if (!result.short) flyDrawn(result.drawn[0]);
 }
 
@@ -501,6 +523,7 @@ async function drawCards(n) {
   if (n <= 1) { drawOne(); return; }
   if (drawing || !game) return;
   drawing = true;
+  const before = game;
   try {
     let drawn = 0;
     for (let i = 0; i < n; i++) {
@@ -516,6 +539,7 @@ async function drawCards(n) {
       if (i < n - 1 && !reducedMotion()) await new Promise((resolve) => setTimeout(resolve, drawPause(i + 1)));
     }
     say(drawn === 0 ? 'Your library is empty.' : drawn < n ? `Drew ${drawn} cards: your library ran out.` : `Drew ${drawn} cards.`, drawn < n);
+    if (game) logMove(before, game); // (one entry for the whole draw: "drew 3 cards")
   } finally { drawing = false; }
 }
 
@@ -582,7 +606,9 @@ async function doMulligan() {
   } else play('shuffle');
   mulliganing = false;
   if (!game) return;
+  const beforeMulligan = game;
   try { game = mulligan(game); } catch (error) { say(error.message, true); render(); return; }
+  logMove(beforeMulligan, game);
   dealer.start(game.zones.hand.length, { pause: reducedMotion() ? SHUFFLE_PAUSE_MS : 0 }); // then the new hand one card at a time (the game is saved at once)
   sync();
   say(`Mulligan ${game.mulligans}: a new hand of ${plural(game.zones.hand.length, 'card', 'cards')}. Put ${plural(game.mulligans, 'card', 'cards')} on the bottom of your library with the card buttons.`);
@@ -635,6 +661,7 @@ async function beginGame() {
     }
     game = makeGame(deck, lookup);
     fresh = true;
+    logK = 0; // (a new game, a new history: the first save clears the old one)
     lastSaved = null; // nothing is saved for this match yet: the first save writes everything and clears an older match's cards
     $('deck-line').textContent = `${deck.name}: ${plural(deck.cards.reduce((sum, c) => sum + c.qty, 0), 'card', 'cards')}. Your hand is dealt.`;
     say(`Dealt ${plural(game.zones.hand.length, 'card', 'cards')}. Life is ${game.life}.`);
@@ -772,6 +799,7 @@ async function renderOpponents() {
   }
   for (const [uid, panel] of opponents) if (!others.some(([other]) => other === uid)) { opponents.delete(uid); panel.section.remove(); slots.get(uid)?.slot.remove(); slots.delete(uid); }
   renderMyHead(turnNow);
+  renderHistory(); // (everyone's entries come with their public branches)
   layoutSeats();
 }
 
@@ -1108,7 +1136,7 @@ function pickFromPileMenu(zone, id, amount) {
   const action = pileAction(id, zone, amount);
   if (!action) return;
   if (id === 'shuffle') { play('shuffle'); if (zone === 'library') shuffleAnimation($('pile-library'), cardBackUrl('small')); } else if (id === 'intolibrary') play('shuffle'); else if (id === 'draw') play('draw');
-  apply(() => action.run(game), action.message);
+  apply(() => action.run(game), action.message, { note: id === 'shuffle' || id === 'intolibrary' ? 'shuffle' : null });
 }
 function openPileMenu(zone, where) {
   if (!game) return;
@@ -1142,6 +1170,8 @@ for (const zone of ['library', 'graveyard', 'exile', 'sideboard']) {
   });
 }
 const settings = mountSettingsMenu({ button: $('settings-button'), panel: $('settings-menu') });
+// The game history: a thin bar that opens downward (src/history-bar.js, as on the solo table), here with everyone's moves (shared/live-history.mjs); it starts at the right edge, over the column above the piles of the top area.
+const historyBar = mountHistoryBar({ root: $('history-bar'), store, key: 'overloaded.seatsHistoryBar' });
 mountFacing($('facing-settings'), { store });
 mountHandRestSetting($('hand-rest-settings'), { onChange: () => handView.arrange() });
 mountKeybindSettings($('keybind-settings'), { keybinds, page: 'table' });
@@ -1194,8 +1224,8 @@ function flipFaceDown(found) {
   apply(() => targets.reduce((game_, entry) => setFaceDown(game_, entry.card.uid, down), game), targets.length > 1 ? `Flipped ${targets.length} cards face ${down ? 'down' : 'up'}.` : `Flipped ${targets[0].card.n} face ${down ? 'down' : 'up'}.`);
 }
 // The other actions a key can do (Settings > Keybinds): the same as pressing the button or menu line; false when there is nothing to press.
-const GAME_KEYS = new Set(['mulligan', 'shuffle', 'arrange', 'lifeUp', 'lifeDown', 'viewLibrary', 'viewGraveyard', 'viewExile', 'sortType', 'sortColor', 'sortCost', 'sortName', 'autoSort']);
-const CLICKS = { mulligan: '#mulligan', arrange: '#arrange', viewLibrary: '#pile-library', viewGraveyard: '#pile-graveyard', viewExile: '#pile-exile', sortType: '.hand-sort[data-sort="type"]', sortColor: '.hand-sort[data-sort="color"]', sortCost: '.hand-sort[data-sort="cost"]', sortName: '.hand-sort[data-sort="name"]', autoSort: '.hand-sort-toggle' };
+const GAME_KEYS = new Set(['mulligan', 'shuffle', 'arrange', 'lifeUp', 'lifeDown', 'viewLibrary', 'viewGraveyard', 'viewExile', 'sortType', 'sortColor', 'sortCost', 'sortName', 'autoSort', 'history']);
+const CLICKS = { history: '#history-bar .history-head', mulligan: '#mulligan', arrange: '#arrange', viewLibrary: '#pile-library', viewGraveyard: '#pile-graveyard', viewExile: '#pile-exile', sortType: '.hand-sort[data-sort="type"]', sortColor: '.hand-sort[data-sort="color"]', sortCost: '.hand-sort[data-sort="cost"]', sortName: '.hand-sort[data-sort="name"]', autoSort: '.hand-sort-toggle' };
 function runGameKey(action) {
   if (action === 'shuffle') { pickFromPileMenu('library', 'shuffle'); return true; }
   if (action === 'lifeUp' || action === 'lifeDown') { apply(() => adjustLife(game, action === 'lifeUp' ? 1 : -1), ''); return true; }
@@ -1463,7 +1493,7 @@ function pickFromHandMenu(id, amount) {
   const action = handAction(id, amount);
   if (!action) return;
   if (id === 'shuffleinto') play('shuffle');
-  apply(() => action.run(game), action.message);
+  apply(() => action.run(game), action.message, { note: id === 'shuffleinto' ? 'shuffle' : null });
 }
 {
   const handCaret = make('button', 'pile-caret hand-caret');

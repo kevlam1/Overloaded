@@ -78,7 +78,7 @@ const structureChecks = () => {
   check('the seven list rules exist', blocks.every((block) => block && block.length > 500));
   check('the seven list rules are identical', blocks.every((block) => block === blocks[0]));
   check('a list has only its own object check and the card rule (so nothing else can hide in one)', Object.keys(JSON.parse(blocks[0])).join() === '.validate,$i' && JSON.parse(blocks[0])['.validate'] === 'newData.hasChildren()');
-  check('the public branch has exactly the keys the pages write', Object.keys(rules.public.$uid).filter((key) => !key.startsWith('.') && key !== '$other').sort().join() === 'battlefield,cd,command,counts,exile,graveyard,life,match,mulligans,next,pass,pc,ping,turn');
+  check('the public branch has exactly the keys the pages write', Object.keys(rules.public.$uid).filter((key) => !key.startsWith('.') && key !== '$other').sort().join() === 'battlefield,cd,command,counts,exile,graveyard,life,log,match,mulligans,next,pass,pc,ping,turn');
   check('the private branch has exactly the three hidden lists', Object.keys(rules.private.$uid).filter((key) => !key.startsWith('.') && key !== '$other').sort().join() === 'hand,library,sideboard');
   const listCard = { ...JSON.parse(blocks[0]).$i }; delete listCard['.validate'];
   const pingCard = { ...rules.public.$uid.ping.card }; delete pingCard['.validate'];
@@ -249,6 +249,23 @@ for (const [label, path, value] of PRIVATE_CASES) await denied(`private: ${label
   await ok('a game save that also carries a ping is one update', update(ref(alice), { [`tables/${T}/public/alice/life`]: 33, [`tables/${T}/public/alice/ping`]: ping() }));
   await denied('...and one bad ping refuses the whole update', update(ref(alice), { [`tables/${T}/public/alice/life`]: 12, [`tables/${T}/public/alice/ping`]: { k: 0, card: aCard(1) } }));
   check('...and the good half of it was not applied', (await get(ref(alice, `tables/${T}/public/alice/life`))).val() === 33);
+}
+
+// the shared game history (shared/live-history.mjs): each player's last 30 entries on their own public branch, written one slot at a time with the database's time
+{
+  const now = { '.sv': 'timestamp' };
+  const entry = (fields = {}) => ({ k: 31, t: 'drew 2 cards', n: 3, at: now, ...fields });
+  await ok('an entry in slot 1', put(alice, 'public/alice/log/1', entry()));
+  await ok('...and in slot 0 and slot 29', update(ref(alice), { [`tables/${T}/public/alice/log/0`]: entry({ k: 30 }), [`tables/${T}/public/alice/log/29`]: entry({ k: 29 }) }));
+  for (const [label, slot] of [['slot 30', '30'], ['slot -1', '-1'], ['slot 01', '01'], ['slot a', 'a']]) await denied(`no entry in ${label}`, put(alice, `public/alice/log/${slot}`, entry()));
+  for (const [label, fields] of [['no number', { k: null }], ['number 0', { k: 0 }], ['number 1.5', { k: 1.5 }], ['empty text', { t: '' }], ['text of 121', { t: 'x'.repeat(121) }], ['text that is a number', { t: 5 }], ['turn 0', { n: 0 }], ['a time in the future', { at: Date.now() + 3600000 }], ['no time', { at: null }], ['an extra key', { extra: 1 }]]) {
+    await denied(`an entry with ${label}`, put(alice, 'public/alice/log/2', entry(fields)));
+  }
+  await ok('a text of 120', put(alice, 'public/alice/log/3', entry({ t: 'x'.repeat(120) })));
+  await denied('another player cannot write on alice\'s log', put(bob, 'public/alice/log/4', entry()));
+  await ok('a member reads it', get(ref(bob, `tables/${T}/public/alice/log`)));
+  await denied('a stranger cannot read it', get(ref(carol, `tables/${T}/public/alice/log`)));
+  await ok('the first save of a match clears it', put(alice, 'public/alice/log', null));
 }
 
 // whole branches

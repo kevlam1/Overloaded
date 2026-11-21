@@ -197,6 +197,27 @@
                 ".validate": false
               }
             },
+            "log": {
+              ".validate": "newData.hasChildren()",
+              "$slot": {
+                ".validate": "$slot.matches(/^([0-9]|[12][0-9])$/) && newData.hasChildren(['k', 't', 'n', 'at'])",
+                "k": {
+                  ".validate": "newData.isNumber() && newData.val() % 1 === 0 && newData.val() >= 1 && newData.val() <= 1000000000"
+                },
+                "t": {
+                  ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 120"
+                },
+                "n": {
+                  ".validate": "newData.isNumber() && newData.val() % 1 === 0 && newData.val() >= 1 && newData.val() <= 100000"
+                },
+                "at": {
+                  ".validate": "newData.isNumber() && newData.val() > 0 && newData.val() <= now"
+                },
+                "$other": {
+                  ".validate": false
+                }
+              }
+            },
             "battlefield": {
               ".validate": "newData.hasChildren()",
               "$i": {

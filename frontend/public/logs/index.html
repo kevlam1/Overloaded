@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.257</span></h1>
-    <p class="lede">257 entries, Oct 25 to Nov 20, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
+    <h1>Build log <span class="version">Version 0.258</span></h1>
+    <p class="lede">258 entries, Oct 25 to Nov 20, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
   </div>
 </header>
 
@@ -24,7 +24,7 @@
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
-<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">44</span></a>
+<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">45</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
 <a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">29 things friends asked for</span></a>
 <a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">28 open, 73 done</span></a>
@@ -3604,7 +3604,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-2" aria-labelledby="week-2-title">
-<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">44 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">45 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-2-days">
 <div class="day">
 <h3 class="day-title">Monday 16 November <span class="day-count">5</span></h3>
@@ -4204,7 +4204,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Friday 20 November <span class="day-count">9</span></h3>
+<h3 class="day-title">Friday 20 November <span class="day-count">10</span></h3>
 <div class="entries">
 <article class="entry" id="entry-249" data-n="249">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-249-body">
@@ -4361,6 +4361,22 @@
 <ul><li><code>check-table-layout</code> (105; now &quot;the battlefield fills the area from the top left corner&quot; and &quot;the turn and buttons are above the piles, off the battlefield&quot;), <code>check-seats-live</code> 27 of 27; screenshots at 1366x768 and 1920x950, 2 and 4 players, and Sidebar view.</li></ul>
 <p class="sub"><strong>Decisions</strong></p>
 <ul><li>The action bar no longer floats on the table page (it still does on the solo table).</li></ul>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-258" data-n="258">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-258-body">
+    <span class="num">258</span>
+    <span class="head-text"><span class="title">A shared game history on the live table</span><span class="sum">The game history on the multiplayer table, with everyone's moves (my choice in entry 255).</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-258-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>The game history on the multiplayer table, with everyone's moves (my choice in entry 255).</li></ul>
+<p><strong>What changed</strong> (new <code>shared/live-history.mjs</code>, <code>frontend/pages/table/table.js</code>, <code>index.html</code>, <code>frontend/src/history-bar.js</code>, <code>backend/database.rules.json</code>, <code>shared/keybinds.mjs</code>)</p>
+<ul><li>The table page has the solo table's &quot;Game history&quot; bar (it starts at the top right, over the column above the top area's piles), listing everyone's moves in the order they happened: &quot;Bob drew 2 cards.&quot;, &quot;You played Sol Ring.&quot;, &quot;Bob went from 40 to 35 life.&quot;, &quot;You took 7 commander damage from Bob (7 in all).&quot;, &quot;Bob passed the turn.&quot;. The History key can be bound on the table too.</li><li>Safety: the entries are worked out from what changed in the game, never from the message my own page shows me (that one says &quot;Drew Sol Ring.&quot;). A card is named only when the whole table can see it (it comes from or goes to the battlefield, a graveyard, the exile or the command zone, face up). Draws, cards put back into the library, shuffles and Scry are only counted or named as an action.</li><li>Storage: each player writes only their own branch, so each keeps their last 30 entries at <code>public/{uid}/log</code> (one small write per move, the database's own time on each); every page merges everyone's. The first save of a new match clears the old history.</li><li>The rules file accepts <code>log</code> (30 slots, text up to 120, the database's time); 22 new rule checks.</li></ul>
+<p class="sub"><strong>What I checked</strong></p>
+<ul><li><code>scripts/test-live-history.mjs</code> (14 checks, in <code>npm test</code>): drawing names no card, a hand card put back into the library is not named, a shuffle and a mulligan name no card, a face-down card leaving the battlefield is not named, the common moves are worded right, stored entries are cleaned, and the merged list is in time order with &quot;You ... your&quot; for mine and the name with &quot;their&quot; for theirs. The test caught a real leak in Claude's first version: a face-down card returned to the hand was named, because the check used the card as it is now (face up in the hand) instead of as it was.</li><li><code>backend/test-rules-game.mjs</code> 2,364 checks in the emulator. <code>check-seats-live</code>: 27 of 28; the new check (Bob sees &quot;Alice discarded ...&quot;) fails until I paste the rules, because the published rules refuse <code>log</code>. The page keeps working with the old rules: only the history stays empty.</li></ul>
+<p><strong>To do for me:</strong> paste <code>backend/database.rules.json</code> into the Firebase console (it will also carry the stack and the lobby settings when those are built, if I wait).</p>
   </div></div></div>
 </article>
 </div>

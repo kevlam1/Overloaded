@@ -5121,6 +5121,23 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 **Decisions**
 - The action bar no longer floats on the table page (it still does on the solo table).
 
+## 258. A shared game history on the live table (2026-11-20)
+
+**What I asked for**
+- The game history on the multiplayer table, with everyone's moves (my choice in entry 255).
+
+**What changed** (new `shared/live-history.mjs`, `frontend/pages/table/table.js`, `index.html`, `frontend/src/history-bar.js`, `backend/database.rules.json`, `shared/keybinds.mjs`)
+- The table page has the solo table's "Game history" bar (it starts at the top right, over the column above the top area's piles), listing everyone's moves in the order they happened: "Bob drew 2 cards.", "You played Sol Ring.", "Bob went from 40 to 35 life.", "You took 7 commander damage from Bob (7 in all).", "Bob passed the turn.". The History key can be bound on the table too.
+- Safety: the entries are worked out from what changed in the game, never from the message my own page shows me (that one says "Drew Sol Ring."). A card is named only when the whole table can see it (it comes from or goes to the battlefield, a graveyard, the exile or the command zone, face up). Draws, cards put back into the library, shuffles and Scry are only counted or named as an action.
+- Storage: each player writes only their own branch, so each keeps their last 30 entries at `public/{uid}/log` (one small write per move, the database's own time on each); every page merges everyone's. The first save of a new match clears the old history.
+- The rules file accepts `log` (30 slots, text up to 120, the database's time); 22 new rule checks.
+
+**What I checked**
+- `scripts/test-live-history.mjs` (14 checks, in `npm test`): drawing names no card, a hand card put back into the library is not named, a shuffle and a mulligan name no card, a face-down card leaving the battlefield is not named, the common moves are worded right, stored entries are cleaned, and the merged list is in time order with "You ... your" for mine and the name with "their" for theirs. The test caught a real leak in Claude's first version: a face-down card returned to the hand was named, because the check used the card as it is now (face up in the hand) instead of as it was.
+- `backend/test-rules-game.mjs` 2,364 checks in the emulator. `check-seats-live`: 27 of 28; the new check (Bob sees "Alice discarded ...") fails until I paste the rules, because the published rules refuse `log`. The page keeps working with the old rules: only the history stays empty.
+
+**To do for me:** paste `backend/database.rules.json` into the Firebase console (it will also carry the stack and the lobby settings when those are built, if I wait).
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-20, entry 254) Claude kept the hands and piles of the multiplayer table cautious and apart from the boards; I had to say it should give every player a full solo-table area and use the space.
 - (2026-11-20, entry 253) Claude's first Seats table floated the life, buttons, piles and hand over my battlefield as on the solo table; on a shared table that blocked cards and drops, and I had to ask for the boards to move to the side.

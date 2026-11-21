@@ -8,7 +8,8 @@ const make = (tag, className, text) => { const node = document.createElement(tag
 const OPEN_KEY = 'overloaded.historyOpen';
 
 // root: an empty <section> that floats (position: absolute in the full-screen table). store: a safe store (get, set).
-export function mountHistoryBar({ root, store }) {
+// key: where its place is kept. set(entries) replaces the whole list (the live table: everyone's moves, merged from the database); entries are { turn, text, mine? }.
+export function mountHistoryBar({ root, store, key = 'overloaded.historyBar' }) {
   let history = [];
   let open = store?.get(OPEN_KEY) === '1';
 
@@ -34,7 +35,7 @@ export function mountHistoryBar({ root, store }) {
   function draw() {
     count.textContent = String(history.length);
     const rows = history.map((entry) => { // oldest first: the newest is at the bottom
-      const row = make('li', 'history-row');
+      const row = make('li', `history-row${entry.mine ? ' mine' : ''}`);
       row.append(make('span', 'history-turn', `T${entry.turn}`), make('span', 'history-text', entry.text));
       return row;
     });
@@ -42,12 +43,13 @@ export function mountHistoryBar({ root, store }) {
     if (open) list.scrollTop = list.scrollHeight;
   }
   head.addEventListener('click', () => setOpen(!open));
-  mountFloatingBar({ bar: root, grip: head, store, key: 'overloaded.historyBar', defaultPlace: { dock: 'right', fx: 1, fy: 0.14 }, growDown: true, flush: true, clickThrough: true });
+  mountFloatingBar({ bar: root, grip: head, store, key, defaultPlace: { dock: 'right', fx: 1, fy: 0.14 }, growDown: true, flush: true, clickThrough: true });
   setOpen(open);
   draw();
   return {
     add(text, turn) { const next = addEntry(history, text, turn); if (next !== history) { history = next; draw(); } },
     clear() { history = []; draw(); },
+    set(entries) { const next = Array.isArray(entries) ? entries : []; if (JSON.stringify(next) === JSON.stringify(history)) return; history = next; draw(); },
     isOpen: () => open,
     count: () => history.length,
   };

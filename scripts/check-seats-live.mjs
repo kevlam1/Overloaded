@@ -134,6 +134,9 @@ try {
       const discarded = await counts();
       const savedGrave = await waitFor(async () => { const r = await rest('GET', `tables/${code}/public/${aliceAuth.uid}/graveyard`, aliceAuth.token); return Array.isArray(r.json) && r.json.length === discarded.grave ? r.json.length : null; }, 15000, 300);
       record('Shift and a click picks two hand cards; the group menu ("2 cards") discards both, and the database has them in her graveyard', picked === 2 && /2 cards/.test(groupTitle) && discarded.grave === returned.grave + 2 && discarded.hand === returned.hand - 2 && savedGrave === discarded.grave, JSON.stringify({ picked, groupTitle, discarded, savedGrave }));
+      // the shared history: Bob's page lists Alice's moves (from what changed, never naming a card she drew); needs the rules with public/{uid}/log pasted
+      const bobHistory = await waitFor(async () => { const rows = await bob.eval(`[...document.querySelectorAll('#history-bar .history-row .history-text')].map((r) => r.textContent)`); return rows.some((t) => t.startsWith('Alice discarded')) ? rows : null; }, 15000, 300);
+      record("Bob's history shows Alice's moves (\"Alice discarded ...\", \"Alice played ...\"), and her draws only as a number", Boolean(bobHistory) && bobHistory.some((t) => t.startsWith('Alice played')) && bobHistory.every((t) => !/^Alice drew [A-Z]/.test(t)), JSON.stringify(bobHistory ?? await bob.eval(`[...document.querySelectorAll('#history-bar .history-row')].map((r) => r.textContent)`)));
       // the bar under her raised hand has the sort buttons and the hand menu arrow; the pile window has its Type and Mana value filters and the Graveyard / Exile buttons
       { const p = await handPoint('#hand > .card'); await mouse('mouseMoved', p.x, p.y); await sleep(400); }
       const tools = await alice.eval(`({ sorts: document.querySelectorAll('.hand-bar .hand-sort').length, caret: Boolean(document.getElementById('hand-caret')) })`);

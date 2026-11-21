@@ -39,7 +39,7 @@ export const ACTIONS = [
   { id: 'sortName', section: 'sort', group: 'table', pages: ['solo', 'table'], label: 'Sort A-Z', hint: '', defaults: none },
   { id: 'autoSort', section: 'sort', group: 'table', pages: ['solo', 'table'], label: 'Auto sort on or off', hint: 'Like the Auto button.', defaults: none },
   { id: 'settings', section: 'windows', group: 'table', label: 'Open or close Settings', hint: '', defaults: ['tab', null] },
-  { id: 'history', section: 'windows', group: 'table', pages: ['solo'], label: 'Open or close game history', hint: '', defaults: none },
+  { id: 'history', section: 'windows', group: 'table', pages: ['solo', 'table'], label: 'Open or close game history', hint: '', defaults: none },
   { id: 'stack', section: 'windows', group: 'table', pages: ['solo'], label: 'Open or close the stack', hint: '', defaults: none },
   { id: 'pictureLeft', section: 'picture', group: 'picture', label: 'Turn the card left', hint: 'For a room, a battle or any card read sideways.', defaults: ['q', null] },
   { id: 'pictureRight', section: 'picture', group: 'picture', label: 'Turn the card right', hint: '', defaults: ['e', null] },
