@@ -1998,12 +1998,11 @@ body.playing.seats .seat-area {
   --zgap: 0.35rem;
   --Z: calc(3 * (var(--sw) + 0.5rem) + 2 * var(--zgap) + 2 * var(--pad)); /* the width of the piles at the bottom right: library, graveyard and exile, with the command zone above them (Kevin, 2026-11-20) */
   --hh: clamp(7rem, 44cqh, 16rem); /* the box of the hand (its cards are 2.8 rem less, and rest half below the bottom edge: frontend/src/hand-view.js); larger since 2026-11-20 (Kevin) */
-  /* the battlefield: from the top of the area down to just above the resting hand, its right edge just before the piles. Its cells stay SQUARE (Kevin, 2026-11-20: a day with stretched cells was undone),
-     so it keeps its 112 by 50 shape: in a wide area it is as tall as that room and sits against the piles (the room on its left is where the action bar starts); in a narrow one it is as wide as the room
-     left of the piles */
-  --bw: min(100cqw - var(--Z) - var(--pad) - 0.4rem, (100cqh - 0.5 * (var(--hh) - 2.8rem) - 2 * var(--pad)) * 2.24);
-  --bh: calc(var(--bw) * 50 / 112);
-  --bl: max(var(--pad), 100cqw - var(--Z) - var(--bw) - 0.4rem);
+  /* the battlefield (Kevin, 2026-11-20): ALL the room from the far left to just before the piles, and from the top to just above the resting hand, with SQUARE cells. The grid has 40 rows (cards one size
+     up from the solo table's 50) and as many columns as that room holds (frontend/pages/table/table.js fitBoard, shared/board-grid.mjs setBoardSize: --cols on the battlefield) */
+  --bw: calc(100cqw - var(--Z) - var(--pad) - 0.4rem);
+  --bh: calc(100cqh - 0.5 * (var(--hh) - 2.8rem) - 2 * var(--pad));
+  --bl: var(--pad);
   --hw: var(--bw); /* the hand's width: under the battlefield */
   position: relative; container-type: size; min-width: 0; min-height: 0; margin: 0; padding: 0; overflow: hidden;
   border: 1px solid var(--line); border-radius: 0.6rem; background: color-mix(in srgb, var(--bg) 92%, #000); box-shadow: none; }
@@ -2046,6 +2045,11 @@ body.playing.seats .actions-panel .turn-line :is(.turn-stat, .turn-whose, .turn-
 body.playing.seats .actions-panel .turn-line .turn-whose { font-weight: 700; }
 body.playing.seats .actions-panel .turn-clock[hidden], body.playing.seats .actions-panel .actions button[hidden] { display: none; }
 body.playing.seats .actions-panel[data-vertical="true"] .turn-line { justify-content: center; }
+/* as a row it is short and low, to sit in the strip under the battlefield: the turn number and the clock, then the three buttons (whose turn it is shows as the gold border of their area) */
+body.playing.seats .actions-panel:not([data-vertical="true"]) { flex-direction: row; align-items: center; gap: 0.4rem; padding: 0.2rem 0.4rem; }
+body.playing.seats .actions-panel:not([data-vertical="true"]) .turn-whose { display: none; }
+body.playing.seats .actions-panel:not([data-vertical="true"]) .actions { display: flex; flex-direction: row; gap: 0.3rem; }
+body.playing.seats .actions-panel:not([data-vertical="true"]) .actions button { min-height: 0; padding: 0.2rem 0.55rem; font-size: 0.78rem; white-space: nowrap; }
 body.playing.seats .topbar { position: static; inset: auto; translate: none; z-index: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 0.2rem; max-width: 100%; max-height: calc(var(--T) - 0.5rem); margin: 0; padding: 0; overflow: hidden; pointer-events: none; }
 body.playing.seats .topbar #connection { order: 1; }
 body.playing.seats .topbar #banner { order: 2; }
@@ -2059,6 +2063,8 @@ body.playing.seats .topbar > :empty { display: none; }
 body.playing.seats #my-board, body.playing.seats .opp-field { position: absolute; z-index: 1; inset: auto; top: var(--pad); left: var(--bl); translate: none; width: var(--bw); height: var(--bh); min-height: 0; max-height: none; margin: 0; padding: 0; display: block; overflow: visible; border: 0; background: none; }
 body.playing.seats #my-board > .battlefield, body.playing.seats .opp-field > .battlefield { display: grid; width: 100%; height: 100%; max-width: none; max-height: none; aspect-ratio: auto; margin: 0; }
 /* the outline of the place a carried card would go is the card's own shape, from the left and bottom of its block, like the cards (the block may be wider than the card) */
+/* the grid of a battlefield on the table: 40 rows and --cols columns (as many whole square cells as the width holds, so a column is at most 1/cols wider than a row is tall), a card a quarter of the board's height */
+body.playing.seats :is(#my-board, .opp-field) > .battlefield { --rows: 40; grid-template-columns: repeat(var(--cols, 112), minmax(0, 1fr)); grid-template-rows: repeat(var(--rows), minmax(0, 1fr)); --card-h: calc(100cqh * 10 / var(--rows)); --card-w: calc(var(--card-h) * 0.7); }
 body.playing.seats .battlefield > .cell-highlight { justify-self: start; align-self: end; width: var(--card-w); height: var(--card-h); }
 body.playing.seats .battlefield > .cell-highlight[data-tapped] { width: var(--card-h); height: var(--card-w); }
 body.playing.seats .opp-field > .battlefield { outline: 1px solid color-mix(in srgb, var(--text) 25%, transparent); }

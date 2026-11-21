@@ -64,7 +64,7 @@ import { makeRulingsLoader } from '../../src/card-rulings.js';
 import { friendlyMessage } from '../../../shared/friendly-error.mjs';
 import { setFaceDown, makeGame, draw, moveCard, shuffleLibrary, mulligan, setTapped, turnOver, untapAll, beginTurn, adjustLife, boardCells, settleBoard, isLandCard, placeCard, placeStack, placeGroup, arrangeBoard, zoneCounts, reorderHand, createToken, createEmblem } from '../../../shared/zones.mjs';
 import { gameWrites, joinGame, readPublic, SERVER_TIME } from '../../../shared/game-sync.mjs';
-import { placeAll, stepFrom } from '../../../shared/board-grid.mjs';
+import { placeAll, stepFrom, setBoardSize, CARD_COLS } from '../../../shared/board-grid.mjs';
 
 const $ = (id) => document.getElementById(id);
 const store = makeSafeStore();
@@ -792,7 +792,11 @@ async function renderOpponents() {
       panel.life.setAttribute('aria-label', `Life ${view.life}`);
       panel.stats.textContent = `Hand ${view.counts.hand} · Library ${view.counts.library}`;
       panel.section.dataset.life = String(view.life);
-      panel.nodes.place(panel.board, view.zones.battlefield, { battlefield: true, cells: placeAll(view.zones.battlefield, isLandCard) }); // their battlefield on the same grid, each card on the cell they stored
+      const theirCols = fitBoard(panel.board).cols; // (their board on my screen: as many columns as it holds here; a card stored further right than that is drawn at its right edge)
+      const cells = placeAll(view.zones.battlefield, isLandCard);
+      if (theirCols) for (const [uid, cell] of cells) if (cell.col > theirCols - CARD_COLS) cells.set(uid, { ...cell, col: theirCols - CARD_COLS });
+      panel.nodes.place(panel.board, view.zones.battlefield, { battlefield: true, cells }); // their battlefield on the same kind of grid, each card on the cell they stored
+      watchBoardSize(panel.board);
       panel.nodes.place(panel.command, view.zones.command);
       drawEmblemCounts(panel.command, view.zones.command); // (an emblem with a count shows it on the other players' panels too)
       panel.piles.library.stack.update({ count: view.counts.library });
@@ -807,6 +811,26 @@ async function renderOpponents() {
   renderHistory(); // (everyone's entries come with their public branches)
   layoutSeats();
 }
+
+// ---- the size of a battlefield's grid (Kevin, 2026-11-20): it fills its room from the far left to the piles with SQUARE cells, 40 rows (cards one size up from the solo table's 50) and as many columns as
+// the room holds. My own board sets the grid used to place and drop my cards (shared/board-grid.mjs setBoardSize); another player's board only sets how many columns it is drawn with. ----
+const TABLE_ROWS = 40;
+setBoardSize({ cols: 112, rows: TABLE_ROWS });
+function fitBoard(element, mine = false) {
+  const width = element?.clientWidth ?? 0; const height = element?.clientHeight ?? 0; // (the size in the layout: a small copy in the Sidebar column is the same size, only scaled)
+  if (!width || !height) return { cols: null, changed: false };
+  const cols = Math.max(CARD_COLS, Math.floor(width / (height / TABLE_ROWS) + 0.001));
+  if (element.style.getPropertyValue('--cols') !== String(cols)) element.style.setProperty('--cols', String(cols));
+  return { cols, changed: mine ? setBoardSize({ cols, rows: TABLE_ROWS }) : false };
+}
+const watchedBoards = new WeakSet();
+let refitFrame = 0;
+const boardResized = typeof ResizeObserver === 'function' ? new ResizeObserver(() => {
+  if (refitFrame) return;
+  refitFrame = requestAnimationFrame(() => { refitFrame = 0; if (fitBoard($('battlefield'), true).changed && game) render(); if (meta?.status === 'playing') renderOpponents(); }); // (once a frame at most)
+}) : null;
+function watchBoardSize(element) { if (boardResized && element && !watchedBoards.has(element)) { watchedBoards.add(element); boardResized.observe(element); } }
+watchBoardSize($('battlefield'));
 
 // ---- where the areas are: Grid view (every area at once) or Sidebar view (one large, the others small in a column on the right) ----
 // The areas are the same elements in both views; Sidebar view moves the ones that are not shown large into the column, where each is drawn at the size of the large one and shrunk (a scale), so it
@@ -1535,8 +1559,8 @@ function pickFromHandMenu(id, amount) {
 mountBoardDrag({ board: () => $('battlefield'), onDrop: dropOnBoard, groupOf: (uid) => (multi.size > 1 && multi.has(uid) ? [...multi] : null), hand: () => $('hand-section'), onDropHand: dropOnHand, onHandOver: (over) => handView.carry(over), onReorderHand: reorderInHand, handZone: () => handView.zone(), handHit: (x, y) => handView.over(x, y), zoneSource, pileAt, onDropPile: dropOnPile, isEnabled: () => Boolean(game), boardFirst: true });
 
 // (Mulligan is in the hand's menu, the arrow next to the hand count: the bar has Draw, Untap all and Next turn only, Kevin 2026-11-20)
-// The action bar floats like the solo table's (src/floating-bar.js); it starts at the bottom of the left edge, where a battlefield leaves room (docked to a side it is a column of icons).
-mountFloatingBar({ bar: document.querySelector('.actions-panel'), grip: $('bar-grip'), store, key: 'overloaded.seatsBar3', defaultPlace: { dock: 'left', fx: 0, fy: 1 } });
+// The action bar floats like the solo table's (src/floating-bar.js); it starts as a row in the bottom left corner, in the strip under the battlefield left of the hand (docked to a side it is a column of icons).
+mountFloatingBar({ bar: document.querySelector('.actions-panel'), grip: $('bar-grip'), store, key: 'overloaded.seatsBar4', defaultPlace: { dock: 'bottom', fx: 0, fy: 1 } });
 // the life total is the number itself: click, right-click, Shift for 5, hold to set (src/life-control.js)
 mountLifeControl({ button: $('life'), say, onDelta: (delta) => { if (game) apply(() => adjustLife(game, delta), ''); }, onSet: (value) => { if (game) apply(() => adjustLife(game, value - game.life), `Life is ${value}.`); } });
 for (const zone of ['library', 'graveyard', 'exile', 'sideboard']) $(`pile-${zone}`).addEventListener('click', () => { if (!game) return; if (viewing === zone && !viewTop) viewer.close(); else openPile(zone); });

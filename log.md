@@ -5174,7 +5174,24 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **My AI's mistakes this time:** I left Auto-arrange on the table page's bar although it had been taken off the solo table on 2026-11-14.
 
+## 261. The battlefield fills its area with square cells, cards one size up (2026-11-20)
+
+**What I asked for**
+- I was frustrated: the board was small again. I want the grid squared AND the board reaching all the way to the far left, up to the library, like the 1v1 reference screenshot fills its whole area; and the cards scaled up by one level.
+
+**What changed** (`shared/board-grid.mjs`, `shared/zones.mjs`, `frontend/src/card-nodes.js`, `frontend/src/board-drag.js`, `frontend/src/style.css`, `frontend/pages/table/table.js`)
+- Claude had read my earlier answer ("keep the grid") as "keep 112 by 50", when I meant "keep the cells square". With 112 by 50 square cells a board can only grow in both directions together, so in a wide area it never reached the library. Now the table page's grid has a size of its own: 40 rows (a card is a quarter of the board's height, one size up from the solo table's 50 rows) and as many square columns as the room holds. Every battlefield fills its area from the far left to just before the piles, and from the top to just above the resting hand. The solo table keeps 112 by 50.
+- How: `setBoardSize` in `shared/board-grid.mjs` (the size is `let`, so the placing, piles and dragging all use the size in force); the table page counts the columns of my board whenever it changes size (`fitBoard`), and of every other player's board on my screen; each card's place in the grid is set on the card itself (the style sheet's rules per column stop at 112).
+- A card stored further right than a board has columns (a player with a wider window) is drawn at that board's right edge and is never moved or re-saved for it; the same for a stored row below the last one (the old 50-row games). Only a damaged value (negative, or past what the database accepts) gets a new place.
+- The action bar now starts as a row in the bottom left corner, in the strip under the battlefield left of the hand (the turn number, the clock, Draw, Untap all, Next turn); docked to a side it is still a column of icons.
+
+**What I checked**
+- `test-board-grid` (new checks for `setBoardSize` and for drawing a stored cell at the edge), `test-board-play` (three checks changed to the new rule: a cell beyond the edge is kept, only a damaged one is replaced), `npm test` 95 of 95, `check-table-layout` 120 (my board's cells are square: 40 rows and as many columns as the width holds; every battlefield fills its area from the top left corner to just before the piles; the bar is a row under my battlefield in the bottom left), `check-seats-live` 29 of 29, `check-lobby-deck-live` 193 of 193 (its drag check now reads the board's real number of columns and rows, and a land lands on row 30). One run of `check-table-layout` collapsed at its last window size (the dev server seemed to reload the page mid-test after files changed); three runs after it passed. I looked at a screenshot of the real 1v1 table.
+
+**My AI's mistakes this time:** I asked a question about the grid whose two choices did not include what I wanted (square cells and a full-width board), and then took my answer too literally, so I had to ask three times.
+
 ## Where AI misread me, or I had to correct course
+- (2026-11-20, entry 261) Claude read "keep the grid" as "keep the board 112 by 50" when I meant "keep the cells square", and the board stayed small; I had to say it three times before it filled the area.
 - (2026-11-20, entry 260) Claude kept Auto-arrange on the table page's bar after I had it removed from the solo table.
 - (2026-11-20, entry 254) Claude kept the hands and piles of the multiplayer table cautious and apart from the boards; I had to say it should give every player a full solo-table area and use the space.
 - (2026-11-20, entry 253) Claude's first Seats table floated the life, buttons, piles and hand over my battlefield as on the solo table; on a shared table that blocked cards and drops, and I had to ask for the boards to move to the side.

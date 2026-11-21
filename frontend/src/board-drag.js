@@ -289,6 +289,8 @@ export function mountBoardDrag({ doc = document, board, onDrop, hand = () => nul
     // the outline of a tapped card is its landscape shape on the bottom line of its block (3 rows lower than the block starts), not the shape of an untapped card
     drag.highlight.dataset.row = String(drag.tapped ? cell.row + (CARD_ROWS - CARD_COLS) : cell.row);
     if (drag.tapped) drag.highlight.dataset.tapped = '1'; else delete drag.highlight.dataset.tapped;
+    drag.highlight.style.gridColumnStart = String(Number(drag.highlight.dataset.col) + 1); // (also on the element: the grid of the table page can be wider than the style sheet's rules per column)
+    drag.highlight.style.gridRowStart = String(Number(drag.highlight.dataset.row) + 1);
     drag.highlight.hidden = false; // anywhere on the board is fine: cards may overlap, nothing is refused
   };
 

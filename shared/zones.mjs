@@ -543,7 +543,7 @@ export function settleBoard(game) {
   let changed = false;
   const battlefield = game.zones.battlefield.map((card) => {
     const cell = cells.get(card.uid);
-    if (card.px === cell.col && card.py === cell.row) return card;
+    if (cellOf(card) || (card.px === cell.col && card.py === cell.row)) return card; // (a stored cell beyond the edge of the grid in force is kept: it is drawn at the edge, board-grid.mjs cellOf)
     changed = true;
     return { ...card, px: cell.col, py: cell.row };
   });

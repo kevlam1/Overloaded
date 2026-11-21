@@ -2,7 +2,7 @@
 // tried in, settling a board, tidying it, stepping, and where a drop lands. The numbers come from the constants where they can, so changing the size of the board does not mean
 // rewriting this file.
 import {
-  BOARD_COLS, BOARD_ROWS, CARD_COLS, CARD_ROWS, MAX_COL, MAX_ROW, BOARD_CAPACITY, TAP_GAP, validCell, cellKey, cellOf, cellOrder, overlaps, takenCells, firstEmptyCell, placeAll, arrangeAll, stepFrom, cellAtPoint, anchorAtPoint, shiftedAnchor, nearbyFreeBlock,
+  BOARD_COLS, BOARD_ROWS, CARD_COLS, CARD_ROWS, MAX_COL, MAX_ROW, BOARD_CAPACITY, TAP_GAP, validCell, cellKey, cellOf, cellOrder, overlaps, takenCells, firstEmptyCell, placeAll, arrangeAll, stepFrom, cellAtPoint, anchorAtPoint, shiftedAnchor, nearbyFreeBlock, setBoardSize,
 } from '../shared/board-grid.mjs';
 
 let checks = 0;
@@ -25,7 +25,14 @@ same('the board is 16 cards across and 5 down, and a tapped card steps out by 1 
 for (const [col, row] of [[0, 0], [MAX_COL, MAX_ROW], [5, 2], [0, MAX_ROW], [MAX_COL, 0], [13, 7]]) same(`(${col}, ${row}) is a cell a card can start in`, validCell(col, row), true);
 for (const [col, row] of [[-1, 0], [0, -1], [MAX_COL + 1, 0], [0, MAX_ROW + 1], [BOARD_COLS, 0], [0, BOARD_ROWS], [1.5, 0], [0, 2.5], ['1', 1], [1, '1'], [null, 0], [0, undefined], [NaN, 0], [Infinity, 0]]) same(`(${col}, ${row}) is not a cell a card can start in`, validCell(col, row), false);
 same('a card with px and py has that cell', cellOf({ px: 3, py: 2 }), { col: 3, row: 2 });
-for (const card of [{}, { px: 3 }, { py: 2 }, { px: MAX_COL + 1, py: 0 }, { px: 0, py: MAX_ROW + 1 }, { px: -1, py: 0 }, { px: 1.5, py: 0 }, { px: '3', py: '2' }, null, undefined]) same(`a card with ${JSON.stringify(card)} has no cell`, cellOf(card), null);
+for (const card of [{}, { px: 3 }, { py: 2 }, { px: -1, py: 0 }, { px: 0, py: -1 }, { px: 4001, py: 0 }, { px: 1.5, py: 0 }, { px: '3', py: '2' }, null, undefined]) same(`a card with ${JSON.stringify(card)} has no cell`, cellOf(card), null);
+same('a card stored beyond the edge of the grid in force is drawn at the edge (a narrower window must not move it)', [cellOf({ px: MAX_COL + 1, py: 0 }), cellOf({ px: 0, py: MAX_ROW + 1 }), cellOf({ px: 4000, py: 4000 })], [{ col: MAX_COL, row: 0 }, { col: 0, row: MAX_ROW }, { col: MAX_COL, row: MAX_ROW }]);
+{ // the table page's grid: 40 rows and as many columns as its area holds (setBoardSize); the solo table's stays 112 by 50
+  same('setBoardSize sets the size, the last start cells and how many cards fit', [setBoardSize({ cols: 168, rows: 40 }), BOARD_COLS, BOARD_ROWS, MAX_COL, MAX_ROW, BOARD_CAPACITY], [true, 168, 40, 161, 30, 96]);
+  same('...rows must be whole card heights and the size within what is stored (a bad value keeps the size)', [setBoardSize({ cols: 168, rows: 45 }), BOARD_ROWS, setBoardSize({ cols: 3, rows: 40 }), BOARD_COLS], [false, 40, true, 7]);
+  same('...and the first free block of a land is now on row 30', [setBoardSize({ cols: 168, rows: 40 }), firstEmptyCell([], true)], [true, { col: 0, row: 30 }]);
+  setBoardSize({ cols: 112, rows: 50 });
+}
 same('cellKey is the pair as text', cellKey(3, 2), '3,2');
 
 // overlapping
@@ -53,8 +60,8 @@ same('a card exactly a block over does not', firstEmptyCell([spell(1, { px: 7, p
 same('a card nine cells below covers the first block, ten does not', [firstEmptyCell([spell(1, { px: 0, py: 9 })], false), firstEmptyCell([spell(1, { px: 0, py: 10 })], false)], [{ col: 7, row: 0 }, { col: 0, row: 0 }]);
 same('a full row of lands moves the next land up a row', firstEmptyCell(Array.from({ length: PER_ROW }, (_, i) => land(i + 1, { px: i * 7, py: LAND_ROW })), true), { col: 0, row: LAND_ROW - 10 });
 same('a full board has no free block', firstEmptyCell(Array.from({ length: BOARD_CAPACITY }, (_, i) => spell(i + 1, { px: (i % PER_ROW) * 7, py: Math.floor(i / PER_ROW) * 10 })), false), null);
-same('cards with no cell take no room', firstEmptyCell([land(1), spell(2, { px: 999, py: 0 })], false), { col: 0, row: 0 });
-same('cards with no cell take no cell', takenCells([land(1), spell(2, { px: 999, py: 0 })]).size, 0);
+same('cards with no cell take no room', firstEmptyCell([land(1), spell(2, { px: 5000, py: 0 })], false), { col: 0, row: 0 });
+same('cards with no cell take no cell', takenCells([land(1), spell(2, { px: 5000, py: 0 })]).size, 0);
 same('two cards on one cell take it once (the first one holds it)', [...takenCells([land(1, { px: 2, py: 2 }), land(2, { px: 2, py: 2 })]).values()], ['c1']);
 
 // settling a board
@@ -67,8 +74,9 @@ same('two cards on one cell take it once (the first one holds it)', [...takenCel
   same('the next land goes beside the last one', placed.get('c4'), { col: 7, row: LAND_ROW });
   same('a spell with none takes the first free block for spells: (0, 0) is 10 columns from the cards at (10, 2), so it is free', placed.get('c3'), { col: 0, row: 0 });
   same('the cards are not changed', cards.map((c) => [c.px, c.py]), [[10, 2], [undefined, undefined], [undefined, undefined], [undefined, undefined], [10, 2]]);
-  same('a card outside the grid is given a cell', placeAll([spell(1, { px: 999, py: 999 })], is).get('c1'), { col: 0, row: 0 });
-  same('a card that would run off the edge is given a cell too', [placeAll([spell(1, { px: MAX_COL + 1, py: 0 })], is).get('c1'), placeAll([spell(1, { px: 0, py: MAX_ROW + 1 })], is).get('c1')], [{ col: 0, row: 0 }, { col: 0, row: 0 }]);
+  same('a card with a damaged cell (past what is stored) is given a cell', placeAll([spell(1, { px: 5000, py: 5000 })], is).get('c1'), { col: 0, row: 0 });
+  same('a card stored beyond the edge of the grid in force is drawn at the edge', placeAll([spell(1, { px: 999, py: 999 })], is).get('c1'), { col: MAX_COL, row: MAX_ROW });
+  same('a card that would run off the edge is drawn at the edge, in its own row or column', [placeAll([spell(1, { px: MAX_COL + 1, py: 0 })], is).get('c1'), placeAll([spell(1, { px: 0, py: MAX_ROW + 1 })], is).get('c1')], [{ col: MAX_COL, row: 0 }, { col: 0, row: MAX_ROW }]);
   same('with nothing it is empty', placeAll([], is).size, 0);
   const crowd = Array.from({ length: BOARD_CAPACITY + 2 }, (_, i) => spell(i + 1));
   const crowded = placeAll(crowd, is);

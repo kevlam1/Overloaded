@@ -151,17 +151,17 @@ const noOverlap = (game) => game.zones.battlefield.every((a, i) => game.zones.ba
   const twoOnOne = { ...settled, zones: { ...settled.zones, battlefield: settled.zones.battlefield.map((card) => ({ ...card, px: 8, py: 2 })) } };
   check('cards on one cell stay there (overlapping is allowed)', settleBoard(twoOnOne) === twoOnOne);
   const outside = { ...settled, zones: { ...settled.zones, battlefield: settled.zones.battlefield.map((card) => ({ ...card, px: 150, py: 0 })) } };
-  check('cells outside the grid are replaced', everyCardHasACell(settleBoard(outside)) && noOverlap(settleBoard(outside)));
-  // a stored cell that is right in the column and wrong in the row is still wrong (and the reverse)
+  // (since 2026-11-20 the table page's grid depends on the window, so a stored cell beyond the edge of the grid in force is KEPT and drawn at the edge, never replaced: a narrower window must not move cards)
+  check('cells beyond the edge of the grid are kept as they are (drawn at the edge)', settleBoard(outside) === outside && [...boardCells(outside).values()].every((c) => c.col === 105 && c.row === 0));
   {
     const spell = handCard(game, false); const land = handCard(game, true);
     const lone = (card, extra) => ({ ...game, zones: { ...game.zones, hand: game.zones.hand.filter((c) => c.uid !== card.uid), battlefield: [{ ...card, tapped: false, turnEntered: 1, ...extra }] } });
-    const rowWrong = settleBoard(lone(spell, { px: 0, py: 150 })).zones.battlefield[0];
-    same('a card with the right column and an impossible row is moved to the first free block', [rowWrong.px, rowWrong.py], [0, 0]);
-    const colWrong = settleBoard(lone(spell, { px: 150, py: 0 })).zones.battlefield[0];
-    same('...and so is one with the right row and an impossible column', [colWrong.px, colWrong.py], [0, 0]);
-    const nearEdge = settleBoard(lone(spell, { px: 106, py: 0 })).zones.battlefield[0];
-    same('...and one that would run off the right edge', [nearEdge.px, nearEdge.py], [0, 0]);
+    const rowFar = settleBoard(lone(spell, { px: 0, py: 150 })).zones.battlefield[0];
+    same('a card stored below the last row keeps its cell', [rowFar.px, rowFar.py], [0, 150]);
+    const damaged = settleBoard(lone(spell, { px: -3, py: 0 })).zones.battlefield[0];
+    same('a damaged cell (negative) is replaced by the first free block', [damaged.px, damaged.py], [0, 0]);
+    const huge = settleBoard(lone(spell, { px: 5000, py: 0 })).zones.battlefield[0];
+    same('...and so is one past what the database accepts', [huge.px, huge.py], [0, 0]);
     same('boardCells puts a land that has no cell on the bottom row and a spell on the top row', [...boardCells({ ...game, zones: { ...game.zones, battlefield: [{ ...land, tapped: false, turnEntered: 1 }, { ...spell, tapped: false, turnEntered: 1 }] } })].map(([, c]) => [c.col, c.row]), [[0, 40], [0, 0]]);
     const shared = lone(spell, { px: 4, py: 2 });
     const doubled = { ...shared, zones: { ...shared.zones, hand: shared.zones.hand.filter((c) => c.uid !== land.uid), battlefield: [shared.zones.battlefield[0], { ...land, tapped: false, turnEntered: 1, px: 4, py: 2 }] } };

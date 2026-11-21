@@ -7,22 +7,39 @@
 // card never moves because another one was placed. A card with no position (an older game, or a damaged value) is given one when the board is drawn or the game is loaded: the
 // first free block, lands from the bottom-left and every other card from the top-left, which keeps a loose order without two labelled sections. If every block is taken the card
 // goes on top of the last one tried: nothing is refused.
-export const BOARD_COLS = 112; // 16 cards across (14 and 8 cells wide before 2026-11-16; 12 before 2026-11-10: "lots of the battlefield seems to be empty space")
-export const BOARD_ROWS = 50; // 5 rows of cards (44 rows for the bigger cards of before 2026-11-16, 40 for a day: Kevin, 2026-11-16, "adding more tiles below")
+// The size of the grid. The solo table keeps 112 by 50. The table page sets its own with setBoardSize (Kevin, 2026-11-20: the battlefield fills its area from the far left to the piles with SQUARE cells, and the
+// cards one size up): 40 rows, and as many columns as the area holds, so it depends on the shape of the area. These are `let` so every module that imports them reads the size in force.
+export let BOARD_COLS = 112; // 16 cards across (14 and 8 cells wide before 2026-11-16; 12 before 2026-11-10: "lots of the battlefield seems to be empty space")
+export let BOARD_ROWS = 50; // 5 rows of cards (44 rows for the bigger cards of before 2026-11-16, 40 for a day: Kevin, 2026-11-16, "adding more tiles below")
 export const CARD_COLS = 7; // one size smaller than 8 by 11 (Kevin, 2026-11-16: "scale the cards on the battlefield down by 1 level")
 export const CARD_ROWS = 10; // a card is 7 cells wide and 10 tall, so a cell is square (a card is about 5 by 7)
-export const MAX_COL = BOARD_COLS - CARD_COLS; // the last column a card can start in
-export const MAX_ROW = BOARD_ROWS - CARD_ROWS; // the last row a card can start in
+export let MAX_COL = BOARD_COLS - CARD_COLS; // the last column a card can start in
+export let MAX_ROW = BOARD_ROWS - CARD_ROWS; // the last row a card can start in
 export const TAP_GAP = 1; // a tapped card steps out of its pile to a place this many cells further than a whole card (Kevin, 2026-11-09: one more cell to the right)
-export const BOARD_CAPACITY = (BOARD_COLS / CARD_COLS) * (BOARD_ROWS / CARD_ROWS); // 80 blocks (16 by 5): how many cards fit side by side without overlapping
+export let BOARD_CAPACITY = (BOARD_COLS / CARD_COLS) * (BOARD_ROWS / CARD_ROWS); // 80 blocks (16 by 5): how many cards fit side by side without overlapping
+export const MAX_STORED = 4000; // the largest column or row the database accepts on a card (backend/database.rules.json px, py)
+
+// Sets the size of the grid: cols from CARD_COLS to MAX_STORED, rows a whole number of card heights. Returns whether it changed.
+export function setBoardSize({ cols, rows }) {
+  const c = Number.isInteger(cols) ? Math.min(MAX_STORED, Math.max(CARD_COLS, cols)) : BOARD_COLS;
+  const r = Number.isInteger(rows) && rows >= CARD_ROWS && rows % CARD_ROWS === 0 ? Math.min(MAX_STORED, rows) : BOARD_ROWS;
+  if (c === BOARD_COLS && r === BOARD_ROWS) return false;
+  BOARD_COLS = c; BOARD_ROWS = r;
+  MAX_COL = BOARD_COLS - CARD_COLS; MAX_ROW = BOARD_ROWS - CARD_ROWS;
+  BOARD_CAPACITY = Math.floor(BOARD_COLS / CARD_COLS) * (BOARD_ROWS / CARD_ROWS);
+  return true;
+}
 
 const whole = (value) => Number.isInteger(value);
 export const validCell = (col, row) => whole(col) && whole(row) && col >= 0 && col <= MAX_COL && row >= 0 && row <= MAX_ROW;
 export const cellKey = (col, row) => `${col},${row}`;
 
-// The cell a card is stored in, or null when it has none (or a value outside the grid).
+// The cell a card is drawn in, from the cell it stores, or null when it stores none (or a damaged value). A stored cell beyond the edge of the grid in force (the board of a wider window, or of a larger
+// grid) is drawn at the edge: the card is not given another place, and nothing is stored until it is moved.
 export function cellOf(card) {
-  return validCell(card?.px, card?.py) ? { col: card.px, row: card.py } : null;
+  const col = card?.px; const row = card?.py;
+  if (!whole(col) || !whole(row) || col < 0 || row < 0 || col > MAX_STORED || row > MAX_STORED) return null;
+  return { col: Math.min(col, MAX_COL), row: Math.min(row, MAX_ROW) };
 }
 
 // The blocks in the order a new card tries them. Lands: the bottom row of blocks from the left, then the row above, and so on up. Everything else: the top row from the left, then down.

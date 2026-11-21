@@ -251,7 +251,8 @@ export function makeCardNodes({ onSelect = () => {}, isSelected = () => false, r
       container.replaceChildren(...cards.map((card) => {
         const button = nodeFor(card, battlefield); if (sharp) sharpenPicture(button);
         const cell = battlefield ? cells?.get(card.uid) : null;
-        if (cell) { button.dataset.col = String(cell.col); button.dataset.row = String(cell.row); } else { delete button.dataset.col; delete button.dataset.row; }
+        // (the place in the grid is also set on the card itself: the style sheet's rules per column stop at the solo table's 112, and the table page's grid can be wider, shared/board-grid.mjs setBoardSize)
+        if (cell) { button.dataset.col = String(cell.col); button.dataset.row = String(cell.row); button.style.gridColumnStart = String(cell.col + 1); button.style.gridRowStart = String(cell.row + 1); } else { delete button.dataset.col; delete button.dataset.row; button.style.gridColumnStart = ''; button.style.gridRowStart = ''; }
         if (battlefield) button.dataset.kind = isLandCard(card) ? 'land' : 'other'; else delete button.dataset.kind;
         const stack = stacks?.get(card.uid);
         const count = button.querySelector(':scope > .stack-count');
