@@ -202,6 +202,9 @@ try {
   await expect('a bracket limit of 6 is refused', call(host, 'PUT', `${T}/meta/bracketLimit`, 6), 'refused');
   await expect('a member who is not the host cannot set a bracket limit', call(member, 'PUT', `${T}/meta/bracketLimit`, 2), 'refused');
   await expect('the host takes the limit away (Any)', call(host, 'DELETE', `${T}/meta/bracketLimit`), 'allowed');
+  await expect('the host picks Sidebar view', call(host, 'PUT', `${T}/meta/view`, 'sidebar'), 'allowed');
+  await expect('a view other than grid or sidebar is refused', call(host, 'PUT', `${T}/meta/view`, 'tiles'), 'refused');
+  await expect('a member who is not the host cannot pick the view', call(member, 'PUT', `${T}/meta/view`, 'grid'), 'refused');
   await expect('an unknown key in the public branch is refused', call(member, 'PUT', `${pub}/foo`, 1), 'refused');
   // A ping (added 2026-11-06, shared/ping.mjs): { k, card } on the player's own public branch. The OLD rules refused the key, so these pass only once the new file is published.
   await expect('a ping (a number and a card) is allowed', call(member, 'PUT', `${pub}/ping`, { k: 1800000000, card }), 'allowed');
