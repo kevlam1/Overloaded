@@ -5255,6 +5255,22 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **My AI's mistakes this time:** my Sidebar layout check (entry 263) measured the battlefield and the piles but not the floating bars, so it never saw the history bar over the column.
 
+## 266. No news line during a game (2026-11-21)
+
+**What I asked for**
+- I asked what the little box that describes every action is, and what it says. Claude listed its messages (draws, moves, taps, counters, life, the turn, hints and errors) and suggested keeping it only for errors and hints; I decided to remove it everywhere.
+
+**What changed** (`frontend/src/style.css`)
+- The news line (`#status`) is no longer drawn during a game, on the solo table and the live table. It is still in the page for screen readers, and it shows again outside a game, so "This table has closed" or a wrong address are still seen. The connection line and the idle and 8-hour warnings beside it are separate and stay. The lobby's line is unchanged.
+
+**What I checked**
+- `check-table-layout` 145 (the screenshot has no news box though its text is set), `check-solo-ui` 471, `check-seats-live` 32 of 32.
+
+**Decisions**
+- Claude pointed out that errors during a game (a stack or ping that could not be saved, a number typed wrong) are now not seen at all; I chose to remove the line anyway, since the game history says what happened.
+
+**My AI's mistakes this time:** none found in the change. Found on the way: the screenshot-only part of `check-solo-ui` (`--screenshot`) stops at "no menu item Move to"; the checks themselves pass, and it is not fixed yet.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-20, entry 262) Claude said the cells were square because its numbers were, while the lines drawn on the board were not; I had to send a screenshot.
 - (2026-11-20, entry 261) Claude read "keep the grid" as "keep the board 112 by 50" when I meant "keep the cells square", and the board stayed small; I had to say it three times before it filled the area.

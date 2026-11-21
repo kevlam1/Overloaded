@@ -1130,7 +1130,7 @@ body:has(> .site-footer) > .site-footer { margin-top: 2rem; }
 /* The table's top line: the table (or solo) label, then the messages, all on one quiet line; it takes no room when it is empty. */
 body.playing .topbar h1 { font-size: 0.8rem; font-weight: 600; color: var(--muted); }
 body.playing .topbar .code { font-size: 0.8rem; letter-spacing: 0.1em; color: var(--text); }
-body.playing .topbar:not(:has(.status:not(:empty), .banner:not([hidden]), .turn-banner:not([hidden]))) { min-height: 0; }
+body.playing .topbar:not(:has(.banner:not([hidden]), .turn-banner:not([hidden]))) { min-height: 0; } /* (the news line is hidden during a game) */
 
 /* ---- piles and the command zone, tidied (2026-11-11) ---- */
 /* The commander tax is only its number; the number is the button (click adds a cast, right-click takes one back). */
@@ -1261,7 +1261,8 @@ body.playing:is(.solo, .seats) .hud-menu { top: 0.55rem; right: 0.6rem; display:
 body.playing:is(.solo, .seats) .hud-menu:hover { border-color: var(--ring); }
 body.playing:is(.solo, .seats) .topbar { position: absolute; z-index: 14; top: 3.9rem; left: 50%; translate: -50% 0; display: block; max-width: 40rem; padding: 0; pointer-events: none; }
 body.playing:is(.solo, .seats) .topbar h1 { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-body.playing:is(.solo, .seats) .topbar .status:not(:empty) { margin: 0; padding: 0.2rem 0.8rem; border: 1px solid var(--line); border-radius: 1rem; background: var(--glass); font-size: 0.8rem; text-align: center; }
+/* the news line ("Drew Sol Ring.") is not shown during a game (Kevin, 2026-11-21: the game history says what happened); it stays for screen readers, and shows again outside a game (a closed table, a wrong address) */
+body.playing:is(.solo, .seats) .topbar .status { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 /* the floating action bar: one row, a grip at its left */
 body.playing:is(.solo, .seats) .actions-panel { top: 0.55rem; left: 50%; translate: -50% 0; display: flex; align-items: center; gap: 0.35rem; padding: 0.25rem 0.5rem 0.25rem 0.2rem; transition: left 0.25s ease, top 0.25s ease, border-color 0.2s ease, box-shadow 0.2s ease; }
