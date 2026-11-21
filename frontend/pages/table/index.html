@@ -58,6 +58,25 @@
                 <div id="life-chips" class="counter-chips" role="group" aria-label="Your counters"></div>
               </div>
               <h2 id="my-name" class="seat-name">You</h2>
+            </div>
+
+            <!-- the turn and your buttons in the column above your piles (the battlefield fills the rest of the area), and the news line under them -->
+            <div id="seat-tools" class="seat-tools">
+              <section class="actions-panel" aria-label="Your actions">
+                <div class="turn-line">
+                  <p class="stat turn-stat">Turn <strong id="turn">1</strong></p>
+                  <p id="turn-whose" class="stat turn-whose"></p>
+                  <p id="turn-clock" class="stat turn-clock" hidden></p>
+                </div>
+                <div class="actions" role="group" aria-label="Actions">
+                  <button id="draw" type="button">Draw</button>
+                  <button id="pass-turn" type="button">Pass turn</button>
+                  <button id="take-back" type="button" class="secondary" hidden>Take back the pass</button>
+                  <button id="untap-all" type="button" class="secondary">Untap all</button>
+                  <button id="arrange" type="button" class="secondary">Auto-arrange</button>
+                  <button id="mulligan" type="button" class="secondary">Mulligan</button>
+                </div>
+              </section>
               <div id="topbar-slot" class="topbar-slot"></div>
             </div>
 
@@ -90,23 +109,6 @@
         </div>
 
         <aside id="seats-side" class="seats-side" aria-label="Every player" hidden></aside>
-
-        <section class="actions-panel" aria-label="Your actions">
-          <button id="bar-grip" type="button" class="bar-grip" aria-label="Move the action bar: drag it, or use the arrow keys (Home puts it back)" title="Drag to move the bar"><svg width="12" height="18" viewBox="0 0 12 18" fill="currentColor" aria-hidden="true"><circle cx="3" cy="3" r="1.6"/><circle cx="9" cy="3" r="1.6"/><circle cx="3" cy="9" r="1.6"/><circle cx="9" cy="9" r="1.6"/><circle cx="3" cy="15" r="1.6"/><circle cx="9" cy="15" r="1.6"/></svg></button>
-          <div class="turn-line">
-            <p class="stat turn-stat">Turn <strong id="turn">1</strong></p>
-            <p id="turn-whose" class="stat turn-whose"></p>
-            <p id="turn-clock" class="stat turn-clock" hidden></p>
-          </div>
-          <div class="actions" role="group" aria-label="Actions">
-            <button id="draw" type="button">Draw</button>
-            <button id="pass-turn" type="button">Pass turn</button>
-            <button id="take-back" type="button" class="secondary" hidden>Take back the pass</button>
-            <button id="untap-all" type="button" class="secondary">Untap all</button>
-            <button id="arrange" type="button" class="secondary">Auto-arrange</button>
-            <button id="mulligan" type="button" class="secondary">Mulligan</button>
-          </div>
-        </section>
 
         <div class="seats-hud">
           <button id="settings-button" type="button" class="hud-menu" aria-haspopup="dialog" aria-expanded="false" aria-controls="settings-menu" aria-label="Menu and settings" title="Menu and settings"><svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor" aria-hidden="true"><rect x="2" y="4" width="14" height="2" rx="1"/><rect x="2" y="8" width="14" height="2" rx="1"/><rect x="2" y="12" width="14" height="2" rx="1"/></svg></button>

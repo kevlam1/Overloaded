@@ -5106,6 +5106,21 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **My AI's mistakes this time:** the live check's mulligan block still expected the old instant mulligan. Claude's first fix to it was also wrong: while the gather animation plays the OLD hand of 7 still shows and is still saved, so its waits for "7 cards" and "saved" passed at once on the old hand and it then found no draw sounds. It now waits for different cards in the database and for the 7 draw sounds. In one of those broken runs a page error ("Cannot read properties of null (reading 'textContent')") was reported once; Claude found no page code that could cause it, and two full runs after the fix had none, so it is noted, not explained. The keybind test still said the table had no hand sorting (the old fact) and was brought up to date.
 
+## 257. Battlefields from the far left; the buttons above the piles (2026-11-20)
+
+**What I asked for**
+- Expand the battlefield to the far left; the grid does not need to be exact scale to the card. Then go on with the history and the stack.
+
+**What changed** (`frontend/src/style.css`, `frontend/pages/table/index.html`, `table.js`)
+- Every battlefield on the Seats table now fills its area from the left edge to just before the piles, and from the top to just above the resting hand. Its 112 by 50 cells stretch to that shape, so they are wider than tall on a wide area; the cards keep their real shape, each at the left and bottom of its block, so cards side by side have room between them. The outline of where a carried card would land is the card's shape too. Nothing is stored differently: every player's cards stay on the same cells.
+- With the battlefield filling the area, the floating action bar would always cover some of it (it started over the first lands), so the turn, whose turn it is, the turn clock and the buttons now sit in the free column above my piles, two buttons to a row, with the news line under them. In Sidebar view they go with my hand into the area shown large.
+
+**What I checked**
+- `check-table-layout` (105; now "the battlefield fills the area from the top left corner" and "the turn and buttons are above the piles, off the battlefield"), `check-seats-live` 27 of 27; screenshots at 1366x768 and 1920x950, 2 and 4 players, and Sidebar view.
+
+**Decisions**
+- The action bar no longer floats on the table page (it still does on the solo table).
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-20, entry 254) Claude kept the hands and piles of the multiplayer table cautious and apart from the boards; I had to say it should give every player a full solo-table area and use the space.
 - (2026-11-20, entry 253) Claude's first Seats table floated the life, buttons, piles and hand over my battlefield as on the solo table; on a shared table that blocked cards and drops, and I had to ask for the boards to move to the side.

@@ -33,7 +33,6 @@ import { loadTokens } from '../../src/token-data.js';
 import { openTokenPicker } from '../../src/token-picker.js';
 import { mountCounterChips } from '../../src/counter-chips.js';
 import { mountLifeControl } from '../../src/life-control.js';
-import { mountFloatingBar } from '../../src/floating-bar.js';
 import { restHidden, mountHandRestSetting } from '../../src/hand-rest.js';
 import { createCounterPanel } from '../../src/counter-panel.js';
 import { drawPause } from '../../../shared/draw-pace.mjs';
@@ -846,7 +845,8 @@ function layoutSeats() {
   placeChildren($('opponent-list'), gridAreas);
   if ((!sidebar || focusedArea === me) && me.parentElement !== $('seats-stage')) $('seats-stage').append(me);
   const docked = sidebar && focusedArea !== me;
-  if (docked) { if (hand.parentElement !== focusedArea) focusedArea.append(hand); } else if (hand.parentElement !== me) me.append(hand); // (docked: in the large area, where that player's own hand would be)
+  const tools = $('seat-tools'); // your turn and buttons go with your hand
+  if (docked) { if (hand.parentElement !== focusedArea) focusedArea.append(hand, tools); } else if (hand.parentElement !== me) me.append(hand, tools); // (docked: in the large area, where that player's own hand and buttons would be)
   hand.classList.toggle('docked', docked);
   $('seats-stage').classList.toggle('hand-docked', docked);
   const side = $('seats-side');
@@ -1144,8 +1144,6 @@ for (const zone of ['library', 'graveyard', 'exile', 'sideboard']) {
 const settings = mountSettingsMenu({ button: $('settings-button'), panel: $('settings-menu') });
 mountFacing($('facing-settings'), { store });
 mountHandRestSetting($('hand-rest-settings'), { onChange: () => handView.arrange() });
-// The action bar floats like the solo table's (src/floating-bar.js): drag it by its grip; it starts docked at the bottom of the left edge, beside your own area.
-mountFloatingBar({ bar: document.querySelector('.actions-panel'), grip: $('bar-grip'), store, key: 'overloaded.seatsBar2', defaultPlace: { dock: 'left', fx: 0, fy: 1 } });
 mountKeybindSettings($('keybind-settings'), { keybinds, page: 'table' });
 $('pile-sideboard').addEventListener('click', () => settings.close()); // the viewer opens over the table; the Settings panel would only be in the way
 

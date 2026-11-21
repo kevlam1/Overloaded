@@ -1990,10 +1990,12 @@ body.playing.seats .seat-area {
   --zgap: 0.35rem;
   --Z: calc(3 * (var(--sw) + 0.5rem) + 2 * var(--zgap) + 2 * var(--pad)); /* the width of the piles at the bottom right: library, graveyard and exile, with the command zone above them (Kevin, 2026-11-20) */
   --hh: clamp(5.5rem, 34cqh, 13rem); /* the box of the hand (its cards are 2.8 rem less, and rest half below the bottom edge: frontend/src/hand-view.js) */
-  /* the battlefield (Kevin, 2026-11-20: "expand to the top and sides, the bottom is fine"): from the top of the area down to just above the resting hand, its right edge just before the piles; it keeps its
-     shape (112 by 50 cells), so in a wide area it is as tall as that room and sits against the piles, and in a narrow one it is as wide as the room left of the piles */
-  --bw: min(100cqw - var(--Z) - var(--pad) - 0.4rem, (100cqh - 0.5 * (var(--hh) - 2.8rem) - 2 * var(--pad)) * 2.24);
-  --bl: max(var(--pad), 100cqw - var(--Z) - var(--bw) - 0.4rem);
+  /* the battlefield (Kevin, 2026-11-20: "expand to the top and sides, the bottom is fine", then "to the far left; the grid does not need to be exact scale to the card"): it fills the area from the left
+     edge to just before the piles and from the top to just above the resting hand. Its 112 by 50 cells stretch to that shape; the cards keep their own shape (frontend/src/style.css .battlefield --card-h),
+     each from the left and bottom of its block, so on a wide board there is room between cards side by side */
+  --bw: calc(100cqw - var(--Z) - var(--pad) - 0.4rem);
+  --bh: calc(100cqh - 0.5 * (var(--hh) - 2.8rem) - 2 * var(--pad));
+  --bl: var(--pad);
   --hw: var(--bw); /* the hand's width: under the battlefield */
   position: relative; container-type: size; min-width: 0; min-height: 0; margin: 0; padding: 0; overflow: hidden;
   border: 1px solid var(--line); border-radius: 0.6rem; background: color-mix(in srgb, var(--bg) 92%, #000); box-shadow: none; }
@@ -2027,9 +2029,18 @@ body.playing.seats .opp-waiting { position: absolute; inset: var(--T) 0 0; displ
 body.playing.seats .opp-waiting[hidden] { display: none; }
 body.playing.seats .opp-body { display: contents; }
 body.playing.seats .opp-body[hidden] > * { display: none; }
-/* the news: one line at the top right of your area's head, never over the battlefield (a lost connection or a warning first, else what just happened; whose turn it is is in the action bar) */
-body.playing.seats .topbar-slot { position: absolute; top: 0.3rem; right: var(--pad); max-width: max(10rem, calc(var(--Z) - 2 * var(--pad))); pointer-events: none; } /* (above the piles) */
-body.playing.seats[data-view="sidebar"] .seat-area.focused .topbar-slot { top: 2.9rem; } /* (under the view and menu buttons) */
+/* your turn and buttons, then the news, in the column above your piles (the only room the battlefield leaves): never over a battlefield */
+body.playing.seats .seat-tools { position: absolute; z-index: 6; top: var(--pad); right: var(--pad); width: calc(var(--Z) - 2 * var(--pad)); max-height: calc(100cqh - 2.8 * var(--sw) - 4.6rem - 2 * var(--pad)); display: flex; flex-direction: column; gap: 0.35rem; overflow: hidden; }
+body.playing.seats[data-view="sidebar"] .seat-area.focused .seat-tools { top: 2.9rem; max-height: calc(100cqh - 2.8 * var(--sw) - 7.1rem - 2 * var(--pad)); } /* (under the view and menu buttons) */
+body.playing.seats .seat-tools .actions-panel { position: static; inset: auto; translate: none; z-index: auto; display: flex; flex-direction: column; gap: 0.3rem; width: auto; margin: 0; padding: 0.35rem 0.4rem 0.4rem; }
+body.playing.seats .seat-tools .actions-panel .actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.25rem; margin: 0; }
+body.playing.seats .seat-tools .actions-panel .actions button { width: 100%; min-width: 0; min-height: 0; padding: 0.2rem 0.3rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.74rem; }
+body.playing.seats .seat-tools .actions-panel .actions button[hidden] { display: none; }
+body.playing.seats .seat-tools .turn-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.05rem 0.6rem; }
+body.playing.seats .seat-tools .turn-line :is(.turn-stat, .turn-whose, .turn-clock) { margin: 0; white-space: nowrap; font-size: 0.8rem; }
+body.playing.seats .seat-tools .turn-line .turn-whose { font-weight: 700; }
+body.playing.seats .seat-tools .turn-clock[hidden] { display: none; }
+body.playing.seats .topbar-slot { position: static; max-width: 100%; pointer-events: none; }
 body.playing.seats .topbar { position: static; inset: auto; translate: none; z-index: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 0.2rem; max-width: 100%; max-height: calc(var(--T) - 0.5rem); margin: 0; padding: 0; overflow: hidden; pointer-events: none; }
 body.playing.seats .topbar #connection { order: 1; }
 body.playing.seats .topbar #banner { order: 2; }
@@ -2040,8 +2051,11 @@ body.playing.seats .topbar > * { max-width: 100%; margin: 0; overflow: hidden; t
 body.playing.seats .topbar > :empty { display: none; }
 
 /* the battlefield: as large as fits (--bw), from the top of the area, its right edge just before the piles (the life and the name sit over its top) */
-body.playing.seats #my-board, body.playing.seats .opp-field { position: absolute; z-index: 1; inset: auto; top: var(--pad); left: var(--bl); translate: none; width: var(--bw); height: calc(var(--bw) * 50 / 112); min-height: 0; max-height: none; margin: 0; padding: 0; display: block; overflow: visible; border: 0; background: none; }
-body.playing.seats #my-board > .battlefield, body.playing.seats .opp-field > .battlefield { display: grid; width: 100%; height: auto; max-width: none; max-height: none; aspect-ratio: 112 / 50; margin: 0; }
+body.playing.seats #my-board, body.playing.seats .opp-field { position: absolute; z-index: 1; inset: auto; top: var(--pad); left: var(--bl); translate: none; width: var(--bw); height: var(--bh); min-height: 0; max-height: none; margin: 0; padding: 0; display: block; overflow: visible; border: 0; background: none; }
+body.playing.seats #my-board > .battlefield, body.playing.seats .opp-field > .battlefield { display: grid; width: 100%; height: 100%; max-width: none; max-height: none; aspect-ratio: auto; margin: 0; }
+/* the outline of the place a carried card would go is the card's own shape, from the left and bottom of its block, like the cards (the block may be wider than the card) */
+body.playing.seats .battlefield > .cell-highlight { justify-self: start; align-self: end; width: var(--card-w); height: var(--card-h); }
+body.playing.seats .battlefield > .cell-highlight[data-tapped] { width: var(--card-h); height: var(--card-w); }
 body.playing.seats .opp-field > .battlefield { outline: 1px solid color-mix(in srgb, var(--text) 25%, transparent); }
 body[data-facing="turned"].playing.seats .opp-field > .battlefield { rotate: 180deg; } /* as if they sat across from you: their lands along the far edge */
 
@@ -2116,16 +2130,7 @@ body.playing.seats .slot-body { position: relative; height: calc(var(--stage-h, 
 body.playing.seats .slot-eye { display: grid; place-items: center; height: 100%; color: var(--accent); }
 body.playing.seats .seat-area.mini { position: absolute; left: 0; top: 0; width: var(--stage-w, 1000px); height: var(--stage-h, 600px); transform: scale(var(--mini, 0.2)); transform-origin: 0 0; pointer-events: none; }
 
-/* the action bar floats over the table like the solo table's, a little smaller (standing at the left edge it fits in the margin beside a battlefield); a pinged card shows at the top right */
-body.playing.seats .actions-panel { padding: 0.25rem 0.35rem 0.35rem; gap: 0.25rem; }
-body.playing.seats .actions-panel .actions { gap: 0.25rem; }
-body.playing.seats .actions-panel .actions button { min-height: 0; padding: 0.2rem 0.35rem; font-size: 0.74rem; white-space: nowrap; }
-body.playing.seats .actions-panel[data-vertical="true"] { width: 6.2rem; }
-body.playing.seats .actions-panel[data-vertical="true"] .actions button { width: 100%; }
-body.playing.seats .actions-panel .turn-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.1rem 0.7rem; }
-body.playing.seats .actions-panel[data-vertical="true"] .turn-line { flex-direction: column; align-items: stretch; }
-body.playing.seats .actions-panel .turn-line :is(.turn-stat, .turn-whose, .turn-clock) { margin: 0; white-space: nowrap; font-size: 0.82rem; }
-body.playing.seats .actions-panel .turn-clock[hidden] { display: none; }
+/* a pinged card shows at the top right */
 body.playing.seats #spotlight { position: absolute; z-index: 16; top: 3rem; right: 0.6rem; width: 12.5rem; }
 body.playing.seats[data-view="sidebar"] #spotlight { right: calc(var(--side-w) + 0.6rem); }
 body.playing.seats #spotlight:not([data-mode="ping"]) { display: none; } /* (only a pinged card shows here) */
