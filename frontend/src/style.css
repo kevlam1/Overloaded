@@ -2064,7 +2064,8 @@ body.playing.seats #my-board, body.playing.seats .opp-field { position: absolute
 body.playing.seats #my-board > .battlefield, body.playing.seats .opp-field > .battlefield { display: grid; width: 100%; height: 100%; max-width: none; max-height: none; aspect-ratio: auto; margin: 0; }
 /* the outline of the place a carried card would go is the card's own shape, from the left and bottom of its block, like the cards (the block may be wider than the card) */
 /* the grid of a battlefield on the table: 40 rows and --cols columns (as many whole square cells as the width holds, so a column is at most 1/cols wider than a row is tall), a card a quarter of the board's height */
-body.playing.seats :is(#my-board, .opp-field) > .battlefield { --rows: 40; grid-template-columns: repeat(var(--cols, 112), minmax(0, 1fr)); grid-template-rows: repeat(var(--rows), minmax(0, 1fr)); --card-h: calc(100cqh * 10 / var(--rows)); --card-w: calc(var(--card-h) * 0.7); }
+body.playing.seats :is(#my-board, .opp-field) > .battlefield { --rows: 40; grid-template-columns: repeat(var(--cols, 112), minmax(0, 1fr)); grid-template-rows: repeat(var(--rows), minmax(0, 1fr)); --card-h: calc(100cqh * 10 / var(--rows)); --card-w: calc(var(--card-h) * 0.7);
+  background-size: calc(100% / var(--cols, 112)) calc(100% / var(--rows)), calc(100% / var(--cols, 112)) calc(100% / var(--rows)); } /* (the lines of the cells follow THIS grid: the solo table's are drawn for 112 by 50) */
 body.playing.seats .battlefield > .cell-highlight { justify-self: start; align-self: end; width: var(--card-w); height: var(--card-h); }
 body.playing.seats .battlefield > .cell-highlight[data-tapped] { width: var(--card-h); height: var(--card-w); }
 body.playing.seats .opp-field > .battlefield { outline: 1px solid color-mix(in srgb, var(--text) 25%, transparent); }

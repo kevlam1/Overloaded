@@ -5190,7 +5190,21 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **My AI's mistakes this time:** I asked a question about the grid whose two choices did not include what I wanted (square cells and a full-width board), and then took my answer too literally, so I had to ask three times.
 
+## 262. The cell lines are square too (2026-11-20)
+
+**What I asked for**
+- A screenshot of my board: "the grids. are not. squared."
+
+**What changed** (`frontend/src/style.css`)
+- The grid itself was square since entry 261, but the cell LINES are a background pattern drawn separately, and it was still drawn for the solo table's 112 by 50, so on a 149-column board the drawn cells were about 10 by 5 px. The table page's battlefields now draw their lines from their own columns and rows.
+
+**What I checked**
+- A new check in `check-table-layout` measures the line spacing the browser really uses: 135 of 135 pass; with the fix taken out it fails 15 times ("10.28 by 5.12 px"), so it does catch what I saw. `check-seats-live` 29 of 29. A 4x zoomed screenshot of my board shows square cells.
+
+**My AI's mistakes this time:** entry 261's check measured the grid's arithmetic, not what is drawn, so it passed while the lines I could see were still stretched.
+
 ## Where AI misread me, or I had to correct course
+- (2026-11-20, entry 262) Claude said the cells were square because its numbers were, while the lines drawn on the board were not; I had to send a screenshot.
 - (2026-11-20, entry 261) Claude read "keep the grid" as "keep the board 112 by 50" when I meant "keep the cells square", and the board stayed small; I had to say it three times before it filled the area.
 - (2026-11-20, entry 260) Claude kept Auto-arrange on the table page's bar after I had it removed from the solo table.
 - (2026-11-20, entry 254) Claude kept the hands and piles of the multiplayer table cautious and apart from the boards; I had to say it should give every player a full solo-table area and use the space.
