@@ -5225,6 +5225,22 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **My AI's mistakes this time:** its first command zone check expected the command zone to be the left end of the row, but it is the right end; and its first PowerShell edit of a check script added a byte-order mark to the file, removed before running it.
 
+## 264. Cards on the battlefield are no longer cut at the sides (2026-11-21)
+
+**What I asked for**
+- Whether cards on the battlefield were being cropped at the sides in Sidebar view. Also: the Sidebar button in the lobby said "The server refused that" even on a new table.
+
+**What changed**
+- A battlefield card's box was its block, 7 by 10 cells (0.700 wide for 1 high), while a card picture is 488 by 680 (0.718), and the picture fills its box by cutting, so 2.5% of its width was cut off, half on each side. It happened on the solo table too; the large cards of Sidebar view made it easy to see. A card is now the block's width and the picture's own height (`--card-ph` in `frontend/src/style.css`), so the whole picture shows, unstretched; it sits at the bottom of its block, with a quarter of a cell free above it. The drop outline on the table has the same shape.
+- The Sidebar button: the live database refuses it because I had not pasted the new rules yet (`meta/view`). `scripts/check-live-rules.mjs` now has 3 requests for the view, and it showed "the host picks Sidebar view: expected allowed, got HTTP 401" (140 of 141 matched).
+
+**What I checked**
+- Real Sol Ring pictures on a Sidebar-sized battlefield: the box was 106 by 151.5 px (0.700) before and is 106 by 147.8 px (0.718) after, the picture's own shape, and the screenshot shows side borders as wide as the top one.
+- `npm test`: 95 of 95 suites (the solo table 471, the layout 145).
+- Not checked: Sidebar view on the real page, until I paste the rules.
+
+**My AI's mistakes this time:** the old comment said the 7 by 10 box was "a stretch of 2%", but the picture was cut, not stretched, and no check compared a card's box with its picture.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-20, entry 262) Claude said the cells were square because its numbers were, while the lines drawn on the board were not; I had to send a screenshot.
 - (2026-11-20, entry 261) Claude read "keep the grid" as "keep the board 112 by 50" when I meant "keep the cells square", and the board stayed small; I had to say it three times before it filled the area.

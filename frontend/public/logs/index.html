@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.263</span></h1>
-    <p class="lede">263 entries, Oct 25 to Nov 20, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
+    <h1>Build log <span class="version">Version 0.264</span></h1>
+    <p class="lede">264 entries, Oct 25 to Nov 21, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
   </div>
 </header>
 
@@ -24,7 +24,7 @@
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
-<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">50</span></a>
+<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">51</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
 <a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">29 things friends asked for</span></a>
 <a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">29 open, 73 done</span></a>
@@ -3604,7 +3604,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-2" aria-labelledby="week-2-title">
-<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">50 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">51 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-2-days">
 <div class="day">
 <h3 class="day-title">Monday 16 November <span class="day-count">5</span></h3>
@@ -4461,6 +4461,27 @@
 <p class="sub"><strong>Decisions</strong></p>
 <ul><li>The view is a table setting the host picks, not a personal one, as I asked. The rest of the lobby settings (starting player, mulligan type, allow sideboard, chat) are still the next part of the lobby remake.</li></ul>
 <p><strong>My AI's mistakes this time:</strong> its first command zone check expected the command zone to be the left end of the row, but it is the right end; and its first PowerShell edit of a check script added a byte-order mark to the file, removed before running it.</p>
+  </div></div></div>
+</article>
+</div>
+</div>
+<div class="day">
+<h3 class="day-title">Saturday 21 November <span class="day-count">1</span></h3>
+<div class="entries">
+<article class="entry" id="entry-264" data-n="264">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-264-body">
+    <span class="num">264</span>
+    <span class="head-text"><span class="title">Cards on the battlefield are no longer cut at the sides</span><span class="sum">Whether cards on the battlefield were being cropped at the sides in Sidebar view.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-264-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>Whether cards on the battlefield were being cropped at the sides in Sidebar view. Also: the Sidebar button in the lobby said &quot;The server refused that&quot; even on a new table.</li></ul>
+<p class="sub"><strong>What changed</strong></p>
+<ul><li>A battlefield card's box was its block, 7 by 10 cells (0.700 wide for 1 high), while a card picture is 488 by 680 (0.718), and the picture fills its box by cutting, so 2.5% of its width was cut off, half on each side. It happened on the solo table too; the large cards of Sidebar view made it easy to see. A card is now the block's width and the picture's own height (<code>--card-ph</code> in <code>frontend/src/style.css</code>), so the whole picture shows, unstretched; it sits at the bottom of its block, with a quarter of a cell free above it. The drop outline on the table has the same shape.</li><li>The Sidebar button: the live database refuses it because I had not pasted the new rules yet (<code>meta/view</code>). <code>scripts/check-live-rules.mjs</code> now has 3 requests for the view, and it showed &quot;the host picks Sidebar view: expected allowed, got HTTP 401&quot; (140 of 141 matched).</li></ul>
+<p class="sub"><strong>What I checked</strong></p>
+<ul><li>Real Sol Ring pictures on a Sidebar-sized battlefield: the box was 106 by 151.5 px (0.700) before and is 106 by 147.8 px (0.718) after, the picture's own shape, and the screenshot shows side borders as wide as the top one.</li><li><code>npm test</code>: 95 of 95 suites (the solo table 471, the layout 145).</li><li>Not checked: Sidebar view on the real page, until I paste the rules.</li></ul>
+<p><strong>My AI's mistakes this time:</strong> the old comment said the 7 by 10 box was &quot;a stretch of 2%&quot;, but the picture was cut, not stretched, and no check compared a card's box with its picture.</p>
   </div></div></div>
 </article>
 </div>
