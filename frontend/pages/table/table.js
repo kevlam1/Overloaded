@@ -941,10 +941,16 @@ function sizeMinis() {
   const width = stage.clientWidth;
   const height = stage.clientHeight;
   if (!width || !height) return;
-  const slotWidth = $('seats-side').clientWidth - 16;
+  const side = $('seats-side');
+  const slotWidth = side.clientWidth - 16;
+  // as wide as the column, and never so tall that the column needs a scrollbar (Kevin's 4-player screenshots, 2026-11-21: Bot 4 was cut off at the bottom)
+  const style = getComputedStyle(side);
+  const count = Math.max(1, side.children.length);
+  const heads = [...side.children].reduce((sum, slot) => sum + (slot.querySelector('.slot-head')?.offsetHeight ?? 0) + 2, 0); // (a slot's head and its 1 px borders)
+  const room = side.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom) - (count - 1) * (parseFloat(style.rowGap) || 0) - heads;
   game_.style.setProperty('--stage-w', `${width}px`);
   game_.style.setProperty('--stage-h', `${height}px`);
-  game_.style.setProperty('--mini', String(Math.max(0.05, slotWidth / width)));
+  game_.style.setProperty('--mini', String(Math.max(0.05, Math.min(slotWidth / width, room / (count * height)))));
 }
 if (typeof ResizeObserver === 'function') new ResizeObserver(() => { if (document.body.dataset.view === 'sidebar') sizeMinis(); }).observe($('seats-stage'));
 

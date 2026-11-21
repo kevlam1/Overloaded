@@ -2080,7 +2080,7 @@ body.playing.seats :is(#my-board, .opp-field) > .battlefield { --rows: 40; grid-
 body.playing.seats .battlefield > .cell-highlight { justify-self: start; align-self: end; width: var(--card-w); height: var(--card-ph); }
 body.playing.seats .battlefield > .cell-highlight[data-tapped] { width: var(--card-ph); height: var(--card-w); }
 body.playing.seats .opp-field > .battlefield { outline: 1px solid color-mix(in srgb, var(--text) 25%, transparent); }
-body[data-facing="turned"].playing.seats .opp-field > .battlefield { rotate: 180deg; } /* as if they sat across from you: their lands along the far edge */
+body[data-facing="turned"].playing.seats:not([data-view="sidebar"]) .opp-field > .battlefield { rotate: 180deg; } /* as if they sat across from you: their lands along the far edge (Grid view only: in Sidebar view every board is upright, Kevin 2026-11-21) */
 
 /* the piles at the bottom right, small (Alt shows any card large): library, graveyard, exile and the command zone in one row */
 body.playing.seats .side-panels { position: absolute; z-index: 4; inset: auto; right: var(--pad); bottom: var(--pad); display: block; }

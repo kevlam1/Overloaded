@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.266</span></h1>
-    <p class="lede">266 entries, Oct 25 to Nov 21, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
+    <h1>Build log <span class="version">Version 0.267</span></h1>
+    <p class="lede">267 entries, Oct 25 to Nov 21, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
   </div>
 </header>
 
@@ -24,7 +24,7 @@
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
-<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">53</span></a>
+<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">54</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
 <a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">29 things friends asked for</span></a>
 <a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">29 open, 73 done</span></a>
@@ -3604,7 +3604,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-2" aria-labelledby="week-2-title">
-<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">53 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">54 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-2-days">
 <div class="day">
 <h3 class="day-title">Monday 16 November <span class="day-count">5</span></h3>
@@ -4466,7 +4466,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Saturday 21 November <span class="day-count">3</span></h3>
+<h3 class="day-title">Saturday 21 November <span class="day-count">4</span></h3>
 <div class="entries">
 <article class="entry" id="entry-264" data-n="264">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-264-body">
@@ -4516,6 +4516,22 @@
 <p class="sub"><strong>Decisions</strong></p>
 <ul><li>Claude pointed out that errors during a game (a stack or ping that could not be saved, a number typed wrong) are now not seen at all; I chose to remove the line anyway, since the game history says what happened.</li></ul>
 <p><strong>My AI's mistakes this time:</strong> none found in the change. Found on the way: the screenshot-only part of <code>check-solo-ui</code> (<code>--screenshot</code>) stops at &quot;no menu item Move to&quot;; the checks themselves pass, and it is not fixed yet.</p>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-267" data-n="267">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-267-body">
+    <span class="num">267</span>
+    <span class="head-text"><span class="title">Other boards are always upright in Sidebar view</span><span class="sum">&quot;always upright in sidebar view&quot;</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-267-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>&quot;always upright in sidebar view&quot;</li></ul>
+<p class="sub"><strong>What changed</strong></p>
+<ul><li>In Sidebar view no other player's battlefield is turned to face me, large or small in the column, whatever the &quot;Other players&quot; setting says; the setting now only changes Grid view, and Settings says so (&quot;Grid view only. Sidebar is always upright.&quot;). <code>frontend/src/style.css</code>, <code>frontend/pages/table/index.html</code>.</li><li>Found in the screenshot while checking it: with Bob shown large, the column of players was about 10 px taller than the window, so it scrolled and Bot 4 was cut off. The small copies are now sized to fit the column's height as well as its width (<code>sizeMinis</code> in <code>frontend/pages/table/table.js</code>).</li></ul>
+<p class="sub"><strong>What I checked</strong></p>
+<ul><li><code>check-seats-live</code> 34 of 34, with two new checks in the 4-seat Sidebar run: all three other boards are upright although my setting is &quot;Turned to face you&quot;, and with Bob large the column fits without scrolling (its last slot ends at 759 of 768). Screenshots show Bob's land upright at the bottom left and no scrollbar. <code>check-table-layout</code> 145.</li><li>Not done: running the new column check against the old code to see it fail (the scrollbar was seen in the screenshot before the fix).</li></ul>
+<p><strong>My AI's mistakes this time:</strong> the column's overflow was there since the Sidebar view was built (entry 254) and no check looked at the column's height.</p>
   </div></div></div>
 </article>
 </div>

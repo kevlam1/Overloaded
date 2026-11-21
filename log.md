@@ -5271,6 +5271,21 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **My AI's mistakes this time:** none found in the change. Found on the way: the screenshot-only part of `check-solo-ui` (`--screenshot`) stops at "no menu item Move to"; the checks themselves pass, and it is not fixed yet.
 
+## 267. Other boards are always upright in Sidebar view (2026-11-21)
+
+**What I asked for**
+- "always upright in sidebar view"
+
+**What changed**
+- In Sidebar view no other player's battlefield is turned to face me, large or small in the column, whatever the "Other players" setting says; the setting now only changes Grid view, and Settings says so ("Grid view only. Sidebar is always upright."). `frontend/src/style.css`, `frontend/pages/table/index.html`.
+- Found in the screenshot while checking it: with Bob shown large, the column of players was about 10 px taller than the window, so it scrolled and Bot 4 was cut off. The small copies are now sized to fit the column's height as well as its width (`sizeMinis` in `frontend/pages/table/table.js`).
+
+**What I checked**
+- `check-seats-live` 34 of 34, with two new checks in the 4-seat Sidebar run: all three other boards are upright although my setting is "Turned to face you", and with Bob large the column fits without scrolling (its last slot ends at 759 of 768). Screenshots show Bob's land upright at the bottom left and no scrollbar. `check-table-layout` 145.
+- Not done: running the new column check against the old code to see it fail (the scrollbar was seen in the screenshot before the fix).
+
+**My AI's mistakes this time:** the column's overflow was there since the Sidebar view was built (entry 254) and no check looked at the column's height.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-20, entry 262) Claude said the cells were square because its numbers were, while the lines drawn on the board were not; I had to send a screenshot.
 - (2026-11-20, entry 261) Claude read "keep the grid" as "keep the board 112 by 50" when I meant "keep the cells square", and the board stayed small; I had to say it three times before it filled the area.
