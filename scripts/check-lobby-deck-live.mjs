@@ -434,7 +434,7 @@ try {
   await alice.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: cardAt.x, y: cardAt.y, button: 'right', buttons: 0, clickCount: 1 });
   await sleep(150);
   const aliceMenu = await menuOf(alice);
-  record("a right click on Alice's card opens its menu on the table page (Modify, Tap, Flip, the two marks, the counters, Create copy, View details, Ping card, Move to)", Boolean(aliceMenu) && JSON.stringify(aliceMenu.items) === JSON.stringify(['Modify...', 'Tap', 'Flip', "Doesn't untap", 'Summoning sick', '+1/+1 counter', '+1/+1 counters X...', 'Create copy', 'View details', 'Ping card', 'Move to']), JSON.stringify(aliceMenu));
+  record("a right click on Alice's card opens its menu on the table page (Modify, Tap, Flip, the two marks, the counters, Create copy, Add to the stack, View details, Ping card, Move to)", Boolean(aliceMenu) && JSON.stringify(aliceMenu.items) === JSON.stringify(['Modify...', 'Tap', 'Flip', "Doesn't untap", 'Summoning sick', '+1/+1 counter', '+1/+1 counters X...', 'Create copy', 'Add to the stack', 'View details', 'Ping card', 'Move to']), JSON.stringify(aliceMenu));
   await clickMenuText(alice, 'Tap');
   record('Tap from the menu is saved: the card is tapped in the database that Bob can read', Boolean(await waitFor(async () => (await tappedInDb()) === true ? true : null, 15000, 250)));
   record("...and Bob's page shows Alice's card tapped, without a refresh", Boolean(await waitFor(async () => (await bob.eval(`Array.from(document.querySelectorAll('#opponent-list .opponent')).some((p) => p.querySelector('h3').textContent.includes('Alice') && p.querySelector('.card.tapped'))`)) ? true : null, 20000, 250)));
@@ -466,7 +466,7 @@ try {
     await alice.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] });
     await alice.eval(`window.__plays = []; HTMLMediaElement.prototype.play = function () { window.__plays.push(new URL(this.src).pathname); return Promise.resolve(); };`); // the page was reloaded since the earlier recorder
     const oldHandKeys = JSON.stringify(Object.values((await rest('GET', pathOf('private/hand'), cleanup.alice.token)).json ?? {}).map((card) => card.u).sort());
-    await click(alice, 'mulligan');
+    await alice.eval(`document.getElementById('hand-caret').click()`); await sleep(200); await alice.eval(`[...document.querySelectorAll('.card-menu [role="menuitem"]')].find((x) => x.textContent.trim() === 'Mulligan').click()`); // (Mulligan is in the hand's menu since 2026-11-20)
     // (the hand first gathers into the library and the library is shuffled, as on the solo table since 2026-11-20; the shuffle sound comes then, and the new hand is dealt right after the animation)
     const firstSound = await waitFor(async () => { const plays = await alice.eval(`window.__plays`); return plays.length ? plays : null; }, 8000, 30);
     record('Mulligan on the table page: the hand gathers into the library, then the shuffle sound, before any card is dealt', Array.isArray(firstSound) && firstSound[0] === '/sfx/shuffle.mp3', JSON.stringify(firstSound));
@@ -713,7 +713,7 @@ try {
   const panelState = (browser, uid) => browser.eval(`(() => { const p = document.querySelector('#opponent-list .opponent[data-uid="${uid}"]'); return p ? { active: p.classList.contains('active'), mark: Boolean(p.querySelector('.turn-mark')) } : null; })()`);
   const handCount = async (uid) => (await rest('GET', `tables/${code}/public/${uid}/counts/hand`, cleanup.alice.token)).json;
   const aliceStart = await waitFor(async () => { const f = await turnFacts(alice); return /^It is your turn \(turn 1\)\./.test(f.banner) && f.mine ? f : null; }, 20000, 250);
-  record('at the start it is turn 1 and Alice\'s turn: she has the banner, "Your turn", Pass turn as the main button, and the page title says so', Boolean(aliceStart) && aliceStart.whose === 'Your turn' && aliceStart.turn === '1' && aliceStart.pass === 'Pass turn' && !aliceStart.passSecondary && /^Your turn - /.test(aliceStart.title) && !aliceStart.takeBack, JSON.stringify(aliceStart));
+  record('at the start it is turn 1 and Alice\'s turn: she has the banner, "Your turn", Next turn as the main button, and the page title says so', Boolean(aliceStart) && aliceStart.whose === 'Your turn' && aliceStart.turn === '1' && aliceStart.pass === 'Next turn' && !aliceStart.passSecondary && /^Your turn - /.test(aliceStart.title) && !aliceStart.takeBack, JSON.stringify(aliceStart));
   const bobWaiting = await waitFor(async () => { const f = await turnFacts(bob); return f.whose === "Seat 1: Alice's turn" ? f : null; }, 20000, 250);
   record('Bob sees whose turn it is, has a plain banner (not highlighted), and his button says he would be skipping her turn', Boolean(bobWaiting) && bobWaiting.banner === "Turn 1: Seat 1: Alice's turn" && !bobWaiting.mine && bobWaiting.pass === "Skip Seat 1: Alice's turn" && bobWaiting.passSecondary && !/^Your turn/.test(bobWaiting.title) && bobWaiting.turn === '1', JSON.stringify(bobWaiting));
   const alicePanel = await waitFor(async () => { const s = await panelState(bob, cleanup.alice.uid); return s && s.active ? s : null; }, 20000, 250);
@@ -748,7 +748,7 @@ try {
   const bobStarted = await waitFor(async () => { const t = (await rest('GET', bobPath('turn'), cleanup.alice.token)).json; return t === 2 ? true : null; }, 20000, 250);
   record("Bob's page starts Bob's turn by itself: his own turn number becomes 2 in the database, and he did NOT draw (players draw their own card)", Boolean(bobStarted) && (await handCount(cleanup.bob.uid)) === bobHandBefore, `${bobHandBefore} -> ${await handCount(cleanup.bob.uid)}`);
   const bobBanner = await waitFor(async () => { const f = await turnFacts(bob); return /^It is your turn \(turn 2\)\./.test(f.banner) ? f : null; }, 20000, 250);
-  record('the banner on Bob page is highlighted and tells him what to do next (sickness ended, draw and untap himself), "Your turn", the table\'s turn number 2, and the page title says it is his turn', Boolean(bobBanner) && /Summoning sickness ended/.test(bobBanner.banner) && /Draw and untap when you are ready/.test(bobBanner.banner) && bobBanner.whose === 'Your turn' && bobBanner.turn === '2' && bobBanner.pass === 'Pass turn' && /^Your turn - /.test(bobBanner.title) && !bobBanner.takeBack, JSON.stringify(bobBanner));
+  record('the banner on Bob page is highlighted and tells him what to do next (sickness ended, draw and untap himself), "Your turn", the table\'s turn number 2, and the page title says it is his turn', Boolean(bobBanner) && /Summoning sickness ended/.test(bobBanner.banner) && /Draw and untap when you are ready/.test(bobBanner.banner) && bobBanner.whose === 'Your turn' && bobBanner.turn === '2' && bobBanner.pass === 'Next turn' && /^Your turn - /.test(bobBanner.title) && !bobBanner.takeBack, JSON.stringify(bobBanner));
   record("Bob's page plays the your-turn sound once when his turn begins by itself (Alice's page plays none)", JSON.stringify(await bob.eval(`window.__plays`)) === '["/sfx/yourturn.mp3"]' && !String(JSON.stringify(await alice.eval(`window.__plays`))).includes('yourturn'), JSON.stringify(await bob.eval(`window.__plays`)));
   const aliceAfterPass = await waitFor(async () => { const f = await turnFacts(alice); return f.banner === "Turn 2: Seat 2: Bob's turn" && !f.mine && f.whose === "Seat 2: Bob's turn" ? f : null; }, 20000, 250);
   record("Alice's banner is plain again (Turn 2: Seat 2: Bob's turn), her button now skips Bob's turn, she can take her pass back, and her title is the plain one", Boolean(aliceAfterPass) && aliceAfterPass.pass === "Skip Seat 2: Bob's turn" && aliceAfterPass.takeBack && !/^Your turn/.test(aliceAfterPass.title) && aliceAfterPass.turn === '2', JSON.stringify(aliceAfterPass));
@@ -838,7 +838,7 @@ try {
   // A conceded player is skipped by Pass turn, and a conceded player's page does not start a turn even if a record names them.
   const bobTurnBefore = (await rest('GET', bobPath('turn'), cleanup.alice.token)).json;
   const bobHandBeforeNaming = await handCount(cleanup.bob.uid);
-  await waitFor(async () => (await turnFacts(alice)).pass === 'Pass turn' ? true : null, 20000, 250); // it is Alice's turn (turn 3)
+  await waitFor(async () => (await turnFacts(alice)).pass === 'Next turn' ? true : null, 20000, 250); // it is Alice's turn (turn 3)
   await click(alice, 'pass-turn');
   const skippedConceded = await waitFor(async () => { const p = (await rest('GET', pathOf('public/pass'), cleanup.bob.token)).json; return p && p.n === 4 ? p : null; }, 15000, 250);
   record('Alice passes while Bob has conceded: the pass skips him and comes back to Alice herself (turn 4, seat 1)', Boolean(skippedConceded) && skippedConceded.to === '1', JSON.stringify(skippedConceded));

@@ -1278,6 +1278,14 @@ body.playing:is(.solo, .seats) .actions-panel[data-vertical="true"] .actions but
 body.playing:is(.solo, .seats) .actions-panel[data-vertical="true"] .turn-stat { padding: 0 0 0.3rem; text-align: center; border-right: 0; border-bottom: 1px solid var(--line); }
 body.playing:is(.solo, .seats) .actions-panel[data-vertical="true"] .bar-grip { width: 100%; min-height: 1.3rem; }
 body.playing:is(.solo, .seats) .actions-panel[data-vertical="true"] .bar-grip svg { rotate: 90deg; } /* the dots of the handle lie down when the bar stands up */
+/* (Kevin, 2026-11-20) a row of buttons has words; snapped to a side the bar is a narrow column of icons (the words stay for a screen reader, and as the tooltip) */
+.actions-panel .act-icon { display: none; flex: none; }
+body.playing:is(.solo, .seats) .actions-panel[data-vertical="true"] { width: auto; padding: 0.2rem 0.3rem 0.35rem; }
+body.playing:is(.solo, .seats) .actions-panel[data-vertical="true"] .act-icon { display: block; }
+body.playing:is(.solo, .seats) .actions-panel[data-vertical="true"] .act-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+body.playing:is(.solo, .seats) .actions-panel[data-vertical="true"] .actions button { display: grid; place-items: center; width: 2.3rem; height: 2.3rem; min-height: 0; padding: 0; }
+body.playing:is(.solo, .seats) .actions-panel[data-vertical="true"] :is(.turn-whose, .turn-clock) { display: none; }
+body.playing:is(.solo, .seats) .actions-panel[data-vertical="true"] .turn-stat { font-size: 0.72rem; white-space: nowrap; }
 /* what letting go would do, shown while the bar is dragged: a strip along the edge it would dock to, a dotted line through the middle when it is lined up with the middle of the edge, a dotted triangle in the corner it would go into */
 .bar-snap-hint, .bar-center-hint, .bar-corner-hint { position: fixed; z-index: 14; pointer-events: none; animation: bar-hint-in 0.15s ease; }
 .bar-snap-hint { border-radius: 2px; background: var(--accent); box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 70%, transparent); opacity: 0.85; }
@@ -1989,13 +1997,13 @@ body.playing.seats .seat-area {
   --sw: clamp(1.8rem, min(15cqh, 6.5cqw), 4.8rem); /* a pile's width: smaller in a narrow area, so the hand keeps room beside the piles (Alt shows any card large) */
   --zgap: 0.35rem;
   --Z: calc(3 * (var(--sw) + 0.5rem) + 2 * var(--zgap) + 2 * var(--pad)); /* the width of the piles at the bottom right: library, graveyard and exile, with the command zone above them (Kevin, 2026-11-20) */
-  --hh: clamp(5.5rem, 34cqh, 13rem); /* the box of the hand (its cards are 2.8 rem less, and rest half below the bottom edge: frontend/src/hand-view.js) */
-  /* the battlefield (Kevin, 2026-11-20: "expand to the top and sides, the bottom is fine", then "to the far left; the grid does not need to be exact scale to the card"): it fills the area from the left
-     edge to just before the piles and from the top to just above the resting hand. Its 112 by 50 cells stretch to that shape; the cards keep their own shape (frontend/src/style.css .battlefield --card-h),
-     each from the left and bottom of its block, so on a wide board there is room between cards side by side */
-  --bw: calc(100cqw - var(--Z) - var(--pad) - 0.4rem);
-  --bh: calc(100cqh - 0.5 * (var(--hh) - 2.8rem) - 2 * var(--pad));
-  --bl: var(--pad);
+  --hh: clamp(7rem, 44cqh, 16rem); /* the box of the hand (its cards are 2.8 rem less, and rest half below the bottom edge: frontend/src/hand-view.js); larger since 2026-11-20 (Kevin) */
+  /* the battlefield: from the top of the area down to just above the resting hand, its right edge just before the piles. Its cells stay SQUARE (Kevin, 2026-11-20: a day with stretched cells was undone),
+     so it keeps its 112 by 50 shape: in a wide area it is as tall as that room and sits against the piles (the room on its left is where the action bar starts); in a narrow one it is as wide as the room
+     left of the piles */
+  --bw: min(100cqw - var(--Z) - var(--pad) - 0.4rem, (100cqh - 0.5 * (var(--hh) - 2.8rem) - 2 * var(--pad)) * 2.24);
+  --bh: calc(var(--bw) * 50 / 112);
+  --bl: max(var(--pad), 100cqw - var(--Z) - var(--bw) - 0.4rem);
   --hw: var(--bw); /* the hand's width: under the battlefield */
   position: relative; container-type: size; min-width: 0; min-height: 0; margin: 0; padding: 0; overflow: hidden;
   border: 1px solid var(--line); border-radius: 0.6rem; background: color-mix(in srgb, var(--bg) 92%, #000); box-shadow: none; }
@@ -2029,18 +2037,15 @@ body.playing.seats .opp-waiting { position: absolute; inset: var(--T) 0 0; displ
 body.playing.seats .opp-waiting[hidden] { display: none; }
 body.playing.seats .opp-body { display: contents; }
 body.playing.seats .opp-body[hidden] > * { display: none; }
-/* your turn and buttons, then the news, in the column above your piles (the only room the battlefield leaves): never over a battlefield */
-body.playing.seats .seat-tools { position: absolute; z-index: 6; top: var(--pad); right: var(--pad); width: calc(var(--Z) - 2 * var(--pad)); max-height: calc(100cqh - 2.8 * var(--sw) - 4.6rem - 2 * var(--pad)); display: flex; flex-direction: column; gap: 0.35rem; overflow: hidden; }
-body.playing.seats[data-view="sidebar"] .seat-area.focused .seat-tools { top: 2.9rem; max-height: calc(100cqh - 2.8 * var(--sw) - 7.1rem - 2 * var(--pad)); } /* (under the view and menu buttons) */
-body.playing.seats .seat-tools .actions-panel { position: static; inset: auto; translate: none; z-index: auto; display: flex; flex-direction: column; gap: 0.3rem; width: auto; margin: 0; padding: 0.35rem 0.4rem 0.4rem; }
-body.playing.seats .seat-tools .actions-panel .actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.25rem; margin: 0; }
-body.playing.seats .seat-tools .actions-panel .actions button { width: 100%; min-width: 0; min-height: 0; padding: 0.2rem 0.3rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.74rem; }
-body.playing.seats .seat-tools .actions-panel .actions button[hidden] { display: none; }
-body.playing.seats .seat-tools .turn-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.05rem 0.6rem; }
-body.playing.seats .seat-tools .turn-line :is(.turn-stat, .turn-whose, .turn-clock) { margin: 0; white-space: nowrap; font-size: 0.8rem; }
-body.playing.seats .seat-tools .turn-line .turn-whose { font-weight: 700; }
-body.playing.seats .seat-tools .turn-clock[hidden] { display: none; }
-body.playing.seats .topbar-slot { position: static; max-width: 100%; pointer-events: none; }
+/* the news: one line at the top right of your area, above the piles, never over the battlefield (a lost connection or a warning first, else what just happened) */
+body.playing.seats .topbar-slot { position: absolute; z-index: 6; top: 0.3rem; right: var(--pad); max-width: max(10rem, calc(var(--Z) - 2 * var(--pad))); pointer-events: none; }
+body.playing.seats[data-view="sidebar"] .seat-area.focused .topbar-slot { top: 2.9rem; } /* (under the view and menu buttons) */
+/* the action bar on the table: the turn above the buttons (Draw, Untap all, Next turn), a little smaller than the solo table's */
+body.playing.seats .actions-panel .turn-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.05rem 0.6rem; }
+body.playing.seats .actions-panel .turn-line :is(.turn-stat, .turn-whose, .turn-clock) { margin: 0; padding: 0; border: 0; white-space: nowrap; font-size: 0.8rem; }
+body.playing.seats .actions-panel .turn-line .turn-whose { font-weight: 700; }
+body.playing.seats .actions-panel .turn-clock[hidden], body.playing.seats .actions-panel .actions button[hidden] { display: none; }
+body.playing.seats .actions-panel[data-vertical="true"] .turn-line { justify-content: center; }
 body.playing.seats .topbar { position: static; inset: auto; translate: none; z-index: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 0.2rem; max-width: 100%; max-height: calc(var(--T) - 0.5rem); margin: 0; padding: 0; overflow: hidden; pointer-events: none; }
 body.playing.seats .topbar #connection { order: 1; }
 body.playing.seats .topbar #banner { order: 2; }

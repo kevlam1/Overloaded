@@ -190,7 +190,7 @@ function render() {
   }
   $('pile-sideboard').textContent = `Sideboard: ${counts.sideboard}`;
   for (const zone of ['library', 'graveyard', 'exile', 'sideboard']) $(`pile-${zone}`).setAttribute('aria-pressed', String(viewing === zone));
-  $('mulligan').textContent = game.mulligans ? `Mulligan (${game.mulligans} so far)` : 'Mulligan';
+  $('mulligan').querySelector('.act-label').textContent = game.mulligans ? `Mulligan (${game.mulligans} so far)` : 'Mulligan'; // (the label only: the button keeps its icon)
   renderViewer();
   renderSelected();
 }

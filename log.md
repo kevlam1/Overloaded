@@ -5154,7 +5154,28 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **To do for me:** paste `backend/database.rules.json` into the Firebase console, then `node --env-file=.env scripts/check-seats-live.mjs` should pass 29 of 29.
 
+## 260. Square cells again, a floating bar with icons, a larger hand (2026-11-20)
+
+**What I asked for**
+- I pasted the rules and ran `check-seats-live`: 29 of 29 passed, so the shared history and the stack work on the real project.
+- The action bar should still float (it sits well in the empty space at the bottom left), and why was Auto-arrange still there when I had it taken off the solo table? The bar should have Draw, Untap all and Next turn, and use icons when it is snapped to a side. The battlefield grid should be square again, not stretched. Make the hand larger.
+
+**What changed** (`frontend/src/style.css`, `frontend/pages/table/index.html`, `table.js`, `frontend/pages/solo/index.html`, `solo.js`)
+- The battlefield's cells are square again (entry 257's stretch is undone): it keeps its 112 by 50 shape, from the top of its area down to just above the resting hand, its right edge just before the piles.
+- The action bar floats again on the table page, starting at the bottom of the left edge, in the room a battlefield leaves there. It has Draw, Untap all and Next turn (and "Take back the pass" only when that can be done); Auto-arrange and Mulligan are off it (Mulligan is in the hand's menu; both can still have a key in Settings > Keybinds). The pass button now says "Next turn" on my turn ("Skip ..." on someone else's).
+- Snapped to a side, the bar is a narrow column of icons, on both tables (the words are kept for a screen reader and as the tooltip). The solo table's bar keeps its buttons (Draw, Next turn, Untap all, Mulligan, New game), now with icons too.
+- The hand is larger: its box is 44% of the area's height (it was 34%), from 7 rem up to 16 rem.
+
+**What I checked**
+- `check-table-layout` 105 (the battlefield has square cells, starts at the top and ends just before the piles; with 2 players the bar is in the room left of my battlefield); `check-seats-live` 29 of 29; `check-lobby-deck-live` 193 of 193 (three expectations brought up to date: the button says Next turn, the card menu has "Add to the stack", and the mulligan is opened from the hand's menu); `npm test` 94 of 95, the one failure the history and select check's "foil card carried" again, which passed twice on its own right after. Screenshots at 1366x768 and 1920x950.
+
+**Decisions and limits**
+- With 4 players there is no empty room beside my battlefield, so the bar starts over its left edge; it can be dragged anywhere and remembers its place.
+
+**My AI's mistakes this time:** I left Auto-arrange on the table page's bar although it had been taken off the solo table on 2026-11-14.
+
 ## Where AI misread me, or I had to correct course
+- (2026-11-20, entry 260) Claude kept Auto-arrange on the table page's bar after I had it removed from the solo table.
 - (2026-11-20, entry 254) Claude kept the hands and piles of the multiplayer table cautious and apart from the boards; I had to say it should give every player a full solo-table area and use the space.
 - (2026-11-20, entry 253) Claude's first Seats table floated the life, buttons, piles and hand over my battlefield as on the solo table; on a shared table that blocked cards and drops, and I had to ask for the boards to move to the side.
 - (2026-11-12, entry 157) Claude's flight of a dropped card used the scale property together with a transform, which pulled it toward the middle of the screen, and the mulligan it made first flew face-up cards, which I found awkward.

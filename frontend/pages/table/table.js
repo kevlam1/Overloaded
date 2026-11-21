@@ -35,6 +35,7 @@ import { mountCounterChips } from '../../src/counter-chips.js';
 import { mountLifeControl } from '../../src/life-control.js';
 import { restHidden, mountHandRestSetting } from '../../src/hand-rest.js';
 import { createCounterPanel } from '../../src/counter-panel.js';
+import { mountFloatingBar } from '../../src/floating-bar.js';
 import { mountHistoryBar } from '../../src/history-bar.js';
 import { mountStackWindow } from '../../src/stack-window.js';
 import { packStack, readStack } from '../../../shared/stack-sync.mjs';
@@ -262,7 +263,6 @@ function render() {
   }
   $('pile-sideboard').textContent = `Sideboard: ${counts.sideboard}`;
   for (const zone of ['library', 'graveyard', 'exile', 'sideboard']) $(`pile-${zone}`).setAttribute('aria-pressed', String(viewing === zone));
-  $('mulligan').textContent = game.mulligans ? `Mulligan (${game.mulligans} so far)` : 'Mulligan';
   renderViewer();
   renderSelected();
   if (document.body.dataset.view === 'sidebar') layoutSeats(); // (your life in the column)
@@ -577,7 +577,9 @@ function renderTurn() {
   $('turn').textContent = String(info.turn);
   $('turn-whose').textContent = capital(whoseWords(info, myUid));
   const pass = $('pass-turn');
-  pass.textContent = mine ? 'Pass turn' : `Skip ${whoseWords(info, myUid).replace(/ \(no one is there\)$/, '')}`;
+  const passWords = mine ? 'Next turn' : `Skip ${whoseWords(info, myUid).replace(/ \(no one is there\)$/, '')}`; // (the label only: the button keeps its icon for the column of icons)
+  pass.querySelector('.act-label').textContent = passWords;
+  pass.title = passWords;
   pass.classList.toggle('secondary', !mine);
   pass.hidden = meta?.status !== 'playing';
   $('take-back').hidden = !canTakeBack(info, myUid);
@@ -876,8 +878,7 @@ function layoutSeats() {
   placeChildren($('opponent-list'), gridAreas);
   if ((!sidebar || focusedArea === me) && me.parentElement !== $('seats-stage')) $('seats-stage').append(me);
   const docked = sidebar && focusedArea !== me;
-  const tools = $('seat-tools'); // your turn and buttons go with your hand
-  if (docked) { if (hand.parentElement !== focusedArea) focusedArea.append(hand, tools); } else if (hand.parentElement !== me) me.append(hand, tools); // (docked: in the large area, where that player's own hand and buttons would be)
+  if (docked) { if (hand.parentElement !== focusedArea) focusedArea.append(hand); } else if (hand.parentElement !== me) me.append(hand); // (docked: in the large area, where that player's own hand would be)
   hand.classList.toggle('docked', docked);
   $('seats-stage').classList.toggle('hand-docked', docked);
   const side = $('seats-side');
@@ -1240,9 +1241,11 @@ function flipFaceDown(found) {
 }
 // The other actions a key can do (Settings > Keybinds): the same as pressing the button or menu line; false when there is nothing to press.
 const GAME_KEYS = new Set(['mulligan', 'shuffle', 'arrange', 'lifeUp', 'lifeDown', 'viewLibrary', 'viewGraveyard', 'viewExile', 'sortType', 'sortColor', 'sortCost', 'sortName', 'autoSort', 'history', 'stack']);
-const CLICKS = { history: '#history-bar .history-head', stack: '.stack-tab', mulligan: '#mulligan', arrange: '#arrange', viewLibrary: '#pile-library', viewGraveyard: '#pile-graveyard', viewExile: '#pile-exile', sortType: '.hand-sort[data-sort="type"]', sortColor: '.hand-sort[data-sort="color"]', sortCost: '.hand-sort[data-sort="cost"]', sortName: '.hand-sort[data-sort="name"]', autoSort: '.hand-sort-toggle' };
+const CLICKS = { history: '#history-bar .history-head', stack: '.stack-tab', viewLibrary: '#pile-library', viewGraveyard: '#pile-graveyard', viewExile: '#pile-exile', sortType: '.hand-sort[data-sort="type"]', sortColor: '.hand-sort[data-sort="color"]', sortCost: '.hand-sort[data-sort="cost"]', sortName: '.hand-sort[data-sort="name"]', autoSort: '.hand-sort-toggle' };
 function runGameKey(action) {
   if (action === 'shuffle') { pickFromPileMenu('library', 'shuffle'); return true; }
+  if (action === 'mulligan') { doMulligan(); return true; } // (no button: it is in the hand's menu)
+  if (action === 'arrange') { arrangeNow(); return true; } // (no button)
   if (action === 'lifeUp' || action === 'lifeDown') { apply(() => adjustLife(game, action === 'lifeUp' ? 1 : -1), ''); return true; }
   const target = document.querySelector(CLICKS[action]);
   if (!target || target.disabled) return false;
@@ -1399,7 +1402,8 @@ document.addEventListener('keydown', (event) => {
   const direction = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' }[event.key];
   if (direction && nudgeSelected(direction)) event.preventDefault();
 });
-$('arrange').addEventListener('click', () => { if (!game) return; apply(() => arrangeBoard(game), 'Tidied the battlefield: lands along the bottom, everything else along the top, cards with the same name side by side.'); });
+// Auto-arrange has no button (Kevin, 2026-11-20, as on the solo table since 2026-11-14); a key can still be given to it in Settings > Keybinds.
+const arrangeNow = () => { if (!game) return; apply(() => arrangeBoard(game), 'Tidied the battlefield.'); };
 // A card of yours dragged from the battlefield and let go over your hand goes back into the hand (a token that leaves the battlefield stops existing, like every other way of moving it).
 function dropOnHand({ uid, from, x, picture, uids = null }) {
   if (!game || from === 'hand') return;
@@ -1530,7 +1534,9 @@ function pickFromHandMenu(id, amount) {
 }
 mountBoardDrag({ board: () => $('battlefield'), onDrop: dropOnBoard, groupOf: (uid) => (multi.size > 1 && multi.has(uid) ? [...multi] : null), hand: () => $('hand-section'), onDropHand: dropOnHand, onHandOver: (over) => handView.carry(over), onReorderHand: reorderInHand, handZone: () => handView.zone(), handHit: (x, y) => handView.over(x, y), zoneSource, pileAt, onDropPile: dropOnPile, isEnabled: () => Boolean(game), boardFirst: true });
 
-$('mulligan').addEventListener('click', () => { if (game) doMulligan(); });
+// (Mulligan is in the hand's menu, the arrow next to the hand count: the bar has Draw, Untap all and Next turn only, Kevin 2026-11-20)
+// The action bar floats like the solo table's (src/floating-bar.js); it starts at the bottom of the left edge, where a battlefield leaves room (docked to a side it is a column of icons).
+mountFloatingBar({ bar: document.querySelector('.actions-panel'), grip: $('bar-grip'), store, key: 'overloaded.seatsBar3', defaultPlace: { dock: 'left', fx: 0, fy: 1 } });
 // the life total is the number itself: click, right-click, Shift for 5, hold to set (src/life-control.js)
 mountLifeControl({ button: $('life'), say, onDelta: (delta) => { if (game) apply(() => adjustLife(game, delta), ''); }, onSet: (value) => { if (game) apply(() => adjustLife(game, value - game.life), `Life is ${value}.`); } });
 for (const zone of ['library', 'graveyard', 'exile', 'sideboard']) $(`pile-${zone}`).addEventListener('click', () => { if (!game) return; if (viewing === zone && !viewTop) viewer.close(); else openPile(zone); });
