@@ -3,7 +3,7 @@
 // (shared/game-sync.mjs): your hand and library in your private branch (nobody else can read it), the rest in your public one.
 // A refresh puts you back at the game you left. Other players' boards are shown beside it, live and read-only (their public
 // zones only: shared/game-sync.mjs readPublic). All database calls live in ../../src/db.js.
-import { rejoinTable, watchMembers, watchMeta, watchPresence, watchServerOffset, watchConnection, startPresence, heartbeat, watchActivity, saveGame, loadGame, watchPublic, concede, endMatch, leaveTable } from '../../src/db.js';
+import { rejoinTable, watchMembers, watchMeta, watchPresence, watchServerOffset, watchConnection, startPresence, heartbeat, watchActivity, saveGame, loadGame, watchPublic, saveStack, watchStack, concede, endMatch, leaveTable } from '../../src/db.js';
 import { startKeepAlive } from '../../src/keep-alive.js';
 import { makeSafeStore } from '../../src/safe-store.js';
 import { cardBackUrl } from '../../../shared/card-image.mjs';
@@ -36,6 +36,8 @@ import { mountLifeControl } from '../../src/life-control.js';
 import { restHidden, mountHandRestSetting } from '../../src/hand-rest.js';
 import { createCounterPanel } from '../../src/counter-panel.js';
 import { mountHistoryBar } from '../../src/history-bar.js';
+import { mountStackWindow } from '../../src/stack-window.js';
+import { packStack, readStack } from '../../../shared/stack-sync.mjs';
 import { describeMove, makeEntry, slotFor as logSlotFor, lastK, mergeHistory } from '../../../shared/live-history.mjs';
 import { drawPause } from '../../../shared/draw-pace.mjs';
 import { createHandSort } from '../../src/hand-sort-ui.js';
@@ -423,7 +425,7 @@ function openMenuFor(uid, where) {
   if (!found) return;
   if (found.zone === 'hand' && multi.size > 1 && multi.has(uid)) { openGroupMenu(where); return; } // (several cards of the hand picked: the menu is for all of them)
   select(uid);
-  openCardMenu({ title: found.card.n, items: menuItems(found.card, found.zone, { live: true, details: true, peek: true }), x: where.x, y: where.y, returnFocus: where.element, onPick: (id, amount) => pickFromMenu(uid, id, amount) });
+  openCardMenu({ title: found.card.n, items: menuItems(found.card, found.zone, { live: true, details: true, peek: true, stack: true }), x: where.x, y: where.y, returnFocus: where.element, onPick: (id, amount) => pickFromMenu(uid, id, amount) });
 }
 
 // The menu of the picked cards of the hand (shared/group-menu.mjs): Play, Discard, Exile, Top and Bottom of library (each asks for the order first) and Move to. The cards go in the order they have in the hand.
@@ -459,6 +461,7 @@ function pickFromMenu(uid, id, amount) {
   if (!game) return;
   const found = findCard(uid);
   if (!found) return;
+  if (id === 'stack') { stackWindow.add(found.card); return; } // a copy of the card as it is now goes on top of the table's stack (every player sees it; the real card does not move)
   if (id === 'peek') { // a look at the other face of a two-sided card in the hand (only for you)
     if (found.zone !== 'hand' || found.card.b !== 1) return;
     if (peeking.has(uid)) peeking.delete(uid); else peeking.add(uid);
@@ -1031,6 +1034,7 @@ async function start() {
     renderOpponents();
   });
   watchPublic(tableCode, (value) => { publicAll = value && typeof value === 'object' ? value : {}; publicSeen = true; processPings(); renderTurn(); renderOpponents(); });
+  watchStack(tableCode, (value) => { storedStack = value; showStoredStack(); }); // the table's one stack: any player's change shows on every page
   watchPresence(tableCode, (value) => { if (value) { presence = value; renderPlayers(); } });
   watchServerOffset((offset) => { serverOffset = offset; renderPlayers(); });
   watchConnection((connected) => {
@@ -1172,6 +1176,17 @@ for (const zone of ['library', 'graveyard', 'exile', 'sideboard']) {
 const settings = mountSettingsMenu({ button: $('settings-button'), panel: $('settings-menu') });
 // The game history: a thin bar that opens downward (src/history-bar.js, as on the solo table), here with everyone's moves (shared/live-history.mjs); it starts at the right edge, over the column above the piles of the top area.
 const historyBar = mountHistoryBar({ root: $('history-bar'), store, key: 'overloaded.seatsHistoryBar' });
+// The stack window (src/stack-window.js, as on the solo table), shared by the table (shared/stack-sync.mjs): every change here is stored whole, every stored change is shown. Its arrows can point at any
+// player's card; every player's cards are numbered from c1, so an arrow to a card says whose it is.
+let storedStack = null;
+const stackWindow = mountStackWindow({
+  root: $('stack-window'), say, printedStats: (card) => printedOf(card, lookup),
+  realCardSelector: '.battlefield .card[data-uid]',
+  targetOf: (element) => ({ card: element.dataset.uid, owner: element.closest('.opponent')?.dataset.uid ?? myUid }),
+  realCard: (target) => (!target.owner || target.owner === myUid ? $('battlefield') : opponents.get(target.owner)?.board)?.querySelector(`.card[data-uid="${CSS.escape(target.card)}"]`) ?? null,
+  onChange: (stack) => { if (tableCode && myUid && meta) saveStack(tableCode, packStack(stack, myUid, meta.match)).catch((error) => say(`The stack could not be saved (${friendlyMessage(error)}).`, true)); },
+});
+function showStoredStack() { stackWindow.replace(readStack(storedStack, lookup ?? (() => null), meta?.match ?? null)); }
 mountFacing($('facing-settings'), { store });
 mountHandRestSetting($('hand-rest-settings'), { onChange: () => handView.arrange() });
 mountKeybindSettings($('keybind-settings'), { keybinds, page: 'table' });
@@ -1224,8 +1239,8 @@ function flipFaceDown(found) {
   apply(() => targets.reduce((game_, entry) => setFaceDown(game_, entry.card.uid, down), game), targets.length > 1 ? `Flipped ${targets.length} cards face ${down ? 'down' : 'up'}.` : `Flipped ${targets[0].card.n} face ${down ? 'down' : 'up'}.`);
 }
 // The other actions a key can do (Settings > Keybinds): the same as pressing the button or menu line; false when there is nothing to press.
-const GAME_KEYS = new Set(['mulligan', 'shuffle', 'arrange', 'lifeUp', 'lifeDown', 'viewLibrary', 'viewGraveyard', 'viewExile', 'sortType', 'sortColor', 'sortCost', 'sortName', 'autoSort', 'history']);
-const CLICKS = { history: '#history-bar .history-head', mulligan: '#mulligan', arrange: '#arrange', viewLibrary: '#pile-library', viewGraveyard: '#pile-graveyard', viewExile: '#pile-exile', sortType: '.hand-sort[data-sort="type"]', sortColor: '.hand-sort[data-sort="color"]', sortCost: '.hand-sort[data-sort="cost"]', sortName: '.hand-sort[data-sort="name"]', autoSort: '.hand-sort-toggle' };
+const GAME_KEYS = new Set(['mulligan', 'shuffle', 'arrange', 'lifeUp', 'lifeDown', 'viewLibrary', 'viewGraveyard', 'viewExile', 'sortType', 'sortColor', 'sortCost', 'sortName', 'autoSort', 'history', 'stack']);
+const CLICKS = { history: '#history-bar .history-head', stack: '.stack-tab', mulligan: '#mulligan', arrange: '#arrange', viewLibrary: '#pile-library', viewGraveyard: '#pile-graveyard', viewExile: '#pile-exile', sortType: '.hand-sort[data-sort="type"]', sortColor: '.hand-sort[data-sort="color"]', sortCost: '.hand-sort[data-sort="cost"]', sortName: '.hand-sort[data-sort="name"]', autoSort: '.hand-sort-toggle' };
 function runGameKey(action) {
   if (action === 'shuffle') { pickFromPileMenu('library', 'shuffle'); return true; }
   if (action === 'lifeUp' || action === 'lifeDown') { apply(() => adjustLife(game, action === 'lifeUp' ? 1 : -1), ''); return true; }

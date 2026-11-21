@@ -126,3 +126,5 @@ export const watchServerOffset = (...args) => tableOps().watchServerOffset(...ar
 export const saveGame = (...args) => tableOps().saveGame(...args);
 export const loadGame = (...args) => tableOps().loadGame(...args);
 export const watchPublic = (...args) => tableOps().watchPublic(...args);
+export const saveStack = (...args) => tableOps().saveStack(...args);
+export const watchStack = (...args) => tableOps().watchStack(...args);

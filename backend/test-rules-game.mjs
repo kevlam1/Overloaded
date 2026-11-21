@@ -268,6 +268,37 @@ for (const [label, path, value] of PRIVATE_CASES) await denied(`private: ${label
   await ok('the first save of a match clears it', put(alice, 'public/alice/log', null));
 }
 
+// the shared stack (shared/stack-sync.mjs): one for the table, any player at it may write it while the match is on, stamped with the match number
+{
+  const { packStack } = await import('../shared/stack-sync.mjs');
+  const { emptyStack, addCard, addText, addArrow } = await import('../shared/stack.mjs');
+  let s = addCard(emptyStack(), { uid: 'c7', i: id(1), n: 'Lightning Bolt', tapped: true, ct: { p: 2 } });
+  s = addText(s, 1, 'in response').stack;
+  s = addCard(s, { uid: 'c9', i: id(2), n: 'Counterspell' });
+  s = addArrow(s, s.items[0].id, { item: s.items.find((item, index) => index > 0 && item.kind === 'card').id }).stack; // (the top card, Counterspell, at the Lightning Bolt below it)
+  s = addArrow(s, s.items[0].id, { card: 'c3', owner: 'bob' }).stack;
+  const stored = (who = 'alice', match = 1) => packStack(s, who, match);
+  await ok("the page's own stack (two cards, a note, an arrow to a card of the stack and one to bob's card) is accepted", put(alice, 'stack', stored()));
+  await ok('...bob may change it too (any player at the table)', put(bob, 'stack', stored('bob')));
+  await ok('a member reads it', get(ref(bob, `tables/${T}/stack`)));
+  await denied('a stranger cannot read it', get(ref(carol, `tables/${T}/stack`)));
+  await denied('a stranger cannot write it', put(carol, 'stack', stored('carol')));
+  await denied('"by" must be the writer', put(alice, 'stack', stored('bob')));
+  await denied('the match number must be the table\'s', put(alice, 'stack', stored('alice', 2)));
+  const bad = (change) => { const value = JSON.parse(JSON.stringify(stored())); change(value); return value; };
+  const note = (value) => value.items.find((item) => item.k === 't');
+  for (const [label, change] of [
+    ['an item with no kind', (v) => { delete v.items[0].k; }], ['an item of an unknown kind', (v) => { v.items[0].k = 'x'; }], ['a card item with no card', (v) => { delete v.items[0].c; }],
+    ['a card item that also has text', (v) => { v.items[0].t = 'x'; }], ['a note of 161 letters', (v) => { note(v).t = 'x'.repeat(161); }], ['an empty note', (v) => { note(v).t = ''; }],
+    ['a bad item id', (v) => { v.items[0].id = 'x1'; }], ['item 40', (v) => { v.items[40] = v.items[0]; }], ['an extra key on an item', (v) => { v.items[0].z = 1; }],
+    ['a card with a bad copy id', (v) => { v.items[0].c.u = 'stack-s1'; }], ['a card with no name', (v) => { delete v.items[0].c.n; }],
+    ['an arrow to both an item and a card', (v) => { v.arrows[0].tc = 'c3'; v.arrows[0].to = 'bob'; }], ['an arrow to a card with no owner', (v) => { delete v.arrows[1].to; }], ['arrow 24', (v) => { v.arrows[24] = v.arrows[0]; }],
+    ['an extra key on the stack', (v) => { v.z = 1; }], ['no next number', (v) => { delete v.next; }],
+  ]) await denied(`a stack with ${label}`, put(alice, 'stack', bad(change)));
+  await ok('a note of 160 letters', put(alice, 'stack', bad((v) => { note(v).t = 'x'.repeat(160); })));
+  await ok('the stack is cleared', put(alice, 'stack', null));
+}
+
 // whole branches
 await ok('a whole public branch of real fields', put(alice, 'public/alice', { life: 40, turn: 1, mulligans: 0, next: 9, match: 1, counts: { library: 80, hand: 7, sideboard: 0 }, pc: { poison: 1 }, cd: { 2: 5 }, pass: { n: 2, to: '2' }, battlefield: [aCard(1)], command: [aCard(2, { n: 'Krenko, Mob Boss' })] }));
 await denied('a whole public branch with one bad field is refused entirely', put(alice, 'public/alice', { life: 40, turn: 0, battlefield: [aCard(1)] }));

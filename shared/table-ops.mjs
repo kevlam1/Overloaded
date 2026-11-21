@@ -510,6 +510,12 @@ export function createTableOps({ sdk, db, getUid, makeCode = makeTableCode }) {
 
   // Everyone's public branch, { uid: stored }, now and on every change (read it with readPublic, never as it is).
   const watchPublic = (code, onChange) => watch(`tables/${code}/public`, onChange);
+  // The table's one stack (shared/stack-sync.mjs): written whole by any player at the table (null clears it), watched by everyone (read it with readStack, never as it is).
+  async function saveStack(code, stored) {
+    if (!isValidCode(code)) throw new FlowRefusedError('That does not look like a table code.');
+    await update(ref(db, `tables/${code}`), { stack: stored ?? null }); // (the whole stack is replaced: one write)
+  }
+  const watchStack = (code, onChange) => watch(`tables/${code}/stack`, onChange);
   // How far this computer's clock is from the database's (ms): the server's time is Date.now() + offset. The limits are
   // judged on the server's time, so the page must not trust its own clock.
   const watchServerOffset = (onChange) => watch('.info/serverTimeOffset', (offset) => onChange(typeof offset === 'number' ? offset : 0));
@@ -565,5 +571,5 @@ export function createTableOps({ sdk, db, getUid, makeCode = makeTableCode }) {
     );
   }
 
-  return { findMyTable, createTable, closeIfExpired, rejoinTable, joinTable, watchMembers, setReady, clearReady, setName, setFormat, setBracketLimit, setDeck, startMatch, concede, endMatch, endTable, leaveTable, passHost, takeOverHost, claimHostSlot, heartbeat, watchActivity, watchMeta, watchServerOffset, watchConnection, startPresence, watchPresence, saveGame, loadGame, watchPublic };
+  return { findMyTable, createTable, closeIfExpired, rejoinTable, joinTable, watchMembers, setReady, clearReady, setName, setFormat, setBracketLimit, setDeck, startMatch, concede, endMatch, endTable, leaveTable, passHost, takeOverHost, claimHostSlot, heartbeat, watchActivity, watchMeta, watchServerOffset, watchConnection, startPresence, watchPresence, saveGame, loadGame, watchPublic, saveStack, watchStack };
 }

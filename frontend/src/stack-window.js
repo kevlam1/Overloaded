@@ -18,8 +18,12 @@ const EASING = 'cubic-bezier(0.2, 0.8, 0.2, 1)';
 const reduced = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // root: the empty <aside> to draw into. printedStats(card): the printed power and toughness of a card (the page's lookup). say(message, isError): the status line of the page.
-export function mountStackWindow({ root, printedStats = () => null, say = () => {} }) {
+// The live table shares one stack (shared/stack-sync.mjs): onChange(stack) is called after every change made here (the page stores it), replace(stack) shows a stack that came from the database, realCard(target)
+// finds the element of a real card an arrow points at, and targetOf(element) says which real card an element is ({ card, owner }); on the solo table these are only your own battlefield.
+export function mountStackWindow({ root, printedStats = () => null, say = () => {}, onChange = null, realCard = null, targetOf = null, realCardSelector = '#battlefield .card[data-uid]' }) {
   let stack = emptyStack();
+  // every change made in this window goes through here: it is drawn, and on the live table it is stored
+  const set = (next) => { stack = next; draw(); onChange?.(stack); };
   let open = false;
   let focusId = null; // an item to give the focus to after the next draw (a text box that was just added, or the item that was moved)
   let focusText = false;
@@ -41,10 +45,10 @@ export function mountStackWindow({ root, printedStats = () => null, say = () => 
   head.append(make('h2', 'stack-title', 'The stack'));
   const buttons = make('div', 'stack-buttons');
   const button = (label, title, onClick) => { const b = make('button', 'secondary stack-button', label); b.type = 'button'; b.title = title; b.addEventListener('click', onClick); return b; };
-  const resolveButton = button('Resolve top', 'Remove the top card', () => { const result = resolveTop(stack); if (!result.resolved) return; stack = result.stack; say(`Resolved ${result.resolved.n}.`); draw(); });
-  const undoButton = button('Undo', 'Undo', () => { if (!canUndo(stack)) return; stack = undo(stack); say('Undone.'); draw(); });
+  const resolveButton = button('Resolve top', 'Remove the top card', () => { const result = resolveTop(stack); if (!result.resolved) return; say(`Resolved ${result.resolved.n}.`); set(result.stack); });
+  const undoButton = button('Undo', 'Undo', () => { if (!canUndo(stack)) return; say('Undone.'); set(undo(stack)); });
   const textButton = button('Add note', 'Add a note at the top', () => addNote(0));
-  const clearButton = button('Clear', 'Remove everything', () => { stack = clearStack(stack); say('Cleared.'); draw(); });
+  const clearButton = button('Clear', 'Remove everything', () => { say('Cleared.'); set(clearStack(stack)); });
   buttons.append(resolveButton, undoButton, textButton, clearButton);
   head.append(buttons, make('p', 'stack-hint', 'Drag to reorder. Shift+drag a card to aim an arrow.'));
   const live = make('p', 'sr-only');
@@ -75,7 +79,7 @@ export function mountStackWindow({ root, printedStats = () => null, say = () => 
   draftPath.style.display = 'none';
   layer.append(draftPath);
 
-  const realCardEl = (uid) => document.querySelector(`#battlefield .card[data-uid="${CSS.escape(uid)}"]`);
+  const realCardEl = (target) => (realCard ? realCard(target) : document.querySelector(`#battlefield .card[data-uid="${CSS.escape(target.card)}"]`));
   const itemEl = (itemId) => list.querySelector(`li.stack-item[data-id="${CSS.escape(itemId)}"]`);
   function pathFor(arrow, listBox) {
     const sourceLi = itemEl(arrow.from);
@@ -87,7 +91,7 @@ export function mountStackWindow({ root, printedStats = () => null, say = () => 
       if (!rect || !visible(rect) || !overlaps(rect, listBox)) return null;
       return arrowPath(source, { kind: 'item', rect });
     }
-    const rect = realCardEl(arrow.to.card)?.getBoundingClientRect();
+    const rect = realCardEl(arrow.to)?.getBoundingClientRect();
     if (!rect || !visible(rect)) return null;
     return arrowPath(source, { kind: 'card', rect });
   }
@@ -138,8 +142,8 @@ export function mountStackWindow({ root, printedStats = () => null, say = () => 
     if (!element) return null;
     const stackCard = element.closest('#stack-window li.stack-card');
     if (stackCard) return stackCard.dataset.id === fromId ? null : { target: { item: stackCard.dataset.id }, element: stackCard, name: nameOfCard(stackCard.querySelector('.card')) };
-    const real = element.closest('#battlefield .card[data-uid]');
-    if (real) return { target: { card: real.dataset.uid }, element: real, name: nameOfCard(real) };
+    const real = element.closest(realCardSelector);
+    if (real) return { target: targetOf ? targetOf(real) : { card: real.dataset.uid }, element: real, name: nameOfCard(real) };
     return null;
   }
   const markTarget = (element) => { if (hoverTarget === element) return; hoverTarget?.classList.remove('stack-target'); hoverTarget = element; hoverTarget?.classList.add('stack-target'); };
@@ -171,7 +175,7 @@ export function mountStackWindow({ root, printedStats = () => null, say = () => 
       const hit = targetAt(event.clientX, event.clientY, fromId);
       stop(); endDraft();
       if (!hit) { say('No target.'); return false; }
-      try { const made = addArrow(stack, fromId, hit.target); stack = made.stack; say(`Arrow: ${sourceName} to ${hit.name}.`); draw(); } catch (error) { say(error.message, true); }
+      try { const made = addArrow(stack, fromId, hit.target); say(`Arrow: ${sourceName} to ${hit.name}.`); set(made.stack); } catch (error) { say(error.message, true); }
       return true;
     };
     const cancel = () => { if (draft !== mine) return; stop(); endDraft(); };
@@ -217,10 +221,10 @@ export function mountStackWindow({ root, printedStats = () => null, say = () => 
   root.addEventListener('keydown', (event) => { if (event.key === 'Escape' && open && !event.defaultPrevented) { event.preventDefault(); setOpen(false); tab.focus({ preventScroll: true }); } });
 
   function addNote(index) {
-    try { const made = addText(stack, index, ''); stack = made.stack; focusId = made.id; focusText = true; draw(); } catch (error) { say(error.message, true); }
+    try { const made = addText(stack, index, ''); focusId = made.id; focusText = true; stack = made.stack; draw(); } catch (error) { say(error.message, true); } // (an empty note is only stored once it has words: see the text box's blur)
   }
   // A change to the stack: the new stack, an optional message, and the item to keep the focus on.
-  const act = (run, message = '', keep = null) => { try { stack = run(stack); if (message) say(message); if (keep) { focusId = keep; focusText = false; } draw(); } catch (error) { say(error.message, true); draw(); } };
+  const act = (run, message = '', keep = null) => { try { const next = run(stack); if (message) say(message); if (keep) { focusId = keep; focusText = false; } set(next); } catch (error) { say(error.message, true); draw(); } };
   const indexOf = (itemId) => stack.items.findIndex((entry) => entry.id === itemId);
 
   // What each item's right-click menu offers (a card and a text box have the same moves; a card also has Move to top and Move to bottom).
@@ -426,7 +430,14 @@ export function mountStackWindow({ root, printedStats = () => null, say = () => 
   return {
     // Puts a copy of the card on top of the stack and slides the window out so the player sees it.
     add(card) {
-      try { stack = addCard(stack, card); say(`Stacked ${card.n}.`); setOpen(true); draw(); return true; } catch (error) { say(error.message, true); return false; }
+      try { const next = addCard(stack, card); say(`Stacked ${card.n}.`); setOpen(true); set(next); return true; } catch (error) { say(error.message, true); return false; }
+    },
+    // A stack that came from the database (another player changed it, or it is what this page stored coming back): shown as it is, keeping this page's own Undo. A note being typed is not interrupted.
+    replace(next) {
+      if (!next) return;
+      const typing = document.activeElement?.closest?.('#stack-window textarea');
+      stack = { ...next, past: stack.past };
+      if (!typing) draw(); else { tabCount.textContent = String(cardCount(stack)); syncArrows(); }
     },
     open: () => setOpen(true),
     close: () => setOpen(false),

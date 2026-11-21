@@ -18,7 +18,7 @@ same('the limits', [MAX_ITEMS, MAX_TEXT, MAX_UNDO], [40, 160, 30]);
 // a copy keeps everything and has its own uid
 const original = bear();
 const copy = copyForStack(original, 's1');
-same('the copy has every field of the card (counters, the change, tapped, marks, picture) and a uid of its own', copy, { ...bear(), uid: 'stack-s1' });
+same('the copy has every field of the card (counters, the change, tapped, marks, picture), a uid of its own, and the uid of the card it copies (src)', copy, { ...bear(), uid: 'stack-s1', src: 'c7' });
 copy.ct.p1p1 = 9;
 same('the copy is separate: changing it does not change the card', original.ct.p1p1, 2);
 throws('a thing that is not a card is refused', () => copyForStack({ uid: 'x' }, 's1'), /not a card/);

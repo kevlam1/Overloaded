@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.258</span></h1>
-    <p class="lede">258 entries, Oct 25 to Nov 20, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
+    <h1>Build log <span class="version">Version 0.259</span></h1>
+    <p class="lede">259 entries, Oct 25 to Nov 20, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
   </div>
 </header>
 
@@ -24,7 +24,7 @@
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
-<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">45</span></a>
+<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">46</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
 <a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">29 things friends asked for</span></a>
 <a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">28 open, 73 done</span></a>
@@ -3604,7 +3604,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-2" aria-labelledby="week-2-title">
-<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">45 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">46 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-2-days">
 <div class="day">
 <h3 class="day-title">Monday 16 November <span class="day-count">5</span></h3>
@@ -4204,7 +4204,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Friday 20 November <span class="day-count">10</span></h3>
+<h3 class="day-title">Friday 20 November <span class="day-count">11</span></h3>
 <div class="entries">
 <article class="entry" id="entry-249" data-n="249">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-249-body">
@@ -4377,6 +4377,22 @@
 <p class="sub"><strong>What I checked</strong></p>
 <ul><li><code>scripts/test-live-history.mjs</code> (14 checks, in <code>npm test</code>): drawing names no card, a hand card put back into the library is not named, a shuffle and a mulligan name no card, a face-down card leaving the battlefield is not named, the common moves are worded right, stored entries are cleaned, and the merged list is in time order with &quot;You ... your&quot; for mine and the name with &quot;their&quot; for theirs. The test caught a real leak in Claude's first version: a face-down card returned to the hand was named, because the check used the card as it is now (face up in the hand) instead of as it was.</li><li><code>backend/test-rules-game.mjs</code> 2,364 checks in the emulator. <code>check-seats-live</code>: 27 of 28; the new check (Bob sees &quot;Alice discarded ...&quot;) fails until I paste the rules, because the published rules refuse <code>log</code>. The page keeps working with the old rules: only the history stays empty.</li></ul>
 <p><strong>To do for me:</strong> paste <code>backend/database.rules.json</code> into the Firebase console (it will also carry the stack and the lobby settings when those are built, if I wait).</p>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-259" data-n="259">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-259-body">
+    <span class="num">259</span>
+    <span class="head-text"><span class="title">A shared stack on the live table</span><span class="sum">The stack window on the multiplayer table, seen by every player (entry 255's plan: with the history, one rules paste).</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-259-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>The stack window on the multiplayer table, seen by every player (entry 255's plan: with the history, one rules paste).</li></ul>
+<p><strong>What changed</strong> (new <code>shared/stack-sync.mjs</code>, <code>shared/stack.mjs</code>, <code>frontend/src/stack-window.js</code>, <code>shared/table-ops.mjs</code>, <code>frontend/src/db.js</code>, <code>frontend/pages/table/table.js</code>, <code>index.html</code>, <code>backend/database.rules.json</code>, <code>shared/keybinds.mjs</code>)</p>
+<ul><li>The table page has the solo table's stack window (the tab at the middle of the left edge). &quot;Add to the stack&quot; in a card's right-click menu puts a copy of the card on top; every player sees the same stack and can reorder it, add notes, resolve the top card, clear it and draw arrows, and the last change wins (a casual table: players take turns). Undo takes back my own last change.</li><li>An arrow can point at any player's card. Every player's cards are numbered from c1, so an arrow to a real card also says whose card it is.</li><li>Stored at <code>tables/{code}/stack</code> as one small value written whole on each change: who changed it, the match number (a new match never shows the last match's stack), the items (a card is stored like a card of a zone, under the id of the card it copies) and the arrows. The rules: any player at the table may write it while the match is on, &quot;by&quot; must be the writer, and every item and arrow has a checked shape. The solo table's stack works as before.</li></ul>
+<p class="sub"><strong>What I checked</strong></p>
+<ul><li><code>scripts/test-stack-sync.mjs</code> (9 checks, in <code>npm test</code>): stored and read back with the same items, copies, arrows and numbers; a damaged or hostile stack keeps only what has the exact shape; a stack of another match shows as empty. <code>scripts/test-stack.mjs</code> 87 (one check updated: a copy now remembers the card it copies). <code>backend/test-rules-game.mjs</code> 2,389 (25 new for the stack, using the page's own <code>packStack</code>). Claude's first rule tests had two mistakes of their own (an arrow aimed at a note, and note checks aimed at a card), which the logic and the emulator caught. <code>npm test</code> 95 of 95 suites.</li><li><code>check-seats-live</code> 27 of 29: the history check and the new stack check (&quot;Alice puts Island on the stack and Bob's stack window shows it&quot;) fail until I paste the rules, as expected.</li></ul>
+<p><strong>To do for me:</strong> paste <code>backend/database.rules.json</code> into the Firebase console, then <code>node --env-file=.env scripts/check-seats-live.mjs</code> should pass 29 of 29.</p>
   </div></div></div>
 </article>
 </div>

@@ -5138,6 +5138,22 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **To do for me:** paste `backend/database.rules.json` into the Firebase console (it will also carry the stack and the lobby settings when those are built, if I wait).
 
+## 259. A shared stack on the live table (2026-11-20)
+
+**What I asked for**
+- The stack window on the multiplayer table, seen by every player (entry 255's plan: with the history, one rules paste).
+
+**What changed** (new `shared/stack-sync.mjs`, `shared/stack.mjs`, `frontend/src/stack-window.js`, `shared/table-ops.mjs`, `frontend/src/db.js`, `frontend/pages/table/table.js`, `index.html`, `backend/database.rules.json`, `shared/keybinds.mjs`)
+- The table page has the solo table's stack window (the tab at the middle of the left edge). "Add to the stack" in a card's right-click menu puts a copy of the card on top; every player sees the same stack and can reorder it, add notes, resolve the top card, clear it and draw arrows, and the last change wins (a casual table: players take turns). Undo takes back my own last change.
+- An arrow can point at any player's card. Every player's cards are numbered from c1, so an arrow to a real card also says whose card it is.
+- Stored at `tables/{code}/stack` as one small value written whole on each change: who changed it, the match number (a new match never shows the last match's stack), the items (a card is stored like a card of a zone, under the id of the card it copies) and the arrows. The rules: any player at the table may write it while the match is on, "by" must be the writer, and every item and arrow has a checked shape. The solo table's stack works as before.
+
+**What I checked**
+- `scripts/test-stack-sync.mjs` (9 checks, in `npm test`): stored and read back with the same items, copies, arrows and numbers; a damaged or hostile stack keeps only what has the exact shape; a stack of another match shows as empty. `scripts/test-stack.mjs` 87 (one check updated: a copy now remembers the card it copies). `backend/test-rules-game.mjs` 2,389 (25 new for the stack, using the page's own `packStack`). Claude's first rule tests had two mistakes of their own (an arrow aimed at a note, and note checks aimed at a card), which the logic and the emulator caught. `npm test` 95 of 95 suites.
+- `check-seats-live` 27 of 29: the history check and the new stack check ("Alice puts Island on the stack and Bob's stack window shows it") fail until I paste the rules, as expected.
+
+**To do for me:** paste `backend/database.rules.json` into the Firebase console, then `node --env-file=.env scripts/check-seats-live.mjs` should pass 29 of 29.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-20, entry 254) Claude kept the hands and piles of the multiplayer table cautious and apart from the boards; I had to say it should give every player a full solo-table area and use the space.
 - (2026-11-20, entry 253) Claude's first Seats table floated the life, buttons, piles and hand over my battlefield as on the solo table; on a shared table that blocked cards and drops, and I had to ask for the boards to move to the side.

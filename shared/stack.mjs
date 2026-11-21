@@ -43,6 +43,7 @@ export function cleanText(value) {
 export function copyForStack(card, id) {
   if (!card || typeof card !== 'object' || typeof card.n !== 'string') fail('That is not a card.');
   const copy = JSON.parse(JSON.stringify(card));
+  if (typeof card.uid === 'string' && /^c[1-9][0-9]{0,5}$/.test(card.uid)) copy.src = card.uid; // (the real card it is a copy of: the live table stores the copy under that card's own id, shared/stack-sync.mjs)
   copy.uid = `stack-${id}`;
   return copy;
 }
@@ -132,9 +133,9 @@ export function addArrow(stack, fromId, to) {
     if (item.kind !== 'card') fail('Point at a card.');
     target = { item: to.item };
   } else if (to && typeof to === 'object' && typeof to.card === 'string' && CARD_UID.test(to.card)) {
-    target = { card: to.card };
+    target = { card: to.card, ...(typeof to.owner === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(to.owner) ? { owner: to.owner } : {}) }; // (owner: the player whose card it is, on the live table, where every player's cards are numbered from c1)
   } else fail('Point at a card.');
-  if (stack.arrows.some((arrow) => arrow.from === fromId && arrow.to.item === target.item && arrow.to.card === target.card)) fail('Already there.');
+  if (stack.arrows.some((arrow) => arrow.from === fromId && arrow.to.item === target.item && arrow.to.card === target.card && arrow.to.owner === target.owner)) fail('Already there.');
   if (stack.arrows.length >= MAX_ARROWS) fail('Too many arrows.');
   const id = `a${stack.next}`;
   const arrows = [...stack.arrows, { id, from: fromId, to: target }];

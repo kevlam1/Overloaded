@@ -58,6 +58,7 @@ const suites = [
   { name: 'the pause between the cards of Draw X', cmd: node, args: ['scripts/test-draw-pace.mjs'] },
   { name: 'the game history list', cmd: node, args: ['scripts/test-game-history.mjs'] },
   { name: 'the shared game history of the live table (never names a hidden card)', cmd: node, args: ['scripts/test-live-history.mjs'] },
+  { name: 'the shared stack of the live table: stored and read back', cmd: node, args: ['scripts/test-stack-sync.mjs'] },
   { name: 'foil marks on cards and the Foil menu line', cmd: node, args: ['scripts/test-foil.mjs'] },
   { name: 'foil kinds: finishes, tags, the stored suffix', cmd: node, args: ['scripts/test-foil-kinds.mjs'] },
   { name: 'foil looks: kinds to the 8 drawn looks', cmd: node, args: ['scripts/test-foil-looks.mjs'] },
