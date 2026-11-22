@@ -69,7 +69,9 @@ import { placeAll, stepFrom, setBoardSize, CARD_COLS } from '../../../shared/boa
 const $ = (id) => document.getElementById(id);
 const store = makeSafeStore();
 const TABLE_DECK_KEY = 'overloaded.tableDeck'; // { code, id }: the deck brought to that table (the lobby writes it)
-const say = (message, isError = false) => { $('status').textContent = message; $('status').classList.toggle('error', isError); };
+// The news line (hidden during a game) and, once the history bar exists, its Messages tab (Kevin, 2026-11-21)
+let noteMessage = null;
+const say = (message, isError = false) => { $('status').textContent = message; $('status').classList.toggle('error', isError); noteMessage?.(message, { error: isError }); };
 const formatTime = (ms) => new Date(ms).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 const plural = (count, one, many) => `${count} ${count === 1 ? one : many}`;
 const ZONE_WORDS = { library: 'your library', hand: 'your hand', battlefield: 'the battlefield', graveyard: 'your graveyard', exile: 'exile', command: 'the command zone', sideboard: 'your sideboard' };
@@ -1202,6 +1204,7 @@ const settings = mountSettingsMenu({ button: $('settings-button'), panel: $('set
 // The game history: a thin bar that opens downward (src/history-bar.js, as on the solo table), here with everyone's moves (shared/live-history.mjs); it starts at the right edge, over the column above the piles of the top area.
 const historyBar = mountHistoryBar({ root: $('history-bar'), store, key: 'overloaded.seatsHistoryBar', room: columnRoom });
 floatingBars.push(historyBar);
+noteMessage = (message, options) => { if (document.body.classList.contains('playing')) historyBar.note(message, options); }; // (outside a game the line itself shows)
 // The stack window (src/stack-window.js, as on the solo table), shared by the table (shared/stack-sync.mjs): every change here is stored whole, every stored change is shown. Its arrows can point at any
 // player's card; every player's cards are numbered from c1, so an arrow to a card says whose it is.
 let storedStack = null;

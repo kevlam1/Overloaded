@@ -132,7 +132,7 @@ export function playerAddItems(game, { live = false } = {}) {
 // Returns [{ title, rows: [{ id, label, detail, count, lethal }] }], groups with no rows left out. A step is playerAction(`${id}:+1`) or `${id}:-1` (flags are left out: they are not counters).
 export function counterPanelRows(game, { live = false, seats = [], me = null } = {}) {
   const groups = [];
-  const damage = seats.map(({ uid, seat, name, commander }) => {
+  const damage = seats.filter(({ uid }) => uid !== me || me === null).map(({ uid, seat, name, commander }) => { // (not your own commander: Kevin, 2026-11-21)
     const entry = commanderDamageEntry(game?.cd, seat, name);
     return { id: entry.id, label: `${name || `Seat ${seat}`}${uid === me ? ' (you)' : ''}`, detail: commander || '', count: entry.count, lethal: entry.lethal };
   });

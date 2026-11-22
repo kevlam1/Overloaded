@@ -5301,6 +5301,24 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **My AI's mistakes this time:** none found.
 
+## 269. Messages tab, shorter turn words, and hand sorting pills that slide (2026-11-21)
+
+**What I asked for**
+- The remaining status lines go into the game history window under another tab; no commander damage from myself under my own life; "Turn time" removed, the timer kept; "Skip Bob's turn" without the seat and number; "Revert pass" instead of "Take back the pass"; and a rework of hand sorting, which was buggy and did not move or slide well.
+
+**What changed**
+- The history window (`frontend/src/history-bar.js`) has two tabs, Moves and Messages (kept in `overloaded.historyTab`). Messages gets every line the page's news line says during a game, errors in red, the newest at the bottom (`say()` in `frontend/pages/table/table.js` and `solo.js` passes it on through `noteMessage`). It shows only on my screen, so a move can be in both tabs in different words ("You played Island." and "Played Island.").
+- The counters panel under my life lists commander damage only from the other players' commanders (`counterPanelRows` in `shared/player-counters.mjs`).
+- The turn clock shows only the time, "0:09" (`frontend/src/turn-clock.js`); "Turn time" is its spoken label and tooltip.
+- Turn words use the name alone (`whoseWords` in `shared/turn-order.mjs`): "Skip Bob's turn", "Turn 2: Bob's turn"; "Seat 3" only for a seat with no name. The messages are shorter: "Passed the turn to Bob.", "Skipped Alice's turn.", "Reverted the pass." The take-back button is "Revert pass".
+- Hand sorting (the pill rows in Settings, `pillRow` in `frontend/src/hand-sort-ui.js`), three bugs fixed: the pills that made way moved by their own width, so pills of different lengths left gaps or overlapped; the drag only followed the pointer sideways, so a pill could not reach another line of the wrapped row; and the row was drawn again from nothing after every change, so everything jumped. Now the pill follows the pointer anywhere, the row really reorders as it passes another pill and every pill that moved slides to its new place (the numbers follow at once), a let-go pill glides into its place, and the arrows slide too. Escape put nothing back before: the Settings menu's own Escape handler closed the whole menu first; it now leaves Escape to a pill being dragged (`frontend/src/settings-menu.js`). The row is positioned so the pills can measure their places from it.
+
+**What I checked**
+- A real-mouse drag in Chrome: Creatures carried from the first place onto the third line goes last and is kept, the carried pill stays under the pointer, no pills overlap after the drop, and Escape mid-drag puts the order back. Two new checks in `check-settings-ui` (18 of 18).
+- `npm run test:quick` 84, `test-turn-order` 132, `test-player-counters` 158, `check-solo-ui` 471, `check-history-and-select-ui` 28 (one run failed once, then passed three runs in a row; not explained), `check-seats-live` 35 of 35 (a new check of the Messages tab, a screenshot of it), `check-lobby-deck-live` 193 of 193.
+
+**My AI's mistakes this time:** its first try measured the pills from the wrong box (their place in the layout is measured from the nearest positioned parent, which was not the row), so nothing moved and the carried pill was drawn 300 px from the pointer; and it again put a `//` comment at the end of a code line, which swallowed the rest of that line (caught by the syntax check).
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-20, entry 262) Claude said the cells were square because its numbers were, while the lines drawn on the board were not; I had to send a screenshot.
 - (2026-11-20, entry 261) Claude read "keep the grid" as "keep the board 112 by 50" when I meant "keep the cells square", and the board stayed small; I had to say it three times before it filled the area.

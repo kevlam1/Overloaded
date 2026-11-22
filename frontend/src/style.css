@@ -1324,14 +1324,12 @@ body.playing:is(.solo, .seats) .pile-stack::after { content: none; }
 .hand-sort .sort-chevron { margin-left: 0.3rem; vertical-align: -1px; }
 .hand-sort:hover { background: color-mix(in srgb, var(--accent) 14%, transparent); }
 .hand-sort[aria-pressed="true"] { border-color: var(--accent); background: var(--accent); color: var(--accent-text); }
-.type-order { display: flex; flex-wrap: wrap; gap: 0.3rem; margin: 0; padding: 0; list-style: none; }
+.type-order { position: relative; display: flex; flex-wrap: wrap; gap: 0.3rem; margin: 0; padding: 0; list-style: none; } /* (positioned: the pills measure their places from it) */
 .type-pill { display: flex; align-items: center; padding: 0 0.1rem; border: 1px solid var(--line); border-radius: 1rem; font-size: 0.78rem; }
 /* the pills of Settings can be dragged: the pill follows the pointer, the ones between its old and new place make way */
-.type-pill { position: relative; cursor: grab; touch-action: none; user-select: none; transition: translate 0.12s ease; }
+.type-pill { position: relative; cursor: grab; touch-action: none; user-select: none; transition: translate 0.18s ease; } /* (the slide of frontend/src/hand-sort-ui.js) */
 .type-pill.dragging { z-index: 2; cursor: grabbing; transition: none; background: var(--card); box-shadow: 0 0.25rem 0.7rem rgba(0, 0, 0, 0.4); }
 .type-order.is-dragging { cursor: grabbing; }
-.type-pill[data-shift="-1"] { translate: calc(-100% - 0.3rem) 0; }
-.type-pill[data-shift="1"] { translate: calc(100% + 0.3rem) 0; }
 @media (prefers-reduced-motion: reduce) { .type-pill { transition: none; } }
 .type-move { width: 1.2rem; min-height: 0; height: 1.5rem; padding: 0; border: 0; background: transparent; color: var(--text); cursor: pointer; }
 .type-move:disabled { opacity: 0.3; cursor: default; }
@@ -1610,7 +1608,14 @@ body.playing:is(.solo, .seats) .history-head { display: flex; align-items: cente
 .history-head::after { content: ""; width: 0.4rem; height: 0.4rem; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); rotate: 45deg; translate: 0 -0.1rem; flex: none; }
 .history-panel[data-open="true"] .history-head::after { rotate: 225deg; translate: 0 0.08rem; }
 .history-list { list-style: none; margin: 0; padding: 0.15rem 0.6rem 0.4rem; max-height: 16rem; overflow-y: auto; border-top: 1px solid var(--line); font-size: 0.78rem; }
-.history-list[hidden] { display: none; }
+.history-list[hidden], .history-body[hidden] { display: none; }
+/* its two tabs, Moves and Messages (Kevin, 2026-11-21) */
+.history-tabs { display: flex; gap: 0.25rem; padding: 0.3rem 0.5rem; border-top: 1px solid var(--line); }
+body.playing .history-tabs .history-tab { flex: 1; min-height: 0; height: 1.45rem; padding: 0 0.4rem; border: 1px solid transparent; border-radius: 0.45rem; background: none; box-shadow: none; color: var(--muted); font-size: 0.72rem; font-weight: 600; cursor: pointer; }
+body.playing .history-tabs .history-tab[aria-selected="true"] { border-color: var(--line); background: color-mix(in srgb, var(--text) 10%, transparent); color: var(--text); }
+.history-tabs + .history-list, .history-tabs ~ .history-list { border-top: 0; }
+.message-row { padding: 0.12rem 0; border-bottom: 1px solid color-mix(in srgb, var(--line) 50%, transparent); }
+.message-row.error { color: var(--danger); font-weight: 600; }
 .history-row { display: flex; gap: 0.4rem; padding: 0.12rem 0; border-bottom: 1px solid color-mix(in srgb, var(--line) 50%, transparent); }
 .history-turn { flex: none; width: 1.6rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .history-text { min-width: 0; overflow-wrap: anywhere; }

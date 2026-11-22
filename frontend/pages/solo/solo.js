@@ -75,9 +75,12 @@ let topRevealed = false; // "Play with top revealed": the top card of the librar
 const ZONE_WORDS = { library: 'your library', hand: 'your hand', battlefield: 'the battlefield', graveyard: 'your graveyard', exile: 'exile', command: 'the command zone', sideboard: 'your sideboard' };
 const plural = (count, one, many) => `${count} ${count === 1 ? one : many}`;
 
+// The news line (hidden during a game) and, once the history bar exists, its Messages tab (Kevin, 2026-11-21)
+let noteMessage = null;
 function say(message, isError = false) {
   $('status').textContent = message;
   $('status').classList.toggle('error', isError);
+  noteMessage?.(message, { error: isError });
 }
 
 function make(tag, className, content) {
@@ -506,6 +509,7 @@ mountSoundSettings($('sound-settings'));
 mountPileStyle($('pile-style-settings'));
 const historyBar = mountHistoryBar({ root: $('history-bar'), store }); // (Kevin, 2026-11-18: a thin bar like the action bar that opens downward to show the moves of this game)
 const record = (message) => historyBar.add(message, game?.turn);
+noteMessage = (message, options) => { if (document.body.classList.contains('playing')) historyBar.note(message, options); }; // (outside a game the line itself shows)
 const stackWindow = mountStackWindow({ root: $('stack-window'), printedStats: (card) => printedOf(card, lookup), say }); // (Kevin, 2026-11-17: a window that slides out from the left with copies of cards, text boxes and arrows; a visual aid, the game is not touched)
 mountHandRestSetting($('hand-rest-settings'), { onChange: () => handView.arrange() }); // (the hand is made further down, but the slider only works after it is)
 const viewer = mountPileViewer({ root: $('viewer'), nodeFor: (card) => cardNodes.nodeFor(card, false), onClose: () => { viewing = null; viewTop = null; viewBottom = false; viewReveal = false; if (game) render(); } });

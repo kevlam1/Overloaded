@@ -47,8 +47,9 @@ export function mountSettingsMenu({ button, panel }) {
     event.preventDefault();
     setOpen(!isOpen());
   }, true);
+  // (a pill being dragged in Hand sorting takes Escape itself: it goes back to its place)
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && isOpen() && !choosingKey()) { event.stopImmediatePropagation(); setOpen(false); button.focus(); }
+    if (event.key === 'Escape' && isOpen() && !choosingKey() && !panel.querySelector('.is-dragging')) { event.stopImmediatePropagation(); setOpen(false); button.focus(); }
   }, true);
   document.addEventListener('click', (event) => {
     if (!isOpen() || panel.contains(event.target) || event.target.closest?.('.confirm-overlay') || button.contains(event.target)) return;

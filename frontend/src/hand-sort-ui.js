@@ -52,49 +52,115 @@ function pillRow({ host, title, hint, label, names, order, move, reset, isDefaul
   card.append(head, make('p', 'sort-hint', hint), list);
   host.append(card);
 
+  // The pills are kept (one element per key) and only put in a new order, so a change can SLIDE: every pill that moved glides from where it was to where it is now (Kevin, 2026-11-21: the old row was
+  // drawn again from nothing after every change, so pills jumped, and the pills that made way moved by their OWN width, which left gaps and overlaps when the words differ in length).
+  const pills = new Map(); // key -> { item, earlier, later, num }
+  const still = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+  const spot = (pill) => ({ x: pill.offsetLeft, y: pill.offsetTop }); // where the layout puts it (a translate does not change this)
+  // Slides each pill except `skip` from where it was (before: key -> spot) to where it is now.
+  function slide(before, skip = null) {
+    if (still()) return;
+    for (const [key, { item }] of pills) {
+      const was = before.get(key);
+      if (!was || item === skip) continue;
+      const now = spot(item);
+      const dx = was.x - now.x;
+      const dy = was.y - now.y;
+      if (!dx && !dy) continue;
+      item.style.transition = 'none';
+      item.style.translate = `${dx}px ${dy}px`;
+      void item.offsetWidth; // (the browser takes the start position before the glide)
+      item.style.transition = '';
+      item.style.translate = '';
+    }
+  }
+  const spots = () => new Map([...pills].map(([key, { item }]) => [key, spot(item)]));
+
+  function pillFor(key) {
+    let entry = pills.get(key);
+    if (entry) return entry;
+    const item = make('li', 'type-pill');
+    item.dataset.type = key;
+    const index = () => order().indexOf(key);
+    const earlier = make('button', 'type-move', '‹');
+    earlier.type = 'button';
+    earlier.setAttribute('aria-label', `Move ${names[key]} earlier`);
+    earlier.addEventListener('click', () => { const at = index(); if (at > 0) move(at, at - 1); });
+    const later = make('button', 'type-move', '›');
+    later.type = 'button';
+    later.setAttribute('aria-label', `Move ${names[key]} later`);
+    later.addEventListener('click', () => { const at = index(); if (at >= 0 && at < order().length - 1) move(at, at + 1); });
+    const num = make('span', 'type-num', '');
+    item.append(num, earlier, make('span', 'type-name', names[key]), later);
+    item.addEventListener('pointerdown', (event) => startDrag(event, item));
+    entry = { item, earlier, later, num };
+    pills.set(key, entry);
+    return entry;
+  }
+
   function draw() {
     const keys = order();
     resetButton.disabled = isDefault();
     resetButton.title = resetButton.disabled ? 'Already in the default order' : 'Back to the default order';
-    list.replaceChildren(...keys.map((key, index) => {
-      const item = make('li', 'type-pill');
-      item.dataset.type = key;
+    const before = spots();
+    for (const key of [...pills.keys()]) if (!keys.includes(key)) { pills.get(key).item.remove(); pills.delete(key); }
+    keys.forEach((key, index) => {
+      const { item, earlier, later, num } = pillFor(key);
       item.dataset.index = String(index);
-      const earlier = make('button', 'type-move', '‹');
-      earlier.type = 'button';
+      num.textContent = String(index + 1);
       earlier.disabled = index === 0;
-      earlier.setAttribute('aria-label', `Move ${names[key]} earlier`);
-      earlier.addEventListener('click', () => move(index, index - 1));
-      const later = make('button', 'type-move', '›');
-      later.type = 'button';
       later.disabled = index === keys.length - 1;
-      later.setAttribute('aria-label', `Move ${names[key]} later`);
-      later.addEventListener('click', () => move(index, index + 1));
-      item.append(make('span', 'type-num', String(index + 1)), earlier, make('span', 'type-name', names[key]), later);
-      item.addEventListener('pointerdown', (event) => startDrag(event, item, index));
-      return item;
-    }));
+      if (list.children[index] !== item) list.insertBefore(item, list.children[index] ?? null);
+    });
+    slide(before, list.querySelector('.type-pill.dragging'));
   }
 
-  // Dragging: the pill follows the pointer sideways; the place it would take is the one whose middle the pointer has passed (the pills are measured when the press starts), and the pills between the
-  // old and the new place make way. Let go, it is moved there; Escape or a cancelled pointer puts it back. The events are heard on the document, so a pointer that leaves the row still drags.
-  function startDrag(event, item, from) {
+  // Dragging: the pill follows the pointer anywhere (the row wraps onto several lines); when the pointer passes the middle of another pill, the dragged pill takes that pill's place in the row and the
+  // others slide to their new places. Let go, it glides into its place and the order is kept; Escape or a cancelled pointer puts everything back. The events are heard on the document, so a pointer
+  // that leaves the row still drags.
+  function startDrag(event, item) {
     if (event.button !== 0 || event.target.closest('button')) return;
-    const items = [...list.children];
-    const centres = items.map((pill) => { const r = pill.getBoundingClientRect(); return r.left + r.width / 2; });
+    const startOrder = [...list.children];
+    const from = startOrder.indexOf(item);
+    const box = item.getBoundingClientRect();
+    const grab = { x: event.clientX - box.left, y: event.clientY - box.top }; // where on the pill it was taken
     const startX = event.clientX;
     const startY = event.clientY;
     let dragging = false;
-    let target = from;
     let over = false;
+    // the dragged pill is drawn under the pointer: its translate is the pointer's place less where the layout puts it now
+    const follow = (x, y) => {
+      const origin = list.getBoundingClientRect();
+      item.style.translate = `${x - grab.x - origin.left - item.offsetLeft + list.clientLeft}px ${y - grab.y - origin.top - item.offsetTop + list.clientTop}px`;
+    };
     const onMove = (e) => {
       if (!dragging && Math.hypot(e.clientX - startX, e.clientY - startY) < DRAG_START_PX) return;
       if (!dragging) { dragging = true; item.classList.add('dragging'); list.classList.add('is-dragging'); }
-      const dx = e.clientX - startX;
-      item.style.translate = `${dx}px 0`;
-      const middle = centres[from] + dx;
-      target = centres.filter((c, i) => i !== from && c < middle).length; // how many of the other pills are to the left of the dragged pill's middle
-      items.forEach((pill, i) => { pill.dataset.shift = String(i > from && i <= target ? -1 : i < from && i >= target ? 1 : 0); });
+      const origin = list.getBoundingClientRect();
+      const px = e.clientX - origin.left;
+      const py = e.clientY - origin.top;
+      const children = [...list.children];
+      const at = children.indexOf(item);
+      // the pill under the pointer (by its place in the layout, not where it is gliding), and whether the pointer is past its middle in the way the dragged pill would go
+      let to = at;
+      children.forEach((pill, i) => {
+        if (pill === item) return;
+        const left = pill.offsetLeft; const top = pill.offsetTop; const w = pill.offsetWidth; const h = pill.offsetHeight;
+        if (py < top - 4 || py > top + h + 4 || px < left - 4 || px > left + w + 4) return;
+        const middle = left + w / 2;
+        if (i > at && (px > middle || py > top + h)) to = i;
+        if (i < at && (px < middle || py < top)) to = i;
+      });
+      // beyond the last pill (right of it or under the row) it goes last; before the first, first
+      const last = children[children.length - 1];
+      if (last !== item && (py > last.offsetTop + last.offsetHeight + 4 || (py >= last.offsetTop - 4 && px > last.offsetLeft + last.offsetWidth + 4))) to = children.length - 1;
+      if (to !== at) {
+        const before = spots();
+        list.insertBefore(item, to > at ? children[to].nextSibling : children[to]);
+        slide(before, item);
+        [...list.children].forEach((pill, i) => { const num = pill.querySelector('.type-num'); if (num) num.textContent = String(i + 1); }); // (the numbers follow at once)
+      }
+      follow(e.clientX, e.clientY);
     };
     const finish = (apply) => {
       if (over) return;
@@ -104,11 +170,13 @@ function pillRow({ host, title, hint, label, names, order, move, reset, isDefaul
       document.removeEventListener('pointercancel', onCancel);
       document.removeEventListener('keydown', onKey, true);
       if (!dragging) return;
+      const to = [...list.children].indexOf(item);
+      if (!apply && to !== from) { const before = spots(); for (const pill of startOrder) list.append(pill); slide(before, item); } // (Escape: everything back where it was)
+      // it glides from under the pointer into its place
       item.classList.remove('dragging');
       list.classList.remove('is-dragging');
       item.style.translate = '';
-      items.forEach((pill) => { delete pill.dataset.shift; });
-      if (apply && target !== from) move(from, target);
+      if (apply && to !== from) move(from, to);
     };
     const onUp = () => finish(true);
     const onCancel = () => finish(false);

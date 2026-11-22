@@ -91,10 +91,10 @@ export function passAction(current, members, isOut, myUid) {
   const record = nextPass(current, members, isOut);
   const next = seatOrder(members).find((player) => player.seat === record.to);
   const skipping = current.uid !== myUid;
-  const who = next ? (next.uid === myUid ? 'you' : `Seat ${next.seat}: ${next.name || 'the next player'}`) : `seat ${record.to}`;
+  const who = next ? (next.uid === myUid ? 'you' : next.name || `Seat ${next.seat}`) : `Seat ${record.to}`;
   return {
     run: (game) => ({ ...game, pass: record }),
-    message: skipping ? `Skipped ${current.name ? `Seat ${current.seat}: ${current.name}` : `seat ${current.seat}`}'s turn. It is turn ${record.n}, and ${who === 'you' ? 'your' : `${who}'s`} turn.` : `Passed the turn. It is turn ${record.n}, and ${who === 'you' ? 'your' : `${who}'s`} turn.`,
+    message: skipping ? `Skipped ${current.name || `Seat ${current.seat}`}'s turn.` : `Passed the turn to ${who}.`, // (short: Kevin, 2026-11-21)
   };
 }
 
@@ -106,7 +106,7 @@ export function takeBackAction(current) {
   const from = current?.last?.from ?? null;
   return {
     run: (game) => { const { pass: _gone, ...rest } = game; return from ? { ...rest, pass: { n: from.n, to: from.to } } : rest; },
-    message: 'Took the pass back.',
+    message: 'Reverted the pass.',
   };
 }
 
@@ -121,7 +121,7 @@ export function turnToStart(current, mySeat, game) {
 export function whoseWords(current, myUid) {
   if (current.uid === myUid && current.uid) return 'your turn';
   if (!current.uid) return `seat ${current.seat}'s turn (no one is there)`;
-  return `${current.name ? `Seat ${current.seat}: ${current.name}` : `Seat ${current.seat}`}'s turn`;
+  return `${current.name || `Seat ${current.seat}`}'s turn`; // (the name alone, Kevin 2026-11-21: 'Skip Bob's turn', not 'Skip Seat 2: Bob's turn')
 }
 // The words for the turn line on the page: "Turn 5: your turn" or "Turn 5: Seat 2: Bob's turn".
 export const turnWords = (current, myUid) => `Turn ${current.turn}: ${whoseWords(current, myUid)}`;

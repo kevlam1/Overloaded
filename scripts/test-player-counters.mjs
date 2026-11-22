@@ -201,14 +201,14 @@ check('names are kept as text exactly (they are put in the page as text, never m
   same('choosing a line adds 1 and the line then shows the new amount, and a mark switches', [added.pc.poison, playerAddItems(added)[0].label, playerAddItems(playerAction('flag:monarch', added).run(added)).find((i) => i.id === 'flag:monarch').label], [1, 'Poison: 1', 'Monarch: on']);
   same('on the live table only the counters the published rules know are offered', playerAddItems(some, { live: true }).map((i) => i.id), offeredCounters({ live: true }).map((k) => (PLAYER_COUNTERS.includes(k) && ['monarch', 'initiative', 'blessing'].includes(k) ? `flag:${k}` : `counter:${k}:+1`))); }
 
-// the counters panel of the table page (Kevin, 2026-11-20): commander damage from each seat with a commander (you included), then the counters, each a minus and a plus
+// the counters panel of the table page (Kevin, 2026-11-20): commander damage from each seat with a commander (not your own), then the counters, each a minus and a plus
 { const members = { u1: { name: 'Alice', seat: '1', commander: 'Krenko, Mob Boss' }, u2: { name: 'Bob', seat: '2', commander: 'Thrasios & Tymna' }, u3: { name: 'Cy', seat: '3' } };
   const game = { cd: { '2': 21 }, pc: { poison: 4, monarch: 1 } };
   const groups = counterPanelRows(game, { live: true, seats: commanderDamageSeatsFor(members, game.cd, 'commander'), me: 'u1' });
-  same('commander damage first: each seat with a commander, its commander, yours marked, 21 from one commander is lethal', groups[0], { title: 'Commander damage', rows: [{ id: 'damage:1', label: 'Alice (you)', detail: 'Krenko, Mob Boss', count: 0, lethal: false }, { id: 'damage:2', label: 'Bob', detail: 'Thrasios & Tymna', count: 21, lethal: true }] });
+  same('commander damage first: each OTHER seat with a commander (not your own, Kevin 2026-11-21), its commander, 21 from one commander is lethal', groups[0], { title: 'Commander damage', rows: [{ id: 'damage:2', label: 'Bob', detail: 'Thrasios & Tymna', count: 21, lethal: true }] });
   same('then the counters the table accepts, without the marks', groups[1].rows.map((r) => [r.id, r.count]), offeredCounters({ live: true }).filter((k) => !['monarch', 'initiative', 'blessing'].includes(k)).map((k) => [`counter:${k}`, k === 'poison' ? 4 : 0]));
   same('a Standard table with no damage recorded has no commander group', counterPanelRows(game, { seats: commanderDamageSeatsFor(members, {}, 'standard') }).map((g) => g.title), ['Counters']);
   const real = makeGame({ cards: [], commander: [] }, () => ({ t: 'Land', m: '', k: [] }), { random: seededRandom(1) });
-  const hit = playerAction(`${groups[0].rows[1].id}:+1`, real, { live: true }).run(real);
+  const hit = playerAction(`${groups[0].rows[0].id}:+1`, real, { live: true }).run(real);
   same('a plus on a line is the same action as the menu (damage +1, then poison -1 from 1)', [hit.cd['2'], counterPanelRows(hit, { seats: [{ uid: 'u2', seat: '2', name: 'Bob', commander: 'X' }] })[0].rows[0].count, playerAction('counter:poison:-1', playerAction('counter:poison:+1', real).run(real)).run(real).pc?.poison ?? 0], [1, 1, 0]); }
 console.log(`All ${checks} player counter checks passed.`);

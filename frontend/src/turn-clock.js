@@ -14,7 +14,7 @@ export function mountTurnClock({ element, store, serverOffset }) {
     if (element.hidden) return;
     const ms = turnElapsed({ at: state.at, serverOffset: serverOffset(), seenAt: state.seenAt, now: Date.now() });
     const words = clockText(ms);
-    if (element.dataset.text !== words) { element.dataset.text = words; element.textContent = `Turn time ${words}`; }
+    if (element.dataset.text !== words) { element.dataset.text = words; element.textContent = words; element.setAttribute('aria-label', `Turn time ${words}`); element.title = 'Turn time'; }
   }
   function tick() {
     if (!active || !enabled) { if (timer !== null) { clearInterval(timer); timer = null; } draw(); return; }

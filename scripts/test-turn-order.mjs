@@ -78,19 +78,19 @@ same('no table at all leaves the seat as it was', nextSeatAfter({}, '3'), '3');
   const game = deepFreeze(makeGame({ cards: [{ i: '00000000-0000-4000-8000-000000000001', n: 'Forest', qty: 30, section: 'main' }], commander: [] }, () => ({ t: 'Basic Land', m: '', k: [] }), { random: seededRandom(1) }));
   const turn1 = currentTurn({}, members4);
   const mine = passAction(turn1, members4, () => false, 'ua');
-  same('the active player passing says what happened', mine.message, "Passed the turn. It is turn 2, and Seat 2: Bob's turn.");
+  same('the active player passing says what happened', mine.message, 'Passed the turn to Bob.');
   const passed = mine.run(game);
   same('and the game gets one small record, nothing else changes', [passed.pass, passed.life, passed.turn, passed.zones === game.zones], [{ n: 2, to: '2' }, game.life, game.turn, true]);
   check('the old game is not changed (it is frozen)', !('pass' in game));
   const toSelf = passAction(currentTurn({}, { ua: { name: 'Alice', seat: '1' } }), { ua: { name: 'Alice', seat: '1' } }, () => false, 'ua');
-  same('passing to yourself (you are the only one) says your turn', toSelf.message, 'Passed the turn. It is turn 2, and your turn.');
+  same('passing to yourself (you are the only one) says your turn', toSelf.message, 'Passed the turn to you.');
   const skipping = passAction(currentTurn({}, members4), members4, () => false, 'uc');
-  same('someone else passing skips the active player, and says so', skipping.message, "Skipped Seat 1: Alice's turn. It is turn 2, and Seat 2: Bob's turn.");
+  same('someone else passing skips the active player, and says so', skipping.message, "Skipped Alice's turn.");
   check('...and writes the same record the active player would have', JSON.stringify(skipping.run(game).pass) === JSON.stringify(mine.run(game).pass));
-  same('skipping a seat that has no player says seat', passAction(currentTurn({ ua: { pass: { n: 2, to: '3' } } }, { ua: { name: 'Alice', seat: '1' }, ub: { name: 'Bob', seat: '2' } }), { ua: { name: 'Alice', seat: '1' }, ub: { name: 'Bob', seat: '2' } }, () => false, 'ub').message, "Skipped seat 3's turn. It is turn 3, and Seat 1: Alice's turn.");
+  same('skipping a seat that has no player says seat', passAction(currentTurn({ ua: { pass: { n: 2, to: '3' } } }, { ua: { name: 'Alice', seat: '1' }, ub: { name: 'Bob', seat: '2' } }), { ua: { name: 'Alice', seat: '1' }, ub: { name: 'Bob', seat: '2' } }, () => false, 'ub').message, "Skipped Seat 3's turn.");
   same('a second pass replaces the first record of that player', passAction(currentTurn({ ua: { pass: { n: 2, to: '2' } }, ub: { pass: { n: 3, to: '3' } }, uc: { pass: { n: 4, to: '4' } }, ud: { pass: { n: 5, to: '1' } } }, members4), members4, () => false, 'ua').run(passed).pass, { n: 6, to: '2', from: { n: 5, to: '1' } });
   const done = takeBackAction(currentTurn({ ua: { pass: passed.pass } }, members4));
-  same('taking back a pass that replaced turn 1 removes the record, and says so', [done.message, 'pass' in done.run(passed), done.run(passed).life === passed.life], ['Took the pass back.', false, true]);
+  same('taking back a pass that replaced turn 1 removes the record, and says so', [done.message, 'pass' in done.run(passed), done.run(passed).life === passed.life], ['Reverted the pass.', false, true]);
   check('taking back when there is none changes nothing', 'pass' in done.run(game) === false);
   check('only the writer of the newest pass can take it back', canTakeBack(currentTurn({ ua: { pass: { n: 2, to: '2' } } }, members4), 'ua') && !canTakeBack(currentTurn({ ua: { pass: { n: 2, to: '2' } } }, members4), 'ub') && !canTakeBack(currentTurn({}, members4), 'ua'));
   check('and not once someone newer has passed', !canTakeBack(currentTurn({ ua: { pass: { n: 2, to: '2' } }, ub: { pass: { n: 3, to: '3' } } }, members4), 'ua'));
@@ -146,12 +146,12 @@ same('a "from" with extra fields keeps only n and to', validPass({ n: 5, to: '2'
 
 // ---- the words ----
 same('your turn', turnWords(currentTurn({ ua: { pass: { n: 5, to: '1' } } }, members4), 'ua'), 'Turn 5: your turn');
-same("someone else's turn", turnWords(currentTurn({ ua: { pass: { n: 2, to: '2' } } }, members4), 'ua'), "Turn 2: Seat 2: Bob's turn");
-same('the first turn', turnWords(currentTurn({}, members4), 'ub'), "Turn 1: Seat 1: Alice's turn");
+same("someone else's turn", turnWords(currentTurn({ ua: { pass: { n: 2, to: '2' } } }, members4), 'ua'), "Turn 2: Bob's turn");
+same('the first turn', turnWords(currentTurn({}, members4), 'ub'), "Turn 1: Alice's turn");
 same('a seat with no one in it', turnWords(currentTurn({ ua: { pass: { n: 3, to: '3' } } }, { ua: { name: 'Alice', seat: '1' } }), 'ua'), "Turn 3: seat 3's turn (no one is there)");
 check('a name is kept as text (the page puts it in as text, never markup)', turnWords(currentTurn({ ua: { pass: { n: 2, to: '2' } } }, { ub: { name: '<b>x</b>', seat: '2' } }), 'ua').includes('<b>x</b>'));
 
-same('whose turn, on its own', [whoseWords(currentTurn({}, members4), 'ua'), whoseWords(currentTurn({}, members4), 'ub'), whoseWords(currentTurn({ ua: { pass: { n: 3, to: '3' } } }, { ua: { name: 'Alice', seat: '1' } }), 'ua')], ['your turn', "Seat 1: Alice's turn", "seat 3's turn (no one is there)"]);
+same('whose turn, on its own', [whoseWords(currentTurn({}, members4), 'ua'), whoseWords(currentTurn({}, members4), 'ub'), whoseWords(currentTurn({ ua: { pass: { n: 3, to: '3' } } }, { ua: { name: 'Alice', seat: '1' } }), 'ua')], ['your turn', "Alice's turn", "seat 3's turn (no one is there)"]);
 check('no one is never "your turn", even with no uid asked', whoseWords({ turn: 1, seat: '2', uid: null, name: null }, null) === "seat 2's turn (no one is there)");
 
 // ---- the record goes through storage with the rest of the game ----
