@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.267</span></h1>
-    <p class="lede">267 entries, Oct 25 to Nov 21, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
+    <h1>Build log <span class="version">Version 0.268</span></h1>
+    <p class="lede">268 entries, Oct 25 to Nov 21, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
   </div>
 </header>
 
@@ -24,7 +24,7 @@
 <a class="week-link" href="#week-m1" data-target="week-m1"><span class="wl-name">Week -1</span><span class="wl-range">Oct 25 to Nov 1</span><span class="wl-count">84</span></a>
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
-<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">54</span></a>
+<a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">55</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
 <a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">29 things friends asked for</span></a>
 <a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">29 open, 73 done</span></a>
@@ -3604,7 +3604,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-2" aria-labelledby="week-2-title">
-<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">54 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-2-title"><button type="button" aria-expanded="false" aria-controls="week-2-days"><span class="wname">Week 2</span><span class="range">Nov 16 to Nov 22</span><span class="week-count">55 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-2-days">
 <div class="day">
 <h3 class="day-title">Monday 16 November <span class="day-count">5</span></h3>
@@ -4466,7 +4466,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Saturday 21 November <span class="day-count">4</span></h3>
+<h3 class="day-title">Saturday 21 November <span class="day-count">5</span></h3>
 <div class="entries">
 <article class="entry" id="entry-264" data-n="264">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-264-body">
@@ -4532,6 +4532,22 @@
 <p class="sub"><strong>What I checked</strong></p>
 <ul><li><code>check-seats-live</code> 34 of 34, with two new checks in the 4-seat Sidebar run: all three other boards are upright although my setting is &quot;Turned to face you&quot;, and with Bob large the column fits without scrolling (its last slot ends at 759 of 768). Screenshots show Bob's land upright at the bottom left and no scrollbar. <code>check-table-layout</code> 145.</li><li>Not done: running the new column check against the old code to see it fail (the scrollbar was seen in the screenshot before the fix).</li></ul>
 <p><strong>My AI's mistakes this time:</strong> the column's overflow was there since the Sidebar view was built (entry 254) and no check looked at the column's height.</p>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-268" data-n="268">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-268-body">
+    <span class="num">268</span>
+    <span class="head-text"><span class="title">A tidier Settings menu on the multiplayer table, and a home page without the blank cards</span><span class="sum">Fix up the settings menu in the multiplayer arrangement, and reorganise the home page (remove the weird blank cards).</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-268-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>Fix up the settings menu in the multiplayer arrangement, and reorganise the home page (remove the weird blank cards).</li></ul>
+<p class="sub"><strong>What changed</strong></p>
+<ul><li>Settings on the table page (<code>frontend/pages/table/index.html</code>): a new first tab, Game, holds what I do to the match: the Sideboard button, then Concede, End the match and Leave the table. General is four cards: Table (other players' boards and the two pile styles, with a short note that boards turn in Grid view only), Hand, Turns, Sound. The &quot;Other players&quot; choice was two radio buttons drawn far from their words; it is now a dropdown like the pile styles (<code>frontend/src/facing.js</code>, <code>#facing-pick</code>), and the dropdowns of a card are one width (<code>frontend/src/style.css</code>).</li><li>Home page (<code>frontend/pages/lobby/index.html</code>, <code>style.css</code>): the three coloured blank cards beside the title are gone (they were only decoration), and the title, the line under it and the three buttons are centred over the three feature cards. Play with friends is unchanged.</li></ul>
+<p class="sub"><strong>What I checked</strong></p>
+<ul><li>Screenshots of the home page and of both Settings tabs at 1366 by 768, before and after.</li><li><code>npm run test:quick</code> 84 suites, <code>check-settings-ui</code> 16, <code>check-lobby-ui</code> 66, <code>check-seats-live</code> 34 of 34 (its facing checks now use the dropdown), <code>check-lobby-deck-live</code> 193 of 193 (it uses Concede and End the match).</li></ul>
+<p><strong>My AI's mistakes this time:</strong> none found.</p>
   </div></div></div>
 </article>
 </div>

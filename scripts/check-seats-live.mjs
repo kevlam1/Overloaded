@@ -122,9 +122,9 @@ try {
     if (seats === 2) {
       const facing = () => alice.eval(`getComputedStyle(document.querySelector('#opponent-list .opponent .battlefield')).rotate`);
       record("Bob's battlefield is turned to face her by default", (await facing()) === '180deg', await facing());
-      await alice.eval(`document.getElementById('facing-upright').click()`);
+      await alice.eval(`(() => { const s = document.getElementById('facing-pick'); s.value = 'upright'; s.dispatchEvent(new Event('change')); })()`);
       record('...and upright when she chooses Upright in Settings (kept in her browser)', (await facing()) === 'none' && (await alice.eval(`localStorage.getItem('overloaded.facing')`)) === 'upright', await facing());
-      await alice.eval(`document.getElementById('facing-turned').click()`);
+      await alice.eval(`(() => { const s = document.getElementById('facing-pick'); s.value = 'turned'; s.dispatchEvent(new Event('change')); })()`);
       // Real mouse drags between her hand, her battlefield and her piles (Kevin, 2026-11-20: a card let go near the bottom of the battlefield went back into the hand, and a card let go on the graveyard landed on the board)
       const mouse = (type, x, y, buttons = 0) => alice.send('Input.dispatchMouseEvent', { type, x, y, button: type === 'mouseMoved' ? 'none' : 'left', buttons, clickCount: 1 });
       const drag = async (from, to) => { await mouse('mouseMoved', from.x, from.y); await sleep(60); await mouse('mousePressed', from.x, from.y, 1); for (let n = 1; n <= 12; n++) { await mouse('mouseMoved', from.x + ((to.x - from.x) * n) / 12, from.y + ((to.y - from.y) * n) / 12, 1); await sleep(16); } await mouse('mouseReleased', to.x, to.y); await sleep(700); };

@@ -142,27 +142,30 @@
       </div>
       <div class="settings-body">
         <div class="settings-tabs" role="tablist" aria-label="Settings sections" aria-orientation="vertical">
-          <button type="button" role="tab" id="tab-general" class="settings-tab" aria-controls="page-general" aria-selected="true" data-tab="general">General</button>
+          <button type="button" role="tab" id="tab-game" class="settings-tab" aria-controls="page-game" aria-selected="true" data-tab="game">Game</button>
+          <button type="button" role="tab" id="tab-general" class="settings-tab" aria-controls="page-general" aria-selected="false" tabindex="-1" data-tab="general">General</button>
           <button type="button" role="tab" id="tab-hand" class="settings-tab" aria-controls="page-hand" aria-selected="false" tabindex="-1" data-tab="hand">Hand sorting</button>
           <button type="button" role="tab" id="tab-keys" class="settings-tab" aria-controls="page-keys" aria-selected="false" tabindex="-1" data-tab="keys">Keybinds</button>
           <button type="button" role="tab" id="tab-about" class="settings-tab" aria-controls="page-about" aria-selected="false" tabindex="-1" data-tab="about">About</button>
         </div>
         <div class="settings-pages">
-          <div role="tabpanel" id="page-general" class="settings-page" aria-labelledby="tab-general">
+          <!-- Game: what you do to this match (Kevin, 2026-11-21: the settings menu of the multiplayer table, reorganised); General: how the table looks and sounds to you -->
+          <div role="tabpanel" id="page-game" class="settings-page" aria-labelledby="tab-game">
+            <section class="settings-card"><h3>Your cards</h3><div class="settings-row"><button id="pile-sideboard" type="button" class="secondary" data-zone="sideboard" aria-pressed="false">Sideboard: 0</button></div></section>
             <section class="settings-card"><h3>Match</h3>
               <div id="match-actions" class="settings-row" role="group" aria-label="The match" hidden>
                 <button id="concede" type="button" class="secondary">Concede</button>
                 <button id="end-match" type="button" class="secondary" hidden>End the match</button>
                 <button id="leave" type="button" class="secondary">Leave the table</button>
-            </div>
+              </div>
               <p id="save-state" class="hint" role="status" aria-live="polite"></p>
-          </section>
-            <section class="settings-card"><h3>Other players</h3><div id="facing-settings" class="sound-settings"></div><p class="hint">Grid view only. Sidebar is always upright.</p></section>
+            </section>
+          </div>
+          <div role="tabpanel" id="page-general" class="settings-page" aria-labelledby="tab-general" hidden>
+            <section class="settings-card"><h3>Table</h3><div id="facing-settings" class="sound-settings"></div><div id="pile-style-settings"></div><p class="hint">Other players' boards turn in Grid view only.</p></section>
             <section class="settings-card"><h3>Hand</h3><div id="hand-rest-settings"></div></section>
-            <section class="settings-card"><h3>Sound</h3><div id="sound-settings"></div></section>
-            <section class="settings-card"><h3>Piles</h3><div id="pile-style-settings"></div></section>
             <section class="settings-card"><h3>Turns</h3><div id="turn-clock-settings" class="sound-settings"></div></section>
-            <section class="settings-card"><h3>Sideboard</h3><div class="settings-row"><button id="pile-sideboard" type="button" class="secondary" data-zone="sideboard" aria-pressed="false">Sideboard: 0</button></div></section>
+            <section class="settings-card"><h3>Sound</h3><div id="sound-settings"></div></section>
           </div>
           <div role="tabpanel" id="page-hand" class="settings-page" aria-labelledby="tab-hand" hidden><div id="hand-order-settings"></div></div>
           <div role="tabpanel" id="page-keys" class="settings-page" aria-labelledby="tab-keys" hidden><div id="keybind-settings"></div></div>

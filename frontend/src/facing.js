@@ -10,20 +10,18 @@ export function mountFacing(host, { store = makeSafeStore(), body = document.bod
   let facing = readFacing(store.get(FACING_KEY));
   body.dataset.facing = facing;
   if (!host) return;
-  const group = document.createElement('div');
-  group.setAttribute('role', 'radiogroup');
-  group.setAttribute('aria-label', "Other players' boards");
+  // a dropdown like the pile styles beside it (Kevin, 2026-11-21: the two radio buttons were drawn apart from their words)
+  const label = document.createElement('label');
+  const select = document.createElement('select');
+  select.id = 'facing-pick';
   for (const [value, words] of FACINGS) {
-    const label = document.createElement('label');
-    const radio = document.createElement('input');
-    radio.type = 'radio';
-    radio.name = 'facing';
-    radio.value = value;
-    radio.id = `facing-${value}`;
-    radio.checked = value === facing;
-    radio.addEventListener('change', () => { if (!radio.checked) return; facing = value; store.set(FACING_KEY, value); body.dataset.facing = value; });
-    label.append(radio, ` ${words}`);
-    group.append(label);
+    const option = document.createElement('option');
+    option.value = value;
+    option.textContent = words;
+    option.selected = value === facing;
+    select.append(option);
   }
-  host.append(group);
+  select.addEventListener('change', () => { facing = readFacing(select.value); store.set(FACING_KEY, facing); body.dataset.facing = facing; });
+  label.append("Other players' boards ", select);
+  host.append(label);
 }

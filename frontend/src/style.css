@@ -1695,6 +1695,10 @@ body[data-screen] button.secondary { border-radius: 0.8rem; }
 body[data-screen="start"] #page-title { max-width: 42rem; margin: 0 0 0.9rem; font-size: clamp(2.3rem, 5.6vw, 3.7rem); line-height: 1.05; letter-spacing: -0.02em; background: linear-gradient(105deg, var(--text) 30%, color-mix(in srgb, var(--accent) 80%, var(--text))); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .hero .lede { max-width: 34rem; margin-bottom: 0; font-size: 1.2rem; }
 .hero-actions { margin: 1.6rem 0 2.2rem; }
+/* centred, now that the decorative blank cards at the right are gone (Kevin, 2026-11-21): the title, the line under it and the buttons over the three feature cards */
+body[data-screen="start"] #page-title { max-width: none; margin: 1.2rem auto 0.9rem; text-align: center; }
+body[data-screen="start"] .hero .lede { margin-inline: auto; text-align: center; }
+body[data-screen="start"] .hero-actions { justify-content: center; }
 .hero-actions .button-link.big { min-height: 3.5rem; border-radius: 1rem; background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 60%, #b46bff)); color: var(--accent-text); box-shadow: 0 0.7rem 1.6rem -0.7rem color-mix(in srgb, var(--accent) 80%, transparent); }
 .hero-actions .button-link.quiet { min-height: 3.5rem; display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 1rem; background: color-mix(in srgb, var(--card) 70%, transparent); color: var(--text); }
 .hero-actions .button-link.quiet:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--card)); }
@@ -1703,13 +1707,6 @@ body[data-screen="start"] #page-title { max-width: 42rem; margin: 0 0 0.9rem; fo
 .hero-points .point-icon { position: absolute; left: 1.1rem; top: 1.1rem; box-sizing: content-box; padding: 0.55rem; border-radius: 0.8rem; background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); }
 .friends-lede { margin: 2.6rem 0 1.1rem; padding-top: 0; border-top: 0; font-size: 1rem; }
 .friends-lede strong { display: block; margin-bottom: 0.15rem; color: var(--text); font-size: 1.5rem; letter-spacing: -0.01em; }
-.hero-art { position: absolute; top: 2rem; right: 1rem; width: 17rem; height: 14.5rem; pointer-events: none; }
-.hero-art .art-card { position: absolute; width: 8.4rem; aspect-ratio: 5 / 7; border-radius: 0.7rem; border: 1px solid color-mix(in srgb, #fff 22%, transparent); box-shadow: 0 1.4rem 2.4rem -1rem rgba(0, 0, 0, 0.7); }
-.hero-art .art-card::after { content: ""; position: absolute; inset: 0.55rem; border-radius: 0.4rem; border: 1px solid color-mix(in srgb, #fff 30%, transparent); background: linear-gradient(160deg, color-mix(in srgb, #fff 22%, transparent), transparent 55%); }
-.hero-art .art-a { left: 0.2rem; top: 2.1rem; rotate: -12deg; background: linear-gradient(150deg, #5b7dff, #7a3cd8); }
-.hero-art .art-b { left: 4.3rem; top: 0.2rem; rotate: 4deg; background: linear-gradient(150deg, #f6b73c, #e4572e); }
-.hero-art .art-c { left: 8.3rem; top: 2.4rem; rotate: 15deg; background: linear-gradient(150deg, #2ec4b6, #2b6cd9); }
-@media (max-width: 62rem) { .hero-art { display: none; } }
 
 /* start screen: the name, then make a table and join a table side by side */
 body[data-screen="start"] #who { margin-bottom: 1rem; }
@@ -1798,7 +1795,9 @@ body[data-screen="room"] section#table { padding: 0; border: 0; background: none
 .settings-menu .settings-card h3 { margin: 0 0 0.6rem; color: var(--muted); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
 .settings-menu .settings-card .sound-settings, .settings-menu .settings-card #pile-style-settings { display: flex; flex-direction: column; align-items: stretch; flex-wrap: nowrap; gap: 0.65rem; margin: 0; color: var(--text); font-size: 0.95rem; }
 .settings-menu .settings-card .sound-settings label, .settings-menu .settings-card #pile-style-settings label { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin: 0; font-weight: 500; }
-.settings-menu .settings-card select { width: auto; min-width: 9.5rem; min-height: 2.4rem; }
+.settings-menu .settings-card select { width: 11.5rem; min-width: 0; min-height: 2.4rem; } /* (one width, so the dropdowns of a card line up) */
+.settings-menu .settings-card #facing-settings + #pile-style-settings { margin-top: 0.65rem; }
+.settings-menu .settings-card .settings-row + .hint, .settings-menu .settings-card #pile-style-settings + .hint { margin: 0.6rem 0 0; }
 .settings-menu .settings-card label:has(input[type="checkbox"]) { justify-content: flex-start; gap: 0.6rem; }
 .settings-menu .settings-card input[type="checkbox"] { flex: none; width: 1.15rem; min-height: 0; height: 1.15rem; margin: 0; accent-color: var(--accent); }
 .settings-menu .settings-card .sound-settings input[type="range"] { width: 11rem; }

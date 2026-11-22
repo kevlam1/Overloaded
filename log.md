@@ -5286,6 +5286,21 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **My AI's mistakes this time:** the column's overflow was there since the Sidebar view was built (entry 254) and no check looked at the column's height.
 
+## 268. A tidier Settings menu on the multiplayer table, and a home page without the blank cards (2026-11-21)
+
+**What I asked for**
+- Fix up the settings menu in the multiplayer arrangement, and reorganise the home page (remove the weird blank cards).
+
+**What changed**
+- Settings on the table page (`frontend/pages/table/index.html`): a new first tab, Game, holds what I do to the match: the Sideboard button, then Concede, End the match and Leave the table. General is four cards: Table (other players' boards and the two pile styles, with a short note that boards turn in Grid view only), Hand, Turns, Sound. The "Other players" choice was two radio buttons drawn far from their words; it is now a dropdown like the pile styles (`frontend/src/facing.js`, `#facing-pick`), and the dropdowns of a card are one width (`frontend/src/style.css`).
+- Home page (`frontend/pages/lobby/index.html`, `style.css`): the three coloured blank cards beside the title are gone (they were only decoration), and the title, the line under it and the three buttons are centred over the three feature cards. Play with friends is unchanged.
+
+**What I checked**
+- Screenshots of the home page and of both Settings tabs at 1366 by 768, before and after.
+- `npm run test:quick` 84 suites, `check-settings-ui` 16, `check-lobby-ui` 66, `check-seats-live` 34 of 34 (its facing checks now use the dropdown), `check-lobby-deck-live` 193 of 193 (it uses Concede and End the match).
+
+**My AI's mistakes this time:** none found.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-20, entry 262) Claude said the cells were square because its numbers were, while the lines drawn on the board were not; I had to send a screenshot.
 - (2026-11-20, entry 261) Claude read "keep the grid" as "keep the board 112 by 50" when I meant "keep the cells square", and the board stayed small; I had to say it three times before it filled the area.
