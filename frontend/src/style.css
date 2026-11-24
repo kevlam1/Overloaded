@@ -2182,3 +2182,13 @@ body.playing.seats .pile-stack[data-empty="true"] .stack-layers::after,
 body.playing.seats :is(.cmd-slot.empty-slot, .opp-command:empty)::after { content: attr(data-short); position: absolute; inset: 0; display: grid; place-items: center; color: var(--text); opacity: 0.32; font-size: calc(var(--sw) * 0.24); font-weight: 700; letter-spacing: 0.04em; pointer-events: none; }
 body.playing.seats :is(.cmd-slot.empty-slot, .opp-command:empty) { position: relative; } /* (the slot's own ::before and ::after are its gold diamonds, so the word is on the slot) */
 body.playing.seats :is(.cmd-slot.empty-slot, .opp-command:empty)::after { content: "CMD"; }
+
+/* ---- 4 seats in Grid view (Kevin, 2026-11-23): a column on the left, like the player column of Sidebar view, for the tools: the stack shown open (frontend/src/stack-window.js pin) and the action
+   bar at its bottom (its default place is the bottom left corner; it can still be dragged anywhere). The seats move right to make room. body.tool-column is set by layoutSeats in table.js. ---- */
+body.playing.seats.tool-column { --tool-w: 16rem; }
+body.playing.seats.tool-column .seats-stage { left: var(--tool-w); }
+body.playing.seats.tool-column #game::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: var(--tool-w); border-right: 1px solid var(--line); background: color-mix(in srgb, var(--bg) 80%, #000); }
+body.playing.seats.tool-column .stack-window[data-pinned="true"] { --stack-w: calc(var(--tool-w) - 0.9rem); left: 0.45rem; top: 0.45rem; bottom: 6.2rem; transform: none; transition: none; }
+body.playing.seats.tool-column .stack-window[data-pinned="true"] .stack-tab { display: none; }
+body.playing.seats.tool-column .stack-window[data-pinned="true"] .stack-panel { border-left: 1px solid var(--line); border-radius: 0.6rem; box-shadow: none; }
+body.playing.seats.tool-column .actions-panel:not([data-vertical="true"]) { flex-wrap: wrap; max-width: calc(var(--tool-w) - 0.9rem); }

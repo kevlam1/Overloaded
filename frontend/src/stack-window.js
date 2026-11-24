@@ -217,8 +217,9 @@ export function mountStackWindow({ root, printedStats = () => null, say = () => 
     panel.inert = !open; // (hidden from the keyboard and screen readers while it is slid away)
     if (open && focus) (list.querySelector('.stack-item') ?? tab).focus({ preventScroll: true });
   }
-  tab.addEventListener('click', () => setOpen(!open));
-  root.addEventListener('keydown', (event) => { if (event.key === 'Escape' && open && !event.defaultPrevented) { event.preventDefault(); setOpen(false); tab.focus({ preventScroll: true }); } });
+  let pinned = false; // (the 4-seat table shows the stack in its left column: always open there, no tab)
+  tab.addEventListener('click', () => { if (!pinned) setOpen(!open); });
+  root.addEventListener('keydown', (event) => { if (event.key === 'Escape' && open && !pinned && !event.defaultPrevented) { event.preventDefault(); setOpen(false); tab.focus({ preventScroll: true }); } });
 
   function addNote(index) {
     try { const made = addText(stack, index, ''); focusId = made.id; focusText = true; stack = made.stack; draw(); } catch (error) { say(error.message, true); } // (an empty note is only stored once it has words: see the text box's blur)
@@ -428,6 +429,13 @@ export function mountStackWindow({ root, printedStats = () => null, say = () => 
   setOpen(false);
   draw();
   return {
+    // pin(true): always open, inside a column of the page (root gets data-pinned; the style sheet places it); pin(false): back to the tab that slides it out, closed.
+    pin(on) {
+      if (pinned === Boolean(on)) return;
+      pinned = Boolean(on);
+      root.dataset.pinned = String(pinned);
+      setOpen(pinned);
+    },
     // Puts a copy of the card on top of the stack and slides the window out so the player sees it.
     add(card) {
       try { const next = addCard(stack, card); say(`Stacked ${card.n}.`); setOpen(true); set(next); return true; } catch (error) { say(error.message, true); return false; }

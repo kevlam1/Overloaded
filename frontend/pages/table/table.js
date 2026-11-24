@@ -902,8 +902,13 @@ function layoutSeats() {
   if (docked) { if (hand.parentElement !== focusedArea) focusedArea.append(hand); } else if (hand.parentElement !== me) me.append(hand); // (docked: in the large area, where that player's own hand would be)
   hand.classList.toggle('docked', docked);
   $('seats-stage').classList.toggle('hand-docked', docked);
+  // 4 seats in Grid view (Kevin, 2026-11-23): a column on the left for the tools, the stack shown open in it and the action bar at its bottom (its default place, the bottom left corner)
+  const tools = !sidebar && document.body.dataset.seats === '4' && game !== null;
+  const toolsChanged = document.body.classList.contains('tool-column') !== tools;
+  document.body.classList.toggle('tool-column', tools);
+  stackWindow.pin(tools);
   const side = $('seats-side');
-  const columnChanged = side.hidden === sidebar;
+  const columnChanged = side.hidden === sidebar || toolsChanged;
   side.hidden = !sidebar;
   if (columnChanged) for (const bar of floatingBars) bar.relayout(); // (the floating bars keep out of the column: placed again when it comes or goes)
   if (!sidebar) { side.replaceChildren(); if (before.hand !== hand.parentElement) handView.arrange(); return; }

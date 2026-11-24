@@ -5348,6 +5348,17 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **My AI's mistakes this time:** it first put the CMD word on the slot's `::after`, which was already one of the slot's two gold diamonds, so the word came out turned and at the corner (seen in the screenshot); and it wrote a pseudo-element inside `:is()`, which makes the whole rule invalid, caught by reading it back before running.
 
+## 272. A tool column on the left of the 4-seat table (2026-11-23)
+
+**What I asked for**
+- For the 4-seat table in Grid view, a column of space on the left like Sidebar view's column, where the action bar starts and lives, and where the stack is shown.
+
+**What changed**
+- With 4 seats in Grid view the seats move right to make room for a 16rem column on the left (`body.tool-column`, set by `layoutSeats` in `frontend/pages/table/table.js`; styles at the end of `frontend/src/style.css`). The stack is shown open in it all the time, with no tab to slide it (`pin(on)` in `frontend/src/stack-window.js`: pinned, the tab is hidden and Escape does not close it), and the action bar sits at its bottom in two lines (the turn and clock above the three buttons). Its default place was already the bottom left corner, which is now inside the column; it can still be dragged anywhere, and a place I saved before is kept. 2 and 3 seats and Sidebar view are unchanged.
+
+**What I checked**
+- `check-seats-live` 35 of 35, and a screenshot from a throwaway copy of the check that plays 4 seats in Grid view: the column with the stack and the action bar, the four seats beside it, my hand no longer under the action bar. Not checked: adding a card to the pinned stack and an arrow from it, and switching between Grid and Sidebar in one match.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-23, entry 270) Claude reported the multiplayer table as passing its checks without saying how cramped the seats looked; I had to ask whether it really thought the 2, 3 and 4 seat tables looked good.
 - (2026-11-20, entry 262) Claude said the cells were square because its numbers were, while the lines drawn on the board were not; I had to send a screenshot.

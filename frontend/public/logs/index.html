@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.271</span></h1>
-    <p class="lede">271 entries, Oct 25 to Nov 23, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
+    <h1>Build log <span class="version">Version 0.272</span></h1>
+    <p class="lede">272 entries, Oct 25 to Nov 23, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
   </div>
 </header>
 
@@ -25,7 +25,7 @@
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
 <a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">56</span></a>
-<a class="week-link" href="#week-3" data-target="week-3"><span class="wl-name">Week 3</span><span class="wl-range">Nov 23 to Nov 29</span><span class="wl-count">2</span></a>
+<a class="week-link" href="#week-3" data-target="week-3"><span class="wl-name">Week 3</span><span class="wl-range">Nov 23 to Nov 29</span><span class="wl-count">3</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
 <a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">29 things friends asked for</span></a>
 <a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">29 open, 73 done</span></a>
@@ -4572,10 +4572,10 @@
 </div>
 </section>
 <section class="week collapsed" id="week-3" aria-labelledby="week-3-title">
-<h2 class="week-head" id="week-3-title"><button type="button" aria-expanded="false" aria-controls="week-3-days"><span class="wname">Week 3</span><span class="range">Nov 23 to Nov 29</span><span class="week-count">2 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-3-title"><button type="button" aria-expanded="false" aria-controls="week-3-days"><span class="wname">Week 3</span><span class="range">Nov 23 to Nov 29</span><span class="week-count">3 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-3-days">
 <div class="day">
-<h3 class="day-title">Monday 23 November <span class="day-count">2</span></h3>
+<h3 class="day-title">Monday 23 November <span class="day-count">3</span></h3>
 <div class="entries">
 <article class="entry" id="entry-270" data-n="270">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-270-body">
@@ -4607,6 +4607,21 @@
 <p class="sub"><strong>What I checked</strong></p>
 <ul><li><code>check-seats-live</code> 35 of 35, and screenshots at 3 seats: the empty piles of Bot 3 and mine read Lib, GY, Exile and CMD, and no pill shows; a second screenshot from a throwaway copy of the check with the pointer on my graveyard shows its GY pill and no other. <code>npm run test:quick</code> passed.</li></ul>
 <p><strong>My AI's mistakes this time:</strong> it first put the CMD word on the slot's <code>::after</code>, which was already one of the slot's two gold diamonds, so the word came out turned and at the corner (seen in the screenshot); and it wrote a pseudo-element inside <code>:is()</code>, which makes the whole rule invalid, caught by reading it back before running.</p>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-272" data-n="272">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-272-body">
+    <span class="num">272</span>
+    <span class="head-text"><span class="title">A tool column on the left of the 4-seat table</span><span class="sum">For the 4-seat table in Grid view, a column of space on the left like Sidebar view's column, where the action bar starts and lives, and where the stack is shown.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-272-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>For the 4-seat table in Grid view, a column of space on the left like Sidebar view's column, where the action bar starts and lives, and where the stack is shown.</li></ul>
+<p class="sub"><strong>What changed</strong></p>
+<ul><li>With 4 seats in Grid view the seats move right to make room for a 16rem column on the left (<code>body.tool-column</code>, set by <code>layoutSeats</code> in <code>frontend/pages/table/table.js</code>; styles at the end of <code>frontend/src/style.css</code>). The stack is shown open in it all the time, with no tab to slide it (<code>pin(on)</code> in <code>frontend/src/stack-window.js</code>: pinned, the tab is hidden and Escape does not close it), and the action bar sits at its bottom in two lines (the turn and clock above the three buttons). Its default place was already the bottom left corner, which is now inside the column; it can still be dragged anywhere, and a place I saved before is kept. 2 and 3 seats and Sidebar view are unchanged.</li></ul>
+<p class="sub"><strong>What I checked</strong></p>
+<ul><li><code>check-seats-live</code> 35 of 35, and a screenshot from a throwaway copy of the check that plays 4 seats in Grid view: the column with the stack and the action bar, the four seats beside it, my hand no longer under the action bar. Not checked: adding a card to the pinned stack and an arrow from it, and switching between Grid and Sidebar in one match.</li></ul>
   </div></div></div>
 </article>
 </div>
