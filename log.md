@@ -5404,6 +5404,22 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 **What I checked**
 - `check-seats-live` 36 of 36, and the 3-seat screenshot: the stack with the action bar under it on the left, the game history across the whole right space.
 
+## 276. A Players tool: everyone's life, commanders and counters in one dock (2026-11-24)
+
+**What I asked for**
+- Move player health and such into its own dock: names, their commander(s), and the things that matter like poison, monarch and so on.
+
+**What changed**
+- A new tool, Players (`frontend/src/players-panel.js`), docked like the stack, history and action bar (`frontend/src/tool-dock.js`; 2 and 4 seats: at the top of the left column; 3 seats: at the top of the right space, above the history). One row per player in turn order from me: the name, the life, the commander(s) with the tax when there is one, and their counter chips (poison, energy, experience, commander damage, and the marks if they are ever set). Whoever's turn it is has a gold border. My own row holds my real life controls (minus, plus, the counters arrow and my chips), moved out of my seat. While the tool is on the table (Grid view) the life boxes leave the seats, which keep only the name. Sidebar view is unchanged: its column already shows names and life.
+- The docks now remember which tools I dragged out on purpose (`float`), so a tool that is new to the page, like this one, goes to its default dock in a layout saved before it existed instead of floating somewhere.
+- **Monarch and the other marks:** the live table still only stores poison, energy and experience (`PUBLISHED_COUNTERS`): the published rules refuse any other counter, and they are written inside the game's own save, so allowing them before the rules change would break saves. The panel shows them as soon as they can be set.
+
+**What I checked**
+- `check-seats-live` 36 of 36 with screenshots of 2 and 3 seats (the panel in its dock, my life controls in my row, the commanders under each name); `check-lobby-deck-live` 193 of 193 (two of its checks were brought up to date: a land's cell on the 30-row grid, and the commander tax now shown); `check-table-layout` 145, `check-solo-ui` 471, `npm run test:quick` 84 suites.
+- Not checked: dragging the Players tool out of its dock and back, and counter chips of another player in the panel (no other player had counters in the checks).
+
+**My AI's mistakes this time:** it first moved my life controls into my row before that row was on the page, so for a moment they were nowhere on the page and the next layout crashed (caught by `check-lobby-deck-live`'s "no page errors"); and it named the new drawing function the same as an existing one (caught by the syntax check).
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-23, entry 273) I said "commit and push after every big change" and meant every big prompt; Claude pushed after each of three changes.
 - (2026-11-23, entry 270) Claude reported the multiplayer table as passing its checks without saying how cramped the seats looked; I had to ask whether it really thought the 2, 3 and 4 seat tables looked good.

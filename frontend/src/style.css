@@ -2220,3 +2220,26 @@ body.playing.seats .cmd-slot { position: relative; }
 body.playing.seats .cmd-slot .tax { position: absolute; z-index: 3; top: -0.3rem; right: -0.25rem; height: auto; margin: 0; padding: 0; }
 body.playing.seats .cmd-slot .tax[hidden] { display: none; }
 body.playing.seats .cmd-slot .tax-words { min-width: 1.1rem; min-height: 0; height: 1.1rem; padding: 0 0.3rem; border: 1px solid color-mix(in srgb, var(--gold, #d9b45f) 70%, transparent); border-radius: 0.8rem; background: rgba(20, 20, 26, 0.92); color: var(--gold, #d9b45f); font-size: 0.66rem; font-weight: 700; line-height: 1; }
+
+/* ---- the Players tool (Kevin, 2026-11-23; frontend/src/players-panel.js): every player's name, life, commanders and counters, in a dock or floating; your row holds your life controls.
+   While it is on the table (Grid view, body.players-on), the life boxes leave the seats. ---- */
+body.playing.seats .players-panel { position: absolute; top: 0; left: 0; z-index: 12; width: 15rem; overflow: hidden; border: 1px solid var(--line); border-radius: 0.7rem; background: var(--card); color: var(--text); box-shadow: 0 0.5rem 1.2rem rgba(0, 0, 0, 0.35); }
+body.playing.seats .players-panel[hidden] { display: none; }
+body.playing.seats .players-panel.dragging { border-color: var(--ring); }
+body.playing.seats .tool-dock > .players-panel.tool-docked { width: 100%; box-shadow: none; }
+.players-head { display: flex; align-items: center; height: 1.7rem; padding: 0 0.7rem; color: var(--muted); font-size: 0.8rem; font-weight: 700; cursor: grab; user-select: none; }
+.players-head:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
+.players-panel.dragging .players-head { cursor: grabbing; }
+.players-list { display: flex; flex-direction: column; gap: 0.3rem; margin: 0; padding: 0 0.4rem 0.4rem; list-style: none; }
+.pp-row { padding: 0.3rem 0.5rem; border: 1px solid var(--line); border-radius: 0.5rem; background: color-mix(in srgb, var(--bg) 85%, #000); }
+.pp-row.active { border-color: var(--gold, #d9b45f); box-shadow: inset 0 0 0 1px var(--gold, #d9b45f); }
+.pp-top { display: flex; align-items: center; justify-content: space-between; gap: 0.4rem; min-height: 1.8rem; }
+.pp-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.85rem; font-weight: 700; }
+.pp-life { flex: none; font-size: 1.25rem; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.pp-cmd { margin-top: 0.1rem; color: var(--muted); font-size: 0.72rem; line-height: 1.3; }
+.pp-chips { margin-top: 0.25rem; flex-wrap: wrap; }
+.pp-cmd[hidden], .pp-chips[hidden] { display: none; }
+.pp-life-slot { display: flex; justify-content: flex-end; min-width: 0; }
+body.playing.seats .pp-life-slot #life-area { flex-wrap: wrap; justify-content: flex-end; height: auto; padding: 0; border: 0; background: none; box-shadow: none; }
+body.playing.seats .pp-life-slot #life-area .counter-chips { flex-wrap: wrap; flex-basis: 100%; justify-content: flex-end; }
+body.playing.seats.players-on .opp-life-box { display: none; }

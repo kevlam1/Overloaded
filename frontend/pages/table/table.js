@@ -16,7 +16,7 @@ import { keybinds } from '../../src/keybinds.js';
 import { mountKeybindSettings } from '../../src/keybind-settings.js';
 import { mountPileStack } from '../../src/pile-stack.js';
 import { mountCommandZone, drawEmblemCounts } from '../../src/command-zone.js';
-import { taxAction, COMMANDER_TAX_PUBLISHED, TAX_PER_CAST } from '../../../shared/commander-zone.mjs';
+import { taxAction, taxEntries, COMMANDER_TAX_PUBLISHED, TAX_PER_CAST } from '../../../shared/commander-zone.mjs';
 import { pileMenuItems, pileAction } from '../../../shared/pile-menu.mjs';
 import { mountCardHover } from '../../src/card-hover.js';
 import { mountBoardDrag } from '../../src/board-drag.js';
@@ -39,6 +39,7 @@ import { mountFloatingBar } from '../../src/floating-bar.js';
 import { mountHistoryBar } from '../../src/history-bar.js';
 import { mountStackWindow } from '../../src/stack-window.js';
 import { createToolDocks } from '../../src/tool-dock.js';
+import { mountPlayersPanel } from '../../src/players-panel.js';
 import { packStack, readStack } from '../../../shared/stack-sync.mjs';
 import { describeMove, makeEntry, slotFor as logSlotFor, lastK, mergeHistory } from '../../../shared/live-history.mjs';
 import { drawPause } from '../../../shared/draw-pace.mjs';
@@ -100,6 +101,8 @@ function renderMatchState() {
     : 'The match has not started, or the host ended it. Go back to the lobby to get ready.';
 }
 
+let playersPanel = null; // the Players tool (mounted further down, with the other tools)
+const lifeArea = $('life-area'); // (held by reference: it moves between your seat and the Players tool)
 function renderPlayers() {
   const list = $('players');
   list.replaceChildren();
@@ -244,6 +247,7 @@ function renderCounters() {
   if (!game) return;
   lifeChips.update(chipEntries(game.pc, game.cd, commanderDamageSeatsFor(members, game.cd, meta?.format)));
   if (counterPanel.isOpen()) counterPanel.update();
+  renderPlayersPanel();
 }
 
 function render() {
@@ -927,6 +931,14 @@ function layoutSeats() {
   document.body.classList.toggle('tool-column', toolMode === 'column');
   document.body.classList.toggle('tool-split', toolMode === 'split');
   toolDocks.layout(toolMode);
+  // the Players tool is on the table in Grid view: your life controls move into it, and the life boxes leave the seats (body.players-on)
+  const playersOn = toolMode !== 'none';
+  $('players-panel').hidden = !playersOn;
+  document.body.classList.toggle('players-on', playersOn);
+  renderPlayersPanel(); // (first: your row, and the slot your life controls go into, must be on the page before they move there, or the page loses them)
+  const myHead = $('my-name').parentElement;
+  if (playersOn && playersPanel.mineSlot.isConnected) { if (lifeArea.parentElement !== playersPanel.mineSlot) playersPanel.mineSlot.append(lifeArea); }
+  else if (lifeArea.parentElement !== myHead) myHead.prepend(lifeArea);
   const side = $('seats-side');
   const columnChanged = side.hidden === sidebar || toolsChanged;
   side.hidden = !sidebar;
@@ -1233,11 +1245,28 @@ const settings = mountSettingsMenu({ button: $('settings-button'), panel: $('set
 // the docks are made before the tools are mounted (each floating tool asks them where a drag lands); the stack window is pinned by them, once it exists
 let stackWindowRef = null;
 const toolDocks = createToolDocks({
-  elements: { stack: $('stack-window'), history: $('history-bar'), bar: document.querySelector('.actions-panel') },
+  elements: { players: $('players-panel'), stack: $('stack-window'), history: $('history-bar'), bar: document.querySelector('.actions-panel') },
   stackWindow: { pin: (on) => stackWindowRef?.pin(on) },
   onFloat: () => { for (const bar of floatingBars) bar.relayout(); },
   store,
 });
+playersPanel = mountPlayersPanel({ root: $('players-panel'), store, room: columnRoom, docking: toolDocks.dockingFor('players') });
+floatingBars.push(playersPanel);
+// The Players tool (Kevin, 2026-11-23): every player's name, life, commanders and counters in one panel, in turn order from you; your own row holds your life controls.
+function renderPlayersPanel() {
+  if (!playersPanel || $('players-panel').hidden || !myUid) return;
+  const turnNow = game !== null ? currentTurnInfo() : null;
+  const rows = [];
+  if (members[myUid]) rows.push({ uid: myUid, mine: true, name: members[myUid].name, active: turnNow?.uid === myUid, commanders: game ? taxEntries(game).map((entry) => ({ name: entry.name, tax: entry.tax })) : [] });
+  for (const uid of othersInOrder()) {
+    const member = members[uid]; const view = opponents.get(uid)?.view;
+    if (!member || !view) continue;
+    const named = new Map(view.zones.command.map((card) => [card.uid, card.n])); // their commanders: the cards in their command zone, and any card out with a commander tax
+    for (const zone of ['battlefield', 'graveyard', 'exile']) for (const card of view.zones[zone]) if (view.tax[card.uid] && !named.has(card.uid)) named.set(card.uid, card.n);
+    rows.push({ uid, name: member.name, life: view.life, active: turnNow?.uid === uid, commanders: [...named].map(([uid2, name]) => ({ name, tax: (view.tax[uid2] ?? 0) * TAX_PER_CAST })), chips: chipEntries(view.pc, view.cd, commanderDamageSeatsFor(members, view.cd, meta?.format)) });
+  }
+  playersPanel.update(rows);
+}
 const historyBar = mountHistoryBar({ root: $('history-bar'), store, key: 'overloaded.seatsHistoryBar', room: columnRoom, docking: toolDocks.dockingFor('history') });
 floatingBars.push(historyBar);
 noteMessage = (message, options) => { if (document.body.classList.contains('playing')) historyBar.note(message, options); }; // (outside a game the line itself shows)

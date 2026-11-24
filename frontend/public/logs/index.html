@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.275</span></h1>
-    <p class="lede">275 entries, Oct 25 to Nov 23, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
+    <h1>Build log <span class="version">Version 0.276</span></h1>
+    <p class="lede">276 entries, Oct 25 to Nov 24, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
   </div>
 </header>
 
@@ -25,7 +25,7 @@
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
 <a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">56</span></a>
-<a class="week-link" href="#week-3" data-target="week-3"><span class="wl-name">Week 3</span><span class="wl-range">Nov 23 to Nov 29</span><span class="wl-count">6</span></a>
+<a class="week-link" href="#week-3" data-target="week-3"><span class="wl-name">Week 3</span><span class="wl-range">Nov 23 to Nov 29</span><span class="wl-count">7</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
 <a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">29 things friends asked for</span></a>
 <a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">29 open, 73 done</span></a>
@@ -4572,7 +4572,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-3" aria-labelledby="week-3-title">
-<h2 class="week-head" id="week-3-title"><button type="button" aria-expanded="false" aria-controls="week-3-days"><span class="wname">Week 3</span><span class="range">Nov 23 to Nov 29</span><span class="week-count">6 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-3-title"><button type="button" aria-expanded="false" aria-controls="week-3-days"><span class="wname">Week 3</span><span class="range">Nov 23 to Nov 29</span><span class="week-count">7 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-3-days">
 <div class="day">
 <h3 class="day-title">Monday 23 November <span class="day-count">6</span></h3>
@@ -4669,6 +4669,27 @@
 <ul><li>The default for 3 seats is the stack and then the action bar in the left space, and the game history alone in the right one (<code>DEFAULTS</code> in <code>frontend/src/tool-dock.js</code>). A layout I already saved by dragging keeps winning over the default.</li><li>A docked history fills its dock's width: the 13rem of a floating history panel was more specific than the docked rule, so the docked rule now is too (<code>frontend/src/style.css</code>).</li></ul>
 <p class="sub"><strong>What I checked</strong></p>
 <ul><li><code>check-seats-live</code> 36 of 36, and the 3-seat screenshot: the stack with the action bar under it on the left, the game history across the whole right space.</li></ul>
+  </div></div></div>
+</article>
+</div>
+</div>
+<div class="day">
+<h3 class="day-title">Tuesday 24 November <span class="day-count">1</span></h3>
+<div class="entries">
+<article class="entry" id="entry-276" data-n="276">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-276-body">
+    <span class="num">276</span>
+    <span class="head-text"><span class="title">A Players tool: everyone's life, commanders and counters in one dock</span><span class="sum">Move player health and such into its own dock: names, their commander(s), and the things that matter like poison, monarch and so on.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-276-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>Move player health and such into its own dock: names, their commander(s), and the things that matter like poison, monarch and so on.</li></ul>
+<p class="sub"><strong>What changed</strong></p>
+<ul><li>A new tool, Players (<code>frontend/src/players-panel.js</code>), docked like the stack, history and action bar (<code>frontend/src/tool-dock.js</code>; 2 and 4 seats: at the top of the left column; 3 seats: at the top of the right space, above the history). One row per player in turn order from me: the name, the life, the commander(s) with the tax when there is one, and their counter chips (poison, energy, experience, commander damage, and the marks if they are ever set). Whoever's turn it is has a gold border. My own row holds my real life controls (minus, plus, the counters arrow and my chips), moved out of my seat. While the tool is on the table (Grid view) the life boxes leave the seats, which keep only the name. Sidebar view is unchanged: its column already shows names and life.</li><li>The docks now remember which tools I dragged out on purpose (<code>float</code>), so a tool that is new to the page, like this one, goes to its default dock in a layout saved before it existed instead of floating somewhere.</li><li><strong>Monarch and the other marks:</strong> the live table still only stores poison, energy and experience (<code>PUBLISHED_COUNTERS</code>): the published rules refuse any other counter, and they are written inside the game's own save, so allowing them before the rules change would break saves. The panel shows them as soon as they can be set.</li></ul>
+<p class="sub"><strong>What I checked</strong></p>
+<ul><li><code>check-seats-live</code> 36 of 36 with screenshots of 2 and 3 seats (the panel in its dock, my life controls in my row, the commanders under each name); <code>check-lobby-deck-live</code> 193 of 193 (two of its checks were brought up to date: a land's cell on the 30-row grid, and the commander tax now shown); <code>check-table-layout</code> 145, <code>check-solo-ui</code> 471, <code>npm run test:quick</code> 84 suites.</li><li>Not checked: dragging the Players tool out of its dock and back, and counter chips of another player in the panel (no other player had counters in the checks).</li></ul>
+<p><strong>My AI's mistakes this time:</strong> it first moved my life controls into my row before that row was on the page, so for a moment they were nowhere on the page and the next layout crashed (caught by <code>check-lobby-deck-live</code>'s &quot;no page errors&quot;); and it named the new drawing function the same as an existing one (caught by the syntax check).</p>
   </div></div></div>
 </article>
 </div>

@@ -4,11 +4,12 @@
 // view: every tool floats and the stack has its tab again). Which tools are in which dock, in which order, is kept in the browser for each layout.
 // A floating tool (src/floating-bar.js) asks this module, through dockingFor(name), where a drag would land: over a dock, a line shows the place, and letting go docks it there; anywhere else it floats.
 
-const TOOLS = ['stack', 'history', 'bar'];
+const TOOLS = ['players', 'stack', 'history', 'bar'];
 const DOCKS = { column: ['left'], split: ['left', 'right'], none: [] };
-const DEFAULTS = { column: { left: ['stack', 'history', 'bar'] }, split: { left: ['stack', 'bar'], right: ['history'] } }; // (3 seats: the action bar under the stack, Kevin 2026-11-23)
+const DEFAULTS = { column: { left: ['players', 'stack', 'history', 'bar'] }, split: { left: ['stack', 'bar'], right: ['players', 'history'] } }; // (3 seats: the action bar under the stack, Kevin 2026-11-23)
 
-// A stored layout, read strictly: only known docks and tools, each tool once, and the stack always docked (it has no grip of its own). Anything else gives the default.
+// A stored layout, read strictly: only known docks and tools, each tool once, and the stack always docked (it has no grip of its own). Anything else gives the default. `float` lists the tools
+// the player dragged out on purpose; a tool in no list (one added to the page after the layout was saved) goes where the default puts it.
 export function readDockLayout(mode, raw) {
   const fallback = DEFAULTS[mode] ? structuredClone(DEFAULTS[mode]) : {};
   if (!DOCKS[mode] || DOCKS[mode].length === 0) return {};
@@ -19,7 +20,15 @@ export function readDockLayout(mode, raw) {
     const list = Array.isArray(raw[dock]) ? raw[dock] : [];
     out[dock] = list.filter((tool) => TOOLS.includes(tool) && !seen.has(tool) && seen.add(tool));
   }
-  if (!seen.has('stack')) out[DOCKS[mode][0]].unshift('stack');
+  out.float = (Array.isArray(raw.float) ? raw.float : []).filter((tool) => TOOLS.includes(tool) && tool !== 'stack' && !seen.has(tool) && seen.add(tool));
+  if (!seen.has('stack')) { out[DOCKS[mode][0]].unshift('stack'); seen.add('stack'); }
+  for (const tool of TOOLS) {
+    if (seen.has(tool)) continue;
+    const dock = DOCKS[mode].find((name) => fallback[name]?.includes(tool)) ?? DOCKS[mode][0];
+    const after = (fallback[dock] ?? []).slice(0, (fallback[dock] ?? []).indexOf(tool)); // (in its default place among the tools that are there)
+    const index = out[dock].reduce((at, name, i) => (after.includes(name) ? i + 1 : at), 0);
+    out[dock].splice(index, 0, tool);
+  }
   return out;
 }
 
@@ -59,7 +68,7 @@ export function createToolDocks({ elements, stackWindow, onFloat = () => {}, sto
         if (dock.children[index] !== element) dock.insertBefore(element, dock.children[index] ?? null);
       });
     }
-    const docked = new Set(Object.values(lists).flat());
+    const docked = new Set(Object.entries(lists).filter(([dock]) => dock !== 'float').flatMap(([, list]) => list));
     for (const name of TOOLS) if (!docked.has(name) && elements[name].classList.contains('tool-docked')) { goHome(name); if (name !== 'stack') onFloat(name); }
     stackWindow.pin(docked.has('stack'));
   }
@@ -106,6 +115,7 @@ export function createToolDocks({ elements, stackWindow, onFloat = () => {}, sto
         // the drag starts: the tool leaves its dock (the others close up) and floats where it was
         lift() {
           for (const dock of Object.keys(lists)) lists[dock] = lists[dock].filter((tool) => tool !== name);
+          lists.float = [...(lists.float ?? []), name]; // (floating on purpose, until it is dropped on a dock)
           goHome(name);
         },
         over: (x, y) => over(name, x, y),
@@ -114,6 +124,7 @@ export function createToolDocks({ elements, stackWindow, onFloat = () => {}, sto
         drop(plan) {
           line.hidden = true;
           if (plan) {
+            lists.float = (lists.float ?? []).filter((tool) => tool !== name);
             const list = (lists[plan.dock] ?? []).filter((tool) => tool !== name);
             list.splice(Math.min(plan.index, list.length), 0, name);
             lists[plan.dock] = list;
