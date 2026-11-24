@@ -5392,6 +5392,18 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **My AI's mistakes this time:** it changed the number of rows in entry 273 without reading what `setBoardSize` accepts, and no check dragged a card by a known number of cells, so the broken drops went out in that push.
 
+## 275. 3 seats: the action bar under the stack, and a full-width history (2026-11-23)
+
+**What I asked for**
+- In 3 seats, by default, the action bar below the stack, and the game history the full width of its dock when it is docked.
+
+**What changed**
+- The default for 3 seats is the stack and then the action bar in the left space, and the game history alone in the right one (`DEFAULTS` in `frontend/src/tool-dock.js`). A layout I already saved by dragging keeps winning over the default.
+- A docked history fills its dock's width: the 13rem of a floating history panel was more specific than the docked rule, so the docked rule now is too (`frontend/src/style.css`).
+
+**What I checked**
+- `check-seats-live` 36 of 36, and the 3-seat screenshot: the stack with the action bar under it on the left, the game history across the whole right space.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-23, entry 273) I said "commit and push after every big change" and meant every big prompt; Claude pushed after each of three changes.
 - (2026-11-23, entry 270) Claude reported the multiplayer table as passing its checks without saying how cramped the seats looked; I had to ask whether it really thought the 2, 3 and 4 seat tables looked good.

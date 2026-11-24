@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.274</span></h1>
-    <p class="lede">274 entries, Oct 25 to Nov 23, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
+    <h1>Build log <span class="version">Version 0.275</span></h1>
+    <p class="lede">275 entries, Oct 25 to Nov 23, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
   </div>
 </header>
 
@@ -25,7 +25,7 @@
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
 <a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">56</span></a>
-<a class="week-link" href="#week-3" data-target="week-3"><span class="wl-name">Week 3</span><span class="wl-range">Nov 23 to Nov 29</span><span class="wl-count">5</span></a>
+<a class="week-link" href="#week-3" data-target="week-3"><span class="wl-name">Week 3</span><span class="wl-range">Nov 23 to Nov 29</span><span class="wl-count">6</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
 <a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">29 things friends asked for</span></a>
 <a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">29 open, 73 done</span></a>
@@ -4572,10 +4572,10 @@
 </div>
 </section>
 <section class="week collapsed" id="week-3" aria-labelledby="week-3-title">
-<h2 class="week-head" id="week-3-title"><button type="button" aria-expanded="false" aria-controls="week-3-days"><span class="wname">Week 3</span><span class="range">Nov 23 to Nov 29</span><span class="week-count">5 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-3-title"><button type="button" aria-expanded="false" aria-controls="week-3-days"><span class="wname">Week 3</span><span class="range">Nov 23 to Nov 29</span><span class="week-count">6 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-3-days">
 <div class="day">
-<h3 class="day-title">Monday 23 November <span class="day-count">5</span></h3>
+<h3 class="day-title">Monday 23 November <span class="day-count">6</span></h3>
 <div class="entries">
 <article class="entry" id="entry-270" data-n="270">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-270-body">
@@ -4654,6 +4654,21 @@
 <p class="sub"><strong>What I checked</strong></p>
 <ul><li>A throwaway probe in a real browser first measured the bug (5 cells right gave +5 columns, 3 down gave +5 rows, and the drop outline showed the same wrong row). After the fix, a new check in <code>check-seats-live</code>: a card dragged 5 cells right and 3 down lands 5 columns right and 3 rows down (36 of 36). <code>check-table-layout</code> 145 of 145 (now expecting 30 rows), <code>npm run test:quick</code> 84 suites.</li></ul>
 <p><strong>My AI's mistakes this time:</strong> it changed the number of rows in entry 273 without reading what <code>setBoardSize</code> accepts, and no check dragged a card by a known number of cells, so the broken drops went out in that push.</p>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-275" data-n="275">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-275-body">
+    <span class="num">275</span>
+    <span class="head-text"><span class="title">3 seats: the action bar under the stack, and a full-width history</span><span class="sum">In 3 seats, by default, the action bar below the stack, and the game history the full width of its dock when it is docked.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-275-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>In 3 seats, by default, the action bar below the stack, and the game history the full width of its dock when it is docked.</li></ul>
+<p class="sub"><strong>What changed</strong></p>
+<ul><li>The default for 3 seats is the stack and then the action bar in the left space, and the game history alone in the right one (<code>DEFAULTS</code> in <code>frontend/src/tool-dock.js</code>). A layout I already saved by dragging keeps winning over the default.</li><li>A docked history fills its dock's width: the 13rem of a floating history panel was more specific than the docked rule, so the docked rule now is too (<code>frontend/src/style.css</code>).</li></ul>
+<p class="sub"><strong>What I checked</strong></p>
+<ul><li><code>check-seats-live</code> 36 of 36, and the 3-seat screenshot: the stack with the action bar under it on the left, the game history across the whole right space.</li></ul>
   </div></div></div>
 </article>
 </div>

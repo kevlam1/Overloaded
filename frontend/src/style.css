@@ -2201,7 +2201,7 @@ body.playing.seats.tool-split .tool-dock[data-dock="right"] { right: 0.3rem; }
 .tool-dock > .stack-window.tool-docked .stack-tab { display: none; }
 .tool-dock > .stack-window.tool-docked .stack-panel { width: 100%; border-left: 1px solid var(--line); border-radius: 0.6rem; box-shadow: none; }
 .tool-dock > .actions-panel.tool-docked { flex-wrap: wrap; justify-content: flex-start; }
-.tool-dock > .history-panel.tool-docked { width: 100%; }
+body.playing.seats .tool-dock > .history-panel.tool-docked { width: 100%; } /* (as specific as the 13rem of a floating history panel, and later, so it wins: the whole width of the dock) */
 .tool-dock > .history-panel.tool-docked .history-list { max-height: min(16rem, 40vh); }
 .dock-drop-line { position: absolute; z-index: 2; left: 0.45rem; right: 0.45rem; height: 3px; border-radius: 2px; background: var(--accent); box-shadow: 0 0 0.5rem var(--accent); pointer-events: none; }
 .dock-drop-line[hidden] { display: none; }

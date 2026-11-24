@@ -6,7 +6,7 @@
 
 const TOOLS = ['stack', 'history', 'bar'];
 const DOCKS = { column: ['left'], split: ['left', 'right'], none: [] };
-const DEFAULTS = { column: { left: ['stack', 'history', 'bar'] }, split: { left: ['stack'], right: ['history', 'bar'] } };
+const DEFAULTS = { column: { left: ['stack', 'history', 'bar'] }, split: { left: ['stack', 'bar'], right: ['history'] } }; // (3 seats: the action bar under the stack, Kevin 2026-11-23)
 
 // A stored layout, read strictly: only known docks and tools, each tool once, and the stack always docked (it has no grip of its own). Anything else gives the default.
 export function readDockLayout(mode, raw) {
