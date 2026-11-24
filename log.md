@@ -5334,6 +5334,20 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **My AI's mistakes this time:** after the first change it reported "35 of 35 passed" and said nothing about how cramped the 2, 3 and 4 seat tables looked; the checks test where things are, not whether they look right, and it had not opened the 2-seat screenshot at all. Widening the boards also put the menu button and the game history bar over the top-right board, which it had not foreseen.
 
+## 271. Pile pills on hover, and empty piles say what they are (2026-11-23)
+
+**What I asked for**
+- On every seat, hovering over a zone pops up its menu pill, and while a zone is empty it just says GY, Exile and so on in its middle, at a low opacity.
+
+**What changed**
+- On the multiplayer table, the menu pill of my library, graveyard and exile, the CMD pill, and the names under other players' piles are hidden until the pointer is on that zone or the keyboard is in it (a menu that is open keeps its pill). They fade in and rise a little, with no motion under reduced motion. Their room is kept, so nothing moves when they appear. The solo table is unchanged.
+- An empty pile shows its short name (Lib, GY, Exile) faintly in its middle (`frontend/src/pile-stack.js` puts it on the pile as `data-short`), and an empty command slot shows CMD the same way.
+
+**What I checked**
+- `check-seats-live` 35 of 35, and screenshots at 3 seats: the empty piles of Bot 3 and mine read Lib, GY, Exile and CMD, and no pill shows; a second screenshot from a throwaway copy of the check with the pointer on my graveyard shows its GY pill and no other. `npm run test:quick` passed.
+
+**My AI's mistakes this time:** it first put the CMD word on the slot's `::after`, which was already one of the slot's two gold diamonds, so the word came out turned and at the corner (seen in the screenshot); and it wrote a pseudo-element inside `:is()`, which makes the whole rule invalid, caught by reading it back before running.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-23, entry 270) Claude reported the multiplayer table as passing its checks without saying how cramped the seats looked; I had to ask whether it really thought the 2, 3 and 4 seat tables looked good.
 - (2026-11-20, entry 262) Claude said the cells were square because its numbers were, while the lines drawn on the board were not; I had to send a screenshot.

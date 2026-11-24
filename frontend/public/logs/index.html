@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.270</span></h1>
-    <p class="lede">270 entries, Oct 25 to Nov 23, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
+    <h1>Build log <span class="version">Version 0.271</span></h1>
+    <p class="lede">271 entries, Oct 25 to Nov 23, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
   </div>
 </header>
 
@@ -25,7 +25,7 @@
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
 <a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">56</span></a>
-<a class="week-link" href="#week-3" data-target="week-3"><span class="wl-name">Week 3</span><span class="wl-range">Nov 23 to Nov 29</span><span class="wl-count">1</span></a>
+<a class="week-link" href="#week-3" data-target="week-3"><span class="wl-name">Week 3</span><span class="wl-range">Nov 23 to Nov 29</span><span class="wl-count">2</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
 <a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">29 things friends asked for</span></a>
 <a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">29 open, 73 done</span></a>
@@ -4572,10 +4572,10 @@
 </div>
 </section>
 <section class="week collapsed" id="week-3" aria-labelledby="week-3-title">
-<h2 class="week-head" id="week-3-title"><button type="button" aria-expanded="false" aria-controls="week-3-days"><span class="wname">Week 3</span><span class="range">Nov 23 to Nov 29</span><span class="week-count">1 entry</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-3-title"><button type="button" aria-expanded="false" aria-controls="week-3-days"><span class="wname">Week 3</span><span class="range">Nov 23 to Nov 29</span><span class="week-count">2 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-3-days">
 <div class="day">
-<h3 class="day-title">Monday 23 November <span class="day-count">1</span></h3>
+<h3 class="day-title">Monday 23 November <span class="day-count">2</span></h3>
 <div class="entries">
 <article class="entry" id="entry-270" data-n="270">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-270-body">
@@ -4591,6 +4591,22 @@
 <p class="sub"><strong>What I checked</strong></p>
 <ul><li><code>check-seats-live</code> 35 of 35 against the real project, three times. I looked at the screenshots of 2 and 3 seats in Grid view, 4 in Sidebar view, and 4 in Grid view (from a throwaway copy of the check, since the real one plays 4 seats only in Sidebar view): the bots' areas show the empty grid, every board reaches both sides, and the grid meets the border. In 3 seats a board went from about 425 to 663 px wide and lost about 35 px of height. Desktop width only.</li></ul>
 <p><strong>My AI's mistakes this time:</strong> after the first change it reported &quot;35 of 35 passed&quot; and said nothing about how cramped the 2, 3 and 4 seat tables looked; the checks test where things are, not whether they look right, and it had not opened the 2-seat screenshot at all. Widening the boards also put the menu button and the game history bar over the top-right board, which it had not foreseen.</p>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-271" data-n="271">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-271-body">
+    <span class="num">271</span>
+    <span class="head-text"><span class="title">Pile pills on hover, and empty piles say what they are</span><span class="sum">On every seat, hovering over a zone pops up its menu pill, and while a zone is empty it just says GY, Exile and so on in its middle, at a low opacity.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-271-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>On every seat, hovering over a zone pops up its menu pill, and while a zone is empty it just says GY, Exile and so on in its middle, at a low opacity.</li></ul>
+<p class="sub"><strong>What changed</strong></p>
+<ul><li>On the multiplayer table, the menu pill of my library, graveyard and exile, the CMD pill, and the names under other players' piles are hidden until the pointer is on that zone or the keyboard is in it (a menu that is open keeps its pill). They fade in and rise a little, with no motion under reduced motion. Their room is kept, so nothing moves when they appear. The solo table is unchanged.</li><li>An empty pile shows its short name (Lib, GY, Exile) faintly in its middle (<code>frontend/src/pile-stack.js</code> puts it on the pile as <code>data-short</code>), and an empty command slot shows CMD the same way.</li></ul>
+<p class="sub"><strong>What I checked</strong></p>
+<ul><li><code>check-seats-live</code> 35 of 35, and screenshots at 3 seats: the empty piles of Bot 3 and mine read Lib, GY, Exile and CMD, and no pill shows; a second screenshot from a throwaway copy of the check with the pointer on my graveyard shows its GY pill and no other. <code>npm run test:quick</code> passed.</li></ul>
+<p><strong>My AI's mistakes this time:</strong> it first put the CMD word on the slot's <code>::after</code>, which was already one of the slot's two gold diamonds, so the word came out turned and at the corner (seen in the screenshot); and it wrote a pseudo-element inside <code>:is()</code>, which makes the whole rule invalid, caught by reading it back before running.</p>
   </div></div></div>
 </article>
 </div>

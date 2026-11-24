@@ -2169,3 +2169,16 @@ body.playing.seats #spotlight:not([data-mode="ping"]) { display: none; } /* (onl
 .counter-panel .cp-row.lethal .cp-count { background: #b3261e; color: #fff; }
 .counter-panel .cp-row.lethal .cp-label::after { content: " (lethal)"; color: #ff8a80; font-weight: 700; }
 .counter-panel .cp-empty { margin: 0; color: var(--muted); }
+
+/* ---- the multiplayer table's piles (Kevin, 2026-11-23): the menu pill of a pile (and the CMD pill, and the names under another player's piles) shows only while the pointer is on that zone or
+   the keyboard is in it; its room is kept, so nothing moves. An EMPTY pile or command slot says what it is, faintly, in its middle. ---- */
+body.playing.seats :is(.pile-head, .command-zone h3, .opp-zone-label) { opacity: 0; translate: 0 0.25rem; transition: opacity 0.15s, translate 0.15s; }
+body.playing.seats :is(.pile-slot, .command-zone, .opp-command-zone):is(:hover, :focus-within) :is(.pile-head, h3, .opp-zone-label),
+body.playing.seats .pile-head:has(.pile-caret[aria-expanded="true"]) { opacity: 1; translate: 0 0; }
+body.playing.seats .opp-pile::after { opacity: 0; transition: opacity 0.15s; }
+body.playing.seats .opp-pile:is(:hover, :focus-visible)::after { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { body.playing.seats :is(.pile-head, .command-zone h3, .opp-zone-label) { transition: none; translate: none; } body.playing.seats .opp-pile::after { transition: none; } }
+body.playing.seats .pile-stack[data-empty="true"] .stack-layers::after,
+body.playing.seats :is(.cmd-slot.empty-slot, .opp-command:empty)::after { content: attr(data-short); position: absolute; inset: 0; display: grid; place-items: center; color: var(--text); opacity: 0.32; font-size: calc(var(--sw) * 0.24); font-weight: 700; letter-spacing: 0.04em; pointer-events: none; }
+body.playing.seats :is(.cmd-slot.empty-slot, .opp-command:empty) { position: relative; } /* (the slot's own ::before and ::after are its gold diamonds, so the word is on the slot) */
+body.playing.seats :is(.cmd-slot.empty-slot, .opp-command:empty)::after { content: "CMD"; }
