@@ -5319,7 +5319,23 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **My AI's mistakes this time:** its first try measured the pills from the wrong box (their place in the layout is measured from the nearest positioned parent, which was not the row), so nothing moved and the carried pill was drawn 300 px from the pointer; and it again put a `//` comment at the end of a code line, which swallowed the rest of that line (caught by the syntax check).
 
+## 270. Bots get a blank board, and every battlefield fills its seat edge to edge (2026-11-23)
+
+**What I asked for**
+- Show the grid battlefield for bots too, even though they have no deck, so I can test the multiplayer table without real accounts (maybe give them blank decks). Then make the grid expand fully from left to right in every seat, and get rid of the gap between the seat's border and the grid's own edge, which I did not like.
+
+**What changed**
+- A player with no game for this match (a bot, or someone still loading) is drawn as a blank game on the table page: starting life (40 in Commander, 20 otherwise), an empty battlefield grid, empty piles and "Hand 0", instead of "Has not been dealt a game yet." (`renderOpponents` in `frontend/pages/table/table.js`; the area gets `data-blank`). Nothing is written to the database: bots still have no real game.
+- Every seat's battlefield now runs the whole width of its area, over the row of piles, and stops just above the taller of the resting hand and that row (the rule Sidebar view's large area already had, now for every seat; the separate Sidebar rule is gone). Before, it stopped before the piles and left a strip about a third of the area wide empty above them. The hand still stops before the piles.
+- The battlefield is flush with the seat's border on the top, left and right (`--bw: 100cqw`, `--bl: 0`, `top: 0`), and the grid's own outline is gone; one faint line under the grid marks where the hand and piles begin. One edge instead of two with a gap.
+
+**What I checked**
+- `check-seats-live` 35 of 35 against the real project, three times. I looked at the screenshots of 2 and 3 seats in Grid view, 4 in Sidebar view, and 4 in Grid view (from a throwaway copy of the check, since the real one plays 4 seats only in Sidebar view): the bots' areas show the empty grid, every board reaches both sides, and the grid meets the border. In 3 seats a board went from about 425 to 663 px wide and lost about 35 px of height. Desktop width only.
+
+**My AI's mistakes this time:** after the first change it reported "35 of 35 passed" and said nothing about how cramped the 2, 3 and 4 seat tables looked; the checks test where things are, not whether they look right, and it had not opened the 2-seat screenshot at all. Widening the boards also put the menu button and the game history bar over the top-right board, which it had not foreseen.
+
 ## Where AI misread me, or I had to correct course
+- (2026-11-23, entry 270) Claude reported the multiplayer table as passing its checks without saying how cramped the seats looked; I had to ask whether it really thought the 2, 3 and 4 seat tables looked good.
 - (2026-11-20, entry 262) Claude said the cells were square because its numbers were, while the lines drawn on the board were not; I had to send a screenshot.
 - (2026-11-20, entry 261) Claude read "keep the grid" as "keep the board 112 by 50" when I meant "keep the cells square", and the board stayed small; I had to say it three times before it filled the area.
 - (2026-11-20, entry 260) Claude kept Auto-arrange on the table page's bar after I had it removed from the solo table.

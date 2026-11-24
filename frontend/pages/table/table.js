@@ -780,19 +780,22 @@ async function renderOpponents() {
     panel.section.classList.toggle('active', theirTurn);
     if (theirTurn) panel.title.append(make('span', 'turn-mark', 'their turn'));
     // A public branch left over from an earlier match does not count: this match's game is the one with this match's number.
-    const view = publicAll[uid]?.match === meta.match ? readPublic(publicAll[uid], known) : null;
+    // A player with no game for this match (a test bot, or someone still loading) is drawn as a BLANK game: starting life, an empty battlefield grid, empty piles (Kevin, 2026-11-23: so the
+    // grid of every seat can be seen and tested with bots). Nothing is written: it is only how this page draws them.
+    const dealt = publicAll[uid]?.match === meta.match ? readPublic(publicAll[uid], known) : null;
+    const view = dealt ?? readPublic({ life: meta?.format === 'commander' ? 40 : 20 }, known);
     panel.view = view;
     panel.name = member.name;
-    panel.waiting.hidden = view !== null;
-    panel.body.hidden = view === null;
-    panel.stats.hidden = view === null;
-    panel.life.hidden = view === null;
-    if (!view) panel.countersBox.hidden = true;
-    if (view) {
+    panel.section.toggleAttribute('data-blank', dealt === null);
+    panel.waiting.hidden = true;
+    panel.body.hidden = false;
+    panel.stats.hidden = false;
+    panel.life.hidden = false;
+    {
       panel.countersBox.hidden = !panel.counterList.update(chipEntries(view.pc, view.cd, commanderDamageSeatsFor(members, view.cd, meta?.format)));
       panel.life.textContent = String(view.life);
       panel.life.setAttribute('aria-label', `Life ${view.life}`);
-      panel.stats.textContent = `Hand ${view.counts.hand} · Library ${view.counts.library}`;
+      panel.stats.textContent = dealt ? `Hand ${view.counts.hand} · Library ${view.counts.library}` : 'No game yet';
       panel.section.dataset.life = String(view.life);
       const theirCols = fitBoard(panel.board).cols; // (their board on my screen: as many columns as it holds here; a card stored further right than that is drawn at its right edge)
       const cells = placeAll(view.zones.battlefield, isLandCard);

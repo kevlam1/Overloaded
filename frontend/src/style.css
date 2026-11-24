@@ -2004,22 +2004,18 @@ body.playing.seats .seat-area {
   --zgap: 0.35rem;
   --Z: calc(5 * (var(--sw) + 0.5rem) + 4 * var(--zgap) + 2 * var(--pad)); /* the width of the piles at the bottom right: library, graveyard, exile and the command zone in ONE row (Kevin, 2026-11-20, second time) */
   --hh: clamp(7rem, 44cqh, 16rem); /* the box of the hand (its cards are 2.8 rem less, and rest half below the bottom edge: frontend/src/hand-view.js); larger since 2026-11-20 (Kevin) */
-  /* the battlefield (Kevin, 2026-11-20): ALL the room from the far left to just before the piles, and from the top to just above the resting hand, with SQUARE cells. The grid has 40 rows (cards one size
-     up from the solo table's 50) and as many columns as that room holds (frontend/pages/table/table.js fitBoard, shared/board-grid.mjs setBoardSize: --cols on the battlefield) */
-  --bw: calc(100cqw - var(--Z) - var(--pad) - 0.4rem);
-  --bh: calc(100cqh - 0.5 * (var(--hh) - 2.8rem) - 2 * var(--pad));
-  --bl: var(--pad);
-  --hw: var(--bw); /* the hand's width: under the battlefield */
+  /* the battlefield (Kevin, 2026-11-23: "the grid should expand fully from right to left"): the WHOLE width of the area, over the row of piles, and from the top to just above the taller of the resting
+     hand and that row, with SQUARE cells (it stopped before the piles, which left a strip a third of the area wide empty above them). The grid has 40 rows and as many columns as that room holds
+     (frontend/pages/table/table.js fitBoard, shared/board-grid.mjs setBoardSize: --cols on the battlefield). The hand still stops before the piles. */
+  --pile-h: calc(var(--sw) * 1.4015 + 1.9rem); /* a pile: its name above, the picture, the count's room */
+  --bw: 100cqw; /* flush with the border of the area on three sides: one edge, not the border and then the grid's own outline with a gap between (Kevin, 2026-11-23) */
+  --bh: calc(100cqh - max(0.5 * (var(--hh) - 2.8rem), var(--pile-h) + var(--pad)) - var(--pad));
+  --bl: 0px;
+  --hw: calc(100cqw - var(--Z) - var(--pad) - 0.4rem); /* the hand's width: from the left to just before the piles */
   position: relative; container-type: size; min-width: 0; min-height: 0; margin: 0; padding: 0; overflow: hidden;
   border: 1px solid var(--line); border-radius: 0.6rem; background: color-mix(in srgb, var(--bg) 92%, #000); box-shadow: none; }
 /* another player's row has one place in the command zone for each commander (yours always has two slots): one commander or none, four piles wide */
 body.playing.seats .opponent.seat-area:not(:has(.opp-command > .card:nth-child(2))) { --Z: calc(4 * (var(--sw) + 0.5rem) + 3 * var(--zgap) + 2 * var(--pad)); }
-/* Sidebar view (Kevin, 2026-11-20): the large area's battlefield reaches its right edge too, over the row of piles; it stops above the taller of the resting hand and that row. The hand still stops before the piles. */
-body.playing.seats[data-view="sidebar"] .seat-area.focused {
-  --pile-h: calc(var(--sw) * 1.4015 + 1.9rem); /* a pile: its name above, the picture, the count's room */
-  --bw: calc(100cqw - 2 * var(--pad));
-  --bh: calc(100cqh - max(0.5 * (var(--hh) - 2.8rem), var(--pile-h) + var(--pad)) - 2 * var(--pad));
-  --hw: calc(100cqw - var(--Z) - var(--pad) - 0.4rem); }
 body.playing.seats .seat-area.active { border-color: var(--gold, #d9b45f); box-shadow: inset 0 0 0 1px var(--gold, #d9b45f), 0 0 0.9rem color-mix(in srgb, var(--gold, #d9b45f) 35%, transparent); } /* whose turn it is */
 /* the head: life at the left, the name in the middle, the news (yours) at the right */
 body.playing.seats .seat-head { position: absolute; z-index: 6; top: 0; left: 0; right: 0; height: var(--T); display: flex; align-items: center; gap: 0.5rem; padding: 0 var(--pad); pointer-events: none; }
@@ -2075,7 +2071,7 @@ body.playing.seats .topbar > * { max-width: 100%; margin: 0; overflow: hidden; t
 body.playing.seats .topbar > :empty { display: none; }
 
 /* the battlefield: as large as fits (--bw), from the top of the area, its right edge just before the piles (the life and the name sit over its top) */
-body.playing.seats #my-board, body.playing.seats .opp-field { position: absolute; z-index: 1; inset: auto; top: var(--pad); left: var(--bl); translate: none; width: var(--bw); height: var(--bh); min-height: 0; max-height: none; margin: 0; padding: 0; display: block; overflow: visible; border: 0; background: none; }
+body.playing.seats #my-board, body.playing.seats .opp-field { position: absolute; z-index: 1; inset: auto; top: 0; left: var(--bl); translate: none; width: var(--bw); height: var(--bh); min-height: 0; max-height: none; margin: 0; padding: 0; display: block; overflow: visible; border: 0; background: none; }
 body.playing.seats #my-board > .battlefield, body.playing.seats .opp-field > .battlefield { display: grid; width: 100%; height: 100%; max-width: none; max-height: none; aspect-ratio: auto; margin: 0; }
 /* the outline of the place a carried card would go is the card's own shape, from the left and bottom of its block, like the cards (the block may be wider than the card) */
 /* the grid of a battlefield on the table: 40 rows and --cols columns (as many whole square cells as the width holds, so a column is at most 1/cols wider than a row is tall), a card a quarter of the board's height */
@@ -2083,7 +2079,7 @@ body.playing.seats :is(#my-board, .opp-field) > .battlefield { --rows: 40; grid-
   background-size: calc(100% / var(--cols, 112)) calc(100% / var(--rows)), calc(100% / var(--cols, 112)) calc(100% / var(--rows)); } /* (the lines of the cells follow THIS grid: the solo table's are drawn for 112 by 50) */
 body.playing.seats .battlefield > .cell-highlight { justify-self: start; align-self: end; width: var(--card-w); height: var(--card-ph); }
 body.playing.seats .battlefield > .cell-highlight[data-tapped] { width: var(--card-ph); height: var(--card-w); }
-body.playing.seats .opp-field > .battlefield { outline: 1px solid color-mix(in srgb, var(--text) 25%, transparent); }
+body.playing.seats :is(#my-board, .opp-field) > .battlefield { outline: 0; box-shadow: 0 1px 0 color-mix(in srgb, var(--text) 22%, transparent); } /* (one faint line under the grid, where the hand and the piles begin) */
 body[data-facing="turned"].playing.seats:not([data-view="sidebar"]) .opp-field > .battlefield { rotate: 180deg; } /* as if they sat across from you: their lands along the far edge (Grid view only: in Sidebar view every board is upright, Kevin 2026-11-21) */
 
 /* the piles at the bottom right, small (Alt shows any card large): library, graveyard, exile and the command zone in one row */
