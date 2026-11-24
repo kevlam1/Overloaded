@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.273</span></h1>
-    <p class="lede">273 entries, Oct 25 to Nov 23, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
+    <h1>Build log <span class="version">Version 0.274</span></h1>
+    <p class="lede">274 entries, Oct 25 to Nov 23, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
   </div>
 </header>
 
@@ -25,7 +25,7 @@
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
 <a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">56</span></a>
-<a class="week-link" href="#week-3" data-target="week-3"><span class="wl-name">Week 3</span><span class="wl-range">Nov 23 to Nov 29</span><span class="wl-count">4</span></a>
+<a class="week-link" href="#week-3" data-target="week-3"><span class="wl-name">Week 3</span><span class="wl-range">Nov 23 to Nov 29</span><span class="wl-count">5</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
 <a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">29 things friends asked for</span></a>
 <a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">29 open, 73 done</span></a>
@@ -4572,10 +4572,10 @@
 </div>
 </section>
 <section class="week collapsed" id="week-3" aria-labelledby="week-3-title">
-<h2 class="week-head" id="week-3-title"><button type="button" aria-expanded="false" aria-controls="week-3-days"><span class="wname">Week 3</span><span class="range">Nov 23 to Nov 29</span><span class="week-count">4 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-3-title"><button type="button" aria-expanded="false" aria-controls="week-3-days"><span class="wname">Week 3</span><span class="range">Nov 23 to Nov 29</span><span class="week-count">5 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-3-days">
 <div class="day">
-<h3 class="day-title">Monday 23 November <span class="day-count">4</span></h3>
+<h3 class="day-title">Monday 23 November <span class="day-count">5</span></h3>
 <div class="entries">
 <article class="entry" id="entry-270" data-n="270">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-270-body">
@@ -4638,6 +4638,22 @@
 <p class="sub"><strong>What I checked</strong></p>
 <ul><li><code>check-seats-live</code> 35 of 35 against the real project; a throwaway copy that plays 3 and 4 seats in Grid view and drags the action bar out of its dock onto the table and back in above the stack: the docks held the right tools after each step, and I looked at the screenshots of both layouts.</li><li><code>check-table-layout</code> 145 of 145 (it had been failing 16 since entry 270, which I had not run; its checks were brought up to the full-width board and 32 rows), the rule tests in the emulator (2,397 game rule checks with 8 new ones for <code>tax</code>, 578 rule checks), <code>npm run test:quick</code> (84 suites, with 3 new tax checks in <code>test-game-sync</code>), <code>check-solo-ui</code> 471, <code>check-stack-ui</code> 26, <code>check-history-and-select-ui</code> 28, <code>check-settings-ui</code> 18.</li><li>Not checked: the blur fix (I could not see sub-pixel blur in a headless screenshot, so it is a likely cause, not a proven one), a tax seen by another player (needs the rules pasted), dragging the history window into a dock, and a dock at other window sizes.</li></ul>
 <p><strong>My AI's mistakes this time:</strong> it had not run <code>check-table-layout</code> after entry 270, so that check was failing for a whole round; and the tax counter it turned on first was a row above my command slot, which pushed the slot down and the piles up into the battlefield (caught by <code>check-seats-live</code>).</p>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-274" data-n="274">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-274-body">
+    <span class="num">274</span>
+    <span class="head-text"><span class="title">Grid snapping fixed: the table is 30 rows</span><span class="sum">Fix the grid snapping.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-274-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>Fix the grid snapping.</li></ul>
+<p class="sub"><strong>What changed</strong></p>
+<ul><li>In entry 273 the table's grid went to 32 rows. <code>setBoardSize</code> (<code>shared/board-grid.mjs</code>) only takes a whole number of card heights (a card is 10 rows), so it quietly refused 32 and the drag kept working out cells for the old 50 rows while 32 were drawn: a card moved 3 cells down landed 5 rows down, past the bottom, and was drawn clamped at the edge. The grid is now 30 rows (<code>TABLE_ROWS</code> in <code>frontend/pages/table/table.js</code>, <code>--rows</code> in the style sheet), still one size up from 40, and the comment says why it must be a multiple of 10.</li></ul>
+<p class="sub"><strong>What I checked</strong></p>
+<ul><li>A throwaway probe in a real browser first measured the bug (5 cells right gave +5 columns, 3 down gave +5 rows, and the drop outline showed the same wrong row). After the fix, a new check in <code>check-seats-live</code>: a card dragged 5 cells right and 3 down lands 5 columns right and 3 rows down (36 of 36). <code>check-table-layout</code> 145 of 145 (now expecting 30 rows), <code>npm run test:quick</code> 84 suites.</li></ul>
+<p><strong>My AI's mistakes this time:</strong> it changed the number of rows in entry 273 without reading what <code>setBoardSize</code> accepts, and no check dragged a card by a known number of cells, so the broken drops went out in that push.</p>
   </div></div></div>
 </article>
 </div>

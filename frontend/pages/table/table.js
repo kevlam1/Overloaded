@@ -837,7 +837,7 @@ async function renderOpponents() {
 
 // ---- the size of a battlefield's grid (Kevin, 2026-11-20): it fills its room from the far left to the piles with SQUARE cells, 40 rows (cards one size up from the solo table's 50) and as many columns as
 // the room holds. My own board sets the grid used to place and drop my cards (shared/board-grid.mjs setBoardSize); another player's board only sets how many columns it is drawn with. ----
-const TABLE_ROWS = 32; // (40 until 2026-11-23, when Kevin asked for the cards one size up again: 50 on the solo table, then 40, then 32)
+const TABLE_ROWS = 30; // (40 until 2026-11-23, when Kevin asked for the cards one size up again: 50 on the solo table, then 40, then 30. It must be a whole number of card heights, 10 rows: setBoardSize refuses anything else and the drag would then work in the old size, as 32 did)
 setBoardSize({ cols: 112, rows: TABLE_ROWS });
 function fitBoard(element, mine = false) {
   const width = element?.clientWidth ?? 0; const height = element?.clientHeight ?? 0; // (the size in the layout: a small copy in the Sidebar column is the same size, only scaled)

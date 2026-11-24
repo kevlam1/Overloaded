@@ -145,6 +145,14 @@ try {
       await drag(await centre('#pile-graveyard'), { x: field.left + Math.round(field.width / 2), y: field.top + Math.round(field.height / 2) });
       const back = await counts();
       record('the top card of her graveyard dragged onto the battlefield comes back', back.grave === buried.grave - 1 && back.field === buried.field + 1, JSON.stringify(back));
+      { // a card dragged by 5 cells right and 3 down lands 5 columns right and 3 rows down (Kevin, 2026-11-23: the drag worked in 50 rows while 32 were drawn, so drops landed too low)
+        const cellOf = () => alice.eval(`(() => { const c = document.querySelector('#battlefield > .card[data-uid="${placed}"]'); return c ? { col: Number(c.style.gridColumnStart), row: Number(c.style.gridRowStart) } : null; })()`);
+        const step = await alice.eval(`(() => { const b = document.getElementById('battlefield'); const r = b.getBoundingClientRect(); return { cw: r.width / Number(b.style.getPropertyValue('--cols')), ch: r.height / Number(getComputedStyle(b).getPropertyValue('--rows')) }; })()`);
+        const was = await cellOf(); const from = await centre(`#battlefield > .card[data-uid="${placed}"]`);
+        await drag(from, { x: Math.round(from.x + 5 * step.cw), y: Math.round(from.y + 3 * step.ch) });
+        const now = await cellOf();
+        record('a card dragged 5 cells right and 3 down on her battlefield lands 5 columns right and 3 rows down', Boolean(was && now) && now.col - was.col === 5 && now.row - was.row === 3, JSON.stringify({ was, now }));
+      }
       const handCard = await handPoint('#hand > .card');
       await drag(await centre(`#battlefield > .card[data-uid="${placed}"]`), { x: handCard.x, y: myArea.bottom - 12 });
       const returned = await counts();

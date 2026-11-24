@@ -5379,6 +5379,19 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **My AI's mistakes this time:** it had not run `check-table-layout` after entry 270, so that check was failing for a whole round; and the tax counter it turned on first was a row above my command slot, which pushed the slot down and the piles up into the battlefield (caught by `check-seats-live`).
 
+## 274. Grid snapping fixed: the table is 30 rows (2026-11-23)
+
+**What I asked for**
+- Fix the grid snapping.
+
+**What changed**
+- In entry 273 the table's grid went to 32 rows. `setBoardSize` (`shared/board-grid.mjs`) only takes a whole number of card heights (a card is 10 rows), so it quietly refused 32 and the drag kept working out cells for the old 50 rows while 32 were drawn: a card moved 3 cells down landed 5 rows down, past the bottom, and was drawn clamped at the edge. The grid is now 30 rows (`TABLE_ROWS` in `frontend/pages/table/table.js`, `--rows` in the style sheet), still one size up from 40, and the comment says why it must be a multiple of 10.
+
+**What I checked**
+- A throwaway probe in a real browser first measured the bug (5 cells right gave +5 columns, 3 down gave +5 rows, and the drop outline showed the same wrong row). After the fix, a new check in `check-seats-live`: a card dragged 5 cells right and 3 down lands 5 columns right and 3 rows down (36 of 36). `check-table-layout` 145 of 145 (now expecting 30 rows), `npm run test:quick` 84 suites.
+
+**My AI's mistakes this time:** it changed the number of rows in entry 273 without reading what `setBoardSize` accepts, and no check dragged a card by a known number of cells, so the broken drops went out in that push.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-23, entry 273) I said "commit and push after every big change" and meant every big prompt; Claude pushed after each of three changes.
 - (2026-11-23, entry 270) Claude reported the multiplayer table as passing its checks without saying how cramped the seats looked; I had to ask whether it really thought the 2, 3 and 4 seat tables looked good.
