@@ -13,7 +13,7 @@ const MAX_MESSAGES = 100;
 // root: an empty <section> that floats (position: absolute in the full-screen table). store: a safe store (get, set).
 // key: where its place is kept. set(entries) replaces the whole list (the live table: everyone's moves, merged from the database); entries are { turn, text, mine? }.
 // note(text, { error }) adds a line to Messages. room: passed on to the floating bar (the pixels kept free at the right); relayout() places it again after that changes.
-export function mountHistoryBar({ root, store, key = 'overloaded.historyBar', room = null }) {
+export function mountHistoryBar({ root, store, key = 'overloaded.historyBar', room = null, docking = null }) {
   let history = [];
   let messages = []; // { text, error }
   let open = store?.get(OPEN_KEY) === '1';
@@ -82,7 +82,7 @@ export function mountHistoryBar({ root, store, key = 'overloaded.historyBar', ro
     if (open) shown().scrollTop = shown().scrollHeight;
   }
   head.addEventListener('click', () => setOpen(!open));
-  const floating = mountFloatingBar({ bar: root, grip: head, store, key, defaultPlace: { dock: 'right', fx: 1, fy: 0.14 }, growDown: true, flush: true, clickThrough: true, room });
+  const floating = mountFloatingBar({ bar: root, grip: head, store, key, defaultPlace: { dock: 'right', fx: 1, fy: 0.14 }, growDown: true, flush: true, clickThrough: true, room, docking });
   showTab(tab);
   setOpen(open);
   draw();

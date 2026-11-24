@@ -21,7 +21,7 @@ export function mountPileStack(button, { zone, label }) {
   const face = make('span', 'stack-face');
   const layers = make('span', 'stack-layers');
   layers.setAttribute('aria-hidden', 'true');
-  layers.dataset.short = { library: 'Lib', graveyard: 'GY', exile: 'Exile' }[zone] ?? label; // (the multiplayer table writes it faintly in the middle of an empty pile)
+  layers.dataset.short = { library: 'Library', graveyard: 'GY', exile: 'Exile' }[zone] ?? label; // (the multiplayer table writes it faintly in the middle of an empty pile)
   layers.append(make('span', 'stack-layer'), make('span', 'stack-layer'), face);
   const words = make('span', 'sr-only', '');
   button.replaceChildren(layers, words);

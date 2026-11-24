@@ -58,6 +58,13 @@ const validCounters = (value) => {
 const cleanCounts = (value, allowed) => Object.fromEntries(Object.entries(value && typeof value === 'object' && !Array.isArray(value) ? value : {})
   .filter(([key, count]) => allowed.includes(key) && Number.isInteger(count) && count >= 1 && count <= (PLAYER_FLAGS.includes(key) ? 1 : MAX_COUNT)));
 
+// The commander tax (Kevin, 2026-11-23): how many times each commander was cast, keyed by the card's uid, stored at public/{uid}/tax as its OWN write (so a database whose rules do not know it yet
+// refuses only that write, never the rest of a move). cleanTax keeps only card uids with whole counts 1 to MAX_TAX; taxToStore gives what to write (null for none).
+export const MAX_TAX = 99;
+export const cleanTax = (value) => Object.fromEntries(Object.entries(value && typeof value === 'object' && !Array.isArray(value) ? value : {})
+  .filter(([key, count]) => /^c[1-9][0-9]{0,5}$/.test(key) && Number.isInteger(count) && count >= 1 && count <= MAX_TAX));
+export function taxToStore(game) { const tax = cleanTax(game?.tax); return Object.keys(tax).length ? tax : null; }
+
 // One stored card back to a game card, or null if it is not a card. lookup({ i, n }) gives { t, m, k } (what the card list
 // knows) or null; a card the list does not know still plays, it just has no type.
 export function unpackCard(raw, lookup = () => null) {
@@ -150,6 +157,11 @@ export function splitGame(game) {
 
 // The two stored branches (as read from the database, either may be missing) back to one game. Returns null when there is no
 // public branch (nothing was ever saved). Used when a player comes back to their table: they get their own game back.
+// The commanders are not stored: they are the cards in the command zone now, then any card with a stored commander tax (a commander out on the battlefield), at most two.
+function commandersOf(zones, tax) {
+  const all = new Set(ZONES.flatMap((zone) => zones[zone].map((card) => card.uid)));
+  return [...new Set([...zones.command.map((card) => card.uid), ...Object.keys(tax).filter((uid) => all.has(uid))])].slice(0, 2);
+}
 export function joinGame(storedPublic, storedPrivate, lookup) {
   if (!storedPublic || typeof storedPublic !== 'object') return null;
   const zones = Object.fromEntries(ZONES.map((zone) => [zone, []]));
@@ -163,10 +175,11 @@ export function joinGame(storedPublic, storedPrivate, lookup) {
     turn: whole(storedPublic.turn, 1, MAX_TURN) ? storedPublic.turn : 1,
     mulligans: whole(storedPublic.mulligans, 0, 1000) ? storedPublic.mulligans : 0,
     nextUid,
-    ...(zones.command.length ? { cmd: zones.command.slice(0, 2).map((card) => card.uid) } : {}), // the commanders are not stored yet (the commander tax is not on the live table), so they are the cards in the command zone now
+    ...(commandersOf(zones, cleanTax(storedPublic.tax)).length ? { cmd: commandersOf(zones, cleanTax(storedPublic.tax)) } : {}),
     ...(Object.keys(cleanCounts(storedPublic.pc, PLAYER_COUNTERS)).length ? { pc: cleanCounts(storedPublic.pc, PLAYER_COUNTERS) } : {}),
     ...(Object.keys(cleanCounts(storedPublic.cd, COMMANDER_SEATS)).length ? { cd: cleanCounts(storedPublic.cd, COMMANDER_SEATS) } : {}),
     ...(validPass(storedPublic.pass) ? { pass: validPass(storedPublic.pass) } : {}),
+    ...(Object.keys(cleanTax(storedPublic.tax)).length ? { tax: cleanTax(storedPublic.tax) } : {}),
   };
 }
 
@@ -181,6 +194,7 @@ export function readPublic(stored, lookup) {
     counts: Object.fromEntries(PRIVATE_ZONES.map((zone) => [zone, count(stored.counts?.[zone])])),
     pc: cleanCounts(stored.pc, PLAYER_COUNTERS), // always an object; only valid kinds with whole counts from 1 to the number limit survive
     cd: cleanCounts(stored.cd, COMMANDER_SEATS),
+    tax: cleanTax(stored.tax), // always an object: commander card uid -> casts
     pass: validPass(stored.pass), // the newest of these across the table is whose turn it is (shared/turn-order.mjs), or null
     zones: Object.fromEntries(PUBLIC_ZONES.map((zone) => [zone, readCards(stored[zone], lookup)])),
   };

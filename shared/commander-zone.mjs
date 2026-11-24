@@ -8,7 +8,7 @@ import { ZONES, changeTax, commanderUids } from './zones.mjs';
 export const TAX_PER_CAST = 2;
 // Whether the PUBLISHED database rules accept the tax and the list of commanders under public/{uid}. They do not yet, so the live table hides the tax and only the solo table has it.
 // Change this, and only this (after the rules change is pasted), to turn it on for the live table too (and add the fields to shared/game-sync.mjs).
-export const COMMANDER_TAX_PUBLISHED = false;
+export const COMMANDER_TAX_PUBLISHED = true; // (2026-11-23: the live table stores the tax at public/{uid}/tax as its own write, so a database still on the old rules refuses only that write; the rules file accepts it)
 
 const findCard = (game, uid) => {
   for (const zone of ZONES) {

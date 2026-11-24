@@ -56,7 +56,7 @@ const fresh = (commanders = ['Tymna the Weaver', 'Thrasios, Triton Hero']) => ma
   same('and the second one says "times"', taxAction(changeTax(game, 'c1', 1), 'c1', 1).message, 'Tymna the Weaver: cast 2 times, tax +4.');
   same('taking one back at 0 stays at 0', taxAction(game, 'c1', -1).message, 'Tymna the Weaver: cast 0 times, tax +0.');
   same('not a commander, or a step that is not 1 or more, gives nothing', [taxAction(game, 'c9', 1), taxAction(game, 'c1', 0), taxAction(game, 'c1', 1.5), taxAction(game, 'c1', 'x')], [null, null, null, null]);
-  check('the live table does not have it yet (the published rules do not accept it)', COMMANDER_TAX_PUBLISHED === false);
+  check('the live table has it (stored as its own write, shared/game-sync.mjs taxToStore)', COMMANDER_TAX_PUBLISHED === true);
 }
 
 // ---- a random walk keeps the game consistent ----

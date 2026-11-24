@@ -78,7 +78,7 @@ const structureChecks = () => {
   check('the seven list rules exist', blocks.every((block) => block && block.length > 500));
   check('the seven list rules are identical', blocks.every((block) => block === blocks[0]));
   check('a list has only its own object check and the card rule (so nothing else can hide in one)', Object.keys(JSON.parse(blocks[0])).join() === '.validate,$i' && JSON.parse(blocks[0])['.validate'] === 'newData.hasChildren()');
-  check('the public branch has exactly the keys the pages write', Object.keys(rules.public.$uid).filter((key) => !key.startsWith('.') && key !== '$other').sort().join() === 'battlefield,cd,command,counts,exile,graveyard,life,log,match,mulligans,next,pass,pc,ping,turn');
+  check('the public branch has exactly the keys the pages write', Object.keys(rules.public.$uid).filter((key) => !key.startsWith('.') && key !== '$other').sort().join() === 'battlefield,cd,command,counts,exile,graveyard,life,log,match,mulligans,next,pass,pc,ping,tax,turn');
   check('the private branch has exactly the three hidden lists', Object.keys(rules.private.$uid).filter((key) => !key.startsWith('.') && key !== '$other').sort().join() === 'hand,library,sideboard');
   const listCard = { ...JSON.parse(blocks[0]).$i }; delete listCard['.validate'];
   const pingCard = { ...rules.public.$uid.ping.card }; delete pingCard['.validate'];
@@ -195,6 +195,7 @@ const PUBLIC_CASES = [
   ['cd seat 4: over the limit', 'cd/4', 1e12 + 1, false], ['cd seat 1: 0', 'cd/1', 0, false], ['cd seat 2: 0', 'cd/2', 0, false], ['cd seat 4: 0', 'cd/4', 0, false], ['cd seat 3: the limit', 'cd/3', 1e12, true], ['cd seat 3: over the limit', 'cd/3', 1e12 + 1, false],
   ['cd seat 1: 1.5', 'cd/1', 1.5, false],
   ['pc: an unknown counter', 'pc/rad', 1, false], ['pc: as a number', 'pc', 5, false],
+  ['tax: a commander cast twice', 'tax/c3', 2, true], ['tax: 99', 'tax/c3', 99, true], ['tax: 100', 'tax/c3', 100, false], ['tax: 0', 'tax/c3', 0, false], ['tax: 1.5', 'tax/c3', 1.5, false], ['tax: not a card id', 'tax/x1', 1, false], ['tax: c0', 'tax/c0', 1, false], ['tax: as a number', 'tax', 2, false], // the commander tax (2026-11-23)
   ['cd seat 1: 21', 'cd/1', 21, true], ['cd seat 4: 1', 'cd/4', 1, true], ['cd seat 2: the limit', 'cd/2', 1e12, true], ['cd seat 3: 0', 'cd/3', 0, false], ['cd seat 1: over the limit', 'cd/1', 1e12 + 1, false],
   ['cd: seat 5', 'cd/5', 1, false], ['cd: seat 0', 'cd/0', 1, false], ['cd: as a number', 'cd', 5, false],
   ['pass: turn 2 to seat 1', 'pass', { n: 2, to: '1' }, true], ['pass: the largest turn', 'pass', { n: 100000, to: '4' }, true], ['pass: turn 1 (needs no pass)', 'pass', { n: 1, to: '1' }, false],

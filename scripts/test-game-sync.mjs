@@ -1,7 +1,7 @@
 // Tests for shared/game-sync.mjs: a game split into its public and private branches, the writes a move needs, and reading it
 // all back (including what a hostile or damaged branch can and cannot make a page build).
 import { makeGame, draw, moveCard, setTapped, untapAll, adjustLife, nextTurn, shuffleLibrary, mulligan, seededRandom, checkGame, ZONES } from '../shared/zones.mjs';
-import { PUBLIC_ZONES, PRIVATE_ZONES, MAX_CARDS_PER_ZONE, packCard, unpackCard, readCards, splitGame, joinGame, readPublic, gameWrites } from '../shared/game-sync.mjs';
+import { PUBLIC_ZONES, PRIVATE_ZONES, MAX_CARDS_PER_ZONE, packCard, unpackCard, readCards, splitGame, joinGame, readPublic, gameWrites, cleanTax, taxToStore } from '../shared/game-sync.mjs';
 
 let checks = 0;
 const fail = (label, detail) => { console.log(`FAILED CHECK: ${label}: ${detail}`); process.exit(1); };
@@ -98,7 +98,7 @@ check('writes only ever name this player\'s own paths', Object.keys(gameWrites('
 // ---- what another player sees ----
 {
   const view = readPublic(JSON.parse(JSON.stringify(parts.public)), lookup);
-  same('an opponent view has life, turn, counts, the player counters (empty here), the last pass (none here) and the four public zones', [Object.keys(view).sort(), Object.keys(view.zones).sort(), view.pc, view.cd, view.pass], [['cd', 'counts', 'life', 'pass', 'pc', 'turn', 'zones'], [...PUBLIC_ZONES].sort(), {}, {}, null]);
+  same('an opponent view has life, turn, counts, the player counters (empty here), the last pass (none here) and the four public zones', [Object.keys(view).sort(), Object.keys(view.zones).sort(), view.pc, view.cd, view.pass], [['cd', 'counts', 'life', 'pass', 'pc', 'tax', 'turn', 'zones'], [...PUBLIC_ZONES].sort(), {}, {}, null]);
   same('and the hidden zones only as counts', view.counts, { library: game.zones.library.length, hand: game.zones.hand.length, sideboard: game.zones.sideboard.length });
   same('the commander shows in the command zone', view.zones.command.map((c) => c.n), ['Krenko, Mob Boss']);
   same('nothing stored gives no view', [readPublic(null, lookup), readPublic(undefined, lookup), readPublic(5, lookup)], [null, null, null]);
@@ -146,6 +146,14 @@ for (const seed of [1, 2, 3, 4, 5]) {
   }
   check(`random game ${seed}: 1,500 moves, each one's writes touched at most 9 paths (the biggest was ${maxWrites})`, maxWrites <= 9, String(maxWrites));
   check(`random game ${seed}: the database never held a hidden zone in the public branch, only its count`, ['library', 'hand', 'sideboard'].every((z) => !(z in db.public.me) && Number.isInteger(db.public.me.counts[z])) && [...current.zones.library, ...current.zones.hand, ...current.zones.sideboard].every((card) => !JSON.stringify(db.public.me).includes(`"u":"${card.uid}"`)));
+}
+
+// The commander tax: only card uids with whole counts 1 to 99 survive, nothing is stored for none, and a refresh keeps a commander that is out with its tax.
+same('cleanTax keeps only card uids with whole counts from 1 to 99', cleanTax({ c3: 2, c0: 1, x: 1, c4: 0, c5: 100, c6: 1.5, c7: '2', c8: 99 }), { c3: 2, c8: 99 });
+check('taxToStore gives null when no commander has been cast', taxToStore({}) === null && taxToStore({ tax: { c3: 0 } }) === null);
+{
+  const back = joinGame({ life: 40, turn: 1, next: 9, command: [{ u: 'c1', i: '00000000-0000-4000-8000-000000000001', n: 'A' }], battlefield: [{ u: 'c2', i: '00000000-0000-4000-8000-000000000002', n: 'B' }], tax: { c2: 3, c9: 1 } }, {}, () => null);
+  same('a refresh keeps the tax of a commander on the battlefield and counts it as a commander (a uid not in the game is not one)', [back?.cmd, back?.tax], [['c1', 'c2'], { c2: 3, c9: 1 }]);
 }
 
 console.log(`All ${checks} game sync checks passed.`);

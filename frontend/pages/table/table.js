@@ -16,7 +16,7 @@ import { keybinds } from '../../src/keybinds.js';
 import { mountKeybindSettings } from '../../src/keybind-settings.js';
 import { mountPileStack } from '../../src/pile-stack.js';
 import { mountCommandZone, drawEmblemCounts } from '../../src/command-zone.js';
-import { taxAction, COMMANDER_TAX_PUBLISHED } from '../../../shared/commander-zone.mjs';
+import { taxAction, COMMANDER_TAX_PUBLISHED, TAX_PER_CAST } from '../../../shared/commander-zone.mjs';
 import { pileMenuItems, pileAction } from '../../../shared/pile-menu.mjs';
 import { mountCardHover } from '../../src/card-hover.js';
 import { mountBoardDrag } from '../../src/board-drag.js';
@@ -38,6 +38,7 @@ import { createCounterPanel } from '../../src/counter-panel.js';
 import { mountFloatingBar } from '../../src/floating-bar.js';
 import { mountHistoryBar } from '../../src/history-bar.js';
 import { mountStackWindow } from '../../src/stack-window.js';
+import { createToolDocks } from '../../src/tool-dock.js';
 import { packStack, readStack } from '../../../shared/stack-sync.mjs';
 import { describeMove, makeEntry, slotFor as logSlotFor, lastK, mergeHistory } from '../../../shared/live-history.mjs';
 import { drawPause } from '../../../shared/draw-pace.mjs';
@@ -63,7 +64,7 @@ import { makeRulesLoader } from '../../src/card-rules.js';
 import { makeRulingsLoader } from '../../src/card-rulings.js';
 import { friendlyMessage } from '../../../shared/friendly-error.mjs';
 import { setFaceDown, makeGame, draw, moveCard, shuffleLibrary, mulligan, setTapped, turnOver, untapAll, beginTurn, adjustLife, boardCells, settleBoard, isLandCard, placeCard, placeStack, placeGroup, arrangeBoard, zoneCounts, reorderHand, createToken, createEmblem } from '../../../shared/zones.mjs';
-import { gameWrites, joinGame, readPublic, SERVER_TIME } from '../../../shared/game-sync.mjs';
+import { gameWrites, joinGame, readPublic, SERVER_TIME, taxToStore } from '../../../shared/game-sync.mjs';
 import { placeAll, stepFrom, setBoardSize, CARD_COLS } from '../../../shared/board-grid.mjs';
 
 const $ = (id) => document.getElementById(id);
@@ -359,10 +360,23 @@ function sync() {
       await saveGame(tableCode, writes);
       lastSaved = target;
       if (game === target) saveState('Saved.');
+      await saveTax(target);
     } catch (error) {
       saveState(`Your last move could not be saved (${friendlyMessage(error)}). It will be sent with your next move.`, true);
     }
   });
+}
+
+// The commander tax goes in its OWN write, after the move (shared/game-sync.mjs taxToStore): until the database's rules accept it, only this write is refused and the game itself still saves.
+let savedTax; // what the database has, as text (undefined: not written yet this page)
+let taxRefusedSaid = false;
+async function saveTax(target) {
+  const tax = taxToStore(target);
+  const text = JSON.stringify(tax);
+  if (text === savedTax || (savedTax === undefined && tax === null)) return;
+  try { await saveGame(tableCode, { [`public/${myUid}/tax`]: tax }); savedTax = text; } catch {
+    if (!taxRefusedSaid) { taxRefusedSaid = true; say('Commander tax not saved: the database rules need updating.', true); }
+  }
 }
 
 // ---- the shared game history (shared/live-history.mjs): after each move, one short entry on your own public branch, worked out from what changed (never naming a card in a hand or library) ----
@@ -738,6 +752,7 @@ function opponentPanel(uid) {
   // their hand as a fan of card backs along the bottom with its count, and their piles and command zone at the bottom right. Their stats line is for a screen reader.
   const field = make('div', 'opp-field'); field.append(board);
   const commandBox = make('div', 'opp-command-zone'); commandBox.append(command, make('span', 'opp-zone-label', 'CMD'));
+  panel.tax = make('span', 'opp-tax'); panel.tax.hidden = true; commandBox.append(panel.tax); // their commander tax, a number over the zone (hidden at 0)
   const zones = make('div', 'opp-zones'); zones.append(piles.library.button, piles.graveyard.button, piles.exile.button, commandBox);
   const hand = make('div', 'opp-hand'); hand.setAttribute('aria-hidden', 'true'); hand.append(panel.backs);
   panel.body.append(field, hand, panel.handPill, zones);
@@ -800,10 +815,13 @@ async function renderOpponents() {
       const theirCols = fitBoard(panel.board).cols; // (their board on my screen: as many columns as it holds here; a card stored further right than that is drawn at its right edge)
       const cells = placeAll(view.zones.battlefield, isLandCard);
       if (theirCols) for (const [uid, cell] of cells) if (cell.col > theirCols - CARD_COLS) cells.set(uid, { ...cell, col: theirCols - CARD_COLS });
-      panel.nodes.place(panel.board, view.zones.battlefield, { battlefield: true, cells }); // their battlefield on the same kind of grid, each card on the cell they stored
+      panel.nodes.place(panel.board, view.zones.battlefield, { battlefield: true, cells, sharp: true }); // their battlefield on the same kind of grid, each card on the cell they stored
       watchBoardSize(panel.board);
       panel.nodes.place(panel.command, view.zones.command);
-      drawEmblemCounts(panel.command, view.zones.command); // (an emblem with a count shows it on the other players' panels too)
+      drawEmblemCounts(panel.command, view.zones.command);
+      { const casts = view.zones.command.reduce((sum, card) => sum + (view.tax[card.uid] ?? 0), 0); // (with two commanders in the zone, their taxes are added; the title names each)
+        panel.tax.hidden = casts === 0; panel.tax.textContent = `+${casts * TAX_PER_CAST}`;
+        panel.tax.title = `Commander tax: ${view.zones.command.filter((card) => view.tax[card.uid]).map((card) => `${card.n} +${view.tax[card.uid] * TAX_PER_CAST}`).join(', ')}`; } // (an emblem with a count shows it on the other players' panels too)
       panel.piles.library.stack.update({ count: view.counts.library });
       for (const zone of ['graveyard', 'exile']) panel.piles[zone].stack.update({ count: view.zones[zone].length, top: view.zones[zone][0] ?? null });
       drawBacks(panel, view.counts.hand);
@@ -819,7 +837,7 @@ async function renderOpponents() {
 
 // ---- the size of a battlefield's grid (Kevin, 2026-11-20): it fills its room from the far left to the piles with SQUARE cells, 40 rows (cards one size up from the solo table's 50) and as many columns as
 // the room holds. My own board sets the grid used to place and drop my cards (shared/board-grid.mjs setBoardSize); another player's board only sets how many columns it is drawn with. ----
-const TABLE_ROWS = 40;
+const TABLE_ROWS = 32; // (40 until 2026-11-23, when Kevin asked for the cards one size up again: 50 on the solo table, then 40, then 32)
 setBoardSize({ cols: 112, rows: TABLE_ROWS });
 function fitBoard(element, mine = false) {
   const width = element?.clientWidth ?? 0; const height = element?.clientHeight ?? 0; // (the size in the layout: a small copy in the Sidebar column is the same size, only scaled)
@@ -902,11 +920,13 @@ function layoutSeats() {
   if (docked) { if (hand.parentElement !== focusedArea) focusedArea.append(hand); } else if (hand.parentElement !== me) me.append(hand); // (docked: in the large area, where that player's own hand would be)
   hand.classList.toggle('docked', docked);
   $('seats-stage').classList.toggle('hand-docked', docked);
-  // 4 seats in Grid view (Kevin, 2026-11-23): a column on the left for the tools, the stack shown open in it and the action bar at its bottom (its default place, the bottom left corner)
-  const tools = !sidebar && document.body.dataset.seats === '4' && game !== null;
-  const toolsChanged = document.body.classList.contains('tool-column') !== tools;
-  document.body.classList.toggle('tool-column', tools);
-  stackWindow.pin(tools);
+  // Grid view (Kevin, 2026-11-23): the tools (stack, history, action bar) in docks: 2 and 4 seats a column on the left, 3 seats the empty spaces beside your own area (src/tool-dock.js)
+  const seatsNow = document.body.dataset.seats;
+  const toolMode = sidebar || game === null ? 'none' : seatsNow === '3' ? 'split' : 'column';
+  const toolsChanged = toolDocks.mode() !== toolMode;
+  document.body.classList.toggle('tool-column', toolMode === 'column');
+  document.body.classList.toggle('tool-split', toolMode === 'split');
+  toolDocks.layout(toolMode);
   const side = $('seats-side');
   const columnChanged = side.hidden === sidebar || toolsChanged;
   side.hidden = !sidebar;
@@ -1195,7 +1215,7 @@ for (const [zone, name] of [['library', 'Library'], ['graveyard', 'Graveyard'], 
   caret.innerHTML = '<svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" aria-hidden="true"><path d="M1 3l4 4 4-4z"/></svg>';
   caret.addEventListener('click', () => { if (!game) return; if (caret.getAttribute('aria-expanded') === 'true') { closeCardMenu(); return; } const box = caret.getBoundingClientRect(); caret.setAttribute('aria-expanded', 'true'); openPileMenu(zone, { x: box.left, y: box.bottom + 4, element: caret, toggleOn: caret, avoid: box, onClose: () => caret.setAttribute('aria-expanded', 'false') }); });
   const label = make('span', 'pile-name', name);
-  label.dataset.short = { library: 'Lib', graveyard: 'GY', exile: 'Exile' }[zone] ?? name; // (the areas of the table are small: the style sheet shows the short name)
+  label.dataset.short = { library: 'Library', graveyard: 'GY', exile: 'Exile' }[zone] ?? name; // (the areas of the table are small: the style sheet shows the short name)
   head.append(label, caret);
   pile.before(slot);
   slot.append(head, pile);
@@ -1210,7 +1230,15 @@ for (const zone of ['library', 'graveyard', 'exile', 'sideboard']) {
 }
 const settings = mountSettingsMenu({ button: $('settings-button'), panel: $('settings-menu') });
 // The game history: a thin bar that opens downward (src/history-bar.js, as on the solo table), here with everyone's moves (shared/live-history.mjs); it starts at the right edge, over the column above the piles of the top area.
-const historyBar = mountHistoryBar({ root: $('history-bar'), store, key: 'overloaded.seatsHistoryBar', room: columnRoom });
+// the docks are made before the tools are mounted (each floating tool asks them where a drag lands); the stack window is pinned by them, once it exists
+let stackWindowRef = null;
+const toolDocks = createToolDocks({
+  elements: { stack: $('stack-window'), history: $('history-bar'), bar: document.querySelector('.actions-panel') },
+  stackWindow: { pin: (on) => stackWindowRef?.pin(on) },
+  onFloat: () => { for (const bar of floatingBars) bar.relayout(); },
+  store,
+});
+const historyBar = mountHistoryBar({ root: $('history-bar'), store, key: 'overloaded.seatsHistoryBar', room: columnRoom, docking: toolDocks.dockingFor('history') });
 floatingBars.push(historyBar);
 noteMessage = (message, options) => { if (document.body.classList.contains('playing')) historyBar.note(message, options); }; // (outside a game the line itself shows)
 // The stack window (src/stack-window.js, as on the solo table), shared by the table (shared/stack-sync.mjs): every change here is stored whole, every stored change is shown. Its arrows can point at any
@@ -1223,6 +1251,7 @@ const stackWindow = mountStackWindow({
   realCard: (target) => (!target.owner || target.owner === myUid ? $('battlefield') : opponents.get(target.owner)?.board)?.querySelector(`.card[data-uid="${CSS.escape(target.card)}"]`) ?? null,
   onChange: (stack) => { if (tableCode && myUid && meta) saveStack(tableCode, packStack(stack, myUid, meta.match)).catch((error) => say(`The stack could not be saved (${friendlyMessage(error)}).`, true)); },
 });
+stackWindowRef = stackWindow;
 function showStoredStack() { stackWindow.replace(readStack(storedStack, lookup ?? (() => null), meta?.match ?? null)); }
 mountFacing($('facing-settings'), { store });
 mountHandRestSetting($('hand-rest-settings'), { onChange: () => handView.arrange() });
@@ -1572,7 +1601,7 @@ mountBoardDrag({ board: () => $('battlefield'), onDrop: dropOnBoard, groupOf: (u
 
 // (Mulligan is in the hand's menu, the arrow next to the hand count: the bar has Draw, Untap all and Next turn only, Kevin 2026-11-20)
 // The action bar floats like the solo table's (src/floating-bar.js); it starts as a row in the bottom left corner, in the strip under the battlefield left of the hand (docked to a side it is a column of icons).
-floatingBars.push(mountFloatingBar({ bar: document.querySelector('.actions-panel'), grip: $('bar-grip'), store, key: 'overloaded.seatsBar4', defaultPlace: { dock: 'bottom', fx: 0, fy: 1 }, room: columnRoom }));
+floatingBars.push(mountFloatingBar({ bar: document.querySelector('.actions-panel'), grip: $('bar-grip'), store, key: 'overloaded.seatsBar4', defaultPlace: { dock: 'bottom', fx: 0, fy: 1 }, room: columnRoom, docking: toolDocks.dockingFor('bar') }));
 // the life total is the number itself: click, right-click, Shift for 5, hold to set (src/life-control.js)
 mountLifeControl({ button: $('life'), say, onDelta: (delta) => { if (game) apply(() => adjustLife(game, delta), ''); }, onSet: (value) => { if (game) apply(() => adjustLife(game, value - game.life), `Life is ${value}.`); } });
 for (const zone of ['library', 'graveyard', 'exile', 'sideboard']) $(`pile-${zone}`).addEventListener('click', () => { if (!game) return; if (viewing === zone && !viewTop) viewer.close(); else openPile(zone); });

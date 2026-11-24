@@ -14,7 +14,7 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 // clickThrough: the grip is also a button (the whole top of the history bar): a press that moves less than 5 px is a click and is left alone, and a drag does not end in a click.
 // room: a function giving the pixels kept free at the right of the window ({ right }), so the bar stays out of them (the player column of the table's Sidebar view). Call relayout() after it changes.
 // Returns { reset(), place(), relayout() }.
-export function mountFloatingBar({ bar, grip, store, key = 'overloaded.actionBar', defaultPlace = DEFAULT_PLACE, growDown = false, flush = false, clickThrough = false, room = null }) {
+export function mountFloatingBar({ bar, grip, store, key = 'overloaded.actionBar', defaultPlace = DEFAULT_PLACE, growDown = false, flush = false, clickThrough = false, room = null, docking = null }) { // docking: src/tool-dock.js dockingFor(name), or null
   let place = readPlace(store?.get(key) ?? null) ?? { ...defaultPlace };
   let drag = null; // { dx, dy, pixels } while the grip is held
 
@@ -41,7 +41,7 @@ export function mountFloatingBar({ bar, grip, store, key = 'overloaded.actionBar
   const current = () => ({ left: bar.offsetLeft, top: bar.offsetTop });
   const save = () => store?.set(key, writePlace(place));
   const orient = () => { bar.dataset.vertical = String(isVertical(place)); }; // (a column on the left and the right: its size changes, so it is set before the size is read)
-  const show = () => { orient(); bar.dataset.dock = flush && place.dock ? place.dock : ''; put(pixelsFor(place)); };
+  const show = () => { orient(); bar.dataset.dock = flush && place.dock && !docking?.isDocked() ? place.dock : ''; put(pixelsFor(place)); };
 
   function hideHints() { snapHint.hidden = true; centerHint.hidden = true; cornerHint.hidden = true; }
   // What letting go now would do, shown: a strip along the edge, a dotted line when the bar is lined up with the middle of the edge, a dotted triangle in the corner it would go into.
@@ -80,7 +80,9 @@ export function mountFloatingBar({ bar, grip, store, key = 'overloaded.actionBar
   let pending = null; // clickThrough: a press that may still turn out to be a click
   function begin(x, y) {
     const box = bar.getBoundingClientRect();
-    drag = { dx: x - box.left, dy: y - box.top, pixels: current() };
+    const lifted = Boolean(docking?.isDocked());
+    if (lifted) { docking.lift(); orient(); put({ left: box.left, top: box.top }); } // (out of its dock, floating where it was; the tools left in the dock close up)
+    drag = { dx: x - box.left, dy: y - box.top, pixels: lifted ? { left: box.left, top: box.top } : current(), dockPlan: null };
     bar.classList.add('dragging');
     bar.dataset.dock = ''; // (free while it is held: the square edge goes)
   }
@@ -104,7 +106,9 @@ export function mountFloatingBar({ bar, grip, store, key = 'overloaded.actionBar
     const top = Math.min(Math.max(event.clientY - drag.dy, 0), Math.max(0, r.height - r.barHeight));
     drag.pixels = { left, top };
     put(drag.pixels);
-    showHints(dockPlan(pixelsToPlace(drag.pixels, r), r, isVertical(place)));
+    drag.dockPlan = docking?.over(event.clientX, event.clientY) ?? null; // over a dock: a line shows where it would go, instead of the edge hints
+    docking?.preview(drag.dockPlan);
+    if (drag.dockPlan) hideHints(); else showHints(dockPlan(pixelsToPlace(drag.pixels, r), r, isVertical(place)));
   }
   function release() {
     if (pending) { // it was a click: nothing moved
@@ -122,6 +126,15 @@ export function mountFloatingBar({ bar, grip, store, key = 'overloaded.actionBar
       const swallow = (click) => { click.stopImmediatePropagation(); click.preventDefault(); document.removeEventListener('click', swallow, true); };
       document.addEventListener('click', swallow, true);
       setTimeout(() => document.removeEventListener('click', swallow, true), 100);
+    }
+    if (docking && docking.drop(drag.dockPlan)) { // let go over a dock: it is in the dock now, and its floating place is kept for the next time it floats
+      drag = null;
+      bar.classList.remove('dragging');
+      hideHints();
+      if (isVertical(place)) place = { ...defaultPlace }; // (a tool in a dock is never a column of icons)
+      orient();
+      bar.dataset.dock = '';
+      return;
     }
     const r = size();
     const free = pixelsToPlace(drag.pixels, r);
@@ -161,7 +174,7 @@ export function mountFloatingBar({ bar, grip, store, key = 'overloaded.actionBar
       const keep = lastPut.top;
       if (place.dock !== 'top') place = { ...place, fy: pixelsToPlace({ left: lastPut.left, top: keep }, size()).fy };
       const next = pixelsFor(place);
-      if (place.dock !== 'top') next.top = keep;
+      if (place.dock !== 'top') next.top = Math.max(0, Math.min(keep, window.innerHeight - bar.offsetHeight)); // (but never past the bottom of the window: it moves up just enough, Kevin 2026-11-23)
       put(next);
     } else put(pixelsFor(place));
   }).observe(bar); // its width changes when a button appears or its text does

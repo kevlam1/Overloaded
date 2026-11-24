@@ -694,12 +694,12 @@ body.playing .battlefield > .card .face { width: 100%; height: 100%; }
 body.playing .battlefield > .card.tapped .face { width: var(--card-w); height: var(--card-ph); }
 body.playing .battlefield > .card.tapped .badges { top: 0.2rem; }
 /* piles (shared/stacks.mjs): up to 3 copies, each one lower and to the right of the one above it (the top card is on its cell), the rest hidden; the top card carries the count */
-.battlefield { --step: calc(var(--card-w) * 0.11); } /* how far each copy under the top one is shifted: a tenth of a card */
+.battlefield { --step: round(nearest, calc(var(--card-w) * 0.11), 1px); } /* (whole pixels: a copy moved by a fraction of a pixel is drawn blurred, Kevin 2026-11-23) */ /* how far each copy under the top one is shifted: a tenth of a card */
 .battlefield > .card[data-stack-depth="1"] { translate: calc(var(--step) * -1) calc(var(--step) * -1); }
 .battlefield > .card[data-stack-depth="2"] { translate: calc(var(--step) * -2) calc(var(--step) * -2); }
 .battlefield > .card[data-stack-hidden] { display: none; }
 /* horizontal piles (the "Piles" choice): the copies under the top card go straight to the left, the bottom-most on the far left */
-.battlefield { --step-h: calc(var(--card-w) * 0.17); --step-v: calc(var(--card-w) * 0.15); }
+.battlefield { --step-h: round(nearest, calc(var(--card-w) * 0.17), 1px); --step-v: round(nearest, calc(var(--card-w) * 0.15), 1px); }
 body[data-pile-style="horizontal"] .battlefield > .card[data-stack-depth="1"] { translate: calc(var(--step-h) * -1) 0; }
 body[data-pile-style="horizontal"] .battlefield > .card[data-stack-depth="2"] { translate: calc(var(--step-h) * -2) 0; }
 /* vertical piles: the copies under the top card go straight up */
@@ -724,7 +724,7 @@ body.dragging-card .battlefield > .card, body.dragging-card #hand > .card { curs
 
 /* a pile of TAPPED cards has a style of its own (Settings, "Piles of tapped cards"): diagonal (the copies under the top one go up and to the left, the first way) or horizontal (straight to the left) */
 /* (Kevin, 2026-11-12) a pile of tapped cards is moved to the right so it clears what is to its left: one cell (--cell, an eighth of a card) in the diagonal style, two cells in the horizontal style, none in the vertical style */
-.battlefield { --cell: calc(var(--card-w) / 7); }
+.battlefield { --cell: round(nearest, calc(var(--card-w) / 7), 1px); }
 body[data-tapped-pile-style="diagonal"] .battlefield > .card.tapped[data-stack-ext] { translate: var(--cell) 0; }
 body[data-tapped-pile-style="diagonal"] .battlefield > .card.tapped[data-stack-depth="1"] { translate: calc(var(--cell) - var(--step)) calc(var(--step) * -1); }
 body[data-tapped-pile-style="diagonal"] .battlefield > .card.tapped[data-stack-depth="2"] { translate: calc(var(--cell) - var(--step) * 2) calc(var(--step) * -2); }
@@ -2075,7 +2075,7 @@ body.playing.seats #my-board, body.playing.seats .opp-field { position: absolute
 body.playing.seats #my-board > .battlefield, body.playing.seats .opp-field > .battlefield { display: grid; width: 100%; height: 100%; max-width: none; max-height: none; aspect-ratio: auto; margin: 0; }
 /* the outline of the place a carried card would go is the card's own shape, from the left and bottom of its block, like the cards (the block may be wider than the card) */
 /* the grid of a battlefield on the table: 40 rows and --cols columns (as many whole square cells as the width holds, so a column is at most 1/cols wider than a row is tall), a card a quarter of the board's height */
-body.playing.seats :is(#my-board, .opp-field) > .battlefield { --rows: 40; grid-template-columns: repeat(var(--cols, 112), minmax(0, 1fr)); grid-template-rows: repeat(var(--rows), minmax(0, 1fr)); --card-h: calc(100cqh * 10 / var(--rows)); --card-w: calc(var(--card-h) * 0.7);
+body.playing.seats :is(#my-board, .opp-field) > .battlefield { --rows: 32; grid-template-columns: repeat(var(--cols, 112), minmax(0, 1fr)); grid-template-rows: repeat(var(--rows), minmax(0, 1fr)); --card-h: calc(100cqh * 10 / var(--rows)); --card-w: calc(var(--card-h) * 0.7);
   background-size: calc(100% / var(--cols, 112)) calc(100% / var(--rows)), calc(100% / var(--cols, 112)) calc(100% / var(--rows)); } /* (the lines of the cells follow THIS grid: the solo table's are drawn for 112 by 50) */
 body.playing.seats .battlefield > .cell-highlight { justify-self: start; align-self: end; width: var(--card-w); height: var(--card-ph); }
 body.playing.seats .battlefield > .cell-highlight[data-tapped] { width: var(--card-ph); height: var(--card-w); }
@@ -2183,12 +2183,40 @@ body.playing.seats :is(.cmd-slot.empty-slot, .opp-command:empty)::after { conten
 body.playing.seats :is(.cmd-slot.empty-slot, .opp-command:empty) { position: relative; } /* (the slot's own ::before and ::after are its gold diamonds, so the word is on the slot) */
 body.playing.seats :is(.cmd-slot.empty-slot, .opp-command:empty)::after { content: "CMD"; }
 
-/* ---- 4 seats in Grid view (Kevin, 2026-11-23): a column on the left, like the player column of Sidebar view, for the tools: the stack shown open (frontend/src/stack-window.js pin) and the action
-   bar at its bottom (its default place is the bottom left corner; it can still be dragged anywhere). The seats move right to make room. body.tool-column is set by layoutSeats in table.js. ---- */
+/* ---- the tools' docks in Grid view (Kevin, 2026-11-23; frontend/src/tool-dock.js): the stack, the game history and the action bar sit in a dock, stacked top to bottom, the stack taking the height
+   the others leave. 2 and 4 seats (body.tool-column): one column on the left, the seats moved right to make room. 3 seats (body.tool-split): the empty spaces left and right of your own area. A tool
+   dragged out of a dock floats; one dropped on a dock goes where the line shows. ---- */
 body.playing.seats.tool-column { --tool-w: 16rem; }
 body.playing.seats.tool-column .seats-stage { left: var(--tool-w); }
 body.playing.seats.tool-column #game::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: var(--tool-w); border-right: 1px solid var(--line); background: color-mix(in srgb, var(--bg) 80%, #000); }
-body.playing.seats.tool-column .stack-window[data-pinned="true"] { --stack-w: calc(var(--tool-w) - 0.9rem); left: 0.45rem; top: 0.45rem; bottom: 6.2rem; transform: none; transition: none; }
-body.playing.seats.tool-column .stack-window[data-pinned="true"] .stack-tab { display: none; }
-body.playing.seats.tool-column .stack-window[data-pinned="true"] .stack-panel { border-left: 1px solid var(--line); border-radius: 0.6rem; box-shadow: none; }
-body.playing.seats.tool-column .actions-panel:not([data-vertical="true"]) { flex-wrap: wrap; max-width: calc(var(--tool-w) - 0.9rem); }
+.tool-dock { position: fixed; z-index: 11; /* (under a floating tool, z-index 12, so a grip is never hidden by a dock) */ display: flex; flex-direction: column; gap: 0.45rem; padding: 0.45rem; box-sizing: border-box; min-height: 0; }
+.tool-dock[hidden] { display: none; }
+body.playing.seats.tool-column .tool-dock[data-dock="left"] { left: 0; top: 0; bottom: 0; width: var(--tool-w); }
+/* (3 seats: the stage is 4 equal columns with 0.3rem padding and gaps, and the bottom row is ". me me ."; each dock is one of those empty quarters) */
+body.playing.seats.tool-split .tool-dock { top: calc(50% + 0.15rem); bottom: 0.3rem; width: calc((100vw - 1.5rem) / 4); padding: 0.3rem; }
+body.playing.seats.tool-split .tool-dock[data-dock="left"] { left: 0.3rem; }
+body.playing.seats.tool-split .tool-dock[data-dock="right"] { right: 0.3rem; }
+.tool-dock > .tool-docked { position: relative !important; inset: auto !important; left: auto !important; top: auto !important; translate: none !important; transform: none !important; margin: 0 !important; flex: none; width: auto; max-width: none !important; box-sizing: border-box; transition: none; }
+.tool-dock > .stack-window.tool-docked { --stack-w: 100%; flex: 1 1 0; min-height: 4rem; display: flex; pointer-events: auto; }
+.tool-dock > .stack-window.tool-docked .stack-tab { display: none; }
+.tool-dock > .stack-window.tool-docked .stack-panel { width: 100%; border-left: 1px solid var(--line); border-radius: 0.6rem; box-shadow: none; }
+.tool-dock > .actions-panel.tool-docked { flex-wrap: wrap; justify-content: flex-start; }
+.tool-dock > .history-panel.tool-docked { width: 100%; }
+.tool-dock > .history-panel.tool-docked .history-list { max-height: min(16rem, 40vh); }
+.dock-drop-line { position: absolute; z-index: 2; left: 0.45rem; right: 0.45rem; height: 3px; border-radius: 2px; background: var(--accent); box-shadow: 0 0 0.5rem var(--accent); pointer-events: none; }
+.dock-drop-line[hidden] { display: none; }
+
+/* another player's piles (Kevin, 2026-11-23): the name that shows on hover is ABOVE the pile, in the same room as the CMD label, so the piles and the command zone sit level; their commander tax is a
+   bubble at the top right of the command zone, like the count of a pile (hidden at 0) */
+body.playing.seats .opp-pile { --lab: 1.35rem; padding: var(--lab) 0 0; }
+body.playing.seats .opp-pile::after { top: 0; bottom: auto; height: 1.2rem; line-height: 1.2rem; }
+body.playing.seats .opp-pile.pile-stack::before { top: calc(var(--lab) - 0.3rem); }
+body.playing.seats .opp-command-zone { position: relative; }
+body.playing.seats .opp-tax { position: absolute; z-index: 2; top: 1.05rem; right: -0.25rem; min-width: 1.1rem; padding: 0 0.25rem; border: 1px solid color-mix(in srgb, var(--gold, #d9b45f) 70%, transparent); border-radius: 0.8rem; background: rgba(20, 20, 26, 0.92); color: var(--gold, #d9b45f); font-size: 0.66rem; font-weight: 700; line-height: 1.1rem; text-align: center; pointer-events: auto; }
+body.playing.seats .opp-tax[hidden] { display: none; }
+
+/* your commander tax on the multiplayer table (Kevin, 2026-11-23): a number in a bubble at the top right of the slot, like the count of a pile, taking no room (a click adds a cast, a right-click takes one back) */
+body.playing.seats .cmd-slot { position: relative; }
+body.playing.seats .cmd-slot .tax { position: absolute; z-index: 3; top: -0.3rem; right: -0.25rem; height: auto; margin: 0; padding: 0; }
+body.playing.seats .cmd-slot .tax[hidden] { display: none; }
+body.playing.seats .cmd-slot .tax-words { min-width: 1.1rem; min-height: 0; height: 1.1rem; padding: 0 0.3rem; border: 1px solid color-mix(in srgb, var(--gold, #d9b45f) 70%, transparent); border-radius: 0.8rem; background: rgba(20, 20, 26, 0.92); color: var(--gold, #d9b45f); font-size: 0.66rem; font-weight: 700; line-height: 1; }
