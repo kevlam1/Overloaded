@@ -56,4 +56,5 @@ export function newPings(branches, seen, lookup) {
 }
 
 // The words for a ping, for the spotlight and for a screen reader: who pinged which card. seat is the player's seat ('1' to '4') or ''.
-export const pingSentence = (name, seat, card) => `${seat ? `Seat ${seat}: ` : ''}${name} pinged ${card.n}.`;
+// (a face-down card is not named: the other players must not learn it; Kevin 2026-11-24)
+export const pingSentence = (name, seat, card) => `${seat ? `Seat ${seat}: ` : ''}${name} pinged ${card.faceDown ? 'a face-down card' : card.n}.`;

@@ -29,12 +29,13 @@ export function mountPlayersPanel({ root, store, key = 'overloaded.playersBar', 
     item.dataset.uid = uid;
     const top = make('div', 'pp-top');
     const name = make('span', 'pp-name');
+    const status = make('span', 'pp-status'); status.hidden = true; // (Reconnecting..., Away N min, Conceded)
     const life = make('strong', 'pp-life');
-    top.append(name, mine ? mineSlot : life);
+    top.append(name, status, mine ? mineSlot : life);
     const cmd = make('div', 'pp-cmd');
     const chipsBox = make('div', 'pp-chips counter-chips');
     item.append(top, cmd, chipsBox);
-    row = { item, name, life, cmd, chips: mountCounterChips(chipsBox), chipsBox };
+    row = { item, name, status, life, cmd, chips: mountCounterChips(chipsBox), chipsBox };
     rows.set(uid, row);
     return row;
   }
@@ -51,6 +52,7 @@ export function mountPlayersPanel({ root, store, key = 'overloaded.playersBar', 
         row.item.classList.toggle('mine', Boolean(player.mine));
         row.item.classList.toggle('active', Boolean(player.active));
         row.name.textContent = player.name; // (other people's text: as text, never markup)
+        row.status.textContent = player.status?.short ?? ''; row.status.title = player.status?.long ?? ''; row.status.hidden = !player.status?.short;
         if (!player.mine) { row.life.textContent = String(player.life); row.life.setAttribute('aria-label', `Life ${player.life}`); }
         const commanders = player.commanders ?? [];
         row.cmd.textContent = commanders.map((c) => (c.tax ? `${c.name} (tax +${c.tax})` : c.name)).join(' · ');

@@ -32,6 +32,14 @@ export function readDockLayout(mode, raw) {
   return out;
 }
 
+// What is kept in the browser (`overloaded.toolDocks`): ONE JSON text with a layout per mode. The store keeps only text (src/safe-store.js), so the layouts are written with JSON.stringify and read back
+// strictly; damaged text reads as nothing stored (Kevin, 2026-11-24: an object was passed before, which stored "[object Object]" and kept nothing).
+export function readDockStore(text) {
+  if (typeof text !== 'string' || !text) return {};
+  try { const all = JSON.parse(text); return all && typeof all === 'object' && !Array.isArray(all) ? all : {}; } catch { return {}; }
+}
+export function writeDockStore(text, mode, lists) { return JSON.stringify({ ...readDockStore(text), [mode]: lists }); }
+
 // elements: { stack, history, bar } (the tools' root elements); stackWindow: its pin(on); onFloat(name): a tool left a dock and floats again (place it); store: safe browser storage.
 export function createToolDocks({ elements, stackWindow, onFloat = () => {}, store = null, key = 'overloaded.toolDocks' }) {
   const host = elements.bar.parentElement;
@@ -48,7 +56,7 @@ export function createToolDocks({ elements, stackWindow, onFloat = () => {}, sto
   const line = document.createElement('div'); line.className = 'dock-drop-line'; line.hidden = true;
   let mode = 'none';
   let lists = {};
-  const readAll = () => { const all = store?.get(key); return all && typeof all === 'object' ? all : {}; };
+  const readAll = () => readDockStore(store?.get(key));
 
   function goHome(name) {
     const element = elements[name];
@@ -72,7 +80,7 @@ export function createToolDocks({ elements, stackWindow, onFloat = () => {}, sto
     for (const name of TOOLS) if (!docked.has(name) && elements[name].classList.contains('tool-docked')) { goHome(name); if (name !== 'stack') onFloat(name); }
     stackWindow.pin(docked.has('stack'));
   }
-  function save() { store?.set(key, { ...readAll(), [mode]: lists }); }
+  function save() { store?.set(key, writeDockStore(store?.get(key), mode, lists)); }
 
   // Over which dock, and before which tool, a pointer at (x, y) is: { dock, index } or null. The dragged tool itself does not count.
   function over(name, x, y) {

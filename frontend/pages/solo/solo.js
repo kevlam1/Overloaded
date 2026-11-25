@@ -674,6 +674,7 @@ const GAME_KEYS = new Set(['mulligan', 'shuffle', 'lifeUp', 'lifeDown', 'viewLib
 const CLICKS = { mulligan: '#mulligan', viewLibrary: '#pile-library', viewGraveyard: '#pile-graveyard', viewExile: '#pile-exile', sortType: '.hand-sort[data-sort="type"]', sortColor: '.hand-sort[data-sort="color"]', sortCost: '.hand-sort[data-sort="cost"]', sortName: '.hand-sort[data-sort="name"]', autoSort: '.hand-sort-toggle', history: '#history-bar .history-head', stack: '.stack-tab' };
 function runGameKey(action) {
   if (action === 'shuffle') { pickFromPileMenu('library', 'shuffle'); return true; }
+  if (action === 'viewLibrary') { if (!game) return false; openPile('library', { search: true }); return true; } // (a click on the library does nothing here, so the key opens it like the menu's View library; Kevin 2026-11-24)
   if (action === 'lifeUp' || action === 'lifeDown') { apply(() => adjustLife(game, action === 'lifeUp' ? 1 : -1), ''); return true; }
   const target = document.querySelector(CLICKS[action]);
   if (!target || target.disabled) return false;
@@ -858,6 +859,13 @@ function dropOnPile({ uid, from, to, slot = null, element = null, flying = null,
     flying?.remove();
     multi.clear(); selected = null;
     if (action) apply(() => action.run(game), action.message);
+    return;
+  }
+  if (found && uids && from === 'battlefield' && uids.length > 1 && ZONE_WORDS[to] && to !== 'battlefield') { // a whole pile of the battlefield let go over a pile: every card of it goes there (Kevin, 2026-11-24: only the top card went)
+    const moving = uids.filter((each) => game.zones.battlefield.some((card) => card.uid === each));
+    if (flying) flyAway(flying, element ?? $(`pile-${to}`));
+    selected = null;
+    apply(() => moving.reduce((g, each) => moveCard(g, each, to, to === 'command' ? {} : { position: 'top' }), game), `Moved the pile of ${moving.length} ${found.card.n} to ${ZONE_WORDS[to]}.`);
     return;
   }
   if (found && to === 'command' && (slot === 1 || slot === 2)) commandSlots.set(uid, slot);

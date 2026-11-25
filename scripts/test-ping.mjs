@@ -123,5 +123,6 @@ refused('a previous ping at the limit leaves no new number', () => pingKey(NUMBE
 // ---- the words ----
 same('the sentence names the seat, the player and the card', pingSentence('Alice', '2', { n: 'Sol Ring' }), 'Seat 2: Alice pinged Sol Ring.');
 same('without a seat it leaves the seat out', pingSentence('Alice', '', { n: 'Sol Ring' }), 'Alice pinged Sol Ring.');
+same('a face-down card is not named', pingSentence('Alice', '2', { n: 'Sol Ring', faceDown: true }), 'Seat 2: Alice pinged a face-down card.');
 
 console.log(`All ${checks} ping checks passed.`);

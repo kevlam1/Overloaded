@@ -3,7 +3,7 @@
 // (shared/game-sync.mjs): your hand and library in your private branch (nobody else can read it), the rest in your public one.
 // A refresh puts you back at the game you left. Other players' boards are shown beside it, live and read-only (their public
 // zones only: shared/game-sync.mjs readPublic). All database calls live in ../../src/db.js.
-import { rejoinTable, watchMembers, watchMeta, watchPresence, watchServerOffset, watchConnection, startPresence, heartbeat, watchActivity, saveGame, loadGame, watchPublic, saveStack, watchStack, concede, endMatch, leaveTable } from '../../src/db.js';
+import { rejoinTable, watchMembers, watchMeta, watchPresence, watchServerOffset, watchConnection, startPresence, heartbeat, watchActivity, saveGame, loadGame, watchPublic, saveStack, watchStack, concede, endMatch, leaveTable, takeOverHost } from '../../src/db.js';
 import { startKeepAlive } from '../../src/keep-alive.js';
 import { makeSafeStore } from '../../src/safe-store.js';
 import { cardBackUrl } from '../../../shared/card-image.mjs';
@@ -55,7 +55,7 @@ import { menuItems, menuAction, turnLabel, turnMessage, playBackLabel, PLAY_BACK
 import { marksSentence, markClick, printedOf } from '../../../shared/marks.mjs';
 import { currentTurn, passAction, takeBackAction, canTakeBack, turnToStart, whoseWords, turnWords } from '../../../shared/turn-order.mjs';
 import { chipEntries, playerMenuItems, playerAction, commanderDamageSeatsFor, counterPanelRows } from '../../../shared/player-counters.mjs';
-import { presenceStatus, presenceText, ownConnectionText } from '../../../shared/presence.mjs';
+import { presenceStatus, presenceText, ownConnectionText, hostIsGone } from '../../../shared/presence.mjs';
 import { tableCodeFromPath } from '../../../shared/lobby-link.mjs';
 import { seatDeckText, defaultDeckFor, hasConceded } from '../../../shared/lobby-deck.mjs';
 import { LIBRARY_KEY, LEGACY_KEY, readLibrary } from '../../../shared/deck-library.mjs';
@@ -126,6 +126,31 @@ function renderPlayers() {
   $('match-actions').hidden = meta?.status !== 'playing' || myUid === null;
   $('end-match').hidden = host !== myUid;
   $('concede').disabled = hasConceded(members[myUid], meta);
+  // A host gone for 5 minutes mid-match can be taken over here too (Kevin, 2026-11-24: it was only on the lobby page, which a match never shows). Same test as the database rule.
+  const canTakeOver = meta?.status === 'playing' && Boolean(host) && host !== myUid && Boolean(members[myUid]) && hostIsGone(presence[host], now);
+  $('take-over').hidden = !canTakeOver;
+  if (canTakeOver && !takeOverSaid) say('The host left. Take over in Settings > Game.', true);
+  takeOverSaid = canTakeOver;
+  renderStatuses(now);
+  renderPlayersPanel();
+}
+// Other players' connection and concession, shown on their seat and in the Players panel (they were only in the hidden list above); drawn when presence changes and when the seats are drawn
+function renderStatuses(now = serverOffset === null ? null : Date.now() + serverOffset) {
+  for (const [uid, panel] of opponents) {
+    const words = statusWords(uid, now);
+    panel.statusTag.textContent = words.short;
+    panel.statusTag.title = words.long;
+    panel.statusTag.hidden = !words.short;
+  }
+}
+let takeOverSaid = false;
+// Short words for another player's state: conceded first, then their connection (the full sentence is the tooltip)
+function statusWords(uid, now = serverOffset === null ? null : Date.now() + serverOffset) {
+  if (hasConceded(members[uid], meta)) return { short: 'Conceded', long: 'Conceded this match' };
+  const status = presenceStatus(presence[uid], now);
+  if (status.state === 'reconnecting') return { short: 'Reconnecting...', long: presenceText(status) };
+  if (status.state === 'disconnected') return { short: `Away ${status.minutes} min`, long: presenceText(status) };
+  return { short: '', long: '' };
 }
 
 // ---- your game ----
@@ -353,6 +378,7 @@ function saveState(message, isError = false) {
 
 // Sends the pieces of your game that differ from what the database has. Saves go one after another, each one sends the newest
 // game, and a failed save is simply tried again with the next move (the difference is always taken against what is saved).
+let saveFailing = false;
 function sync() {
   saving = saving.then(async () => {
     const target = game;
@@ -364,9 +390,11 @@ function sync() {
       await saveGame(tableCode, writes);
       lastSaved = target;
       if (game === target) saveState('Saved.');
+      if (saveFailing) { saveFailing = false; say('Saved again.'); }
       await saveTax(target);
     } catch (error) {
       saveState(`Your last move could not be saved (${friendlyMessage(error)}). It will be sent with your next move.`, true);
+      if (!saveFailing) { saveFailing = true; say(`Not saved: ${friendlyMessage(error)}`, true); } // (said once per run of failures, in the history's Messages tab: Settings alone hid it during play)
     }
   });
 }
@@ -762,7 +790,8 @@ function opponentPanel(uid) {
   panel.body.append(field, hand, panel.handPill, zones);
   panel.life.title = 'Life';
   const lifeBox = make('div', 'opp-life-box'); lifeBox.append(panel.life, countersBox);
-  const head = make('div', 'seat-head opp-info'); head.append(lifeBox, panel.title);
+  panel.statusTag = make('span', 'seat-status'); panel.statusTag.hidden = true; // (Reconnecting..., Away N min, Conceded)
+  const head = make('div', 'seat-head opp-info'); head.append(lifeBox, panel.title, panel.statusTag);
   section.append(head, panel.stats, panel.waiting, panel.body);
   opponents.set(uid, panel);
   return panel;
@@ -835,6 +864,7 @@ async function renderOpponents() {
   }
   for (const [uid, panel] of opponents) if (!others.some(([other]) => other === uid)) { opponents.delete(uid); panel.section.remove(); slots.get(uid)?.slot.remove(); slots.delete(uid); }
   renderMyHead(turnNow);
+  renderStatuses();
   renderHistory(); // (everyone's entries come with their public branches)
   layoutSeats();
 }
@@ -1121,6 +1151,10 @@ $('concede').addEventListener('click', () => act(async () => {
   await concede(tableCode);
   say('You conceded this match.');
 }));
+$('take-over').addEventListener('click', () => act(async () => {
+  await takeOverHost(tableCode);
+  say('You are now the host.');
+}));
 $('end-match').addEventListener('click', () => act(async () => {
   if (!confirm('End the match for everyone? Everyone goes back to the lobby, and the games on the table are not kept.')) return;
   await endMatch(tableCode); // the table's status changes and every table page takes its player back to the lobby
@@ -1263,7 +1297,7 @@ function renderPlayersPanel() {
     if (!member || !view) continue;
     const named = new Map(view.zones.command.map((card) => [card.uid, card.n])); // their commanders: the cards in their command zone, and any card out with a commander tax
     for (const zone of ['battlefield', 'graveyard', 'exile']) for (const card of view.zones[zone]) if (view.tax[card.uid] && !named.has(card.uid)) named.set(card.uid, card.n);
-    rows.push({ uid, name: member.name, life: view.life, active: turnNow?.uid === uid, commanders: [...named].map(([uid2, name]) => ({ name, tax: (view.tax[uid2] ?? 0) * TAX_PER_CAST })), chips: chipEntries(view.pc, view.cd, commanderDamageSeatsFor(members, view.cd, meta?.format)) });
+    rows.push({ uid, name: member.name, status: statusWords(uid), life: view.life, active: turnNow?.uid === uid, commanders: [...named].map(([uid2, name]) => ({ name, tax: (view.tax[uid2] ?? 0) * TAX_PER_CAST })), chips: chipEntries(view.pc, view.cd, commanderDamageSeatsFor(members, view.cd, meta?.format)) });
   }
   playersPanel.update(rows);
 }
@@ -1554,6 +1588,13 @@ function dropOnPile({ uid, from, to, slot = null, element = null, flying = null,
     flying?.remove();
     multi.clear(); selected = null;
     if (action) apply(() => action.run(game), action.message);
+    return;
+  }
+  if (found && uids && from === 'battlefield' && uids.length > 1 && ZONE_WORDS[to] && to !== 'battlefield') { // a whole pile of the battlefield let go over a pile: every card of it goes there (Kevin, 2026-11-24: only the top card went)
+    const moving = uids.filter((each) => game.zones.battlefield.some((card) => card.uid === each));
+    if (flying) flyAway(flying, element ?? $(`pile-${to}`));
+    selected = null;
+    apply(() => moving.reduce((g, each) => moveCard(g, each, to, to === 'command' ? {} : { position: 'top' }), game), `Moved the pile of ${moving.length} ${found.card.n} to ${ZONE_WORDS[to]}.`);
     return;
   }
   if (found && to === 'command' && (slot === 1 || slot === 2)) commandSlots.set(uid, slot);

@@ -1109,6 +1109,8 @@ Legend: **MP** MUST PRESERVE, **PI** PRESERVE INTENT (implementation flexible), 
 
 ## 17. Incomplete, broken, or uncertain functionality
 
+> **Update 2026-11-24, after the audit (log entry 277):** rows 1, 2, 3, 4, 6 and 7 are fixed. The dock layout is saved as JSON text (tested); "Take over as host" is in Settings > Game during a match; other players' "Reconnecting...", "Away N min" and "Conceded" show on their seat and Players row; a save failure is reported once in red in the Messages tab; a whole pile dropped on a pile moves every card (live check); the View library key opens the library on solo. Row 5 is partly fixed: a ping, the spotlight and screen-reader labels no longer name a face-down card, but its name and id are still in public data (a database change is needed). The rows below are kept as the audit found them.
+
 Ordered by likely impact. Each was found in this audit; "confirmed" means re-checked in code by the author of this document.
 
 | # | Issue | Evidence | Where |

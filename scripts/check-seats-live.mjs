@@ -220,6 +220,19 @@ try {
       const opened = await alice.eval(`({ shown: !document.getElementById('viewer').hidden, title: document.getElementById('viewer-title').textContent, library: document.querySelector('#opponent-list .opp-pile[data-zone="library"]').disabled })`);
       record("Bob's exile opens in the pile window; his library cannot be opened", opened.shown && /^Exile of Bob/.test(opened.title) && opened.library, JSON.stringify(opened));
       await alice.eval(`document.getElementById('viewer-close').click()`);
+      { // a whole pile held down and let go on her graveyard: every card of it goes there (Kevin, 2026-11-24: only the top card went)
+        const pair = await alice.eval(`(() => { const names = [...document.querySelectorAll('#hand > .card')].map((c) => [c.dataset.uid, (c.getAttribute('aria-label') || '').split(',')[0]]); for (const [u, n] of names) { const other = names.find(([u2, n2]) => u2 !== u && n2 === n); if (other) return [u, other[0]]; } return null; })()`);
+        const spot = { x: field.left + Math.round(field.width * 0.7), y: field.top + Math.round(field.height * 0.35) };
+        for (const each of pair ?? []) { const p = await handPoint('#hand > .card'); await mouse('mouseMoved', p.x, p.y); await sleep(400); await drag(await handPoint(`#hand > .card[data-uid="${each}"]`), spot); await sleep(300); }
+        const before = await counts();
+        const size = await alice.eval(`Number(document.querySelector('#battlefield > .card[data-uid="${pair?.[1]}"]')?.dataset.stackSize ?? 0)`);
+        const top = await centre(`#battlefield > .card[data-uid="${pair?.[1]}"]`); const grave = await centre('#pile-graveyard');
+        await mouse('mouseMoved', top.x, top.y); await sleep(60); await mouse('mousePressed', top.x, top.y, 1); await sleep(450); // (held past the 250 ms ring: the whole pile)
+        for (let n = 1; n <= 12; n++) { await mouse('mouseMoved', top.x + ((grave.x - top.x) * n) / 12, top.y + ((grave.y - top.y) * n) / 12, 1); await sleep(16); }
+        await mouse('mouseReleased', grave.x, grave.y); await sleep(500);
+        const after = await counts();
+        record('a pile of two held down and let go on her graveyard sends both cards there', Boolean(pair) && size === 2 && after.grave === before.grave + 2 && after.field === before.field - 2, JSON.stringify({ pair, size, before, after }));
+      }
     }
     record(`${seats} seats: no page errors`, ![alice, bob].some((b) => b.logs.some((l) => /^exception:/.test(l))), [alice, bob].flatMap((b) => b.logs).filter((l) => /^exception:/.test(l)).join(' | ').slice(0, 300));
     accounts.push(...(await accountsOf(alice)), ...(await accountsOf(bob)));

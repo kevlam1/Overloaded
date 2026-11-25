@@ -232,7 +232,7 @@ export function makeCardNodes({ onSelect = () => {}, isSelected = () => false, r
     showFace(button, card);
     const printed = printedStats(card);
     const marks = marksSentence(card, printed);
-    button.setAttribute('aria-label', `${card.n}${card.faceDown ? ', face down' : ''}${card.foil ? ', foil' : ''}${card.xd ? ', exiled face down' : ''}${card.turned && !card.tok ? ', turned over' : ''}${card.tapped ? ', tapped' : ''}${card.noUntap ? ", doesn't untap" : ''}${card.sick ? ', summoning sick' : ''}${marks ? `. ${marks}` : ''}`);
+    button.setAttribute('aria-label', `${readOnly && card.faceDown ? 'A face-down card' : card.n}${card.faceDown ? ', face down' : ''}${card.foil ? ', foil' : ''}${card.xd ? ', exiled face down' : ''}${card.turned && !card.tok ? ', turned over' : ''}${card.tapped ? ', tapped' : ''}${card.noUntap ? ", doesn't untap" : ''}${card.sick ? ', summoning sick' : ''}${marks ? `. ${marks}` : ''}`);
     updateBadges(button, card, Boolean(onBadge) && !readOnly);
     updateMarks(button, card, Boolean(onMark) && !readOnly, printed, onBattlefield);
     return button;

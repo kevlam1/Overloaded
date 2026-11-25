@@ -2243,3 +2243,8 @@ body.playing.seats .tool-dock > .players-panel.tool-docked { width: 100%; box-sh
 body.playing.seats .pp-life-slot #life-area { flex-wrap: wrap; justify-content: flex-end; height: auto; padding: 0; border: 0; background: none; box-shadow: none; }
 body.playing.seats .pp-life-slot #life-area .counter-chips { flex-wrap: wrap; flex-basis: 100%; justify-content: flex-end; }
 body.playing.seats.players-on .opp-life-box { display: none; }
+
+/* another player's state on their seat and in the Players panel (Kevin, 2026-11-24: Reconnecting..., Away N min, Conceded were only in a hidden list) */
+body.playing.seats .seat-status, .pp-status { flex: none; padding: 0.05rem 0.45rem; border: 1px solid color-mix(in srgb, var(--danger) 55%, transparent); border-radius: 0.8rem; background: rgba(20, 20, 26, 0.85); color: var(--danger); font-size: 0.66rem; font-weight: 700; line-height: 1.3; white-space: nowrap; }
+body.playing.seats .seat-status { position: relative; z-index: 6; }
+body.playing.seats .seat-status[hidden], .pp-status[hidden] { display: none; }

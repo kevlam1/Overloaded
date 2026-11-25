@@ -5420,7 +5420,31 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **My AI's mistakes this time:** it first moved my life controls into my row before that row was on the page, so for a moment they were nowhere on the page and the next layout crashed (caught by `check-lobby-deck-live`'s "no page errors"); and it named the new drawing function the same as an existing one (caught by the syntax check).
 
+## 277. A product behavior spec, and fixes for what it found (2026-11-24)
+
+**What I asked for**
+- A complete audit of the app as it is today, written up as `PRODUCT_BEHAVIOR_SPEC.md`, as the reference for a future redesign: every feature, how it behaves, what must be kept and what can change, without touching the app. Then: fix the problems it found.
+
+**What changed**
+- `PRODUCT_BEHAVIOR_SPEC.md` (new, about 23,500 words, 19 sections): the audit, from six read-only reviews of the code, the rules, the docs and the log, checked against the code (every cited function exists). Every claim is marked as read in the code, inferred, or taken from the docs, and every feature is classed as must preserve, preserve intent, open to redesign or needs investigation.
+- **The tool docks' layout is really saved now.** The dock code passed an object to a store that keeps only text, so it stored "[object Object]" and kept nothing, although entries 273 and 276 said it was kept. It is now JSON text, read back strictly (`readDockStore`, `writeDockStore` in `frontend/src/tool-dock.js`; new test `scripts/test-tool-dock.mjs`).
+- **A whole pile dropped on my library, graveyard or exile moves every card** (only the top card went): `frontend/src/board-drag.js` passes the pile's cards, and both pages' `dropOnPile` move them all ("Moved the pile of 2 Island to your graveyard.").
+- **The View library key works on the solo table** (it clicked the library, which does nothing there; it now opens it like the menu's View library).
+- **Take over as host during a match:** Settings > Game has "Take over as host" when the host has had no open tab for 5 minutes (the same test as the database rule); the Messages tab says so once. It was only on the lobby page, which a match never shows.
+- **Other players' state shows during a game:** "Reconnecting...", "Away N min" or "Conceded" on their seat and their Players row (with the full sentence as the tooltip). It was only in a hidden list.
+- **A failed save is said in red in the Messages tab** once, and "Saved again." when it recovers (it was only inside Settings).
+- **Face-down cards are not named on screen:** a ping says "pinged a face-down card" and the card corner shows the card back; other players' face-down cards are read out as "A face-down card". Their names are still in the public data: hiding those needs a database change, not done.
+- The spec has an update note saying which of its problems are fixed.
+
+**What I checked**
+- `check-seats-live` 37 of 37, with a new check: a pile of two Islands held down and let go on my graveyard sends both there (graveyard 2 to 4, battlefield 2 to 0). A throwaway two-browser probe: Bob concedes, and my screen shows "Conceded" on his seat and his Players row (screenshot looked at).
+- `scripts/test-tool-dock.mjs` (5 checks) fails on the old code ("[object Object]") and passes on the fix; `test-ping` 95 (a new face-down check); `npm run test:quick` 85 suites; `check-solo-ui` 471; `check-table-layout` 145; `check-spotlight-ui` 31; `check-lobby-deck-live` 193 of 193.
+- Not checked in a browser: the takeover button (it needs a host gone for 5 minutes), the "Reconnecting..." and "Away" words (two probes that closed Bob's page did not drop his connection in time, and the second one hung and was stopped; its two browser folders were deleted), the save-failure message, the View library key, and the face-down card corner.
+
+**My AI's mistakes this time:** the "[object Object]" dock bug was its own, from entry 273, and it had reported the layout as kept without testing a reload. Its first status probe left a hung script, which it stopped and cleaned up.
+
 ## Where AI misread me, or I had to correct course
+- (2026-11-24, entry 277) Claude told me the tool docks remembered their layout (entries 273 and 276) when the code stored "[object Object]"; the audit for the spec found it.
 - (2026-11-23, entry 273) I said "commit and push after every big change" and meant every big prompt; Claude pushed after each of three changes.
 - (2026-11-23, entry 270) Claude reported the multiplayer table as passing its checks without saying how cramped the seats looked; I had to ask whether it really thought the 2, 3 and 4 seat tables looked good.
 - (2026-11-20, entry 262) Claude said the cells were square because its numbers were, while the lines drawn on the board were not; I had to send a screenshot.

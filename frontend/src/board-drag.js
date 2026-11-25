@@ -331,7 +331,7 @@ export function mountBoardDrag({ doc = document, board, onDrop, hand = () => nul
     const picture = drag.smooth ? { x: drag.smooth.x, y: drag.smooth.y, angle: drag.smooth.a } : drag.pos ? { x: drag.pos.x, y: drag.pos.y, angle: 0 } : null; // where the picture is as it is let go: the card starts there
     clean();
     swallowClick();
-    if (pile) onDropPile({ uid, from, to: pile, slot, element: pileElement, flying, uids: group && from === 'hand' ? carriedUids : null });
+    if (pile) onDropPile({ uid, from, to: pile, slot, element: pileElement, flying, uids: (group && from === 'hand') || (whole && from === 'battlefield') ? carriedUids : null }); // (a hand group, or a whole battlefield pile: every card carried goes into the pile)
     else if (overHand && from === 'hand') { if (!group) onReorderHand({ uid, x, picture }); } // (a picked group let go over the hand stays as it is)
     else if (overHand) onDropHand({ uid, from, x, picture, uids: whole || group ? carriedUids : null });
     else if (cell) onDrop({ uid, from, col: cell.col, row: cell.row, whole, group });

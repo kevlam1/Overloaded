@@ -2,7 +2,7 @@
 // player pinged (shared/ping.mjs), which stays until you select another card, another ping replaces it, or you close it. Everything shown came from this page or from another
 // player's browser: it is put in as text and as a picture address built from a card id (shared/card-image.mjs), never as markup. The picture is loaded only when a card is shown,
 // and falls back to the default printing and then to the name alone.
-import { imageUrl } from '../../shared/card-image.mjs';
+import { imageUrl, cardBackUrl } from '../../shared/card-image.mjs';
 
 const make = (tag, className, text) => {
   const element = document.createElement(tag);
@@ -53,10 +53,11 @@ export function createSpotlight(root, { onClose = () => {}, persistent = false, 
       text.hidden = false;
       empty.hidden = true;
       const side = card.turned ? 'back' : 'front';
-      const first = imageUrl(card.p ?? card.i, 'normal', side);
+      const hidden = card.faceDown === true; // a face-down card shows its back and no name, here too (Kevin, 2026-11-24: a ping showed its real face)
+      const first = hidden ? cardBackUrl('normal') : imageUrl(card.p ?? card.i, 'normal', side);
       picture.hidden = false;
-      picture.dataset.tried = '';
-      picture.alt = card.n;
+      picture.dataset.tried = hidden ? '1' : '';
+      picture.alt = hidden ? 'A face-down card' : card.n;
       picture.onerror = () => {
         const fallback = card.p && !picture.dataset.tried ? imageUrl(card.i, 'normal', side) : null;
         picture.dataset.tried = '1';
@@ -65,9 +66,9 @@ export function createSpotlight(root, { onClose = () => {}, persistent = false, 
       if (first) picture.src = first; else picture.hidden = true;
       line.textContent = sentence;
       line.hidden = !sentence;
-      name.textContent = card.n;
-      type.textContent = card.t || '';
-      type.hidden = !card.t;
+      name.textContent = hidden ? 'A face-down card' : card.n;
+      type.textContent = hidden ? '' : card.t || '';
+      type.hidden = hidden || !card.t;
       detail.textContent = more;
       detail.hidden = !more;
       close.hidden = !closable;
