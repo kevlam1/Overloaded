@@ -1,4 +1,5 @@
-// Checks the Seats table's layout (frontend/src/style.css, "the Seats table, version 3"; Kevin, 2026-11-20) in a real headless Chrome at several window sizes with 1 to 3 other players, in Grid view.
+// Checks the Seats table's layout (frontend/src/style.css, "the Seats table, version 3"; Kevin, 2026-11-20; the shell of the redesign, src/styles/game-shell.css, 2026-11-24) in a real headless Chrome
+// at several window sizes with 1 to 3 other players, in Grid view, with the top bar and the rail (Players, history, stack, your console) on the right.
 // The real page and style sheet are loaded; the game itself is not (that needs a database), so the page is put into the playing state and filled with busy content built like the page's own:
 // full battlefields, a hand of 7, card backs for the others' hands, counters. Short on purpose: per size and count, the page does not scroll, every player has an area of their own in the window,
 // in each area the battlefield is under the head and nothing of the area rests on it (piles, the resting hand), and the cards are big enough to see.
@@ -23,7 +24,11 @@ const FILL = (opponents) => `(() => {
   // a battlefield is a 112 by 50 grid, a card 7 by 10 (shared/board-grid.mjs): lands from the bottom-left, the rest from the top-left
   const board = (grid, lands, others) => { grid.replaceChildren(); const put = (n, col, row, kind) => { const b = card(n, false); b.dataset.col = String(col); b.dataset.row = String(row); b.dataset.kind = kind; grid.append(b); }; for (let i = 0; i < lands; i++) put(i, (i % 16) * 7, 40 - 10 * Math.floor(i / 16), 'land'); for (let i = 0; i < others; i++) put(100 + i, (i % 16) * 7, 10 * Math.floor(i / 16), 'other'); };
   const pile = (zone, label, count) => { const b = make('button', 'opp-pile pile-stack'); b.type = 'button'; b.dataset.zone = zone; b.dataset.label = label; b.dataset.count = String(count); b.dataset.empty = 'false'; const layers = make('span', 'stack-layers'); layers.append(make('span', 'stack-layer'), make('span', 'stack-layer'), make('span', 'stack-face' + (zone === 'library' ? ' back' : ''))); b.append(layers); return b; };
-  document.body.classList.add('playing', 'seats');
+  document.body.classList.add('playing', 'seats', 'rail-on');
+  // the rail as the page fills it in Grid view (frontend/src/tool-dock.js layout('grid')): Players, the history, the stack and your console, top to bottom
+  const rail = document.querySelector('.tool-dock[data-dock="rail"]'); rail.hidden = false;
+  for (const tool of [document.getElementById('players-panel'), document.getElementById('history-bar'), document.getElementById('stack-window'), document.querySelector('.actions-panel')]) { tool.classList.add('tool-docked'); rail.append(tool); }
+  document.getElementById('players-panel').hidden = false;
   document.body.dataset.seats = String(${opponents} + 1);
   document.body.dataset.view = 'grid';
   document.getElementById('game').hidden = false;
@@ -72,6 +77,7 @@ const RECTS = `(() => {
     lines: (() => { const b = document.getElementById('battlefield'); const parts = (getComputedStyle(b).backgroundSize.match(/-?[0-9.]+(?:e-?[0-9]+)?%/g) ?? []).slice(0, 2).map(parseFloat); return parts.length === 2 ? { x: parts[0] / 100 * b.clientWidth, y: parts[1] / 100 * b.clientHeight, raw: getComputedStyle(b).backgroundSize.slice(0, 80) } : { raw: getComputedStyle(b).backgroundSize.slice(0, 80) }; })(),
     win: { w: innerWidth, h: innerHeight }, scroll: { docH: document.documentElement.scrollHeight, docW: document.documentElement.scrollWidth },
     areas, life: r(document.getElementById('life-area')), bar: r(document.querySelector('.actions-panel')), hud: r(document.querySelector('.seats-hud')),
+    rail: r(document.querySelector('.tool-dock[data-dock="rail"]')), gameBar: r(document.getElementById('game-bar')), turn: r(document.getElementById('turn')), save: r(document.getElementById('save-chip')),
     handCardH: tall('#hand > .card'), mineCardH: tall('#battlefield > .card'), oppCardH: tall('.opponent .battlefield > .card'), pileW: [...document.querySelectorAll('#piles-section .pile-stack .stack-layers, .opp-pile .stack-layers')].map((e) => e.getBoundingClientRect().width),
   };
 })()`;
@@ -96,25 +102,27 @@ try {
       const mine = m.areas.find((a) => a.mine);
       check(`${label}: the page does not scroll`, m.scroll.docH <= m.win.h + 1 && m.scroll.docW <= m.win.w + 1, JSON.stringify(m.scroll));
       check(`${label}: every player has an area in the window, none overlapping, yours at the bottom`, m.areas.length === opponents + 1 && m.areas.every((a) => inside(a.area, win)) && m.areas.every((a, i) => m.areas.every((b, j) => i === j || apart(a.area, b.area, 1))) && Math.abs(mine.area.bottom - m.win.h) <= 6, JSON.stringify(m.areas.map((a) => a.area)));
+      check(`${label}: the areas are under the top bar and left of the rail, which runs to the bottom of the window`, m.areas.every((a) => a.area.top >= m.gameBar.bottom - 1 && a.area.right <= m.rail.left + 1) && m.rail.right >= m.win.w - 1 && m.rail.bottom >= m.win.h - 1 && m.rail.top >= m.gameBar.bottom - 1 && m.rail.width >= 250, JSON.stringify({ bar: m.gameBar, rail: m.rail }));
       check(`${label}: my battlefield's cells are square: 30 rows and as many columns as its width holds (${m.myCols} columns)`, Number.isInteger(m.myCols) && Math.abs(m.myCols - mine.board.width / (mine.board.height / 30)) < 1.5, JSON.stringify({ cols: m.myCols, board: mine.board })); // (the page measures whole pixels, this the exact box: up to one column apart)
       check(`${label}: ...and the cell LINES drawn on it are square too (${m.lines.x?.toFixed(2)} by ${m.lines.y?.toFixed(2)} px)`, Number.isFinite(m.lines.x) && Number.isFinite(m.lines.y) && Math.abs(m.lines.x - m.lines.y) / m.lines.y < 0.02, JSON.stringify(m.lines));
       check(`${label}: in every area the battlefield fills it from edge to edge from the top, and the piles are under it (Kevin, 2026-11-23)`, m.areas.every((a) => inside(a.board, a.area, 1) && a.board.top - a.area.top <= 10 && a.board.left - a.area.left <= 10 && a.area.right - a.board.right <= 10 && a.board.width > 150 && Math.min(...a.piles.map((p) => p.top)) >= a.board.bottom - 1), JSON.stringify(m.areas.map((a) => [a.board, Math.min(...a.piles.map((p) => p.left))])));
       check(`${label}: in every area the piles are whole, inside it and off the battlefield`, m.areas.every((a) => a.piles.length >= 4 && a.piles.every((p) => inside(p, a.area, 1) && apart(p, a.board, 1))), JSON.stringify(m.areas.map((a) => a.piles.filter((p) => !apart(p, a.board, 1)))));
       check(`${label}: no resting hand card (yours or a back of theirs) covers more than 3 px of a battlefield`, m.areas.every((a) => a.resting.every((c) => apart(c, a.board, 3))), JSON.stringify(m.areas.map((a) => [a.board.bottom, Math.min(...a.resting.map((c) => c.top))])));
-      check(`${label}: your life is in your area's head; the action bar starts as a row in the bottom left corner, under your battlefield, apart from the view and menu buttons`, inside(m.life, mine.head, 1) && inside(m.bar, win, 1) && apart(m.bar, m.hud) && apart(m.life, m.hud) && m.bar.left < 20 && m.bar.top >= mine.board.bottom - 1 && m.bar.height < 50, JSON.stringify({ life: m.life, bar: m.bar, board: mine.board, hud: m.hud }));
+      check(`${label}: the top bar holds the turn, the save state and the menu; your console (life and buttons) is whole, at the bottom of the rail`, inside(m.turn, m.gameBar, 1) && inside(m.save, m.gameBar, 1) && inside(m.hud, m.gameBar, 1) && inside(m.bar, m.rail, 1) && inside(m.life, m.bar, 1) && m.rail.bottom - m.bar.bottom <= 2, JSON.stringify({ bar: m.bar, life: m.life, rail: m.rail }));
       const minHand = Math.min(...m.handCardH); const minMine = Math.min(...m.mineCardH); const minOpp = Math.min(...m.oppCardH); const minPile = Math.min(...m.pileW);
       check(`${label}: cards are big enough to see: hand ${Math.round(minHand)} px, yours ${Math.round(minMine)} px, theirs ${Math.round(minOpp)} px, piles ${Math.round(minPile)} px wide (at least 60, 28, 28 and 28)`, minHand >= 60 && minMine >= 28 && minOpp >= 28 && minPile >= 28);
       if (process.argv.includes('--screenshot') && (w === 1366 || w === 1920) && h !== 650) await browser.screenshot(`scratch-layout-${w}x${h}-${opponents + 1}.png`);
     }
-    // Sidebar view (picked in the lobby): your area large, the column on the right (left empty here); the battlefield reaches the area's right edge, over the row of piles
+    // Sidebar view (picked in the lobby): your area large, the others hidden (their seat cards are in the rail); the battlefield reaches the area's right edge, over the row of piles
     {
       const label = `${w}x${h}, Sidebar view`;
       await browser.goto(`${ORIGIN}/table/ABCDEF`);
       await browser.eval(FILL(3));
-      await browser.eval(`(() => { document.body.dataset.view = 'sidebar'; document.getElementById('seat-me').classList.add('focused'); document.querySelectorAll('#opponent-list .opponent').forEach((o) => o.remove()); document.getElementById('seats-side').hidden = false; window.dispatchEvent(new Event('resize')); })()`);
+      await browser.eval(`(() => { document.body.dataset.view = 'sidebar'; document.getElementById('seat-me').classList.add('focused'); document.querySelectorAll('#opponent-list .opponent').forEach((o) => o.classList.add('offstage')); window.dispatchEvent(new Event('resize')); })()`);
       await sleep(300);
       const m = await browser.eval(RECTS);
       const mine = m.areas.find((a) => a.mine);
+      check(`${label}: only your area shows, between the top bar and the bottom, left of the rail`, m.areas.filter((a) => a.area.width > 0).length === 1 && mine.area.top >= m.gameBar.bottom - 1 && mine.area.right <= m.rail.left + 1 && Math.abs(mine.area.bottom - m.win.h) <= 6, JSON.stringify(mine.area));
       const pilesTop = Math.min(...mine.piles.map((p) => p.top));
       check(`${label}: the battlefield runs from the left edge of the large area to its right edge, the piles under it`, mine.board.left - mine.area.left <= 10 && mine.area.right - mine.board.right <= 10 && pilesTop >= mine.board.bottom - 1 && mine.piles.every((p) => inside(p, mine.area, 1)), JSON.stringify({ area: mine.area, board: mine.board, pilesTop }));
       check(`${label}: ...its cells are square (${m.myCols} columns) and no resting hand card covers it`, Number.isInteger(m.myCols) && Math.abs(m.myCols - mine.board.width / (mine.board.height / 30)) < 1.5 && Math.abs(m.lines.x - m.lines.y) / m.lines.y < 0.02 && mine.resting.every((c) => apart(c, mine.board, 3)), JSON.stringify({ cols: m.myCols, lines: m.lines, handTop: Math.min(...mine.resting.map((c) => c.top)), boardBottom: mine.board.bottom }));

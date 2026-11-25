@@ -1,12 +1,12 @@
 // Docks for the table's tools (Kevin, 2026-11-23): the stack, the game history and the action bar can sit in a dock instead of floating, like windows snapped side by side. A dock is a column on
 // the page; the tools in it are stacked top to bottom, and the stack takes whatever height the others leave, so a tool dropped into a dock makes the stack shorter instead of sliding under it.
-// The page picks the layout (layout(mode)): 'column' is one dock on the left (2 and 4 seats), 'split' is two docks in the empty spaces beside your own area (3 seats), 'none' has no docks (Sidebar
-// view: every tool floats and the stack has its tab again). Which tools are in which dock, in which order, is kept in the browser for each layout.
+// The page picks the layout (layout(mode)). Since the redesign (Kevin, 2026-11-24, direction B) there is one dock, the RAIL on the right: 'grid' (Grid view) holds the Players section, the history,
+// the stack and your console; 'focus' (Sidebar view, the Focus Table) holds the first three while your console floats at the bottom left of your area; 'none' has no docks (no game yet). Which tools are in which dock, in which order, is kept in the browser for each layout.
 // A floating tool (src/floating-bar.js) asks this module, through dockingFor(name), where a drag would land: over a dock, a line shows the place, and letting go docks it there; anywhere else it floats.
 
 const TOOLS = ['players', 'stack', 'history', 'bar'];
-const DOCKS = { column: ['left'], split: ['left', 'right'], none: [] };
-const DEFAULTS = { column: { left: ['players', 'stack', 'history', 'bar'] }, split: { left: ['stack', 'bar'], right: ['players', 'history'] } }; // (3 seats: the action bar under the stack, Kevin 2026-11-23)
+const DOCKS = { grid: ['rail'], focus: ['rail'], none: [] };
+const DEFAULTS = { grid: { rail: ['players', 'history', 'stack', 'bar'] }, focus: { rail: ['players', 'history', 'stack'], float: ['bar'] } }; // (the stack takes the height the others leave)
 
 // A stored layout, read strictly: only known docks and tools, each tool once, and the stack always docked (it has no grip of its own). Anything else gives the default. `float` lists the tools
 // the player dragged out on purpose; a tool in no list (one added to the page after the layout was saved) goes where the default puts it.
@@ -24,6 +24,7 @@ export function readDockLayout(mode, raw) {
   if (!seen.has('stack')) { out[DOCKS[mode][0]].unshift('stack'); seen.add('stack'); }
   for (const tool of TOOLS) {
     if (seen.has(tool)) continue;
+    if (fallback.float?.includes(tool)) { out.float.push(tool); continue; } // (its default is to float)
     const dock = DOCKS[mode].find((name) => fallback[name]?.includes(tool)) ?? DOCKS[mode][0];
     const after = (fallback[dock] ?? []).slice(0, (fallback[dock] ?? []).indexOf(tool)); // (in its default place among the tools that are there)
     const index = out[dock].reduce((at, name, i) => (after.includes(name) ? i + 1 : at), 0);
@@ -45,7 +46,7 @@ export function createToolDocks({ elements, stackWindow, onFloat = () => {}, sto
   const host = elements.bar.parentElement;
   const home = Object.fromEntries(TOOLS.map((name) => [name, { parent: elements[name].parentElement, next: elements[name].nextSibling }]));
   const docks = {};
-  for (const name of ['left', 'right']) {
+  for (const name of ['rail']) {
     const dock = document.createElement('div');
     dock.className = 'tool-dock';
     dock.dataset.dock = name;

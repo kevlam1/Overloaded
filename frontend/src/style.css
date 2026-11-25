@@ -1945,7 +1945,6 @@ body[data-screen] .deck-import-tile:not(.secondary) { box-shadow: none; border-r
    └──────────────────────────────────────────────────────────┘
    The battlefield is as large as one of two shapes allows, whichever is larger: BESIDE (the piles to its right, the hand's resting cards under it) for a wide area, or BELOW (the piles and the hand in a
    band under it) for a narrow one. Nothing rests on top of a battlefield: the hand only rises over its bottom edge while the pointer is in it. ---- */
-body.playing.seats { --side-w: 15.5rem; }
 body.playing.seats #game { display: block; position: fixed; inset: 0; z-index: 1; }
 body.playing.seats main.table { display: block; position: fixed; inset: 0; margin: 0; padding: 0; overflow: hidden; }
 body.playing.seats #deck-line, body.playing.seats .hint.extra { display: none; }
@@ -1955,7 +1954,7 @@ body.playing.seats #players-slot, body.playing.seats #players-section { position
 body.playing.seats .seats-stage { position: absolute; inset: 0; display: grid; gap: 0.3rem; padding: 0.3rem; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "o1" "me"; }
 body.playing.seats[data-seats="3"] .seats-stage { grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-areas: "o1 o1 o2 o2" ". me me ."; }
 body.playing.seats[data-seats="4"] .seats-stage { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-areas: "o1 o2" "me o3"; }
-body.playing.seats[data-view="sidebar"] .seats-stage { right: var(--side-w); grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); grid-template-areas: "main"; }
+body.playing.seats[data-view="sidebar"] .seats-stage { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); grid-template-areas: "main"; }
 body.playing.seats #opponents, body.playing.seats #opponent-list { display: contents; }
 body.playing.seats #opponents[hidden] { display: none; }
 body.playing.seats #opponents > h2, body.playing.seats #opponents > .hint { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
@@ -2016,28 +2015,6 @@ body.playing.seats .opp-waiting { position: absolute; inset: var(--T) 0 0; displ
 body.playing.seats .opp-waiting[hidden] { display: none; }
 body.playing.seats .opp-body { display: contents; }
 body.playing.seats .opp-body[hidden] > * { display: none; }
-/* the news: one line at the top right of your area, above the piles, never over the battlefield (a lost connection or a warning first, else what just happened) */
-body.playing.seats .topbar-slot { position: absolute; z-index: 6; top: 0.3rem; right: var(--pad); max-width: max(10rem, calc(var(--Z) - 2 * var(--pad))); pointer-events: none; }
-body.playing.seats[data-view="sidebar"] .seat-area.focused .topbar-slot { top: 2.9rem; } /* (under the view and menu buttons) */
-/* the action bar on the table: the turn above the buttons (Draw, Untap all, Next turn), a little smaller than the solo table's */
-body.playing.seats .actions-panel .turn-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.05rem 0.6rem; }
-body.playing.seats .actions-panel .turn-line :is(.turn-stat, .turn-whose, .turn-clock) { margin: 0; padding: 0; border: 0; white-space: nowrap; font-size: 0.8rem; }
-body.playing.seats .actions-panel .turn-line .turn-whose { font-weight: 700; }
-body.playing.seats .actions-panel .turn-clock[hidden], body.playing.seats .actions-panel .actions button[hidden] { display: none; }
-body.playing.seats .actions-panel[data-vertical="true"] .turn-line { justify-content: center; }
-/* as a row it is short and low, to sit in the strip under the battlefield: the turn number and the clock, then the three buttons (whose turn it is shows as the gold border of their area) */
-body.playing.seats .actions-panel:not([data-vertical="true"]) { flex-direction: row; align-items: center; gap: 0.4rem; padding: 0.2rem 0.4rem; }
-body.playing.seats .actions-panel:not([data-vertical="true"]) .turn-whose { display: none; }
-body.playing.seats .actions-panel:not([data-vertical="true"]) .actions { display: flex; flex-direction: row; gap: 0.3rem; }
-body.playing.seats .actions-panel:not([data-vertical="true"]) .actions button { min-height: 0; padding: 0.2rem 0.55rem; font-size: 0.78rem; white-space: nowrap; }
-body.playing.seats .topbar { position: static; inset: auto; translate: none; z-index: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 0.2rem; max-width: 100%; max-height: calc(var(--T) - 0.5rem); margin: 0; padding: 0; overflow: hidden; pointer-events: none; }
-body.playing.seats .topbar #connection { order: 1; }
-body.playing.seats .topbar #banner { order: 2; }
-body.playing.seats .topbar #status { order: 3; }
-body.playing.seats .topbar #turn-banner { display: none; }
-body.playing.seats .topbar h1 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-body.playing.seats .topbar > * { max-width: 100%; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.75rem; }
-body.playing.seats .topbar > :empty { display: none; }
 
 /* the battlefield: as large as fits (--bw), from the top of the area, its right edge just before the piles (the life and the name sit over its top) */
 body.playing.seats #my-board, body.playing.seats .opp-field { position: absolute; z-index: 1; inset: auto; top: 0; left: var(--bl); translate: none; width: var(--bw); height: var(--bh); min-height: 0; max-height: none; margin: 0; padding: 0; display: block; overflow: visible; border: 0; background: none; }
@@ -2099,28 +2076,9 @@ body.playing.seats .opp-back { flex: none; width: calc(var(--bh) / 1.4015); heig
 body.playing.seats .opp-back:first-child { margin-left: 0; }
 body.playing.seats .opp-hand-pill { right: calc(100cqw - var(--bl) - var(--hw) + 0.3rem); }
 
-/* the buttons at the top right of the window (of the large area in Sidebar view): the view and the menu */
-body.playing.seats .seats-hud { position: absolute; z-index: 20; top: 0.55rem; right: 0.55rem; display: flex; flex-direction: row; gap: 0.35rem; }
-body.playing.seats[data-view="sidebar"] .seats-hud { right: calc(var(--side-w) + 0.55rem); }
-body.playing.seats .seats-hud > button { position: static; inset: auto; translate: none; display: grid; place-items: center; width: 2rem; height: 2rem; min-height: 0; padding: 0; border: 1px solid var(--line); border-radius: 0.55rem; background: var(--glass); backdrop-filter: blur(8px); color: var(--text); box-shadow: 0 0.3rem 0.8rem rgba(0, 0, 0, 0.35); cursor: pointer; }
-body.playing.seats .seats-hud > button:hover, body.playing.seats .seats-hud > button:focus-visible { border-color: var(--ring); }
-
-/* the column of Sidebar view: every player, small; the one shown large has an eye instead */
-body.playing.seats .seats-side { position: absolute; top: 0; right: 0; bottom: 0; width: var(--side-w); display: flex; flex-direction: column; gap: 0.45rem; padding: 0.45rem 0.5rem; overflow-y: auto; border-left: 1px solid var(--line); background: color-mix(in srgb, var(--bg) 80%, #000); }
-body.playing.seats .seats-side[hidden] { display: none; }
-body.playing.seats .seat-slot { flex: none; overflow: hidden; border: 1px solid var(--line); border-radius: 0.55rem; background: color-mix(in srgb, var(--bg) 92%, #000); }
-body.playing.seats .seat-slot.viewing { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
-body.playing.seats .seat-slot.active:not(.viewing) { border-color: var(--gold, #d9b45f); }
-body.playing.seats .slot-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; width: 100%; min-height: 0; padding: 0.25rem 0.55rem; border: 0; border-radius: 0; background: none; color: var(--text); font-size: 0.8rem; font-weight: 700; text-align: left; cursor: pointer; }
-body.playing.seats .slot-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-body.playing.seats .slot-life { flex: none; font-variant-numeric: tabular-nums; }
-body.playing.seats .slot-body { position: relative; height: calc(var(--stage-h, 600px) * var(--mini, 0.2)); overflow: hidden; cursor: pointer; }
-body.playing.seats .slot-eye { display: grid; place-items: center; height: 100%; color: var(--accent); }
-body.playing.seats .seat-area.mini { position: absolute; left: 0; top: 0; width: var(--stage-w, 1000px); height: var(--stage-h, 600px); transform: scale(var(--mini, 0.2)); transform-origin: 0 0; pointer-events: none; }
 
 /* a pinged card shows at the top right */
 body.playing.seats #spotlight { position: absolute; z-index: 16; top: 3rem; right: 0.6rem; width: 12.5rem; }
-body.playing.seats[data-view="sidebar"] #spotlight { right: calc(var(--side-w) + 0.6rem); }
 body.playing.seats #spotlight:not([data-mode="ping"]) { display: none; } /* (only a pinged card shows here) */
 
 /* the counters panel under your life (frontend/src/counter-panel.js) */
@@ -2152,28 +2110,6 @@ body.playing.seats :is(.cmd-slot.empty-slot, .opp-command:empty)::after { conten
 body.playing.seats :is(.cmd-slot.empty-slot, .opp-command:empty) { position: relative; } /* (the slot's own ::before and ::after are its gold diamonds, so the word is on the slot) */
 body.playing.seats :is(.cmd-slot.empty-slot, .opp-command:empty)::after { content: "CMD"; }
 
-/* ---- the tools' docks in Grid view (Kevin, 2026-11-23; frontend/src/tool-dock.js): the stack, the game history and the action bar sit in a dock, stacked top to bottom, the stack taking the height
-   the others leave. 2 and 4 seats (body.tool-column): one column on the left, the seats moved right to make room. 3 seats (body.tool-split): the empty spaces left and right of your own area. A tool
-   dragged out of a dock floats; one dropped on a dock goes where the line shows. ---- */
-body.playing.seats.tool-column { --tool-w: 16rem; }
-body.playing.seats.tool-column .seats-stage { left: var(--tool-w); }
-body.playing.seats.tool-column #game::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: var(--tool-w); border-right: 1px solid var(--line); background: color-mix(in srgb, var(--bg) 80%, #000); }
-.tool-dock { position: fixed; z-index: 11; /* (under a floating tool, z-index 12, so a grip is never hidden by a dock) */ display: flex; flex-direction: column; gap: 0.45rem; padding: 0.45rem; box-sizing: border-box; min-height: 0; }
-.tool-dock[hidden] { display: none; }
-body.playing.seats.tool-column .tool-dock[data-dock="left"] { left: 0; top: 0; bottom: 0; width: var(--tool-w); }
-/* (3 seats: the stage is 4 equal columns with 0.3rem padding and gaps, and the bottom row is ". me me ."; each dock is one of those empty quarters) */
-body.playing.seats.tool-split .tool-dock { top: calc(50% + 0.15rem); bottom: 0.3rem; width: calc((100vw - 1.5rem) / 4); padding: 0.3rem; }
-body.playing.seats.tool-split .tool-dock[data-dock="left"] { left: 0.3rem; }
-body.playing.seats.tool-split .tool-dock[data-dock="right"] { right: 0.3rem; }
-.tool-dock > .tool-docked { position: relative !important; inset: auto !important; left: auto !important; top: auto !important; translate: none !important; transform: none !important; margin: 0 !important; flex: none; width: auto; max-width: none !important; box-sizing: border-box; transition: none; }
-.tool-dock > .stack-window.tool-docked { --stack-w: 100%; flex: 1 1 0; min-height: 4rem; display: flex; pointer-events: auto; }
-.tool-dock > .stack-window.tool-docked .stack-tab { display: none; }
-.tool-dock > .stack-window.tool-docked .stack-panel { width: 100%; border-left: 1px solid var(--line); border-radius: 0.6rem; box-shadow: none; }
-.tool-dock > .actions-panel.tool-docked { flex-wrap: wrap; justify-content: flex-start; }
-body.playing.seats .tool-dock > .history-panel.tool-docked { width: 100%; } /* (as specific as the 13rem of a floating history panel, and later, so it wins: the whole width of the dock) */
-.tool-dock > .history-panel.tool-docked .history-list { max-height: min(16rem, 40vh); }
-.dock-drop-line { position: absolute; z-index: 2; left: 0.45rem; right: 0.45rem; height: 3px; border-radius: 2px; background: var(--accent); box-shadow: 0 0 0.5rem var(--accent); pointer-events: none; }
-.dock-drop-line[hidden] { display: none; }
 
 /* another player's piles (Kevin, 2026-11-23): the name that shows on hover is ABOVE the pile, in the same room as the CMD label, so the piles and the command zone sit level; their commander tax is a
    bubble at the top right of the command zone, like the count of a pile (hidden at 0) */
@@ -2190,30 +2126,3 @@ body.playing.seats .cmd-slot .tax { position: absolute; z-index: 3; top: -0.3rem
 body.playing.seats .cmd-slot .tax[hidden] { display: none; }
 body.playing.seats .cmd-slot .tax-words { min-width: 1.1rem; min-height: 0; height: 1.1rem; padding: 0 0.3rem; border: 1px solid color-mix(in srgb, var(--gold, #d9b45f) 70%, transparent); border-radius: 0.8rem; background: rgba(20, 20, 26, 0.92); color: var(--gold, #d9b45f); font-size: 0.66rem; font-weight: 700; line-height: 1; }
 
-/* ---- the Players tool (Kevin, 2026-11-23; frontend/src/players-panel.js): every player's name, life, commanders and counters, in a dock or floating; your row holds your life controls.
-   While it is on the table (Grid view, body.players-on), the life boxes leave the seats. ---- */
-body.playing.seats .players-panel { position: absolute; top: 0; left: 0; z-index: 12; width: 15rem; overflow: hidden; border: 1px solid var(--line); border-radius: 0.7rem; background: var(--card); color: var(--text); box-shadow: 0 0.5rem 1.2rem rgba(0, 0, 0, 0.35); }
-body.playing.seats .players-panel[hidden] { display: none; }
-body.playing.seats .players-panel.dragging { border-color: var(--ring); }
-body.playing.seats .tool-dock > .players-panel.tool-docked { width: 100%; box-shadow: none; }
-.players-head { display: flex; align-items: center; height: 1.7rem; padding: 0 0.7rem; color: var(--muted); font-size: 0.8rem; font-weight: 700; cursor: grab; user-select: none; }
-.players-head:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
-.players-panel.dragging .players-head { cursor: grabbing; }
-.players-list { display: flex; flex-direction: column; gap: 0.3rem; margin: 0; padding: 0 0.4rem 0.4rem; list-style: none; }
-.pp-row { padding: 0.3rem 0.5rem; border: 1px solid var(--line); border-radius: 0.5rem; background: color-mix(in srgb, var(--bg) 85%, #000); }
-.pp-row.active { border-color: var(--gold, #d9b45f); box-shadow: inset 0 0 0 1px var(--gold, #d9b45f); }
-.pp-top { display: flex; align-items: center; justify-content: space-between; gap: 0.4rem; min-height: 1.8rem; }
-.pp-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.85rem; font-weight: 700; }
-.pp-life { flex: none; font-size: 1.25rem; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
-.pp-cmd { margin-top: 0.1rem; color: var(--muted); font-size: 0.72rem; line-height: 1.3; }
-.pp-chips { margin-top: 0.25rem; flex-wrap: wrap; }
-.pp-cmd[hidden], .pp-chips[hidden] { display: none; }
-.pp-life-slot { display: flex; justify-content: flex-end; min-width: 0; }
-body.playing.seats .pp-life-slot #life-area { flex-wrap: wrap; justify-content: flex-end; height: auto; padding: 0; border: 0; background: none; box-shadow: none; }
-body.playing.seats .pp-life-slot #life-area .counter-chips { flex-wrap: wrap; flex-basis: 100%; justify-content: flex-end; }
-body.playing.seats.players-on .opp-life-box { display: none; }
-
-/* another player's state on their seat and in the Players panel (Kevin, 2026-11-24: Reconnecting..., Away N min, Conceded were only in a hidden list) */
-body.playing.seats .seat-status, .pp-status { flex: none; padding: 0.05rem 0.45rem; border: 1px solid color-mix(in srgb, var(--danger) 55%, transparent); border-radius: 0.8rem; background: rgba(20, 20, 26, 0.85); color: var(--danger); font-size: 0.66rem; font-weight: 700; line-height: 1.3; white-space: nowrap; }
-body.playing.seats .seat-status { position: relative; z-index: 6; }
-body.playing.seats .seat-status[hidden], .pp-status[hidden] { display: none; }

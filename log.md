@@ -5469,6 +5469,42 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 - `style.css` is not cut into topic files in one go: that would reorder rules and silently change which one wins. New layers load after it, and its old blocks are deleted as each area is rebuilt.
 - Dark only for now: the light theme was unreadable on the play pages (spec section 17) and comes back as a set of token values.
 
+## 279. Redesign step 2: the table's top bar, the rail and seat cards (2026-11-24)
+
+**What I asked for**
+- Step 2 of the approved redesign plan: the multiplayer table gets the new shell. Sidebar view becomes the Focus Table, with my board large and every other player as a seat card in a rail on the right; Grid view keeps every board at once in the same style. The rail's parts can still be dragged out to float and dropped back.
+
+**What changed**
+- **The top bar** (`#game-bar`, new): the turn number, a dot in that seat's color with whose turn it is, "Next: Bob", the turn clock, the news line (it moved here from the corner of my area), "Saved" / "Saving" / "Not saved" (`#save-chip`; a failed save now shows where I look, not only in Settings) and the menu button. A place for the phase tracker is kept for step 4. The ids the code and checks use did not change.
+- **The rail** (`frontend/src/tool-dock.js`): one dock on the right instead of the left column (2 and 4 seats) and the split docks (3 seats). In Grid view it holds Players, Game history, Stack and my console. In Sidebar view my console floats at the bottom left by default. Every part can still be dragged out by its header and dropped back on the rail. The layouts are saved under the same key, per view.
+- **Seat cards** (`frontend/src/players-panel.js`, rewritten): one card per player in turn order. Each has:
+  - the seat's color stripe, the name, Away / Reconnecting / Conceded, "Your turn" / "Their turn" / "Next", and the life in large numbers;
+  - the commanders with their tax, and "Hand 6 · Library 23", on separate lines;
+  - the counters, and in Sidebar view a summary of the battlefield.
+- In Sidebar view a click on a card shows that player's board large. My own card appears only then, as the way back. The old column of shrunken copies is gone.
+- **Board summary** (`shared/board-summary.mjs`, new, plain Node): permanents grouped as creatures, other and lands; copies counted ("Llanowar Elves ×3 · 1 tapped"); tokens and cards with counters on their own rows. A face-down card is only "Face-down card", never named.
+- **My console:** my life (− 40 +, the counters arrow, my chips) moved out of my seat's head into the action bar. Each seat now has a small nameplate at its top left: a dot in the seat color, the name and the life. A thin stripe in the seat color runs along the top of each area.
+- **Grid view, 3 seats:** my area now runs the whole width under the other two. The empty corners beside it held the tools before the rail; empty, they were wasted room.
+- **Styles:** a new layer, `frontend/src/styles/game-shell.css`. 91 lines of old rules left `style.css`: the Sidebar column, the left and split docks, the old Players tool, and the old news and menu placement.
+- **Right-click menus open like a system menu** (`frontend/src/card-menu.js`): with no room below or to the right of the pointer, a menu now opens above it or to its left. Before, it was pushed back up under the pointer. With my life at the bottom of the rail, that put the pointer on "Commander damage from Seat 1", which opened its own small menu by itself. The lobby-to-table live check caught it.
+- My nameplate's life now changes as soon as I change my life, not only when another player's move arrives (found reading the diff).
+
+**What I checked**
+- `scripts/test-board-summary.mjs` (8 checks, new) and `scripts/test-tool-dock.mjs` (6, rewritten for the rail) pass. `npm run test:quick` passed all 86 suites.
+- `scripts/check-table-layout.mjs`: rewritten on purpose where it measured the old pieces. It now fills the rail like the page does, and checks that the areas sit under the top bar and left of the rail, that the turn, save state and menu are in the top bar, and that my console is whole at the bottom of the rail. 165 of 165 checks passed at 5 window sizes, 2 to 4 players, plus Sidebar view.
+- `scripts/check-seats-live.mjs`: the Sidebar part was rewritten for the seat cards. Two real browsers and bots on the real project, 38 of 38. The new checks:
+  - the 4-seat match opens with a card for each other player in the rail;
+  - Bob's card shows 40, Ezuri, "Hand 6" and a summary line;
+  - a click on it shows his board large with my hand still along the bottom;
+  - a click on my own card brings my board back.
+- Screenshots looked at, desktop only: Grid 2 and 3 seats and Sidebar view (mine large, and Bob's) from the live check, and the layout check at 1366x768 and 1920x950.
+- `npm test`: 97 of 97 suites. The first `npm run test:live` had 3 failures. Two came from Claude running the logs check by hand at the same time (its port was taken) and editing `table.js` mid-run; both checks pass when run alone. The third was the menu problem above. After the fix: `npm test` 97 of 97 again, the lobby-to-table live check 193 of 193, and the seats live check 38 of 38.
+
+**Decisions**
+- The phase strip, undo and the solo table are later steps. The solo table keeps its look until step 3.
+- The console's old saved place is not reused (a new key, `overloaded.seatsConsole`), so everyone starts from the new default.
+- Claude's mistake on the way: its first script for the `table.js` edits failed on a shell quoting error and changed nothing; it was redone from a file and the result checked.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-24, entry 277) Claude told me the tool docks remembered their layout (entries 273 and 276) when the code stored "[object Object]"; the audit for the spec found it.
 - (2026-11-23, entry 273) I said "commit and push after every big change" and meant every big prompt; Claude pushed after each of three changes.

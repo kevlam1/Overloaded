@@ -8,6 +8,7 @@
     <!-- Root-based paths, not ./ ones: this page is served at /table/CODE, where a relative path would point into /table/. -->
     <link rel="stylesheet" href="/src/style.css">
     <link rel="stylesheet" href="/src/styles/components.css">
+    <link rel="stylesheet" href="/src/styles/game-shell.css">
   </head>
   <body>
     <main class="table">
@@ -35,10 +36,25 @@
         </div>
       </section>
 
-      <!-- While a match is on, every player has an area that looks like the solo table (src/style.css, "the Seats table, version 3"): their battlefield, their hand, their piles, their life.
-           Grid view shows every area at once; Sidebar view shows one large with the others small in a column on the right (table.js layoutSeats). -->
+      <!-- While a match is on, every player has an area that looks like the solo table: their battlefield, their hand, their piles (src/styles/game-shell.css).
+           Grid view shows every area at once; Sidebar view shows one large, and the seat cards in the rail on the right open the others (table.js layoutSeats). -->
       <div id="game" hidden>
         <p id="deck-line" class="lede"></p>
+        <!-- The top bar (the redesign, 2026-11-24): the turn, whose turn it is and who is next, the turn clock, the phase (a later step), the news line, whether your game is saved, the menu. -->
+        <header id="game-bar" class="game-bar">
+          <div class="turn-line">
+            <p class="stat turn-stat">Turn <strong id="turn">1</strong></p>
+            <p id="turn-whose" class="stat turn-whose"></p>
+            <p id="turn-next" class="stat turn-next" hidden></p>
+            <p id="turn-clock" class="stat turn-clock" hidden></p>
+          </div>
+          <div id="phase-strip" class="phase-strip" hidden></div>
+          <div id="topbar-slot" class="topbar-slot"></div>
+          <span id="save-chip" class="save-chip" role="status" data-state="saved">Saved</span>
+          <div class="seats-hud">
+            <button id="settings-button" type="button" class="hud-menu" aria-haspopup="dialog" aria-expanded="false" aria-controls="settings-menu" aria-label="Menu and settings" title="Menu and settings"><svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor" aria-hidden="true"><rect x="2" y="4" width="14" height="2" rx="1"/><rect x="2" y="8" width="14" height="2" rx="1"/><rect x="2" y="12" width="14" height="2" rx="1"/></svg></button>
+          </div>
+        </header>
         <div id="seats-stage" class="seats-stage">
           <section id="opponents" aria-labelledby="opponents-heading" hidden>
             <h2 id="opponents-heading">Other players</h2>
@@ -48,20 +64,10 @@
 
           <section id="seat-me" class="seat-area mine" data-slot="me" aria-labelledby="my-name">
             <div class="seat-head">
-              <div id="life-area" class="life" role="group" aria-label="Life total and counters" title="Right-click next to the number for counters (poison and so on)">
-                <button id="life-grip" type="button" class="life-grip" aria-label="Life (right-click for counters)">Life</button>
-                <div class="life-row">
-                  <button id="life-minus" type="button" class="life-step" aria-label="Lose 1 life (Shift: 5)" title="Lose 1 (Shift: 5)">&minus;</button>
-                  <span><button id="life" type="button">20</button></span>
-                  <button id="life-plus" type="button" class="life-step" aria-label="Gain 1 life (Shift: 5)" title="Gain 1 (Shift: 5)">+</button>
-                </div>
-                <button id="life-counters" type="button" class="life-counters" aria-haspopup="dialog" aria-expanded="false" aria-label="Counters and commander damage" title="Counters and commander damage"><svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M2.2 4.2 6 8l3.8-3.8-.9-.9L6 6.2 3.1 3.3z"/></svg></button>
-                <div id="life-chips" class="counter-chips" role="group" aria-label="Your counters"></div>
-              </div>
+              <span class="plate-dot" aria-hidden="true"></span>
               <h2 id="my-name" class="seat-name">You</h2>
+              <strong id="my-plate-life" class="plate-life num" aria-label="Your life"></strong>
             </div>
-
-            <div id="topbar-slot" class="topbar-slot"></div>
 
             <section id="my-board" class="board mine" aria-labelledby="battlefield-heading">
               <h2 id="battlefield-heading" class="sr-only">Your battlefield</h2>
@@ -91,14 +97,18 @@
           </section>
         </div>
 
-        <aside id="seats-side" class="seats-side" aria-label="Every player" hidden></aside>
-        <!-- the action bar floats like the solo table's (src/floating-bar.js): drag it by its grip; docked to a side it is a column of icons -->
+        <!-- your console: life, counters and the action buttons. In the rail in Grid view, floating at the bottom left in Sidebar view; drag it by its grip (src/floating-bar.js, src/tool-dock.js) -->
         <section class="actions-panel" aria-label="Your actions">
           <button id="bar-grip" type="button" class="bar-grip" aria-label="Move the action bar: drag it, or use the arrow keys (Home puts it back)" title="Drag to move the bar"><svg width="12" height="18" viewBox="0 0 12 18" fill="currentColor" aria-hidden="true"><circle cx="3" cy="3" r="1.6"/><circle cx="9" cy="3" r="1.6"/><circle cx="3" cy="9" r="1.6"/><circle cx="9" cy="9" r="1.6"/><circle cx="3" cy="15" r="1.6"/><circle cx="9" cy="15" r="1.6"/></svg></button>
-          <div class="turn-line">
-            <p class="stat turn-stat">Turn <strong id="turn">1</strong></p>
-            <p id="turn-whose" class="stat turn-whose"></p>
-            <p id="turn-clock" class="stat turn-clock" hidden></p>
+          <div id="life-area" class="life" role="group" aria-label="Life total and counters" title="Right-click next to the number for counters (poison and so on)">
+            <button id="life-grip" type="button" class="life-grip" aria-label="Life (right-click for counters)">Life</button>
+            <div class="life-row">
+              <button id="life-minus" type="button" class="life-step" aria-label="Lose 1 life (Shift: 5)" title="Lose 1 (Shift: 5)">&minus;</button>
+              <span><button id="life" type="button">20</button></span>
+              <button id="life-plus" type="button" class="life-step" aria-label="Gain 1 life (Shift: 5)" title="Gain 1 (Shift: 5)">+</button>
+            </div>
+            <button id="life-counters" type="button" class="life-counters" aria-haspopup="dialog" aria-expanded="false" aria-label="Counters and commander damage" title="Counters and commander damage"><svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M2.2 4.2 6 8l3.8-3.8-.9-.9L6 6.2 3.1 3.3z"/></svg></button>
+            <div id="life-chips" class="counter-chips" role="group" aria-label="Your counters"></div>
           </div>
           <div class="actions" role="group" aria-label="Actions">
             <button id="draw" type="button" title="Draw"><svg class="act-icon" width="18" height="18" viewBox="0 0 18 18" fill="currentColor" aria-hidden="true"><path d="M5 1.5h8A1.5 1.5 0 0 1 14.5 3v12a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 15V3A1.5 1.5 0 0 1 5 1.5Zm0 1.5v12h8V3Zm4 1.8 3.2 3.4H10V12H8V7.9H5.8Z"/></svg><span class="act-label">Draw</span></button>
@@ -111,9 +121,6 @@
         <section id="players-panel" class="players-panel" aria-label="Players" hidden></section>
         <aside id="stack-window" class="stack-window" data-open="false"></aside>
 
-        <div class="seats-hud">
-          <button id="settings-button" type="button" class="hud-menu" aria-haspopup="dialog" aria-expanded="false" aria-controls="settings-menu" aria-label="Menu and settings" title="Menu and settings"><svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor" aria-hidden="true"><rect x="2" y="4" width="14" height="2" rx="1"/><rect x="2" y="8" width="14" height="2" rx="1"/><rect x="2" y="12" width="14" height="2" rx="1"/></svg></button>
-        </div>
         <div id="players-slot" class="players-slot"></div>
         <section id="spotlight" class="card-corner" aria-label="The pinged card"></section>
       </div>

@@ -60,8 +60,13 @@ export function openCardMenu({ title, items, x, y, onPick, returnFocus = null, o
     const room = document.documentElement;
     const box = menu.getBoundingClientRect();
     let top = y;
+    let left = x;
     if (avoid && y + box.height > room.clientHeight - 8) top = avoid.top - 4 - box.height; // no room below the button that opened it: above it, so the menu never covers the button (it is pressed again to close the menu)
-    menu.style.left = `${Math.max(8, Math.min(x, room.clientWidth - box.width - 8))}px`;
+    // No room below or to the right of the pointer: the menu opens above it or to its left, as a menu of the system does, never pushed back under the pointer
+    // (the redesign, 2026-11-24: with your life at the bottom of the rail, a right-click on it put the pointer on a line of the menu, which opened that line's own menu by itself).
+    else if (y + box.height > room.clientHeight - 8) top = y - box.height;
+    if (x + box.width > room.clientWidth - 8) left = x - box.width;
+    menu.style.left = `${Math.max(8, Math.min(left, room.clientWidth - box.width - 8))}px`;
     menu.style.top = `${Math.max(8, Math.min(top, room.clientHeight - box.height - 8))}px`;
   };
   const itemButton = (label, className) => {

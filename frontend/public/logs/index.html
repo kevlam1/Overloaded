@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.278</span></h1>
-    <p class="lede">278 entries, Oct 25 to Nov 24, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
+    <h1>Build log <span class="version">Version 0.279</span></h1>
+    <p class="lede">279 entries, Oct 25 to Nov 24, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
   </div>
 </header>
 
@@ -25,7 +25,7 @@
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
 <a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">56</span></a>
-<a class="week-link" href="#week-3" data-target="week-3"><span class="wl-name">Week 3</span><span class="wl-range">Nov 23 to Nov 29</span><span class="wl-count">9</span></a>
+<a class="week-link" href="#week-3" data-target="week-3"><span class="wl-name">Week 3</span><span class="wl-range">Nov 23 to Nov 29</span><span class="wl-count">10</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
 <a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">29 things friends asked for</span></a>
 <a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">29 open, 73 done</span></a>
@@ -4572,7 +4572,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-3" aria-labelledby="week-3-title">
-<h2 class="week-head" id="week-3-title"><button type="button" aria-expanded="false" aria-controls="week-3-days"><span class="wname">Week 3</span><span class="range">Nov 23 to Nov 29</span><span class="week-count">9 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-3-title"><button type="button" aria-expanded="false" aria-controls="week-3-days"><span class="wname">Week 3</span><span class="range">Nov 23 to Nov 29</span><span class="week-count">10 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-3-days">
 <div class="day">
 <h3 class="day-title">Monday 23 November <span class="day-count">6</span></h3>
@@ -4674,7 +4674,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Tuesday 24 November <span class="day-count">3</span></h3>
+<h3 class="day-title">Tuesday 24 November <span class="day-count">4</span></h3>
 <div class="entries">
 <article class="entry" id="entry-276" data-n="276">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-276-body">
@@ -4723,6 +4723,23 @@
 <ul><li><code>npm test</code> (96 suites) found two failures caused by the new font, both in the checks rather than the pages:<ul><li><strong>Settings:</strong> the Hand sorting tab no longer fits its panel, so the first pill sat under the panel's header where no one could press it. The check now scrolls to the pills first; the panel itself is redesigned in step 5. The drag to the end now lets go under the last line, since the pills re-wrap while one is carried.</li><li><strong>Deck page:</strong> the &quot;one picture request when pointing at a printing&quot; check counted lazy tiles that came into view; tiles ask for the normal size since 2026-11-18. It now counts only what pointing adds.</li></ul></li><li>Both passed on the code before step 1 and pass after (settings 18, deck page 292).</li><li>Live against the real project: the spike 36 of 36 (the new-table window is answered and named), and the lobby-to-table check 193 of 193 (skipping asks first, with the same words). <code>scripts/lib/browser.mjs</code> answers the new windows the way it answered <code>confirm()</code>, and records their words; the deck and settings checks, which test the window itself, opt out.</li><li>Screenshots of the home page and the solo table: the new fonts and gold show; the layouts are unchanged until the next steps.</li></ul>
 <p class="sub"><strong>Decisions</strong></p>
 <ul><li><code>style.css</code> is not cut into topic files in one go: that would reorder rules and silently change which one wins. New layers load after it, and its old blocks are deleted as each area is rebuilt.</li><li>Dark only for now: the light theme was unreadable on the play pages (spec section 17) and comes back as a set of token values.</li></ul>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-279" data-n="279">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-279-body">
+    <span class="num">279</span>
+    <span class="head-text"><span class="title">Redesign step 2: the table's top bar, the rail and seat cards</span><span class="sum">Step 2 of the approved redesign plan: the multiplayer table gets the new shell.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-279-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>Step 2 of the approved redesign plan: the multiplayer table gets the new shell. Sidebar view becomes the Focus Table, with my board large and every other player as a seat card in a rail on the right; Grid view keeps every board at once in the same style. The rail's parts can still be dragged out to float and dropped back.</li></ul>
+<p class="sub"><strong>What changed</strong></p>
+<ul><li><strong>The top bar</strong> (<code>#game-bar</code>, new): the turn number, a dot in that seat's color with whose turn it is, &quot;Next: Bob&quot;, the turn clock, the news line (it moved here from the corner of my area), &quot;Saved&quot; / &quot;Saving&quot; / &quot;Not saved&quot; (<code>#save-chip</code>; a failed save now shows where I look, not only in Settings) and the menu button. A place for the phase tracker is kept for step 4. The ids the code and checks use did not change.</li><li><strong>The rail</strong> (<code>frontend/src/tool-dock.js</code>): one dock on the right instead of the left column (2 and 4 seats) and the split docks (3 seats). In Grid view it holds Players, Game history, Stack and my console. In Sidebar view my console floats at the bottom left by default. Every part can still be dragged out by its header and dropped back on the rail. The layouts are saved under the same key, per view.</li><li><strong>Seat cards</strong> (<code>frontend/src/players-panel.js</code>, rewritten): one card per player in turn order. Each has:<ul><li>the seat's color stripe, the name, Away / Reconnecting / Conceded, &quot;Your turn&quot; / &quot;Their turn&quot; / &quot;Next&quot;, and the life in large numbers;</li><li>the commanders with their tax, and &quot;Hand 6 · Library 23&quot;, on separate lines;</li><li>the counters, and in Sidebar view a summary of the battlefield.</li></ul></li><li>In Sidebar view a click on a card shows that player's board large. My own card appears only then, as the way back. The old column of shrunken copies is gone.</li><li><strong>Board summary</strong> (<code>shared/board-summary.mjs</code>, new, plain Node): permanents grouped as creatures, other and lands; copies counted (&quot;Llanowar Elves ×3 · 1 tapped&quot;); tokens and cards with counters on their own rows. A face-down card is only &quot;Face-down card&quot;, never named.</li><li><strong>My console:</strong> my life (− 40 +, the counters arrow, my chips) moved out of my seat's head into the action bar. Each seat now has a small nameplate at its top left: a dot in the seat color, the name and the life. A thin stripe in the seat color runs along the top of each area.</li><li><strong>Grid view, 3 seats:</strong> my area now runs the whole width under the other two. The empty corners beside it held the tools before the rail; empty, they were wasted room.</li><li><strong>Styles:</strong> a new layer, <code>frontend/src/styles/game-shell.css</code>. 91 lines of old rules left <code>style.css</code>: the Sidebar column, the left and split docks, the old Players tool, and the old news and menu placement.</li><li><strong>Right-click menus open like a system menu</strong> (<code>frontend/src/card-menu.js</code>): with no room below or to the right of the pointer, a menu now opens above it or to its left. Before, it was pushed back up under the pointer. With my life at the bottom of the rail, that put the pointer on &quot;Commander damage from Seat 1&quot;, which opened its own small menu by itself. The lobby-to-table live check caught it.</li><li>My nameplate's life now changes as soon as I change my life, not only when another player's move arrives (found reading the diff).</li></ul>
+<p class="sub"><strong>What I checked</strong></p>
+<ul><li><code>scripts/test-board-summary.mjs</code> (8 checks, new) and <code>scripts/test-tool-dock.mjs</code> (6, rewritten for the rail) pass. <code>npm run test:quick</code> passed all 86 suites.</li><li><code>scripts/check-table-layout.mjs</code>: rewritten on purpose where it measured the old pieces. It now fills the rail like the page does, and checks that the areas sit under the top bar and left of the rail, that the turn, save state and menu are in the top bar, and that my console is whole at the bottom of the rail. 165 of 165 checks passed at 5 window sizes, 2 to 4 players, plus Sidebar view.</li><li><code>scripts/check-seats-live.mjs</code>: the Sidebar part was rewritten for the seat cards. Two real browsers and bots on the real project, 38 of 38. The new checks:<ul><li>the 4-seat match opens with a card for each other player in the rail;</li><li>Bob's card shows 40, Ezuri, &quot;Hand 6&quot; and a summary line;</li><li>a click on it shows his board large with my hand still along the bottom;</li><li>a click on my own card brings my board back.</li></ul></li><li>Screenshots looked at, desktop only: Grid 2 and 3 seats and Sidebar view (mine large, and Bob's) from the live check, and the layout check at 1366x768 and 1920x950.</li><li><code>npm test</code>: 97 of 97 suites. The first <code>npm run test:live</code> had 3 failures. Two came from Claude running the logs check by hand at the same time (its port was taken) and editing <code>table.js</code> mid-run; both checks pass when run alone. The third was the menu problem above. After the fix: <code>npm test</code> 97 of 97 again, the lobby-to-table live check 193 of 193, and the seats live check 38 of 38.</li></ul>
+<p class="sub"><strong>Decisions</strong></p>
+<ul><li>The phase strip, undo and the solo table are later steps. The solo table keeps its look until step 3.</li><li>The console's old saved place is not reused (a new key, <code>overloaded.seatsConsole</code>), so everyone starts from the new default.</li><li>Claude's mistake on the way: its first script for the <code>table.js</code> edits failed on a shell quoting error and changed nothing; it was redone from a file and the result checked.</li></ul>
   </div></div></div>
 </article>
 </div>

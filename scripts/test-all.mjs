@@ -66,6 +66,7 @@ const suites = [
   { name: 'card tokens: tokens and emblems for the Create token menus', cmd: node, args: ['scripts/test-card-tokens.mjs'] },
   { name: 'the turn clock: text, time taken, the page memory of the turn', cmd: node, args: ['scripts/test-turn-clock.mjs'] },
   { name: 'the tool docks: the layout saved as text and read back per mode', cmd: node, args: ['scripts/test-tool-dock.mjs'] },
+  { name: 'the board summary on a seat card: kinds, rows, counts, nothing face-down named', cmd: node, args: ['scripts/test-board-summary.mjs'] },
   { name: 'counters a card can be given: the catalog and named counters', cmd: node, args: ['scripts/test-counter-catalog.mjs'] },
   { name: 'card rules: the files the details window reads', cmd: node, args: ['scripts/test-card-rules.mjs'] },
   { name: 'the menu of several cards picked in the hand', cmd: node, args: ['scripts/test-group-menu.mjs'] },
