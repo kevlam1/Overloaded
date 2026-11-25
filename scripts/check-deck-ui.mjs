@@ -27,7 +27,7 @@ let server = null;
 try {
   server = await createServer({ configFile: 'vite.config.js', logLevel: 'error', server: { port: PORT, strictPort: true, host: '127.0.0.1' } });
   await server.listen();
-  const browser = await openBrowser('deck-ui', { width: 1280, height: 900 });
+  const browser = await openBrowser('deck-ui', { width: 1280, height: 900, acceptConfirms: false });
   // Card pictures are answered by a stand-in (no network), and every address asked for is recorded. An id in failPictures
   // answers 404 with nothing in it, as Scryfall does for a picture that does not exist.
   // An id in oddPictures answers a picture of a different shape (488 by 300) from the one the page expects (488 by 680).
@@ -717,12 +717,12 @@ check('there are no commander or partner boxes; the Commander heading says to ri
   check('words are all required, in any order: a year and a name', byYear.length >= 1 && byYear.every((t) => /Commander/.test(t) && /2023/.test(t)), JSON.stringify(byYear));
   check('a search with no match says so, and clearing it shows them all again', (await searchFor('zzzqqq')).length === 0 && /No printing matches that/.test(await ev(`document.querySelector('.picker-message').textContent`)) && (await searchFor('')).length > 100);
   await searchFor('commander masters');
-  pictureRequests.length = 0;
   const rowAt = await ev(`(() => { const b = [...document.querySelectorAll('.picker-tile')].find((x) => /CMM 410/.test(x.textContent)); b.scrollIntoView({ block: 'center' }); const r = b.getBoundingClientRect(); return { x: Math.round(r.left + 30), y: Math.round(r.top + r.height / 2), id: b.dataset.cardId }; })()`);
-  await sleep(100);
+  await sleep(400); // (the tiles that came into view load their own pictures first: they ask for the normal size too, since 2026-11-18; count only what pointing adds)
+  pictureRequests.length = 0;
   await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: rowAt.x - 6, y: rowAt.y }); await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: rowAt.x, y: rowAt.y }); await sleep(250);
   const hovered = await peek();
-  check('pointing at a printing shows its picture in the normal size (one request for a normal-size picture; the tiles themselves are small and lazy)', !hovered.hidden && hovered.src === pictureUrl(SOL_RING_CMM_410_ID) && rowAt.id === SOL_RING_CMM_410_ID && pictureRequests.filter((u) => u.includes('/normal/')).length <= 1, JSON.stringify({ hovered, requests: pictureRequests })); // (at most one: the deck's own card display may already have that picture)
+  check('pointing at a printing shows its picture in the normal size (pointing adds at most one request for a normal-size picture)', !hovered.hidden && hovered.src === pictureUrl(SOL_RING_CMM_410_ID) && rowAt.id === SOL_RING_CMM_410_ID && pictureRequests.filter((u) => u.includes('/normal/')).length <= 1, JSON.stringify({ hovered, requests: pictureRequests })); // (at most one: the deck's own card display may already have that picture)
   await ev(`[...document.querySelectorAll('.picker-tile')].find((x) => /CMM 410/.test(x.textContent)).click()`);
   await sleep(300);
   const chosen = await ev(`({ closed: !document.querySelector('.picker'), text: document.getElementById('deck-text').value, status: document.getElementById('deck-status').textContent, row: (() => { const li = [...document.querySelectorAll('#sections .card-line')].find((l) => l.querySelector('.name').textContent === 'Sol Ring'); return li && { id: li.dataset.previewId, source: li.dataset.printing, printing: li.querySelector('.printing')?.textContent, qty: li.querySelector('.qty').textContent }; })(), name: document.getElementById('deck-name').value })`);

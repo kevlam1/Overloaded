@@ -27,7 +27,7 @@ let server = null;
 try {
   server = await createServer({ configFile: 'vite.config.js', logLevel: 'error', server: { port: PORT, strictPort: true, host: '127.0.0.1' } });
   await server.listen();
-  const browser = await openBrowser('settings-ui', { width: 1280, height: 800 });
+  const browser = await openBrowser('settings-ui', { width: 1280, height: 800, acceptConfirms: false });
   const ev = (expression) => browser.eval(expression);
   await browser.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
   await browser.fakeImages('https://cards.scryfall.io/*', () => ({ type: 'image/svg+xml', text: '<svg xmlns="http://www.w3.org/2000/svg" width="146" height="204"><rect width="146" height="204" fill="#456"/></svg>' }));
@@ -114,10 +114,10 @@ try {
   check('Reset puts the types back in the default order', (await types()) === first);
   // dragging a pill with the mouse (Kevin, 2026-11-21: it did not move or slide well): the row wraps, so the first pill is carried onto the last line, past the last pill's middle
   const mouse = (type, x, y, buttons = 0) => browser.send('Input.dispatchMouseEvent', { type, x, y, button: type === 'mouseMoved' ? 'none' : 'left', buttons, clickCount: 1 });
-  const pillAt = (i) => ev(`(() => { const row = document.querySelectorAll('#hand-order-settings .sort-card')[0]; const pills = row.querySelectorAll('.type-pill'); const p = pills[${i} < 0 ? pills.length + ${i} : ${i}]; const r = p.querySelector('.type-name').getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) }; })()`);
+  const pillAt = (i) => ev(`(() => { const row = document.querySelectorAll('#hand-order-settings .sort-card')[0]; const pills = row.querySelectorAll('.type-pill'); const p = pills[${i} < 0 ? pills.length + ${i} : ${i}]; row.scrollIntoView({ block: 'center' }); const r = p.querySelector('.type-name').getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) }; })()`);
   const carry = async (from, to, finish) => { await mouse('mouseMoved', from.x, from.y); await mouse('mousePressed', from.x, from.y, 1); for (let n = 1; n <= 20; n++) { await mouse('mouseMoved', from.x + ((to.x - from.x) * n) / 20, from.y + ((to.y - from.y) * n) / 20, 1); await sleep(12); } await finish(); await mouse('mouseReleased', to.x, to.y); await sleep(250); };
   const lastPill = await pillAt(-1);
-  await carry(await pillAt(0), { x: lastPill.x + 40, y: lastPill.y }, async () => {});
+  await carry(await pillAt(0), { x: lastPill.x + 40, y: lastPill.y + 34 }, async () => {}); // (let go just under the last line: the pills re-wrap while one is carried, so a point beside the last pill is not stable with every font; under the row it always goes last)
   const dragged = await types();
   check('a pill dragged onto the last line goes last, and the order is kept', dragged.split(',').pop() === first.split(',')[0] && JSON.parse(await ev("localStorage.getItem('overloaded.handTypeOrder')")).at(-1) === 'creature', dragged);
   await carry(await pillAt(0), await pillAt(-1), () => press('Escape'));

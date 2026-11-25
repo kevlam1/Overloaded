@@ -1,30 +1,5 @@
-/* Shared styles. Plain CSS. The only animation is the "Reconnecting..." pulse, which stops under prefers-reduced-motion. */
-:root {
-  color-scheme: light dark;
-  --bg: #f6f5f1;
-  --text: #1c1b19;
-  --muted: #5a5750;
-  --card: #ffffff;
-  --line: #cfcbc0;
-  --accent: #2b5fd9;
-  --ring: #2a2a2e; /* the highlight of a focused or selected thing: neutral, not the blue of the buttons */
-  --accent-text: #ffffff;
-  --danger: #a3261a;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #16161a;
-    --text: #ecebe6;
-    --muted: #a9a69c;
-    --card: #1f2026;
-    --line: #3a3b44;
-    --accent: #7ea2ff;
-    --ring: #e8e6e0;
-    --accent-text: #0e1220;
-    --danger: #ff8f84;
-  }
-}
+/* Shared styles. Plain CSS. The colors, fonts and sizes are tokens in styles/tokens.css (the redesign, 2026-11-24): this file is rebuilt area by area on top of them. */
+@import "./styles/tokens.css";
 
 * { box-sizing: border-box; }
 
@@ -32,7 +7,7 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font: 16px/1.5 var(--font-ui);
 }
 
 main {
@@ -1048,7 +1023,6 @@ main.wide:has(.deck-app[data-screen="deck"]) { max-width: 120rem; }
 .brand-logo { display: block; width: auto; height: 2.1rem; }
 .brand.has-logo .brand-name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 /* The wordmark is white: on the light theme it is turned dark. */
-@media (prefers-color-scheme: light) { .brand-logo { filter: invert(1) brightness(0.25); } }
 .brand-name { font-size: 1.2rem; font-weight: 700; letter-spacing: 0.01em; }
 .brand-beta { padding: 0 0.4rem; border: 1px solid var(--line); border-radius: 0.8rem; color: var(--muted); font-size: 0.65rem; font-weight: 700; line-height: 1.1rem; letter-spacing: 0.06em; }
 .site-nav { display: flex; flex-wrap: wrap; gap: 0.35rem 0.6rem; }
@@ -1241,7 +1215,6 @@ body.playing .pile-stack .stack-face.back { border: 0; border-radius: 4.8% / 3.4
    the action bar floats where you put it (frontend/src/floating-bar.js), the card preview floats under the turn, and the piles and the command zone are a row at the bottom right. The hand is at the
    bottom, as before. Only the solo page: the table page keeps its layout until this one is right. */
 body.playing:is(.solo, .seats) main.table { display: block; position: fixed; inset: 0; margin: 0; padding: 0; overflow: hidden; }
-body.playing:is(.solo, .seats) { --glass: rgba(22, 22, 30, 0.78); }
 body.playing:is(.solo, .seats) #my-board { position: absolute; inset: 0; padding: 3.7rem 2.8rem 0; border: 0; border-radius: 0; background: none; } /* the same room at both sides: the battlefield is in the middle of the window (it was flush with the right edge, Kevin 2026-11-14) */
 /* a line round the battlefield (2 px: 4 was too thick, Kevin 2026-11-14), drawn outside it so the cells and the places of the cards do not move */
 body.playing:is(.solo, .seats) .board.mine > .battlefield { align-self: center; outline: 2px solid color-mix(in srgb, var(--text) 40%, transparent); outline-offset: 0; }
@@ -1362,8 +1335,6 @@ body.dragging-card .pile-stack.drop-target .stack-face, body.dragging-card .cmd-
 .drag-group-part img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .drag-group-part img.on-its-side { position: absolute; left: 50%; top: 50%; width: auto; height: auto; translate: -50% -50%; rotate: 90deg; }
 /* the two command slots are framed in gold, doubled and glowing, with a small diamond on the top and bottom edge, so it is plain that they are for commanders (Kevin, 2026-11-14) */
-:root { --gold: #a9822a; }
-@media (prefers-color-scheme: dark) { :root { --gold: #d9b45f; } }
 .cmd-slot .slot-cards { position: relative; border: 2px solid var(--gold); border-radius: 0.6rem; outline: 1px solid color-mix(in srgb, var(--gold) 55%, transparent); outline-offset: 3px; background: linear-gradient(160deg, color-mix(in srgb, var(--gold) 20%, transparent), transparent 55%); box-shadow: 0 0 14px color-mix(in srgb, var(--gold) 45%, transparent), inset 0 0 12px color-mix(in srgb, var(--gold) 30%, transparent); }
 .cmd-slot.empty-slot .slot-cards { border-style: dashed; border-color: color-mix(in srgb, var(--gold) 55%, transparent); outline-color: color-mix(in srgb, var(--gold) 25%, transparent); background: none; box-shadow: inset 0 0 10px color-mix(in srgb, var(--gold) 14%, transparent); }
 .cmd-slot .slot-cards::before, .cmd-slot .slot-cards::after { content: ''; position: absolute; left: 50%; width: 0.45rem; height: 0.45rem; background: var(--gold); box-shadow: 0 0 6px color-mix(in srgb, var(--gold) 70%, transparent); rotate: 45deg; translate: -50% 0; pointer-events: none; z-index: 2; }
@@ -1681,8 +1652,6 @@ body.playing:is(.solo, .seats) #life-area .life-counters[aria-expanded="true"]::
 
 /* ---- the lobby page, a more modern layout (Kevin, 2026-11-19): a hero on the start screen, one panel for friends, and a table screen with the seats and your deck side by side. Everything is scoped to the lobby's
    three screens (body[data-screen]) so no other page changes. The same ids and the same words as before; the seats and the deck picker keep their <select>s and text for the tests and screen readers. ---- */
-:root { --ok: #2e8b57; }
-@media (prefers-color-scheme: dark) { :root { --ok: #5fd39a; } }
 body[data-screen] { background: radial-gradient(60rem 28rem at 12% -6%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 70%), radial-gradient(44rem 24rem at 98% 4%, color-mix(in srgb, #b46bff 12%, transparent), transparent 70%), var(--bg); background-repeat: no-repeat; }
 body[data-screen="start"] main { max-width: 66rem; }
 body[data-screen="room-join"] main { max-width: 38rem; }

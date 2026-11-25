@@ -1,0 +1,36 @@
+/* The redesign's shared components (direction B, 2026-11-24). Loaded AFTER style.css on every page, so these rules win over the older ones they
+   replace; the older ones are deleted as each area is rebuilt. Colors, fonts and sizes come from styles/tokens.css.
+   Note: every card on a board is a <button> too, so nothing here styles `button` in general: only named classes. */
+
+body { font-family: var(--font-ui); -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+
+/* numbers: life totals, turn numbers, counts */
+.num, #life, .opp-life, .pp-life, #turn, .life-number, .chip-count, .history-count, .stack-tab-count { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+
+/* buttons that are not the main action */
+button.secondary { background: var(--surface-2); border-color: var(--line-strong); color: var(--text); }
+button.secondary:hover:not(:disabled) { background: var(--surface-3); border-color: #4a4c55; }
+
+/* fields */
+input, select, textarea { border-color: var(--line-strong); background: var(--surface-0); color: var(--text); }
+input::placeholder, textarea::placeholder { color: var(--muted); }
+
+/* right-click menus and their fly-outs: a quiet highlight with a gold edge, not a full gold flash */
+.card-menu, .card-menu-fly { background: var(--surface-2); border-color: var(--line-strong); border-radius: var(--radius-md); box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5); font-size: var(--text-sm); }
+.card-menu-title { color: var(--muted); font-size: var(--text-xs); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; border-bottom-color: var(--line); }
+.card-menu .card-menu-item:hover, .card-menu .card-menu-item:focus-visible,
+.card-menu-fly .card-menu-item:hover, .card-menu-fly .card-menu-item:focus-visible { background: var(--surface-3); color: var(--text); box-shadow: inset 3px 0 0 var(--gold); }
+.card-menu .has-sub[aria-expanded="true"] { background: var(--surface-3); box-shadow: inset 3px 0 0 var(--gold); }
+.card-menu .has-sub[aria-expanded="true"]:hover, .card-menu .has-sub[aria-expanded="true"]:focus-visible { background: var(--surface-3); color: var(--text); }
+.card-menu-sub { background: var(--surface-1); }
+
+/* the confirm window (frontend/src/confirm-box.js): replaces the browser's confirm() everywhere */
+.confirm-overlay { background: rgba(5, 5, 8, 0.6); }
+.confirm-box { width: min(24rem, 92vw); padding: 1.1rem 1.2rem 1rem; border-color: var(--line-strong); border-radius: var(--radius-md); background: var(--surface-1); box-shadow: 0 20px 48px rgba(0, 0, 0, 0.55); }
+.confirm-title { font-size: 1.05rem; font-weight: 700; }
+.confirm-message { color: var(--text-2); font-size: var(--text-sm); line-height: 1.5; }
+.confirm-buttons button { min-height: 2.25rem; padding: 0.3rem 1rem; }
+
+/* status lines and banners */
+.banner { background: var(--surface-1); border-color: var(--line-strong); }
+.banner[data-level="urgent"] { border-color: var(--warn); color: var(--text); }

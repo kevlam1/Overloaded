@@ -2,6 +2,7 @@
 // and moves, tested in Node); this file reads the buttons and draws the result. Pictures come from Scryfall's picture server
 // (shared/card-image.mjs) and are only requested when a card is on the page. Card names go into the page as text, never as
 // markup. Nothing here is saved: a refresh deals a new game.
+import { askConfirm } from '../../src/confirm-box.js';
 import { makeSafeStore } from '../../src/safe-store.js';
 import { play, mountSoundSettings } from '../../src/sound.js';
 import { mountPileStyle } from '../../src/pile-style.js';
@@ -942,7 +943,7 @@ handSort.mountOrders($('hand-order-settings'));
 mountBoardDrag({ board: () => $('battlefield'), onDrop: dropOnBoard, groupOf: (uid) => (multi.size > 1 && multi.has(uid) ? [...multi] : null), hand: () => $('hand-section'), onDropHand: dropOnHand, onHandOver: (over) => handView.carry(over), onReorderHand: reorderInHand, handZone: () => handView.zone(), handHit: (x, y) => handView.over(x, y), zoneSource, pileAt, onDropPile: dropOnPile, isEnabled: () => Boolean(game) });
 
 $('mulligan').addEventListener('click', doMulligan);
-$('new-game').addEventListener('click', () => { if (confirm('Start a new game? This one will be lost.')) { play('shuffle'); deal({ pause: SHUFFLE_PAUSE_MS }); } });
+$('new-game').addEventListener('click', async () => { if (await askConfirm({ title: 'Start a new game?', message: 'This one will be lost.', confirmLabel: 'New game', returnFocus: $('new-game') })) { play('shuffle'); deal({ pause: SHUFFLE_PAUSE_MS }); } });
 // the life total is the number itself: click, right-click, Shift for 5, hold to set (src/life-control.js)
 // the life piece floats like the action bar (Kevin, 2026-11-18): the word Life above the number is the handle, and a - and a + sit beside the number
 mountFloatingBar({ bar: $('life-area'), grip: $('life-grip'), store, key: 'overloaded.lifeBar', defaultPlace: { dock: 'top', fx: 0, fy: 0 } });

@@ -1,6 +1,7 @@
 // The lobby page. It has two screens, chosen by the address: the start page (/) where you make a table or type a code to join one,
 // and a table's own screen (/lobby/CODE) with only that table: joining it (one button, or no click at all when this browser has a
 // saved name), the seats, your deck, Ready and Start. All database calls live in ../../src/db.js.
+import { askConfirm } from '../../src/confirm-box.js';
 import { botClient, createTable, joinTable, rejoinTable, findMyTable, watchMembers, heartbeat, watchActivity, watchMeta, watchServerOffset, startPresence, watchPresence, watchConnection, takeOverHost, setDeck, setName, setFormat, setView, setBracketLimit, closeIfExpired, setReady, clearReady, startMatch, leaveTable } from '../../src/db.js';
 import { presenceStatus, presenceText, ownConnectionText, hostIsGone } from '../../../shared/presence.mjs';
 import { startKeepAlive } from '../../src/keep-alive.js';
@@ -703,7 +704,7 @@ createButton.addEventListener('click', () => run(async () => {
   // A host holds one table at a time. Warn before a LIVE old table is deleted (the popup is a placeholder for a designed
   // one); one that has already expired is replaced without a popup (decided 2026-10-27).
   const mine = await findMyTable();
-  if (mine && !mine.expired && !confirm(`You already have a table (code ${mine.code}, ${mine.players} at it). Making a new one closes it. Continue?`)) {
+  if (mine && !mine.expired && !(await askConfirm({ title: 'Make a new table?', message: `You already have a table (code ${mine.code}, ${mine.players} at it). Making a new one closes it.`, confirmLabel: 'Make a new table' }))) {
     say('Kept your existing table.');
     return;
   }
@@ -741,7 +742,7 @@ $('room-join-button').addEventListener('click', () => run(() => joinHere(roomCod
 nameInput.addEventListener('keydown', (event) => { if (event.key === 'Enter' && roomCode && !$('room-join').hidden) $('room-join-button').click(); });
 
 $('leave-table').addEventListener('click', () => run(async () => {
-  if (!confirm('Leave this table? Your seat is given up. If you are the host, the table goes to the next player.')) return;
+  if (!(await askConfirm({ title: 'Leave this table?', message: 'Your seat is given up. If you are the host, the table goes to the next player.', confirmLabel: 'Leave', returnFocus: $('leave-table') }))) return;
   await leaveTable(currentCode);
   store.remove(TABLE_KEY);
   location.assign('/');

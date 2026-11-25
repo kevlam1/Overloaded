@@ -5443,6 +5443,32 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 
 **My AI's mistakes this time:** the "[object Object]" dock bug was its own, from entry 273, and it had reported the layout as kept without testing a reload. Its first status probe left a hung script, which it stopped and cleaned up.
 
+## 278. The redesign begins: mockups, direction B, and step 1 (fonts, tokens, dialogs) (2026-11-24)
+
+**What I asked for**
+- A complete redesign of the whole app as a senior product designer would do it, keeping every behavior in `PRODUCT_BEHAVIOR_SPEC.md`: first three different design directions, then a mockup page of all three plus today's grid. I chose B, the "Focus Table": Sidebar view becomes the Focus Table, and the Grid view stays as a layout but gets B's design; the host still picks the view in the lobby. I approved a self-hosted font, a phase tracker and undo, phones on hold but easy to add later, a rail whose parts can still be dragged out and docked, and dark first with light later. Work on a branch called `redesign`.
+
+**What changed**
+- A mockup canvas (private, on claude.ai) with today's grid, directions A, B and C, and B's Grid view; after my "go over it yourself", it was reviewed twice: "Next: Cara" beside the turn, plain words instead of symbols ("Poison 3", "Cmdr dmg · You 6"), only unusual states shown in amber, real life buttons, counts on the piles, a gold count on a stack in progress, the action buttons out of my own seat in Grid view, and "Hand N" pills.
+- The plan, approved: `redesign` branch, seven steps, table first.
+- **Step 1, foundations:**
+  - The fonts Inter and Barlow Condensed are self-hosted in `frontend/public/fonts/` with their OFL 1.1 licenses and a `credits.md`.
+  - `frontend/src/styles/tokens.css` holds the design tokens: surfaces, lines, text, one gold accent, amber for warnings, four seat colors, type and space scales. It is dark for everyone for now; the old color names point at the new values.
+  - `frontend/src/styles/components.css` (loaded after `style.css` on every page) covers the fonts, numbers, buttons, fields, quieter right-click menus and the confirm window.
+  - The browser's own `confirm()` popups are all designed windows now, with the same words: New game, Concede, End the match, Leave (table and lobby), Skip a turn, and the new-table warning.
+
+**What I checked**
+- `npm test` (96 suites) found two failures caused by the new font, both in the checks rather than the pages:
+  - **Settings:** the Hand sorting tab no longer fits its panel, so the first pill sat under the panel's header where no one could press it. The check now scrolls to the pills first; the panel itself is redesigned in step 5. The drag to the end now lets go under the last line, since the pills re-wrap while one is carried.
+  - **Deck page:** the "one picture request when pointing at a printing" check counted lazy tiles that came into view; tiles ask for the normal size since 2026-11-18. It now counts only what pointing adds.
+- Both passed on the code before step 1 and pass after (settings 18, deck page 292).
+- Live against the real project: the spike 36 of 36 (the new-table window is answered and named), and the lobby-to-table check 193 of 193 (skipping asks first, with the same words). `scripts/lib/browser.mjs` answers the new windows the way it answered `confirm()`, and records their words; the deck and settings checks, which test the window itself, opt out.
+- Screenshots of the home page and the solo table: the new fonts and gold show; the layouts are unchanged until the next steps.
+
+**Decisions**
+- `style.css` is not cut into topic files in one go: that would reorder rules and silently change which one wins. New layers load after it, and its old blocks are deleted as each area is rebuilt.
+- Dark only for now: the light theme was unreadable on the play pages (spec section 17) and comes back as a set of token values.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-24, entry 277) Claude told me the tool docks remembered their layout (entries 273 and 276) when the code stored "[object Object]"; the audit for the spec found it.
 - (2026-11-23, entry 273) I said "commit and push after every big change" and meant every big prompt; Claude pushed after each of three changes.

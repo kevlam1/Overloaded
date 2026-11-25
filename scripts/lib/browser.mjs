@@ -20,8 +20,16 @@ let nextId = 1;
 //   screenshot(file, options)  save a PNG (options: Page.captureScreenshot's, such as a clip with a scale)
 //   send(method, params)  any raw DevTools command, and events (an array of every DevTools event since the last reset)
 //   logs                  console messages, exceptions and browser log entries
-//   dialogs               the text of every alert/confirm that opened; they are accepted automatically
-export async function openBrowser(label, { width = 1280, height = 800 } = {}) {
+//   dialogs               the text of every alert/confirm that opened; they are accepted automatically. The pages' own confirm windows
+//                         (frontend/src/confirm-box.js, which replaced the browser's confirm() in the redesign) are answered the same way: their
+//                         title and message go into `dialogs` and Yes is pressed, unless acceptConfirms is false (a check that tests the window itself).
+// Answers the pages' own confirm windows like a person pressing Yes, as the browser's confirm() was answered before: the text is reported back
+// through the console (CONFIRM_MARK), then the confirm button is pressed.
+const CONFIRM_MARK = '__overloaded_confirm__:';
+const CONFIRM_ANSWERER = "new MutationObserver(() => { const box = document.querySelector('.confirm-box:not([data-answered])'); if (!box) return; box.dataset.answered = '1'; "
+  + "const text = [box.querySelector('.confirm-title')?.textContent, box.querySelector('.confirm-message')?.textContent].filter(Boolean).join(' '); "
+  + "console.log('" + CONFIRM_MARK + "' + text); setTimeout(() => box.querySelector('.confirm-yes')?.click(), 0); }).observe(document, { childList: true, subtree: true });";
+export async function openBrowser(label, { width = 1280, height = 800, acceptConfirms = true } = {}) {
   if (!chromePath) throw new Error('Chrome was not found.');
   const profile = mkdtempSync(join(tmpdir(), `cdp-${label}-`));
   const port = 9300 + Math.floor(Math.random() * 600);
@@ -46,7 +54,8 @@ export async function openBrowser(label, { width = 1280, height = 800 } = {}) {
     if (data.method === 'Page.javascriptDialogOpening') {
       browser.dialogs.push(data.params.message);
       send('Page.handleJavaScriptDialog', { accept: true }).catch(() => {});
-    } else if (data.method === 'Runtime.consoleAPICalled') browser.logs.push(`console.${data.params.type}: ` + data.params.args.map((a) => a.value ?? a.description ?? '').join(' '));
+    } else if (data.method === 'Runtime.consoleAPICalled' && String(data.params.args?.[0]?.value ?? '').startsWith(CONFIRM_MARK)) browser.dialogs.push(String(data.params.args[0].value).slice(CONFIRM_MARK.length));
+    else if (data.method === 'Runtime.consoleAPICalled') browser.logs.push(`console.${data.params.type}: ` + data.params.args.map((a) => a.value ?? a.description ?? '').join(' '));
     else if (data.method === 'Runtime.exceptionThrown') browser.logs.push('exception: ' + (data.params.exceptionDetails.exception?.description ?? data.params.exceptionDetails.text));
     else if (data.method === 'Log.entryAdded') browser.logs.push(`${data.params.entry.level}: ${data.params.entry.text}`);
   };
@@ -54,6 +63,7 @@ export async function openBrowser(label, { width = 1280, height = 800 } = {}) {
   // The checks play the page's real sounds (tap, draw, shuffle) in a window nobody looks at: every sound the page starts is made silent as it starts (muted, volume 0), whatever the browser does with its own
   // mute switch. (A check that records the sounds replaces play() itself and plays nothing at all.)
   await send('Page.addScriptToEvaluateOnNewDocument', { source: 'const __play = HTMLMediaElement.prototype.play; HTMLMediaElement.prototype.play = function () { this.muted = true; this.volume = 0; return __play.apply(this, arguments); };' });
+  if (acceptConfirms) await send('Page.addScriptToEvaluateOnNewDocument', { source: CONFIRM_ANSWERER });
   await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
   browser.send = send;
   // Calls fn(params) for every DevTools event with this method name (for example 'Fetch.requestPaused').

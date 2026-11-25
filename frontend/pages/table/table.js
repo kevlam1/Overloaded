@@ -3,6 +3,7 @@
 // (shared/game-sync.mjs): your hand and library in your private branch (nobody else can read it), the rest in your public one.
 // A refresh puts you back at the game you left. Other players' boards are shown beside it, live and read-only (their public
 // zones only: shared/game-sync.mjs readPublic). All database calls live in ../../src/db.js.
+import { askConfirm } from '../../src/confirm-box.js';
 import { rejoinTable, watchMembers, watchMeta, watchPresence, watchServerOffset, watchConnection, startPresence, heartbeat, watchActivity, saveGame, loadGame, watchPublic, saveStack, watchStack, concede, endMatch, leaveTable, takeOverHost } from '../../src/db.js';
 import { startKeepAlive } from '../../src/keep-alive.js';
 import { makeSafeStore } from '../../src/safe-store.js';
@@ -1147,7 +1148,7 @@ async function act(task) {
   try { await task(); } catch (error) { say(friendlyMessage(error), true); }
 }
 $('concede').addEventListener('click', () => act(async () => {
-  if (!confirm('Concede this match? It cannot be taken back. The table will see that you conceded, and you can still look at the table.')) return;
+  if (!(await askConfirm({ title: 'Concede this match?', message: 'It cannot be taken back. The table will see that you conceded, and you can still look at the table.', confirmLabel: 'Concede', returnFocus: $('concede') }))) return;
   await concede(tableCode);
   say('You conceded this match.');
 }));
@@ -1156,11 +1157,11 @@ $('take-over').addEventListener('click', () => act(async () => {
   say('You are now the host.');
 }));
 $('end-match').addEventListener('click', () => act(async () => {
-  if (!confirm('End the match for everyone? Everyone goes back to the lobby, and the games on the table are not kept.')) return;
+  if (!(await askConfirm({ title: 'End the match for everyone?', message: 'Everyone goes back to the lobby, and the games on the table are not kept.', confirmLabel: 'End the match', returnFocus: $('end-match') }))) return;
   await endMatch(tableCode); // the table's status changes and every table page takes its player back to the lobby
 }));
 $('leave').addEventListener('click', () => act(async () => {
-  if (!confirm('Leave the table? During a match your seat is kept for you until it ends, so you can come back with the table code.')) return;
+  if (!(await askConfirm({ title: 'Leave the table?', message: 'During a match your seat is kept for you until it ends, so you can come back with the table code.', confirmLabel: 'Leave', returnFocus: $('leave') }))) return;
   await leaveTable(tableCode);
   location.assign('/');
 }));
@@ -1173,11 +1174,11 @@ mountMarksPanel($('marks'), {
 });
 { const close = make('button', 'secondary modify-close', 'Close'); close.type = 'button'; close.addEventListener('click', () => { closeModify(); document.querySelector('.card.selected')?.focus(); }); $('marks').prepend(close); }
 $('draw').addEventListener('click', () => { if (game) drawOne(); });
-$('pass-turn').addEventListener('click', () => {
+$('pass-turn').addEventListener('click', async () => {
   if (!game) return;
   const info = currentTurnInfo();
   // Anyone may press it: when it is not your turn it skips that player (they have left the table, or cannot play), so it asks first.
-  if (info.uid !== myUid && !confirm(`Skip ${whoseWords(info, myUid)}? Use this when that player has left the table or cannot play.`)) return;
+  if (info.uid !== myUid && !(await askConfirm({ title: `Skip ${whoseWords(info, myUid)}?`, message: 'Use this when that player has left the table or cannot play.', confirmLabel: 'Skip', returnFocus: $('pass-turn') }))) return;
   try {
     const action = passAction(info, members, conceded, myUid);
     apply(() => action.run(game), action.message);
