@@ -1163,7 +1163,7 @@ mountMarksPanel($('marks'), {
   onChange: (change, message) => { if (game) apply(() => change(game), message); },
   say,
 });
-{ const close = make('button', 'secondary modify-close', 'Close'); close.type = 'button'; close.addEventListener('click', () => { closeModify(); document.querySelector('.card.selected')?.focus(); }); $('marks').prepend(close); }
+{ const close = make('button', 'secondary modify-close', '×'); close.type = 'button'; close.setAttribute('aria-label', 'Close'); close.title = 'Close'; close.addEventListener('click', () => { closeModify(); document.querySelector('.card.selected')?.focus(); }); ($('marks').querySelector('.marks-head') ?? $('marks')).append(close); }
 $('draw').addEventListener('click', () => { if (game) drawOne(); });
 $('pass-turn').addEventListener('click', async () => {
   if (!game) return;

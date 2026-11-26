@@ -1,0 +1,100 @@
+/* ---- Windows (the redesign, step 5, 2026-11-25): one look for every window that opens over a page.
+   The pile window, the card details, the Modify window, Settings, Scry and the order window, the token and printing pickers, the number box and the counters panel
+   were each drawn their own way (different corners, paddings, close buttons, a heavy gold box round some cards). They now share:
+   - a dim, slightly blurred page behind a window that blocks it;
+   - the surface of the rail (surface-1), a hairline edge, 14 px corners and one deep shadow;
+   - a header line: the title on the left, a quiet Close on the right;
+   - small capital labels for the parts of a window, as in the rail.
+   Loaded after style.css, components.css (and game-shell.css on the play pages), so these rules win. ---- */
+:root { --win-radius: 14px; --win-shadow: 0 28px 70px rgba(0, 0, 0, 0.6), 0 2px 8px rgba(0, 0, 0, 0.35); }
+
+/* the page behind a window */
+:is(.viewer-overlay, .picker-overlay, .scry-overlay, .details-overlay) { background: rgba(6, 7, 9, 0.66); backdrop-filter: blur(3px); }
+
+/* the window itself */
+:is(.viewer-window, .scry-window, .details-window, .picker, .settings-menu, .marks-popover, .number-box, .counter-panel) {
+  border: 1px solid var(--line-strong); border-radius: var(--win-radius); background: var(--surface-1); color: var(--text); box-shadow: var(--win-shadow);
+}
+:is(.marks-popover, .number-box, .counter-panel) { border-radius: 12px; }
+
+/* a quiet Close button, the same everywhere */
+:is(#viewer-close, .details-close, #settings-close, .modify-close, .scry-cancel) { min-height: 0; border: 1px solid var(--line); background: var(--surface-2); color: var(--text-2); box-shadow: none; font-weight: 600; }
+:is(#viewer-close, .details-close, #settings-close, .modify-close, .scry-cancel):hover { background: var(--surface-3); color: var(--text); }
+
+/* small capital labels for the parts of a window */
+:is(.details-subhead, .marks-label, .settings-menu .settings-card h3) { margin: 1.1rem 0 0.5rem; color: var(--muted); font-size: var(--text-xs); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+
+/* ---- the pile window: the title and count, the search, the filters; the cards in a grid. The top and bottom card are marked by a small tag on their corner,
+   not a heavy gold box round them. ---- */
+.viewer-window { padding: 0; overflow: hidden; }
+.viewer-head { gap: 10px; margin: 0; padding: 14px 16px 12px; border-bottom: 1px solid var(--line); }
+.viewer-head h2 { font-size: 1.05rem; font-weight: 650; white-space: nowrap; }
+.viewer-head input[type="search"] { min-height: 34px; border-radius: 999px; padding: 0 14px; background: var(--surface-0); }
+#viewer-eye { display: grid; place-items: center; width: 34px; height: 34px; min-height: 0; padding: 0; border-radius: 50%; }
+.viewer-toolbar { padding: 10px 16px 0; }
+.viewer-window > .hint { margin: 8px 16px 0; color: var(--muted); font-size: var(--text-xs); }
+.viewer-grid { gap: 14px; padding: 14px 16px 18px; }
+.viewer-card .card { border-radius: 4.8% / 3.4%; transition: translate 0.12s ease, box-shadow 0.12s ease; }
+.viewer-card .card:hover { translate: 0 -3px; box-shadow: 0 10px 22px rgba(0, 0, 0, 0.5); }
+@media (prefers-reduced-motion: reduce) { .viewer-card .card { transition: none; } .viewer-card .card:hover { translate: none; } }
+.viewer-card[data-end] .card { outline: 0; }
+.viewer-card .viewer-end { position: absolute; z-index: 2; top: 6px; left: 6px; translate: none; padding: 1px 8px; border-radius: 999px; background: var(--gold); color: var(--gold-ink); font-size: var(--text-xs); letter-spacing: 0.04em; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45); }
+.viewer-card[data-end="bottom"] .viewer-end { background: var(--surface-3); color: var(--text); }
+.viewer-depth { font-size: var(--text-xs); }
+.viewer-tab, .viewer-filters button { border-radius: 999px; }
+
+/* ---- the card details: the picture on the left; on the right the name, the rules, the facts, legality and rulings, with the same labels as the rail ---- */
+.details-window { padding: 22px; gap: 24px; }
+.details-close { top: 14px; right: 14px; padding: 5px 14px; border-radius: 999px; }
+.details-title { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.01em; }
+.details-row { grid-template-columns: 8rem minmax(0, 1fr); padding: 5px 0; border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent); }
+.details-legalgrid li { padding: 5px 10px; border-radius: 999px; background: var(--surface-2); }
+.details-legalgrid .is-legal { border-color: color-mix(in srgb, var(--ok) 45%, transparent); }
+.details-ruling-text { color: var(--text-2); }
+
+/* ---- the Modify window (src/marks-panel.js): a header, the amount, the counters on one line, and power and toughness as three rows of - and + ---- */
+.marks-popover { display: block; margin: 0; padding: 0 14px 14px; width: min(19rem, calc(100vw - 1rem)); border-top: 1px solid var(--line-strong); }
+.marks-popover .marks-head { display: flex; align-items: center; justify-content: space-between; margin: 0 -14px; padding: 10px 10px 10px 14px; border-bottom: 1px solid var(--line); }
+.marks-popover .marks-title { font-weight: 650; }
+.marks-popover .modify-close { width: 28px; height: 28px; padding: 0; border-radius: 50%; font-size: 1.1rem; line-height: 1; }
+.marks-popover .marks-amount { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 12px 0 0; color: var(--text-2); font-size: var(--text-sm); font-weight: 600; }
+.marks-popover .marks-amount input { width: 6.5rem; min-height: 32px; text-align: center; font-family: var(--font-num); font-size: 1.05rem; }
+.marks-popover .marks-section .marks-label { margin: 14px 0 6px; }
+.marks-popover .marks-line { display: flex; gap: 6px; }
+.marks-popover .marks-line select { flex: 1 1 auto; min-width: 0; min-height: 32px; }
+.marks-popover .marks-line button { min-height: 32px; padding: 0 12px; }
+.marks-popover .marks-add { background: var(--gold); color: var(--gold-ink); border-color: transparent; }
+.marks-popover .marks-pt { display: grid; grid-template-columns: minmax(0, 1fr) 40px 40px; gap: 6px; align-items: center; }
+.marks-popover .marks-pt-name { color: var(--text-2); font-size: var(--text-sm); }
+.marks-popover .marks-step { min-height: 30px; padding: 0; font-size: 1.05rem; font-weight: 700; }
+.marks-popover .marks-reset { width: 100%; min-height: 30px; margin-top: 8px; }
+
+/* ---- Settings: a header, the tabs down the left with a gold edge on the open one, the cards on the right ---- */
+.settings-menu { padding: 0; overflow: hidden; }
+.settings-menu .settings-head { padding: 14px 16px; border-bottom: 1px solid var(--line); }
+.settings-menu .settings-head h2 { font-size: 1.05rem; font-weight: 650; }
+.settings-menu .settings-tab { border-radius: 8px; color: var(--muted); }
+.settings-menu .settings-tab[aria-selected="true"] { background: var(--surface-2); color: var(--text); box-shadow: inset 3px 0 0 var(--gold); }
+.settings-menu .settings-card { background: var(--surface-2); border-color: var(--line); border-radius: 12px; }
+.settings-menu .settings-card h3 { margin-top: 0; }
+#settings-close { width: 32px; height: 32px; padding: 0; border-radius: 50%; }
+
+/* ---- Scry, Surveil and the order window ---- */
+.scry-window { padding: 20px 22px; }
+.scry-title { font-size: 1.15rem; font-weight: 650; }
+.scry-note { color: var(--muted); font-size: var(--text-sm); }
+
+/* ---- the token and printing pickers ---- */
+.picker { padding: 18px 20px; }
+.picker-head h2 { font-size: 1.1rem; font-weight: 650; }
+.picker-tile { border-radius: 10px; }
+.picker-tile[aria-current="true"] { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 8%, transparent); }
+
+/* ---- small boxes: the number box (Draw X...) and the counters panel ---- */
+.number-box { padding: 12px 14px; }
+.number-box-title { font-weight: 650; }
+.number-box-input { min-height: 34px; background: var(--surface-0); font-family: var(--font-num); font-size: 1.1rem; }
+.counter-panel { background: var(--surface-1); }
+.counter-panel .cp-title { font-size: var(--text-xs); letter-spacing: 0.08em; }
+.counter-panel .cp-count { font-family: var(--font-num); font-size: 1rem; }
+.settings-menu { height: min(40rem, calc(100vh - 2rem)); }

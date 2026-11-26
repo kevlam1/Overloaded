@@ -39,43 +39,50 @@ export function mountMarksPanel(container, { target, onChange, say }) {
   }
   const number = (value) => value.toLocaleString('en-US');
 
-  function button(label, className, run) {
-    const element = make('button', className, label);
+  // A button whose words for a screen reader (and the tests) are `label`, showing `shown` (a short "+" or "Add") when given.
+  function button(label, className, run, shown = label) {
+    const element = make('button', className, shown);
     element.type = 'button';
+    if (shown !== label) element.setAttribute('aria-label', label);
     element.addEventListener('click', run);
     return element;
   }
-  const counterButton = (label, sign) => button(label, 'secondary', () => {
+  const counterButton = (label, sign, shown) => button(label, sign > 0 ? 'marks-add' : 'secondary', () => {
     const got = read();
     if (!got) return;
     const kind = kindSelect.value;
     const word = COUNTER_WORDS[kind];
     onChange((game) => changeCounter(game, got.card.uid, kind, sign * got.amount), `${sign > 0 ? 'Added' : 'Removed'} ${number(got.amount)} ${word} counter${got.amount === 1 ? '' : 's'} ${sign > 0 ? 'to' : 'from'} ${got.card.name}.`);
-  });
-  const changeButton = (label, parts, sign) => button(label, 'secondary', () => {
+  }, shown);
+  const changeButton = (label, parts, sign) => button(label, 'secondary marks-step', () => {
     const got = read();
     if (!got) return;
     onChange((game) => parts.reduce((next, part) => changeModifier(next, got.card.uid, part, sign * got.amount), game), `${got.card.name}: ${parts.length === 2 ? 'power and toughness' : parts[0]} ${sign > 0 ? 'up' : 'down'} by ${number(got.amount)}.`);
-  });
+  }, sign > 0 ? '+' : '−');
 
-  const counters = make('div', 'actions');
+  // (the redesign, step 5: labeled sections instead of a loose row of buttons)
+  const head = make('div', 'marks-head');
+  head.append(make('span', 'marks-title', 'Modify'));
+  const label = (words) => make('p', 'marks-label', words);
+
+  const counters = make('div', 'marks-line');
   counters.setAttribute('role', 'group');
   counters.setAttribute('aria-label', 'Counters on the selected card');
-  counters.append(kindSelect, counterButton('Add counters', 1), counterButton('Remove counters', -1));
+  counters.append(kindSelect, counterButton('Add counters', 1, 'Add'), counterButton('Remove counters', -1, 'Remove'));
 
-  const changes = make('div', 'actions');
+  const changes = make('div', 'marks-pt');
   changes.setAttribute('role', 'group');
   changes.setAttribute('aria-label', 'Power and toughness change of the selected card (not counters)');
-  changes.append(
-    changeButton('Power +', ['power'], 1), changeButton('Power -', ['power'], -1),
-    changeButton('Toughness +', ['toughness'], 1), changeButton('Toughness -', ['toughness'], -1),
-    changeButton('Both +', ['power', 'toughness'], 1), changeButton('Both -', ['power', 'toughness'], -1),
-    button('Reset change', 'secondary', () => {
-      const card = target();
-      if (!card) { say('Select a card on the battlefield first.', true); return; }
-      onChange((game) => resetModifier(game, card.uid), `Reset the power and toughness change of ${card.name} (counters stay).`);
-    }),
-  );
+  for (const [words, parts] of [['Power', ['power']], ['Toughness', ['toughness']], ['Both', ['power', 'toughness']]]) {
+    changes.append(make('span', 'marks-pt-name', words), changeButton(`${words} -`, parts, -1), changeButton(`${words} +`, parts, 1));
+  }
+  const reset = button('Reset change', 'secondary marks-reset', () => {
+    const card = target();
+    if (!card) { say('Select a card on the battlefield first.', true); return; }
+    onChange((game) => resetModifier(game, card.uid), `Reset the power and toughness change of ${card.name} (counters stay).`);
+  }, 'Reset');
 
-  container.replaceChildren(amountLabel, counters, changes);
+  const counterPart = make('div', 'marks-section'); counterPart.append(label('Counters'), counters);
+  const ptPart = make('div', 'marks-section'); ptPart.append(label('Power and toughness'), changes, reset);
+  container.replaceChildren(head, amountLabel, counterPart, ptPart);
 }

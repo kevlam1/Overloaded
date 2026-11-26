@@ -362,9 +362,9 @@ try {
   await act(alice, 'Modify');
   record('and Modify shows the counter controls for her card on the battlefield on the table page', (await alice.eval(`document.getElementById('marks').hidden`)) === false);
   await alice.eval(`document.getElementById('marks-amount').value = '3'`);
-  await alice.eval(`Array.from(document.querySelectorAll('#marks button')).find((b) => b.textContent === 'Add counters').click()`);
+  await alice.eval(`Array.from(document.querySelectorAll('#marks button')).find((b) => (b.getAttribute('aria-label') ?? b.textContent) === 'Add counters').click()`);
   await alice.eval(`document.getElementById('marks-amount').value = '2'`);
-  await alice.eval(`Array.from(document.querySelectorAll('#marks button')).find((b) => b.textContent === 'Power +').click()`);
+  await alice.eval(`Array.from(document.querySelectorAll('#marks button')).find((b) => (b.getAttribute('aria-label') ?? b.textContent) === 'Power +').click()`);
   const marksSaved = await waitFor(async () => {
     const r = await rest('GET', pathOf('public/battlefield'), cleanup.bob.token);
     const card = r.json ? Object.values(r.json)[0] : null;
@@ -379,7 +379,7 @@ try {
   record("Bob's page has no counter controls for another player's cards", (await bob.eval(`document.getElementById('marks').hidden`)) === true);
   await alice.eval(`document.getElementById('marks-amount').value = '5,000,000,000'`);
   await alice.eval(`document.querySelector('#marks select').value = 'o'`);
-  await alice.eval(`Array.from(document.querySelectorAll('#marks button')).find((b) => b.textContent === 'Add counters').click()`);
+  await alice.eval(`Array.from(document.querySelectorAll('#marks button')).find((b) => (b.getAttribute('aria-label') ?? b.textContent) === 'Add counters').click()`);
   const bigSaved = await waitFor(async () => {
     const r = await rest('GET', pathOf('public/battlefield'), cleanup.bob.token);
     const card = r.json ? Object.values(r.json)[0] : null;

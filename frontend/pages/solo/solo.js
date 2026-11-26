@@ -518,7 +518,7 @@ mountMarksPanel($('marks'), {
   onChange: (change, message) => apply(() => change(game), message),
   say,
 });
-{ const close = make('button', 'secondary modify-close', 'Close'); close.type = 'button'; close.addEventListener('click', () => { closeModify(); const card = document.querySelector('.card.selected'); card?.focus(); }); $('marks').prepend(close); }
+{ const close = make('button', 'secondary modify-close', '×'); close.type = 'button'; close.setAttribute('aria-label', 'Close'); close.title = 'Close'; close.addEventListener('click', () => { closeModify(); const card = document.querySelector('.card.selected'); card?.focus(); }); ($('marks').querySelector('.marks-head') ?? $('marks')).append(close); }
 $('draw').addEventListener('click', drawOne);
 $('next-turn').addEventListener('click', goNextTurn);
 $('untap-all').addEventListener('click', () => { play('tap'); apply(() => untapAll(game), untapMessage(game)); });
@@ -573,6 +573,7 @@ function placeBoardBottom() {
   const bottom = `${boardBottom()}px`;
   if ($('my-board').style.bottom === bottom) return false;
   $('my-board').style.bottom = bottom;
+  document.body.style.setProperty('--tray-h', bottom); // (the tray under the battlefield, in src/styles/game-shell.css)
   return true;
 }
 function fitBoard() {

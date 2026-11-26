@@ -5576,6 +5576,55 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 - Colors can be changed any time, not only in the lobby: it is only a look.
 - To paste: `backend/database.rules.json` (adds `color` and `phase`; the live rules check found nothing else different).
 
+## 282. Redesign step 5: the battlefield, the fields and every window (2026-11-25)
+
+**What I asked for**
+- Proceed with step 5, and really improve what I have, not just move it around: the grids, the battlefield and the players' fields included.
+
+**What changed**
+- **Before anything was changed, Claude took screenshots of the solo table with cards in play and each window open, to see what was actually wrong.** It found:
+  - a line on every one of the battlefield's 5,600 cells, which read as graph paper and buried the cards;
+  - a board with no surface of its own, and the hand and piles floating on the same background;
+  - a counters window (Modify) that was a loose pile of buttons;
+  - heavy gold boxes round the top and bottom card of the pile window;
+  - a Close button in the details window that matched nothing else;
+  - the commander tax as a bare "0".
+- **The battlefield** (`frontend/src/styles/game-shell.css`):
+  - It is a felt, lightly tinted with its player's color.
+  - It has faint lines only round card-sized blocks (7 by 10 cells, so 16 by 5 on the solo table) instead of one on every cell.
+  - The fine grid of cells shows on my own battlefield only while I carry a card, when it helps to place it.
+  - The spot a carried card would land on is a soft dashed gold outline.
+- **The fields:** under each battlefield my hand and piles sit on a darker tray (on the table and on solo), so a field reads as two parts. The solo tray follows the board's bottom (`--tray-h`, set by `solo.js`). The solo commander tax is a small gold pill above the commander.
+- **The windows** (`frontend/src/styles/overlays.css`, new, linked on every page): one look for the pile window, card details, Modify, Settings, Scry and the order window, the token and printing pickers, the number box and the counters panel.
+  - The page behind a window is dimmed and slightly blurred. Every window has the rail's surface, a hairline edge, 14 px corners and one deep shadow.
+  - The same quiet Close button everywhere, and the same small capital labels for the parts of a window as the rail.
+  - Pile window: a header with the title, a round search box and the buttons; Top and Bottom are small tags on the card's corner; a card lifts a little under the pointer (not under reduced motion).
+  - Details: legality as pills, and lines between the facts.
+  - Settings: a gold edge on the open tab and a taller window.
+- **Modify** (`frontend/src/marks-panel.js`), rebuilt:
+  - a header with × to close, then Amount;
+  - Counters on one line: the kind, a gold Add and Remove;
+  - Power and toughness as three rows (Power, Toughness, Both), each with − and +, then Reset.
+  - The buttons keep their full names ("Power +", "Add counters") for screen readers, so the tests find them by those names.
+
+**What I checked**
+- Screenshots looked at, at 1366x768, before and after:
+  - the solo table with cards in play;
+  - the right-click menu, Modify, the pile window, Settings (General and Hand sorting) and card details;
+  - 3 seats and Sidebar view on the table from the live check.
+- Claude's mistakes, caught on the way:
+  - Modify's header first shared a line with Amount, because an old rule made the window a wrapping row.
+  - The pile window's tags stayed above the cards, because an older, more specific rule won.
+  - Taking the tax pill out of the flow moved the command slots 34 px out of line with the piles; the solo check caught it, and the pill stays in its old place now.
+  - Rewriting the Modify buttons also changed the message "power up by 1" to "+1"; Claude saw it in the diff and put the old words back.
+- Rewritten on purpose:
+  - `check-table-layout` checks that the lines mark blocks of 7 by 10 square cells (165 of 165).
+  - `check-solo-ui` checks that the Top tag is in the card's corner (470 of 470).
+- `npm test` 99 of 99 suites. `npm run test:live` 107 of 109: the two that fail are the ones waiting for my rules paste (color and the step of the turn).
+
+**Decisions**
+- The fine cell grid is still there for placing a card; it is only hidden while nothing is being carried.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-24, entry 277) Claude told me the tool docks remembered their layout (entries 273 and 276) when the code stored "[object Object]"; the audit for the spec found it.
 - (2026-11-23, entry 273) I said "commit and push after every big change" and meant every big prompt; Claude pushed after each of three changes.

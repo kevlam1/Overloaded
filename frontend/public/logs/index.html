@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.281</span></h1>
-    <p class="lede">281 entries, Oct 25 to Nov 25, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
+    <h1>Build log <span class="version">Version 0.282</span></h1>
+    <p class="lede">282 entries, Oct 25 to Nov 25, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
   </div>
 </header>
 
@@ -25,7 +25,7 @@
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
 <a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">56</span></a>
-<a class="week-link" href="#week-3" data-target="week-3"><span class="wl-name">Week 3</span><span class="wl-range">Nov 23 to Nov 29</span><span class="wl-count">12</span></a>
+<a class="week-link" href="#week-3" data-target="week-3"><span class="wl-name">Week 3</span><span class="wl-range">Nov 23 to Nov 29</span><span class="wl-count">13</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
 <a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">29 things friends asked for</span></a>
 <a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">29 open, 73 done</span></a>
@@ -4572,7 +4572,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-3" aria-labelledby="week-3-title">
-<h2 class="week-head" id="week-3-title"><button type="button" aria-expanded="false" aria-controls="week-3-days"><span class="wname">Week 3</span><span class="range">Nov 23 to Nov 29</span><span class="week-count">12 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-3-title"><button type="button" aria-expanded="false" aria-controls="week-3-days"><span class="wname">Week 3</span><span class="range">Nov 23 to Nov 29</span><span class="week-count">13 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-3-days">
 <div class="day">
 <h3 class="day-title">Monday 23 November <span class="day-count">6</span></h3>
@@ -4745,7 +4745,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Wednesday 25 November <span class="day-count">2</span></h3>
+<h3 class="day-title">Wednesday 25 November <span class="day-count">3</span></h3>
 <div class="entries">
 <article class="entry" id="entry-280" data-n="280">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-280-body">
@@ -4779,6 +4779,23 @@
 <ul><li>New unit tests: <code>scripts/test-player-colors.mjs</code> (6) and <code>scripts/test-phase-undo.mjs</code> (9). <code>test-keybinds</code> 39.</li><li>Emulator tests:<ul><li><code>backend/test-table-ops.mjs</code> 258, with 4 new: <code>setColor</code>, a taken color refused, a color that is not one of the ten refused before any request and by the database itself.</li><li><code>backend/test-rules-game.mjs</code> 2,408, with 10 new for <code>phase</code>.</li></ul></li><li><code>npm test</code>: 99 suites. The lobby check failed once, because my &quot;Your color&quot; label was a new heading; it is a plain label now and the check passes (66).</li><li><code>npm run test:live</code>: 3 suites failed.<ul><li>Two are expected until I paste <code>backend/database.rules.json</code>: the live rules check (2 new requests, color and phase) and the seats check's color and Combat checks. The live Undo check there already passes: Alice draws and undoes, and Bob sees her hand count go back.</li><li>The third was the room check failing once (&quot;following it puts him back in the table&quot;). Run alone it passed 41 of 41; I did not find a cause.</li></ul></li><li>Screenshots looked at: the solo table with the step strip and the Undo button, the 2-seat table, and the lobby with the swatches (Gold mine, Jade greyed out for Bob). In the first lobby screenshot both seat circles were green: the old &quot;ready&quot; style coloured the circle. The player's color wins now, and ready still shows as its pill.</li></ul>
 <p class="sub"><strong>Decisions</strong></p>
 <ul><li>There are now two Undo buttons in the rail: the stack's undoes changes to the stack, the console's undoes my moves.</li><li>Colors can be changed any time, not only in the lobby: it is only a look.</li><li>To paste: <code>backend/database.rules.json</code> (adds <code>color</code> and <code>phase</code>; the live rules check found nothing else different).</li></ul>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-282" data-n="282">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-282-body">
+    <span class="num">282</span>
+    <span class="head-text"><span class="title">Redesign step 5: the battlefield, the fields and every window</span><span class="sum">Proceed with step 5, and really improve what I have, not just move it around: the grids, the battlefield and the players' fields included.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-282-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>Proceed with step 5, and really improve what I have, not just move it around: the grids, the battlefield and the players' fields included.</li></ul>
+<p class="sub"><strong>What changed</strong></p>
+<ul><li><strong>Before anything was changed, Claude took screenshots of the solo table with cards in play and each window open, to see what was actually wrong.</strong> It found:<ul><li>a line on every one of the battlefield's 5,600 cells, which read as graph paper and buried the cards;</li><li>a board with no surface of its own, and the hand and piles floating on the same background;</li><li>a counters window (Modify) that was a loose pile of buttons;</li><li>heavy gold boxes round the top and bottom card of the pile window;</li><li>a Close button in the details window that matched nothing else;</li><li>the commander tax as a bare &quot;0&quot;.</li></ul></li><li><strong>The battlefield</strong> (<code>frontend/src/styles/game-shell.css</code>):<ul><li>It is a felt, lightly tinted with its player's color.</li><li>It has faint lines only round card-sized blocks (7 by 10 cells, so 16 by 5 on the solo table) instead of one on every cell.</li><li>The fine grid of cells shows on my own battlefield only while I carry a card, when it helps to place it.</li><li>The spot a carried card would land on is a soft dashed gold outline.</li></ul></li><li><strong>The fields:</strong> under each battlefield my hand and piles sit on a darker tray (on the table and on solo), so a field reads as two parts. The solo tray follows the board's bottom (<code>--tray-h</code>, set by <code>solo.js</code>). The solo commander tax is a small gold pill above the commander.</li><li><strong>The windows</strong> (<code>frontend/src/styles/overlays.css</code>, new, linked on every page): one look for the pile window, card details, Modify, Settings, Scry and the order window, the token and printing pickers, the number box and the counters panel.<ul><li>The page behind a window is dimmed and slightly blurred. Every window has the rail's surface, a hairline edge, 14 px corners and one deep shadow.</li><li>The same quiet Close button everywhere, and the same small capital labels for the parts of a window as the rail.</li><li>Pile window: a header with the title, a round search box and the buttons; Top and Bottom are small tags on the card's corner; a card lifts a little under the pointer (not under reduced motion).</li><li>Details: legality as pills, and lines between the facts.</li><li>Settings: a gold edge on the open tab and a taller window.</li></ul></li><li><strong>Modify</strong> (<code>frontend/src/marks-panel.js</code>), rebuilt:<ul><li>a header with × to close, then Amount;</li><li>Counters on one line: the kind, a gold Add and Remove;</li><li>Power and toughness as three rows (Power, Toughness, Both), each with − and +, then Reset.</li><li>The buttons keep their full names (&quot;Power +&quot;, &quot;Add counters&quot;) for screen readers, so the tests find them by those names.</li></ul></li></ul>
+<p class="sub"><strong>What I checked</strong></p>
+<ul><li>Screenshots looked at, at 1366x768, before and after:<ul><li>the solo table with cards in play;</li><li>the right-click menu, Modify, the pile window, Settings (General and Hand sorting) and card details;</li><li>3 seats and Sidebar view on the table from the live check.</li></ul></li><li>Claude's mistakes, caught on the way:<ul><li>Modify's header first shared a line with Amount, because an old rule made the window a wrapping row.</li><li>The pile window's tags stayed above the cards, because an older, more specific rule won.</li><li>Taking the tax pill out of the flow moved the command slots 34 px out of line with the piles; the solo check caught it, and the pill stays in its old place now.</li><li>Rewriting the Modify buttons also changed the message &quot;power up by 1&quot; to &quot;+1&quot;; Claude saw it in the diff and put the old words back.</li></ul></li><li>Rewritten on purpose:<ul><li><code>check-table-layout</code> checks that the lines mark blocks of 7 by 10 square cells (165 of 165).</li><li><code>check-solo-ui</code> checks that the Top tag is in the card's corner (470 of 470).</li></ul></li><li><code>npm test</code> 99 of 99 suites. <code>npm run test:live</code> 107 of 109: the two that fail are the ones waiting for my rules paste (color and the step of the turn).</li></ul>
+<p class="sub"><strong>Decisions</strong></p>
+<ul><li>The fine cell grid is still there for placing a card; it is only hidden while nothing is being carried.</li></ul>
   </div></div></div>
 </article>
 </div>
