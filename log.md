@@ -5539,6 +5539,43 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 - Solo keeps about 112 columns (my card density) instead of the table's fixed rows: more room becomes more rows, not bigger cards.
 - The old saved places of the solo action bar and life piece (`overloaded.actionBar`, `overloaded.lifeBar`) are no longer read; the console's floating place is `overloaded.soloConsole`.
 
+## 281. Player colors in the lobby, and redesign step 4: the step of the turn and Undo (2026-11-25)
+
+**What I asked for**
+- In the lobby, players choose their own color out of about ten, with names like Ruby, Gold, Azure, Emerald, Pearl and Obsidian, and the tables use it. Then step 4 of the redesign. I said I understand the database rules changes.
+
+**What changed**
+- **Colors** (`shared/player-colors.mjs`): Ruby, Amber, Gold, Emerald, Jade, Azure, Amethyst, Rose, Pearl and Obsidian.
+  - Obsidian is a smoky grey: black would not show on the dark table.
+  - A player who has not picked one gets their seat's default (Gold, Jade, Amethyst, Amber, as the seats had). A default someone else picked moves to a free color, so no two players look alike.
+  - In the lobby, "Your color" is a row of ten swatches under the seats. A color another player shows is greyed out with their name. The number on each seat card is a circle in that player's color.
+  - On the tables, the player's color is used for the stripe on their area, the dot on their nameplate, their seat card in the rail and the dot before whose turn it is.
+  - It is stored as `color` on my seat (`setColor` in `shared/table-ops.mjs`), any time, refused in words if another player shows it. The rules take only the ten ids. They do not check that two players differ; the lobby does.
+- **The step of the turn** (`shared/phase.mjs`, `frontend/src/phase-strip.js`): Untap, Upkeep, Draw, Main 1, Combat, Main 2, End in the top bar, the current one in the color of the player whose turn it is.
+  - Only that player can click a step (or press P); everyone else sees it. A new turn starts at Untap. Nothing happens by itself: it is a reminder.
+  - It is stored as `public/{uid}/phase: { n, s }`, its own write like the commander tax, so before the rules are pasted only that write is refused (with one message).
+  - On the solo table it is kept in the page.
+- **Undo** (`shared/undo.mjs`): an Undo button in the console and the Z key take back my last move, up to 30.
+  - Draw X is one step. It never crosses a turn: a pass by anyone, a turn starting, a mulligan, a new game or a new match clears it.
+  - On the table the game put back is saved like any move, so it needed no rules change. The other players see it happen, and the history describes it like any move, never naming a hidden card.
+- Keybinds: Undo (Z) and Next step of the turn (P) are new actions. A keybind test used Z as "a key nobody has"; it uses J now.
+
+**What I checked**
+- New unit tests: `scripts/test-player-colors.mjs` (6) and `scripts/test-phase-undo.mjs` (9). `test-keybinds` 39.
+- Emulator tests:
+  - `backend/test-table-ops.mjs` 258, with 4 new: `setColor`, a taken color refused, a color that is not one of the ten refused before any request and by the database itself.
+  - `backend/test-rules-game.mjs` 2,408, with 10 new for `phase`.
+- `npm test`: 99 suites. The lobby check failed once, because my "Your color" label was a new heading; it is a plain label now and the check passes (66).
+- `npm run test:live`: 3 suites failed.
+  - Two are expected until I paste `backend/database.rules.json`: the live rules check (2 new requests, color and phase) and the seats check's color and Combat checks. The live Undo check there already passes: Alice draws and undoes, and Bob sees her hand count go back.
+  - The third was the room check failing once ("following it puts him back in the table"). Run alone it passed 41 of 41; I did not find a cause.
+- Screenshots looked at: the solo table with the step strip and the Undo button, the 2-seat table, and the lobby with the swatches (Gold mine, Jade greyed out for Bob). In the first lobby screenshot both seat circles were green: the old "ready" style coloured the circle. The player's color wins now, and ready still shows as its pill.
+
+**Decisions**
+- There are now two Undo buttons in the rail: the stack's undoes changes to the stack, the console's undoes my moves.
+- Colors can be changed any time, not only in the lobby: it is only a look.
+- To paste: `backend/database.rules.json` (adds `color` and `phase`; the live rules check found nothing else different).
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-24, entry 277) Claude told me the tool docks remembered their layout (entries 273 and 276) when the code stored "[object Object]"; the audit for the spec found it.
 - (2026-11-23, entry 273) I said "commit and push after every big change" and meant every big prompt; Claude pushed after each of three changes.

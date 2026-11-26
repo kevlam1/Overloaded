@@ -105,6 +105,7 @@ export const setReady = (...args) => tableOps().setReady(...args);
 export const clearReady = (...args) => tableOps().clearReady(...args);
 export const setDeck = (...args) => tableOps().setDeck(...args);
 export const setName = (...args) => tableOps().setName(...args);
+export const setColor = (...args) => tableOps().setColor(...args);
 export const setFormat = (...args) => tableOps().setFormat(...args);
 export const setView = (...args) => tableOps().setView(...args);
 export const setBracketLimit = (...args) => tableOps().setBracketLimit(...args);

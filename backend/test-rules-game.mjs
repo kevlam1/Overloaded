@@ -78,7 +78,7 @@ const structureChecks = () => {
   check('the seven list rules exist', blocks.every((block) => block && block.length > 500));
   check('the seven list rules are identical', blocks.every((block) => block === blocks[0]));
   check('a list has only its own object check and the card rule (so nothing else can hide in one)', Object.keys(JSON.parse(blocks[0])).join() === '.validate,$i' && JSON.parse(blocks[0])['.validate'] === 'newData.hasChildren()');
-  check('the public branch has exactly the keys the pages write', Object.keys(rules.public.$uid).filter((key) => !key.startsWith('.') && key !== '$other').sort().join() === 'battlefield,cd,command,counts,exile,graveyard,life,log,match,mulligans,next,pass,pc,ping,tax,turn');
+  check('the public branch has exactly the keys the pages write', Object.keys(rules.public.$uid).filter((key) => !key.startsWith('.') && key !== '$other').sort().join() === 'battlefield,cd,command,counts,exile,graveyard,life,log,match,mulligans,next,pass,pc,phase,ping,tax,turn');
   check('the private branch has exactly the three hidden lists', Object.keys(rules.private.$uid).filter((key) => !key.startsWith('.') && key !== '$other').sort().join() === 'hand,library,sideboard');
   const listCard = { ...JSON.parse(blocks[0]).$i }; delete listCard['.validate'];
   const pingCard = { ...rules.public.$uid.ping.card }; delete pingCard['.validate'];
@@ -209,6 +209,9 @@ const PUBLIC_CASES = [
   ['pass with from, a later turn', 'pass', { n: 3, to: '2', from: { n: 4, to: '1' } }, false], ['pass with from, turn 1', 'pass', { n: 3, to: '2', from: { n: 1, to: '1' } }, false],
   ['pass with from, seat 9', 'pass', { n: 3, to: '2', from: { n: 2, to: '9' } }, false], ['pass with from, no seat', 'pass', { n: 3, to: '2', from: { n: 2 } }, false],
   ['pass with from, an extra key', 'pass', { n: 3, to: '2', from: { n: 2, to: '1', y: 1 } }, false], ['pass with from, a number', 'pass', { n: 3, to: '2', from: 2 }, false],
+  ['phase: turn 3, Combat', 'phase', { n: 3, s: 4 }, true], ['phase: turn 1, Untap', 'phase', { n: 1, s: 0 }, true], ['phase: End of the largest turn', 'phase', { n: 100000, s: 6 }, true],
+  ['phase: step 7', 'phase', { n: 3, s: 7 }, false], ['phase: step -1', 'phase', { n: 3, s: -1 }, false], ['phase: step 1.5', 'phase', { n: 3, s: 1.5 }, false], ['phase: turn 0', 'phase', { n: 0, s: 1 }, false],
+  ['phase: turn 100001', 'phase', { n: 100001, s: 1 }, false], ['phase: no step', 'phase', { n: 3 }, false], ['phase: an extra key', 'phase', { n: 3, s: 1, x: 1 }, false], ['phase: text', 'phase', 'combat', false],
   ['an unknown key under public', 'foo', 1, false], ['an uploaded-picture name that is not designed yet (au)', 'au', 'x.png', false],
   // hidden zones must never appear under public, even with perfectly good cards
   ['the HAND under public', 'hand', [aCard(1)], false], ['the LIBRARY under public', 'library', [aCard(1)], false], ['the SIDEBOARD under public', 'sideboard', [aCard(1)], false],

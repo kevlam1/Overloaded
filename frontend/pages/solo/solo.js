@@ -53,6 +53,9 @@ import { marksSentence, markClick, printedOf } from '../../../shared/marks.mjs';
 import { chipEntries, playerMenuItems, playerAction, playerAddItems } from '../../../shared/player-counters.mjs';
 import { createToken, createEmblem, changeCounter, setFaceDown, makeGame, draw, moveCard, shuffleLibrary, mulligan, setTapped, turnOver, untapAll, heldTapped, adjustLife, nextTurn, boardCells, placeCard, placeStack, placeGroup, zoneCounts, reorderHand } from '../../../shared/zones.mjs';
 import { createToolDocks } from '../../src/tool-dock.js';
+import { emptyUndo, remember, canUndo, takeBack, undoWords } from '../../../shared/undo.mjs';
+import { nextStep } from '../../../shared/phase.mjs';
+import { mountPhaseStrip } from '../../src/phase-strip.js';
 
 const $ = (id) => document.getElementById(id);
 const store = makeSafeStore();
@@ -178,6 +181,8 @@ function keepShownOrder() {
 function render() {
   if (multi.size > 0 && [...multi].some((each) => findCard(each)?.zone !== multiZone)) multi.clear(); // (a picked card has left the zone it was picked in, with the others or alone: the group is over)
   $('turn').textContent = String(game.turn);
+  $('undo').disabled = !canUndo(undoState);
+  phaseStrip.update({ step: phaseStep, mine: true });
   $('life').textContent = String(game.life);
   lifeChips.update(chipEntries(game.pc));
   place($('battlefield'), game.zones.battlefield, { battlefield: true, cells: boardCells(game), sharp: true });
@@ -257,8 +262,10 @@ function placeModify() {
 // Returns whether the move was made (a refused move leaves the game as it was).
 function apply(run, message = '') {
   let made = true;
+  const before = game;
   try {
     game = run();
+    if (game !== before) undoState = remember(undoState, before, message); // (Undo puts the game from before this move back)
     if (message) { say(message); record(message); }
   } catch (error) {
     made = false;
@@ -382,6 +389,8 @@ function markOnCard(uid, hit) {
 
 function deal({ pause = 0 } = {}) {
   game = makeGame(deck, lookup);
+  undoState = emptyUndo();
+  phaseStep = 0;
   topRevealed = false; // a new game: the top card is face down again
   peeking.clear();
   selected = null;
@@ -401,6 +410,7 @@ function deal({ pause = 0 } = {}) {
 
 function drawOne() {
   const result = draw(game, 1);
+  if (!result.short) undoState = remember(undoState, game, 'Drew a card.');
   game = result.game;
   if (!result.short) play('draw');
   say(result.short ? 'Your library is empty.' : `Drew ${game.zones.hand.find((c) => c.uid === result.drawn[0]).n}.`, result.short);
@@ -417,6 +427,7 @@ async function drawCards(n) {
   drawing = true;
   try {
     let drawn = 0;
+    undoState = remember(undoState, game, `Drew ${n} cards.`); // (one Undo takes all of them back)
     for (let i = 0; i < n; i++) {
       const result = draw(game, 1);
       if (result.short) break;
@@ -436,6 +447,8 @@ function goNextTurn() {
   const held = heldTapped(game);
   const result = nextTurn(game);
   game = result.game;
+  undoState = emptyUndo(); // (Undo never crosses a turn)
+  phaseStep = 0; // (a new turn starts at Untap)
   if (!result.short) play('draw');
   const drewName = result.short ? null : game.zones.hand.find((c) => c.uid === result.drawn[0]).n;
   const untapped = held ? `everything untapped except ${held} that do not untap` : 'everything untapped';
@@ -456,7 +469,7 @@ async function doMulligan() {
     try { await gatherIntoPile(nodes, $('hand').getBoundingClientRect(), $('pile-library'), cardBackUrl('small')); play('shuffle'); await shuffleAnimation($('pile-library'), cardBackUrl('small')); } finally { $('hand').style.visibility = ''; }
   } else play('shuffle');
   mulliganing = false;
-  try { game = mulligan(game); } catch (error) { say(error.message, true); render(); return; }
+  try { game = mulligan(game); undoState = emptyUndo(); } catch (error) { say(error.message, true); render(); return; } // (a mulligan cannot be undone: the new hand is dealt)
   dealer.start(game.zones.hand.length, { pause: reducedMotion() ? SHUFFLE_PAUSE_MS : 0 }); // (under reduced motion the shuffle sound still gets its pause; otherwise the animation was the pause) then the new hand one card at a time
   record(`Mulligan ${game.mulligans}.`);
   say(`Mulligan ${game.mulligans}: a new hand of ${plural(game.zones.hand.length, 'card', 'cards')}. Put ${plural(game.mulligans, 'card', 'cards')} on the bottom of your library with the card buttons.`);
@@ -512,6 +525,22 @@ $('untap-all').addEventListener('click', () => { play('tap'); apply(() => untapA
 mountSoundSettings($('sound-settings'));
 // ---- piles drawn diagonally or horizontally (shared/pile-style.mjs), a double click taps a card, a click on empty space deselects ----
 mountPileStyle($('pile-style-settings'));
+// ---- Undo and the step of the turn (the redesign, step 4: shared/undo.mjs, shared/phase.mjs) ----
+let undoState = emptyUndo();
+let phaseStep = 0; // the step of the turn you are on (solo: kept in the page)
+function doUndo() {
+  if (!game) return;
+  const back = takeBack(undoState);
+  if (!back) { say('Nothing to undo.'); return; }
+  undoState = back.undo;
+  game = back.game;
+  say(undoWords(back.label));
+  record(undoWords(back.label));
+  render();
+}
+const phaseStrip = mountPhaseStrip({ root: $('phase-strip'), onPick: (step) => { phaseStep = step; if (game) render(); } });
+$('undo').addEventListener('click', doUndo);
+
 // The rail on the right (the redesign, 2026-11-25, as on the multiplayer table: src/tool-dock.js): the game history, the stack and your console.
 // Each can be dragged out by its header to float, and dropped back on the rail. The floating tools keep out of the rail.
 const floatingBars = [];
@@ -739,9 +768,11 @@ function flipFaceDown(found) {
   apply(() => targets.reduce((game_, entry) => setFaceDown(game_, entry.card.uid, down), game), targets.length > 1 ? `Flipped ${targets.length} cards face ${down ? 'down' : 'up'}.` : `Flipped ${targets[0].card.n} face ${down ? 'down' : 'up'}.`);
 }
 // The other actions a key can do (Settings > Keybinds): the same as pressing the button or menu line; false when there is nothing to press.
-const GAME_KEYS = new Set(['mulligan', 'shuffle', 'lifeUp', 'lifeDown', 'viewLibrary', 'viewGraveyard', 'viewExile', 'sortType', 'sortColor', 'sortCost', 'sortName', 'autoSort', 'history', 'stack']);
+const GAME_KEYS = new Set(['undo', 'nextPhase', 'mulligan', 'shuffle', 'lifeUp', 'lifeDown', 'viewLibrary', 'viewGraveyard', 'viewExile', 'sortType', 'sortColor', 'sortCost', 'sortName', 'autoSort', 'history', 'stack']);
 const CLICKS = { mulligan: '#mulligan', viewLibrary: '#pile-library', viewGraveyard: '#pile-graveyard', viewExile: '#pile-exile', sortType: '.hand-sort[data-sort="type"]', sortColor: '.hand-sort[data-sort="color"]', sortCost: '.hand-sort[data-sort="cost"]', sortName: '.hand-sort[data-sort="name"]', autoSort: '.hand-sort-toggle', history: '#history-bar .history-head', stack: '.stack-tab' };
 function runGameKey(action) {
+  if (action === 'undo') { doUndo(); return true; }
+  if (action === 'nextPhase') { phaseStep = nextStep(phaseStep); render(); return true; }
   if (action === 'shuffle') { pickFromPileMenu('library', 'shuffle'); return true; }
   if (action === 'viewLibrary') { if (!game) return false; openPile('library', { search: true }); return true; } // (a click on the library does nothing here, so the key opens it like the menu's View library; Kevin 2026-11-24)
   if (action === 'lifeUp' || action === 'lifeDown') { apply(() => adjustLife(game, action === 'lifeUp' ? 1 : -1), ''); return true; }

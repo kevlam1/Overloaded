@@ -29,6 +29,14 @@ body.playing:is(.solo, .seats) .game-bar .turn-whose:empty { display: none; }
 body.playing:is(.solo, .seats) .game-bar[data-mine="true"] .turn-whose { color: var(--gold); }
 body.playing:is(.solo, .seats) .game-bar .turn-clock { color: var(--muted); font-family: var(--font-num); font-size: 1.05rem; font-variant-numeric: tabular-nums; }
 body.playing:is(.solo, .seats) .game-bar :is(.turn-clock, .turn-next, .phase-strip)[hidden] { display: none; }
+/* the step of the turn (the redesign, step 4; frontend/src/phase-strip.js): seven steps, the current one filled in the color of the player whose turn it is; only they can click */
+body.playing:is(.solo, .seats) .phase-strip { flex: none; display: flex; gap: 2px; padding: 3px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-0); }
+body.playing:is(.solo, .seats) .phase-step { min-height: 0; height: 24px; padding: 0 9px; border: 0; border-radius: 999px; background: none; box-shadow: none; color: var(--muted); font-size: var(--text-xs); font-weight: 600; white-space: nowrap; cursor: pointer; }
+body.playing:is(.solo, .seats) .phase-step.done { color: var(--text-2); }
+body.playing:is(.solo, .seats) .phase-step.current { background: var(--turn-color, var(--gold)); color: var(--gold-ink); }
+body.playing:is(.solo, .seats) .phase-step:disabled { cursor: default; opacity: 1; }
+body.playing:is(.solo, .seats) .phase-step:not(:disabled):not(.current):hover { background: var(--surface-3); color: var(--text); }
+body.playing:is(.solo, .seats) .phase-step:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
 /* the news line: what just happened, or a lost connection or a warning first */
 body.playing:is(.solo, .seats) .game-bar .topbar-slot { position: static; z-index: auto; flex: 1 1 auto; display: flex; justify-content: center; min-width: 0; max-width: none; pointer-events: none; }
 body.playing:is(.solo, .seats) .game-bar .topbar { position: static; inset: auto; translate: none; z-index: auto; display: flex; flex-direction: row; align-items: center; gap: 8px; max-width: 100%; max-height: none; margin: 0; padding: 0; overflow: hidden; border: 0; background: none; box-shadow: none; pointer-events: auto; }

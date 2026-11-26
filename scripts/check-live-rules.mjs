@@ -195,6 +195,8 @@ try {
   const emblemCard = { u: 'c1', i: '00000000-0000-4000-8000-000000000001', n: 'Elspeth Emblem', em: 2, tt: 'Emblem - Elspeth' };
   await expect('an emblem card with its type line and a count is allowed in the command zone', call(member, 'PUT', `${pub}/command/0`, emblemCard), 'allowed');
   await expect('an emblem with 100 of them is refused', call(member, 'PUT', `${pub}/command/0`, { ...emblemCard, em: 100 }), 'refused');
+  await expect('the step of the turn (turn 3, Combat) is allowed', call(member, 'PUT', `${pub}/phase`, { n: 3, s: 4 }), 'allowed');
+  await expect('a step 7 is refused', call(member, 'PUT', `${pub}/phase`, { n: 3, s: 7 }), 'refused');
   await expect('an emblem that is also a token is refused', call(member, 'PUT', `${pub}/command/0`, { ...emblemCard, tok: 1 }), 'refused');
   await expect('an emblem whose type line is not Emblem is refused', call(member, 'PUT', `${pub}/command/0`, { ...emblemCard, tt: 'Token Creature' }), 'refused');
   // The table's bracket limit (2026-11-20): the host sets 1 to 5, or none for Any.
@@ -202,6 +204,9 @@ try {
   await expect('a bracket limit of 6 is refused', call(host, 'PUT', `${T}/meta/bracketLimit`, 6), 'refused');
   await expect('a member who is not the host cannot set a bracket limit', call(member, 'PUT', `${T}/meta/bracketLimit`, 2), 'refused');
   await expect('the host takes the limit away (Any)', call(host, 'DELETE', `${T}/meta/bracketLimit`), 'allowed');
+  // a player's color (2026-11-25) and the step of the turn (2026-11-25): new in the rules
+  await expect('a member picks the color Azure', call(member, 'PUT', `${T}/members/${member.uid}/color`, 'azure'), 'allowed');
+  await expect('a color that is not one of the ten is refused', call(member, 'PUT', `${T}/members/${member.uid}/color`, 'red'), 'refused');
   await expect('the host picks Sidebar view', call(host, 'PUT', `${T}/meta/view`, 'sidebar'), 'allowed');
   await expect('a view other than grid or sidebar is refused', call(host, 'PUT', `${T}/meta/view`, 'tiles'), 'refused');
   await expect('a member who is not the host cannot pick the view', call(member, 'PUT', `${T}/meta/view`, 'grid'), 'refused');

@@ -41,6 +41,10 @@ import { mountHistoryBar } from '../../src/history-bar.js';
 import { mountStackWindow } from '../../src/stack-window.js';
 import { createToolDocks } from '../../src/tool-dock.js';
 import { summarizeBoard } from '../../../shared/board-summary.mjs';
+import { tableColors, colorValue } from '../../../shared/player-colors.mjs';
+import { emptyUndo, remember, canUndo, takeBack, undoWords } from '../../../shared/undo.mjs';
+import { readPhase, phaseIn, phaseRecord, nextStep } from '../../../shared/phase.mjs';
+import { mountPhaseStrip } from '../../src/phase-strip.js';
 import { mountPlayersPanel } from '../../src/players-panel.js';
 import { packStack, readStack } from '../../../shared/stack-sync.mjs';
 import { describeMove, makeEntry, slotFor as logSlotFor, lastK, mergeHistory } from '../../../shared/live-history.mjs';
@@ -440,6 +444,7 @@ function apply(run, message = '', { note = null } = {}) {
   const before = game;
   try {
     game = run();
+    if (game !== before) undoState = remember(undoState, before, message); // (Undo puts the game from before this move back; a change of turn clears it, in renderTurn)
     if (message) say(message);
   } catch (error) {
     made = false;
@@ -565,6 +570,7 @@ function markOnCard(uid, hit) {
 function drawOne() {
   const before = game;
   const result = draw(game, 1);
+  if (!result.short) undoState = remember(undoState, before, 'Drew a card.');
   game = result.game;
   if (!result.short) play('draw');
   say(result.short ? 'Your library is empty.' : `Drew ${game.zones.hand.find((c) => c.uid === result.drawn[0]).n}.`, result.short);
@@ -581,6 +587,7 @@ async function drawCards(n) {
   if (drawing || !game) return;
   drawing = true;
   const before = game;
+  undoState = remember(undoState, before, `Drew ${n} cards.`); // (one Undo takes all of them back)
   try {
     let drawn = 0;
     for (let i = 0; i < n; i++) {
@@ -619,8 +626,43 @@ let turnNote = ''; // what starting my turn did, for the banner
 let lastStartTried = null; // the turn my page last tried to start, so a refused start is not tried again in a loop
 let lastStartMatch = null; // the match that number belongs to: a new match starts the memory afresh
 const capital = (text) => `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
-// A seat's color (the redesign: gold, teal, violet, coral for seats 1 to 4, tokens in src/styles/tokens.css), as a CSS value.
-const seatColor = (seat) => `var(--seat-${/^[1-4]$/.test(String(seat)) ? seat : 1})`;
+// A player's color (Kevin, 2026-11-25: picked in the lobby, else their seat's default; shared/player-colors.mjs), as a CSS value.
+const playerColor = (uid) => colorValue(tableColors(members)[uid]);
+
+// ---- Undo and the step of the turn (the redesign, step 4: shared/undo.mjs, shared/phase.mjs) ----
+let undoState = emptyUndo();
+let undoTurn = null; // the table turn the remembered games belong to
+let myPhase = null; // my phase record { n, s } (stored on my public branch as its own write, like the commander tax)
+// The step of the turn being played: mine from this page, another player's from their branch; a record of an earlier turn is Untap.
+const phaseNow = (info) => phaseIn(info.uid === myUid ? myPhase : publicAll[info.uid]?.phase, info.turn);
+let phaseRefusedSaid = false;
+async function savePhase() {
+  try { await saveGame(tableCode, { [`public/${myUid}/phase`]: myPhase }); } catch {
+    if (!phaseRefusedSaid) { phaseRefusedSaid = true; say('Step of the turn not saved: the database rules need updating.', true); }
+  }
+}
+function setStep(step) {
+  if (!game) return;
+  const info = currentTurnInfo();
+  if (info.uid !== myUid) return; // (only the player whose turn it is)
+  myPhase = phaseRecord(info.turn, step);
+  renderTurn();
+  savePhase();
+}
+const phaseStrip = mountPhaseStrip({ root: $('phase-strip'), onPick: setStep });
+function doUndo() {
+  if (!game) return;
+  const back = takeBack(undoState);
+  if (!back) { say('Nothing to undo.'); return; }
+  const before = game;
+  undoState = back.undo;
+  game = back.game;
+  say(undoWords(back.label));
+  render();
+  sync();
+  logMove(before, game);
+}
+$('undo').addEventListener('click', doUndo);
 
 function renderTurn() {
   if (!game) return;
@@ -636,8 +678,11 @@ function renderTurn() {
   const nextMember = Object.entries(members).find(([, m]) => m.seat === nextSeat);
   $('turn-next').textContent = nextMember ? `Next: ${nextMember[0] === myUid ? 'you' : nextMember[1].name}` : '';
   $('turn-next').hidden = !nextMember || nextSeat === info.seat;
-  $('game-bar').style.setProperty('--turn-color', seatColor(info.seat)); // (the dot before whose turn it is: that seat's color)
+  $('game-bar').style.setProperty('--turn-color', playerColor(info.uid)); // (the dot before whose turn it is: that player's color)
   $('game-bar').dataset.mine = String(mine);
+  if (info.turn !== undoTurn) { undoTurn = info.turn; undoState = emptyUndo(); } // (Undo never crosses a turn, whoever passed it)
+  $('undo').disabled = !canUndo(undoState);
+  phaseStrip.update({ step: phaseNow(info), mine, whose: capital(whoseWords(info, myUid)) });
   const pass = $('pass-turn');
   const passWords = mine ? 'Next turn' : `Skip ${whoseWords(info, myUid).replace(/ \(no one is there\)$/, '')}`; // (the label only: the button keeps its icon for the column of icons)
   pass.querySelector('.act-label').textContent = passWords;
@@ -674,7 +719,7 @@ async function doMulligan() {
   mulliganing = false;
   if (!game) return;
   const beforeMulligan = game;
-  try { game = mulligan(game); } catch (error) { say(error.message, true); render(); return; }
+  try { game = mulligan(game); undoState = emptyUndo(); } catch (error) { say(error.message, true); render(); return; } // (a mulligan cannot be undone: the new hand is dealt)
   logMove(beforeMulligan, game);
   dealer.start(game.zones.hand.length, { pause: reducedMotion() ? SHUFFLE_PAUSE_MS : 0 }); // then the new hand one card at a time (the game is saved at once)
   sync();
@@ -715,6 +760,7 @@ async function beginGame() {
   const matchNow = meta.match;
   if (stored.public && stored.public.match === matchNow) {
     game = joinGame(stored.public, stored.private, lookup);
+    myPhase = readPhase(stored.public.phase);
     lastSaved = game;
     game = settleBoard(game); // an older game has no cells: every card gets one (what changed is saved by the sync below)
     $('deck-line').textContent = 'Your game from before is back.';
@@ -727,6 +773,7 @@ async function beginGame() {
       return;
     }
     game = makeGame(deck, lookup);
+    myPhase = null;
     fresh = true;
     logK = 0; // (a new game, a new history: the first save clears the old one)
     lastSaved = null; // nothing is saved for this match yet: the first save writes everything and clears an older match's cards
@@ -735,6 +782,7 @@ async function beginGame() {
   }
   selected = null;
   viewing = null;
+  undoState = emptyUndo();
   cardNodes.clear();
   $('game').hidden = false;
   document.body.classList.add('playing', 'seats'); // the Seats table: every player's area looks like the solo table (src/style.css)
@@ -838,7 +886,7 @@ async function renderOpponents() {
   for (const [uid, member] of others) {
     const panel = opponentPanel(uid);
     panel.title.textContent = `Seat ${member.seat}: ${member.name}`; // names are other people's text: put in as text, never as markup
-    panel.section.style.setProperty('--seat-color', seatColor(member.seat));
+    panel.section.style.setProperty('--seat-color', playerColor(uid));
     const theirTurn = turnNow !== null && turnNow.uid === uid;
     panel.section.classList.toggle('active', theirTurn);
     if (theirTurn) panel.title.append(make('span', 'turn-mark', 'their turn'));
@@ -924,7 +972,7 @@ function renderMyHead(turnNow = game !== null ? currentTurnInfo() : null) {
   $('my-name').textContent = mySeatTitle();
   $('my-plate-life').textContent = game ? String(game.life) : '';
   $('seat-me').classList.toggle('active', turnNow !== null && turnNow.uid === myUid);
-  $('seat-me').style.setProperty('--seat-color', seatColor(members[myUid]?.seat));
+  $('seat-me').style.setProperty('--seat-color', playerColor(myUid));
 }
 function focusSeat(uid) {
   focusUid = uid === myUid ? null : uid;
@@ -1238,14 +1286,14 @@ function renderPlayersPanel() {
   const nextSeat = turnNow ? nextSeatAfter(members, turnNow.seat, conceded) : null;
   const sidebar = document.body.dataset.view === 'sidebar';
   const rows = [];
-  if (members[myUid] && (!sidebar || focusUid !== null)) rows.push({ uid: myUid, seat: members[myUid].seat, mine: true, name: members[myUid].name, life: game?.life, active: turnNow?.uid === myUid, next: turnNow?.uid !== myUid && members[myUid].seat === nextSeat, clickable: sidebar, focused: false,
+  if (members[myUid] && (!sidebar || focusUid !== null)) rows.push({ uid: myUid, seat: members[myUid].seat, color: playerColor(myUid), mine: true, name: members[myUid].name, life: game?.life, active: turnNow?.uid === myUid, next: turnNow?.uid !== myUid && members[myUid].seat === nextSeat, clickable: sidebar, focused: false,
     commanders: game ? taxEntries(game).map((entry) => ({ name: entry.name, tax: entry.tax })) : [] });
   for (const uid of othersInOrder()) {
     const member = members[uid]; const view = opponents.get(uid)?.view;
     if (!member || !view) continue;
     const named = new Map(view.zones.command.map((card) => [card.uid, card.n])); // their commanders: the cards in their command zone, and any card out with a commander tax
     for (const zone of ['battlefield', 'graveyard', 'exile']) for (const card of view.zones[zone]) if (view.tax[card.uid] && !named.has(card.uid)) named.set(card.uid, card.n);
-    rows.push({ uid, seat: member.seat, name: member.name, status: statusWords(uid), life: view.life, active: turnNow?.uid === uid, next: turnNow?.uid !== uid && member.seat === nextSeat,
+    rows.push({ uid, seat: member.seat, color: playerColor(uid), name: member.name, status: statusWords(uid), life: view.life, active: turnNow?.uid === uid, next: turnNow?.uid !== uid && member.seat === nextSeat,
       clickable: sidebar, focused: focusUid === uid, hand: view.counts.hand, library: view.counts.library,
       commanders: [...named].map(([uid2, name]) => ({ name, tax: (view.tax[uid2] ?? 0) * TAX_PER_CAST })), chips: chipEntries(view.pc, view.cd, commanderDamageSeatsFor(members, view.cd, meta?.format)), summary: summarizeBoard(view.zones.battlefield) });
   }
@@ -1318,9 +1366,11 @@ function flipFaceDown(found) {
   apply(() => targets.reduce((game_, entry) => setFaceDown(game_, entry.card.uid, down), game), targets.length > 1 ? `Flipped ${targets.length} cards face ${down ? 'down' : 'up'}.` : `Flipped ${targets[0].card.n} face ${down ? 'down' : 'up'}.`);
 }
 // The other actions a key can do (Settings > Keybinds): the same as pressing the button or menu line; false when there is nothing to press.
-const GAME_KEYS = new Set(['mulligan', 'shuffle', 'arrange', 'lifeUp', 'lifeDown', 'viewLibrary', 'viewGraveyard', 'viewExile', 'sortType', 'sortColor', 'sortCost', 'sortName', 'autoSort', 'history', 'stack']);
+const GAME_KEYS = new Set(['undo', 'nextPhase', 'mulligan', 'shuffle', 'arrange', 'lifeUp', 'lifeDown', 'viewLibrary', 'viewGraveyard', 'viewExile', 'sortType', 'sortColor', 'sortCost', 'sortName', 'autoSort', 'history', 'stack']);
 const CLICKS = { history: '#history-bar .history-head', stack: '.stack-tab', viewLibrary: '#pile-library', viewGraveyard: '#pile-graveyard', viewExile: '#pile-exile', sortType: '.hand-sort[data-sort="type"]', sortColor: '.hand-sort[data-sort="color"]', sortCost: '.hand-sort[data-sort="cost"]', sortName: '.hand-sort[data-sort="name"]', autoSort: '.hand-sort-toggle' };
 function runGameKey(action) {
+  if (action === 'undo') { doUndo(); return true; }
+  if (action === 'nextPhase') { const info = currentTurnInfo(); if (info.uid !== myUid) return false; setStep(nextStep(phaseNow(info))); return true; }
   if (action === 'shuffle') { pickFromPileMenu('library', 'shuffle'); return true; }
   if (action === 'mulligan') { doMulligan(); return true; } // (no button: it is in the hand's menu)
   if (action === 'arrange') { arrangeNow(); return true; } // (no button)

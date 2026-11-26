@@ -2,7 +2,8 @@
 // and a table's own screen (/lobby/CODE) with only that table: joining it (one button, or no click at all when this browser has a
 // saved name), the seats, your deck, Ready and Start. All database calls live in ../../src/db.js.
 import { askConfirm } from '../../src/confirm-box.js';
-import { botClient, createTable, joinTable, rejoinTable, findMyTable, watchMembers, heartbeat, watchActivity, watchMeta, watchServerOffset, startPresence, watchPresence, watchConnection, takeOverHost, setDeck, setName, setFormat, setView, setBracketLimit, closeIfExpired, setReady, clearReady, startMatch, leaveTable } from '../../src/db.js';
+import { botClient, createTable, joinTable, rejoinTable, findMyTable, watchMembers, heartbeat, watchActivity, watchMeta, watchServerOffset, startPresence, watchPresence, watchConnection, takeOverHost, setDeck, setName, setColor, setFormat, setView, setBracketLimit, closeIfExpired, setReady, clearReady, startMatch, leaveTable } from '../../src/db.js';
+import { PLAYER_COLORS, tableColors, takenColors, colorValue } from '../../../shared/player-colors.mjs';
 import { presenceStatus, presenceText, ownConnectionText, hostIsGone } from '../../../shared/presence.mjs';
 import { startKeepAlive } from '../../src/keep-alive.js';
 import { drawDeckTiles } from '../../src/deck-tiles.js';
@@ -270,10 +271,39 @@ async function saveName() {
   });
 }
 
+// Your color (Kevin, 2026-11-25): ten swatches, the one you show pressed, the ones other players show disabled with their name.
+function renderColors() {
+  const box = $('color-swatches');
+  if (!box) return;
+  const shown = tableColors(currentMembers);
+  const taken = takenColors(currentMembers, myUid);
+  if (box.children.length !== PLAYER_COLORS.length) {
+    box.replaceChildren(...PLAYER_COLORS.map((color) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'color-swatch';
+      button.dataset.color = color.id;
+      button.style.setProperty('--swatch', color.value);
+      button.append(piece('span', 'color-name', color.name));
+      button.addEventListener('click', () => run(async () => { await setColor(currentCode, color.id); say(`Your color is ${color.name}.`); }));
+      return button;
+    }));
+  }
+  for (const button of box.children) {
+    const id = button.dataset.color;
+    const holder = taken.get(id);
+    const name = PLAYER_COLORS.find((c) => c.id === id).name;
+    button.setAttribute('aria-pressed', String(shown[myUid] === id));
+    button.disabled = Boolean(holder);
+    button.title = holder ? `${name}: ${currentMembers[holder]?.name ?? 'another player'} has it` : name;
+  }
+}
+
 function renderPlayers() {
   const list = $('players');
   const keepEditFocus = document.activeElement instanceof HTMLElement && document.activeElement.classList.contains('seat-name-input');
   list.replaceChildren();
+  renderColors();
   if (!cardsByName && Object.values(currentMembers).some((member) => seatCommander(member))) ensureCards(); // art for the seats
   const now = serverOffset === null ? null : Date.now() + serverOffset;
   // Names come from other people, so they are put in as text, never as markup. A seat is a card of a fixed size: the commander's art behind it, the player's name and what they bring on two lines that never grow
@@ -284,6 +314,7 @@ function renderPlayers() {
     item.className = mine ? 'seat mine' : 'seat';
     item.dataset.uid = uid;
     item.dataset.seat = String(member.seat);
+    item.style.setProperty('--player-color', colorValue(tableColors(currentMembers)[uid])); // (the number's circle in their color)
     const art = seatArt(member);
     if (art) { item.classList.add('has-art'); item.style.setProperty('--seat-art', `url("${art}")`); }
     item.append(piece('span', 'seat-label', `Seat ${member.seat}: `));

@@ -521,6 +521,13 @@ console.log('setName and setFormat: your name and the table\'s format in the lob
   check('and so is one that is too long', /name/i.test(await refused(() => guest.ops.setName(table.code, 'x'.repeat(31)))) && (await nameOf('nameguest')) === 'Gus');
   check('someone who is not at the table cannot change a name', /not at that table/.test(await refused(() => outsider.ops.setName(table.code, 'Nope'))));
   check('setName leaves the seat and the rest of the entry alone', JSON.stringify(Object.keys(await readAdmin(`tables/${table.code}/members/nameguest`)).sort()) === '["name","seat"]');
+  // your color (Kevin, 2026-11-25): one of ten, not one another player shows; the rules take only the ten ids
+  const colorOf = (uid) => readAdmin(`tables/${table.code}/members/${uid}/color`);
+  check('setColor sets your color at the table', JSON.stringify(await guest.ops.setColor(table.code, 'azure')) === '{"color":"azure","changed":true}' && (await colorOf('nameguest')) === 'azure');
+  check('a color another player shows (here the default Gold of the host) is refused in words', /Another player/.test(await refused(() => guest.ops.setColor(table.code, 'gold'))) && (await colorOf('nameguest')) === 'azure');
+  check('a color that is not one of the ten is refused before any request', /not one of the colors/.test(await refused(() => guest.ops.setColor(table.code, 'red'))));
+  check('the database itself refuses a color that is not one of the ten', Boolean(await refused(() => set(ref(guest.db, `tables/${table.code}/members/nameguest/color`), 'red'))) && (await colorOf('nameguest')) === 'azure');
+  await guest.ops.setColor(table.code, 'ruby');
 
   check('the host changes the format to Standard', JSON.stringify(await host.ops.setFormat(table.code, 'standard')) === '{"format":"standard","changed":true}' && (await readAdmin(`tables/${table.code}/meta/format`)) === 'standard');
   check('the same format again changes nothing', JSON.stringify(await host.ops.setFormat(table.code, 'standard')) === '{"format":"standard","changed":false}');

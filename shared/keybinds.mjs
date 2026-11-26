@@ -26,6 +26,8 @@ export const ACTIONS = [
   { id: 'nextTurn', section: 'turn', group: 'table', label: 'Next turn', hint: 'Like the Next turn button (Pass turn at a table).', defaults: none },
   { id: 'untapAll', section: 'turn', group: 'table', label: 'Untap all', hint: 'Like the Untap all button.', defaults: none },
   { id: 'mulligan', section: 'turn', group: 'table', label: 'Mulligan', hint: 'Like the Mulligan button.', defaults: none },
+  { id: 'undo', section: 'turn', group: 'table', label: 'Undo', hint: 'Your last move, back to the start of your turn.', defaults: ['z', null] },
+  { id: 'nextPhase', section: 'turn', group: 'table', label: 'Next step of the turn', hint: 'Upkeep, Draw, Main 1 and so on (your turn only).', defaults: ['p', null] },
   { id: 'shuffle', section: 'turn', group: 'table', label: 'Shuffle your library', hint: '', defaults: none },
   { id: 'arrange', section: 'table', group: 'table', pages: ['table'], label: 'Auto-arrange', hint: 'Tidy your battlefield.', defaults: none },
   { id: 'lifeUp', section: 'table', group: 'table', label: 'Gain 1 life', hint: '', defaults: none },

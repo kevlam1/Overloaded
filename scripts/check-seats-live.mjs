@@ -68,6 +68,12 @@ try {
       await alice.eval(`document.querySelector('#players button[data-bot="add"][data-seat="${seat}"]').click()`);
       await waitFor(async () => (await alice.eval(`[...document.querySelectorAll('#players .seat')].filter((s) => s.dataset.ready === '1').length`)) >= seat || null, 30000, 300);
     }
+    if (seats === 2) { // her own color (Kevin, 2026-11-25): picked in the lobby, taken for everyone else; needs the rules with members/{uid}/color pasted
+      await alice.eval(`document.querySelector('#color-swatches [data-color="azure"]').click()`);
+      const taken = await waitFor(async () => (await bob.eval(`document.querySelector('#color-swatches [data-color="azure"]')?.disabled === true`)) || null, 15000, 250).catch(() => false);
+      record("Alice picks Azure in the lobby; on Bob's page Azure is taken", Boolean(taken) && (await alice.eval(`document.querySelector('#color-swatches [data-color="azure"]').getAttribute('aria-pressed')`)) === 'true');
+      if (process.argv.includes('--screenshot')) await alice.screenshot('scratch-lobby-colors.png');
+    }
     // The view is the table's, picked by the host in the lobby (Kevin, 2026-11-20): the 4-seat run plays in Sidebar view; needs the rules with meta/view pasted
     const sidebar = seats === 4;
     if (sidebar) {
@@ -89,6 +95,7 @@ try {
     await waitFor(async () => ((await alice.eval(`document.querySelectorAll('#opponent-list .opponent .battlefield .card').length`)) >= 1) || null, 20000, 250);
     await sleep(800);
     if (process.argv.includes('--screenshot')) await alice.screenshot(`scratch-seats-${seats}.png`);
+    if (seats === 2) record("on Bob's table Alice's area is drawn in her Azure", (await bob.eval(`document.querySelector('#opponent-list .opponent').style.getPropertyValue('--seat-color')`)) === '#4f9be0', await bob.eval(`document.querySelector('#opponent-list .opponent').style.getPropertyValue('--seat-color')`));
 
     const others = seats - 1;
     const myArea = await box(alice, '#seat-me');
@@ -235,6 +242,18 @@ try {
         await mouse('mouseReleased', grave.x, grave.y); await sleep(500);
         const after = await counts();
         record('a pile of two held down and let go on her graveyard sends both cards there', Boolean(pair) && size === 2 && after.grave === before.grave + 2 && after.field === before.field - 2, JSON.stringify({ pair, size, before, after }));
+      }
+      { // the step of the turn and Undo (the redesign, step 4): needs the rules with public/{uid}/phase pasted for the step; Undo needs no rules change
+        await alice.eval(`document.querySelector('#phase-strip .phase-step[data-step="4"]').click()`);
+        const bobStep = await waitFor(async () => (await bob.eval(`document.querySelector('#phase-strip .phase-step.current')?.textContent ?? ''`)) === 'Combat' || null, 15000, 250).catch(() => false);
+        record("Alice sets Combat in the top bar; Bob's top bar shows Combat and he cannot change it", Boolean(bobStep) && (await bob.eval(`document.querySelector('#phase-strip .phase-step').disabled`)), await bob.eval(`document.querySelector('#phase-strip .phase-step.current')?.textContent ?? ''`));
+        const bobHand = () => bob.eval(`document.querySelector('#opponent-list .opponent .opp-hand-pill').textContent`);
+        const before = await alice.eval(`document.querySelectorAll('#hand > .card').length`);
+        await alice.eval(`document.getElementById('draw').click()`);
+        await waitFor(async () => (await bobHand()) === `Hand ${before + 1}` || null, 15000, 250).catch(() => null);
+        await alice.eval(`document.getElementById('undo').click()`);
+        const back = await waitFor(async () => (await bobHand()) === `Hand ${before}` || null, 15000, 250).catch(() => false);
+        record("Alice draws, then Undo puts the card back: her hand and Bob's view of it are as before", Boolean(back) && (await alice.eval(`document.querySelectorAll('#hand > .card').length`)) === before && /^Undid/.test(await alice.eval(`document.getElementById('status').textContent`)), JSON.stringify({ before, bob: await bobHand() }));
       }
     }
     record(`${seats} seats: no page errors`, ![alice, bob].some((b) => b.logs.some((l) => /^exception:/.test(l))), [alice, bob].flatMap((b) => b.logs).filter((l) => /^exception:/.test(l)).join(' | ').slice(0, 300));

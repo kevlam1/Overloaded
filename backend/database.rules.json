@@ -101,6 +101,9 @@
             "bracketGuess": {
               ".validate": "newData.val() === true"
             },
+            "color": {
+              ".validate": "newData.isString() && (newData.val() === 'ruby' || newData.val() === 'amber' || newData.val() === 'gold' || newData.val() === 'emerald' || newData.val() === 'jade' || newData.val() === 'azure' || newData.val() === 'amethyst' || newData.val() === 'rose' || newData.val() === 'pearl' || newData.val() === 'obsidian')"
+            },
             "$other": {
               ".validate": false
             }
@@ -175,6 +178,18 @@
                 ".validate": "newData.isNumber() && newData.val() % 1 === 0 && newData.val() >= 1 && newData.val() <= 1000000000000"
               },
               ".validate": "newData.hasChildren()",
+              "$other": {
+                ".validate": false
+              }
+            },
+            "phase": {
+              ".validate": "newData.hasChildren(['n', 's'])",
+              "n": {
+                ".validate": "newData.isNumber() && newData.val() % 1 === 0 && newData.val() >= 1 && newData.val() <= 100000"
+              },
+              "s": {
+                ".validate": "newData.isNumber() && newData.val() % 1 === 0 && newData.val() >= 0 && newData.val() <= 6"
+              },
               "$other": {
                 ".validate": false
               }

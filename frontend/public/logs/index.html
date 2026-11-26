@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.280</span></h1>
-    <p class="lede">280 entries, Oct 25 to Nov 25, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
+    <h1>Build log <span class="version">Version 0.281</span></h1>
+    <p class="lede">281 entries, Oct 25 to Nov 25, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
   </div>
 </header>
 
@@ -25,7 +25,7 @@
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
 <a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">56</span></a>
-<a class="week-link" href="#week-3" data-target="week-3"><span class="wl-name">Week 3</span><span class="wl-range">Nov 23 to Nov 29</span><span class="wl-count">11</span></a>
+<a class="week-link" href="#week-3" data-target="week-3"><span class="wl-name">Week 3</span><span class="wl-range">Nov 23 to Nov 29</span><span class="wl-count">12</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
 <a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">29 things friends asked for</span></a>
 <a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">29 open, 73 done</span></a>
@@ -4572,7 +4572,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-3" aria-labelledby="week-3-title">
-<h2 class="week-head" id="week-3-title"><button type="button" aria-expanded="false" aria-controls="week-3-days"><span class="wname">Week 3</span><span class="range">Nov 23 to Nov 29</span><span class="week-count">11 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-3-title"><button type="button" aria-expanded="false" aria-controls="week-3-days"><span class="wname">Week 3</span><span class="range">Nov 23 to Nov 29</span><span class="week-count">12 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-3-days">
 <div class="day">
 <h3 class="day-title">Monday 23 November <span class="day-count">6</span></h3>
@@ -4745,7 +4745,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Wednesday 25 November <span class="day-count">1</span></h3>
+<h3 class="day-title">Wednesday 25 November <span class="day-count">2</span></h3>
 <div class="entries">
 <article class="entry" id="entry-280" data-n="280">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-280-body">
@@ -4762,6 +4762,23 @@
 <ul><li><code>scripts/test-tool-dock.mjs</code>: 8 checks, with the solo layout and the console's new default.</li><li>Rewritten on purpose where they measured the old pieces:<ul><li><code>scripts/check-solo-ui.mjs</code> (470): the shell, my life on one line in the console, the console starting in the rail, then dragged out, docked to the edges of its room, back onto the rail, Home, reload and damaged storage. Also the grid's real size in the drag tests, the pile size formula, a drop on the top bar instead of the old empty band, and the menu's flip.</li><li><code>scripts/check-stack-ui.mjs</code> (26): the stack in the rail, always open, and its arrows show.</li><li><code>scripts/check-history-and-select-ui.mjs</code> (27): the history in the rail, my life in the console instead of being dragged.</li></ul></li><li>Screenshots looked at: the solo table at 1366x768 several times while fixing, and Sidebar view from the live seats check.</li><li><strong>A mistake of Claude's, caught:</strong><ul><li>At first the board's bottom was worked out from a hand card on every drawing of the table. A picked card is a different size, so the board could move in the middle of a click.</li><li>The solo check then failed in 2 of 4 runs, a different 2 checks each time, while the committed code passed twice.</li><li>The bottom now comes from the hand's box and is set only when a size changes. After that: 3 of 3 clean runs.</li></ul></li><li><code>npm test</code> 97 of 97 suites; <code>npm run test:live</code> 107 of 107; the live seats check 38 of 38.</li></ul>
 <p class="sub"><strong>Decisions</strong></p>
 <ul><li>Solo keeps about 112 columns (my card density) instead of the table's fixed rows: more room becomes more rows, not bigger cards.</li><li>The old saved places of the solo action bar and life piece (<code>overloaded.actionBar</code>, <code>overloaded.lifeBar</code>) are no longer read; the console's floating place is <code>overloaded.soloConsole</code>.</li></ul>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-281" data-n="281">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-281-body">
+    <span class="num">281</span>
+    <span class="head-text"><span class="title">Player colors in the lobby, and redesign step 4: the step of the turn and Undo</span><span class="sum">In the lobby, players choose their own color out of about ten, with names like Ruby, Gold, Azure, Emerald, Pearl and Obsidian, and the tables use it.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-281-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>In the lobby, players choose their own color out of about ten, with names like Ruby, Gold, Azure, Emerald, Pearl and Obsidian, and the tables use it. Then step 4 of the redesign. I said I understand the database rules changes.</li></ul>
+<p class="sub"><strong>What changed</strong></p>
+<ul><li><strong>Colors</strong> (<code>shared/player-colors.mjs</code>): Ruby, Amber, Gold, Emerald, Jade, Azure, Amethyst, Rose, Pearl and Obsidian.<ul><li>Obsidian is a smoky grey: black would not show on the dark table.</li><li>A player who has not picked one gets their seat's default (Gold, Jade, Amethyst, Amber, as the seats had). A default someone else picked moves to a free color, so no two players look alike.</li><li>In the lobby, &quot;Your color&quot; is a row of ten swatches under the seats. A color another player shows is greyed out with their name. The number on each seat card is a circle in that player's color.</li><li>On the tables, the player's color is used for the stripe on their area, the dot on their nameplate, their seat card in the rail and the dot before whose turn it is.</li><li>It is stored as <code>color</code> on my seat (<code>setColor</code> in <code>shared/table-ops.mjs</code>), any time, refused in words if another player shows it. The rules take only the ten ids. They do not check that two players differ; the lobby does.</li></ul></li><li><strong>The step of the turn</strong> (<code>shared/phase.mjs</code>, <code>frontend/src/phase-strip.js</code>): Untap, Upkeep, Draw, Main 1, Combat, Main 2, End in the top bar, the current one in the color of the player whose turn it is.<ul><li>Only that player can click a step (or press P); everyone else sees it. A new turn starts at Untap. Nothing happens by itself: it is a reminder.</li><li>It is stored as <code>public/{uid}/phase: { n, s }</code>, its own write like the commander tax, so before the rules are pasted only that write is refused (with one message).</li><li>On the solo table it is kept in the page.</li></ul></li><li><strong>Undo</strong> (<code>shared/undo.mjs</code>): an Undo button in the console and the Z key take back my last move, up to 30.<ul><li>Draw X is one step. It never crosses a turn: a pass by anyone, a turn starting, a mulligan, a new game or a new match clears it.</li><li>On the table the game put back is saved like any move, so it needed no rules change. The other players see it happen, and the history describes it like any move, never naming a hidden card.</li></ul></li><li>Keybinds: Undo (Z) and Next step of the turn (P) are new actions. A keybind test used Z as &quot;a key nobody has&quot;; it uses J now.</li></ul>
+<p class="sub"><strong>What I checked</strong></p>
+<ul><li>New unit tests: <code>scripts/test-player-colors.mjs</code> (6) and <code>scripts/test-phase-undo.mjs</code> (9). <code>test-keybinds</code> 39.</li><li>Emulator tests:<ul><li><code>backend/test-table-ops.mjs</code> 258, with 4 new: <code>setColor</code>, a taken color refused, a color that is not one of the ten refused before any request and by the database itself.</li><li><code>backend/test-rules-game.mjs</code> 2,408, with 10 new for <code>phase</code>.</li></ul></li><li><code>npm test</code>: 99 suites. The lobby check failed once, because my &quot;Your color&quot; label was a new heading; it is a plain label now and the check passes (66).</li><li><code>npm run test:live</code>: 3 suites failed.<ul><li>Two are expected until I paste <code>backend/database.rules.json</code>: the live rules check (2 new requests, color and phase) and the seats check's color and Combat checks. The live Undo check there already passes: Alice draws and undoes, and Bob sees her hand count go back.</li><li>The third was the room check failing once (&quot;following it puts him back in the table&quot;). Run alone it passed 41 of 41; I did not find a cause.</li></ul></li><li>Screenshots looked at: the solo table with the step strip and the Undo button, the 2-seat table, and the lobby with the swatches (Gold mine, Jade greyed out for Bob). In the first lobby screenshot both seat circles were green: the old &quot;ready&quot; style coloured the circle. The player's color wins now, and ready still shows as its pill.</li></ul>
+<p class="sub"><strong>Decisions</strong></p>
+<ul><li>There are now two Undo buttons in the rail: the stack's undoes changes to the stack, the console's undoes my moves.</li><li>Colors can be changed any time, not only in the lobby: it is only a look.</li><li>To paste: <code>backend/database.rules.json</code> (adds <code>color</code> and <code>phase</code>; the live rules check found nothing else different).</li></ul>
   </div></div></div>
 </article>
 </div>

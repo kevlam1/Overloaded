@@ -9,6 +9,7 @@
 // - a person who is not at the table cannot read it, so joining tries seats one at a time;
 // - a host holds one table at a time: making a new one deletes the old one in the same write.
 // No browser-only or server-only code here, so Node tests can load it.
+import { isColorId, takenColors } from './player-colors.mjs';
 import { makeTableCode, isValidCode } from './table-code.mjs';
 import { cleanPlayerName } from './player-name.mjs';
 import { isPermissionDenied } from './permission-error.mjs';
@@ -278,6 +279,18 @@ export function createTableOps({ sdk, db, getUid, makeCode = makeTableCode }) {
     if (mine.name === clean) return { name: clean, changed: false };
     await update(ref(db), { [`tables/${code}/members/${uid}/name`]: clean });
     return { name: clean, changed: true };
+  }
+
+  // Your color at the table (Kevin, 2026-11-25; shared/player-colors.mjs): one of the ten ids. Refused in words when it is not one, or when another player shows it.
+  // Any time (it is only a look). Returns { color, changed }.
+  async function setColor(code, color) {
+    if (!isColorId(color)) refuse('That is not one of the colors.');
+    const { uid, meta, mine, members } = await look(code);
+    if (!meta || !mine) refuse('You are not at that table.');
+    if (mine.color === color) return { color, changed: false };
+    if (takenColors(members ?? {}, uid).has(color)) refuse('Another player has that color.');
+    await update(ref(db), { [`tables/${code}/members/${uid}/color`]: color });
+    return { color, changed: true };
   }
 
   // The host changes the table's format (Commander or Standard). Only in the lobby. Everyone's pages see the change and take their own deck and ready mark back (a player can only write their own entry).
@@ -584,5 +597,5 @@ export function createTableOps({ sdk, db, getUid, makeCode = makeTableCode }) {
     );
   }
 
-  return { findMyTable, createTable, closeIfExpired, rejoinTable, joinTable, watchMembers, setReady, clearReady, setName, setFormat, setView, setBracketLimit, setDeck, startMatch, concede, endMatch, endTable, leaveTable, passHost, takeOverHost, claimHostSlot, heartbeat, watchActivity, watchMeta, watchServerOffset, watchConnection, startPresence, watchPresence, saveGame, loadGame, watchPublic, saveStack, watchStack };
+  return { findMyTable, createTable, closeIfExpired, rejoinTable, joinTable, watchMembers, setReady, clearReady, setName, setColor, setFormat, setView, setBracketLimit, setDeck, startMatch, concede, endMatch, endTable, leaveTable, passHost, takeOverHost, claimHostSlot, heartbeat, watchActivity, watchMeta, watchServerOffset, watchConnection, startPresence, watchPresence, saveGame, loadGame, watchPublic, saveStack, watchStack };
 }

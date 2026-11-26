@@ -72,7 +72,7 @@ export function mountPlayersPanel({ root, store, key = 'overloaded.playersBar', 
 
   return {
     relayout: floating.relayout,
-    // players: [{ uid, seat, name, mine, life, active, next, focused, clickable, status: { short, long }, commanders: [{ name, tax }], hand, library, chips, summary }], in turn order
+    // players: [{ uid, seat, color (a CSS value), name, mine, life, active, next, focused, clickable, status: { short, long }, commanders: [{ name, tax }], hand, library, chips, summary }], in turn order
     update(players) {
       players.forEach((player, index) => {
         const row = rowFor(player.uid);
@@ -81,7 +81,7 @@ export function mountPlayersPanel({ root, store, key = 'overloaded.playersBar', 
         item.classList.toggle('active', Boolean(player.active));
         item.dataset.focused = String(Boolean(player.focused));
         item.dataset.clickable = String(Boolean(player.clickable));
-        item.style.setProperty('--seat-color', `var(--seat-${/^[1-4]$/.test(String(player.seat)) ? player.seat : 1})`);
+        item.style.setProperty('--seat-color', player.color ?? `var(--seat-${/^[1-4]$/.test(String(player.seat)) ? player.seat : 1})`); // (the player's color, picked in the lobby)
         if (player.clickable) { item.tabIndex = 0; item.setAttribute('role', 'button'); item.setAttribute('aria-pressed', String(Boolean(player.focused))); item.title = player.focused ? 'Back to your board' : `Show ${player.name}'s board`; }
         else { item.removeAttribute('tabindex'); item.removeAttribute('role'); item.removeAttribute('aria-pressed'); item.removeAttribute('title'); }
         row.name.textContent = player.mine ? `${player.name} (you)` : player.name; // (other people's text: as text, never markup)
