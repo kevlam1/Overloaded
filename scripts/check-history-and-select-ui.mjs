@@ -15,7 +15,7 @@ let checks = 0;
 const failures = [];
 const check = (label, pass, detail = '') => { checks++; if (!pass) { failures.push(label); console.log(`FAIL  ${label}${detail ? '  (' + detail + ')' : ''}`); } };
 
-const TEXT = 'COMMANDER:\n1 Eowyn, Lady of Rohan\n\nDECK:\n24 Forest *F*\n4 Sol Ring\n4 Lightning Bolt\n4 Llanowar Elves\n24 Island';
+const TEXT = 'COMMANDER:\n1 Eowyn, Lady of Rohan\n\nDECK:\n24 Forest *F*\n4 Sol Ring\n4 Lightning Bolt\n4 Llanowar Elves\n4 Serra Angel\n24 Island';
 const cards = JSON.parse(readFileSync('frontend/public/data/cards.json', 'utf8'));
 const parsed = parseDeckText(TEXT);
 const preview = makePreview(parsed, matchDeck(buildCardIndex(cards), parsed.entries));
@@ -139,6 +139,7 @@ try {
   const shown = await ev("(() => { const b = document.getElementById('card-hover'); return Boolean(b) && !b.hidden && b.getBoundingClientRect().width > 100; })()");
   await key('keyUp', 'Alt', 0); await sleep(150);
   check('holding Alt over a card of the hand shows a larger picture, and letting go hides it', shown && (await ev("document.getElementById('card-hover').hidden")));
+
   const q = await raise(2);
   await mouse('mouseMoved', q.x, q.y); await mouse('mousePressed', q.x, q.y, 1); await mouse('mouseReleased', q.x, q.y); await sleep(150);
   const r = await raise(5); // (a card well away from the one that was clicked: that one came up and its neighbours moved aside)
@@ -180,6 +181,19 @@ try {
   })()`);
   check('the top card of a pile is foil when the card is, and not when it is not', foilPlaces.foilTop === 1 && foilPlaces.plainTop === 0, JSON.stringify(foilPlaces));
   check('in the order window a foil card has the foil layer and a plain one has none', JSON.stringify(foilPlaces.inOrder) === '[1,0]', JSON.stringify(foilPlaces));
+  { // the notes beside it explain the keywords the card does not print (Kevin, 2026-11-25): Serra Angel's Flying and Vigilance
+    for (const type of ['rawKeyDown', 'keyUp']) await browser.send('Input.dispatchKeyEvent', { type, key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+    await mouse('mouseMoved', 5, 5); await sleep(300);
+    for (let n = 0; n < 60 && !(await ev(`[...document.querySelectorAll('#hand > .card')].some((c) => /^Serra Angel/.test(c.getAttribute('aria-label')))`)); n++) { await ev("document.getElementById('draw').click()"); await sleep(60); } // (draws until one comes: 4 in the deck)
+    const index = await ev(`[...document.querySelectorAll('#hand > .card')].findIndex((c) => /^Serra Angel/.test(c.getAttribute('aria-label')))`);
+    await ev(`(() => { const c = [...document.querySelectorAll('#hand > .card')][${index}]; const r = c.getBoundingClientRect(); c.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: r.x + r.width / 2, clientY: Math.min(r.y + 20, innerHeight - 20) })); })()`); await sleep(200);
+    await ev(`[...document.querySelectorAll('.card-menu [role="menuitem"]')].find((x) => x.textContent.trim() === 'Play')?.click()`); await sleep(400); // (on the battlefield nothing overlaps it)
+    const p = await ev(`(() => { const c = [...document.querySelectorAll('#battlefield > .card')].find((x) => /^Serra Angel/.test(x.getAttribute('aria-label'))); const r = c.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`);
+    await key('rawKeyDown', 'Alt', 1); await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p.x + 1, y: p.y, modifiers: 1 }); await sleep(300);
+    const notes = await ev("[...document.querySelectorAll('#card-hover-notes .hover-note')].map((r) => [r.querySelector('strong').textContent, r.querySelector('p')?.textContent ?? '', Boolean(r.querySelector('.mana-icon'))])");
+    await key('keyUp', 'Alt', 0); await sleep(150);
+    check('holding Alt over Serra Angel shows what Flying and Vigilance mean, each with its icon', index >= 0 && notes.some(([n, t, i]) => n === 'Flying' && /flying or reach/.test(t) && i) && notes.some(([n, t, i]) => n === 'Vigilance' && /tap/.test(t) && i), JSON.stringify(notes));
+  }
   check('no page errors', (await ev('window.__errors || []')).length === 0);
   await closeAllBrowsers();
 } finally {

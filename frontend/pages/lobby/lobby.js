@@ -1,6 +1,7 @@
 // The lobby page. It has two screens, chosen by the address: the start page (/) where you make a table or type a code to join one,
 // and a table's own screen (/lobby/CODE) with only that table: joining it (one button, or no click at all when this browser has a
 // saved name), the seats, your deck, Ready and Start. All database calls live in ../../src/db.js.
+import '../../src/look-settings.js'; // (the theme chosen in Settings)
 import { askConfirm } from '../../src/confirm-box.js';
 import { botClient, createTable, joinTable, rejoinTable, findMyTable, watchMembers, heartbeat, watchActivity, watchMeta, watchServerOffset, startPresence, watchPresence, watchConnection, takeOverHost, setDeck, setName, setColor, setFormat, setView, setBracketLimit, closeIfExpired, setReady, clearReady, startMatch, leaveTable } from '../../src/db.js';
 import { PLAYER_COLORS, tableColors, takenColors, colorValue } from '../../../shared/player-colors.mjs';

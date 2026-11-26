@@ -7,6 +7,7 @@ import { IMAGE_HOST } from '../../shared/card-image.mjs';
 import { makeSafeStore } from './safe-store.js';
 import { makeFoilLayer, setFoilLook } from './foil-layer.js';
 import { keybinds } from './keybinds.js';
+import { manaIcon } from './mana-icon.js';
 
 const SMALL = `${IMAGE_HOST}/small/`;
 const NORMAL = `${IMAGE_HOST}/normal/`;
@@ -43,7 +44,8 @@ export function placeBox(rect, { width = BOX_WIDTH, height, windowWidth, windowH
 }
 
 // Starts the preview for the whole page. Returns { stop(), box } (the box is the element, for tests).
-export function mountCardHover(doc = document) {
+// notesFor(button): the notes for that card (shared/card-notes.mjs: what its keywords mean, its counters and state), shown in a panel beside the picture; [] or null for none.
+export function mountCardHover(doc = document, { notesFor = null } = {}) {
   const box = doc.createElement('div');
   box.id = 'card-hover';
   box.className = 'card-peek card-hover';
@@ -56,6 +58,45 @@ export function mountCardHover(doc = document) {
   const shine = makeFoilLayer(null); // the foil over the picture of a foil card (it holds still)
   box.append(picture, shine);
   doc.body.append(box);
+  // the notes beside the picture (Kevin, 2026-11-25: "does holding Alt explain the keywords on that card?")
+  const notes = doc.createElement('div');
+  notes.id = 'card-hover-notes';
+  notes.className = 'card-hover-notes';
+  notes.hidden = true;
+  notes.setAttribute('aria-hidden', 'true');
+  doc.body.append(notes);
+  const NOTES_WIDTH = 260;
+  function fillNotes(button) {
+    const list = (notesFor?.(button) ?? []).filter(Boolean);
+    notes.replaceChildren(...list.map((note) => {
+      const row = doc.createElement('div');
+      row.className = `hover-note${note.text ? '' : ' plain'}`;
+      const icon = note.icon ? manaIcon(note.icon, { className: 'hover-note-icon' }) : null;
+      const words = doc.createElement('div');
+      const name = doc.createElement('strong'); name.textContent = note.name;
+      words.append(name);
+      if (note.text) { const text = doc.createElement('p'); text.textContent = note.text; words.append(text); }
+      row.append(icon ?? Object.assign(doc.createElement('span'), { className: 'hover-note-icon none' }), words);
+      return row;
+    }));
+    return list.length > 0;
+  }
+  // beside the picture, away from the card; on the other side of the card when there is no room; under the picture's bottom as a last resort
+  function placeNotes(rect, spot, boxWidth, boxHeight) {
+    const width = doc.defaultView.innerWidth;
+    const height = doc.defaultView.innerHeight;
+    const awayRight = spot.left >= rect.left; // the picture is on the card's right
+    let left = awayRight ? spot.left + boxWidth + 8 : spot.left - 8 - NOTES_WIDTH;
+    if (left < 4 || left + NOTES_WIDTH > width - 4) left = awayRight ? rect.left - 8 - NOTES_WIDTH : rect.right + 8;
+    left = Math.max(4, Math.min(left, width - NOTES_WIDTH - 4));
+    notes.style.width = `${NOTES_WIDTH}px`;
+    notes.style.left = `${left}px`;
+    notes.style.top = '0px';
+    notes.hidden = false;
+    const tall = notes.offsetHeight;
+    notes.style.top = `${Math.max(4, Math.min(spot.top, height - tall - 4))}px`;
+    void boxHeight;
+  }
   const store = makeSafeStore();
   let scale = readHoverScale(store.get(HOVER_SCALE.key));
 
@@ -64,16 +105,18 @@ export function mountCardHover(doc = document) {
   let over = null; // the card button the pointer is on
   let current = null; // the card button the box is for
   let suppressed = null; // after Escape or a click: not again for this card until Alt is let go or the pointer has left it
+  let hasNotes = false;
 
-  const hide = () => { box.hidden = true; picture.removeAttribute('src'); current = null; turns = 0; };
+  const hide = () => { box.hidden = true; notes.hidden = true; notes.replaceChildren(); picture.removeAttribute('src'); current = null; turns = 0; };
   const show = (button) => {
     const url = largeAddress(button);
     if (!url || !button.isConnected) return;
     current = button;
     setFoilLook(shine, button.dataset.foil ?? null);
     shine.hidden = !button.dataset.foil;
-    picture.onerror = () => { box.hidden = true; }; // no larger picture: show nothing rather than a broken image
+    picture.onerror = () => { box.hidden = true; notes.hidden = true; }; // no larger picture: show nothing rather than a broken image
     picture.src = url;
+    hasNotes = fillNotes(button);
     placeFor(button);
   };
   // The box at the size now chosen, beside the card.
@@ -98,6 +141,7 @@ export function mountCardHover(doc = document) {
     for (const property of ['position', 'width', 'height', 'left', 'top', 'rotate']) shine.style[property] = picture.style[property]; // the shine lies exactly over the picture
     box.dataset.turns = String(((turns % 4) + 4) % 4);
     box.hidden = false;
+    if (hasNotes) placeNotes(rect, spot, boxWidth, boxHeight); else notes.hidden = true;
   };
   // The box is for the card under the pointer, and only while Alt is held.
   const sync = () => {
@@ -178,6 +222,7 @@ export function mountCardHover(doc = document) {
       doc.defaultView.removeEventListener('scroll', onAway, true);
       doc.defaultView.removeEventListener('blur', onBlur);
       box.remove();
+      notes.remove();
     },
   };
 }

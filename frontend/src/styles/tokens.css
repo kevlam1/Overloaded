@@ -10,18 +10,18 @@
   color-scheme: dark;
 
   /* surfaces, from the ground up */
-  --surface-0: #101114;   /* the page, the table */
-  --surface-1: #15161a;   /* the rail, panels */
-  --surface-2: #1b1c21;   /* raised: buttons, cards of the UI, menus */
-  --surface-3: #23252b;   /* hover, pressed */
-  --surface-glass: rgba(16, 17, 20, 0.88); /* pieces that sit over the board */
-  --line: #2a2c33;        /* hairlines and borders */
-  --line-strong: #3a3c44;
+  --surface-0: #161616;   /* the page, the table (2026-11-25: neutral greys, not the blue-black of before) */
+  --surface-1: #1b1b1b;   /* the rail, panels */
+  --surface-2: #222222;   /* raised: buttons, cards of the UI, menus */
+  --surface-3: #2c2c2c;   /* hover, pressed */
+  --surface-glass: rgba(24, 24, 24, 0.9); /* pieces that sit over the board */
+  --line: #2e2e2e;        /* hairlines and borders */
+  --line-strong: #3d3d3d;
 
   /* text */
-  --text: #ecebe6;
+  --text: #f2f2f0;
   --text-2: #d4d2ca;      /* body text in dense lists */
-  --muted: #8f8d85;       /* labels, secondary (4.6:1 on surface-1) */
+  --muted: #9b9a96;       /* labels, secondary (4.6:1 on surface-1) */
 
   /* one accent, gold: "yours" and "the main action" */
   --gold: #d9b45f;
@@ -58,4 +58,25 @@
   --accent-text: var(--gold-ink);
   --ring: #e8e6e0;
   --glass: var(--surface-glass);
+}
+
+/* the light theme (Settings > General > Look; html[data-theme="light"], 2026-11-25): the same names with light values. The seat colors stay. */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --surface-0: #f3f2ee;
+  --surface-1: #ffffff;
+  --surface-2: #f2f0eb;
+  --surface-3: #e7e4dd;
+  --surface-glass: rgba(255, 255, 255, 0.92);
+  --line: #dedad2;
+  --line-strong: #c9c4ba;
+  --text: #1d1c1a;
+  --text-2: #3b3934;
+  --muted: #6c6860;
+  --gold: #c8962e;
+  --gold-ink: #1a1408;
+  --warn: #b0661a;
+  --danger: #c0392b;
+  --ok: #1f8a55;
+  --ring: #1d1c1a;
 }

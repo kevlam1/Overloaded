@@ -69,6 +69,7 @@ const suites = [
   { name: 'the board summary on a seat card: kinds, rows, counts, nothing face-down named', cmd: node, args: ['scripts/test-board-summary.mjs'] },
   { name: "the players' colors: ten, seat defaults, no two alike", cmd: node, args: ['scripts/test-player-colors.mjs'] },
   { name: 'the phase of a turn and undo', cmd: node, args: ['scripts/test-phase-undo.mjs'] },
+  { name: 'the notes beside the Alt picture: keywords, counters, state', cmd: node, args: ['scripts/test-card-notes.mjs'] },
   { name: 'counters a card can be given: the catalog and named counters', cmd: node, args: ['scripts/test-counter-catalog.mjs'] },
   { name: 'card rules: the files the details window reads', cmd: node, args: ['scripts/test-card-rules.mjs'] },
   { name: 'the menu of several cards picked in the hand', cmd: node, args: ['scripts/test-group-menu.mjs'] },

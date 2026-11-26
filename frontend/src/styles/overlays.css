@@ -98,3 +98,20 @@
 .counter-panel .cp-title { font-size: var(--text-xs); letter-spacing: 0.08em; }
 .counter-panel .cp-count { font-family: var(--font-num); font-size: 1rem; }
 .settings-menu { height: min(40rem, calc(100vh - 2rem)); }
+
+/* ---- the notes beside the Alt picture (src/card-hover.js, shared/card-notes.mjs): each keyword with its Mana icon and what it means, the counters and the state ---- */
+.card-hover-notes { position: fixed; z-index: 90; display: flex; flex-direction: column; gap: 2px; padding: 8px; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--surface-1); color: var(--text); box-shadow: var(--win-shadow); pointer-events: none; }
+.card-hover-notes[hidden] { display: none; }
+.hover-note { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 9px; align-items: start; padding: 6px 6px; border-radius: 8px; }
+.hover-note + .hover-note { border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent); }
+.hover-note-icon { display: block; width: 20px; height: 20px; margin-top: 1px; color: var(--gold); }
+.hover-note-icon.none { visibility: hidden; }
+.hover-note strong { display: block; font-size: var(--text-sm); font-weight: 650; }
+.hover-note p { margin: 2px 0 0; color: var(--text-2); font-size: var(--text-xs); line-height: 1.4; }
+.hover-note.plain strong { color: var(--text-2); font-weight: 600; }
+
+/* Settings > Look: the same rows as the other choices (the label on the left, the choice on the right) */
+.settings-menu .settings-card #look-settings { display: flex; flex-direction: column; gap: 0.65rem; }
+.settings-menu .settings-card #look-settings label { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin: 0; }
+/* the logo is white: dark on the light theme */
+:root[data-theme="light"] .brand-logo { filter: invert(1) brightness(0.25); }

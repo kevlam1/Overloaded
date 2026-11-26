@@ -164,21 +164,26 @@ body.playing.solo .hand-section { right: calc(100vw - var(--zones-left, calc(100
 body.playing.solo .side-panels { right: calc(0.8rem + var(--rail-w)); }
 
 /* ---- the battlefield and the player's field (the redesign, step 5, 2026-11-25) ----
-   The battlefield is a felt, lightly tinted with the player's color, with faint lines only round card-sized blocks (7 by 10 cells: 16 by 5 on the solo table) instead of a line on
-   every cell, which read as graph paper and hid the cards. The fine grid of cells shows on your own battlefield only while a card is carried, when it helps to place it.
+   The battlefield is a felt, lightly tinted with the player's color, with one small mark on every cell: dots, crosses or graph paper (Settings). A first version drew lines
+   only round card-sized blocks; that showed the cut edge of a board and the cards that sit off the blocks (Kevin, 2026-11-25), so every cell has its mark again.
    Under the felt, your hand and piles sit on a darker tray, so a field reads as two parts: the battlefield, and your own things. */
-body.playing:is(.solo, .seats) { --felt: #16181e; --block-line: rgba(255, 255, 255, 0.055); --cell-line: rgba(255, 255, 255, 0.06); }
+body.playing:is(.solo, .seats) { --felt: #1d1d1d; --mark: rgba(255, 255, 255, 0.13); --cross: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M6 4.2v3.6M4.2 6h3.6' stroke='white' stroke-opacity='0.2' stroke-width='0.9' stroke-linecap='round'/%3E%3C/svg%3E"); }
+:root[data-theme="light"] body.playing:is(.solo, .seats) { --felt: #e8e5de; --mark: rgba(0, 0, 0, 0.17); --cross: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M6 4.2v3.6M4.2 6h3.6' stroke='black' stroke-opacity='0.22' stroke-width='0.9' stroke-linecap='round'/%3E%3C/svg%3E"); }
+body.playing.dragging-card:is(.solo, .seats) { --mark: rgba(255, 255, 255, 0.2); --cross: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M6 4.2v3.6M4.2 6h3.6' stroke='white' stroke-opacity='0.32' stroke-width='0.9' stroke-linecap='round'/%3E%3C/svg%3E"); } /* (a little brighter while a card is carried) */
+:root[data-theme="light"] body.playing.dragging-card:is(.solo, .seats) { --mark: rgba(0, 0, 0, 0.26); --cross: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M6 4.2v3.6M4.2 6h3.6' stroke='black' stroke-opacity='0.34' stroke-width='0.9' stroke-linecap='round'/%3E%3C/svg%3E"); }
+/* one mark on every cell (Settings > Look > Battlefield; Kevin, 2026-11-25: lines only round the blocks showed the cut edge and the cards that sit off the blocks) */
 body.playing:is(.solo, .seats) :is(#my-board, .opp-field) > .battlefield {
   --cw: calc(100% / var(--cols, 112)); --ch: calc(100% / var(--rows, 50));
   background-color: color-mix(in srgb, var(--seat-color, var(--gold)) 4%, var(--felt));
-  background-image: linear-gradient(to right, var(--block-line) 1px, transparent 1px), linear-gradient(to bottom, var(--block-line) 1px, transparent 1px), radial-gradient(120% 90% at 50% 0%, rgba(255, 255, 255, 0.035), transparent 70%);
-  background-size: calc(var(--cw) * 7) calc(var(--ch) * 10), calc(var(--cw) * 7) calc(var(--ch) * 10), 100% 100%;
+  background-image: radial-gradient(circle, var(--mark) 0.9px, transparent 1.4px), radial-gradient(120% 90% at 50% 0%, rgba(255, 255, 255, 0.03), transparent 70%);
+  background-size: var(--cw) var(--ch), 100% 100%;
   background-position: 0 0;
   box-shadow: inset 0 -1px 0 var(--line);
 }
-body.playing.dragging-card:is(.solo, .seats) #my-board > .battlefield {
-  background-image: linear-gradient(to right, var(--cell-line) 1px, transparent 1px), linear-gradient(to bottom, var(--cell-line) 1px, transparent 1px), linear-gradient(to right, rgba(255, 255, 255, 0.1) 1px, transparent 1px), linear-gradient(to bottom, rgba(255, 255, 255, 0.1) 1px, transparent 1px), radial-gradient(120% 90% at 50% 0%, rgba(255, 255, 255, 0.035), transparent 70%);
-  background-size: var(--cw) var(--ch), var(--cw) var(--ch), calc(var(--cw) * 7) calc(var(--ch) * 10), calc(var(--cw) * 7) calc(var(--ch) * 10), 100% 100%;
+body.playing[data-board-pattern="crosses"]:is(.solo, .seats) :is(#my-board, .opp-field) > .battlefield { background-image: var(--cross), radial-gradient(120% 90% at 50% 0%, rgba(255, 255, 255, 0.03), transparent 70%); }
+body.playing[data-board-pattern="grid"]:is(.solo, .seats) :is(#my-board, .opp-field) > .battlefield {
+  background-image: linear-gradient(to right, var(--mark) 1px, transparent 1px), linear-gradient(to bottom, var(--mark) 1px, transparent 1px), radial-gradient(120% 90% at 50% 0%, rgba(255, 255, 255, 0.03), transparent 70%);
+  background-size: var(--cw) var(--ch), var(--cw) var(--ch), 100% 100%;
 }
 /* the place a carried card would go: the gold of "yours", soft */
 body.playing:is(.solo, .seats) .battlefield > .cell-highlight { border: 1.5px dashed color-mix(in srgb, var(--gold) 80%, transparent); border-radius: 5px; background: color-mix(in srgb, var(--gold) 10%, transparent); }

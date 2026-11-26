@@ -5625,6 +5625,57 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 **Decisions**
 - The fine cell grid is still there for placing a card; it is only hidden while nothing is being carried.
 
+## 283. A mark on every cell, neutral greys, a light theme, and keyword notes on the Alt picture (2026-11-25)
+
+**What I asked for**
+- I did not like the card-block lines: graph paper hid the cards that sit off the blocks and the cut edge of a board. Go back to it, or use dots or "+" marks.
+- Try other colors: the dark grey and simple fonts of a site I showed as an example. Less text. Use the Mana project for any Magic icons.
+- Player experience: does holding Alt explain the keywords on a card, even ones the card does not explain? Add a light theme in Settings.
+- A third view, Shared, where everyone plays on one plane, learning from aura0 and doing it bigger and clearer.
+
+**What changed**
+- **Battlefield:** one mark on every cell again. Settings > General has a new Look card with:
+  - Battlefield: Dots (the default), Crosses or Graph paper (`frontend/src/look-settings.js`). The marks get a little brighter while a card is carried.
+  - Theme: Dark or Light, on every page (`html[data-theme]`).
+- **Colors** (`frontend/src/styles/tokens.css`): neutral greys (#161616, #1b1b1b, #222222) instead of the slightly blue blacks, and a full light set of the same names. On the light theme the white logo is drawn dark.
+- **Keyword notes** (`shared/keyword-glossary.mjs`, `shared/card-notes.mjs`): holding Alt over a card shows a panel beside the bigger picture. Before this, the Alt picture knew nothing about the card. The panel lists:
+  - its state (summoning sick, doesn't untap);
+  - its counters (a keyword counter says which keyword it gives);
+  - every keyword with its Mana icon and what it means in one plain line. That covers about 120 keywords, keyword actions and ability words, Flying, Haste and Trample included, which a card never explains.
+  - A face-down card shows nothing.
+  - It works on other players' cards too, each found in its owner's zones.
+- **Icons:** 57 more keyword icons copied unchanged from the Mana project, one by one, each checked to be an svg with no script (`frontend/public/icons/mana/credits.md`).
+- **Shorter texts:**
+  - the pile window notes ("Newest first.", "Top card first.");
+  - the stack hint;
+  - the Hand sorting page ("Choose the order inside the Type and Color sorts.", "Left to right.").
+- **Shared view:** not built yet. A helper read aura0's repository and wrote me a report.
+  - It is source-available with a licence against competing uses, so we learn from its design and copy nothing.
+  - Its table is a React Flow canvas synced peer to peer with Yjs. Any player can move any card.
+  - Hands are sent to every player's browser and hidden only by not being drawn.
+  - The plan for ours comes next, before any building, because it changes what the database lets players write.
+
+**What I checked**
+- New tests:
+  - `scripts/test-card-notes.mjs` (6): Flying gets its meaning and icon, an unknown keyword keeps its name, state then counters then keywords, a face-down card shows nothing, every icon the glossary names exists.
+  - The Mana icon test, 310 checks.
+- `check-history-and-select-ui` (28) holds Alt over a Serra Angel on the battlefield and finds Flying and Vigilance explained, each with its icon.
+  - Claude's first versions of this check were flaky: 15 draws sometimes found no Serra Angel, and in a big hand the pointer could land on the neighbouring card.
+  - It now draws until one comes and plays it first. 3 of 3 runs passed.
+- Claude's mistakes:
+  - Its first download check rejected all 56 icons, because the files start with a comment, not `<svg`. The check now looks for the svg element and for no script.
+  - It missed that the solo check reads the pile window note, so one check failed until the regex was updated.
+- Screenshots looked at:
+  - the solo table dark (dots) and light;
+  - the light home page (the logo was invisible: fixed), the light Modify window and light Settings;
+  - the Alt notes;
+  - 3 seats on the table in the new greys.
+- `npm test` 100 of 100 suites. The live seats check: 39 of 42, the 3 that still wait for the rules paste.
+
+**Decisions**
+- Dots by default; graph paper is one choice away.
+- The light theme is new: some older pieces may still have hard-coded dark colors. Anything that looks wrong in it is a quick fix.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-24, entry 277) Claude told me the tool docks remembered their layout (entries 273 and 276) when the code stored "[object Object]"; the audit for the spec found it.
 - (2026-11-23, entry 273) I said "commit and push after every big change" and meant every big prompt; Claude pushed after each of three changes.

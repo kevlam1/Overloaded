@@ -257,16 +257,16 @@ export function createHandSort({ onChange = () => {}, onSortNow = () => {} } = {
   function mountOrders(host) {
     host.replaceChildren();
     const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
-    const intro = make('p', 'sort-intro', 'The buttons under your hand (Type, Color, Cost, A-Z) sort it: by type first, then color, then cost, then name. Here you choose the order inside Type and Color. Only how the hand is shown changes.');
+    const intro = make('p', 'sort-intro', 'Choose the order inside the Type and Color sorts.');
     host.append(intro);
     const typeRow = pillRow({
-      host, title: 'Card types', hint: 'The first is on the left of your hand when it is sorted by Type.', label: 'The order of the card types when the hand is sorted by type', names: TYPE_TITLES,
+      host, title: 'Card types', hint: 'Left to right.', label: 'The order of the card types when the hand is sorted by type', names: TYPE_TITLES,
       order: () => order, isDefault: () => same(order, normalizeTypeOrder(null)),
       move: (from, to) => { order = moveType(order, from, to); store.set(TYPE_ORDER_KEY, JSON.stringify(order)); typeRow.draw(); onChange(); },
       reset: () => { order = normalizeTypeOrder(null); store.set(TYPE_ORDER_KEY, JSON.stringify(order)); typeRow.draw(); onChange(); },
     });
     const colorRow = pillRow({
-      host, title: 'Colors', hint: 'The order of the color groups when the hand is sorted by Color.', label: 'The order of the colors when the hand is sorted by color', names: COLOR_TITLES,
+      host, title: 'Colors', hint: 'Left to right.', label: 'The order of the colors when the hand is sorted by color', names: COLOR_TITLES,
       order: () => colors, isDefault: () => same(colors, normalizeColorOrder(null)),
       move: (from, to) => { colors = moveColor(colors, from, to); store.set(COLOR_ORDER_KEY, JSON.stringify(colors)); colorRow.draw(); onChange(); },
       reset: () => { colors = normalizeColorOrder(null); store.set(COLOR_ORDER_KEY, JSON.stringify(colors)); colorRow.draw(); onChange(); },

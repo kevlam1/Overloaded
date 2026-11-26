@@ -2,6 +2,7 @@
 // and moves, tested in Node); this file reads the buttons and draws the result. Pictures come from Scryfall's picture server
 // (shared/card-image.mjs) and are only requested when a card is on the page. Card names go into the page as text, never as
 // markup. Nothing here is saved: a refresh deals a new game.
+import { mountLookSettings } from '../../src/look-settings.js';
 import { askConfirm } from '../../src/confirm-box.js';
 import { makeSafeStore } from '../../src/safe-store.js';
 import { play, mountSoundSettings } from '../../src/sound.js';
@@ -31,6 +32,7 @@ import { makeRulingsLoader } from '../../src/card-rulings.js';
 import { applyScry, topCards } from '../../../shared/scry.mjs';
 import { openScryWindow } from '../../src/scry-window.js';
 import { mountCardHover } from '../../src/card-hover.js';
+import { cardNotes } from '../../../shared/card-notes.mjs';
 import { mountBoardDrag } from '../../src/board-drag.js';
 import { mountHand } from '../../src/hand-view.js';
 import { stepFrom, setBoardSize, CARD_COLS, CARD_ROWS } from '../../../shared/board-grid.mjs';
@@ -219,7 +221,7 @@ function renderViewer() {
     total: all.length,
     from: viewBottom ? 'bottom' : 'top',
     offset: viewBottom ? all.length - cards.length : 0,
-    noteText: viewing === 'library' ? 'The top card is first. Right-click a card to move it; right-click the library itself to shuffle, draw or mill.' : viewing === 'graveyard' ? 'The newest card is first. Right-click a card to move it.' : 'Right-click a card to move it.',
+    noteText: viewing === 'library' ? 'Top card first. Right-click a card to move it.' : viewing === 'graveyard' ? 'Newest first. Right-click a card to move it.' : 'Right-click a card to move it.', // (short: Kevin, 2026-11-25)
   });
 }
 
@@ -522,6 +524,7 @@ mountMarksPanel($('marks'), {
 $('draw').addEventListener('click', drawOne);
 $('next-turn').addEventListener('click', goNextTurn);
 $('untap-all').addEventListener('click', () => { play('tap'); apply(() => untapAll(game), untapMessage(game)); });
+mountLookSettings($('look-settings'));
 mountSoundSettings($('sound-settings'));
 // ---- piles drawn diagonally or horizontally (shared/pile-style.mjs), a double click taps a card, a click on empty space deselects ----
 mountPileStyle($('pile-style-settings'));
@@ -853,7 +856,7 @@ document.addEventListener('click', (event) => {
   render();
 });
 
-mountCardHover(); // a larger picture of any card the pointer is on while Alt is held (the cards are small on the one-screen layout)
+mountCardHover(document, { notesFor: (button) => { const uid = button.dataset.uid; const found = uid && game ? findCard(uid) : null; return found ? cardNotes(found.card) : null; } }); // a larger picture of any card the pointer is on while Alt is held, with what its keywords, counters and state mean
 // ---- the battlefield grid: drag and drop and Alt+arrow keys (the Auto-arrange button was taken out on 2026-11-14) (shared/board-grid.mjs, src/board-drag.js) ----
 // A card dropped on a cell of your battlefield: from the hand it is played there (a taken cell is refused); from the battlefield it moves there, or swaps places with the card that is there.
 function dropOnBoard({ uid, from, col, row, whole = false, group = null }) {

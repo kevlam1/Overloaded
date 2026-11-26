@@ -252,7 +252,7 @@ try {
   check('moving to the graveyard changes the count', (await pileCount('graveyard')) === 'Graveyard: 1' && (await count('#battlefield .card[data-kind="other"]')) === 0);
   await press('pile-graveyard');
   const viewer = { shown: !(await $hidden('viewer')), rows: await count('#viewer-list .card'), title: await $text('viewer-title'), note: await $text('viewer-note'), pressed: await ev(`document.getElementById('pile-graveyard').getAttribute('aria-pressed')`) };
-  check('opening the graveyard shows its card, newest first', viewer.shown && viewer.rows === 1 && /graveyard: 1 card/i.test(viewer.title) && /newest card is first/.test(viewer.note), JSON.stringify(viewer));
+  check('opening the graveyard shows its card, newest first', viewer.shown && viewer.rows === 1 && /graveyard: 1 card/i.test(viewer.title) && /^Newest first/.test(viewer.note), JSON.stringify(viewer));
   check('the card in the pile is still selected, and shown so', (await count('#viewer-list .card.selected')) === 1 && /in your graveyard/.test(await $text('selected-line')));
   await clickAction('To hand');
   check('it can be taken back to the hand from the pile', (await pileCount('graveyard')) === 'Graveyard: 0' && (await handNames()).includes(otherName) && (await count('#viewer-list .card')) === 0);

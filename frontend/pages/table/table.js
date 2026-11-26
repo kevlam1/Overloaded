@@ -3,6 +3,7 @@
 // (shared/game-sync.mjs): your hand and library in your private branch (nobody else can read it), the rest in your public one.
 // A refresh puts you back at the game you left. Other players' boards are shown beside it, live and read-only (their public
 // zones only: shared/game-sync.mjs readPublic). All database calls live in ../../src/db.js.
+import { mountLookSettings } from '../../src/look-settings.js';
 import { askConfirm } from '../../src/confirm-box.js';
 import { rejoinTable, watchMembers, watchMeta, watchPresence, watchServerOffset, watchConnection, startPresence, heartbeat, watchActivity, saveGame, loadGame, watchPublic, saveStack, watchStack, concede, endMatch, leaveTable, takeOverHost } from '../../src/db.js';
 import { startKeepAlive } from '../../src/keep-alive.js';
@@ -20,6 +21,7 @@ import { mountCommandZone, drawEmblemCounts } from '../../src/command-zone.js';
 import { taxAction, taxEntries, COMMANDER_TAX_PUBLISHED, TAX_PER_CAST } from '../../../shared/commander-zone.mjs';
 import { pileMenuItems, pileAction } from '../../../shared/pile-menu.mjs';
 import { mountCardHover } from '../../src/card-hover.js';
+import { cardNotes } from '../../../shared/card-notes.mjs';
 import { mountBoardDrag } from '../../src/board-drag.js';
 import { mountHand } from '../../src/hand-view.js';
 import { createSpotlight } from '../../src/spotlight.js';
@@ -312,7 +314,7 @@ function renderViewer() {
     const panel = opponents.get(viewingOther.uid);
     if (!panel?.view) { viewingOther = null; viewer.hide(); return; } // (they left, or their game is gone)
     const cards = panel.view.zones[viewingOther.zone];
-    viewer.show({ label: `${viewingOther.zone === 'graveyard' ? 'Graveyard' : 'Exile'} of ${panel.name}`, cards, total: cards.length, noteText: viewingOther.zone === 'graveyard' ? 'The newest card is first.' : '' });
+    viewer.show({ label: `${viewingOther.zone === 'graveyard' ? 'Graveyard' : 'Exile'} of ${panel.name}`, cards, total: cards.length, noteText: viewingOther.zone === 'graveyard' ? 'Newest first.' : '' });
     return;
   }
   if (!viewing) { viewer.hide(); return; }
@@ -326,7 +328,7 @@ function renderViewer() {
     total: all.length,
     from: viewBottom ? 'bottom' : 'top',
     offset: viewBottom ? all.length - cards.length : 0,
-    noteText: viewing === 'library' ? 'The top card is first. Right-click a card to move it; right-click the library itself to shuffle, draw or mill.' : viewing === 'graveyard' ? 'The newest card is first. Right-click a card to move it.' : 'Right-click a card to move it.',
+    noteText: viewing === 'library' ? 'Top card first. Right-click a card to move it.' : viewing === 'graveyard' ? 'Newest first. Right-click a card to move it.' : 'Right-click a card to move it.', // (short: Kevin, 2026-11-25)
   });
 }
 
@@ -1179,6 +1181,7 @@ $('pass-turn').addEventListener('click', async () => {
 });
 $('take-back').addEventListener('click', () => { if (game) { const action = takeBackAction(currentTurnInfo()); apply(() => action.run(game), action.message); } });
 $('untap-all').addEventListener('click', () => { if (game) { play('tap'); apply(() => untapAll(game), untapMessage(game)); } });
+mountLookSettings($('look-settings'));
 mountSoundSettings($('sound-settings'));
 const turnClock = mountTurnClock({ element: $('turn-clock'), store, serverOffset: () => serverOffset });
 turnClock.mountSetting($('turn-clock-settings'));
@@ -1478,7 +1481,14 @@ $('command-zone').addEventListener('contextmenu', (event) => {
   openCardMenu({ title: 'Command zone', items: [{ id: 'emblem', label: 'Create emblem...' }], x: event.clientX, y: event.clientY, returnFocus: $('command-zone'), onPick: (id) => { if (id === 'emblem') openTokens($('command-zone'), 'emblem'); } });
 });
 
-mountCardHover(); // a larger picture of any card the pointer is on while Alt is held (the cards are small on the one-screen layout)
+mountCardHover(document, { notesFor: (button) => { // a larger picture of any card the pointer is on while Alt is held, with what its keywords, counters and state mean
+  const uid = button.dataset.uid;
+  if (!uid) return null;
+  const owner = button.closest('.opponent')?.dataset.uid; // (every player's cards are numbered from c1: another player's card is found in their own zones)
+  if (owner) { const view = opponents.get(owner)?.view; const card = view ? Object.values(view.zones).flat().find((c) => c.uid === uid) : null; return card ? cardNotes(card) : null; }
+  const found = game ? findCard(uid) : null;
+  return found ? cardNotes(found.card) : null;
+} });
 // ---- the battlefield grid: drag and drop, Auto-arrange and Alt+arrow keys (shared/board-grid.mjs, src/board-drag.js) ----
 // A card dropped on a cell of your battlefield: from the hand it is played there (a taken cell is refused); from the battlefield it moves there, or swaps places with the card that is there.
 function dropOnBoard({ uid, from, col, row, whole = false, group = null }) {

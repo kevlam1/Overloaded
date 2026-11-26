@@ -50,7 +50,7 @@ export function mountStackWindow({ root, printedStats = () => null, say = () => 
   const textButton = button('Add note', 'Add a note at the top', () => addNote(0));
   const clearButton = button('Clear', 'Remove everything', () => { say('Cleared.'); set(clearStack(stack)); });
   buttons.append(resolveButton, undoButton, textButton, clearButton);
-  head.append(buttons, make('p', 'stack-hint', 'Drag to reorder. Shift+drag a card to aim an arrow.'));
+  head.append(buttons, make('p', 'stack-hint', 'Drag to reorder. Shift+drag to aim.'));
   const live = make('p', 'sr-only');
   live.setAttribute('role', 'status');
   live.setAttribute('aria-live', 'polite');

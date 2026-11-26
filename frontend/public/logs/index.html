@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.282</span></h1>
-    <p class="lede">282 entries, Oct 25 to Nov 25, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
+    <h1>Build log <span class="version">Version 0.283</span></h1>
+    <p class="lede">283 entries, Oct 25 to Nov 25, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
   </div>
 </header>
 
@@ -25,7 +25,7 @@
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
 <a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">56</span></a>
-<a class="week-link" href="#week-3" data-target="week-3"><span class="wl-name">Week 3</span><span class="wl-range">Nov 23 to Nov 29</span><span class="wl-count">13</span></a>
+<a class="week-link" href="#week-3" data-target="week-3"><span class="wl-name">Week 3</span><span class="wl-range">Nov 23 to Nov 29</span><span class="wl-count">14</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
 <a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">29 things friends asked for</span></a>
 <a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">29 open, 73 done</span></a>
@@ -4572,7 +4572,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-3" aria-labelledby="week-3-title">
-<h2 class="week-head" id="week-3-title"><button type="button" aria-expanded="false" aria-controls="week-3-days"><span class="wname">Week 3</span><span class="range">Nov 23 to Nov 29</span><span class="week-count">13 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-3-title"><button type="button" aria-expanded="false" aria-controls="week-3-days"><span class="wname">Week 3</span><span class="range">Nov 23 to Nov 29</span><span class="week-count">14 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-3-days">
 <div class="day">
 <h3 class="day-title">Monday 23 November <span class="day-count">6</span></h3>
@@ -4745,7 +4745,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Wednesday 25 November <span class="day-count">3</span></h3>
+<h3 class="day-title">Wednesday 25 November <span class="day-count">4</span></h3>
 <div class="entries">
 <article class="entry" id="entry-280" data-n="280">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-280-body">
@@ -4796,6 +4796,23 @@
 <ul><li>Screenshots looked at, at 1366x768, before and after:<ul><li>the solo table with cards in play;</li><li>the right-click menu, Modify, the pile window, Settings (General and Hand sorting) and card details;</li><li>3 seats and Sidebar view on the table from the live check.</li></ul></li><li>Claude's mistakes, caught on the way:<ul><li>Modify's header first shared a line with Amount, because an old rule made the window a wrapping row.</li><li>The pile window's tags stayed above the cards, because an older, more specific rule won.</li><li>Taking the tax pill out of the flow moved the command slots 34 px out of line with the piles; the solo check caught it, and the pill stays in its old place now.</li><li>Rewriting the Modify buttons also changed the message &quot;power up by 1&quot; to &quot;+1&quot;; Claude saw it in the diff and put the old words back.</li></ul></li><li>Rewritten on purpose:<ul><li><code>check-table-layout</code> checks that the lines mark blocks of 7 by 10 square cells (165 of 165).</li><li><code>check-solo-ui</code> checks that the Top tag is in the card's corner (470 of 470).</li></ul></li><li><code>npm test</code> 99 of 99 suites. <code>npm run test:live</code> 107 of 109: the two that fail are the ones waiting for my rules paste (color and the step of the turn).</li></ul>
 <p class="sub"><strong>Decisions</strong></p>
 <ul><li>The fine cell grid is still there for placing a card; it is only hidden while nothing is being carried.</li></ul>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-283" data-n="283">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-283-body">
+    <span class="num">283</span>
+    <span class="head-text"><span class="title">A mark on every cell, neutral greys, a light theme, and keyword notes on the Alt picture</span><span class="sum">I did not like the card-block lines: graph paper hid the cards that sit off the blocks and the cut edge of a board.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-283-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>I did not like the card-block lines: graph paper hid the cards that sit off the blocks and the cut edge of a board. Go back to it, or use dots or &quot;+&quot; marks.</li><li>Try other colors: the dark grey and simple fonts of a site I showed as an example. Less text. Use the Mana project for any Magic icons.</li><li>Player experience: does holding Alt explain the keywords on a card, even ones the card does not explain? Add a light theme in Settings.</li><li>A third view, Shared, where everyone plays on one plane, learning from aura0 and doing it bigger and clearer.</li></ul>
+<p class="sub"><strong>What changed</strong></p>
+<ul><li><strong>Battlefield:</strong> one mark on every cell again. Settings &gt; General has a new Look card with:<ul><li>Battlefield: Dots (the default), Crosses or Graph paper (<code>frontend/src/look-settings.js</code>). The marks get a little brighter while a card is carried.</li><li>Theme: Dark or Light, on every page (<code>html[data-theme]</code>).</li></ul></li><li><strong>Colors</strong> (<code>frontend/src/styles/tokens.css</code>): neutral greys (#161616, #1b1b1b, #222222) instead of the slightly blue blacks, and a full light set of the same names. On the light theme the white logo is drawn dark.</li><li><strong>Keyword notes</strong> (<code>shared/keyword-glossary.mjs</code>, <code>shared/card-notes.mjs</code>): holding Alt over a card shows a panel beside the bigger picture. Before this, the Alt picture knew nothing about the card. The panel lists:<ul><li>its state (summoning sick, doesn't untap);</li><li>its counters (a keyword counter says which keyword it gives);</li><li>every keyword with its Mana icon and what it means in one plain line. That covers about 120 keywords, keyword actions and ability words, Flying, Haste and Trample included, which a card never explains.</li><li>A face-down card shows nothing.</li><li>It works on other players' cards too, each found in its owner's zones.</li></ul></li><li><strong>Icons:</strong> 57 more keyword icons copied unchanged from the Mana project, one by one, each checked to be an svg with no script (<code>frontend/public/icons/mana/credits.md</code>).</li><li><strong>Shorter texts:</strong><ul><li>the pile window notes (&quot;Newest first.&quot;, &quot;Top card first.&quot;);</li><li>the stack hint;</li><li>the Hand sorting page (&quot;Choose the order inside the Type and Color sorts.&quot;, &quot;Left to right.&quot;).</li></ul></li><li><strong>Shared view:</strong> not built yet. A helper read aura0's repository and wrote me a report.<ul><li>It is source-available with a licence against competing uses, so we learn from its design and copy nothing.</li><li>Its table is a React Flow canvas synced peer to peer with Yjs. Any player can move any card.</li><li>Hands are sent to every player's browser and hidden only by not being drawn.</li><li>The plan for ours comes next, before any building, because it changes what the database lets players write.</li></ul></li></ul>
+<p class="sub"><strong>What I checked</strong></p>
+<ul><li>New tests:<ul><li><code>scripts/test-card-notes.mjs</code> (6): Flying gets its meaning and icon, an unknown keyword keeps its name, state then counters then keywords, a face-down card shows nothing, every icon the glossary names exists.</li><li>The Mana icon test, 310 checks.</li></ul></li><li><code>check-history-and-select-ui</code> (28) holds Alt over a Serra Angel on the battlefield and finds Flying and Vigilance explained, each with its icon.<ul><li>Claude's first versions of this check were flaky: 15 draws sometimes found no Serra Angel, and in a big hand the pointer could land on the neighbouring card.</li><li>It now draws until one comes and plays it first. 3 of 3 runs passed.</li></ul></li><li>Claude's mistakes:<ul><li>Its first download check rejected all 56 icons, because the files start with a comment, not <code>&lt;svg</code>. The check now looks for the svg element and for no script.</li><li>It missed that the solo check reads the pile window note, so one check failed until the regex was updated.</li></ul></li><li>Screenshots looked at:<ul><li>the solo table dark (dots) and light;</li><li>the light home page (the logo was invisible: fixed), the light Modify window and light Settings;</li><li>the Alt notes;</li><li>3 seats on the table in the new greys.</li></ul></li><li><code>npm test</code> 100 of 100 suites. The live seats check: 39 of 42, the 3 that still wait for the rules paste.</li></ul>
+<p class="sub"><strong>Decisions</strong></p>
+<ul><li>Dots by default; graph paper is one choice away.</li><li>The light theme is new: some older pieces may still have hard-coded dark colors. Anything that looks wrong in it is a quick fix.</li></ul>
   </div></div></div>
 </article>
 </div>
