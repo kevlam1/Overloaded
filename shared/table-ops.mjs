@@ -308,7 +308,7 @@ export function createTableOps({ sdk, db, getUid, makeCode = makeTableCode }) {
   // The host sets how the game looks for everyone at the table (Kevin, 2026-11-20): 'grid' (every player's area at once) or 'sidebar' (one area large, the others small in a column). Only in the lobby.
   // Nothing stored is Grid. Returns { view, changed }.
   async function setView(code, view) {
-    if (view !== 'grid' && view !== 'sidebar') refuse('The view is Grid or Sidebar.');
+    if (view !== 'grid' && view !== 'sidebar' && view !== 'shared') refuse('The view is Grid, Sidebar or Shared.');
     const { uid, meta, mine } = await look(code);
     if (!meta || !mine) refuse('You are not at that table.');
     if (meta.host !== uid) refuse('Only the host can change the view.');
@@ -542,6 +542,17 @@ export function createTableOps({ sdk, db, getUid, makeCode = makeTableCode }) {
     await update(ref(db, `tables/${code}`), { stack: stored ?? null }); // (the whole stack is replaced: one write)
   }
   const watchStack = (code, onChange) => watch(`tables/${code}/stack`, onChange);
+  // The Shared view's plane (shared/plane.mjs; Kevin, 2026-11-25): where each battlefield card is on the one plane. ANY member may move ANY card while the match is on
+  // (the rules check the writer and the match number). One small write per card moved; the owner clears the entries of its cards that left the battlefield.
+  async function savePlaneMove(code, { seat, uid, entry }) {
+    if (!isValidCode(code)) throw new FlowRefusedError('That does not look like a table code.');
+    await update(ref(db, `tables/${code}/plane/${seat}`), { [uid]: entry });
+  }
+  async function clearPlaneEntries(code, seat, uids) {
+    if (!isValidCode(code) || !uids.length) return;
+    await update(ref(db, `tables/${code}/plane/${seat}`), Object.fromEntries(uids.map((uid) => [uid, null])));
+  }
+  const watchPlane = (code, onChange) => watch(`tables/${code}/plane`, onChange);
   // How far this computer's clock is from the database's (ms): the server's time is Date.now() + offset. The limits are
   // judged on the server's time, so the page must not trust its own clock.
   const watchServerOffset = (onChange) => watch('.info/serverTimeOffset', (offset) => onChange(typeof offset === 'number' ? offset : 0));
@@ -597,5 +608,5 @@ export function createTableOps({ sdk, db, getUid, makeCode = makeTableCode }) {
     );
   }
 
-  return { findMyTable, createTable, closeIfExpired, rejoinTable, joinTable, watchMembers, setReady, clearReady, setName, setColor, setFormat, setView, setBracketLimit, setDeck, startMatch, concede, endMatch, endTable, leaveTable, passHost, takeOverHost, claimHostSlot, heartbeat, watchActivity, watchMeta, watchServerOffset, watchConnection, startPresence, watchPresence, saveGame, loadGame, watchPublic, saveStack, watchStack };
+  return { findMyTable, createTable, closeIfExpired, rejoinTable, joinTable, watchMembers, setReady, clearReady, setName, setColor, setFormat, setView, setBracketLimit, setDeck, startMatch, concede, endMatch, endTable, leaveTable, passHost, takeOverHost, claimHostSlot, heartbeat, watchActivity, watchMeta, watchServerOffset, watchConnection, startPresence, watchPresence, saveGame, loadGame, watchPublic, saveStack, watchStack, savePlaneMove, clearPlaneEntries, watchPlane };
 }

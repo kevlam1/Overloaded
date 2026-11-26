@@ -193,3 +193,39 @@ body.playing.solo main.table::before { content: ""; position: absolute; z-index:
 body.playing.solo #my-board > .battlefield { box-shadow: none; }
 /* the solo table's commander tax: a small pill like the table's, not a bare number (in its place above the commander, so the row stays level) */
 body.playing.solo .cmd-slot .tax-words { min-height: 0; height: 1.15rem; padding: 0 0.45rem; border: 1px solid color-mix(in srgb, var(--gold) 60%, transparent); border-radius: 999px; background: var(--surface-1); color: var(--gold); font-family: var(--font-num); font-size: 0.8rem; font-weight: 700; line-height: 1; }
+
+/* ---- the Shared view (Kevin, 2026-11-25; shared/plane.mjs, src/plane-camera.js, src/plane-drag.js): every battlefield on ONE plane of 224 by 130 cells, 16 px each before zoom.
+   Your area holds it: the window (#my-board) clips, the plane (#battlefield) is moved and scaled by the camera. The homes are framed in their player's color with a nameplate;
+   the commons is the band in the middle. Another player's cards are in their own layer, on the same cells (subgrid). ---- */
+body.playing.seats[data-view="shared"] .seats-stage { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); grid-template-areas: "main"; }
+body.playing.seats[data-view="shared"] .seat-area.focused { grid-area: main; }
+body.playing.seats[data-view="shared"] #seat-me > .seat-head { display: none; } /* (every player's nameplate is on the plane) */
+body.playing.seats[data-view="shared"] #my-board { overflow: hidden; background: var(--surface-0); }
+body.playing.seats[data-view="shared"] #my-board.can-pan { cursor: grab; }
+body.playing.seats[data-view="shared"] #my-board.panning, body.playing.seats[data-view="shared"] #my-board.panning * { cursor: grabbing !important; }
+body.playing.seats[data-view="shared"] #my-board > .battlefield { position: relative; width: calc(224 * 16px); height: calc(130 * 16px); max-width: none; max-height: none; aspect-ratio: auto; border-radius: 14px; box-shadow: 0 0 0 1px var(--line-strong), 0 30px 80px rgba(0, 0, 0, 0.45); }
+.plane-homes, .plane-layer { grid-column: 1 / -1; grid-row: 1 / -1; display: grid; grid-template-columns: subgrid; grid-template-rows: subgrid; pointer-events: none; }
+body.playing.seats .plane-layer.battlefield { position: static; min-height: 0; width: auto; height: auto; aspect-ratio: auto; container-type: normal; background: none; box-shadow: none; outline: 0; --card-h: inherit; --card-w: inherit; }
+.plane-layer > .card { pointer-events: auto; cursor: grab; }
+.plane-layer > .card.plane-lifted { opacity: 0.3; }
+.plane-home { position: relative; border: 1.5px dashed color-mix(in srgb, var(--seat-color) 50%, transparent); border-radius: 12px; background: color-mix(in srgb, var(--seat-color) 5%, transparent); }
+.plane-home.mine { border-style: solid; border-color: color-mix(in srgb, var(--seat-color) 70%, transparent); }
+.plane-plate { position: absolute; left: 12px; top: 12px; display: flex; align-items: center; gap: 10px; padding: 6px 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-glass); color: var(--text); font-size: 18px; white-space: nowrap; }
+.plane-plate .plate-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--seat-color); }
+.plane-plate-life { font-family: var(--font-num); font-size: 24px; font-weight: 700; line-height: 1; }
+.plane-plate-hand { color: var(--muted); font-size: 15px; }
+.plane-commons { display: grid; place-items: center; border-top: 1px dashed var(--line-strong); border-bottom: 1px dashed var(--line-strong); color: var(--muted); font-size: 42px; font-weight: 800; letter-spacing: 0.4em; text-transform: uppercase; opacity: 0.35; }
+.plane-target { grid-column-end: span 7; grid-row-end: span 10; border: 2px dashed var(--gold); border-radius: 6px; background: color-mix(in srgb, var(--gold) 10%, transparent); pointer-events: none; }
+.plane-target[hidden] { display: none; }
+.plane-ghost { box-shadow: 0 24px 48px rgba(0, 0, 0, 0.55); border-radius: 4.8% / 3.4%; }
+/* the camera: a pill at the top left of the table */
+.plane-controls { position: absolute; z-index: 13; top: calc(var(--bar-h, 44px) + 10px); left: 12px; display: flex; align-items: center; gap: 2px; padding: 3px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-glass); box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3); }
+.plane-controls[hidden] { display: none; }
+.plane-button { min-height: 0; height: 28px; padding: 0 11px; border: 0; border-radius: 999px; background: none; color: var(--text-2); font-size: var(--text-sm); font-weight: 600; box-shadow: none; }
+.plane-button:hover { background: var(--surface-3); color: var(--text); }
+.plane-zoom { min-width: 3.2rem; color: var(--muted); font-family: var(--font-num); font-size: 1rem; text-align: center; }
+
+/* zoomed out, the nameplates and the word Commons grow so they stay readable (--zoom is set by the camera) */
+.plane-plate { transform-origin: 0 0; scale: max(1, calc(0.7 / var(--zoom, 1))); }
+.plane-commons { font-size: calc(42px * max(1, calc(0.6 / var(--zoom, 1)))); }
+:root[data-theme="light"] .pile-stack[data-empty="true"]::before { background: var(--surface-3); color: var(--muted); } /* (an empty pile's 0 on the light theme) */

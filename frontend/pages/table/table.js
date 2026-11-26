@@ -5,7 +5,7 @@
 // zones only: shared/game-sync.mjs readPublic). All database calls live in ../../src/db.js.
 import { mountLookSettings } from '../../src/look-settings.js';
 import { askConfirm } from '../../src/confirm-box.js';
-import { rejoinTable, watchMembers, watchMeta, watchPresence, watchServerOffset, watchConnection, startPresence, heartbeat, watchActivity, saveGame, loadGame, watchPublic, saveStack, watchStack, concede, endMatch, leaveTable, takeOverHost } from '../../src/db.js';
+import { rejoinTable, watchMembers, watchMeta, watchPresence, watchServerOffset, watchConnection, startPresence, heartbeat, watchActivity, saveGame, loadGame, watchPublic, saveStack, watchStack, savePlaneMove, clearPlaneEntries, watchPlane, concede, endMatch, leaveTable, takeOverHost } from '../../src/db.js';
 import { startKeepAlive } from '../../src/keep-alive.js';
 import { makeSafeStore } from '../../src/safe-store.js';
 import { cardBackUrl } from '../../../shared/card-image.mjs';
@@ -44,6 +44,9 @@ import { mountStackWindow } from '../../src/stack-window.js';
 import { createToolDocks } from '../../src/tool-dock.js';
 import { summarizeBoard } from '../../../shared/board-summary.mjs';
 import { tableColors, colorValue } from '../../../shared/player-colors.mjs';
+import { PLANE_COLS, PLANE_ROWS, HOME_COLS, HOME_ROWS, homeOf, readPlaneEntry, planeCell, entryFor } from '../../../shared/plane.mjs';
+import { mountPlaneCamera } from '../../src/plane-camera.js';
+import { mountPlaneDrag } from '../../src/plane-drag.js';
 import { emptyUndo, remember, canUndo, takeBack, undoWords } from '../../../shared/undo.mjs';
 import { readPhase, phaseIn, phaseRecord, nextStep } from '../../../shared/phase.mjs';
 import { mountPhaseStrip } from '../../src/phase-strip.js';
@@ -74,7 +77,7 @@ import { makeRulingsLoader } from '../../src/card-rulings.js';
 import { friendlyMessage } from '../../../shared/friendly-error.mjs';
 import { setFaceDown, makeGame, draw, moveCard, shuffleLibrary, mulligan, setTapped, turnOver, untapAll, beginTurn, adjustLife, boardCells, settleBoard, isLandCard, placeCard, placeStack, placeGroup, arrangeBoard, zoneCounts, reorderHand, createToken, createEmblem } from '../../../shared/zones.mjs';
 import { gameWrites, joinGame, readPublic, SERVER_TIME, taxToStore } from '../../../shared/game-sync.mjs';
-import { placeAll, stepFrom, setBoardSize, CARD_COLS } from '../../../shared/board-grid.mjs';
+import { placeAll, stepFrom, setBoardSize, CARD_COLS, CARD_ROWS } from '../../../shared/board-grid.mjs';
 
 const $ = (id) => document.getElementById(id);
 const store = makeSafeStore();
@@ -288,7 +291,8 @@ function render() {
   renderCounters();
   $('life').textContent = String(game.life);
   $('my-plate-life').textContent = String(game.life); // (the nameplate on your area)
-  place($('battlefield'), game.zones.battlefield, { battlefield: true, cells: boardCells(game), sharp: true });
+  if (sharedOn) { const cells = myPlaneCells(); place($('battlefield'), byPlaneZ(game.zones.battlefield, mySeatNow()), { battlefield: true, cells, sharp: true }); renderPlane(); }
+  else place($('battlefield'), game.zones.battlefield, { battlefield: true, cells: boardCells(game), sharp: true });
   place($('hand'), shownHand());
   handView.arrange();
   commandZone.update(game, { slotOf: (uid) => commandSlots.get(uid) ?? null });
@@ -932,6 +936,7 @@ async function renderOpponents() {
   renderStatuses();
   renderHistory(); // (everyone's entries come with their public branches)
   layoutSeats();
+  if (sharedOn && game) renderPlane(); // (the other players' cards on the Shared view's plane come with their public branches)
 }
 
 // ---- the size of a battlefield's grid (Kevin, 2026-11-20): it fills its room from the far left to the piles with SQUARE cells, 40 rows (cards one size up from the solo table's 50) and as many columns as
@@ -939,6 +944,11 @@ async function renderOpponents() {
 const TABLE_ROWS = 30; // (40 until 2026-11-23, when Kevin asked for the cards one size up again: 50 on the solo table, then 40, then 30. It must be a whole number of card heights, 10 rows: setBoardSize refuses anything else and the drag would then work in the old size, as 32 did)
 setBoardSize({ cols: 112, rows: TABLE_ROWS });
 function fitBoard(element, mine = false) {
+  if (mine && sharedOn) { // the Shared view: one plane of a fixed size (shared/plane.mjs), moved and zoomed by its camera
+    element.style.setProperty('--cols', String(PLANE_COLS)); element.style.setProperty('--rows', String(PLANE_ROWS));
+    return { cols: PLANE_COLS, changed: setBoardSize({ cols: PLANE_COLS, rows: PLANE_ROWS }) };
+  }
+  if (mine) element.style.removeProperty('--rows');
   const width = element?.clientWidth ?? 0; const height = element?.clientHeight ?? 0; // (the size in the layout: a small copy in the Sidebar column is the same size, only scaled)
   if (!width || !height) return { cols: null, changed: false };
   const cols = Math.max(CARD_COLS, Math.floor(width / (height / TABLE_ROWS) + 0.001));
@@ -958,7 +968,7 @@ watchBoardSize($('battlefield'));
 // The areas are the same elements in both views; Sidebar view hides the ones that are not shown large (class offstage). Your hand stays yours: when another player is shown large,
 // it moves into their area, where their own hand would be.
 // Which view is the TABLE's, picked by the host in the lobby (meta/view; Kevin, 2026-11-20): there is no switch on this page.
-const seatsView = () => (meta?.view === 'sidebar' ? 'sidebar' : 'grid');
+const seatsView = () => (meta?.view === 'sidebar' || meta?.view === 'shared' ? meta.view : 'grid'); // (Shared: everyone on one plane, 2026-11-25)
 let focusUid = null; // in Sidebar view, the player shown large (null: you)
 const floatingBars = []; // the history bar and the action bar, once they are mounted (further down)
 // The pixels at the right of the window the floating tools keep out of: the rail, while it shows (a tool dragged over it still docks there: the pointer decides that).
@@ -976,6 +986,112 @@ function renderMyHead(turnNow = game !== null ? currentTurnInfo() : null) {
   $('seat-me').classList.toggle('active', turnNow !== null && turnNow.uid === myUid);
   $('seat-me').style.setProperty('--seat-color', playerColor(myUid));
 }
+// ---- the Shared view (Kevin, 2026-11-25; shared/plane.mjs): every battlefield on ONE plane; anyone moves any card ----
+// Your cards are your battlefield's own children (the usual drag and menus); another player's are in their own layer (.plane-layer[data-owner]), moved by src/plane-drag.js.
+// A card's place is its plane entry (tables/{code}/plane/{seat}/{uid}) when it has one, else its cell in its owner's area. Only the place is shared: tapping, counters and
+// moving a card to a pile stay with its owner, and hands and libraries stay private.
+let sharedOn = false;
+let planeRaw = {};
+let planeWatching = false;
+const planeLayers = new Map(); // uid -> { layer, nodes }
+const PLANE_CELL_PX = 16;
+const seatList = () => Object.values(members).map((member) => String(member.seat));
+const mySeatNow = () => String(members[myUid]?.seat ?? '1');
+const myHomeNow = () => homeOf(mySeatNow(), seatList()) ?? { x: 0, y: 0, w: HOME_COLS, h: HOME_ROWS };
+const planeEntry = (seat, uid) => readPlaneEntry(planeRaw?.[seat]?.[uid], meta?.match);
+const byPlaneZ = (cards, seat) => [...cards].sort((a, b) => (planeEntry(seat, a.uid)?.z ?? 0) - (planeEntry(seat, b.uid)?.z ?? 0)); // (moved last, drawn on top)
+function myPlaneCells() {
+  const base = boardCells(game);
+  const home = myHomeNow();
+  const seat = mySeatNow();
+  return new Map(game.zones.battlefield.map((card) => [card.uid, planeCell(base.get(card.uid), planeEntry(seat, card.uid), home)]));
+}
+const nextPlaneZ = () => 1 + Math.max(0, ...Object.values(planeRaw ?? {}).flatMap((cards) => Object.values(cards ?? {}).map((entry) => (Number.isInteger(entry?.z) ? entry.z : 0))));
+let planeRefusedSaid = false;
+// Moves one card on the plane: shown at once, stored as its plane entry (any member may write it while the match is on).
+function movePlane(seat, uid, cell, { draw = true } = {}) {
+  const entry = entryFor(cell, nextPlaneZ(), myUid, meta?.match);
+  if (!entry) return;
+  planeRaw = { ...planeRaw, [seat]: { ...(planeRaw?.[seat] ?? {}), [uid]: entry } };
+  savePlaneMove(tableCode, { seat, uid, entry }).catch(() => { if (!planeRefusedSaid) { planeRefusedSaid = true; say('Not moved for the others: the database rules need updating.', true); } });
+  if (draw && game) render();
+}
+// Your own cards moved on the plane: one, a pile (Shift or held) or the cards you picked, each by the same number of cells.
+function dropOnPlane({ uid, col, row, whole, group, name }) {
+  const cells = myPlaneCells();
+  const start = cells.get(uid);
+  if (!start) return;
+  let uids = [uid];
+  if (group) uids = group.filter((each) => cells.has(each));
+  else if (whole) uids = game.zones.battlefield.filter((card) => { const at = cells.get(card.uid); return at && at.col === start.col && at.row === start.row; }).map((card) => card.uid);
+  const seat = mySeatNow();
+  for (const each of uids) { const at = cells.get(each); movePlane(seat, each, { col: at.col + col - start.col, row: at.row + row - start.row }, { draw: false }); }
+  say(uids.length > 1 ? `Moved ${uids.length} cards.` : `Moved ${name}.`);
+  render();
+}
+// The homes, the commons and the other players' cards, drawn into the plane (under your own cards).
+function renderPlane() {
+  const board = $('battlefield');
+  const seats = seatList();
+  let homes = board.querySelector(':scope > .plane-homes');
+  if (!homes) { homes = make('div', 'plane-homes plane-keep'); homes.setAttribute('aria-hidden', 'true'); board.prepend(homes); }
+  const commons = make('div', 'plane-commons', 'Commons');
+  commons.style.gridRow = '51 / span 30'; commons.style.gridColumn = '1 / -1';
+  const frames = Object.entries(members).map(([uid, member]) => {
+    const home = homeOf(String(member.seat), seats);
+    if (!home) return null;
+    const frame = make('div', `plane-home${uid === myUid ? ' mine' : ''}`);
+    frame.style.gridColumn = `${home.x + 1} / span ${home.w}`; frame.style.gridRow = `${home.y + 1} / span ${home.h}`;
+    frame.style.setProperty('--seat-color', playerColor(uid));
+    const life = uid === myUid ? game?.life : opponents.get(uid)?.view?.life;
+    const hand = uid === myUid ? game?.zones.hand.length : opponents.get(uid)?.view?.counts.hand;
+    const plate = make('div', 'plane-plate');
+    plate.append(make('span', 'plate-dot'), make('strong', 'plane-plate-name', uid === myUid ? `${member.name} (you)` : member.name), make('span', 'plane-plate-life num', String(life ?? '')), make('span', 'plane-plate-hand', hand === undefined ? '' : `Hand ${hand}`));
+    frame.append(plate);
+    return frame;
+  }).filter(Boolean);
+  homes.replaceChildren(commons, ...frames);
+  for (const uid of othersInOrder()) {
+    const member = members[uid];
+    const view = opponents.get(uid)?.view;
+    if (!member || !view) continue;
+    let entry = planeLayers.get(uid);
+    if (!entry) {
+      const layer = make('div', 'plane-layer battlefield plane-keep'); // (battlefield: its cards get the battlefield's card rules; src/styles/game-shell.css undoes the board's own look on it)
+      layer.dataset.owner = uid;
+      entry = { layer, nodes: makeCardNodes({ readOnly: true, printedStats: (card) => printedOf(card, lookup) }) };
+      planeLayers.set(uid, entry);
+    }
+    if (entry.layer.parentElement !== board) homes.after(entry.layer);
+    const seat = String(member.seat);
+    const home = homeOf(seat, seats);
+    const base = placeAll(view.zones.battlefield, isLandCard);
+    const cells = new Map(view.zones.battlefield.map((card) => [card.uid, planeCell(base.get(card.uid), planeEntry(seat, card.uid), home)]));
+    entry.layer.style.setProperty('--seat-color', playerColor(uid));
+    entry.nodes.place(entry.layer, byPlaneZ(view.zones.battlefield, seat), { battlefield: true, cells, sharp: true });
+    for (const button of entry.layer.children) { button.disabled = false; button.tabIndex = -1; button.title = `${member.name}'s. Drag to move it.`; } // (another player's card: it can be moved, nothing else)
+  }
+  for (const [uid, entry] of planeLayers) if (!opponents.has(uid)) { entry.layer.remove(); planeLayers.delete(uid); }
+  // the entries of your cards that left the battlefield are cleared (only by you, the owner)
+  const mine = planeRaw?.[mySeatNow()] ?? {};
+  const gone = Object.keys(mine).filter((uid) => !game?.zones.battlefield.some((card) => card.uid === uid));
+  if (gone.length) { planeRaw = { ...planeRaw, [mySeatNow()]: Object.fromEntries(Object.entries(mine).filter(([uid]) => !gone.includes(uid))) }; clearPlaneEntries(tableCode, mySeatNow(), gone).catch(() => {}); }
+}
+// The Shared view on or off: the plane's size, its camera, the watch of the plane, and its layers taken away again when it goes.
+function setShared(on) {
+  if (on === sharedOn) return;
+  sharedOn = on;
+  document.body.classList.toggle('plane-on', on);
+  if (on && !planeWatching && tableCode) { planeWatching = true; watchPlane(tableCode, (value) => { planeRaw = value && typeof value === 'object' ? value : {}; if (sharedOn && game) render(); }); }
+  if (!on) { for (const element of $('battlefield').querySelectorAll(':scope > .plane-keep')) element.remove(); planeLayers.clear(); }
+  fitBoard($('battlefield'), true);
+  planeCamera?.setActive(on);
+  if (game) render();
+}
+const homeBox = (uid) => { const home = homeOf(String(members[uid]?.seat ?? ''), seatList()); return home ? { x: home.x * PLANE_CELL_PX, y: home.y * PLANE_CELL_PX, w: home.w * PLANE_CELL_PX, h: home.h * PLANE_CELL_PX } : null; };
+function showHomeOf(uid) { const box = homeBox(uid); if (box) planeCamera?.show(box); }
+let planeCamera = null;
+
 function focusSeat(uid) {
   focusUid = uid === myUid ? null : uid;
   layoutSeats();
@@ -983,18 +1099,20 @@ function focusSeat(uid) {
 function layoutSeats() {
   const others = othersInOrder();
   others.forEach((uid, index) => { opponents.get(uid).section.dataset.slot = `o${index + 1}`; });
-  const sidebar = seatsView() === 'sidebar' && game !== null;
-  document.body.dataset.view = sidebar ? 'sidebar' : 'grid';
+  const viewNow = game !== null ? seatsView() : 'grid';
+  const sidebar = viewNow === 'sidebar';
+  const shared = viewNow === 'shared'; // (everyone on one plane: only your area shows, and it holds the plane)
+  document.body.dataset.view = viewNow;
   const me = $('seat-me');
   const hand = $('hand-section');
   const areaOf = (uid) => (uid === myUid ? me : opponents.get(uid)?.section ?? null);
   if (focusUid !== null && !opponents.has(focusUid)) focusUid = null;
-  const focusedArea = sidebar ? areaOf(focusUid ?? myUid) : null;
+  const focusedArea = sidebar ? areaOf(focusUid ?? myUid) : shared ? me : null;
   const before = { hand: hand.parentElement, focused: focusedArea };
   // the other areas in turn order (the style sheet places them by data-slot); nothing is moved that is already in its place
   // (the redesign: every area stays in the stage; in Sidebar view the ones not shown large are hidden, and the seat cards in the rail take the place of the column of small copies)
   const gridAreas = others.map((uid) => opponents.get(uid).section);
-  for (const area of [me, ...gridAreas]) { area.classList.toggle('focused', area === focusedArea); area.classList.remove('mini'); area.classList.toggle('offstage', sidebar && area !== focusedArea); }
+  for (const area of [me, ...gridAreas]) { area.classList.toggle('focused', area === focusedArea); area.classList.remove('mini'); area.classList.toggle('offstage', (sidebar || shared) && area !== focusedArea); }
   placeChildren($('opponent-list'), gridAreas);
   if (me.parentElement !== $('seats-stage')) $('seats-stage').append(me);
   const docked = sidebar && focusedArea !== me;
@@ -1003,7 +1121,8 @@ function layoutSeats() {
   $('seats-stage').classList.toggle('hand-docked', docked);
   // The rail (the redesign, Kevin 2026-11-24): the Players section, the history, the stack and your console are docked on the right in both views (src/tool-dock.js);
   // every part can be dragged out to float and back (the console floated by default in Sidebar view until 2026-11-25, over the hand).
-  const toolMode = game === null ? 'none' : sidebar ? 'focus' : 'grid';
+  const toolMode = game === null ? 'none' : sidebar || shared ? 'focus' : 'grid';
+  setShared(shared);
   const toolsChanged = toolDocks.mode() !== toolMode;
   document.body.classList.toggle('rail-on', toolMode !== 'none');
   toolDocks.layout(toolMode);
@@ -1279,7 +1398,7 @@ const toolDocks = createToolDocks({
   onFloat: () => { for (const bar of floatingBars) bar.relayout(); },
   store,
 });
-playersPanel = mountPlayersPanel({ root: $('players-panel'), store, room: columnRoom, docking: toolDocks.dockingFor('players'), onFocus: (uid) => focusSeat(uid ?? myUid) });
+playersPanel = mountPlayersPanel({ root: $('players-panel'), store, room: columnRoom, docking: toolDocks.dockingFor('players'), onFocus: (uid) => { if (sharedOn) showHomeOf(uid ?? myUid); else focusSeat(uid ?? myUid); } });
 floatingBars.push(playersPanel);
 // The Players section of the rail (the redesign, Kevin 2026-11-24): a seat card per player in turn order from you, with their life, commanders and tax, cards held,
 // counters and a summary of their battlefield. Sidebar view: a click on a card shows that board large; your card appears only while someone else is large (the way back).
@@ -1288,8 +1407,9 @@ function renderPlayersPanel() {
   const turnNow = game !== null ? currentTurnInfo() : null;
   const nextSeat = turnNow ? nextSeatAfter(members, turnNow.seat, conceded) : null;
   const sidebar = document.body.dataset.view === 'sidebar';
+  const jump = sidebar || sharedOn; // (a click on a seat card: Sidebar shows that area large, Shared glides the camera to it)
   const rows = [];
-  if (members[myUid] && (!sidebar || focusUid !== null)) rows.push({ uid: myUid, seat: members[myUid].seat, color: playerColor(myUid), mine: true, name: members[myUid].name, life: game?.life, active: turnNow?.uid === myUid, next: turnNow?.uid !== myUid && members[myUid].seat === nextSeat, clickable: sidebar, focused: false,
+  if (members[myUid] && (sharedOn || !sidebar || focusUid !== null)) rows.push({ uid: myUid, seat: members[myUid].seat, color: playerColor(myUid), mine: true, name: members[myUid].name, life: game?.life, active: turnNow?.uid === myUid, next: turnNow?.uid !== myUid && members[myUid].seat === nextSeat, clickable: jump, focused: false,
     commanders: game ? taxEntries(game).map((entry) => ({ name: entry.name, tax: entry.tax })) : [] });
   for (const uid of othersInOrder()) {
     const member = members[uid]; const view = opponents.get(uid)?.view;
@@ -1297,7 +1417,7 @@ function renderPlayersPanel() {
     const named = new Map(view.zones.command.map((card) => [card.uid, card.n])); // their commanders: the cards in their command zone, and any card out with a commander tax
     for (const zone of ['battlefield', 'graveyard', 'exile']) for (const card of view.zones[zone]) if (view.tax[card.uid] && !named.has(card.uid)) named.set(card.uid, card.n);
     rows.push({ uid, seat: member.seat, color: playerColor(uid), name: member.name, status: statusWords(uid), life: view.life, active: turnNow?.uid === uid, next: turnNow?.uid !== uid && member.seat === nextSeat,
-      clickable: sidebar, focused: focusUid === uid, hand: view.counts.hand, library: view.counts.library,
+      clickable: jump, focused: !sharedOn && focusUid === uid, hand: view.counts.hand, library: view.counts.library,
       commanders: [...named].map(([uid2, name]) => ({ name, tax: (view.tax[uid2] ?? 0) * TAX_PER_CAST })), chips: chipEntries(view.pc, view.cd, commanderDamageSeatsFor(members, view.cd, meta?.format)), summary: summarizeBoard(view.zones.battlefield) });
   }
   playersPanel.update(rows);
@@ -1329,7 +1449,7 @@ const TAP_PAIR_PX = 14;
 let lastBoardClick = { at: 0, x: 0, y: 0 };
 $('battlefield').addEventListener('click', (event) => {
   if (!game || event.detail === 0 || event.target.closest('[data-mark], [data-badge]')) return; // detail 0: a click made by the keyboard or by a script, not by the mouse
-  const button = event.target.closest('.card');
+  const button = event.target.closest('#battlefield > .card'); // (only your own cards: on the Shared view another player's cards are in their own layer, numbered like yours)
   const now = performance.now();
   const pair = button && now - lastBoardClick.at < TAP_PAIR_MS && Math.hypot(event.clientX - lastBoardClick.x, event.clientY - lastBoardClick.y) <= TAP_PAIR_PX;
   if (!pair) { lastBoardClick = { at: button ? now : 0, x: event.clientX, y: event.clientY }; return; }
@@ -1484,7 +1604,7 @@ $('command-zone').addEventListener('contextmenu', (event) => {
 mountCardHover(document, { notesFor: (button) => { // a larger picture of any card the pointer is on while Alt is held, with what its keywords, counters and state mean
   const uid = button.dataset.uid;
   if (!uid) return null;
-  const owner = button.closest('.opponent')?.dataset.uid; // (every player's cards are numbered from c1: another player's card is found in their own zones)
+  const owner = button.closest('.opponent')?.dataset.uid ?? button.closest('.plane-layer')?.dataset.owner; // (every player's cards are numbered from c1: another player's card is found in their own zones)
   if (owner) { const view = opponents.get(owner)?.view; const card = view ? Object.values(view.zones).flat().find((c) => c.uid === uid) : null; return card ? cardNotes(card) : null; }
   const found = game ? findCard(uid) : null;
   return found ? cardNotes(found.card) : null;
@@ -1495,6 +1615,13 @@ function dropOnBoard({ uid, from, col, row, whole = false, group = null }) {
   if (!game) return;
   const found = findCard(uid);
   if (!found || found.zone !== from) return;
+  if (sharedOn) { // the Shared view: a card on the plane is moved by its plane entry; a card coming into play lands in your area (and stays where it was let go, even outside it)
+    if (from === 'battlefield') { dropOnPlane({ uid, col, row, whole, group, name: found.card.n }); return; }
+    const home = myHomeNow();
+    const rel = { col: Math.min(Math.max(col - home.x, 0), HOME_COLS - CARD_COLS), row: Math.min(Math.max(row - home.y, 0), HOME_ROWS - CARD_ROWS) };
+    if (!group && (rel.col !== col - home.x || rel.row !== row - home.y)) movePlane(mySeatNow(), uid, { col, row }, { draw: false });
+    col = rel.col; row = rel.row;
+  }
   try {
     if (group && from === 'hand') { // the cards picked in the hand: the one dragged is put where it was let go, the others each two columns and a row further up and to the left (as on the solo table)
       const ordered = game.zones.hand.filter((card) => group.includes(card.uid)).map((card) => card.uid);
@@ -1677,6 +1804,8 @@ function pickFromHandMenu(id, amount) {
     openHandMenu({ x: fromKeyboard ? box.left + box.width / 2 : event.clientX, y: fromKeyboard ? box.top : event.clientY, element: handCaret });
   });
 }
+planeCamera = mountPlaneCamera({ viewport: $('my-board'), plane: $('battlefield'), controls: $('plane-controls'), key: () => `overloaded.camera.${tableCode}`, mine: () => homeBox(myUid) });
+mountPlaneDrag({ plane: () => $('battlefield'), isActive: () => sharedOn && Boolean(game), onMove: ({ owner, uid, cell }) => { const member = members[owner]; if (!member) return; movePlane(String(member.seat), uid, cell); say(`Moved ${member.name}'s card.`); } });
 mountBoardDrag({ board: () => $('battlefield'), onDrop: dropOnBoard, groupOf: (uid) => (multi.size > 1 && multi.has(uid) ? [...multi] : null), hand: () => $('hand-section'), onDropHand: dropOnHand, onHandOver: (over) => handView.carry(over), onReorderHand: reorderInHand, handZone: () => handView.zone(), handHit: (x, y) => handView.over(x, y), zoneSource, pileAt, onDropPile: dropOnPile, isEnabled: () => Boolean(game), boardFirst: true });
 
 // (Mulligan is in the hand's menu, the arrow next to the hand count: the bar has Draw, Untap all and Next turn only, Kevin 2026-11-20)

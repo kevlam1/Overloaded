@@ -125,6 +125,7 @@ try {
   await carol.goto(`${ORIGIN}/lobby/${code}`);
   const carolIn = await waitFor(async () => (await tableShown(carol)) || null, 25000, 200);
   cleanup.carol = await authOf(carol);
+  await waitFor(async () => (await carol.eval(`document.querySelector('#players .seat.mine')?.dataset.seat ?? null`)) || null, 15000, 200).catch(() => null); // (the seats are drawn when the table's members arrive, a moment after the table shows)
   record('Carol opens the link with a name saved in her browser: she is joined with no click at all, in seat 3', Boolean(carolIn) && (await carol.eval(`document.querySelector('#players .seat.mine')?.dataset.seat`)) === '3', String((await carol.eval(`document.querySelector('#players .seat.mine')?.dataset.seat`))));
   record("...and Alice's page lists Carol", Boolean(await waitFor(async () => (await players(alice)).some((t) => t.includes('Carol')) || null, 20000, 200)));
 

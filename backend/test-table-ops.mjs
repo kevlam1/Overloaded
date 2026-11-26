@@ -536,7 +536,7 @@ console.log('setName and setFormat: your name and the table\'s format in the lob
   const viewOf = () => readAdmin(`tables/${table.code}/meta/view`);
   check('the host sets the table\'s view to Sidebar (how the game looks for everyone)', JSON.stringify(await host.ops.setView(table.code, 'sidebar')) === '{"view":"sidebar","changed":true}' && (await viewOf()) === 'sidebar');
   check('the same view again changes nothing', JSON.stringify(await host.ops.setView(table.code, 'sidebar')) === '{"view":"sidebar","changed":false}');
-  check('a view that does not exist is refused before any request', /Grid or Sidebar/.test(await refused(() => host.ops.setView(table.code, 'tabletop'))) && (await viewOf()) === 'sidebar');
+  check('a view that does not exist is refused before any request', /Grid, Sidebar or Shared/.test(await refused(() => host.ops.setView(table.code, 'tabletop'))) && (await viewOf()) === 'sidebar');
   check('a guest cannot change the view', /host/.test(await refused(() => guest.ops.setView(table.code, 'grid'))) && (await viewOf()) === 'sidebar');
   check('back to Grid', JSON.stringify(await host.ops.setView(table.code, 'grid')) === '{"view":"grid","changed":true}' && (await viewOf()) === 'grid');
   const limitOf = () => readAdmin(`tables/${table.code}/meta/bracketLimit`);
@@ -626,6 +626,32 @@ console.log('setDeck: what the table learns about your deck (2026-10-30)');
   check('after the match ends the deck fields are still there (only the ready mark stops counting)', entry.commander === 'Sol Ring' && entry.bracket === 2, JSON.stringify(entry));
   check('...and the deck can be changed again in the lobby', JSON.stringify(await guest.ops.setDeck(table.code, { commander: 'Ghave, Guru of Spores', bracket: 2 })) === '{"changed":true}');
   check('joining the same table again (a rejoin) writes nothing, so the deck fields survive it', (await guest.ops.joinTable({ code: table.code, name: 'Guest' })).rejoined === true && (await guestEntry()).commander === 'Ghave, Guru of Spores');
+}
+
+console.log("the Shared view's plane: anyone at the table moves any card (2026-11-25)");
+{
+  const host = person('planehost');
+  const guest = person('planeguest');
+  const outsider = person('planeoutsider');
+  const table = await host.ops.createTable({ name: 'Host', seats: 2 });
+  await guest.ops.joinTable({ code: table.code, name: 'Guest' });
+  const code = table.code;
+  const entryOf = (seat, uid) => readAdmin(`tables/${code}/plane/${seat}/${uid}`);
+  const refused = async (run) => { try { await run(); return false; } catch { return true; } };
+  const make = (who, match, x = 120) => ({ x, y: 60, z: 1, by: who, m: match });
+  check('in the lobby nobody may write the plane', await refused(() => guest.ops.savePlaneMove(code, { seat: '1', uid: 'c1', entry: make('planeguest', 0) })));
+  await guest.ops.setReady(code); await host.ops.setReady(code); await host.ops.startMatch(code);
+  const match = await readAdmin(`tables/${code}/meta/match`);
+  await guest.ops.savePlaneMove(code, { seat: '1', uid: 'c1', entry: make('planeguest', match) });
+  check("during the match the guest moves the host's card c1 into the commons", (({ x, y, z, by, m }) => x === 120 && y === 60 && z === 1 && by === 'planeguest' && m === match)((await entryOf('1', 'c1')) ?? {}), JSON.stringify(await entryOf('1', 'c1')));
+  check('a place off the plane is refused', await refused(() => guest.ops.savePlaneMove(code, { seat: '1', uid: 'c1', entry: make('planeguest', match, 218) })));
+  check('writing as someone else is refused', await refused(() => guest.ops.savePlaneMove(code, { seat: '1', uid: 'c1', entry: make('planehost', match) })));
+  check('another match number is refused', await refused(() => guest.ops.savePlaneMove(code, { seat: '1', uid: 'c1', entry: make('planeguest', match + 1) })));
+  check('someone not at the table can neither write nor read the plane', (await refused(() => outsider.ops.savePlaneMove(code, { seat: '1', uid: 'c1', entry: make('planeoutsider', match) }))) && (await readAs(outsider, `tables/${code}/plane`)) === 'denied');
+  await host.ops.clearPlaneEntries(code, '1', ['c1']);
+  check('the owner clears the entry of a card that left the battlefield', (await entryOf('1', 'c1')) === null);
+  await host.ops.endMatch(code);
+  check('after the match nobody may write the plane', await refused(() => host.ops.savePlaneMove(code, { seat: '1', uid: 'c2', entry: make('planehost', match) })));
 }
 
 console.log('the game: saving, loading and watching (2026-10-30)');

@@ -70,6 +70,7 @@ const suites = [
   { name: "the players' colors: ten, seat defaults, no two alike", cmd: node, args: ['scripts/test-player-colors.mjs'] },
   { name: 'the phase of a turn and undo', cmd: node, args: ['scripts/test-phase-undo.mjs'] },
   { name: 'the notes beside the Alt picture: keywords, counters, state', cmd: node, args: ['scripts/test-card-notes.mjs'] },
+  { name: "the Shared view's plane: homes, the commons, where a card shows", cmd: node, args: ['scripts/test-plane.mjs'] },
   { name: 'counters a card can be given: the catalog and named counters', cmd: node, args: ['scripts/test-counter-catalog.mjs'] },
   { name: 'card rules: the files the details window reads', cmd: node, args: ['scripts/test-card-rules.mjs'] },
   { name: 'the menu of several cards picked in the hand', cmd: node, args: ['scripts/test-group-menu.mjs'] },
@@ -125,6 +126,7 @@ if (live) {
   suites.push({ name: 'LIVE: the table screen and joining from its link (four browsers)', cmd: node, args: ['--env-file=.env', 'scripts/check-room-live.mjs'] });
   suites.push({ name: 'LIVE: the host adds and removes test bots (one browser)', cmd: node, args: ['--env-file=.env', 'scripts/check-bots-live.mjs'] });
   suites.push({ name: 'LIVE: the Seats table layout for 2, 3 and 4 seats (real browsers and bots)', cmd: node, args: ['--env-file=.env', 'scripts/check-seats-live.mjs'] });
+  suites.push({ name: 'LIVE: the Shared view, everyone on one plane (two browsers)', cmd: node, args: ['--env-file=.env', 'scripts/check-shared-live.mjs'] });
 }
 
 let failed = 0;

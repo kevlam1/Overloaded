@@ -41,7 +41,7 @@
             ".validate": "newData.isNumber() && newData.val() % 1 === 0 && newData.val() >= 1 && newData.val() <= 5"
           },
           "view": {
-            ".validate": "newData.isString() && (newData.val() === 'grid' || newData.val() === 'sidebar')"
+            ".validate": "newData.isString() && (newData.val() === 'grid' || newData.val() === 'sidebar' || newData.val() === 'shared')"
           },
           "$other": {
             ".validate": false
@@ -1176,6 +1176,34 @@
           },
           "$other": {
             ".validate": false
+          }
+        },
+        "plane": {
+          ".read": "auth != null && root.child('tables').child($code).child('members').child(auth.uid).exists()",
+          "$seat": {
+            ".validate": "$seat === '1' || $seat === '2' || $seat === '3' || $seat === '4'",
+            "$card": {
+              ".write": "auth != null && root.child('tables').child($code).child('members').child(auth.uid).exists() && root.child('tables').child($code).child('meta').child('createdAt').val() + 28800000 > now && root.child('tables').child($code).child('activity').child('lastActive').val() + root.child('tables').child($code).child('meta').child('idleLimit').val() > now && root.child('tables').child($code).child('meta').child('status').val() === 'playing'",
+              ".validate": "$card.matches(/^c[1-9][0-9]{0,5}$/) && newData.hasChildren(['x', 'y', 'z', 'by', 'm'])",
+              "x": {
+                ".validate": "newData.isNumber() && newData.val() % 1 === 0 && newData.val() >= 0 && newData.val() <= 217"
+              },
+              "y": {
+                ".validate": "newData.isNumber() && newData.val() % 1 === 0 && newData.val() >= 0 && newData.val() <= 120"
+              },
+              "z": {
+                ".validate": "newData.isNumber() && newData.val() % 1 === 0 && newData.val() >= 0 && newData.val() <= 1000000"
+              },
+              "by": {
+                ".validate": "newData.val() === auth.uid"
+              },
+              "m": {
+                ".validate": "newData.val() === root.child('tables').child($code).child('meta').child('match').val()"
+              },
+              "$other": {
+                ".validate": false
+              }
+            }
           }
         }
       }

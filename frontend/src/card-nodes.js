@@ -248,7 +248,8 @@ export function makeCardNodes({ onSelect = () => {}, isSelected = () => false, r
     // the one above it (data-stack-depth, the style sheet offsets them), and the rest are hidden. Every card is still its own button.
     place: (container, cards, { battlefield = false, cells = null, sharp = false } = {}) => { // sharp: ask for the NORMAL size of each picture (the small one is 146 px wide and looks blurry drawn larger or on a sharp screen; the hand and the pile windows do the same, Kevin 2026-11-16)
       const stacks = battlefield && cells ? stackInfo(cards, cells) : null;
-      container.replaceChildren(...cards.map((card) => {
+      const kept = [...container.children].filter((child) => child.classList.contains('plane-keep')); // (the Shared view's homes and other players' layers stay under your cards)
+      container.replaceChildren(...kept, ...cards.map((card) => {
         const button = nodeFor(card, battlefield); if (sharp) sharpenPicture(button);
         const cell = battlefield ? cells?.get(card.uid) : null;
         // (the place in the grid is also set on the card itself: the style sheet's rules per column stop at the solo table's 112, and the table page's grid can be wider, shared/board-grid.mjs setBoardSize)

@@ -130,3 +130,6 @@ export const loadGame = (...args) => tableOps().loadGame(...args);
 export const watchPublic = (...args) => tableOps().watchPublic(...args);
 export const saveStack = (...args) => tableOps().saveStack(...args);
 export const watchStack = (...args) => tableOps().watchStack(...args);
+export const savePlaneMove = (...args) => tableOps().savePlaneMove(...args);
+export const clearPlaneEntries = (...args) => tableOps().clearPlaneEntries(...args);
+export const watchPlane = (...args) => tableOps().watchPlane(...args);

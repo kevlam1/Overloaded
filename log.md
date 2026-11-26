@@ -5676,6 +5676,53 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 - Dots by default; graph paper is one choice away.
 - The light theme is new: some older pieces may still have hard-coded dark colors. Anything that looks wrong in it is a quick fix.
 
+## 284. The Shared view: everyone on one plane (2026-11-25)
+
+**What I asked for**
+- A third view next to Grid and Sidebar, Shared, where every player plays on the same plane, learning from aura0 but bigger and easier to use.
+- My choices: anyone may move anything, a big canvas with pan and zoom, and cards snap to cells like the other views. I approved the plan and pasted the new rules.
+
+**What changed**
+- **The plane** (`shared/plane.mjs`): 224 by 130 cells. Each player has a home of 112 by 50 (the solo board's size):
+  - 2 players: one at the bottom and one at the top;
+  - 3 or 4: the corners;
+  - between them a band, the commons, belongs to no one.
+- **What a home shows:** each is framed in its player's color, with a nameplate (name, life, cards in hand).
+- **Where a card is:** a card is wherever its plane entry puts it (`tables/{code}/plane/{seat}/{uid}`, written by whoever moved it). Without one it sits in its owner's home where the owner put it.
+- **What is shared:** only the place. Tapping, counters and moving a card to a pile stay with its owner, and hands and libraries stay private in the database (aura0 sends them to everyone).
+- **Moving cards:**
+  - My own cards move with the usual drag. Every player's cards keep their numbers, so another player's cards sit in their own layer of the plane.
+  - Another player's card is dragged by `frontend/src/plane-drag.js`: a copy follows the pointer and a gold outline shows where it lands.
+- **The camera** (`frontend/src/plane-camera.js`):
+  - the wheel zooms around the pointer;
+  - the middle button, or Space and a drag, pans;
+  - a small control has −, the zoom, +, Fit and Mine;
+  - a click on a seat card in the rail glides to that player's home.
+  - Zoomed out, the nameplates and the word Commons grow so they stay readable.
+- **The lobby** has a third view button, Shared. The rules accept `shared` and the `plane` path: any member, while the match is on, as themselves, with this match's number, inside the plane.
+- **A fix on the way:** a double click on another player's card on the plane would have tapped MY card with the same number. Only my own cards count now.
+
+**What I checked**
+- `scripts/test-plane.mjs` (9): the homes for 2, 3 and 4 seats fit, stay off the commons and never overlap; where a card shows; bad entries are refused.
+- `backend/test-table-ops.mjs`, 8 new checks in the emulator:
+  - the guest moves the host's card;
+  - a place off the plane, another writer, another match, a stranger and the lobby are refused;
+  - the owner clears an entry.
+- `scripts/check-shared-live.mjs`, two real browsers on the real project, 6 of 6, also with 4 seats (bots) and in the light theme:
+  - Alice's card shows in her home on Bob's plane;
+  - Bob drags it into the commons and Alice sees it there;
+  - zoomed to 38%, Alice drags it back and it lands on the exact cell.
+- Claude's mistakes, caught:
+  - The plane did not redraw when another player's cards changed, only mine.
+  - The lowest zoom (40%) was too high for Fit to show the whole plane (it needs about 26%), so Bob could not reach Alice's card. It is 15% now.
+  - The first version of the last check dragged to a point off screen.
+- `npm run test:live` 111 of 112 with my pasted rules; the color and step-of-the-turn checks pass now.
+  - The failure was the room check, which read Carol's seat before the seat list had drawn: a race in the check, which now waits for it (3 of 3 runs).
+- Screenshots looked at: 2 seats and 4 seats, my home at 57%, zoomed out at 38% with the commons, and the light theme (the 0 on an empty pile was unreadable there: fixed).
+
+**Decisions**
+- Everyone sees the plane the same way up in this first version: turning it to face each player would break the pointer-to-cell math. On the to-do list with a minimap, other players' piles at their home, touch and phones.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-24, entry 277) Claude told me the tool docks remembered their layout (entries 273 and 276) when the code stored "[object Object]"; the audit for the spec found it.
 - (2026-11-23, entry 273) I said "commit and push after every big change" and meant every big prompt; Claude pushed after each of three changes.

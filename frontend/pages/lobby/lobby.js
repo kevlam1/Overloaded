@@ -397,10 +397,11 @@ function renderFormat() {
     button.title = canChange ? '' : 'Only the host can change the format.';
   }
 }
+const viewOf = (meta) => (meta?.view === 'sidebar' || meta?.view === 'shared' ? meta.view : 'grid'); // (Shared: everyone on one plane, 2026-11-25)
 // The view switch (Kevin, 2026-11-20): how the game looks for everyone at the table, Grid (every player's area at once) or Sidebar (one large, everyone small in a column). The host picks it in the lobby;
 // the table page has no switch. Nothing stored is Grid.
 function renderView() {
-  const view = currentMeta?.view === 'sidebar' ? 'sidebar' : 'grid';
+  const view = viewOf(currentMeta);
   const canChange = Boolean(myUid) && currentHost === myUid && currentMeta?.status === 'lobby';
   for (const button of $('view-switch').querySelectorAll('button[data-view]')) {
     button.setAttribute('aria-pressed', String(button.dataset.view === view));
@@ -409,7 +410,7 @@ function renderView() {
 }
 $('view-switch').addEventListener('click', (event) => {
   const button = event.target instanceof Element ? event.target.closest('button[data-view]') : null;
-  if (!button || button.disabled || !currentCode || button.dataset.view === (currentMeta?.view === 'sidebar' ? 'sidebar' : 'grid')) return;
+  if (!button || button.disabled || !currentCode || button.dataset.view === viewOf(currentMeta)) return;
   run(async () => { await setView(currentCode, button.dataset.view); say(''); });
 });
 // The bracket limit: the host picks Any or 1 to 5 in a Commander lobby; everyone else sees it. It only warns beside the name of a player whose deck is above it.
