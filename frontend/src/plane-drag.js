@@ -7,7 +7,7 @@ import { cellAtPoint } from '../../shared/board-grid.mjs';
 
 const DRAG_PX = 6;
 
-export function mountPlaneDrag({ plane, isActive, onMove }) {
+export function mountPlaneDrag({ plane, isActive, onMove, onCarry = () => {} }) { // onCarry({ owner, uid, cell } | null): where the card is being carried, for the other players
   let press = null;
   let drag = null;
 
@@ -40,6 +40,7 @@ export function mountPlaneDrag({ plane, isActive, onMove }) {
     drag.cell = cell;
     drag.outline.hidden = !cell;
     if (cell) { drag.outline.style.gridColumnStart = String(cell.col + 1); drag.outline.style.gridRowStart = String(cell.row + 1); }
+    onCarry({ owner: drag.button.closest('.plane-layer').dataset.owner, uid: drag.button.dataset.uid, cell });
   }
   function end(commit) {
     if (!drag) { press = null; return; }
@@ -48,6 +49,7 @@ export function mountPlaneDrag({ plane, isActive, onMove }) {
     button.classList.remove('plane-lifted');
     document.body.classList.remove('dragging-card');
     drag = null; press = null;
+    onCarry(null);
     if (commit && cell) onMove({ owner: button.closest('.plane-layer').dataset.owner, uid: button.dataset.uid, cell });
   }
 

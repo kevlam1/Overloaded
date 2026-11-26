@@ -25,7 +25,7 @@ const AXIS_STICK_PX = 12; // ...and it changes from the row to the column (or ba
 // Piles and the command zone (Kevin, 2026-11-12): a card can be taken from the top of the library, the graveyard or the exile, or from the command zone, and a card can be dropped on any of them. The page says
 // what is a pile: zoneSource(target) gives { button, uid, from, picture? } for the element pressed (the top card of a pile, or a card of the command zone; picture: an address for the picture carried, for a
 // library, whose top card is not shown), pileAt(x, y) gives { zone, element } for the pile under a point, and onDropPile({ uid, from, to }) is called when a card is let go over one.
-export function mountBoardDrag({ doc = document, board, onDrop, hand = () => null, onDropHand = () => {}, onHandOver = () => {}, onReorderHand = () => {}, handZone = () => null, handHit = null, zoneSource = () => null, pileAt = () => null, onDropPile = () => {}, groupOf = () => null, isEnabled = () => true, boardFirst = false }) {
+export function mountBoardDrag({ doc = document, board, onDrop, onCarry = () => {}, hand = () => null, onDropHand = () => {}, onHandOver = () => {}, onReorderHand = () => {}, handZone = () => null, handHit = null, zoneSource = () => null, pileAt = () => null, onDropPile = () => {}, groupOf = () => null, isEnabled = () => true, boardFirst = false }) {
   // groupOf(uid) (optional): the uids of the cards picked up together (by a rectangle) when the card pressed is one of them, or null. Pressing one of them carries all of them, each keeping its place relative to
   // the others, and onDrop is called with { group } (Kevin, 2026-11-14). A group is carried over the board or into the hand (all its cards go there), not onto a pile.
   let press = null; // the card the pointer went down on, before it has moved far enough to be a drag
@@ -94,6 +94,7 @@ export function mountBoardDrag({ doc = document, board, onDrop, hand = () => nul
       drag.highlight.remove();
       for (const c of drag.carried) c.classList.remove('dragging');
       doc.body.classList.remove('dragging-card');
+      if (drag.from === 'battlefield') onCarry(null);
     }
     drag = null;
     press = null;
@@ -284,6 +285,8 @@ export function mountBoardDrag({ doc = document, board, onDrop, hand = () => nul
     // a tapped card is a landscape card, 11 cells wide, so it may not start in the last 3 columns of the board
     if (cell && drag.tapped) cell.col = Math.min(cell.col, BOARD_COLS - CARD_ROWS);
     drag.cell = drag.overHand || drag.pile ? null : cell;
+    // onCarry: where a battlefield card is being carried (the Shared view shows it to the other players; a card from the hand is never reported: it is hidden until it is played)
+    if (drag.from === 'battlefield') onCarry({ uid: drag.uid, cell: drag.cell, group: drag.group ?? null });
     if (!drag.cell) { drag.highlight.hidden = true; return; }
     drag.highlight.dataset.col = String(cell.col);
     // the outline of a tapped card is its landscape shape on the bottom line of its block (3 rows lower than the block starts), not the shape of an untapped card

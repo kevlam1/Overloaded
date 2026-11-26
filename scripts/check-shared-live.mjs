@@ -82,7 +82,22 @@ try {
   const cardCentre = (page, selector) => page.eval(`(() => { const c = document.querySelector(${JSON.stringify(selector)}); if (!c) return null; const r = c.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
   await bob.eval(`document.querySelector('.plane-button[aria-label="See the whole table"]').click()`); await sleep(500);
   const from = await cardCentre(bob, `#battlefield .plane-layer > .card[data-uid="${aliceCard}"]`);
-  await drag(bob, from, await cellPoint(bob, 100, 60));
+  // Bob carries it (pressed, moving, not yet let go): Alice's page shows it lifted and moving with Bob's name, and will not let her pick it up meanwhile
+  const to = await cellPoint(bob, 100, 60);
+  await mouse(bob, 'mouseMoved', from.x, from.y); await sleep(60); await mouse(bob, 'mousePressed', from.x, from.y, 1);
+  for (let n = 1; n <= 14; n++) { await mouse(bob, 'mouseMoved', from.x + ((to.x - from.x) * n) / 14, from.y + ((to.y - from.y) * n) / 14, 1); await sleep(30); }
+  await sleep(200);
+  if (process.argv.includes('--screenshot')) await bob.screenshot('scratch-shared-carrying-bob.png');
+  const lifted = await waitFor(async () => (await alice.eval(`(() => { const c = document.querySelector('#battlefield > .card.carried-remote[data-uid="${aliceCard}"]'); const tag = document.querySelector('#battlefield .plane-target.remote .plane-carrier'); return c && tag ? { tag: tag.textContent, moved: getComputedStyle(c).translate !== 'none' } : null; })()`)) || null, 15000, 150).catch(() => null);
+  record("while Bob carries Alice's card, Alice sees it lifted and moving, with Bob's name on the place it is over", Boolean(lifted) && lifted.tag === 'Bob' && lifted.moved, JSON.stringify(lifted));
+  await alice.eval(`document.querySelector('.plane-button[aria-label="See the whole table"]').click()`); await sleep(500); // (the whole table on her screen, so the carried card is in view to try to grab)
+  if (process.argv.includes('--screenshot')) await alice.screenshot('scratch-shared-carrying-alice.png');
+  const grab = await cardCentre(alice, `#battlefield > .card[data-uid="${aliceCard}"]`);
+  await mouse(alice, 'mouseMoved', grab.x, grab.y); await mouse(alice, 'mousePressed', grab.x, grab.y, 1); await sleep(100); await mouse(alice, 'mouseReleased', grab.x, grab.y); await sleep(200);
+  record("...and she cannot pick it up meanwhile: the page says Bob is moving it", /Bob is moving that card/.test(await alice.eval(`document.getElementById('status').textContent`)), await alice.eval(`document.getElementById('status').textContent`));
+  await mouse(bob, 'mouseReleased', to.x, to.y); await sleep(700);
+  const settled = await waitFor(async () => (await alice.eval(`!document.querySelector('#battlefield .card.carried-remote') && !document.querySelector('#battlefield .plane-target.remote')`)) || null, 15000, 200).catch(() => false);
+  record('when Bob lets go the lift and the outline are gone on her page', Boolean(settled));
   const onAlice = await waitFor(async () => (await alice.eval(`(() => { const c = document.querySelector('#battlefield > .card[data-uid="${aliceCard}"]'); return c && Number(c.dataset.row) >= 50 && Number(c.dataset.row) < 80 ? { col: Number(c.dataset.col), row: Number(c.dataset.row) } : null; })()`)) || null, 15000, 250).catch(() => null);
   record("Bob drags Alice's card into the commons, and Alice's page shows it there", Boolean(onAlice), JSON.stringify(onAlice ?? await alice.eval(`(() => { const c = document.querySelector('#battlefield > .card'); return c ? [c.dataset.col, c.dataset.row] : null; })()`)));
   if (process.argv.includes('--screenshot')) await alice.screenshot('scratch-shared-alice.png');

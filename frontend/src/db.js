@@ -133,3 +133,6 @@ export const watchStack = (...args) => tableOps().watchStack(...args);
 export const savePlaneMove = (...args) => tableOps().savePlaneMove(...args);
 export const clearPlaneEntries = (...args) => tableOps().clearPlaneEntries(...args);
 export const watchPlane = (...args) => tableOps().watchPlane(...args);
+export const setCarry = (...args) => tableOps().setCarry(...args);
+export const armCarry = (...args) => tableOps().armCarry(...args);
+export const watchCarry = (...args) => tableOps().watchCarry(...args);

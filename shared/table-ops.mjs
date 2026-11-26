@@ -553,6 +553,19 @@ export function createTableOps({ sdk, db, getUid, makeCode = makeTableCode }) {
     await update(ref(db, `tables/${code}/plane/${seat}`), Object.fromEntries(uids.map((uid) => [uid, null])));
   }
   const watchPlane = (code, onChange) => watch(`tables/${code}/plane`, onChange);
+  // A card being carried on the plane, shown to the other players while it moves (Kevin, 2026-11-26): ONE small record per player, tables/{code}/carry/{uid}
+  // { seat, card, x, y, m }, written a few times a second while dragging and removed on the drop; armCarry makes the database remove it if this page disconnects.
+  async function setCarry(code, value) {
+    if (!isValidCode(code)) return;
+    const uid = await getUid();
+    await update(ref(db, `tables/${code}/carry`), { [uid]: value ?? null });
+  }
+  async function armCarry(code) {
+    if (!isValidCode(code) || !sdk.onDisconnect) return;
+    const uid = await getUid();
+    await sdk.onDisconnect(ref(db, `tables/${code}/carry/${uid}`)).remove();
+  }
+  const watchCarry = (code, onChange) => watch(`tables/${code}/carry`, onChange);
   // How far this computer's clock is from the database's (ms): the server's time is Date.now() + offset. The limits are
   // judged on the server's time, so the page must not trust its own clock.
   const watchServerOffset = (onChange) => watch('.info/serverTimeOffset', (offset) => onChange(typeof offset === 'number' ? offset : 0));
@@ -608,5 +621,5 @@ export function createTableOps({ sdk, db, getUid, makeCode = makeTableCode }) {
     );
   }
 
-  return { findMyTable, createTable, closeIfExpired, rejoinTable, joinTable, watchMembers, setReady, clearReady, setName, setColor, setFormat, setView, setBracketLimit, setDeck, startMatch, concede, endMatch, endTable, leaveTable, passHost, takeOverHost, claimHostSlot, heartbeat, watchActivity, watchMeta, watchServerOffset, watchConnection, startPresence, watchPresence, saveGame, loadGame, watchPublic, saveStack, watchStack, savePlaneMove, clearPlaneEntries, watchPlane };
+  return { findMyTable, createTable, closeIfExpired, rejoinTable, joinTable, watchMembers, setReady, clearReady, setName, setColor, setFormat, setView, setBracketLimit, setDeck, startMatch, concede, endMatch, endTable, leaveTable, passHost, takeOverHost, claimHostSlot, heartbeat, watchActivity, watchMeta, watchServerOffset, watchConnection, startPresence, watchPresence, saveGame, loadGame, watchPublic, saveStack, watchStack, savePlaneMove, clearPlaneEntries, watchPlane, setCarry, armCarry, watchCarry };
 }

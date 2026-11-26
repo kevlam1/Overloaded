@@ -229,3 +229,9 @@ body.playing.seats .plane-layer.battlefield { position: static; min-height: 0; w
 .plane-plate { transform-origin: 0 0; scale: max(1, calc(0.7 / var(--zoom, 1))); }
 .plane-commons { font-size: calc(42px * max(1, calc(0.6 / var(--zoom, 1)))); }
 :root[data-theme="light"] .pile-stack[data-empty="true"]::before { background: var(--surface-3); color: var(--muted); } /* (an empty pile's 0 on the light theme) */
+
+/* a card another player is carrying (2026-11-26): lifted off the felt in their color, gliding after them; the cell it is over is outlined with their name */
+#battlefield .card.carried-remote { z-index: 40; translate: var(--carry-x, 0) var(--carry-y, 0); transition: translate 0.14s linear; filter: drop-shadow(0 18px 22px rgba(0, 0, 0, 0.55)); box-shadow: 0 0 0 2px var(--carrier-color, var(--gold)); scale: 1.04; cursor: not-allowed; }
+@media (prefers-reduced-motion: reduce) { #battlefield .card.carried-remote { transition: none; scale: none; } }
+.plane-target.remote { position: relative; border-color: var(--carrier-color, var(--gold)); background: color-mix(in srgb, var(--carrier-color, var(--gold)) 10%, transparent); }
+.plane-carrier { position: absolute; left: 50%; bottom: 100%; translate: -50% -4px; padding: 2px 9px; border-radius: 999px; background: var(--carrier-color, var(--gold)); color: #111; font-size: 13px; font-weight: 700; white-space: nowrap; scale: max(1, calc(0.7 / var(--zoom, 1))); transform-origin: 50% 100%; }

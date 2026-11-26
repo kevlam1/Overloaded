@@ -5723,6 +5723,32 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 **Decisions**
 - Everyone sees the plane the same way up in this first version: turning it to face each player would break the pointer-to-cell math. On the to-do list with a minimap, other players' piles at their home, touch and phones.
 
+## 285. Seeing a card while someone else carries it (2026-11-26)
+
+**What I asked for**
+- Does moving a card show it floating while it is dragged? Only for the one dragging: the others saw it jump when it landed. I said yes to showing it to everyone.
+
+**What changed**
+- **Sending it:** while I carry a card on the Shared plane, my page writes where it is (`tables/{code}/carry/{me}`: its owner's seat, the card, its cell), at most 8 times a second and only when the cell changes.
+  - The drop removes the record, and so does the database if my page disconnects.
+  - A card carried from my hand is never sent: it is hidden until it is played.
+- **What the others see** (`table.js`, `game-shell.css`):
+  - the card lifted off the felt with a shadow and an outline in the carrier's color, gliding after them (no gliding under reduced motion);
+  - the cell it is over outlined, with the carrier's name on a tag.
+- **One at a time:** nobody else can pick that card up meanwhile; the page says "Bob is moving that card."
+- **New rule** (`backend/database.rules.json`): a player writes only their own carry record, only during the match, with this match's number and a place inside the plane. I pasted it.
+- `src/board-drag.js` and `src/plane-drag.js` report the carried place (`onCarry`).
+
+**What I checked**
+- Emulator, `backend/test-table-ops.mjs` 270 checks, 4 new: my own carry record only; the host reads it; strangers neither read nor write; the drop removes it.
+- `scripts/check-shared-live.mjs`, two real browsers, 9 of 9, run twice:
+  - while Bob holds Alice's card mid-drag, her page shows it lifted and moved, with "Bob" on its outline;
+  - she cannot pick it up, and the page says so;
+  - when he lets go, the lift and the outline go away.
+- Claude's mistake: the first version only fitted Alice's view to the whole table when taking screenshots, so in a plain run the card was off her screen and her "grab" missed it. It fits every run now.
+- Screenshots looked at, mid-drag, from both sides: Alice sees the card lifted in the commons with Bob's tag; Bob sees the copy he carries and the faded original.
+- `npm test` 101 of 101 suites. `npm run test:live` 111 of 112: the failure was that first version of the check.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-24, entry 277) Claude told me the tool docks remembered their layout (entries 273 and 276) when the code stored "[object Object]"; the audit for the spec found it.
 - (2026-11-23, entry 273) I said "commit and push after every big change" and meant every big prompt; Claude pushed after each of three changes.

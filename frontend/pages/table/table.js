@@ -5,7 +5,7 @@
 // zones only: shared/game-sync.mjs readPublic). All database calls live in ../../src/db.js.
 import { mountLookSettings } from '../../src/look-settings.js';
 import { askConfirm } from '../../src/confirm-box.js';
-import { rejoinTable, watchMembers, watchMeta, watchPresence, watchServerOffset, watchConnection, startPresence, heartbeat, watchActivity, saveGame, loadGame, watchPublic, saveStack, watchStack, savePlaneMove, clearPlaneEntries, watchPlane, concede, endMatch, leaveTable, takeOverHost } from '../../src/db.js';
+import { rejoinTable, watchMembers, watchMeta, watchPresence, watchServerOffset, watchConnection, startPresence, heartbeat, watchActivity, saveGame, loadGame, watchPublic, saveStack, watchStack, savePlaneMove, clearPlaneEntries, watchPlane, setCarry, armCarry, watchCarry, concede, endMatch, leaveTable, takeOverHost } from '../../src/db.js';
 import { startKeepAlive } from '../../src/keep-alive.js';
 import { makeSafeStore } from '../../src/safe-store.js';
 import { cardBackUrl } from '../../../shared/card-image.mjs';
@@ -1076,13 +1076,15 @@ function renderPlane() {
   const mine = planeRaw?.[mySeatNow()] ?? {};
   const gone = Object.keys(mine).filter((uid) => !game?.zones.battlefield.some((card) => card.uid === uid));
   if (gone.length) { planeRaw = { ...planeRaw, [mySeatNow()]: Object.fromEntries(Object.entries(mine).filter(([uid]) => !gone.includes(uid))) }; clearPlaneEntries(tableCode, mySeatNow(), gone).catch(() => {}); }
+  renderCarries();
 }
 // The Shared view on or off: the plane's size, its camera, the watch of the plane, and its layers taken away again when it goes.
 function setShared(on) {
   if (on === sharedOn) return;
   sharedOn = on;
   document.body.classList.toggle('plane-on', on);
-  if (on && !planeWatching && tableCode) { planeWatching = true; watchPlane(tableCode, (value) => { planeRaw = value && typeof value === 'object' ? value : {}; if (sharedOn && game) render(); }); }
+  if (on && !planeWatching && tableCode) { planeWatching = true; watchPlane(tableCode, (value) => { planeRaw = value && typeof value === 'object' ? value : {}; if (sharedOn && game) render(); }); watchCarry(tableCode, (value) => { carryRaw = value && typeof value === 'object' ? value : {}; if (sharedOn) renderCarries(); }); }
+  if (on && !carryArmed && tableCode) { carryArmed = true; armCarry(tableCode).catch(() => { carryArmed = false; }); }
   if (!on) { for (const element of $('battlefield').querySelectorAll(':scope > .plane-keep')) element.remove(); planeLayers.clear(); }
   fitBoard($('battlefield'), true);
   planeCamera?.setActive(on);
@@ -1091,6 +1093,66 @@ function setShared(on) {
 const homeBox = (uid) => { const home = homeOf(String(members[uid]?.seat ?? ''), seatList()); return home ? { x: home.x * PLANE_CELL_PX, y: home.y * PLANE_CELL_PX, w: home.w * PLANE_CELL_PX, h: home.h * PLANE_CELL_PX } : null; };
 function showHomeOf(uid) { const box = homeBox(uid); if (box) planeCamera?.show(box); }
 let planeCamera = null;
+
+// ---- a card being carried, seen by the other players (Kevin, 2026-11-26) ----
+// While you carry a card on the plane, your page writes where it is (tables/{code}/carry/{you}: its owner's seat, the card, its cell), at most 8 times a second and only when
+// the cell changes; the drop removes it, and so does the database if your page disconnects. Every other page lifts that card off the felt, glides it after the carrier, outlines
+// the cell it is over with the carrier's name, and refuses to let anyone else pick it up meanwhile. A card from a hand is never reported (it is hidden until it is played).
+let carryRaw = {};
+let carryArmed = false;
+const carryOut = { key: '', last: 0, timer: 0, pending: null };
+function flushCarry() {
+  carryOut.timer = 0;
+  const value = carryOut.pending;
+  if (!value) return;
+  carryOut.pending = null; carryOut.last = Date.now(); carryOut.key = JSON.stringify(value);
+  setCarry(tableCode, value).catch(() => {});
+}
+function sendCarry(seat, card, cell) {
+  if (!sharedOn || !tableCode) return;
+  if (!cell) { // dropped, or off the plane: no more record
+    clearTimeout(carryOut.timer); carryOut.timer = 0; carryOut.pending = null;
+    if (carryOut.key) { carryOut.key = ''; setCarry(tableCode, null).catch(() => {}); }
+    return;
+  }
+  const value = { seat: String(seat), card, x: Math.min(Math.max(cell.col, 0), PLANE_COLS - CARD_COLS), y: Math.min(Math.max(cell.row, 0), PLANE_ROWS - CARD_ROWS), m: meta?.match };
+  if (JSON.stringify(value) === carryOut.key) return;
+  carryOut.pending = value;
+  const wait = 125 - (Date.now() - carryOut.last);
+  if (wait <= 0) flushCarry(); else if (!carryOut.timer) carryOut.timer = setTimeout(flushCarry, wait);
+}
+// the cards other players are carrying right now: lifted, moved to where they are, the cell they are over outlined with the carrier's name
+function carriedBy(button) {
+  for (const [uid, value] of Object.entries(carryRaw ?? {})) {
+    if (uid === myUid || !value || value.m !== meta?.match || value.card !== button.dataset.uid) continue;
+    const owner = button.closest('.plane-layer')?.dataset.owner ?? myUid;
+    if (String(members[owner]?.seat) === String(value.seat)) return uid;
+  }
+  return null;
+}
+function renderCarries() {
+  const board = $('battlefield');
+  for (const button of board.querySelectorAll('.card.carried-remote')) { button.classList.remove('carried-remote'); button.style.removeProperty('--carry-x'); button.style.removeProperty('--carry-y'); }
+  for (const outline of board.querySelectorAll(':scope > .plane-target.remote')) outline.remove();
+  if (!sharedOn) return;
+  for (const [uid, value] of Object.entries(carryRaw ?? {})) {
+    if (uid === myUid || !value || value.m !== meta?.match || !members[uid]) continue;
+    const owner = Object.entries(members).find(([, member]) => String(member.seat) === String(value.seat))?.[0];
+    if (!owner) continue;
+    const scope = owner === myUid ? board : planeLayers.get(owner)?.layer;
+    const button = scope?.querySelector(`:scope > .card[data-uid="${value.card}"]`);
+    if (!button) continue;
+    button.classList.add('carried-remote');
+    button.style.setProperty('--carry-x', `${(value.x - Number(button.dataset.col)) * PLANE_CELL_PX}px`);
+    button.style.setProperty('--carry-y', `${(value.y - Number(button.dataset.row)) * PLANE_CELL_PX}px`);
+    button.style.setProperty('--carrier-color', playerColor(uid));
+    const outline = make('div', 'plane-target remote plane-keep');
+    outline.style.gridColumnStart = String(value.x + 1); outline.style.gridRowStart = String(value.y + 1);
+    outline.style.setProperty('--carrier-color', playerColor(uid));
+    outline.append(make('span', 'plane-carrier', members[uid].name));
+    board.append(outline);
+  }
+}
 
 function focusSeat(uid) {
   focusUid = uid === myUid ? null : uid;
@@ -1805,8 +1867,17 @@ function pickFromHandMenu(id, amount) {
   });
 }
 planeCamera = mountPlaneCamera({ viewport: $('my-board'), plane: $('battlefield'), controls: $('plane-controls'), key: () => `overloaded.camera.${tableCode}`, mine: () => homeBox(myUid) });
-mountPlaneDrag({ plane: () => $('battlefield'), isActive: () => sharedOn && Boolean(game), onMove: ({ owner, uid, cell }) => { const member = members[owner]; if (!member) return; movePlane(String(member.seat), uid, cell); say(`Moved ${member.name}'s card.`); } });
-mountBoardDrag({ board: () => $('battlefield'), onDrop: dropOnBoard, groupOf: (uid) => (multi.size > 1 && multi.has(uid) ? [...multi] : null), hand: () => $('hand-section'), onDropHand: dropOnHand, onHandOver: (over) => handView.carry(over), onReorderHand: reorderInHand, handZone: () => handView.zone(), handHit: (x, y) => handView.over(x, y), zoneSource, pileAt, onDropPile: dropOnPile, isEnabled: () => Boolean(game), boardFirst: true });
+document.addEventListener('pointerdown', (event) => { // (before the drags: a card another player is carrying cannot be picked up)
+  if (!sharedOn) return;
+  const button = event.target.closest?.('#battlefield .card.carried-remote');
+  if (!button) return;
+  const carrier = carriedBy(button);
+  if (!carrier) return;
+  event.preventDefault(); event.stopImmediatePropagation();
+  say(`${members[carrier]?.name ?? 'Someone'} is moving that card.`);
+}, true);
+mountPlaneDrag({ plane: () => $('battlefield'), isActive: () => sharedOn && Boolean(game), onCarry: (info) => { if (!info) { sendCarry(null, null, null); return; } const member = members[info.owner]; if (member) sendCarry(member.seat, info.uid, info.cell); }, onMove: ({ owner, uid, cell }) => { const member = members[owner]; if (!member) return; movePlane(String(member.seat), uid, cell); say(`Moved ${member.name}'s card.`); } });
+mountBoardDrag({ board: () => $('battlefield'), onCarry: (info) => { if (!info) sendCarry(null, null, null); else sendCarry(mySeatNow(), info.uid, info.cell); }, onDrop: dropOnBoard, groupOf: (uid) => (multi.size > 1 && multi.has(uid) ? [...multi] : null), hand: () => $('hand-section'), onDropHand: dropOnHand, onHandOver: (over) => handView.carry(over), onReorderHand: reorderInHand, handZone: () => handView.zone(), handHit: (x, y) => handView.over(x, y), zoneSource, pileAt, onDropPile: dropOnPile, isEnabled: () => Boolean(game), boardFirst: true });
 
 // (Mulligan is in the hand's menu, the arrow next to the hand count: the bar has Draw, Untap all and Next turn only, Kevin 2026-11-20)
 // The action bar floats like the solo table's (src/floating-bar.js); it starts as a row in the bottom left corner, in the strip under the battlefield left of the hand (docked to a side it is a column of icons).

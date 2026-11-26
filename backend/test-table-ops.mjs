@@ -648,6 +648,14 @@ console.log("the Shared view's plane: anyone at the table moves any card (2026-1
   check('writing as someone else is refused', await refused(() => guest.ops.savePlaneMove(code, { seat: '1', uid: 'c1', entry: make('planehost', match) })));
   check('another match number is refused', await refused(() => guest.ops.savePlaneMove(code, { seat: '1', uid: 'c1', entry: make('planeguest', match + 1) })));
   check('someone not at the table can neither write nor read the plane', (await refused(() => outsider.ops.savePlaneMove(code, { seat: '1', uid: 'c1', entry: make('planeoutsider', match) }))) && (await readAs(outsider, `tables/${code}/plane`)) === 'denied');
+  // a card being carried (2026-11-26): your own record only, members read it, removed on the drop
+  const carry = { seat: '1', card: 'c1', x: 100, y: 60, m: match };
+  await guest.ops.setCarry(code, carry);
+  check('the guest says where they are carrying a card, and the host can read it', (await readAs(host, `tables/${code}/carry/planeguest/x`)) === 100);
+  check("nobody can write another player's carry record", await refused(() => set(ref(guest.db, `tables/${code}/carry/planehost`), carry)));
+  check('someone not at the table can neither write nor read the carry records', (await refused(() => outsider.ops.setCarry(code, carry))) && (await readAs(outsider, `tables/${code}/carry`)) === 'denied');
+  await guest.ops.setCarry(code, null);
+  check('the drop removes the record', (await readAdmin(`tables/${code}/carry/planeguest`)) === null);
   await host.ops.clearPlaneEntries(code, '1', ['c1']);
   check('the owner clears the entry of a card that left the battlefield', (await entryOf('1', 'c1')) === null);
   await host.ops.endMatch(code);
