@@ -44,7 +44,7 @@ try {
   const bar = () => ev(`(() => { const p = document.getElementById('history-bar'); const r = p.getBoundingClientRect(); const cs = getComputedStyle(p); return { left: r.left, top: r.top, right: r.right, h: r.height, open: p.dataset.open, dock: p.dataset.dock, borderRight: cs.borderRightWidth, borderLeft: cs.borderLeftWidth, rows: document.querySelectorAll('.history-row').length, count: document.querySelector('.history-count').textContent }; })()`);
   const click = async (selector) => { const r = await rectOf(selector); await mouse('mouseMoved', r.cx, r.cy); await mouse('mousePressed', r.cx, r.cy, 1); await mouse('mouseReleased', r.cx, r.cy); await sleep(150); };
   const first = await bar();
-  check('the bar is thin, called Game history, closed, and attached to the right edge (no gap, no border on that side)', first.open === 'false' && first.h < 32 && first.right === 1280 && first.dock === 'right' && first.borderRight === '0px' && (await ev("document.querySelector('.history-title').textContent")) === 'Game history', JSON.stringify(first));
+  check('the history is in the rail on the right (the redesign, 2026-11-25), called Game history, and closed', first.open === 'false' && first.h < 40 && first.right === 1280 && (await ev("document.querySelector('.tool-dock[data-dock=\"rail\"]').contains(document.getElementById('history-bar'))")) && (await ev("document.querySelector('.history-title').textContent")) === 'Game history', JSON.stringify(first));
   await ev("document.getElementById('draw').click()"); await sleep(100);
   await click('.history-head');
   const opened = await bar();
@@ -69,7 +69,7 @@ try {
   await click('.history-head');
   check('a new game starts an empty history with one row for the new game', (await bar()).rows === 1);
 
-  // ---- the life piece: Life above the number, - and +, a quick click shows no circle, and it can be dragged ----
+  // ---- your life: - and +, a quick click shows no circle ----
   const life = () => ev("Number(document.getElementById('life').textContent)");
   const l0 = await life();
   await click('#life-minus'); await click('#life-plus'); await click('#life-plus');
@@ -85,12 +85,7 @@ try {
   await ev("document.querySelector('.life-input')?.blur()");
   check('holding the number longer does show the circle', ringHeld === true);
   if (process.argv.includes('--screenshot')) await browser.screenshot('scratch-life.png');
-  const lifeBox = await rectOf('#life-area');
-  await drag(await rectOf('#life-grip'), { x: 640, y: 420 });
-  const moved = await rectOf('#life-area');
-  check('dragging the word Life moves the whole piece (and it stays where it is let go)', moved.x > lifeBox.x + 300 && moved.y > lifeBox.y + 200, JSON.stringify({ lifeBox, moved }));
-  await drag(await rectOf('#life-grip'), { x: 4, y: 4 });
-  check('and near the corner it docks again', (await rectOf('#life-area')).x < 20);
+  check('your life is in your console (since the redesign it is not a piece of its own: the console is moved by its grip)', await ev("document.querySelector('.actions-panel').contains(document.getElementById('life-area'))"));
 
   // ---- the Counters dropdown, foil from the deck, and Move all to (Kevin, 2026-11-18) ----
   await mouse('mouseMoved', 5, 5); await ev("document.getElementById('new-game').click()"); await sleep(500);

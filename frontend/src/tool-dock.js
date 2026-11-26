@@ -1,28 +1,29 @@
 // Docks for the table's tools (Kevin, 2026-11-23): the stack, the game history and the action bar can sit in a dock instead of floating, like windows snapped side by side. A dock is a column on
 // the page; the tools in it are stacked top to bottom, and the stack takes whatever height the others leave, so a tool dropped into a dock makes the stack shorter instead of sliding under it.
 // The page picks the layout (layout(mode)). Since the redesign (Kevin, 2026-11-24, direction B) there is one dock, the RAIL on the right: 'grid' (Grid view) holds the Players section, the history,
-// the stack and your console; 'focus' (Sidebar view, the Focus Table) holds the first three while your console floats at the bottom left of your area; 'none' has no docks (no game yet). Which tools are in which dock, in which order, is kept in the browser for each layout.
+// the stack and your console; 'focus' (Sidebar view, the Focus Table) holds the same; 'solo' all but the Players section; 'none' has no docks (no game yet). Which tools are in which dock, in which order, is kept in the browser for each layout.
 // A floating tool (src/floating-bar.js) asks this module, through dockingFor(name), where a drag would land: over a dock, a line shows the place, and letting go docks it there; anywhere else it floats.
 
 const TOOLS = ['players', 'stack', 'history', 'bar'];
-const DOCKS = { grid: ['rail'], focus: ['rail'], none: [] };
-const DEFAULTS = { grid: { rail: ['players', 'history', 'stack', 'bar'] }, focus: { rail: ['players', 'history', 'stack'], float: ['bar'] } }; // (the stack takes the height the others leave)
+const DOCKS = { grid: ['rail'], focus: ['rail'], solo: ['rail'], none: [] };
+const DEFAULTS = { grid: { rail: ['players', 'history', 'stack', 'bar'] }, focus: { rail: ['players', 'history', 'stack', 'bar'] }, solo: { rail: ['history', 'stack', 'bar'] } }; // (solo: no Players section; 2026-11-25: the console is in the rail in every view, since floating it covered the hand) // (the stack takes the height the others leave)
 
 // A stored layout, read strictly: only known docks and tools, each tool once, and the stack always docked (it has no grip of its own). Anything else gives the default. `float` lists the tools
 // the player dragged out on purpose; a tool in no list (one added to the page after the layout was saved) goes where the default puts it.
 export function readDockLayout(mode, raw) {
   const fallback = DEFAULTS[mode] ? structuredClone(DEFAULTS[mode]) : {};
   if (!DOCKS[mode] || DOCKS[mode].length === 0) return {};
+  const known = TOOLS.filter((tool) => Object.values(fallback).some((list) => list.includes(tool))); // (the tools this layout has: the solo table has no Players section)
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return fallback;
   const seen = new Set();
   const out = {};
   for (const dock of DOCKS[mode]) {
     const list = Array.isArray(raw[dock]) ? raw[dock] : [];
-    out[dock] = list.filter((tool) => TOOLS.includes(tool) && !seen.has(tool) && seen.add(tool));
+    out[dock] = list.filter((tool) => known.includes(tool) && !seen.has(tool) && seen.add(tool));
   }
-  out.float = (Array.isArray(raw.float) ? raw.float : []).filter((tool) => TOOLS.includes(tool) && tool !== 'stack' && !seen.has(tool) && seen.add(tool));
+  out.float = (Array.isArray(raw.float) ? raw.float : []).filter((tool) => known.includes(tool) && tool !== 'stack' && !seen.has(tool) && seen.add(tool));
   if (!seen.has('stack')) { out[DOCKS[mode][0]].unshift('stack'); seen.add('stack'); }
-  for (const tool of TOOLS) {
+  for (const tool of known) {
     if (seen.has(tool)) continue;
     if (fallback.float?.includes(tool)) { out.float.push(tool); continue; } // (its default is to float)
     const dock = DOCKS[mode].find((name) => fallback[name]?.includes(tool)) ?? DOCKS[mode][0];
@@ -41,10 +42,11 @@ export function readDockStore(text) {
 }
 export function writeDockStore(text, mode, lists) { return JSON.stringify({ ...readDockStore(text), [mode]: lists }); }
 
-// elements: { stack, history, bar } (the tools' root elements); stackWindow: its pin(on); onFloat(name): a tool left a dock and floats again (place it); store: safe browser storage.
+// elements: { players?, stack, history, bar } (the tools' root elements; the solo table has no players); stackWindow: its pin(on); onFloat(name): a tool left a dock and floats again (place it); store: safe browser storage.
 export function createToolDocks({ elements, stackWindow, onFloat = () => {}, store = null, key = 'overloaded.toolDocks' }) {
   const host = elements.bar.parentElement;
-  const home = Object.fromEntries(TOOLS.map((name) => [name, { parent: elements[name].parentElement, next: elements[name].nextSibling }]));
+  const names = TOOLS.filter((name) => elements[name]);
+  const home = Object.fromEntries(names.map((name) => [name, { parent: elements[name].parentElement, next: elements[name].nextSibling }]));
   const docks = {};
   for (const name of ['rail']) {
     const dock = document.createElement('div');
@@ -78,7 +80,7 @@ export function createToolDocks({ elements, stackWindow, onFloat = () => {}, sto
       });
     }
     const docked = new Set(Object.entries(lists).filter(([dock]) => dock !== 'float').flatMap(([, list]) => list));
-    for (const name of TOOLS) if (!docked.has(name) && elements[name].classList.contains('tool-docked')) { goHome(name); if (name !== 'stack') onFloat(name); }
+    for (const name of names) if (!docked.has(name) && elements[name].classList.contains('tool-docked')) { goHome(name); if (name !== 'stack') onFloat(name); }
     stackWindow.pin(docked.has('stack'));
   }
   function save() { store?.set(key, writeDockStore(store?.get(key), mode, lists)); }

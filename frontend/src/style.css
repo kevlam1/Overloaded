@@ -1992,18 +1992,18 @@ body.playing.seats .seat-name { position: absolute; left: calc(var(--bl) + var(-
 body.playing.seats .seat-name .turn-mark { margin-left: 0.4rem; }
 @container (width < 60rem) { body.playing.seats .seat-name { position: static; translate: none; flex: 0 1 auto; max-width: none; min-width: 0; } } /* (a narrow area: the name right after the life, never over it) */
 /* your life: one line, − 40 + and the arrow that opens the counters panel (frontend/src/counter-panel.js), the chips of what you have after it */
-body.playing.seats #life-area { position: static; inset: auto; translate: none; z-index: auto; display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; gap: 0.25rem; width: auto; min-width: 0; height: calc(var(--T) - 0.5rem); padding: 0 0.35rem 0 0.5rem; transition: none; }
-body.playing.seats #life-area .life-grip { width: auto; padding: 0 0.15rem 0 0; cursor: context-menu; font-size: 0.6rem; }
-body.playing.seats #life-area .life-row { gap: 0.15rem; }
-body.playing.seats #life-area .life-step { width: 1.4rem; min-width: 1.4rem; height: 1.4rem; font-size: 0.95rem; }
-body.playing.seats #life-area .life-number { min-width: 2.2rem; font-size: 1.2rem; line-height: 1.2; }
-body.playing.seats #life-area .life-counters { display: grid; place-items: center; width: 1.5rem; min-width: 0; height: 1.5rem; margin: 0; padding: 0; border-radius: 0.4rem; }
-body.playing.seats #life-area .life-counters::after { content: none; }
-body.playing.seats #life-area .life-counters svg { transition: rotate 0.15s; }
-body.playing.seats #life-area .life-counters[aria-expanded="true"] svg { rotate: 180deg; }
-@media (prefers-reduced-motion: reduce) { body.playing.seats #life-area .life-counters svg { transition: none; } }
-body.playing.seats #life-area .counter-chips:empty { display: none; }
-body.playing.seats #life-area .counter-chips { flex-wrap: nowrap; }
+body.playing:is(.solo, .seats) #life-area { position: static; inset: auto; translate: none; z-index: auto; display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; gap: 0.25rem; width: auto; min-width: 0; height: calc(var(--T) - 0.5rem); padding: 0 0.35rem 0 0.5rem; transition: none; }
+body.playing:is(.solo, .seats) #life-area .life-grip { width: auto; padding: 0 0.15rem 0 0; cursor: context-menu; font-size: 0.6rem; }
+body.playing:is(.solo, .seats) #life-area .life-row { gap: 0.15rem; }
+body.playing:is(.solo, .seats) #life-area .life-step { width: 1.4rem; min-width: 1.4rem; height: 1.4rem; font-size: 0.95rem; }
+body.playing:is(.solo, .seats) #life-area .life-number { min-width: 2.2rem; font-size: 1.2rem; line-height: 1.2; }
+body.playing:is(.solo, .seats) #life-area .life-counters { display: grid; place-items: center; width: 1.5rem; min-width: 0; height: 1.5rem; margin: 0; padding: 0; border-radius: 0.4rem; }
+body.playing:is(.solo, .seats) #life-area .life-counters::after { content: none; }
+body.playing:is(.solo, .seats) #life-area .life-counters svg { transition: rotate 0.15s; }
+body.playing:is(.solo, .seats) #life-area .life-counters[aria-expanded="true"] svg { rotate: 180deg; }
+@media (prefers-reduced-motion: reduce) { body.playing:is(.solo, .seats) #life-area .life-counters svg { transition: none; } }
+body.playing:is(.solo, .seats) #life-area .counter-chips:empty { display: none; }
+body.playing:is(.solo, .seats) #life-area .counter-chips { flex-wrap: nowrap; }
 /* their life: the number, and the chips of their counters and commander damage */
 body.playing.seats .opp-life-box { display: flex; align-items: center; gap: 0.4rem; height: calc(var(--T) - 0.5rem); padding: 0 0.55rem; border: 1px solid var(--line); border-radius: 0.6rem; background: var(--glass, rgba(22, 22, 30, 0.78)); }
 body.playing.seats .opp-life { font-size: 1.2rem; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }

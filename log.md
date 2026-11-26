@@ -5505,6 +5505,40 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 - The console's old saved place is not reused (a new key, `overloaded.seatsConsole`), so everyone starts from the new default.
 - Claude's mistake on the way: its first script for the `table.js` edits failed on a shell quoting error and changed nothing; it was redone from a file and the result checked.
 
+## 280. Redesign step 3: the solo table on the same shell (2026-11-25)
+
+**What I asked for**
+- "Proceed": step 3 of the redesign plan, the solo table on the same top bar and rail as the multiplayer table.
+
+**What changed**
+- **Top bar:** the solo table has the same one as the multiplayer table: the turn, the news line (the deck and the last message) and the menu button. A place for the phase tracker is kept for step 4.
+- **Rail:** Game history, the stack and my console (life, Draw, Next turn, Untap all, Mulligan, New game) are in a rail on the right. Each part can be dragged out by its header or grip and dropped back. The stack no longer slides out from a tab on the left. `frontend/src/tool-dock.js` now takes a smaller set of tools, since solo has no Players section.
+- **Life:** it is no longer a floating piece of its own. It sits in the console on one line: the word Life, −, the number, +, and the counters arrow (the wide "Counters" button became that arrow, as on the table).
+- **The console sits in the rail by default in Sidebar view too.** The plan had it floating at the bottom left, but there it covered the left of my hand, on solo and on the table. Grid view already had it in the rail. It can still be dragged out.
+- **The battlefield fits its room** (`fitBoard` in `solo.js`):
+  - It runs from under the top bar to the rail, and down to just above whichever is taller: the part of a resting hand card that shows (my Resting hand setting), or the row of piles with their names.
+  - Its cells are square, about 112 across as before (16 cards). A taller window gets more whole rows of cards instead of bigger cards.
+  - With the rail, the old fixed 112-by-50 grid had shrunk and left an empty band above the hand. Rows fixed at 50 would have given 8 huge cards across on a tall window.
+- **Piles and hand:** the room for the hand is 36rem instead of 42rem. Without that change the piles shrank to about 41 px at 1280 wide; now they are about 70 px at 1366 and still 6.8rem on a wide window. The hand now ends where the piles begin (measured), so they never overlap.
+- **Hand rectangle:** a rectangle that picks hand cards can start anywhere in the hand's area again. It listened on the battlefield, which no longer reaches down behind the hand.
+
+**What I checked**
+- `scripts/test-tool-dock.mjs`: 8 checks, with the solo layout and the console's new default.
+- Rewritten on purpose where they measured the old pieces:
+  - `scripts/check-solo-ui.mjs` (470): the shell, my life on one line in the console, the console starting in the rail, then dragged out, docked to the edges of its room, back onto the rail, Home, reload and damaged storage. Also the grid's real size in the drag tests, the pile size formula, a drop on the top bar instead of the old empty band, and the menu's flip.
+  - `scripts/check-stack-ui.mjs` (26): the stack in the rail, always open, and its arrows show.
+  - `scripts/check-history-and-select-ui.mjs` (27): the history in the rail, my life in the console instead of being dragged.
+- Screenshots looked at: the solo table at 1366x768 several times while fixing, and Sidebar view from the live seats check.
+- **A mistake of Claude's, caught:**
+  - At first the board's bottom was worked out from a hand card on every drawing of the table. A picked card is a different size, so the board could move in the middle of a click.
+  - The solo check then failed in 2 of 4 runs, a different 2 checks each time, while the committed code passed twice.
+  - The bottom now comes from the hand's box and is set only when a size changes. After that: 3 of 3 clean runs.
+- `npm test` 97 of 97 suites; `npm run test:live` 107 of 107; the live seats check 38 of 38.
+
+**Decisions**
+- Solo keeps about 112 columns (my card density) instead of the table's fixed rows: more room becomes more rows, not bigger cards.
+- The old saved places of the solo action bar and life piece (`overloaded.actionBar`, `overloaded.lifeBar`) are no longer read; the console's floating place is `overloaded.soloConsole`.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-24, entry 277) Claude told me the tool docks remembered their layout (entries 273 and 276) when the code stored "[object Object]"; the audit for the spec found it.
 - (2026-11-23, entry 273) I said "commit and push after every big change" and meant every big prompt; Claude pushed after each of three changes.

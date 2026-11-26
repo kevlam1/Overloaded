@@ -60,7 +60,7 @@ try {
   const status = () => ev("document.getElementById('status').textContent");
 
   // ---- adding a card ----
-  check('the tab is at the left edge and the window is slid away', await ev(`(() => { const w = document.getElementById('stack-window'); const t = w.querySelector('.stack-tab').getBoundingClientRect(); return w.dataset.open === 'false' && w.querySelector('.stack-panel').inert && t.left <= 2 && t.top > 100; })()`));
+  check('the stack is in the rail on the right, always open, with no tab (the redesign, 2026-11-25)', await ev(`(() => { const w = document.getElementById('stack-window'); const rail = document.querySelector('.tool-dock[data-dock="rail"]'); return rail.contains(w) && w.dataset.pinned === 'true' && w.dataset.open === 'true' && !w.querySelector('.stack-panel').inert && getComputedStyle(w.querySelector('.stack-tab')).display === 'none'; })()`));
   const handBefore = await count('#hand > .card');
   await menuOfHandCard(); await sleep(150);
   check('a card of the hand has "Add to the stack" in its menu', (await labels()).includes('Add to the stack'));
@@ -149,9 +149,7 @@ try {
   const mid = await ev(`(() => { const p = document.querySelectorAll('.stack-arrows .stack-arrow-hit')[0]; const q = p.getPointAtLength(p.getTotalLength() / 2); return { x: q.x, y: q.y }; })()`);
   await mouse('mouseMoved', mid.x, mid.y); await mouse('mousePressed', mid.x, mid.y, 'right', 2); await mouse('mouseReleased', mid.x, mid.y, 'right'); await sleep(150);
   check('right-clicking an arrow offers Remove, and it takes the arrow away; Undo brings it back', JSON.stringify(await labels()) === '["Remove"]' && (await pick('Remove')) && (await arrows()) === 1 && (await button('Undo')) !== null && (await sleep(100), (await arrows()) === 2));
-  await ev("document.querySelector('.stack-tab').click()"); await sleep(250);
-  check('with the window slid away the arrows are hidden', await ev(`getComputedStyle(document.querySelector('.stack-arrows')).display === 'none'`));
-  await ev("document.querySelector('.stack-tab').click()"); await sleep(300);
+  check('the arrows show while the stack is in the rail', await ev(`getComputedStyle(document.querySelector('.stack-arrows')).display !== 'none'`));
 
   if (process.argv.includes('--screenshot')) await browser.screenshot('scratch-stack.png');
   // ---- the limit ----

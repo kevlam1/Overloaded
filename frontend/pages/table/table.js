@@ -952,7 +952,7 @@ function layoutSeats() {
   hand.classList.toggle('docked', docked);
   $('seats-stage').classList.toggle('hand-docked', docked);
   // The rail (the redesign, Kevin 2026-11-24): the Players section, the history, the stack and your console are docked on the right in both views (src/tool-dock.js);
-  // in Sidebar view your console floats at the bottom left of your area by default. Every part can be dragged out to float and back.
+  // every part can be dragged out to float and back (the console floated by default in Sidebar view until 2026-11-25, over the hand).
   const toolMode = game === null ? 'none' : sidebar ? 'focus' : 'grid';
   const toolsChanged = toolDocks.mode() !== toolMode;
   document.body.classList.toggle('rail-on', toolMode !== 'none');

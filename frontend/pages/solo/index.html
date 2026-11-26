@@ -7,6 +7,7 @@
     <link rel="icon" href="data:,">
     <link rel="stylesheet" href="/src/style.css">
     <link rel="stylesheet" href="/src/styles/components.css">
+    <link rel="stylesheet" href="/src/styles/game-shell.css">
   </head>
   <body>
     <main class="table">
@@ -27,19 +28,17 @@
       </section>
 
       <div id="game" hidden>
-        <button id="settings-button" type="button" class="hud-menu" aria-haspopup="dialog" aria-expanded="false" aria-controls="settings-menu" aria-label="Menu and settings" title="Menu and settings"><svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor" aria-hidden="true"><rect x="2" y="4" width="14" height="2" rx="1"/><rect x="2" y="8" width="14" height="2" rx="1"/><rect x="2" y="12" width="14" height="2" rx="1"/></svg></button>
-        <section class="bar" aria-label="The game">
-          <div id="life-area" class="life" role="group" aria-label="Life total and counters" title="Right-click next to the number for counters (poison and so on)">
-            <button id="life-grip" type="button" class="life-grip" aria-label="Life: drag to move, arrow keys also move it" title="Drag to move">Life</button>
-            <div class="life-row">
-              <button id="life-minus" type="button" class="life-step" aria-label="Lose 1 life (Shift: 5)" title="Lose 1 (Shift: 5)">&minus;</button>
-              <span><button id="life" type="button">20</button></span>
-              <button id="life-plus" type="button" class="life-step" aria-label="Gain 1 life (Shift: 5)" title="Gain 1 (Shift: 5)">+</button>
-            </div>
-            <button id="life-counters" type="button" class="life-counters" aria-haspopup="menu" aria-expanded="false">Counters</button>
-            <div id="life-chips" class="counter-chips" role="group" aria-label="Your counters"></div>
+        <!-- The top bar (the redesign, 2026-11-25, as on the multiplayer table): the turn, the phase (a later step), the news line, the menu. -->
+        <header id="game-bar" class="game-bar">
+          <div class="turn-line">
+            <p class="stat turn-stat">Turn <strong id="turn">1</strong></p>
           </div>
-        </section>
+          <div id="phase-strip" class="phase-strip" hidden></div>
+          <div id="topbar-slot" class="topbar-slot"></div>
+          <div class="seats-hud">
+            <button id="settings-button" type="button" class="hud-menu" aria-haspopup="dialog" aria-expanded="false" aria-controls="settings-menu" aria-label="Menu and settings" title="Menu and settings"><svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor" aria-hidden="true"><rect x="2" y="4" width="14" height="2" rx="1"/><rect x="2" y="8" width="14" height="2" rx="1"/><rect x="2" y="12" width="14" height="2" rx="1"/></svg></button>
+          </div>
+        </header>
 
         <section id="history-bar" class="history-panel" aria-label="Game history"></section>
 
@@ -58,7 +57,16 @@
         <aside id="right-column" class="right-column" aria-label="Your actions and your piles">
           <section class="actions-panel" aria-label="Your actions">
             <button id="bar-grip" type="button" class="bar-grip" aria-label="Move the action bar: drag it, or use the arrow keys (Home puts it back)" title="Drag to move the bar"><svg width="12" height="18" viewBox="0 0 12 18" fill="currentColor" aria-hidden="true"><circle cx="3" cy="3" r="1.6"/><circle cx="9" cy="3" r="1.6"/><circle cx="3" cy="9" r="1.6"/><circle cx="9" cy="9" r="1.6"/><circle cx="3" cy="15" r="1.6"/><circle cx="9" cy="15" r="1.6"/></svg></button>
-            <p class="stat turn-stat">Turn <strong id="turn">1</strong></p>
+            <div id="life-area" class="life" role="group" aria-label="Life total and counters" title="Right-click next to the number for counters (poison and so on)">
+              <button id="life-grip" type="button" class="life-grip" aria-label="Life (right-click for counters)">Life</button>
+              <div class="life-row">
+                <button id="life-minus" type="button" class="life-step" aria-label="Lose 1 life (Shift: 5)" title="Lose 1 (Shift: 5)">&minus;</button>
+                <span><button id="life" type="button">20</button></span>
+                <button id="life-plus" type="button" class="life-step" aria-label="Gain 1 life (Shift: 5)" title="Gain 1 (Shift: 5)">+</button>
+              </div>
+              <button id="life-counters" type="button" class="life-counters" aria-haspopup="menu" aria-expanded="false" aria-label="Counters" title="Counters"><svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M2.2 4.2 6 8l3.8-3.8-.9-.9L6 6.2 3.1 3.3z"/></svg></button>
+              <div id="life-chips" class="counter-chips" role="group" aria-label="Your counters"></div>
+            </div>
             <div class="actions" role="group" aria-label="Actions">
               <button id="draw" type="button" title="Draw"><svg class="act-icon" width="18" height="18" viewBox="0 0 18 18" fill="currentColor" aria-hidden="true"><path d="M5 1.5h8A1.5 1.5 0 0 1 14.5 3v12a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 15V3A1.5 1.5 0 0 1 5 1.5Zm0 1.5v12h8V3Zm4 1.8 3.2 3.4H10V12H8V7.9H5.8Z"/></svg><span class="act-label">Draw</span></button>
               <button id="next-turn" type="button" title="Next turn"><svg class="act-icon" width="18" height="18" viewBox="0 0 18 18" fill="currentColor" aria-hidden="true"><path d="M1.5 3.5 8.5 9l-7 5.5Zm7.5 0L16 9l-7 5.5Z"/></svg><span class="act-label">Next turn</span></button>

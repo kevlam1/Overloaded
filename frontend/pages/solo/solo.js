@@ -33,7 +33,7 @@ import { openScryWindow } from '../../src/scry-window.js';
 import { mountCardHover } from '../../src/card-hover.js';
 import { mountBoardDrag } from '../../src/board-drag.js';
 import { mountHand } from '../../src/hand-view.js';
-import { stepFrom } from '../../../shared/board-grid.mjs';
+import { stepFrom, setBoardSize, CARD_COLS, CARD_ROWS } from '../../../shared/board-grid.mjs';
 import { createDealer, SHUFFLE_PAUSE_MS } from '../../../shared/deal-sequence.mjs';
 import { loadCardList } from '../../src/card-list.js';
 import { LIBRARY_KEY, LEGACY_KEY, readLibrary, selectedEntry } from '../../../shared/deck-library.mjs';
@@ -52,6 +52,7 @@ import { menuItems, menuAction, turnLabel, turnMessage, playBackLabel, PLAY_BACK
 import { marksSentence, markClick, printedOf } from '../../../shared/marks.mjs';
 import { chipEntries, playerMenuItems, playerAction, playerAddItems } from '../../../shared/player-counters.mjs';
 import { createToken, createEmblem, changeCounter, setFaceDown, makeGame, draw, moveCard, shuffleLibrary, mulligan, setTapped, turnOver, untapAll, heldTapped, adjustLife, nextTurn, boardCells, placeCard, placeStack, placeGroup, zoneCounts, reorderHand } from '../../../shared/zones.mjs';
+import { createToolDocks } from '../../src/tool-dock.js';
 
 const $ = (id) => document.getElementById(id);
 const store = makeSafeStore();
@@ -389,6 +390,8 @@ function deal({ pause = 0 } = {}) {
   cardNodes.clear();
   $('game').hidden = false;
   document.body.classList.add('playing', 'solo'); // the one-screen layout (src/style.css)
+  shell(true);
+  requestAnimationFrame(() => { if (fitBoard()) requestAnimationFrame(() => { if (fitBoard() && game) render(); }); }); // (the board's place and grid, once the table shows)
   $('blocked').hidden = true;
   dealer.start(game.zones.hand.length, { pause }); // draws the table, and deals the hand one card at a time
   historyBar.clear();
@@ -468,6 +471,7 @@ function togglePile(zone) {
 function showBlocked(message, { link = true, retry = false } = {}) {
   $('game').hidden = true;
   document.body.classList.remove('playing', 'solo');
+  shell(false);
   $('blocked').hidden = false;
   $('blocked-message').textContent = message;
   $('blocked-link').hidden = !link;
@@ -508,11 +512,75 @@ $('untap-all').addEventListener('click', () => { play('tap'); apply(() => untapA
 mountSoundSettings($('sound-settings'));
 // ---- piles drawn diagonally or horizontally (shared/pile-style.mjs), a double click taps a card, a click on empty space deselects ----
 mountPileStyle($('pile-style-settings'));
-const historyBar = mountHistoryBar({ root: $('history-bar'), store }); // (Kevin, 2026-11-18: a thin bar like the action bar that opens downward to show the moves of this game)
+// The rail on the right (the redesign, 2026-11-25, as on the multiplayer table: src/tool-dock.js): the game history, the stack and your console.
+// Each can be dragged out by its header to float, and dropped back on the rail. The floating tools keep out of the rail.
+const floatingBars = [];
+let stackWindowRef = null;
+const toolDocks = createToolDocks({
+  elements: { stack: $('stack-window'), history: $('history-bar'), bar: document.querySelector('.actions-panel') },
+  stackWindow: { pin: (on) => stackWindowRef?.pin(on) },
+  onFloat: () => { for (const bar of floatingBars) bar.relayout(); },
+  store,
+});
+// The battlefield's grid fits its box (the redesign, 2026-11-25): square cells about as wide as the solo table always had (112 across, 16 cards), and as many whole rows of cards
+// as the height holds, so a taller window gives more rows instead of bigger cards (and no empty band above the hand). A card stored past the edge of a smaller grid is drawn
+// at its edge (shared/board-grid.mjs). Nothing is saved on the solo table, so nothing else changes.
+const SOLO_COLS = 112;
+// The battlefield ends just above whichever is taller: the part of a resting hand card that shows (your Resting hand setting), or the row of piles (with their names).
+// A card on the bottom row is then never under the hand, where a click would reach the hand instead.
+function boardBottom() {
+  const box = $('hand'); const style = getComputedStyle(box); const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+  const cardHeight = Math.max(0, box.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom) - 2.8 * rem); // (from the hand's box, as src/hand-view.js sizes its cards: steady while cards are dealt, picked or carried)
+  const handShows = cardHeight * (1 - Number(restHidden()));
+  const piles = document.querySelector('.side-panels').getBoundingClientRect();
+  const pileRow = piles.height ? window.innerHeight - piles.top : 0;
+  return Math.round(Math.max(handShows, pileRow) + 6);
+}
+// Sets the board's bottom; true when it moved. Called when a size changes (the window, the hand's box, the piles) and when a game starts, never on every drawing (moving the board mid-click lost clicks).
+function placeBoardBottom() {
+  if (!document.body.classList.contains('playing')) return false;
+  const zonesLeft = `${Math.round(document.querySelector('.side-panels').getBoundingClientRect().left)}px`; // (the hand ends where the piles begin)
+  if (document.body.style.getPropertyValue('--zones-left') !== zonesLeft) document.body.style.setProperty('--zones-left', zonesLeft);
+  const bottom = `${boardBottom()}px`;
+  if ($('my-board').style.bottom === bottom) return false;
+  $('my-board').style.bottom = bottom;
+  return true;
+}
+function fitBoard() {
+  const element = $('battlefield');
+  if (placeBoardBottom()) return false; // (the board's size changes: the observer comes back)
+  const width = element.clientWidth; const height = element.clientHeight;
+  if (!width || !height) return false;
+  const rows = Math.max(CARD_ROWS, Math.floor(height / (width / SOLO_COLS) / CARD_ROWS + 0.001) * CARD_ROWS);
+  const cols = Math.max(CARD_COLS, Math.floor(width / (height / rows) + 0.001));
+  if (element.style.getPropertyValue('--cols') !== String(cols)) element.style.setProperty('--cols', String(cols));
+  if (element.style.getPropertyValue('--rows') !== String(rows)) element.style.setProperty('--rows', String(rows));
+  return setBoardSize({ cols, rows });
+}
+if (typeof ResizeObserver === 'function') {
+  let frame = 0;
+  const observer = new ResizeObserver(() => { if (frame) return; frame = requestAnimationFrame(() => { frame = 0; if (fitBoard() && game) render(); }); });
+  for (const id of ['battlefield', 'hand']) observer.observe($(id));
+  observer.observe(document.querySelector('.side-panels'));
+}
+const railRoom = () => ({ right: document.body.classList.contains('rail-on') ? document.querySelector('.tool-dock[data-dock="rail"]')?.offsetWidth ?? 0 : 0 });
+// While a game shows: the rail, and the line of news in the top bar (it goes back to the top of the page otherwise).
+function shell(on) {
+  const mode = on ? 'solo' : 'none';
+  const changed = toolDocks.mode() !== mode;
+  document.body.classList.toggle('rail-on', on);
+  toolDocks.layout(mode);
+  const topbar = document.querySelector('.topbar');
+  if (on) { if (topbar.parentElement !== $('topbar-slot')) $('topbar-slot').append(topbar); }
+  else if (topbar.parentElement === $('topbar-slot')) $('blocked').before(topbar);
+  if (changed) for (const bar of floatingBars) bar.relayout();
+}
+const historyBar = mountHistoryBar({ root: $('history-bar'), store, room: railRoom, docking: toolDocks.dockingFor('history') }); // (Kevin, 2026-11-18: the moves of this game; in the rail since the redesign)
+floatingBars.push(historyBar);
 const record = (message) => historyBar.add(message, game?.turn);
 noteMessage = (message, options) => { if (document.body.classList.contains('playing')) historyBar.note(message, options); }; // (outside a game the line itself shows)
-const stackWindow = mountStackWindow({ root: $('stack-window'), printedStats: (card) => printedOf(card, lookup), say }); // (Kevin, 2026-11-17: a window that slides out from the left with copies of cards, text boxes and arrows; a visual aid, the game is not touched)
-mountHandRestSetting($('hand-rest-settings'), { onChange: () => handView.arrange() }); // (the hand is made further down, but the slider only works after it is)
+const stackWindow = stackWindowRef = mountStackWindow({ root: $('stack-window'), printedStats: (card) => printedOf(card, lookup), say }); // (Kevin, 2026-11-17: a window that slides out from the left with copies of cards, text boxes and arrows; a visual aid, the game is not touched)
+mountHandRestSetting($('hand-rest-settings'), { onChange: () => { handView.arrange(); if (fitBoard() && game) render(); } }); // (the hand is made further down, but the slider only works after it is)
 const viewer = mountPileViewer({ root: $('viewer'), nodeFor: (card) => cardNodes.nodeFor(card, false), onClose: () => { viewing = null; viewTop = null; viewBottom = false; viewReveal = false; if (game) render(); } });
 for (const tab of document.querySelectorAll('#viewer .viewer-tab')) tab.addEventListener('click', () => { if (game) openPile(tab.dataset.view); });
 viewer.onSearch(() => { if (game && viewing) renderViewer(); });
@@ -589,8 +657,8 @@ for (const zone of ['library', 'graveyard', 'exile', 'sideboard']) {
 }
 const settings = mountSettingsMenu({ button: $('settings-button'), panel: $('settings-menu') });
 mountKeybindSettings($('keybind-settings'), { keybinds, page: 'solo' });
-// the action buttons are a floating bar you drag by its grip (src/floating-bar.js)
-mountFloatingBar({ bar: document.querySelector('.actions-panel'), grip: $('bar-grip'), store });
+// your console (your life and the action buttons) is in the rail; drag it out by its grip to float it, and back onto the rail (src/floating-bar.js, src/tool-dock.js)
+floatingBars.push(mountFloatingBar({ bar: document.querySelector('.actions-panel'), grip: $('bar-grip'), store, key: 'overloaded.soloConsole', defaultPlace: { dock: 'bottom', fx: 0, fy: 1 }, room: railRoom, docking: toolDocks.dockingFor('bar') }));
 $('pile-sideboard').addEventListener('click', () => settings.close()); // the viewer opens over the table; the Settings panel would only be in the way
 
 // A right click on empty battlefield offers to make a token (Kevin, 2026-11-19): the window of tokens is src/token-picker.js, the list of them /data/tokens.json (shared/card-tokens.mjs).
@@ -704,8 +772,8 @@ document.addEventListener('keydown', (event) => {
 // (Moving the group together is not built.)
 let marquee = null;
 let marqueeEnded = false;
-$('my-board').addEventListener('pointerdown', (event) => { // (the board reaches down behind the hand, so a rectangle can start in the area of the hand as well as on the battlefield)
-  if (!game || event.button !== 0 || event.pointerType === 'touch' || event.target.closest('.card, .stack-hold-ring')) return;
+document.addEventListener('pointerdown', (event) => { // (on the page, not the board: since the redesign the board ends above the hand, and a rectangle can start in the area of the hand too)
+  if (!game || event.button !== 0 || event.pointerType === 'touch' || event.target.closest('.card, .stack-hold-ring, button, input, .tool-dock, .actions-panel, .history-panel, .game-bar, .side-panels, .card-menu, #viewer, #settings-menu')) return;
   const zone = handView.over(event.clientX, event.clientY) ? 'hand' : event.target.closest('#battlefield') ? 'battlefield' : null;
   if (!zone) return;
   marquee = { x: event.clientX, y: event.clientY, box: null, zone, hits: new Set(), more: event.shiftKey && multiZone === zone ? new Set(multi) : new Set() };
@@ -945,8 +1013,7 @@ mountBoardDrag({ board: () => $('battlefield'), onDrop: dropOnBoard, groupOf: (u
 $('mulligan').addEventListener('click', doMulligan);
 $('new-game').addEventListener('click', async () => { if (await askConfirm({ title: 'Start a new game?', message: 'This one will be lost.', confirmLabel: 'New game', returnFocus: $('new-game') })) { play('shuffle'); deal({ pause: SHUFFLE_PAUSE_MS }); } });
 // the life total is the number itself: click, right-click, Shift for 5, hold to set (src/life-control.js)
-// the life piece floats like the action bar (Kevin, 2026-11-18): the word Life above the number is the handle, and a - and a + sit beside the number
-mountFloatingBar({ bar: $('life-area'), grip: $('life-grip'), store, key: 'overloaded.lifeBar', defaultPlace: { dock: 'top', fx: 0, fy: 0 } });
+// (the life sits in your console since the redesign; a - and a + beside the number)
 for (const [id, sign] of [['life-minus', -1], ['life-plus', 1]]) $(id).addEventListener('click', (event) => apply(() => adjustLife(game, sign * (event.shiftKey ? 5 : 1)), ''));
 mountLifeControl({ button: $('life'), say, onDelta: (delta) => apply(() => adjustLife(game, delta), ''), onSet: (value) => apply(() => adjustLife(game, value - game.life), `Life is ${value}.`) });
 for (const zone of ['graveyard', 'exile', 'sideboard']) $(`pile-${zone}`).addEventListener('click', () => togglePile(zone)); // (the library is opened from its menu: View library, Kevin 2026-11-15)

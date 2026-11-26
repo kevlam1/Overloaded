@@ -164,7 +164,7 @@ try {
   const lifeKey = async (name, shift = false, alt = false) => { const vk = { ArrowUp: 38, ArrowDown: 40, ArrowLeft: 37, ArrowRight: 39, Enter: 13, Escape: 27 }[name]; await browser.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: name, code: name, windowsVirtualKeyCode: vk, modifiers: (shift ? 8 : 0) | (alt ? 1 : 0) }); await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: name, code: name, windowsVirtualKeyCode: vk }); await sleep(60); };
   const editorOpen = () => ev("Boolean(document.querySelector('.life-input'))");
   const typeLife = (text) => ev("(() => { const i = document.querySelector('.life-input'); i.value = " + JSON.stringify(text) + "; })()");
-  check('the life piece has the word Life above the number, a - on its left and a + on its right', await ev(`(() => { const r = (id) => document.getElementById(id).getBoundingClientRect(); return document.getElementById('life-grip').textContent === 'Life' && r('life-grip').bottom <= r('life').top + 4 && r('life-minus').right <= r('life').left + 2 && r('life-plus').left >= r('life').right - 2; })()`));
+  check('your life is in your console on one line: the word Life, a -, the number, a + (the redesign, 2026-11-25)', await ev(`(() => { const r = (id) => document.getElementById(id).getBoundingClientRect(); return document.querySelector('.actions-panel').contains(document.getElementById('life-area')) && document.getElementById('life-grip').textContent === 'Life' && r('life-grip').right <= r('life-minus').left + 2 && r('life-minus').right <= r('life').left + 2 && r('life-plus').left >= r('life').right - 2 && Math.abs(r('life-minus').top + r('life-minus').height / 2 - (r('life').top + r('life').height / 2)) < 6; })()`));
   await lifeClick('left');
   check('a left click on the number gains 1', (await $text('life')) === '41', await $text('life'));
   await lifeClick('left', true);
@@ -380,7 +380,7 @@ try {
     { // the cards picked up with a rectangle move together: take one of them and every one goes by as much, keeping its place relative to the others
       const cellsNow = () => ev("[...document.querySelectorAll('#battlefield > .card')].map((c) => [c.getAttribute('aria-label').split(',')[0], Number(c.dataset.col), Number(c.dataset.row)])");
       const beforeMove = await cellsNow();
-      const cell = (await ev("document.getElementById('battlefield').getBoundingClientRect().width")) / 112;
+      const cell = (await ev("document.getElementById('battlefield').getBoundingClientRect().width")) / (await ev("Number(document.getElementById('battlefield').style.getPropertyValue('--cols'))"));
       const grab = await ev("(() => { const r = document.querySelector('#battlefield > .card').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + Math.min(r.height, innerHeight - r.top) / 2 }; })()");
       await move(grab);
       await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: grab.x, y: grab.y, button: 'left', buttons: 1, clickCount: 1 });
@@ -410,17 +410,16 @@ try {
     // the command zone: the tax counter above each commander and the words below and between the two slots
     const layout = await ev("(() => { const r = (s) => document.querySelector(s).getBoundingClientRect(); const one = document.querySelector('.cmd-slot[data-slot=\"1\"]'); const tax = one.querySelector('.tax').getBoundingClientRect(); const cards = one.querySelector('.slot-cards').getBoundingClientRect(); const a = r('.cmd-slot[data-slot=\"1\"] .slot-cards'); const b = r('.cmd-slot[data-slot=\"2\"] .slot-cards'); return { pilesAligned: ['library', 'graveyard', 'exile'].map((zone) => { const f = document.querySelector('#pile-' + zone + ' .stack-face').getBoundingClientRect(); return [Math.round((f.top - a.top) * 10) / 10, Math.round((a.bottom - f.bottom) * 10) / 10]; }), aligned: Math.abs(a.top - b.top) < 1 && Math.abs(a.bottom - b.bottom) < 1, taxAbove: tax.bottom <= cards.top + 1 }; })()");
     check('in the command zone the two slots line up (the empty one too), the library, graveyard and exile line up with them (same top and bottom as the card inside a slot frame), and the tax is above its commander', layout.pilesAligned.every(([top, bottom]) => Math.abs(top - 3.2) < 2 && Math.abs(bottom - 3.2) < 2) && layout.aligned && layout.taxAbove, JSON.stringify(layout));
-    const frame = await ev("(() => { const slot = (n) => document.querySelector('.cmd-slot[data-slot=\"' + n + '\"] .slot-cards'); const s1 = getComputedStyle(slot(1)); const s2 = getComputedStyle(slot(2)); const words = document.querySelector('#command-zone h3').getBoundingClientRect(); const zones = document.querySelector('.side-panels').getBoundingClientRect(); const card = document.querySelector('#pile-library .stack-face').getBoundingClientRect(); return { words: { text: document.querySelector('#command-zone h3').textContent, w: Math.round(words.width), h: Math.round(words.height) }, style: [s1.borderTopStyle, s1.borderTopWidth, s1.outlineStyle, s1.outlineWidth, s2.borderTopStyle], diamonds: [getComputedStyle(slot(1), '::before').content, getComputedStyle(slot(1), '::after').content], gold: s1.borderTopColor !== getComputedStyle(document.querySelector('.pile-stack')).borderTopColor && s1.borderTopColor !== 'rgb(169, 166, 156)', gap: Math.round(innerHeight - zones.bottom), cardWidth: Math.round(card.width), room: Math.round(innerWidth - zones.left), viewport: innerWidth }; })()");
+    const frame = await ev("(() => { const slot = (n) => document.querySelector('.cmd-slot[data-slot=\"' + n + '\"] .slot-cards'); const s1 = getComputedStyle(slot(1)); const s2 = getComputedStyle(slot(2)); const words = document.querySelector('#command-zone h3').getBoundingClientRect(); const zones = document.querySelector('.side-panels').getBoundingClientRect(); const card = document.querySelector('#pile-library .stack-face').getBoundingClientRect(); return { words: { text: document.querySelector('#command-zone h3').textContent, w: Math.round(words.width), h: Math.round(words.height) }, style: [s1.borderTopStyle, s1.borderTopWidth, s1.outlineStyle, s1.outlineWidth, s2.borderTopStyle], diamonds: [getComputedStyle(slot(1), '::before').content, getComputedStyle(slot(1), '::after').content], gold: s1.borderTopColor !== getComputedStyle(document.querySelector('.pile-stack')).borderTopColor && s1.borderTopColor !== 'rgb(169, 166, 156)', gap: Math.round(innerHeight - zones.bottom), cardWidth: Math.round(card.width), room: Math.round(innerWidth - zones.left), viewport: innerWidth, rail: document.querySelector('.tool-dock[data-dock=\"rail\"]')?.offsetWidth ?? 0 }; })()");
     check('the words "Command zone" are not drawn (a screen reader still has them), and the two commander slots have a gold frame: a 2 px solid border and a 1 px outline round it, diamonds on its top and bottom edge, and an empty slot has the same frame dashed', frame.words.text === 'Command zone' && frame.words.w <= 1 && frame.words.h <= 1 && frame.style[0] === 'solid' && frame.style[1] === '2px' && frame.style[2] === 'solid' && frame.style[3] === '1px' && frame.style[4] === 'dashed' && frame.diamonds.every((c) => c === '""') && frame.gold, JSON.stringify(frame));
-    check('the zones row is larger (the pictures are 6.8 rem wide, 109 px, or less on a narrow window so the hand still fits beside it: (width - 50.4 rem) / 5) and its bottom nearly touches the bottom of the window (under 8 px away)', Math.abs(frame.cardWidth - Math.min(108.8, (frame.viewport - 806.4) / 5)) <= 2 && frame.gap >= 0 && frame.gap < 8, JSON.stringify(frame));
+    check('the zones row is larger (the pictures are 6.8 rem wide, 109 px, or less on a narrow window so the hand still fits beside it: (width - rail - 44.4 rem) / 5) and its bottom nearly touches the bottom of the window (under 8 px away)', Math.abs(frame.cardWidth - Math.min(108.8, (frame.viewport - frame.rail - 710.4) / 5)) <= 2 && frame.gap >= 0 && frame.gap < 8, JSON.stringify(frame));
     await browser.goto(PAGE); await waitFor(async () => (await count('#hand .card')) === 7 || null, 8000, 25); await sleep(1500);
   }
-  // ---- the pieces that float (the card preview is gone from the solo table) ----
+  // ---- the shell (the redesign, 2026-11-25): the top bar with the turn and the menu, the rail on the right with the history, the stack and your console, the battlefield between them ----
   {
-    const floating = await ev(`(() => { const r = (sel) => document.querySelector(sel).getBoundingClientRect(); const bar = r('.actions-panel'); const life = r('#life-area'); const menu = r('#settings-button'); const turn = r('.actions-panel .turn-stat'); const piles = r('.side-panels'); const board = r('#my-board'); const panelBorders = ['#my-board', '.right-column', '.side-panels', '.hand-section'].map((s) => getComputedStyle(document.querySelector(s)).borderTopWidth); return { barPosition: getComputedStyle(document.querySelector('.actions-panel')).position, barTop: Math.round(bar.top), grip: Boolean(document.querySelector('.actions-panel #bar-grip')), buttons: [...document.querySelectorAll('.actions-panel .actions button')].map((b) => b.id), barButtons: document.querySelectorAll('.bar .actions button').length, lifeLeft: Math.round(life.left), lifeTop: Math.round(life.top), menuRight: Math.round(innerWidth - menu.right), menuTop: Math.round(menu.top), turnInBar: turn.top >= bar.top && turn.bottom <= bar.bottom && turn.left >= bar.left && turn.right <= bar.right, pilesRight: Math.round(innerWidth - piles.right), pilesBottom: Math.round(innerHeight - piles.bottom), boardFills: Math.round(board.width) === innerWidth && Math.round(board.height) === innerHeight, panelBorders, footer: document.querySelector('footer') !== null }; })()`);
-    check('no panels: the board fills the window and the board and the piles have no border; the action buttons are a floating bar with a grip (not in the top strip); there is no footer', floating.boardFills && floating.panelBorders.every((w) => w === '0px') && floating.barPosition === 'absolute' && floating.grip && floating.buttons.includes('draw') && floating.buttons.includes('untap-all') && !floating.buttons.includes('settings-button') && floating.barButtons === 0 && !floating.footer, JSON.stringify(floating));
-    check('the battlefield has a 2 px line round it, drawn outside it (an outline: it takes no room), and it is in the middle of the window: as much room on the left as on the right', await ev("(() => { const b = document.getElementById('battlefield'); const r = b.getBoundingClientRect(); const o = getComputedStyle(b); return o.outlineWidth === '2px' && o.outlineStyle === 'solid' && Math.abs(r.left - (innerWidth - r.right)) <= 1; })()"));
-    check('the pieces float where a table has them: the menu button at the top right and the turn inside the floating bar, the piles and the command zone at the bottom right (the life piece can be dragged: this run starts it at the right edge)', floating.menuRight < 40 && floating.menuTop < 40 && floating.turnInBar && floating.pilesRight < 40 && floating.pilesBottom < 40, JSON.stringify(floating));
+    const shell = await ev(`(() => { const r = (sel) => document.querySelector(sel).getBoundingClientRect(); const rail = document.querySelector('.tool-dock[data-dock="rail"]'); const bar = r('#game-bar'); const railBox = rail.getBoundingClientRect(); const board = r('#battlefield'); const b = document.getElementById('battlefield'); return { turnInBar: document.getElementById('game-bar').contains(document.getElementById('turn')), menuInBar: document.getElementById('game-bar').contains(document.getElementById('settings-button')), inRail: ['history-bar', 'stack-window'].map((id) => rail.contains(document.getElementById(id))).concat(rail.contains(document.querySelector('.actions-panel'))), buttons: [...document.querySelectorAll('.actions-panel .actions button')].map((x) => x.id), grip: Boolean(document.querySelector('.actions-panel #bar-grip')), railLeft: Math.round(railBox.left), railRight: Math.round(railBox.right), barBottom: Math.round(bar.bottom), board: [Math.round(board.left), Math.round(board.top), Math.round(board.right), Math.round(board.bottom)], cols: Number(b.style.getPropertyValue('--cols')), rows: Number(b.style.getPropertyValue('--rows')), cell: [board.width / Number(b.style.getPropertyValue('--cols')), board.height / Number(b.style.getPropertyValue('--rows'))], piles: [Math.round(r('.side-panels').right), Math.round(innerHeight - r('.side-panels').bottom)], footer: Boolean(document.querySelector('footer:not([hidden])')), window: innerWidth }; })()`);
+    check('the top bar holds the turn and the menu; the rail on the right holds the game history, the stack and your console (with its grip, Draw and Untap all); there is no footer', shell.turnInBar && shell.menuInBar && shell.inRail.every(Boolean) && shell.grip && shell.buttons.includes('draw') && shell.buttons.includes('untap-all') && shell.railRight >= shell.window - 1 && !shell.footer, JSON.stringify(shell));
+    check(`the battlefield runs from under the top bar to the rail, ${shell.rows} rows and ${shell.cols} columns of square cells (about 112 across); the piles sit left of the rail at the bottom`, shell.board[0] <= 1 && Math.abs(shell.board[1] - shell.barBottom) <= 2 && Math.abs(shell.board[2] - shell.railLeft) <= 2 && Math.abs(shell.cell[0] - shell.cell[1]) / shell.cell[1] < 0.03 && shell.cols > 95 && shell.cols <= 112 && shell.rows % 10 === 0 && shell.piles[0] <= shell.railLeft && shell.piles[1] < 8, JSON.stringify(shell));
     const legal = await ev(`(() => { document.getElementById('settings-button').click(); const t = document.querySelector('#settings-menu .settings-legal')?.textContent ?? ''; const shown = !document.getElementById('settings-menu').hidden; document.getElementById('settings-button').click(); return { t, shown }; })()`);
     check('Settings has a way home: a link to the home page and one to your decks', await ev("(() => { const home = document.getElementById('settings-home'); const decks = document.getElementById('settings-decks'); return Boolean(home) && Boolean(decks) && home.getAttribute('href') === '/' && decks.getAttribute('href') === '/deck' && document.getElementById('settings-menu').contains(home) && document.getElementById('settings-menu').contains(decks); })()"));
     check('the fan content notice is in Settings', legal.shown && /unofficial Fan Content/.test(legal.t) && /Not approved\/endorsed by Wizards/.test(legal.t) && /property of Wizards of the Coast/.test(legal.t), JSON.stringify(legal));
@@ -799,7 +798,7 @@ try {
   await ev(`(() => { const c = document.querySelector(${JSON.stringify(cardSelector)}); c.focus(); c.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 0, clientY: 0 })); })()`);
   menu = await menuState();
   check('the keyboard way to a context menu (no pointer position) opens the menu next to the card', menu && menu.focused !== null && menu.inside, JSON.stringify(menu));
-  check('and it opens at the middle of the card, not in a corner of the window', await ev(`(() => { const c = document.querySelector(${JSON.stringify(cardSelector)}).getBoundingClientRect(); const m = document.querySelector('.card-menu').getBoundingClientRect(); return Math.abs(m.left - (c.left + c.width / 2)) < 60 && (Math.abs(m.top - (c.top + c.height / 2)) < 60 || (m.bottom > innerHeight - 16 && m.top < c.top + c.height)); })()`)); // a card in the bottom row of a short window: the menu is moved up just enough to stay on the screen
+  check('and it opens at the middle of the card, not in a corner of the window', await ev(`(() => { const c = document.querySelector(${JSON.stringify(cardSelector)}).getBoundingClientRect(); const m = document.querySelector('.card-menu').getBoundingClientRect(); const cx = c.left + c.width / 2; const cy = c.top + c.height / 2; return (Math.abs(m.left - cx) < 60 || Math.abs(m.right - cx) < 60) && (Math.abs(m.top - cy) < 60 || Math.abs(m.bottom - cy) < 60); })()`)); // (since 2026-11-24 a menu with no room below or right of that point opens above it or to its left, like a system menu) a card in the bottom row of a short window: the menu is moved up just enough to stay on the screen
   await key('ArrowDown', 'ArrowDown', 40);
   check('Down moves to the next item', (await menuState()).focused === menu.items[1], JSON.stringify(await menuState()));
   await key('End', 'End', 35);
@@ -1441,11 +1440,13 @@ try {
   await clickAction('To battlefield');
   check('...and is not held back when it returns', (await count(`${cardAt('Sol Ring')} .badge-lock`)) === 0);
 
-  // ---- drag and drop on the fine battlefield grid (112 by 50 square cells, a card is 7 wide and 10 tall), Alt+arrow keys and Auto-arrange (real mouse and keyboard input; a 7-card deck, so everything is in the hand) ----
+  // ---- drag and drop on the fine battlefield grid (50 rows of square cells, as many columns as fit, a card is 7 wide and 10 tall), Alt+arrow keys and Auto-arrange (real mouse and keyboard input; a 7-card deck, so everything is in the hand) ----
   await open(MARKS_DECK);
   const boardRect = () => ev(`(() => { const r = document.getElementById('battlefield').getBoundingClientRect(); return { left: r.left, top: r.top, width: r.width, height: r.height }; })()`);
   // the point where the middle of a card dropped from the hand starts on cell (col, row): the card's top-left cell is four cells left and five up of the middle
-  const cellCenter = async (col, row) => { const r = await boardRect(); return { x: r.left + (col + 3.5) * r.width / 112, y: r.top + (row + 5.5) * r.height / 50 }; };
+  const boardCols = await ev("Number(document.getElementById('battlefield').style.getPropertyValue('--cols'))"); // (the grid fits the box since the redesign: square cells, about 112 across, whole rows of cards down)
+  const boardRows = await ev("Number(document.getElementById('battlefield').style.getPropertyValue('--rows'))");
+  const cellCenter = async (col, row) => { const r = await boardRect(); return { x: r.left + (col + 3.5) * r.width / boardCols, y: r.top + (row + 5.5) * r.height / boardRows }; };
   const centerOfSelector = (selector) => ev(`(() => { const r = document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + Math.min(r.height, innerHeight - r.y) / 2 }; })()`);
   const handCardPoint = async (name) => { const index = (await handNames()).findIndex((x) => x.startsWith(name)); const at = (share) => ev(`(() => { const card = document.querySelectorAll('#hand > .card')[${index}]; const r = card.getBoundingClientRect(); const y = r.top + r.height * ${share}; const xs = []; for (let x = r.left + 2; x < r.right - 2; x += 3) if (document.elementFromPoint(x, y)?.closest('#hand > .card') === card) xs.push(x); return { x: xs.length ? xs[Math.floor(xs.length / 2)] : r.left + r.width / 2, y }; })()`); for (let round = 0; round < 2; round++) { const first = await at(0.2); await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: first.x, y: first.y }); await new Promise((done) => setTimeout(done, 500)); } return at(0.45); }; // (a point that shows on the card: the cards of the hand overlap)
   const mouseAt = (type, p, buttons) => browser.send('Input.dispatchMouseEvent', { type, x: p.x, y: p.y, button: type === 'mouseMoved' ? 'none' : 'left', buttons, clickCount: 1 });
@@ -1468,7 +1469,7 @@ try {
       last = now; await sleep(60);
     }
     const r = await boardRect(); const from = await centerOfSelector(cardAt(name));
-    await dragTo(from, { x: from.x + cols * r.width / 112, y: from.y + rows * r.height / 50 });
+    await dragTo(from, { x: from.x + cols * r.width / boardCols, y: from.y + rows * r.height / boardRows });
   };
   const cellOfCard = (name) => ev(`(() => { const c = document.querySelector(${JSON.stringify(cardAt(name))}); return c ? c.dataset.col + ',' + c.dataset.row : null; })()`);
   const onTopName = () => ev(`(() => { const cs = document.querySelectorAll('#battlefield .card'); return cs.length ? cs[cs.length - 1].getAttribute('aria-label').split(',')[0] : null; })()`);
@@ -1496,8 +1497,8 @@ try {
 
   let overOutline = null;
   { const r = await boardRect(); const from = await centerOfSelector(cardAt('Forest'));
-    await dragTo(from, { x: from.x + 20 * r.width / 112, y: from.y + 8 * r.height / 50 }, { release: false, during: async () => { overOutline = await ev(`document.querySelector('.cell-highlight')?.className ?? null`); } });
-    await mouseAt('mouseReleased', { x: from.x + 20 * r.width / 112, y: from.y + 8 * r.height / 50 }, 0); await sleep(80); }
+    await dragTo(from, { x: from.x + 20 * r.width / boardCols, y: from.y + 8 * r.height / boardRows }, { release: false, during: async () => { overOutline = await ev(`document.querySelector('.cell-highlight')?.className ?? null`); } });
+    await mouseAt('mouseReleased', { x: from.x + 20 * r.width / boardCols, y: from.y + 8 * r.height / boardRows }, 0); await sleep(80); }
   check('the cell a card is carried over is not highlighted (the element is there, but not drawn)', await ev("(() => { const h = document.createElement('div'); h.className = 'cell-highlight'; document.getElementById('battlefield').append(h); const v = getComputedStyle(h).visibility; h.remove(); return v; })()") === 'hidden');
   check('a card dropped exactly on another card does not swap: both are on the same cell and the dropped one is on top', (await cellOfCard('Forest')) === '60,16' && (await cellOfCard('Sol Ring')) === '60,16' && (await onTopName()) === 'Forest' && /^Moved Forest\./.test(await $text('status')) && overOutline === 'cell-highlight', `${await cellOfCard('Forest')} ${await cellOfCard('Sol Ring')} ${await onTopName()} | ${await $text('status')} | ${overOutline}`);
 
@@ -1544,8 +1545,8 @@ try {
   await key('Escape', 'Escape', 27);
   await mouseAt('mouseReleased', await cellCenter(6, 4), 0); await sleep(80);
   check('Escape during a drag cancels it: the card stays, the picture and the outline are gone', (await cellOfCard('Forest')) === '0,40' && await dragStateGone());
-  await dragTo(await centerOfSelector(cardAt('Forest')), { x: 640, y: 650 }); // (below the grid and above the hand: not on the board, not in the rectangle of the hand, not on a pile)
-  check('letting go outside the battlefield and the hand (in the empty space between them) does nothing', (await cellOfCard('Forest')) === '0,40' && await dragStateGone());
+  await dragTo(await centerOfSelector(cardAt('Forest')), { x: 640, y: 20 }); // (on the top bar: not on the board, not in the rectangle of the hand, not on a pile; since the redesign the board reaches down to the hand, so there is no empty space between them)
+  check('letting go outside the battlefield and the hand (on the top bar) does nothing', (await cellOfCard('Forest')) === '0,40' && await dragStateGone());
 
   // a card dragged from the battlefield and let go over the hand goes back into the hand
   { let marked = null; const handBefore = (await handNames()).length;
@@ -1769,10 +1770,12 @@ try {
     void emptyZone;
   }
 
-  // ---- the floating action bar (frontend/src/floating-bar.js, shared/bar-place.mjs): real mouse and key input ----
+  // ---- your console (frontend/src/floating-bar.js, shared/bar-place.mjs, src/tool-dock.js): it starts in the rail; dragged out it floats and docks to the edges of its room. Real mouse and key input ----
   {
     const barBox = () => ev("(() => { const r = document.querySelector('.actions-panel').getBoundingClientRect(); return { left: Math.round(r.left), top: Math.round(r.top), right: Math.round(r.right), bottom: Math.round(r.bottom), w: Math.round(r.width), h: Math.round(r.height) }; })()");
-    const stored = () => ev("localStorage.getItem('overloaded.actionBar')");
+    const stored = () => ev("localStorage.getItem('overloaded.soloConsole')");
+    const railLeft = () => ev("Math.round(document.querySelector('.tool-dock[data-dock=\"rail\"]').getBoundingClientRect().left)");
+    const inRail = () => ev("document.querySelector('.tool-dock[data-dock=\"rail\"]').contains(document.querySelector('.actions-panel'))");
     const dragGrip = async (dx, dy) => {
       const p = await centerOfSelector('#bar-grip');
       await mouseAt('mouseMoved', p, 0); await mouseAt('mousePressed', p, 1);
@@ -1780,14 +1783,13 @@ try {
       await mouseAt('mouseReleased', { x: p.x + dx, y: p.y + dy }, 0); await sleep(450); // (it glides to where it snaps)
     };
     const gripKey = async (name) => { const vk = { ArrowRight: 39, ArrowLeft: 37, ArrowDown: 40, Home: 36 }[name]; await browser.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: name, code: name, windowsVirtualKeyCode: vk }); await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: name, code: name, windowsVirtualKeyCode: vk }); await sleep(450); };
-    await ev("localStorage.removeItem('overloaded.actionBar')");
+    await ev("localStorage.removeItem('overloaded.soloConsole'); localStorage.removeItem('overloaded.toolDocks')");
     await open(MARKS_DECK);
     const b0 = await barBox();
-    const boardTop = await ev("Math.round(document.getElementById('battlefield').getBoundingClientRect().top)");
-    check('the action bar starts in the middle of the top, floating over the top of the board, which starts at the top of the window (Kevin, 2026-11-14)', Math.abs((b0.left + b0.right) / 2 - 640) <= 3 && b0.top <= 12 && boardTop <= 4 && b0.top >= boardTop && b0.bottom > boardTop, JSON.stringify({ b0, boardTop }));
-    await dragGrip(-300, 200);
+    check('your console starts at the bottom of the rail (the redesign, 2026-11-25)', (await inRail()) && b0.left >= (await railLeft()) - 1 && b0.bottom >= 1000 - 2, JSON.stringify(b0));
+    await dragGrip(-800, -300); // (out of the rail it is one row again, wider than in the rail: far enough left that it does not reach the edge of its room)
     const b1 = await barBox();
-    check('dragging the grip moves the bar by as much as the pointer moved (when it lands away from the edges)', Math.abs(b1.left - (b0.left - 300)) <= 3 && Math.abs(b1.top - (b0.top + 200)) <= 3, JSON.stringify({ b0, b1 }));
+    check('dragging its grip takes it out of the rail: it floats, moved by as much as the pointer moved', !(await inRail()) && Math.abs(b1.left - (b0.left - 800)) <= 3 && Math.abs(b1.top - (b0.top - 300)) <= 3, JSON.stringify({ b0, b1 }));
     const saved = JSON.parse((await stored()) ?? 'null');
     check('where it was let go is kept in the browser as two fractions of the room it has', saved && saved.fx > 0 && saved.fx < 1 && saved.fy > 0 && saved.fy < 1, JSON.stringify(saved));
     const statusBefore = await $text('status');
@@ -1813,17 +1815,17 @@ try {
     const hidden = await hints();
     check('the hints are gone once it is let go', !hidden.snap && !hidden.center && !hidden.corner, JSON.stringify(hidden));
     { const mid = (left.top + left.bottom) / 2; const seen = await hold(0, 506 - mid); const m = await barBox();
-      check('dragged to the middle of the left edge a strip along the whole edge and a dotted line across the whole window show while it is held, and letting go puts it exactly in the middle of the edge (flush left, its middle at half the height)', seen.snap && seen.center && !seen.corner && seen.snapLen >= seen.inner[1] * 0.9 && seen.centerLen >= seen.inner[0] * 0.9 && m.left === 8 && Math.abs((m.top + m.bottom) / 2 - 500) <= 1, JSON.stringify({ seen, m })); }
+      check('dragged to the middle of the left edge a strip along the whole edge and a dotted line across the whole window show while it is held, and letting go puts it exactly in the middle of the edge (flush left, its middle at half the height)', seen.snap && seen.center && !seen.corner && seen.snapLen >= seen.inner[1] * 0.9 && seen.centerLen >= ((await railLeft()) - 16) * 0.9 && m.left === 8 && Math.abs((m.top + m.bottom) / 2 - 500) <= 1, JSON.stringify({ seen, m })); }
     { const m0 = await barBox(); const seen = await hold(13 - m0.left, 13 - m0.top); const m = await barBox();
       check('dragged near the top left corner a dotted triangle shows while it is held (alone, like MIDI Companion: no strip), and letting go puts it in the corner', !seen.snap && seen.corner && m.left === 8 && m.top === 8, JSON.stringify({ seen, m })); }
-    { const p = await centerOfSelector("#bar-grip"); await dragGrip(1279 - p.x, 999 - p.y); } // (to the very corner of the window: the browser sends no mouse events from outside it)
-    const far = await barBox();
-    check('dragged far outside the window it is brought back inside it, into the corner (as a column, docked to the right)', far.right <= 1280 && far.bottom <= 1000 && far.right >= 1280 - 12 && far.bottom >= 1000 - 12 && (await dockOf()) === 'true', JSON.stringify(far));
+    { const p = await centerOfSelector("#bar-grip"); const r = await railLeft(); await dragGrip(r + 100 - p.x, 980 - p.y); } // (let go over the bottom of the rail)
+    check('let go over the rail it docks there again, as a row', (await inRail()) && (await dockOf()) === 'false');
+    await dragGrip(-800, -300);
     await ev("document.getElementById('bar-grip').focus()");
     await gripKey('Home');
     const home = await barBox();
-    check('Home puts it back in the middle of the top, as a row again, with the handle standing up again', Math.abs((home.left + home.right) / 2 - 640) <= 3 && home.top <= 12 && (await dockOf()) === 'false' && ['none', '0deg'].includes(await gripTurn()), JSON.stringify(home));
-    await dragGrip(-250, 120);
+    check('Home puts it back in its floating place at the bottom left, as a row, with the handle standing up again', !(await inRail()) && home.left <= 12 && home.bottom >= 1000 - 12 && (await dockOf()) === 'false' && ['none', '0deg'].includes(await gripTurn()), JSON.stringify(home));
+    await dragGrip(300, -250); // (away from the corner it is in)
     await ev("document.getElementById('bar-grip').focus()");
     const before = await barBox();
     await gripKey('ArrowLeft'); await gripKey('ArrowLeft');
@@ -1833,16 +1835,17 @@ try {
     await open(MARKS_DECK);
     const again = await barBox();
     check('after the page is loaded again the bar is where it was left', Math.abs(again.left - placed.left) <= 2 && Math.abs(again.top - placed.top) <= 2, JSON.stringify({ placed, again }));
-    { const p = await centerOfSelector('#bar-grip'); const b = await barBox(); await dragGrip(1280 - 13 - b.right, 0); void p; }
+    const edge = (await railLeft()) - 8; // (the right edge of its room is the rail's edge)
+    { const b = await barBox(); await dragGrip(edge + 3 - b.right, 0); } // (let go 5 px from the edge of its room)
     const docked = await barBox();
     await open(MARKS_DECK);
     const dockedAgain = await barBox();
-    check('docked to the right edge the bar is a column flush to it, and after the page is loaded again it is still docked there', docked.right === 1272 && docked.h > docked.w && dockedAgain.right === 1272 && dockedAgain.h > dockedAgain.w && (await dockOf()) === 'true', JSON.stringify({ docked, dockedAgain }));
-    await ev("localStorage.setItem('overloaded.actionBar', '{\"fx\":\"left\",\"fy\":99}')");
+    check('docked to the right edge of its room (by the rail) the bar is a column, and after the page is loaded again it is still docked there', docked.right === edge && docked.h > docked.w && dockedAgain.right === edge && dockedAgain.h > dockedAgain.w && (await dockOf()) === 'true', JSON.stringify({ edge, docked, dockedAgain }));
+    await ev("localStorage.setItem('overloaded.soloConsole', '{\"fx\":\"left\",\"fy\":99}')");
     await open(MARKS_DECK);
     const damaged = await barBox();
-    check('a damaged stored place is ignored: the bar is in the default place', Math.abs((damaged.left + damaged.right) / 2 - 640) <= 3 && damaged.top <= 12, JSON.stringify(damaged));
-    await ev("localStorage.removeItem('overloaded.actionBar')");
+    check('a damaged stored place is ignored: the floating bar is in its default place, the bottom left', damaged.left <= 12 && damaged.bottom >= 1000 - 12, JSON.stringify(damaged));
+    await ev("localStorage.removeItem('overloaded.soloConsole'); localStorage.removeItem('overloaded.toolDocks')");
     await open(MARKS_DECK);
   }
 
