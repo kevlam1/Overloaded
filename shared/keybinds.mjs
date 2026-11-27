@@ -22,6 +22,7 @@ const none = [null, null];
 export const ACTIONS = [
   { id: 'tap', section: 'cards', group: 'table', label: 'Tap or untap', hint: 'The card under the pointer, or the cards you picked.', defaults: ['e', 'q'] },
   { id: 'flip', section: 'cards', group: 'table', label: 'Flip face down', hint: 'The same cards, to the sleeve and back.', defaults: ['f', null] },
+  { id: 'toCommand', section: 'cards', group: 'table', label: 'To the command zone', hint: 'The card under the pointer (2026-11-26 feedback).', defaults: none },
   { id: 'draw', section: 'turn', group: 'table', label: 'Draw a card', hint: '', defaults: ['d', null] },
   { id: 'nextTurn', section: 'turn', group: 'table', label: 'Next turn', hint: 'Like the Next turn button (Pass turn at a table).', defaults: none },
   { id: 'untapAll', section: 'turn', group: 'table', label: 'Untap all', hint: 'Like the Untap all button.', defaults: none },

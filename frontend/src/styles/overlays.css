@@ -138,3 +138,16 @@
 /* the site's version in Settings > About (Kevin, 2026-11-26), linking to the build log like the home page's footer */
 .settings-version { margin: 4px 0 8px; color: var(--muted); font-size: var(--text-sm); }
 .settings-version a { color: var(--text); font-weight: 600; }
+/* number prompts: - and + beside the box, and quick numbers (2026-11-26 feedback) */
+.number-box-line { display: flex; align-items: center; gap: 6px; }
+.number-box-line .number-box-input { flex: 1; min-width: 0; text-align: center; }
+.number-box-step, .card-menu-step { flex: none; display: grid; place-items: center; width: 1.9rem; height: 1.9rem; min-height: 0; padding: 0; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface-2); color: var(--text); font-weight: 700; line-height: 1; }
+.number-box-step:hover, .card-menu-step:hover { border-color: var(--gold); }
+.number-box-quick { display: flex; gap: 4px; margin-top: 8px; }
+.number-box-pick { flex: 1; min-width: 0; min-height: 1.8rem; padding: 0; border: 1px solid var(--line); border-radius: 7px; background: var(--surface-2); color: var(--text); font-family: var(--font-num); font-weight: 700; }
+.number-box-pick:hover { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 14%, var(--surface-2)); }
+.card-menu-step { width: 1.45rem; height: 1.45rem; border-radius: 6px; font-size: 0.85rem; }
+/* "Back to your graveyard" (a pile window that was hidden with its eye) sits at the top centre, not the top right (Kevin's friends, 2026-11-26) */
+.viewer-peek { right: auto; left: 50%; translate: -50% 0; }
+.settings-eye { display: grid; place-items: center; margin-left: auto; margin-right: 0.5rem; } /* (beside the close button, at the right) */
+.settings-eye svg { display: block; }

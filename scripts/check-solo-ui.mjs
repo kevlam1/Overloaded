@@ -763,7 +763,7 @@ try {
   check('the right click also selected the card', (await $text('selected-line')).startsWith('Llanowar Elves'), await $text('selected-line'));
   await ev(`window.__plays = []; HTMLMediaElement.prototype.play = function () { window.__plays.push({ src: new URL(this.src).pathname, volume: Math.round(this.volume * 10000) / 10000 }); return Promise.resolve(); };`);
   await clickMenuItem('Tap');
-  check('Tap from the right-click menu plays the tap sound', JSON.stringify(await ev(`window.__plays`)) === JSON.stringify([{ src: '/sfx/tap.mp3', volume: 1 }]), JSON.stringify(await ev(`window.__plays`)));
+  check('Tap from the right-click menu plays the tap sound', JSON.stringify(await ev(`window.__plays.map((p) => p.src)`)) === JSON.stringify(['/sfx/tap.mp3']), JSON.stringify(await ev(`window.__plays`)));
   check('Tap taps the card, closes the menu, says so and gives the focus back to the card', (await menuState()) === null && (await ev(`document.querySelector('#battlefield .card[data-kind="other"]').classList.contains('tapped')`)) && (await $text('status')) === 'Tapped Llanowar Elves.' && (await activeIsCard()), `${await $text('status')} ${await activeIsCard()}`);
   await mouse('#battlefield .card[data-kind="other"]', { button: 'right', dy: 64 });
   menu = await menuState();
@@ -1825,7 +1825,7 @@ try {
     await gripKey('Home');
     const home = await barBox();
     check('Home puts it back in its floating place at the bottom left, as a row, with the handle standing up again', !(await inRail()) && home.left <= 12 && home.bottom >= 1000 - 12 && (await dockOf()) === 'false' && ['none', '0deg'].includes(await gripTurn()), JSON.stringify(home));
-    await dragGrip(300, -250); // (away from the corner it is in)
+    await dragGrip(150, -250); // (away from the corner it is in; not 300: the bar is wider since Next step, and 300 took it to the right edge, where it docks)
     await ev("document.getElementById('bar-grip').focus()");
     const before = await barBox();
     await gripKey('ArrowLeft'); await gripKey('ArrowLeft');

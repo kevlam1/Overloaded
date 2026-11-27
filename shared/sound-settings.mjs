@@ -13,7 +13,11 @@ export const SOUND_FILES = { draw: '/sfx/draw.mp3', shuffle: '/sfx/shuffle.mp3',
 // A short sharp click (draw) can still feel punchier than its average says. Change one number to tune one sound.
 // The three commander sounds (Kevin added them 2026-11-26) measured the same way that day: boom -12.8, piano -15.8, smash -19.2 (and the four above measured again: unchanged),
 // so they sit at the same level too: 0.0115, 0.0162, 0.024 (four digits: 0.011 put boom over half a dB off the rest).
-export const SOUND_GAIN = { draw: 0.1, shuffle: 0.095, tap: 1, yourturn: 0.047, 'commander-boom': 0.0115, 'commander-piano': 0.0162, 'commander-smash': 0.024 };
+// LOUDER (2026-11-26 feedback, measured 2026-11-27): the shared level is now -39.6 dBFS, 12 dB above -51.6, so every gain is 10 ^ ((-39.6 - average) / 20). Tap needs 3.98, above 1, so
+// frontend/src/sound.js plays through a Web Audio gain node, not the audio element's volume. Peaks measured the same day (dBFS): draw -0.5, shuffle -5.7, tap -29.7, yourturn -4.1, boom -3,
+// piano -0.1, smash -3.9; with these gains the loudest peak is draw at -8.7, so nothing clips.
+export const SOUND_GAIN = { draw: 0.389, shuffle: 0.38, tap: 3.98, yourturn: 0.184, 'commander-boom': 0.0457, 'commander-piano': 0.0646, 'commander-smash': 0.0955 };
+export const SOUND_PEAK_DB = { draw: -0.5, shuffle: -5.7, tap: -29.7, yourturn: -4.1, 'commander-boom': -3, 'commander-piano': -0.1, 'commander-smash': -3.9 };
 
 const cleanVolume = (value) => (typeof value === 'number' && Number.isFinite(value) ? Math.round(Math.min(1, Math.max(0, value)) * 100) / 100 : DEFAULT_SOUND.volume);
 

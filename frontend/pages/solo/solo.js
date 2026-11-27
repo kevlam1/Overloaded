@@ -10,6 +10,7 @@ import { makeSafeStore } from '../../src/safe-store.js';
 import { play, mountSoundSettings } from '../../src/sound.js';
 import { mountPileStyle } from '../../src/pile-style.js';
 import { restHidden, mountHandRestSetting } from '../../src/hand-rest.js';
+import { mountHandSizeSetting } from '../../src/hand-size.js';
 import { mountPileViewer } from '../../src/pile-viewer.js';
 import { mountStackWindow } from '../../src/stack-window.js';
 import { mountHistoryBar } from '../../src/history-bar.js';
@@ -58,7 +59,7 @@ import { chipEntries, playerMenuItems, playerAction, playerAddItems } from '../.
 import { createToken, createEmblem, changeCounter, setFaceDown, makeGame, draw, moveCard, shuffleLibrary, mulligan, setTapped, turnOver, untapAll, heldTapped, adjustLife, nextTurn, boardCells, placeCard, placeStack, placeGroup, zoneCounts, reorderHand } from '../../../shared/zones.mjs';
 import { createToolDocks } from '../../src/tool-dock.js';
 import { emptyUndo, remember, canUndo, takeBack, undoWords } from '../../../shared/undo.mjs';
-import { nextStep } from '../../../shared/phase.mjs';
+import { nextStep, PHASES, LAST_PHASE } from '../../../shared/phase.mjs';
 import { mountPhaseStrip } from '../../src/phase-strip.js';
 
 const $ = (id) => document.getElementById(id);
@@ -122,7 +123,7 @@ $('life-area').addEventListener('contextmenu', (event) => {
   });
 }
 
-const cardNodes = makeCardNodes({ onSelect: (uid, event) => select(uid, event), isSelected: (uid) => uid === selected || multi.has(uid), onMark: (uid, hit) => markOnCard(uid, hit), onMenu: (uid, where) => openMenuFor(uid, where), onBadge: (uid, kind) => clearBadge(uid, kind), printedStats: (card) => printedOf(card, lookup) });
+const cardNodes = makeCardNodes({ onSelect: (uid, event) => { if (!marqueeEnded) select(uid, event); }, isSelected: (uid) => uid === selected || multi.has(uid), onMark: (uid, hit) => markOnCard(uid, hit), onMenu: (uid, where) => openMenuFor(uid, where), onBadge: (uid, kind) => clearBadge(uid, kind), printedStats: (card) => printedOf(card, lookup) });
 const place = cardNodes.place;
 // The piles as stacks of cards (src/pile-stack.js) and the command zone with its two outlined slots and the commander tax (src/command-zone.js).
 const stacks = Object.fromEntries([['library', 'Library'], ['graveyard', 'Graveyard'], ['exile', 'Exile']].map(([zone, label]) => [zone, mountPileStack($(`pile-${zone}`), { zone, label })]));
@@ -187,6 +188,8 @@ function render() {
   $('turn').textContent = String(game.turn);
   $('undo').disabled = !canUndo(undoState);
   phaseStrip.update({ step: phaseStep, mine: true });
+  $('next-step').querySelector('.act-label').textContent = `${PHASES[phaseStep].name} »`; // (the step you are on; a click moves to the next: Kevin's friends, 2026-11-26)
+  $('next-step').disabled = phaseStep >= LAST_PHASE;
   $('life').textContent = String(game.life);
   lifeChips.update(chipEntries(game.pc));
   place($('battlefield'), game.zones.battlefield, { battlefield: true, cells: boardCells(game), sharp: true });
@@ -532,9 +535,12 @@ mountMarksPanel($('marks'), {
   say,
 });
 { const close = make('button', 'secondary modify-close', '×'); close.type = 'button'; close.setAttribute('aria-label', 'Close'); close.title = 'Close'; close.addEventListener('click', () => { closeModify(); const card = document.querySelector('.card.selected'); card?.focus(); }); ($('marks').querySelector('.marks-head') ?? $('marks')).append(close); }
-$('draw').addEventListener('click', drawOne);
+$('draw').addEventListener('click', () => { const step = phaseStep; drawOne(); if (step === 2) { phaseStep = 3; render(); } }); // (Draw during the Draw step moves on to Main 1)
+$('draw').addEventListener('contextmenu', (event) => { event.preventDefault(); drawCards(3); }); // (a right-click draws 3: Kevin's friends, 2026-11-26)
+$('draw').title = 'Draw. Right-click: draw 3';
 $('next-turn').addEventListener('click', goNextTurn);
-$('untap-all').addEventListener('click', () => { play('tap'); apply(() => untapAll(game), untapMessage(game)); });
+$('untap-all').addEventListener('click', () => { const step = phaseStep; play('tap'); apply(() => untapAll(game), untapMessage(game)); if (step === 0) { phaseStep = 1; render(); } }); // (Untap all during Untap moves on to Upkeep: Kevin's friends, 2026-11-26)
+$('next-step').addEventListener('click', () => { phaseStep = nextStep(phaseStep); if (game) render(); });
 mountLookSettings($('look-settings'));
 mountEffectSettings($('look-settings'));
 mountSoundSettings($('sound-settings'));
@@ -626,6 +632,7 @@ const record = (message) => historyBar.add(message, game?.turn);
 noteMessage = (message, options) => { if (document.body.classList.contains('playing')) historyBar.note(message, options); }; // (outside a game the line itself shows)
 const stackWindow = stackWindowRef = mountStackWindow({ root: $('stack-window'), printedStats: (card) => printedOf(card, lookup), say }); // (Kevin, 2026-11-17: a window that slides out from the left with copies of cards, text boxes and arrows; a visual aid, the game is not touched)
 mountHandRestSetting($('hand-rest-settings'), { onChange: () => { handView.arrange(); if (fitBoard() && game) render(); } }); // (the hand is made further down, but the slider only works after it is)
+mountHandSizeSetting($('hand-rest-settings'), { onChange: () => handView.arrange() });
 const viewer = mountPileViewer({ root: $('viewer'), nodeFor: (card) => cardNodes.nodeFor(card, false), onClose: () => { viewing = null; viewTop = null; viewBottom = false; viewReveal = false; if (game) render(); } });
 for (const tab of document.querySelectorAll('#viewer .viewer-tab')) tab.addEventListener('click', () => { if (game) openPile(tab.dataset.view); });
 viewer.onSearch(() => { if (game && viewing) renderViewer(); });
@@ -805,6 +812,14 @@ document.addEventListener('keydown', (event) => {
   if (action === 'draw') { if (game) { event.preventDefault(); drawOne(); } return; }
   if (action === 'untapAll' || action === 'nextTurn') { const button = $(action === 'untapAll' ? 'untap-all' : 'next-turn'); if (game && button && !button.disabled) { event.preventDefault(); button.click(); } return; }
   if (GAME_KEYS.has(action)) { if (game && runGameKey(action)) event.preventDefault(); return; }
+  if (action === 'toCommand') { // the card under the pointer, from the battlefield or the hand, to the command zone (a key of its own, unbound at first)
+    const under = pointerAt ? document.elementFromPoint(pointerAt.x, pointerAt.y)?.closest('#battlefield > .card, #hand > .card') : null;
+    const card = under && game ? findCard(under.dataset.uid) : null;
+    if (!card || card.zone === 'command') return;
+    event.preventDefault();
+    apply(() => moveCard(game, card.card.uid, 'command', {}), `${card.card.n} to the command zone.`);
+    return;
+  }
   const hovered = cardUnderPointer();
   const found = hovered ? findCard(hovered.dataset.uid) : null;
   if (!game || (!found && multi.size === 0)) return;
@@ -820,8 +835,9 @@ document.addEventListener('keydown', (event) => {
 let marquee = null;
 let marqueeEnded = false;
 document.addEventListener('pointerdown', (event) => { // (on the page, not the board: since the redesign the board ends above the hand, and a rectangle can start in the area of the hand too)
-  if (!game || event.button !== 0 || event.pointerType === 'touch' || event.target.closest('.card, .stack-hold-ring, button, input, .tool-dock, .actions-panel, .history-panel, .game-bar, .side-panels, .card-menu, #viewer, #settings-menu')) return;
-  const zone = handView.over(event.clientX, event.clientY) ? 'hand' : event.target.closest('#battlefield') ? 'battlefield' : null;
+  const handCard = event.shiftKey && event.button === 0 && event.target.closest('#hand > .card'); // (Shift and a drag that starts ON a card of the hand picks cards too: in a fanned hand there is hardly any empty space to start on, 2026-11-26 feedback)
+  if (!game || event.button !== 0 || event.pointerType === 'touch' || (!handCard && event.target.closest('.card, .stack-hold-ring, button, input, .tool-dock, .actions-panel, .history-panel, .game-bar, .side-panels, .card-menu, #viewer, #settings-menu'))) return;
+  const zone = handCard || handView.over(event.clientX, event.clientY) ? 'hand' : event.target.closest('#battlefield') ? 'battlefield' : null;
   if (!zone) return;
   marquee = { x: event.clientX, y: event.clientY, box: null, zone, hits: new Set(), more: event.shiftKey && multiZone === zone ? new Set(multi) : new Set() };
 });

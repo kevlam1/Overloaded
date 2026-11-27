@@ -135,10 +135,11 @@ try {
   const key = (type, name, modifiers) => browser.send('Input.dispatchKeyEvent', { type, key: name, code: name + 'Left', windowsVirtualKeyCode: name === 'Alt' ? 18 : 16, modifiers });
   const p0 = await raise(1);
   if (process.argv.includes('--screenshot')) await browser.screenshot('scratch-foil.png');
-  await key('rawKeyDown', 'Alt', 1); await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p0.x + 1, y: p0.y, modifiers: 1 }); await sleep(250);
+  const pressAlt = async () => { await key('rawKeyDown', 'Alt', 1); await key('keyUp', 'Alt', 0); await sleep(150); };
+  await pressAlt(); await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p0.x + 1, y: p0.y }); await sleep(250);
   const shown = await ev("(() => { const b = document.getElementById('card-hover'); return Boolean(b) && !b.hidden && b.getBoundingClientRect().width > 100; })()");
-  await key('keyUp', 'Alt', 0); await sleep(150);
-  check('holding Alt over a card of the hand shows a larger picture, and letting go hides it', shown && (await ev("document.getElementById('card-hover').hidden")));
+  await pressAlt();
+  check('a press of Alt turns the larger picture on over a card of the hand (it stays after Alt is let go), and a second press turns it off (2026-11-26 feedback)', shown && (await ev("document.getElementById('card-hover').hidden")));
 
   const q = await raise(2);
   await mouse('mouseMoved', q.x, q.y); await mouse('mousePressed', q.x, q.y, 1); await mouse('mouseReleased', q.x, q.y); await sleep(150);
@@ -195,10 +196,10 @@ try {
     await ev(`(() => { const c = [...document.querySelectorAll('#hand > .card')][${index}]; const r = c.getBoundingClientRect(); c.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: r.x + r.width / 2, clientY: Math.min(r.y + 20, innerHeight - 20) })); })()`); await sleep(200);
     await ev(`[...document.querySelectorAll('.card-menu [role="menuitem"]')].find((x) => x.textContent.trim() === 'Play')?.click()`); await sleep(400); // (on the battlefield nothing overlaps it)
     const p = await ev(`(() => { const c = [...document.querySelectorAll('#battlefield > .card')].find((x) => /^Serra Angel/.test(x.getAttribute('aria-label'))); const r = c.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`);
-    await key('rawKeyDown', 'Alt', 1); await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p.x + 1, y: p.y, modifiers: 1 }); await sleep(300);
+    await pressAlt(); await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p.x + 1, y: p.y }); await sleep(300);
     const notes = await ev("[...document.querySelectorAll('#card-hover-notes .hover-note')].map((r) => [r.querySelector('strong').textContent, r.querySelector('p')?.textContent ?? '', Boolean(r.querySelector('.mana-icon'))])");
-    await key('keyUp', 'Alt', 0); await sleep(150);
-    check('holding Alt over Serra Angel shows what Flying and Vigilance mean, each with its icon', index >= 0 && notes.some(([n, t, i]) => n === 'Flying' && /flying or reach/.test(t) && i) && notes.some(([n, t, i]) => n === 'Vigilance' && /tap/.test(t) && i), JSON.stringify(notes));
+    await pressAlt();
+    check('the larger picture of Serra Angel shows what Flying and Vigilance mean, each with its icon', index >= 0 && notes.some(([n, t, i]) => n === 'Flying' && /flying or reach/.test(t) && i) && notes.some(([n, t, i]) => n === 'Vigilance' && /tap/.test(t) && i), JSON.stringify(notes));
   }
   // ---- docking the control bar under the stack (Kevin, 2026-11-26: it was hard): drag it out onto the battlefield, then let go just left of the rail near the
   // window's bottom corner; it docks at the bottom of the rail, under the stack ----
@@ -209,6 +210,34 @@ try {
   await drag(await rectOf('#bar-grip'), { x: rail.x - 30, y: rail.bottom - 20 });
   const docked = await barSpot();
   check('the control bar dragged out floats, and let go just left of the rail near the bottom corner it docks under the stack', !floated.docked && docked.docked && docked.last, JSON.stringify({ floated, docked }));
+  // ---- table controls from the 2026-11-26 feedback (step 3), one check each ----
+  await mouse('mouseMoved', 5, 5); await ev("document.getElementById('new-game').click()"); await sleep(600);
+  const handCount = () => ev("document.querySelectorAll('#hand > .card').length");
+  { const n0 = await handCount(); const d = await rectOf('#draw'); await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: d.cx, y: d.cy, button: 'right', buttons: 2, clickCount: 1 }); await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: d.cx, y: d.cy, button: 'right', buttons: 0, clickCount: 1 });
+    await waitFor(async () => ((await handCount()) === n0 + 3) || null, 4000).catch(() => {});
+    check('a right-click on Draw draws 3', (await handCount()) === n0 + 3, String(await handCount())); }
+  { const label = () => ev("document.querySelector('#next-step .act-label').textContent");
+    const was = await label(); await ev("document.getElementById('next-step').click()"); await sleep(100);
+    check('Next step moves from Untap to Upkeep', was === 'Untap »' && (await label()) === 'Upkeep »', `${was} / ${await label()}`); }
+  { await mouse('mouseMoved', 5, 5); await sleep(300);
+    const height = () => ev("document.querySelector('#hand > .card').getBoundingClientRect().height");
+    const h0 = await height();
+    await ev("(() => { const s = document.getElementById('hand-size'); s.value = '130'; s.dispatchEvent(new Event('input')); })()"); await sleep(700);
+    const h1 = await height();
+    check('Card size 130% makes the hand cards about 30% taller', Math.abs(h1 / h0 - 1.3) < 0.05, `${h0} -> ${h1}`);
+    await ev("(() => { const s = document.getElementById('hand-size'); s.value = '100'; s.dispatchEvent(new Event('input')); })()"); await sleep(500); }
+  { await ev("document.getElementById('settings-button').click()"); await sleep(200);
+    await ev("document.getElementById('settings-eye').click()"); await sleep(200);
+    const hiddenNow = await ev("document.getElementById('settings-menu').hidden && !document.getElementById('settings-peek').hidden");
+    await ev("document.getElementById('settings-peek').click()"); await sleep(200);
+    check('the eye in Settings hides it and the pill brings it back', hiddenNow && !(await ev("document.getElementById('settings-menu').hidden")));
+    await browser.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await sleep(200); }
+  { const a = await raise(1); const b = await cardAt(5);
+    await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: a.x, y: a.y, button: 'left', buttons: 1, clickCount: 1, modifiers: 8 });
+    for (let n = 1; n <= 10; n++) await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: a.x + ((b.x - a.x) * n) / 10, y: a.y, button: 'none', buttons: 1, modifiers: 8 });
+    await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: b.x, y: a.y, button: 'left', buttons: 0, clickCount: 1, modifiers: 8 }); await sleep(200);
+    const picked = await ev("document.querySelectorAll('#hand > .card.selected').length");
+    check('Shift and a drag across the hand from a card picks the cards it crosses', picked >= 4, String(picked)); }
   check('no page errors', (await ev('window.__errors || []')).length === 0);
   await closeAllBrowsers();
 } finally {

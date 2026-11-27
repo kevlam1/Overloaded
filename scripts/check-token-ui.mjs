@@ -54,13 +54,17 @@ try {
   const commonNames = await names(1);
   check('the deck section holds Krenko\'s Goblin, and the common section 16 tokens starting with Treasure', deckNames.includes('Goblin') && commonNames.length === 16 && commonNames[0] === 'Treasure', JSON.stringify([deckNames, commonNames]));
 
-  // holding Alt over a tile (or any card) shows the larger picture
+  // with the larger picture turned on (Alt), a tile (or any card) shows it
   const altOver = async (selector) => {
     const [ax, ay] = await ev(`(() => { const b = document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect(); return [Math.round(b.left + b.width / 2), Math.round(b.top + b.height / 2)]; })()`);
+    // (a press of Alt on its own turns the larger picture on, and another turns it off: 2026-11-26 feedback)
+    const pressAlt = async () => { for (const type of ['rawKeyDown', 'keyUp']) await browser.send('Input.dispatchKeyEvent', { type, key: 'Alt', code: 'AltLeft', windowsVirtualKeyCode: 18, modifiers: type === 'keyUp' ? 0 : 1 }); await sleep(100); };
     await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 5, y: 5 });
-    await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: ax, y: ay, modifiers: 1 });
+    await pressAlt();
+    await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: ax, y: ay });
     await sleep(250);
     const shown = await ev("(() => { const b = document.getElementById('card-hover'); return b && !b.hidden ? b.querySelector('img').getAttribute('src') : null; })()");
+    await pressAlt();
     await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 5, y: 5 });
     await sleep(150);
     return shown;

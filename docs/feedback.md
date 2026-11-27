@@ -68,18 +68,18 @@ Step 2, decks and the lobby:
 - **Edit and remove decks from the lobby.** Done in step 2 (entry 299): Edit and Delete on each deck tile.
 
 Step 3, table controls and settings:
-- **Buttons for numbers in menus** (Scry, Surveil, Draw X and the rest). Planned, step 3.
-- **Right-click on Draw draws 3.** Planned, step 3.
-- **Untap all and Draw move the step of the turn on,** and a button that moves to the next step. Planned, step 3.
-- **A keybind to send a card to the command zone** (unbound at first). Planned, step 3.
-- **A key that toggles the big card picture.** Planned, step 3.
-- **The "Back to your graveyard" pill in the center** instead of the top right. Planned, step 3.
-- **An eye button in Settings** to look at the board, like the pile windows have. Planned, step 3.
-- **A hand card size setting.** Planned, step 3.
-- **Louder sounds and a volume slider.** Planned, step 3.
-- **A vertical style for untapped piles.** Planned, step 3.
-- **Easier Shift-picking of hand cards.** Planned, step 3.
-- **Hand sorting in Settings as columns,** collapsible, with the up and down arrows stacked on the right. Planned, step 3.
+- **Buttons for numbers in menus** (Scry, Surveil, Draw X and the rest). Done in step 3 (entry 300): − and + and buttons 1 to 7.
+- **Right-click on Draw draws 3.** Done in step 3 (entry 300).
+- **Untap all and Draw move the step of the turn on,** and a button that moves to the next step. Done in step 3 (entry 300): Next step in the control bar.
+- **A keybind to send a card to the command zone** (unbound at first). Done in step 3 (entry 300).
+- **A key that toggles the big card picture.** Done in step 3 (entry 300): Alt toggles it.
+- **The "Back to your graveyard" pill in the center** instead of the top right. Done in step 3 (entry 300).
+- **An eye button in Settings** to look at the board, like the pile windows have. Done in step 3 (entry 300).
+- **A hand card size setting.** Done in step 3 (entry 300): Card size, 70% to 150%.
+- **Louder sounds and a volume slider.** Done in step 3 (entry 300): 12 dB louder; the slider was already there.
+- **A vertical style for untapped piles.** Done in step 3 (entry 300): (B) Vertical.
+- **Easier Shift-picking of hand cards.** Done in step 3 (entry 300): Shift and a drag from a card.
+- **Hand sorting in Settings as columns,** collapsible, with the up and down arrows stacked on the right. Done in step 3 (entry 300).
 
 Step 4, tools that move:
 - **The turn bar movable like the control bar.** Planned, step 4.

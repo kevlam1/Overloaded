@@ -680,6 +680,9 @@ body[data-pile-style="horizontal"] .battlefield > .card[data-stack-depth="2"] { 
 /* vertical piles: the copies under the top card go straight up */
 body[data-pile-style="vertical"] .battlefield > .card[data-stack-depth="1"] { translate: 0 calc(var(--step-v) * -1); }
 body[data-pile-style="vertical"] .battlefield > .card[data-stack-depth="2"] { translate: 0 calc(var(--step-v) * -2); }
+/* (B) vertical piles (2026-11-26 feedback): the copies show their bottoms under the top card. The pile grows UP from its cell (the top card highest, --pile-up steps, set by
+   src/card-nodes.js), because lands start on the bottom row and copies below it would be cut off by the edge of the board */
+body[data-pile-style="vertical-bottom"] .battlefield > .card[data-stack-depth]:not(.tapped) { translate: 0 calc(var(--step-v) * var(--pile-up, 0) * -1); }
 
 .card .stack-count { position: absolute; top: 0.15rem; right: 0.15rem; padding: 0 0.3rem; border: 1px solid rgba(255, 255, 255, 0.4); border-radius: 0.6rem; background: rgba(20, 20, 26, 0.92); color: #fff; font-size: 0.75rem; font-weight: 700; line-height: 1.1rem; pointer-events: none; }
 body.playing .card .stack-count { font-size: 0.9rem; line-height: 1.3rem; padding: 0 0.45rem; border-radius: 1rem; }
@@ -730,6 +733,8 @@ body[data-pile-style="horizontal"] .battlefield > .card[data-stack-ext="1"]::bef
 body[data-pile-style="horizontal"] .battlefield > .card[data-stack-ext="2"]::before { top: -3px; left: calc(var(--step-h) * -2 - 3px); }
 body[data-pile-style="vertical"] .battlefield > .card[data-stack-ext="1"]::before { top: calc(var(--step-v) * -1 - 3px); left: -3px; }
 body[data-pile-style="vertical"] .battlefield > .card[data-stack-ext="2"]::before { top: calc(var(--step-v) * -2 - 3px); left: -3px; }
+body[data-pile-style="vertical-bottom"] .battlefield > .card:not(.tapped)[data-stack-ext="1"]::before { top: -3px; left: -3px; bottom: calc(var(--step-v) * -1 - 3px); }
+body[data-pile-style="vertical-bottom"] .battlefield > .card:not(.tapped)[data-stack-ext="2"]::before { top: -3px; left: -3px; bottom: calc(var(--step-v) * -2 - 3px); }
 body[data-tapped-pile-style="diagonal"] .battlefield > .card.tapped[data-stack-ext="1"]::before { top: calc(var(--step) * -1 - 3px); left: calc(var(--step) * -1 - 3px); }
 body[data-tapped-pile-style="diagonal"] .battlefield > .card.tapped[data-stack-ext="2"]::before { top: calc(var(--step) * -2 - 3px); left: calc(var(--step) * -2 - 3px); }
 body[data-tapped-pile-style="horizontal"] .battlefield > .card.tapped[data-stack-ext="1"]::before { top: -3px; left: calc(var(--step-h) * -1 - 3px); }
@@ -1147,7 +1152,7 @@ body.playing #hand > .card .hand-cost .pip, body.playing #hand > .card .hand-cos
 
 /* The cards of the hand are a little smaller than the box so the arc and the turn of the outer cards stay inside it. */
 @supports (height: 1cqh) {
-  body.playing #hand > .card { --ch: calc(100cqh - 2.8rem); height: var(--ch); width: calc(var(--ch) / 1.4015); }
+  body.playing #hand > .card { --ch: calc((100cqh - 2.8rem) * var(--hand-scale, 1)); height: var(--ch); width: calc(var(--ch) / 1.4015); }
   body.playing #hand > .card .face, body.playing #hand > .card:not(.tapped) .face { width: 100%; height: 100%; }
 }
 
@@ -1186,7 +1191,7 @@ body.playing main.table { overflow: clip; }
 body.playing .hand-lift-layer { position: absolute; left: 0; right: 0; bottom: 0; z-index: 6; height: clamp(10.25rem, calc(29.06vh + 2rem), 19.8rem); pointer-events: none; }
 @supports (height: 1cqh) {
   body.playing .hand-lift-layer { container-type: size; }
-  body.playing .hand-lift-layer > .card { --ch: calc(100cqh - 2.8rem); height: var(--ch); width: calc(var(--ch) / 1.4015); }
+  body.playing .hand-lift-layer > .card { --ch: calc((100cqh - 2.8rem) * var(--hand-scale, 1)); height: var(--ch); width: calc(var(--ch) / 1.4015); }
   body.playing .hand-lift-layer > .card .face, body.playing .hand-lift-layer > .card:not(.tapped) .face { width: 100%; height: 100%; }
 }
 body.playing .hand-lift-layer > .card { position: absolute; left: 0; bottom: 2.8rem; margin: 0; background: none; border-color: transparent; box-shadow: none; pointer-events: none; transform-origin: 50% 140%; transform: translate(var(--hx, 0px), var(--hy, 0px)) rotate(var(--ha, 0deg)); transition: transform 110ms ease-out; }
@@ -1805,13 +1810,31 @@ body[data-screen="room"] section#table { padding: 0; border: 0; background: none
 
 /* Hand sorting: one card for each order */
 .sort-card-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
-.sort-card-title { margin: 0; font-size: 1rem; }
+.sort-card-title { margin: 0; font-size: 1rem; font-weight: 600; }
 .sort-reset { min-height: 2rem; padding: 0 0.8rem; font-size: 0.8rem; border-radius: 0.6rem; }
 .sort-hint { margin: 0.2rem 0 0.7rem; color: var(--muted); font-size: 0.85rem; }
 .settings-menu .sort-card .type-order { gap: 0.45rem; }
 .settings-menu .sort-card .type-pill { padding: 0.1rem 0.2rem 0.1rem 0.35rem; font-size: 0.9rem; background: var(--bg); }
 .type-num { display: grid; place-items: center; width: 1.3rem; height: 1.3rem; margin-right: 0.15rem; border-radius: 50%; background: color-mix(in srgb, var(--accent) 25%, transparent); font-size: 0.7rem; font-weight: 700; }
 .settings-menu .sort-card .type-move { width: 1.5rem; height: 1.8rem; font-size: 1.1rem; }
+/* (2026-11-26 feedback) the orders are columns side by side, each card folds up, and a pill's up and down arrows are stacked on its right */
+.sort-columns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.6rem; align-items: start; }
+.settings-menu .sort-columns .sort-card { padding: 0.7rem 0.6rem; }
+.sort-columns .sort-card-head { gap: 0.3rem; }
+.sort-columns .sort-reset { padding: 0 0.5rem; }
+.settings-menu .sort-columns .sort-card { margin: 0; }
+.sort-fold { display: flex; align-items: center; gap: 0.4rem; min-height: 2rem; padding: 0; border: 0; background: transparent; color: var(--text); cursor: pointer; }
+.sort-fold-caret { display: inline-block; transition: rotate 0.15s ease; }
+.sort-card.folded .sort-fold-caret { rotate: -90deg; }
+@media (prefers-reduced-motion: reduce) { .sort-fold-caret { transition: none; } }
+.sort-card-body[hidden] { display: none; }
+.settings-menu .sort-columns .type-order { flex-direction: column; flex-wrap: nowrap; }
+.settings-menu .sort-columns .type-pill { justify-content: flex-start; border-radius: 0.6rem; padding: 0.15rem 0.2rem 0.15rem 0.4rem; }
+.sort-columns .type-name { flex: 1; }
+.type-moves { display: flex; flex-direction: column; }
+.settings-menu .sort-columns .type-move { width: 1.5rem; min-height: 0; height: 0.95rem; padding: 0; font-size: 0.6rem; line-height: 1; }
+.settings-menu .sort-columns .type-pill { min-height: 0; font-size: 0.85rem; }
+.settings-menu .sort-columns .type-order { gap: 0.3rem; }
 
 /* Reset buttons that must be held (Keybinds): the fill shows how long is left. */
 .kb-reset, #kb-reset-all { position: relative; overflow: hidden; }
@@ -2132,3 +2155,5 @@ body.playing.seats .cmd-slot .tax-words { min-width: 1.1rem; min-height: 0; heig
 .stack-arrows > g.arrow-gone { opacity: 0; pointer-events: none; }
 .stack-arrows > g.arrow-gone .stack-arrow-hit { pointer-events: none; }
 @media (prefers-reduced-motion: reduce) { .stack-arrows > g { transition: none; } }
+/* the Next step button keeps one width whatever step it names, so the bar does not change size (and move) as the steps go by */
+#next-step .act-label { display: inline-block; min-width: 8.5ch; text-align: left; }

@@ -143,7 +143,8 @@ export function mountCardHover(doc = document, { notesFor = null } = {}) {
     box.hidden = false;
     if (hasNotes) placeNotes(rect, spot, boxWidth, boxHeight); else notes.hidden = true;
   };
-  // The box is for the card under the pointer, and only while Alt is held.
+  // The box is for the card under the pointer, while the picture is turned on. Alt TOGGLES it (Kevin's friends, 2026-11-26: a key that turns it on and off, instead of
+  // holding Alt): one press turns it on, the next turns it off; letting go of Alt does nothing. (altHeld is the name from when it was held.)
   const sync = () => {
     if (!altHeld || !over || over === suppressed) { if (current) hide(); return; }
     if (over !== current) { hide(); show(over); }
@@ -153,7 +154,6 @@ export function mountCardHover(doc = document, { notesFor = null } = {}) {
   const onOver = (event) => {
     if (event.pointerType === 'touch' || event.pointerType === 'pen') return;
     over = event.target.closest?.('.card, .token-tile') ?? null;
-    if (typeof event.altKey === 'boolean') altHeld = event.altKey;
     sync();
   };
   const onOut = (event) => {
@@ -165,23 +165,28 @@ export function mountCardHover(doc = document, { notesFor = null } = {}) {
     over = to ?? null;
     sync();
   };
-  const onMove = (event) => { if (typeof event.altKey === 'boolean' && event.altKey !== altHeld) setAlt(event.altKey); };
+  const onMove = () => {};
+  let altAlone = false; // Alt is down and no other key has been pressed with it yet
   const onAway = () => { if (current) { suppressed = current; hide(); } };
   // Alt alone must not reach the browser: pressed and let go on its own it opens the browser's menu (and a held Alt can open it on release), so both its keydown and its keyup are
   // cancelled whenever no other key is part of the press.
   const onKeyDown = (event) => {
-    if (event.key === 'Alt') { event.preventDefault(); setAlt(true); }
+    if (event.key === 'Alt') { event.preventDefault(); if (!event.repeat) altAlone = true; } // (it toggles when let go, if no other key was pressed with it: Alt and an arrow nudge a card)
+    else if (event.altKey) altAlone = false;
+    if (event.key === 'Alt') return;
     else if (event.key === 'Escape') onAway();
     else if (altHeld && current && !box.hidden && ['pictureLeft', 'pictureRight'].includes(keybinds.match('picture', event))) { // (with Alt held the table does not tap, so the keys are free to turn the picture; they are the player's own choices, Settings > Keybinds)
       event.preventDefault();
+      event.stopImmediatePropagation(); // (the same keys tap on the table: while the picture is on they only turn it)
       turns += keybinds.match('picture', event) === 'pictureLeft' ? -1 : 1;
       if (current.isConnected) placeFor(current);
     }
   };
   const onKeyUp = (event) => {
     if (event.key !== 'Alt') return;
-    event.preventDefault();
-    setAlt(false);
+    event.preventDefault(); // (kept from the browser, which would open its menu)
+    if (altAlone) setAlt(!altHeld); // Alt pressed and let go on its own: the picture on or off
+    altAlone = false;
   };
   const onBlur = () => { altHeld = false; suppressed = null; hide(); };
 
@@ -202,7 +207,7 @@ export function mountCardHover(doc = document, { notesFor = null } = {}) {
   doc.addEventListener('pointermove', onMove);
   doc.addEventListener('pointerdown', onAway, true);
   doc.addEventListener('contextmenu', onAway, true);
-  doc.addEventListener('keydown', onKeyDown);
+  doc.defaultView.addEventListener('keydown', onKeyDown, true); // (on the window, before the page's own key handlers: see the picture keys above)
   doc.addEventListener('keyup', onKeyUp);
   doc.defaultView.addEventListener('scroll', onAway, true);
   doc.defaultView.addEventListener('blur', onBlur);
@@ -217,7 +222,7 @@ export function mountCardHover(doc = document, { notesFor = null } = {}) {
       doc.removeEventListener('pointermove', onMove);
       doc.removeEventListener('pointerdown', onAway, true);
       doc.removeEventListener('contextmenu', onAway, true);
-      doc.removeEventListener('keydown', onKeyDown);
+      doc.defaultView.removeEventListener('keydown', onKeyDown, true);
       doc.removeEventListener('keyup', onKeyUp);
       doc.defaultView.removeEventListener('scroll', onAway, true);
       doc.defaultView.removeEventListener('blur', onBlur);

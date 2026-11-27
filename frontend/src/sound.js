@@ -17,6 +17,15 @@ function audioFor(name) {
 }
 
 // Plays a sound once at the saved volume times that sound's own gain (shared/sound-settings.mjs). A copy of the loaded element plays, so a sound can overlap itself (two quick draws).
+// The copy plays through a Web Audio gain node (2026-11-27), because some gains are above 1 and an audio element's volume stops at 1. Without Web Audio it plays at most at full volume.
+let context = null;
+function audioContext() {
+  if (context) return context;
+  const Context = window.AudioContext || window.webkitAudioContext;
+  if (!Context) return null;
+  try { context = new Context(); } catch { context = null; }
+  return context;
+}
 export function play(name) {
   const level = soundLevel(settings, name);
   if (level === 0) return;
@@ -24,7 +33,15 @@ export function play(name) {
     const base = audioFor(name);
     if (!base) return;
     const sound = base.cloneNode();
-    sound.volume = level;
+    const ctx = audioContext();
+    if (ctx) {
+      if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+      const gain = ctx.createGain();
+      gain.gain.value = level;
+      ctx.createMediaElementSource(sound).connect(gain).connect(ctx.destination);
+    } else {
+      sound.volume = Math.min(1, level);
+    }
     const started = sound.play();
     if (started && typeof started.catch === 'function') started.catch(() => {});
   } catch { /* silent */ }

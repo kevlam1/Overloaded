@@ -262,6 +262,7 @@ export function makeCardNodes({ onSelect = () => {}, isSelected = () => false, r
           button.dataset.stackDepth = String(stack.depth);
           if (stack.depth >= STACK_VISIBLE) button.dataset.stackHidden = '1'; else delete button.dataset.stackHidden;
           if (stack.depth === 0) button.dataset.stackExt = String(Math.min(stack.size, STACK_VISIBLE) - 1); else delete button.dataset.stackExt;
+          button.style.setProperty('--pile-up', String(Math.max(0, Math.min(stack.size, STACK_VISIBLE) - 1 - stack.depth))); // (how many steps up this card sits in a (B) Vertical pile: the top card highest)
           if (stack.depth === 0) {
             const badge = count ?? make('span', 'stack-count');
             badge.textContent = `${stack.size}x`;
@@ -271,6 +272,7 @@ export function makeCardNodes({ onSelect = () => {}, isSelected = () => false, r
           } else { count?.remove(); }
         } else {
           delete button.dataset.stackSize; delete button.dataset.stackDepth; delete button.dataset.stackHidden; delete button.dataset.stackExt;
+          button.style.removeProperty('--pile-up');
           count?.remove();
         }
         return button;

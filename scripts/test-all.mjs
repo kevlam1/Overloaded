@@ -55,6 +55,7 @@ const suites = [
   { name: 'the right-click menu of a pile: shuffle, draw, mill, move all', cmd: node, args: ['scripts/test-pile-menu.mjs'] },
   { name: 'the type and mana value filters of the pile windows', cmd: node, args: ['scripts/test-pile-filter.mjs'] },
   { name: 'how much of a card shows when the hand is resting', cmd: node, args: ['scripts/test-hand-rest.mjs'] },
+  { name: 'the hand card size setting', cmd: node, args: ['scripts/test-hand-size.mjs'] },
   { name: 'the stack window (a list of card copies and text boxes, with Undo)', cmd: node, args: ['scripts/test-stack.mjs'] },
   { name: 'where the stack window arrows start and end', cmd: node, args: ['scripts/test-arrow-geometry.mjs'] },
   { name: 'the pause between the cards of Draw X', cmd: node, args: ['scripts/test-draw-pace.mjs'] },

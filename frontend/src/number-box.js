@@ -34,7 +34,18 @@ export function askNumber({ title, x = 0, y = 0, min = 1, max = 999, unit = '', 
     const ok = make('button', 'number-box-ok', 'OK'); ok.type = 'submit';
     const cancel = make('button', 'number-box-cancel', 'Cancel'); cancel.type = 'button';
     buttons.append(ok, cancel);
-    box.append(heading, field, note, buttons);
+    // Buttons as well as typing (Kevin's friends, 2026-11-26): - and + beside the box, and a row of the small numbers, each of which does it at once.
+    const step = (delta) => { const now = parseCount(field.value, { min, max }); const base = now.ok ? now.value : min; field.value = String(Math.min(max, Math.max(min, base + delta))); field.dispatchEvent(new Event('input')); };
+    const minus = make('button', 'number-box-step', '−'); minus.type = 'button'; minus.setAttribute('aria-label', 'One less'); minus.addEventListener('click', () => step(-1));
+    const plus = make('button', 'number-box-step', '+'); plus.type = 'button'; plus.setAttribute('aria-label', 'One more'); plus.addEventListener('click', () => step(1));
+    const line = make('div', 'number-box-line'); line.append(minus, field, plus);
+    const quick = make('div', 'number-box-quick');
+    for (let n = Math.max(1, min); n <= Math.min(7, max); n++) {
+      const pickN = make('button', 'number-box-pick', String(n)); pickN.type = 'button';
+      pickN.addEventListener('click', () => { store.set(LAST_KEY, String(n)); close(n); });
+      quick.append(pickN);
+    }
+    box.append(heading, line, ...(quick.children.length ? [quick] : []), note, buttons);
     document.body.append(box);
 
     const place = () => {

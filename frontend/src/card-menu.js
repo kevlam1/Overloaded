@@ -179,7 +179,13 @@ export function openCardMenu({ title, items, x, y, onPick, returnFocus = null, o
         else if (event.key === 'ArrowLeft' && field.selectionStart === 0) { event.preventDefault(); event.stopPropagation(); main.focus({ preventScroll: true }); }
         else if (event.key === 'ArrowLeft' || event.key === 'ArrowRight' || event.key === 'Home' || event.key === 'End') event.stopPropagation(); // (the box keeps its own cursor keys)
       });
-      row.append(main, field);
+      // - and + beside the box (Kevin's friends, 2026-11-26: buttons as well as typing)
+      const stepper = (text, label, delta) => {
+        const button = make('button', 'card-menu-step', text); button.type = 'button'; button.tabIndex = -1; button.setAttribute('aria-label', label);
+        button.addEventListener('click', (event) => { event.stopPropagation(); const now = parseCount(field.value, { min, max }); field.value = String(Math.min(max, Math.max(min, (now.ok ? now.value : min) + delta))); field.removeAttribute('aria-invalid'); });
+        return button;
+      };
+      row.append(main, stepper('−', 'One less', -1), field, stepper('+', 'One more', 1));
       row.addEventListener('pointerenter', closeFlyouts);
       menu.append(row);
     } else {

@@ -6184,6 +6184,43 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 - The lobby checks (`check-room-live` 43, `check-lobby-deck-live` 199) still pass with the new tiles and the window's button.
 - **Not checked by a test:** Edit and Delete on a lobby tile; only the code was read.
 
+## 300. The 11-26 feedback, step 3: table controls and settings (2026-11-27)
+
+**What I asked for**
+- My friends' step 3 items: number buttons in the number prompts, a right-click on Draw that draws 3, Untap all and Draw moving the step on, a Next step button, a key to send a card to the command zone, a key that toggles the big picture, the "Back to your graveyard" pill in the center, an eye button in Settings, a hand card size setting, louder sounds, a "(B) Vertical" style for untapped piles, easier Shift-picking in the hand, and Hand sorting in Settings as collapsible columns with the arrows stacked on the right.
+- For the big picture: a key that toggles it. For the eye: like the one the pile windows have.
+
+**What changed**
+- **Number prompts** (Draw X, Mill, Scry, Surveil and the rest) have − and + beside the field and a row of buttons 1 to 7 that answer at once; Scry and Surveil in the menu have − and + too.
+- **Draw:** a right-click draws 3.
+- **The step of the turn:**
+  - on my turn, Untap all during Untap moves it to Upkeep, and Draw during Draw moves it to Main 1;
+  - a **Next step** button in the control bar names the step and moves it on (on the live table only on my turn); its label keeps one width so the bar does not move as the steps change.
+- **Keys:** "To the command zone" (no key at first) sends the card under the pointer there. **Alt now toggles the big picture:** pressed alone it turns it on and stays on, pressed again turns it off; Alt with another key (the arrow nudges) does not toggle it.
+- **The "Back to your ..." pill** of the pile windows is at the top center.
+- **Settings:** an eye button beside the close button hides it, and a "Back to Settings" pill brings it back.
+- **Card size** for the hand: a slider under Resting hand, 70% to 150%, kept in the browser (`shared/hand-size.mjs`, `frontend/src/hand-size.js`).
+- **Louder sounds:** every sound is 12 dB louder (-39.6 dBFS on average at 100%). Tap needed a gain of 4, more than an audio element allows, so sounds now play through a Web Audio gain node. I measured each file's peak first: the loudest after the change is draw at -8.7 dBFS, so nothing clips. The Volume slider was already on both tables.
+- **(B) Vertical** for piles of untapped cards: the copies show their bottoms under the top card; the old Vertical is now "(T) Vertical". The pile grows UP from its cell, because lands start on the bottom row.
+- **Shift and a drag that starts on a hand card** draws the picking rectangle instead of carrying the card (a fanned hand has hardly any empty space to start on). Shift and a click still adds or removes one card.
+- **Hand sorting** in Settings: Card types, Colors and Lands are three columns side by side, each folds up (remembered in the browser), and each name has its up and down arrows stacked on the right.
+
+**What I checked**
+- `check-history-and-select-ui` 34 (new: draw 3, Next step, Card size 130%, the Settings eye, a Shift drag across the hand; the Alt checks press Alt twice now), `check-settings-ui` 19, `check-token-ui` 20, `check-solo-ui` 470, `check-effects-ui` 6, `check-seats-live` 42 against the real project.
+- `test-hand-size` (new, 5), `test-sound-settings` 52 (it now checks that no sound clips), `test-pile-style` 42, `test-keybinds` 39; `npm test` 104 of 105 and the one failure fixed (below).
+- Screenshots looked at: the table with a (B) Vertical pile, Settings > General, Hand sorting, the eye pill, and Draw X with its buttons.
+- **Not checked:** the new parts in the light theme (my screenshots asked for light, but the Theme setting said Dark, so they came out dark), the command zone key and the number box's Escape in a browser, and how the louder sounds actually sound (the test browsers are muted).
+
+**Decisions**
+- **(B) Vertical grows up, not down.** Claude first drew the copies below the top card, and a pile of lands on the bottom row lost them under the edge of the board.
+- **Shift-picking:** the press goes to the rectangle when Shift is held on a hand card; the drag code ignores it.
+
+**Claude's mistakes this step**
+- The "Back to Settings" pill did not work: the page's "click outside closes Settings" handler saw the pill's own click and closed Settings again at once. The new browser check caught it.
+- The eye button sat in the middle of the Settings header until a screenshot showed it.
+- The Next step button made the control bar wider and its label changed width with each step, which moved the bar; two solo checks failed until the label got a fixed width and one check's drag was shortened.
+- The effects check counted the draw sounds of the opening deal as part of casting the commander when the whole suite ran under load; it now waits for the deal to finish.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-24, entry 277) Claude told me the tool docks remembered their layout (entries 273 and 276) when the code stored "[object Object]"; the audit for the spec found it.
 - (2026-11-23, entry 273) I said "commit and push after every big change" and meant every big prompt; Claude pushed after each of three changes.

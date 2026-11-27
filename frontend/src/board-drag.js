@@ -308,6 +308,7 @@ export function mountBoardDrag({ doc = document, board, onDrop, onCarry = () => 
     if (event.altKey || event.ctrlKey || event.metaKey) return; // a modified click is something else (a menu key)
     if (event.target.closest?.('[data-mark], [data-badge]')) return;
     const source = pressedSource(event.target);
+    if (source?.from === 'hand' && event.shiftKey) return; // (Shift and a press on a card of the hand starts the picking rectangle instead, 2026-11-26 feedback: the page draws it)
     // A pile of more than one card: Shift held when the drag starts, or holding it down until the circle is full (startHold), carries the WHOLE pile; a plain drag takes one card off the top. (Shift also holds a
     // carried card to a row or a column: pointOf.)
     const stacked = source?.from === 'battlefield' && Number(source.button.dataset.stackSize) > 1;

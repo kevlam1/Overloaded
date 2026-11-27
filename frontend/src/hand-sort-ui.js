@@ -40,16 +40,35 @@ function chevron(value) {
 
 // A row of pills that can be put in another order: dragged (the pill follows the pointer and the others make way) or moved a place with the arrows on it.
 // names: the words for each key in the row; order(): the keys in the order now; move(from, to): asks for the change. Returns { draw() }.
+// Which of the cards are folded up (2026-11-26 feedback: each one collapsible), kept in this browser by title.
+const FOLDED_KEY = 'overloaded.handSortFolded';
+const readFolded = () => { try { const list = JSON.parse(store.get(FOLDED_KEY) ?? '[]'); return Array.isArray(list) ? list.filter((t) => typeof t === 'string') : []; } catch { return []; } };
+
 function pillRow({ host, title, hint, label, names, order, move, reset, isDefault }) {
   const card = make('section', 'sort-card');
   const head = make('div', 'sort-card-head');
   const resetButton = make('button', 'sort-reset secondary', 'Reset');
   resetButton.type = 'button';
   resetButton.addEventListener('click', () => reset());
-  head.append(make('h4', 'sort-card-title', title), resetButton);
+  const fold = make('button', 'sort-fold', '');
+  fold.type = 'button';
+  const caret = make('span', 'sort-fold-caret', '▾');
+  caret.setAttribute('aria-hidden', 'true');
+  fold.append(caret, make('span', 'sort-card-title', title));
+  const body = make('div', 'sort-card-body');
+  const setFolded = (folded) => { card.classList.toggle('folded', folded); body.hidden = folded; fold.setAttribute('aria-expanded', String(!folded)); };
+  setFolded(readFolded().includes(title));
+  fold.addEventListener('click', () => {
+    const folded = !card.classList.contains('folded');
+    setFolded(folded);
+    const kept = readFolded().filter((t) => t !== title);
+    store.set(FOLDED_KEY, JSON.stringify(folded ? [...kept, title] : kept));
+  });
+  head.append(fold, resetButton);
   const list = make('ol', 'type-order');
   list.setAttribute('aria-label', label);
-  card.append(head, make('p', 'sort-hint', hint), list);
+  body.append(make('p', 'sort-hint', hint), list);
+  card.append(head, body);
   host.append(card);
 
   // The pills are kept (one element per key) and only put in a new order, so a change can SLIDE: every pill that moved glides from where it was to where it is now (Kevin, 2026-11-21: the old row was
@@ -82,16 +101,18 @@ function pillRow({ host, title, hint, label, names, order, move, reset, isDefaul
     const item = make('li', 'type-pill');
     item.dataset.type = key;
     const index = () => order().indexOf(key);
-    const earlier = make('button', 'type-move', '‹');
+    const earlier = make('button', 'type-move', '▲'); // (up and down, stacked on the right: the orders are columns since the 2026-11-26 feedback)
     earlier.type = 'button';
     earlier.setAttribute('aria-label', `Move ${names[key]} earlier`);
     earlier.addEventListener('click', () => { const at = index(); if (at > 0) move(at, at - 1); });
-    const later = make('button', 'type-move', '›');
+    const later = make('button', 'type-move', '▼');
     later.type = 'button';
     later.setAttribute('aria-label', `Move ${names[key]} later`);
     later.addEventListener('click', () => { const at = index(); if (at >= 0 && at < order().length - 1) move(at, at + 1); });
     const num = make('span', 'type-num', '');
-    item.append(num, earlier, make('span', 'type-name', names[key]), later);
+    const moves = make('span', 'type-moves');
+    moves.append(earlier, later);
+    item.append(num, make('span', 'type-name', names[key]), moves);
     item.addEventListener('pointerdown', (event) => startDrag(event, item));
     entry = { item, earlier, later, num };
     pills.set(key, entry);
@@ -141,12 +162,18 @@ function pillRow({ host, title, hint, label, names, order, move, reset, isDefaul
       const py = e.clientY - origin.top;
       const children = [...list.children];
       const at = children.indexOf(item);
+      const column = getComputedStyle(list).flexDirection === 'column';
       // the pill under the pointer (by its place in the layout, not where it is gliding), and whether the pointer is past its middle in the way the dragged pill would go
       let to = at;
       children.forEach((pill, i) => {
         if (pill === item) return;
         const left = pill.offsetLeft; const top = pill.offsetTop; const w = pill.offsetWidth; const h = pill.offsetHeight;
         if (py < top - 4 || py > top + h + 4 || px < left - 4 || px > left + w + 4) return;
+        if (column) { // (a column: past the middle of a pill going down or up)
+          if (i > at && py > top + h / 2) to = i;
+          if (i < at && py < top + h / 2) to = i;
+          return;
+        }
         const middle = left + w / 2;
         if (i > at && (px > middle || py > top + h)) to = i;
         if (i < at && (px < middle || py < top)) to = i;
@@ -258,21 +285,23 @@ export function createHandSort({ onChange = () => {}, onSortNow = () => {} } = {
     host.replaceChildren();
     const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
     const intro = make('p', 'sort-intro', 'Choose the order inside the Type and Color sorts.');
-    host.append(intro);
+    const columns = make('div', 'sort-columns'); // (the three orders side by side, each a column: 2026-11-26 feedback)
+    host.append(intro, columns);
+    host = columns;
     const typeRow = pillRow({
-      host, title: 'Card types', hint: 'Left to right.', label: 'The order of the card types when the hand is sorted by type', names: TYPE_TITLES,
+      host, title: 'Card types', hint: 'Top first.', label: 'The order of the card types when the hand is sorted by type', names: TYPE_TITLES,
       order: () => order, isDefault: () => same(order, normalizeTypeOrder(null)),
       move: (from, to) => { order = moveType(order, from, to); store.set(TYPE_ORDER_KEY, JSON.stringify(order)); typeRow.draw(); onChange(); },
       reset: () => { order = normalizeTypeOrder(null); store.set(TYPE_ORDER_KEY, JSON.stringify(order)); typeRow.draw(); onChange(); },
     });
     const colorRow = pillRow({
-      host, title: 'Colors', hint: 'Left to right.', label: 'The order of the colors when the hand is sorted by color', names: COLOR_TITLES,
+      host, title: 'Colors', hint: 'Top first.', label: 'The order of the colors when the hand is sorted by color', names: COLOR_TITLES,
       order: () => colors, isDefault: () => same(colors, normalizeColorOrder(null)),
       move: (from, to) => { colors = moveColor(colors, from, to); store.set(COLOR_ORDER_KEY, JSON.stringify(colors)); colorRow.draw(); onChange(); },
       reset: () => { colors = normalizeColorOrder(null); store.set(COLOR_ORDER_KEY, JSON.stringify(colors)); colorRow.draw(); onChange(); },
     });
     const landRow = pillRow({
-      host, title: 'Lands', hint: 'Which lands come first: basic lands or the others.', label: 'The order of basic and non-basic lands when the hand is sorted', names: LAND_TITLES,
+      host, title: 'Lands', hint: 'Basic or other lands first.', label: 'The order of basic and non-basic lands when the hand is sorted', names: LAND_TITLES,
       order: () => lands, isDefault: () => same(lands, normalizeLandOrder(null)),
       move: (from, to) => { lands = moveLand(lands, from, to); store.set(LAND_ORDER_KEY, JSON.stringify(lands)); landRow.draw(); onChange(); },
       reset: () => { lands = normalizeLandOrder(null); store.set(LAND_ORDER_KEY, JSON.stringify(lands)); landRow.draw(); onChange(); },

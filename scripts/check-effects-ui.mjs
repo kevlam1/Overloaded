@@ -52,7 +52,9 @@ try {
   const plays = () => ev(`window.__plays.splice(0)`);
 
   await motion('no-preference');
-  const cast = await menuTo('#command .card', ['Play', 'Battlefield', 'Cast']);
+  await waitFor(async () => (await ev("document.querySelectorAll('#hand > .card').length")) >= 7 || null, 10000, 50).catch(() => {}); // (the opening deal plays a draw sound per card: under load it was still going when the cast was recorded)
+  await sleep(400); await plays();
+  const cast =await menuTo('#command .card', ['Play', 'Battlefield', 'Cast']);
   await sleep(250);
   const during = await pieces();
   if (process.argv.includes('--screenshot')) await browser.screenshot('scratch-effects.png');

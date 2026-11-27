@@ -41,6 +41,7 @@ import { openTokenPicker } from '../../src/token-picker.js';
 import { mountCounterChips } from '../../src/counter-chips.js';
 import { mountLifeControl } from '../../src/life-control.js';
 import { restHidden, mountHandRestSetting } from '../../src/hand-rest.js';
+import { mountHandSizeSetting } from '../../src/hand-size.js';
 import { createCounterPanel } from '../../src/counter-panel.js';
 import { mountFloatingBar } from '../../src/floating-bar.js';
 import { mountHistoryBar } from '../../src/history-bar.js';
@@ -52,7 +53,7 @@ import { PLANE_COLS, PLANE_ROWS, HOME_COLS, HOME_ROWS, homeOf, readPlaneEntry, p
 import { mountPlaneCamera } from '../../src/plane-camera.js';
 import { mountPlaneDrag } from '../../src/plane-drag.js';
 import { emptyUndo, remember, canUndo, takeBack, undoWords } from '../../../shared/undo.mjs';
-import { readPhase, phaseIn, phaseRecord, nextStep } from '../../../shared/phase.mjs';
+import { readPhase, phaseIn, phaseRecord, nextStep, PHASES, LAST_PHASE } from '../../../shared/phase.mjs';
 import { mountPhaseStrip } from '../../src/phase-strip.js';
 import { mountPlayersPanel } from '../../src/players-panel.js';
 import { packStack, readStack } from '../../../shared/stack-sync.mjs';
@@ -214,7 +215,7 @@ const counterPanel = createCounterPanel({
 });
 for (const [id, sign] of [['life-minus', -1], ['life-plus', 1]]) $(id).addEventListener('click', (event) => { if (game) apply(() => adjustLife(game, sign * (event.shiftKey ? 5 : 1)), ''); });
 
-const cardNodes = makeCardNodes({ onSelect: (uid, event) => select(uid, event), isSelected: (uid) => uid === selected || multi.has(uid), onMark: (uid, hit) => markOnCard(uid, hit), onMenu: (uid, where) => openMenuFor(uid, where), onBadge: (uid, kind) => clearBadge(uid, kind), printedStats: (card) => printedOf(card, lookup) });
+const cardNodes = makeCardNodes({ onSelect: (uid, event) => { if (!marqueeEnded) select(uid, event); }, isSelected: (uid) => uid === selected || multi.has(uid), onMark: (uid, hit) => markOnCard(uid, hit), onMenu: (uid, where) => openMenuFor(uid, where), onBadge: (uid, kind) => clearBadge(uid, kind), printedStats: (card) => printedOf(card, lookup) });
 const place = cardNodes.place;
 // The piles as stacks of cards (src/pile-stack.js) and the command zone with its two outlined slots and the commander tax (src/command-zone.js).
 const stacks = Object.fromEntries([['library', 'Library'], ['graveyard', 'Graveyard'], ['exile', 'Exile']].map(([zone, label]) => [zone, mountPileStack($(`pile-${zone}`), { zone, label })]));
@@ -714,6 +715,8 @@ function renderTurn() {
   if (info.turn !== undoTurn) { undoTurn = info.turn; undoState = emptyUndo(); } // (Undo never crosses a turn, whoever passed it)
   $('undo').disabled = !canUndo(undoState);
   phaseStrip.update({ step: phaseNow(info), mine, whose: capital(whoseWords(info, myUid)) });
+  $('next-step').querySelector('.act-label').textContent = `${PHASES[phaseNow(info)].name} »`; // (the step being played; on your turn a click moves to the next)
+  $('next-step').disabled = !mine || phaseNow(info) >= LAST_PHASE;
   const pass = $('pass-turn');
   const passWords = mine ? 'Next turn' : `Skip ${whoseWords(info, myUid).replace(/ \(no one is there\)$/, '')}`; // (the label only: the button keeps its icon for the column of icons)
   pass.querySelector('.act-label').textContent = passWords;
@@ -1385,7 +1388,9 @@ mountMarksPanel($('marks'), {
   say,
 });
 { const close = make('button', 'secondary modify-close', '×'); close.type = 'button'; close.setAttribute('aria-label', 'Close'); close.title = 'Close'; close.addEventListener('click', () => { closeModify(); document.querySelector('.card.selected')?.focus(); }); ($('marks').querySelector('.marks-head') ?? $('marks')).append(close); }
-$('draw').addEventListener('click', () => { if (game) drawOne(); });
+$('draw').addEventListener('click', () => { if (!game) return; const info = currentTurnInfo(); const step = info.uid === myUid ? phaseNow(info) : null; drawOne(); if (step === 2) setStep(3); }); // (on your turn, Draw during the Draw step moves on to Main 1: Kevin's friends, 2026-11-26)
+$('draw').addEventListener('contextmenu', (event) => { event.preventDefault(); if (game) drawCards(3); }); // (a right-click draws 3: Kevin's friends, 2026-11-26)
+$('draw').title = 'Draw. Right-click: draw 3';
 $('pass-turn').addEventListener('click', async () => {
   if (!game) return;
   const info = currentTurnInfo();
@@ -1399,7 +1404,8 @@ $('pass-turn').addEventListener('click', async () => {
   }
 });
 $('take-back').addEventListener('click', () => { if (game) { const action = takeBackAction(currentTurnInfo()); apply(() => action.run(game), action.message); } });
-$('untap-all').addEventListener('click', () => { if (game) { play('tap'); apply(() => untapAll(game), untapMessage(game)); } });
+$('untap-all').addEventListener('click', () => { if (game) { const info = currentTurnInfo(); const step = info.uid === myUid ? phaseNow(info) : null; play('tap'); apply(() => untapAll(game), untapMessage(game)); if (step === 0) setStep(1); } }); // (on your turn, Untap all during Untap moves on to Upkeep)
+$('next-step').addEventListener('click', () => { if (!game) return; const info = currentTurnInfo(); if (info.uid === myUid) setStep(nextStep(phaseNow(info))); });
 mountLookSettings($('look-settings'));
 mountEffectSettings($('look-settings'));
 mountSoundSettings($('sound-settings'));
@@ -1540,6 +1546,7 @@ stackWindowRef = stackWindow;
 function showStoredStack() { stackWindow.replace(readStack(storedStack, lookup ?? (() => null), meta?.match ?? null)); }
 mountFacing($('facing-settings'), { store });
 mountHandRestSetting($('hand-rest-settings'), { onChange: () => handView.arrange() });
+mountHandSizeSetting($('hand-rest-settings'), { onChange: () => handView.arrange() });
 mountKeybindSettings($('keybind-settings'), { keybinds, page: 'table' });
 $('pile-sideboard').addEventListener('click', () => settings.close()); // the viewer opens over the table; the Settings panel would only be in the way
 
@@ -1612,6 +1619,14 @@ document.addEventListener('keydown', (event) => {
   if (action === 'draw') { if (game) { event.preventDefault(); drawOne(); } return; }
   if (action === 'untapAll' || action === 'nextTurn') { const button = $(action === 'untapAll' ? 'untap-all' : 'pass-turn'); if (game && button && !button.disabled) { event.preventDefault(); button.click(); } return; }
   if (GAME_KEYS.has(action)) { if (game && runGameKey(action)) event.preventDefault(); return; }
+  if (action === 'toCommand') { // the card under the pointer, from the battlefield or the hand, to the command zone (a key of its own, unbound at first)
+    const under = pointerAt ? document.elementFromPoint(pointerAt.x, pointerAt.y)?.closest('#battlefield > .card, #hand > .card') : null;
+    const card = under && game ? findCard(under.dataset.uid) : null;
+    if (!card || card.zone === 'command') return;
+    event.preventDefault();
+    apply(() => moveCard(game, card.card.uid, 'command', {}), `${card.card.n} to the command zone.`);
+    return;
+  }
   const hovered = cardUnderPointer();
   const found = hovered && game ? findCard(hovered.dataset.uid) : null;
   if (!game || (!found && multi.size === 0)) return;
@@ -1624,8 +1639,9 @@ document.addEventListener('keydown', (event) => {
 let marquee = null;
 let marqueeEnded = false;
 $('seat-me').addEventListener('pointerdown', (event) => {
-  if (!game || event.button !== 0 || event.pointerType === 'touch' || event.target.closest('.card, button, .stack-hold-ring, .seat-head, .side-panels')) return;
-  const zone = handView.over(event.clientX, event.clientY) ? 'hand' : event.target.closest('#battlefield') ? 'battlefield' : null;
+  const handCard = event.shiftKey && event.button === 0 && event.target.closest('#hand > .card'); // (Shift and a drag that starts ON a card of the hand picks cards too: in a fanned hand there is hardly any empty space to start on, 2026-11-26 feedback)
+  if (!game || event.button !== 0 || event.pointerType === 'touch' || (!handCard && event.target.closest('.card, button, .stack-hold-ring, .seat-head, .side-panels'))) return;
+  const zone = handCard || handView.over(event.clientX, event.clientY) ? 'hand' : event.target.closest('#battlefield') ? 'battlefield' : null;
   if (!zone) return;
   marquee = { x: event.clientX, y: event.clientY, box: null, zone, hits: new Set(), more: event.shiftKey && multiZone === zone ? new Set(multi) : new Set() };
 });

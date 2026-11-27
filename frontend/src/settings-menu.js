@@ -33,10 +33,40 @@ export function mountSettingsMenu({ button, panel }) {
   });
 
   function setOpen(open) {
+    if (open && peekPill) peekPill.hidden = true; // (opened again any way: the "Back to Settings" pill goes)
     panel.hidden = !open;
     button.setAttribute('aria-expanded', String(open));
   }
-  button.addEventListener('click', () => setOpen(!isOpen()));
+  button.addEventListener('click', () => { if (peekPill && !peekPill.hidden) { peekPill.hidden = true; } setOpen(!isOpen()); });
+  // An eye button beside the close button hides Settings to see the board, and a "Back to Settings" pill at the top centre brings it back (Kevin's friends, 2026-11-26:
+  // like the pile windows' eye). Built here, so every page with Settings gets it.
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  const eyeIcon = () => {
+    const svg = document.createElementNS(SVG_NS, 'svg');
+    for (const [name, value] of [['width', '18'], ['height', '18'], ['viewBox', '0 0 24 24'], ['fill', 'none'], ['aria-hidden', 'true']]) svg.setAttribute(name, value);
+    const lid = document.createElementNS(SVG_NS, 'path');
+    for (const [name, value] of [['d', 'M1.5 12S5.5 5 12 5s10.5 7 10.5 7-4 7-10.5 7S1.5 12 1.5 12z'], ['stroke', 'currentColor'], ['stroke-width', '2'], ['stroke-linejoin', 'round'], ['fill', 'none']]) lid.setAttribute(name, value);
+    const pupil = document.createElementNS(SVG_NS, 'circle');
+    for (const [name, value] of [['cx', '12'], ['cy', '12'], ['r', '3'], ['fill', 'currentColor']]) pupil.setAttribute(name, value);
+    svg.append(lid, pupil);
+    return svg;
+  };
+  const closeButton = panel.querySelector('#settings-close');
+  let peekPill = null;
+  if (closeButton) {
+    const eye = document.createElement('button');
+    eye.type = 'button'; eye.id = 'settings-eye'; eye.className = 'settings-close secondary settings-eye';
+    eye.title = 'Hide to see the board'; eye.setAttribute('aria-label', 'Hide Settings to see the board');
+    eye.append(eyeIcon());
+    closeButton.before(eye);
+    peekPill = document.createElement('button');
+    peekPill.type = 'button'; peekPill.id = 'settings-peek'; peekPill.className = 'viewer-peek'; peekPill.hidden = true;
+    const words = document.createElement('span'); words.textContent = 'Back to Settings';
+    peekPill.append(eyeIcon(), words);
+    document.body.append(peekPill);
+    eye.addEventListener('click', () => { setOpen(false); peekPill.hidden = false; peekPill.focus(); });
+    peekPill.addEventListener('click', () => { peekPill.hidden = true; setOpen(true); eye.focus(); });
+  }
   panel.querySelector('#settings-close')?.addEventListener('click', () => { setOpen(false); button.focus(); });
   // The Settings key opens and closes Settings and does nothing else (Kevin, 2026-11-13): it never moves the focus to a button or a card. In a box you type text in, it is left alone.
   document.addEventListener('keydown', (event) => {
@@ -52,7 +82,7 @@ export function mountSettingsMenu({ button, panel }) {
     if (event.key === 'Escape' && isOpen() && !choosingKey() && !panel.querySelector('.is-dragging')) { event.stopImmediatePropagation(); setOpen(false); button.focus(); }
   }, true);
   document.addEventListener('click', (event) => {
-    if (!isOpen() || panel.contains(event.target) || event.target.closest?.('.confirm-overlay') || button.contains(event.target)) return;
+    if (!isOpen() || panel.contains(event.target) || event.target.closest?.('.confirm-overlay') || button.contains(event.target) || peekPill?.contains(event.target)) return; // (the pill's own click opened it)
     setOpen(false);
   });
   return { close: () => { if (isOpen()) setOpen(false); }, show: (name) => { const tab = tabs.find((each) => each.dataset.tab === name); if (tab) showTab(tab); setOpen(true); } };
