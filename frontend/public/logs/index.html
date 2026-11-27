@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.285</span></h1>
-    <p class="lede">285 entries, Oct 25 to Nov 26, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
+    <h1>Build log <span class="version">Version 0.286</span></h1>
+    <p class="lede">286 entries, Oct 25 to Nov 26, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
   </div>
 </header>
 
@@ -25,7 +25,7 @@
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
 <a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">56</span></a>
-<a class="week-link" href="#week-3" data-target="week-3"><span class="wl-name">Week 3</span><span class="wl-range">Nov 23 to Nov 29</span><span class="wl-count">16</span></a>
+<a class="week-link" href="#week-3" data-target="week-3"><span class="wl-name">Week 3</span><span class="wl-range">Nov 23 to Nov 29</span><span class="wl-count">17</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
 <a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">29 things friends asked for</span></a>
 <a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">30 open, 73 done</span></a>
@@ -4572,7 +4572,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-3" aria-labelledby="week-3-title">
-<h2 class="week-head" id="week-3-title"><button type="button" aria-expanded="false" aria-controls="week-3-days"><span class="wname">Week 3</span><span class="range">Nov 23 to Nov 29</span><span class="week-count">16 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-3-title"><button type="button" aria-expanded="false" aria-controls="week-3-days"><span class="wname">Week 3</span><span class="range">Nov 23 to Nov 29</span><span class="week-count">17 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-3-days">
 <div class="day">
 <h3 class="day-title">Monday 23 November <span class="day-count">6</span></h3>
@@ -4835,7 +4835,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Thursday 26 November <span class="day-count">1</span></h3>
+<h3 class="day-title">Thursday 26 November <span class="day-count">2</span></h3>
 <div class="entries">
 <article class="entry" id="entry-285" data-n="285">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-285-body">
@@ -4850,6 +4850,21 @@
 <ul><li><strong>Sending it:</strong> while I carry a card on the Shared plane, my page writes where it is (<code>tables/{code}/carry/{me}</code>: its owner's seat, the card, its cell), at most 8 times a second and only when the cell changes.<ul><li>The drop removes the record, and so does the database if my page disconnects.</li><li>A card carried from my hand is never sent: it is hidden until it is played.</li></ul></li><li><strong>What the others see</strong> (<code>table.js</code>, <code>game-shell.css</code>):<ul><li>the card lifted off the felt with a shadow and an outline in the carrier's color, gliding after them (no gliding under reduced motion);</li><li>the cell it is over outlined, with the carrier's name on a tag.</li></ul></li><li><strong>One at a time:</strong> nobody else can pick that card up meanwhile; the page says &quot;Bob is moving that card.&quot;</li><li><strong>New rule</strong> (<code>backend/database.rules.json</code>): a player writes only their own carry record, only during the match, with this match's number and a place inside the plane. I pasted it.</li><li><code>src/board-drag.js</code> and <code>src/plane-drag.js</code> report the carried place (<code>onCarry</code>).</li></ul>
 <p class="sub"><strong>What I checked</strong></p>
 <ul><li>Emulator, <code>backend/test-table-ops.mjs</code> 270 checks, 4 new: my own carry record only; the host reads it; strangers neither read nor write; the drop removes it.</li><li><code>scripts/check-shared-live.mjs</code>, two real browsers, 9 of 9, run twice:<ul><li>while Bob holds Alice's card mid-drag, her page shows it lifted and moved, with &quot;Bob&quot; on its outline;</li><li>she cannot pick it up, and the page says so;</li><li>when he lets go, the lift and the outline go away.</li></ul></li><li>Claude's mistake: the first version only fitted Alice's view to the whole table when taking screenshots, so in a plain run the card was off her screen and her &quot;grab&quot; missed it. It fits every run now.</li><li>Screenshots looked at, mid-drag, from both sides: Alice sees the card lifted in the commons with Bob's tag; Bob sees the copy he carries and the faded original.</li><li><code>npm test</code> 101 of 101 suites. <code>npm run test:live</code> 111 of 112: the failure was that first version of the check.</li></ul>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-286" data-n="286">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-286-body">
+    <span class="num">286</span>
+    <span class="head-text"><span class="title">Redesign step 6: the home page, the lobby and the deck page</span><span class="sum">&quot;Continue next&quot;: step 6 of the redesign, the pages outside the table, on the same look as the tables.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-286-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>&quot;Continue next&quot;: step 6 of the redesign, the pages outside the table, on the same look as the tables.</li></ul>
+<p class="sub"><strong>What changed</strong></p>
+<ul><li><strong>One style sheet for them,</strong> <code>frontend/src/styles/pages.css</code> (new), loaded last on the lobby and deck pages:<ul><li>the neutral greys and one gold, flat panels with a thin edge, the same fields and buttons as the tables;</li><li>the current page in the header is a pill with a gold line under it.</li></ul></li><li><strong>Home:</strong><ul><li>a shorter, solid hero (no gold-to-pink gradient, no purple glow), so &quot;Play with friends&quot; is on the first screen;</li><li>the three feature cards are now three small pills with their titles only;</li><li>shorter texts: &quot;Paste a deck and play in a minute. Free, with no account.&quot; and &quot;Make a table and share its code, or join a friend's.&quot;</li></ul></li><li><strong>Lobby table screen:</strong> the code in the number font, the seats and the bottom bar on the same panels.</li><li><strong>Deck page:</strong><ul><li>a Build log link in the header, like the home page;</li><li>an &quot;Add a deck&quot; tile after the last saved deck (it does what New deck does), so a short list no longer leaves an empty page.</li></ul></li></ul>
+<p class="sub"><strong>What I checked</strong></p>
+<ul><li>Screenshots looked at, desktop width, dark and light: home, the lobby with two players, the deck list, a deck open.</li><li><code>npm test</code> 100 of 101 suites at first. The failure was Claude's: the deck page check listed the header links, and the new Build log link was not in it. Updated; the deck check passes 292 of 292.</li><li>Live: <code>check-room-live</code> 41 of 41, <code>check-lobby-deck-live</code> 193 of 193, <code>check-seats-live</code> 42 of 42.</li></ul>
   </div></div></div>
 </article>
 </div>

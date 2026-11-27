@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="/src/style.css">
     <link rel="stylesheet" href="/src/styles/components.css">
     <link rel="stylesheet" href="/src/styles/overlays.css">
+    <link rel="stylesheet" href="/src/styles/pages.css">
   </head>
   <body data-screen="start">
     <header class="site-header">
@@ -26,18 +27,18 @@
     <main>
       <h1 id="page-title">Welcome to Overloaded</h1>
       <div id="intro" class="hero">
-        <p class="lede">Paste a decklist, shuffle up and play. It is free, there is nothing to install and no account to make.</p>
+        <p class="lede">Paste a deck and play in a minute. Free, with no account.</p>
         <div class="hero-actions">
           <a id="play-solo" class="button-link big" href="/solo">Play solo</a>
           <a id="try-sample" class="button-link quiet" href="/deck?sample">Try a sample deck</a>
           <a id="import-deck" class="button-link quiet" href="/deck">Import your deck</a>
         </div>
         <ul class="hero-points">
-          <li><svg class="point-icon" viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true" focusable="false"><path d="M4 3h11a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm14.5 2.2 2.7 1a2 2 0 0 1 1.2 2.5l-3.4 11.4V5.2z"/></svg><strong>Bring your own deck</strong>Paste a list from Moxfield, Archidekt or ManaBox.</li>
-          <li><svg class="point-icon" viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true" focusable="false"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm-1.5 6.2 6 3.8-6 3.8z"/></svg><strong>Test it alone</strong>Draw, mulligan, tap and move cards on the solo table.</li>
-          <li><svg class="point-icon" viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true" focusable="false"><path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm8 0a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM9 13c-3.3 0-6 1.8-6 4v2h12v-2c0-2.2-2.7-4-6-4zm8.2.2c2.4.3 4.8 1.6 4.8 3.8v2h-5v-2c0-1.4-.6-2.7-1.6-3.6z"/></svg><strong>Then play together</strong>Make a private table and share its code.</li>
+          <li><svg class="point-icon" viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true" focusable="false"><path d="M4 3h11a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm14.5 2.2 2.7 1a2 2 0 0 1 1.2 2.5l-3.4 11.4V5.2z"/></svg><strong>Bring your own deck</strong></li>
+          <li><svg class="point-icon" viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true" focusable="false"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm-1.5 6.2 6 3.8-6 3.8z"/></svg><strong>Test it alone</strong></li>
+          <li><svg class="point-icon" viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true" focusable="false"><path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm8 0a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM9 13c-3.3 0-6 1.8-6 4v2h12v-2c0-2.2-2.7-4-6-4zm8.2.2c2.4.3 4.8 1.6 4.8 3.8v2h-5v-2c0-1.4-.6-2.7-1.6-3.6z"/></svg><strong>Then play together</strong></li>
         </ul>
-        <p class="friends-lede"><strong>Play with friends</strong>Want company? Make a table below and send the code, or join your friends' table with theirs.</p>
+        <p class="friends-lede"><strong>Play with friends</strong>Make a table and share its code, or join a friend's.</p>
         <p id="resume" class="hint" hidden>You are at table <strong id="resume-code"></strong>. The Lobby link above goes back to it.</p>
       </div>
 

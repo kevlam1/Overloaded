@@ -5749,6 +5749,29 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 - Screenshots looked at, mid-drag, from both sides: Alice sees the card lifted in the commons with Bob's tag; Bob sees the copy he carries and the faded original.
 - `npm test` 101 of 101 suites. `npm run test:live` 111 of 112: the failure was that first version of the check.
 
+## 286. Redesign step 6: the home page, the lobby and the deck page (2026-11-26)
+
+**What I asked for**
+- "Continue next": step 6 of the redesign, the pages outside the table, on the same look as the tables.
+
+**What changed**
+- **One style sheet for them,** `frontend/src/styles/pages.css` (new), loaded last on the lobby and deck pages:
+  - the neutral greys and one gold, flat panels with a thin edge, the same fields and buttons as the tables;
+  - the current page in the header is a pill with a gold line under it.
+- **Home:**
+  - a shorter, solid hero (no gold-to-pink gradient, no purple glow), so "Play with friends" is on the first screen;
+  - the three feature cards are now three small pills with their titles only;
+  - shorter texts: "Paste a deck and play in a minute. Free, with no account." and "Make a table and share its code, or join a friend's."
+- **Lobby table screen:** the code in the number font, the seats and the bottom bar on the same panels.
+- **Deck page:**
+  - a Build log link in the header, like the home page;
+  - an "Add a deck" tile after the last saved deck (it does what New deck does), so a short list no longer leaves an empty page.
+
+**What I checked**
+- Screenshots looked at, desktop width, dark and light: home, the lobby with two players, the deck list, a deck open.
+- `npm test` 100 of 101 suites at first. The failure was Claude's: the deck page check listed the header links, and the new Build log link was not in it. Updated; the deck check passes 292 of 292.
+- Live: `check-room-live` 41 of 41, `check-lobby-deck-live` 193 of 193, `check-seats-live` 42 of 42.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-24, entry 277) Claude told me the tool docks remembered their layout (entries 273 and 276) when the code stored "[object Object]"; the audit for the spec found it.
 - (2026-11-23, entry 273) I said "commit and push after every big change" and meant every big prompt; Claude pushed after each of three changes.

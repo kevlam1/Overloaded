@@ -1,0 +1,56 @@
+/* ---- The home page, the lobby and the deck page (the redesign, step 6, 2026-11-26), on the same system as the tables: the neutral greys, one gold accent, flat panels
+   with a hairline edge, the same buttons and fields. Loaded after style.css, components.css and overlays.css on those pages, so these rules win.
+   What changed: no gold-to-pink gradient and no purple glow (off the palette); a shorter, tighter hero so "Play with friends" is on the first screen; the three feature
+   cards are a row of small pills; the header and the panels share the rail's surface. ---- */
+
+body[data-screen], body:has(#deck-app) { background: var(--surface-0); }
+.site-header { background: var(--surface-1); border-bottom-color: var(--line); }
+.site-header .site-link { border-radius: 8px; color: var(--muted); font-weight: 600; }
+.site-header .site-link:hover { color: var(--text); background: var(--surface-2); }
+.site-header .site-link[aria-current="page"] { color: var(--text); background: var(--surface-2); box-shadow: inset 0 -2px 0 var(--gold); }
+
+/* the panels and fields of the lobby screens */
+body[data-screen] section:not(#deck-importer), .room-seats, .room-deck, .room-bar { border: 1px solid var(--line); border-radius: 14px; background: var(--surface-1); box-shadow: none; }
+body[data-screen] input, body[data-screen] select { border-color: var(--line-strong); border-radius: 10px; background-color: var(--surface-0); }
+body[data-screen] input:focus-visible, body[data-screen] select:focus-visible { border-color: var(--gold); box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 25%, transparent); }
+body[data-screen] button:not(.secondary):not(.deck-face):not(.deck-action) { border-radius: 10px; box-shadow: none; }
+body[data-screen] button.secondary { border-radius: 10px; }
+body[data-screen] section h2 { font-size: 1.05rem; font-weight: 700; }
+body[data-screen="start"] section:not(#deck-importer) { padding: 1rem 1.2rem; }
+body[data-screen="start"] section h2 { margin-bottom: 0.5rem; }
+
+/* the hero: shorter, solid gold, no glow */
+body[data-screen="start"] main { padding-top: 1.4rem; }
+body[data-screen="start"] #page-title { margin: 0.6rem auto 0.5rem; font-size: clamp(2.1rem, 4.6vw, 3.1rem); font-weight: 800; letter-spacing: -0.03em; background: none; -webkit-text-fill-color: currentColor; color: var(--text); }
+body[data-screen="start"] .hero .lede { color: var(--muted); font-size: 1.1rem; }
+.hero-actions { margin: 1.2rem 0 1.4rem; gap: 10px; }
+.hero-actions .button-link.big { min-height: 3rem; padding-inline: 1.6rem; border-radius: 10px; background: var(--gold); color: var(--gold-ink); box-shadow: none; font-weight: 700; }
+.hero-actions .button-link.big:hover { background: color-mix(in srgb, var(--gold) 88%, #fff); }
+.hero-actions .button-link.quiet { min-height: 3rem; border-radius: 10px; border-color: var(--line-strong); background: var(--surface-1); }
+.hero-actions .button-link.quiet:hover { border-color: var(--gold); background: var(--surface-2); }
+/* the three points: small pills in one row */
+.hero-points { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 0 auto; padding: 0; list-style: none; }
+.hero-points li { display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px 7px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-1); box-shadow: none; color: var(--muted); font-size: var(--text-sm); }
+.hero-points li strong { color: var(--text); font-weight: 600; }
+.hero-points .point-icon { position: static; width: 16px; height: 16px; padding: 4px; border-radius: 6px; background: color-mix(in srgb, var(--gold) 16%, transparent); color: var(--gold); }
+.friends-lede { margin: 1.8rem 0 0.8rem; color: var(--muted); }
+.friends-lede strong { font-size: 1.3rem; font-weight: 800; letter-spacing: -0.02em; }
+.start-pair { gap: 12px; }
+body[data-screen="start"] #who { margin-bottom: 12px; }
+
+/* the table's screen in the lobby */
+.room-head { border: 1px solid var(--line); border-radius: 14px; background: var(--surface-1); }
+.room-head .code { font-family: var(--font-num); font-size: 2.6rem; font-weight: 700; letter-spacing: 0.12em; }
+.room-seats h3, .room-deck h3 { font-size: var(--text-xs); letter-spacing: 0.08em; }
+.seat { border-radius: 12px; background: var(--surface-2); }
+.seat.mine { border-color: var(--gold); }
+.room-bar { background: var(--surface-glass); backdrop-filter: blur(6px); }
+
+/* the deck page: the saved decks as a grid of cards, the same panels */
+#deck-app .deck-top, #deck-app .deck-summary { border-color: var(--line); border-radius: 14px; background: var(--surface-1); box-shadow: none; }
+/* the decks and the "Add a deck" tile in one grid (the list is display: contents, so the tile sits beside the last deck) */
+#deck-app .saved-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(21rem, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+#deck-app .saved-grid .saved-list { display: contents; }
+#deck-app .saved-add { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 10.4rem; border: 1.5px dashed var(--line-strong); border-radius: 14px; background: transparent; color: var(--muted); font-weight: 600; cursor: pointer; }
+#deck-app .saved-add:hover, #deck-app .saved-add:focus-visible { border-color: var(--gold); color: var(--text); background: var(--surface-1); }
+#deck-app .saved-add-plus { font-size: 1.8rem; line-height: 1; color: var(--gold); }

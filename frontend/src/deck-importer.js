@@ -131,7 +131,14 @@ function build() {
   savedList.id = 'saved-list';
   const savedEmpty = make('p', 'hint', 'No decks saved yet.');
   savedEmpty.id = 'saved-empty';
-  saved.append(savedHead, savedSummary, savedList, savedEmpty);
+  // a dashed tile after the last deck that starts a new one (beside the decks, so a short list does not leave an empty page; outside the list so the list holds only decks)
+  const savedGrid = make('div', 'saved-grid');
+  const addTile = make('button', 'saved-add');
+  addTile.type = 'button';
+  addTile.id = 'add-deck-tile';
+  addTile.append(make('span', 'saved-add-plus', '+'), make('span', 'saved-add-text', 'Add a deck'));
+  savedGrid.append(savedList, addTile);
+  saved.append(savedHead, savedSummary, savedGrid, savedEmpty);
 
   // screen 2: pasting a list
   const paste = make('section');
@@ -744,6 +751,7 @@ export function mountDeckImporter({ root: container, sampleId, autoPlay = false,
   $('check').addEventListener('click', runCheck);
   $('retry').addEventListener('click', loadCards);
   $('sample').addEventListener('click', () => useSample());
+  $('add-deck-tile').addEventListener('click', () => $('new-deck').click());
   $('new-deck').addEventListener('click', () => { currentId = null; setSaveState(''); $('deck-text').value = ''; text = ''; preview = null; choices = {}; picksTouched = false; formatTouched = false; $('deck-bracket').value = ''; $('deck-name').value = ''; applyFormatPolicy(); checkRun++; say(''); showScreen('paste'); });
   $('cancel-paste').addEventListener('click', () => { say(''); showScreen(preview ? 'deck' : 'list'); });
   $('back-to-decks')?.addEventListener('click', () => { say(''); showScreen('list'); });
