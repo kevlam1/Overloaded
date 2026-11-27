@@ -54,3 +54,14 @@ body[data-screen="start"] #who { margin-bottom: 12px; }
 #deck-app .saved-add { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 10.4rem; border: 1.5px dashed var(--line-strong); border-radius: 14px; background: transparent; color: var(--muted); font-weight: 600; cursor: pointer; }
 #deck-app .saved-add:hover, #deck-app .saved-add:focus-visible { border-color: var(--gold); color: var(--text); background: var(--surface-1); }
 #deck-app .saved-add-plus { font-size: 1.8rem; line-height: 1; color: var(--gold); }
+
+/* the hero's React island (src/react/hero.jsx): the dot field behind it, the card at its right; the hero's own content stays above both */
+body[data-screen="start"] .hero { position: relative; isolation: isolate; }
+body[data-screen="start"] .hero > :not(.hero-dots):not(.hero-card) { position: relative; z-index: 1; }
+.hero-dots { position: absolute; top: -3rem; bottom: -1rem; left: calc(50% - 50vw); right: calc(50% - 50vw); z-index: 0; color: color-mix(in srgb, var(--text) 22%, transparent); } /* (the dots take this color: faint in both themes) */
+body[data-screen="start"] { overflow-x: clip; } /* (the field reaches the window edges; never a sideways scroll) */
+.hero-card { position: absolute; z-index: 2; top: -1.6rem; right: 0.5rem; rotate: 6deg; }
+@media (max-width: 1100px) { .hero-card { display: none; } }
+.hero-card-back { display: grid; place-items: center; width: 100%; height: 100%; padding: 14%; border: 6px solid #111; border-radius: 4.8% / 3.4%; background: radial-gradient(circle at 50% 40%, #2a2a2a, #121212 70%); }
+.hero-card-back img { width: 100%; height: auto; } /* (the logo file is light already; the back is dark in both themes) */
+.hero-card [tabindex]:focus-visible { outline: 2px solid var(--gold); outline-offset: 4px; }

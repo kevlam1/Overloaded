@@ -5810,6 +5810,55 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 - The first screenshot showed the name cut off at the window's edge for a commander that lands in the top corner. It now stays inside the window and goes under the card at the top.
 - Not checked: the Shared view's plane (the code looks there for the other player's card, but no test casts on it), and how it sounds.
 
+## 288. React and Tailwind as islands, and the first KokonutUI parts on the home page (2026-11-26)
+
+**What I asked for**
+- KokonutUI in the redesign before step 7. Its components are React, Tailwind and Motion, written in TypeScript, and our site is plain JavaScript.
+- Claude advised only borrowing ideas from it. I chose React and Tailwind anyway.
+- Claude then asked how. I chose:
+  - islands, page by page, not a rewrite;
+  - TypeScript for the React parts only.
+- The plan (plan mode, approved): set up; the home page; then the lobby's table screen; then the deck list. The tables stay plain JS.
+
+**What changed**
+- **New packages,** each licence file read after installing:
+  - React and React DOM 19.3.1 (MIT);
+  - Motion 14.14.0 (MIT);
+  - lucide-react 1.81.0 (ISC);
+  - clsx and tailwind-merge (MIT);
+  - for the build, Tailwind CSS 4.3.5 and its Vite plugin (MIT).
+  - The React plugin for Vite was installed and then taken out again: in the dev server it puts an inline script on every page, which the deck page's check caught. Vite compiles JSX by itself (the `oxc` option), and the built site was byte for byte the same without the plugin. The only loss is hot reload while editing a React part.
+- **Setup:**
+  - `vite.config.js` has the Tailwind plugin, JSX compiled by Vite, and the `@` shortcut for `frontend/src`;
+  - `tsconfig.json` and `components.json` are for the editor and the shadcn tool only;
+  - `frontend/src/lib/utils.ts` is shadcn's `cn()`.
+- **Tailwind without its reset** (`frontend/src/styles/tw.css`): only its theme and utilities, in layers, so the site's own rules always win. The reset would have restyled every button and heading of the plain pages. Its colors point at our tokens, so they follow Dark and Light.
+- **The first island,** `frontend/src/react/hero.jsx`, draws into two empty elements of the home page's hero. Nothing of the page's own markup, ids or script changed.
+  - **Dot Field** behind the hero: dots that move away from the pointer, the same dots as the battlefields, faint in both themes.
+  - **Flick Card** beside the title: a face-down card that turns over to Krenko, the sample deck's commander. Drag it, click it or press Enter to turn it over.
+    - Its face-down side is our logo, not the Magic card back: my rules allow that picture only for face-down cards in play.
+    - Krenko's picture is fetched from Scryfall only when the pointer comes over the card, it gets focus or it is turned. Loading the home page must contact no other site, and the lobby check caught the first version, which showed Krenko at once.
+    - Hidden on windows narrower than 1100 px.
+  - Both stop moving under reduced motion (the components check it themselves).
+- **Credits:** the two components are copied unchanged from KokonutUI's registry, with their MIT licence in `frontend/src/components/kokonutui/credits.md`. Claude wrote the files from the registry's JSON instead of running the shadcn tool, because the tool can rewrite config and style files.
+- `CLAUDE.md`'s Stack section records all of this.
+
+**What I checked**
+- Screenshots looked at, desktop width: dark, light, reduced motion, and the card turned over with the keyboard.
+- `npm test` 103 of 103 suites, after the two fixes above. `check-lobby-deck-live` 194 of 194.
+- `check-room-live`: 41 of 41 three times out of four. The first run failed at "Alice makes a table and is on its own screen", and the cause is not known: it could be the island, or the flakiness this check already had.
+- `check-deploy-config` 54 of 54: the built home page, nothing blocked by the content policy (React and Motion set styles from script, which the policy allows).
+- **Cost of the home page** (`measure-lobby-load`, cache off):
+  - JavaScript went from 93,649 to 177,650 bytes;
+  - everything went from 250,545 to 339,168 bytes;
+  - requests went from 11 to 12;
+  - the load event went from 96 to 100 ms on this machine.
+  - Claude's plan had guessed about 60 KB more JavaScript; it is 84 KB.
+- Claude's mistakes, each found by a screenshot:
+  - the dots were too bright, then invisible in the light theme (the color Claude passed overrode the CSS), so they now take one faint color from the page;
+  - the logo on the card's back first came out dark, because the file is already light;
+  - the first back was the real Magic card back, against my rule.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-24, entry 277) Claude told me the tool docks remembered their layout (entries 273 and 276) when the code stored "[object Object]"; the audit for the spec found it.
 - (2026-11-23, entry 273) I said "commit and push after every big change" and meant every big prompt; Claude pushed after each of three changes.

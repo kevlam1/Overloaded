@@ -2,6 +2,10 @@ import { defineConfig, loadEnv } from 'vite';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 import { versionFromLog } from './shared/version.mjs';
+// React and Tailwind (Kevin, 2026-11-26: islands of React on the plain pages, so KokonutUI components can be used; log entry 288). JSX and TSX are compiled by
+// Vite itself (the `oxc` option below), NOT by @vitejs/plugin-react: that plugin puts an inline script on every page in the dev server (hot reload), which the content
+// policy and the page checks forbid. The only loss is hot reload while editing a React part.
+import tailwindcss from '@tailwindcss/vite';
 
 // The page needs five Firebase settings. They identify the project and are public by design (Firebase's docs:
 // security comes from the database rules, not from hiding them), but this repo never holds the values: they come
@@ -38,6 +42,7 @@ export default defineConfig(({ command, mode }) => {
   return {
     root: 'frontend',
     define: { __FIREBASE_CONFIG__: JSON.stringify(firebaseConfig) },
+    resolve: { alias: { '@': page('./frontend/src') } }, // (shadcn and KokonutUI components import @/components/... and @/lib/utils)
     build: {
       outDir: '../dist',
       emptyOutDir: true,
@@ -45,7 +50,8 @@ export default defineConfig(({ command, mode }) => {
         input: { lobby: page('./frontend/pages/lobby/index.html'), deck: page('./frontend/pages/deck/index.html'), solo: page('./frontend/pages/solo/index.html'), table: page('./frontend/pages/table/index.html') },
       },
     },
-    plugins: [{
+    oxc: { jsx: { runtime: 'automatic' } },
+    plugins: [tailwindcss(), {
       name: 'overloaded-version',
       transformIndexHtml: { order: 'pre', handler: (html) => html.replace(/\{\{VERSION\}\}/g, () => version) },
     }, {
