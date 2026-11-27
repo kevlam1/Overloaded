@@ -55,6 +55,7 @@ import { mountPlaneDrag } from '../../src/plane-drag.js';
 import { emptyUndo, remember, canUndo, takeBack, undoWords } from '../../../shared/undo.mjs';
 import { readPhase, phaseIn, phaseRecord, nextStep, PHASES, LAST_PHASE } from '../../../shared/phase.mjs';
 import { mountPhaseStrip } from '../../src/phase-strip.js';
+import { mountTurnPiece } from '../../src/turn-piece.js';
 import { mountPlayersPanel } from '../../src/players-panel.js';
 import { packStack, readStack } from '../../../shared/stack-sync.mjs';
 import { describeMove, makeEntry, slotFor as logSlotFor, lastK, mergeHistory } from '../../../shared/live-history.mjs';
@@ -710,7 +711,8 @@ function renderTurn() {
   const nextMember = Object.entries(members).find(([, m]) => m.seat === nextSeat);
   $('turn-next').textContent = nextMember ? `Next: ${nextMember[0] === myUid ? 'you' : nextMember[1].name}` : '';
   $('turn-next').hidden = !nextMember || nextSeat === info.seat;
-  $('game-bar').style.setProperty('--turn-color', playerColor(info.uid)); // (the dot before whose turn it is: that player's color)
+  $('turn-piece').style.setProperty('--turn-color', playerColor(info.uid)); // (the dot before whose turn it is: that player's color; on the turn piece, which can float out of the top bar)
+  $('turn-piece').dataset.mine = String(mine);
   $('game-bar').dataset.mine = String(mine);
   if (info.turn !== undoTurn) { undoTurn = info.turn; undoState = emptyUndo(); } // (Undo never crosses a turn, whoever passed it)
   $('undo').disabled = !canUndo(undoState);
@@ -1531,18 +1533,20 @@ function renderPlayersPanel() {
 }
 const historyBar = mountHistoryBar({ root: $('history-bar'), store, key: 'overloaded.seatsHistoryBar', room: columnRoom, docking: toolDocks.dockingFor('history') });
 floatingBars.push(historyBar);
+floatingBars.push(mountTurnPiece({ piece: $('turn-piece'), grip: $('turn-grip'), bar: $('game-bar'), before: $('topbar-slot'), floatHost: $('game'), store, key: 'overloaded.seatsTurnPlace', room: columnRoom })); // (the turn and its steps: dragged out of the top bar to float, 2026-11-26 feedback)
 noteMessage = (message, options) => { if (document.body.classList.contains('playing')) historyBar.note(message, options); }; // (outside a game the line itself shows)
 // The stack window (src/stack-window.js, as on the solo table), shared by the table (shared/stack-sync.mjs): every change here is stored whole, every stored change is shown. Its arrows can point at any
 // player's card; every player's cards are numbered from c1, so an arrow to a card says whose it is.
 let storedStack = null;
 const stackWindow = mountStackWindow({
-  root: $('stack-window'), say, printedStats: (card) => printedOf(card, lookup),
+  root: $('stack-window'), say, printedStats: (card) => printedOf(card, lookup), store, docking: toolDocks.dockingFor('stack'), room: columnRoom, placeKey: 'overloaded.seatsStackPlace',
   realCardSelector: '.battlefield .card[data-uid]',
   targetOf: (element) => ({ card: element.dataset.uid, owner: element.closest('.opponent')?.dataset.uid ?? myUid }),
   realCard: (target) => (!target.owner || target.owner === myUid ? $('battlefield') : opponents.get(target.owner)?.board)?.querySelector(`.card[data-uid="${CSS.escape(target.card)}"]`) ?? null,
   onChange: (stack) => { if (tableCode && myUid && meta) saveStack(tableCode, packStack(stack, myUid, meta.match)).catch((error) => say(`Stack not saved (${friendlyMessage(error)}).`, true)); },
 });
 stackWindowRef = stackWindow;
+floatingBars.push(stackWindow);
 function showStoredStack() { stackWindow.replace(readStack(storedStack, lookup ?? (() => null), meta?.match ?? null)); }
 mountFacing($('facing-settings'), { store });
 mountHandRestSetting($('hand-rest-settings'), { onChange: () => handView.arrange() });

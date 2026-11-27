@@ -7,6 +7,7 @@ import { makeCardNodes, sharpenPicture } from './card-nodes.js';
 import { openCardMenu } from './card-menu.js';
 import { emptyStack, addCard, addText, setText, moveItem, removeItem, resolveTop, clearStack, undo, canUndo, cardCount, summary, addArrow, removeArrow, removeArrowsOf, arrowsOf, MAX_TEXT } from '../../shared/stack.mjs';
 import { arrowPath, overlaps, visible } from '../../shared/arrow-geometry.mjs';
+import { mountFloatingBar } from './floating-bar.js';
 
 const make = (tag, className, text) => { const node = document.createElement(tag); if (className) node.className = className; if (text !== undefined) node.textContent = text; return node; };
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -20,7 +21,9 @@ const reduced = () => typeof matchMedia === 'function' && matchMedia('(prefers-r
 // root: the empty <aside> to draw into. printedStats(card): the printed power and toughness of a card (the page's lookup). say(message, isError): the status line of the page.
 // The live table shares one stack (shared/stack-sync.mjs): onChange(stack) is called after every change made here (the page stores it), replace(stack) shows a stack that came from the database, realCard(target)
 // finds the element of a real card an arrow points at, and targetOf(element) says which real card an element is ({ card, owner }); on the solo table these are only your own battlefield.
-export function mountStackWindow({ root, printedStats = () => null, say = () => {}, onChange = null, realCard = null, targetOf = null, realCardSelector = '#battlefield .card[data-uid]' }) {
+// Moving and folding (2026-11-26 feedback, step 4): with `docking` (src/tool-dock.js dockingFor('stack')) the title is a handle like Game history's: a click folds the window up to its title or opens it
+// again, a drag takes it out of the rail to float (src/floating-bar.js, its place kept under `placeKey`), and let go over the rail it docks again. Folded is kept in the browser too.
+export function mountStackWindow({ root, printedStats = () => null, say = () => {}, onChange = null, realCard = null, targetOf = null, realCardSelector = '#battlefield .card[data-uid]', store = null, docking = null, room = null, placeKey = 'overloaded.stackPlace' }) {
   let stack = emptyStack();
   // every change made in this window goes through here: it is drawn, and on the live table it is stored
   const set = (next) => { stack = next; draw(); onChange?.(stack); };
@@ -42,7 +45,11 @@ export function mountStackWindow({ root, printedStats = () => null, say = () => 
   panel.setAttribute('role', 'region');
   panel.setAttribute('aria-label', 'The stack');
   const head = make('div', 'stack-head');
-  head.append(make('h2', 'stack-title', 'The stack'));
+  const grip = make('button', 'stack-grip');
+  grip.type = 'button';
+  grip.title = 'Click to fold, drag to move';
+  grip.append(make('span', 'stack-title', 'The stack'));
+  head.append(grip);
   const buttons = make('div', 'stack-buttons');
   const button = (label, title, onClick) => { const b = make('button', 'secondary stack-button', label); b.type = 'button'; b.title = title; b.addEventListener('click', onClick); return b; };
   const resolveButton = button('Resolve top', 'Remove the top card', () => { const result = resolveTop(stack); if (!result.resolved) return; say(`Resolved ${result.resolved.n}.`); set(result.stack); });
@@ -59,6 +66,18 @@ export function mountStackWindow({ root, printedStats = () => null, say = () => 
   list.addEventListener('wheel', (event) => { if (!event.shiftKey) return; event.preventDefault(); list.scrollTop += event.deltaY || event.deltaX; }, { passive: false });
   panel.append(head, live, list);
   root.replaceChildren(panel, tab);
+
+  const FOLD_KEY = 'overloaded.stackFolded';
+  let folded = store?.get(FOLD_KEY) === '1';
+  function setFolded(next) {
+    folded = Boolean(next);
+    root.dataset.folded = String(folded);
+    grip.setAttribute('aria-expanded', String(!folded));
+    buttons.hidden = folded; list.hidden = folded;
+    for (const hint of head.querySelectorAll('.stack-hint')) hint.hidden = folded;
+    store?.set(FOLD_KEY, folded ? '1' : '0');
+  }
+  grip.addEventListener('click', () => { if (pinned) setFolded(!folded); });
 
   // ---- the arrows (Kevin, 2026-11-17): one SVG layer over the page, drawn again every animation frame while there is an arrow (or one is being drawn) and the window is out, so an arrow follows its cards
   // when they glide or the list scrolls. The path comes from shared/arrow-geometry.mjs. An arrow whose card is not on screen (scrolled out of the list, or a real card that left the table) is hidden.
@@ -446,8 +465,13 @@ export function mountStackWindow({ root, printedStats = () => null, say = () => 
   document.addEventListener('keydown', (event) => { if (drag?.active && event.key === 'Escape') { event.stopPropagation(); event.preventDefault(); const finished = endDrag(); if (finished) draw(); } }, true);
 
   setOpen(false);
+  setFolded(folded);
+  const floating = docking ? mountFloatingBar({ bar: root, grip, store, key: placeKey, defaultPlace: { dock: 'left', fx: 0, fy: 0.2 }, growDown: true, flush: true, clickThrough: true, room, docking }) : null;
   draw();
   return {
+    relayout: () => floating?.relayout(),
+    fold: (on) => setFolded(on),
+    isFolded: () => folded,
     // pin(true): always open, inside a column of the page (root gets data-pinned; the style sheet places it); pin(false): back to the tab that slides it out, closed.
     pin(on) {
       if (pinned === Boolean(on)) return;

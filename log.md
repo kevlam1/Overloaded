@@ -6221,6 +6221,36 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 - The Next step button made the control bar wider and its label changed width with each step, which moved the bar; two solo checks failed until the label got a fixed width and one check's drag was shortened.
 - The effects check counted the draw sounds of the opening deal as part of casting the commander when the whole suite ran under load; it now waits for the deal to finish.
 
+## 301. The 11-26 feedback, step 4: the turn and the stack move (2026-11-27)
+
+**What I asked for**
+- My friends' step 4 items: move the turn like the control bar, drag and drop the stack, and make the stack collapsible like the game history.
+
+**What changed**
+- **The turn piece:** the turn number, whose turn it is, the clock and the step strip are one piece with a grip (`frontend/src/turn-piece.js`).
+  - It starts in the top bar. Dragged out by its grip it floats like the control bar: it docks to an edge, turns into a column on the left or the right, and its place is kept in the browser.
+  - Let go over the top bar, it goes back there (the bar shows a gold line while it is over it).
+  - The turn's styles and the colour of whose turn it is now sit on the piece, so they still work when it floats.
+- **The stack:**
+  - its title is a handle like Game history's: a click folds it to its title and opens it again, a drag takes it out of the rail;
+  - floating, it is a window of its own, docked to an edge or anywhere on the table; let go over the rail, it docks there again;
+  - folded and its place are kept in the browser;
+  - the dock code no longer forces the stack into the rail (`frontend/src/tool-dock.js`).
+
+**What I checked**
+- `check-history-and-select-ui` 37 (new: the turn dragged out and back, the stack folded and opened, the stack dragged out and docked again).
+- `check-stack-ui` 26, `check-solo-ui` 470, `check-table-layout` 165, `test-tool-dock` 9 (new: a floating stack stays floating after a reload).
+- Against the real project: `check-seats-live` 42, `check-shared-live` 9. `npm test`: all 105 suites passed.
+- Screenshots looked at: the floating turn and stack, the turn docked to the left as a column, and the folded stack in the rail.
+- **Not checked:** the floating turn piece on the live table in a browser (only the solo table drags it; the live checks pass with it in the top bar), and the keyboard on the turn grip (the arrow keys and Home come from the control bar's code).
+
+**Decisions**
+- The turn piece cannot be folded; only moving it was asked for.
+
+**Claude's mistakes this step**
+- A general button style gave the stack's new title button extra padding, so the folded stack's title sat out of line with Game history's until a screenshot showed it.
+- The stack check counted the new title button as a fifth action button.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-24, entry 277) Claude told me the tool docks remembered their layout (entries 273 and 276) when the code stored "[object Object]"; the audit for the spec found it.
 - (2026-11-23, entry 273) I said "commit and push after every big change" and meant every big prompt; Claude pushed after each of three changes.

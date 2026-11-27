@@ -88,7 +88,7 @@ try {
   check('a note left empty is removed', (await count('#stack-window .stack-text')) === 1);
   await rightClick('#stack-window .stack-text', 0); await pick('Remove');
   check('a note is removed from its menu', (await count('#stack-window .stack-text')) === 0);
-  check('there are no buttons beside the cards, only the four at the top', (await ev(`document.querySelectorAll('#stack-window .stack-list button:not(.card)').length`)) === 0 && (await count('#stack-window .stack-head button')) === 4);
+  check('there are no buttons beside the cards, only the four at the top', (await ev(`document.querySelectorAll('#stack-window .stack-list button:not(.card)').length`)) === 0 && (await count('#stack-window .stack-head .stack-button')) === 4);
 
   // a real mouse drag: the item follows, the others slide aside, and the order changes
   const before = await ids();

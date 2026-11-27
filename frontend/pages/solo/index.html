@@ -31,10 +31,14 @@
       <div id="game" hidden>
         <!-- The top bar (the redesign, 2026-11-25, as on the multiplayer table): the turn, the phase (a later step), the news line, the menu. -->
         <header id="game-bar" class="game-bar">
-          <div class="turn-line">
-            <p class="stat turn-stat">Turn <strong id="turn">1</strong></p>
+          <!-- the turn and its steps: one piece, dragged out of the top bar by its grip to float (2026-11-26 feedback; src/turn-piece.js) -->
+          <div id="turn-piece" class="turn-piece">
+            <button id="turn-grip" type="button" class="bar-grip turn-grip" aria-label="Move the turn: drag it, or use the arrow keys (Home puts it back)" title="Drag to move the turn"><svg width="12" height="18" viewBox="0 0 12 18" fill="currentColor" aria-hidden="true"><circle cx="3" cy="3" r="1.6"/><circle cx="9" cy="3" r="1.6"/><circle cx="3" cy="9" r="1.6"/><circle cx="9" cy="9" r="1.6"/><circle cx="3" cy="15" r="1.6"/><circle cx="9" cy="15" r="1.6"/></svg></button>
+            <div class="turn-line">
+              <p class="stat turn-stat">Turn <strong id="turn">1</strong></p>
+            </div>
+            <div id="phase-strip" class="phase-strip" hidden></div>
           </div>
-          <div id="phase-strip" class="phase-strip" hidden></div>
           <div id="topbar-slot" class="topbar-slot"></div>
           <div class="seats-hud">
             <button id="settings-button" type="button" class="hud-menu" aria-haspopup="dialog" aria-expanded="false" aria-controls="settings-menu" aria-label="Menu and settings" title="Menu and settings"><svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor" aria-hidden="true"><rect x="2" y="4" width="14" height="2" rx="1"/><rect x="2" y="8" width="14" height="2" rx="1"/><rect x="2" y="12" width="14" height="2" rx="1"/></svg></button>

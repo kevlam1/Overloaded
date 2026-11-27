@@ -43,13 +43,17 @@
         <p id="deck-line" class="lede"></p>
         <!-- The top bar (the redesign, 2026-11-24): the turn, whose turn it is and who is next, the turn clock, the phase (a later step), the news line, whether your game is saved, the menu. -->
         <header id="game-bar" class="game-bar">
-          <div class="turn-line">
-            <p class="stat turn-stat">Turn <strong id="turn">1</strong></p>
-            <p id="turn-whose" class="stat turn-whose"></p>
-            <p id="turn-next" class="stat turn-next" hidden></p>
-            <p id="turn-clock" class="stat turn-clock" hidden></p>
+          <!-- the turn and its steps: one piece, dragged out of the top bar by its grip to float (2026-11-26 feedback; src/turn-piece.js) -->
+          <div id="turn-piece" class="turn-piece">
+            <button id="turn-grip" type="button" class="bar-grip turn-grip" aria-label="Move the turn: drag it, or use the arrow keys (Home puts it back)" title="Drag to move the turn"><svg width="12" height="18" viewBox="0 0 12 18" fill="currentColor" aria-hidden="true"><circle cx="3" cy="3" r="1.6"/><circle cx="9" cy="3" r="1.6"/><circle cx="3" cy="9" r="1.6"/><circle cx="9" cy="9" r="1.6"/><circle cx="3" cy="15" r="1.6"/><circle cx="9" cy="15" r="1.6"/></svg></button>
+            <div class="turn-line">
+              <p class="stat turn-stat">Turn <strong id="turn">1</strong></p>
+              <p id="turn-whose" class="stat turn-whose"></p>
+              <p id="turn-next" class="stat turn-next" hidden></p>
+              <p id="turn-clock" class="stat turn-clock" hidden></p>
+            </div>
+            <div id="phase-strip" class="phase-strip" hidden></div>
           </div>
-          <div id="phase-strip" class="phase-strip" hidden></div>
           <div id="topbar-slot" class="topbar-slot"></div>
           <span id="save-chip" class="save-chip" role="status" data-state="saved">Saved</span>
           <div class="seats-hud">

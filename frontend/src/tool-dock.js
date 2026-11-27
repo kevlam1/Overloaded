@@ -8,7 +8,7 @@ const TOOLS = ['players', 'stack', 'history', 'bar'];
 const DOCKS = { grid: ['rail'], focus: ['rail'], solo: ['rail'], none: [] };
 const DEFAULTS = { grid: { rail: ['players', 'history', 'stack', 'bar'] }, focus: { rail: ['players', 'history', 'stack', 'bar'] }, solo: { rail: ['history', 'stack', 'bar'] } }; // (solo: no Players section; 2026-11-25: the console is in the rail in every view, since floating it covered the hand) // (the stack takes the height the others leave)
 
-// A stored layout, read strictly: only known docks and tools, each tool once, and the stack always docked (it has no grip of its own). Anything else gives the default. `float` lists the tools
+// A stored layout, read strictly: only known docks and tools, each tool once. Anything else gives the default. (The stack was always docked until it got a handle, 2026-11-26 feedback.) `float` lists the tools
 // the player dragged out on purpose; a tool in no list (one added to the page after the layout was saved) goes where the default puts it.
 export function readDockLayout(mode, raw) {
   const fallback = DEFAULTS[mode] ? structuredClone(DEFAULTS[mode]) : {};
@@ -21,8 +21,7 @@ export function readDockLayout(mode, raw) {
     const list = Array.isArray(raw[dock]) ? raw[dock] : [];
     out[dock] = list.filter((tool) => known.includes(tool) && !seen.has(tool) && seen.add(tool));
   }
-  out.float = (Array.isArray(raw.float) ? raw.float : []).filter((tool) => known.includes(tool) && tool !== 'stack' && !seen.has(tool) && seen.add(tool));
-  if (!seen.has('stack')) { out[DOCKS[mode][0]].unshift('stack'); seen.add('stack'); }
+  out.float = (Array.isArray(raw.float) ? raw.float : []).filter((tool) => known.includes(tool) && !seen.has(tool) && seen.add(tool));
   for (const tool of known) {
     if (seen.has(tool)) continue;
     if (fallback.float?.includes(tool)) { out.float.push(tool); continue; } // (its default is to float)
@@ -80,8 +79,8 @@ export function createToolDocks({ elements, stackWindow, onFloat = () => {}, sto
       });
     }
     const docked = new Set(Object.entries(lists).filter(([dock]) => dock !== 'float').flatMap(([, list]) => list));
-    for (const name of names) if (!docked.has(name) && elements[name].classList.contains('tool-docked')) { goHome(name); if (name !== 'stack') onFloat(name); }
-    stackWindow.pin(docked.has('stack'));
+    for (const name of names) if (!docked.has(name) && elements[name].classList.contains('tool-docked')) { goHome(name); onFloat(name); }
+    stackWindow.pin(docked.has('stack') || (DOCKS[mode].length > 0 && (lists.float ?? []).includes('stack'))); // (open in the rail or floating during a game; the tab that slides it out only without one)
   }
   function save() { store?.set(key, writeDockStore(store?.get(key), mode, lists)); }
 

@@ -25,4 +25,5 @@ same('a layout saved without the console puts it back in the rail, its default',
 
 same('the solo table has no Players section: its default has none, and one in a saved layout is dropped', [readDockLayout('solo', undefined), readDockLayout('solo', { rail: ['players', 'stack'], float: ['bar'] })], [{ rail: ['history', 'stack', 'bar'] }, { rail: ['history', 'stack'], float: ['bar'] }]);
 
+same('a stack dragged out stays floating after a reload (2026-11-26 feedback)', readDockLayout('solo', { rail: ['history', 'bar'], float: ['stack'] }), { rail: ['history', 'bar'], float: ['stack'] });
 console.log(`All ${checks} tool dock checks passed.`);

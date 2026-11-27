@@ -238,6 +238,25 @@ try {
     await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: b.x, y: a.y, button: 'left', buttons: 0, clickCount: 1, modifiers: 8 }); await sleep(200);
     const picked = await ev("document.querySelectorAll('#hand > .card.selected').length");
     check('Shift and a drag across the hand from a card picks the cards it crosses', picked >= 4, String(picked)); }
+  // ---- step 4 of the 2026-11-26 feedback: the turn piece and the stack move like the control bar; the stack folds ----
+  { const where = () => ev("(() => { const p = document.getElementById('turn-piece'); const r = p.getBoundingClientRect(); return { inBar: p.parentElement.id === 'game-bar', floating: p.classList.contains('floating'), top: r.top, left: r.left }; })()");
+    await drag(await rectOf('#turn-grip'), { x: 500, y: 420 });
+    const out = await where();
+    await drag(await rectOf('#turn-grip'), { x: 300, y: 20 });
+    const back = await where();
+    check('the turn dragged by its grip floats where it is let go, and dragged onto the top bar it goes back', !out.inBar && out.floating && out.top > 300 && back.inBar && !back.floating, JSON.stringify({ out, back })); }
+  { const stackState = () => ev("(() => { const w = document.getElementById('stack-window'); const r = w.getBoundingClientRect(); return { docked: w.classList.contains('tool-docked'), folded: w.dataset.folded, listShown: !w.querySelector('.stack-list').hidden, h: r.height, left: r.left }; })()");
+    const before = await stackState();
+    await click('#stack-window .stack-grip');
+    const folded = await stackState();
+    await click('#stack-window .stack-grip');
+    check('a click on the stack title folds it to its title and a second click opens it', before.listShown && folded.folded === 'true' && !folded.listShown && folded.h < before.h && (await stackState()).listShown, JSON.stringify({ before, folded }));
+    await drag(await rectOf('#stack-window .stack-grip'), { x: 450, y: 300 });
+    const floated = await stackState();
+    const rail = await rectOf('.tool-dock[data-dock="rail"]');
+    await drag(await rectOf('#stack-window .stack-grip'), { x: rail.cx, y: rail.y + 60 });
+    const redocked = await stackState();
+    check('the stack dragged by its title floats out of the rail, and dropped on the rail it docks again', !floated.docked && floated.listShown && floated.left < rail.x && redocked.docked, JSON.stringify({ floated, redocked })); }
   check('no page errors', (await ev('window.__errors || []')).length === 0);
   await closeAllBrowsers();
 } finally {

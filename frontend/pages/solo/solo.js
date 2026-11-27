@@ -61,6 +61,7 @@ import { createToolDocks } from '../../src/tool-dock.js';
 import { emptyUndo, remember, canUndo, takeBack, undoWords } from '../../../shared/undo.mjs';
 import { nextStep, PHASES, LAST_PHASE } from '../../../shared/phase.mjs';
 import { mountPhaseStrip } from '../../src/phase-strip.js';
+import { mountTurnPiece } from '../../src/turn-piece.js';
 
 const $ = (id) => document.getElementById(id);
 const store = makeSafeStore();
@@ -628,9 +629,11 @@ function shell(on) {
 }
 const historyBar = mountHistoryBar({ root: $('history-bar'), store, room: railRoom, docking: toolDocks.dockingFor('history') }); // (Kevin, 2026-11-18: the moves of this game; in the rail since the redesign)
 floatingBars.push(historyBar);
+floatingBars.push(mountTurnPiece({ piece: $('turn-piece'), grip: $('turn-grip'), bar: $('game-bar'), before: $('topbar-slot'), floatHost: $('game'), store, key: 'overloaded.turnPlace', room: railRoom })); // (the turn and its steps: dragged out of the top bar to float, 2026-11-26 feedback)
 const record = (message) => historyBar.add(message, game?.turn);
 noteMessage = (message, options) => { if (document.body.classList.contains('playing')) historyBar.note(message, options); }; // (outside a game the line itself shows)
-const stackWindow = stackWindowRef = mountStackWindow({ root: $('stack-window'), printedStats: (card) => printedOf(card, lookup), say }); // (Kevin, 2026-11-17: a window that slides out from the left with copies of cards, text boxes and arrows; a visual aid, the game is not touched)
+const stackWindow = stackWindowRef = mountStackWindow({ root: $('stack-window'), printedStats: (card) => printedOf(card, lookup), say, store, docking: toolDocks.dockingFor('stack'), room: railRoom });
+floatingBars.push(stackWindow); // (Kevin, 2026-11-17: a window that slides out from the left with copies of cards, text boxes and arrows; a visual aid, the game is not touched)
 mountHandRestSetting($('hand-rest-settings'), { onChange: () => { handView.arrange(); if (fitBoard() && game) render(); } }); // (the hand is made further down, but the slider only works after it is)
 mountHandSizeSetting($('hand-rest-settings'), { onChange: () => handView.arrange() });
 const viewer = mountPileViewer({ root: $('viewer'), nodeFor: (card) => cardNodes.nodeFor(card, false), onClose: () => { viewing = null; viewTop = null; viewBottom = false; viewReveal = false; if (game) render(); } });

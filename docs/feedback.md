@@ -82,8 +82,8 @@ Step 3, table controls and settings:
 - **Hand sorting in Settings as columns,** collapsible, with the up and down arrows stacked on the right. Done in step 3 (entry 300).
 
 Step 4, tools that move:
-- **The turn bar movable like the control bar.** Planned, step 4.
-- **The stack movable and collapsible** like the game history. Planned, step 4.
+- **The turn bar movable like the control bar.** Done in step 4 (entry 301): a grip on the turn; it floats and docks like the control bar.
+- **The stack movable and collapsible** like the game history. Done in step 4 (entry 301): a click on its title folds it, a drag moves it out of the rail.
 
 Step 5, help:
 - **A help window when a game starts,** with the keys and basics of that view, and "don't show again" that Settings can undo. Planned, step 5.
