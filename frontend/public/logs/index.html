@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.289</span></h1>
-    <p class="lede">289 entries, Oct 25 to Nov 26, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
+    <h1>Build log <span class="version">Version 0.290</span></h1>
+    <p class="lede">290 entries, Oct 25 to Nov 26, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
   </div>
 </header>
 
@@ -25,7 +25,7 @@
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
 <a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">56</span></a>
-<a class="week-link" href="#week-3" data-target="week-3"><span class="wl-name">Week 3</span><span class="wl-range">Nov 23 to Nov 29</span><span class="wl-count">20</span></a>
+<a class="week-link" href="#week-3" data-target="week-3"><span class="wl-name">Week 3</span><span class="wl-range">Nov 23 to Nov 29</span><span class="wl-count">21</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
 <a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">29 things friends asked for</span></a>
 <a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">30 open, 73 done</span></a>
@@ -4572,7 +4572,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-3" aria-labelledby="week-3-title">
-<h2 class="week-head" id="week-3-title"><button type="button" aria-expanded="false" aria-controls="week-3-days"><span class="wname">Week 3</span><span class="range">Nov 23 to Nov 29</span><span class="week-count">20 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-3-title"><button type="button" aria-expanded="false" aria-controls="week-3-days"><span class="wname">Week 3</span><span class="range">Nov 23 to Nov 29</span><span class="week-count">21 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-3-days">
 <div class="day">
 <h3 class="day-title">Monday 23 November <span class="day-count">6</span></h3>
@@ -4835,7 +4835,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Thursday 26 November <span class="day-count">5</span></h3>
+<h3 class="day-title">Thursday 26 November <span class="day-count">6</span></h3>
 <div class="entries">
 <article class="entry" id="entry-285" data-n="285">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-285-body">
@@ -4910,6 +4910,21 @@
 <ul><li><strong>The seats are a React island</strong> (<code>frontend/src/react/lobby-seats.jsx</code>):<ul><li><code>lobby.js</code> still decides everything: who sits where, ready, presence, the bracket warning, bots, renaming. It hands the result to the island, which only draws it.</li><li>The markup and class names are the same as before, so the page's listeners and the checks read it as before.</li><li>It draws at once (<code>flushSync</code>), as the old code did.</li></ul></li><li><strong>Every player has a face:</strong> KokonutUI's avatar generator (<code>avatar-picker.tsx</code>) makes one from the player's name.<ul><li>It sits in a ring of their color, with the seat number as a small badge.</li><li>Every page makes the same face from the same name, so nothing new is stored and no rule changed.</li><li>A new name morphs into its new face (not under reduced motion).</li><li>The generator file is copied from KokonutUI with ONE line added, <code>export { MorphingFace };</code>, because the face is not exported on its own. <code>credits.md</code> says so.</li></ul></li><li><strong>Cost:</strong> the island and Motion (about 56 KB compressed) are fetched only the first time seats are drawn. The start page, which most visitors see, stays at 92.7 KB of JavaScript.</li><li>Left out on purpose:<ul><li>KokonutUI's slide-to-confirm for Start the match: it would change how starting works, and the checks press <code>#start</code>;</li><li>the color swatches and deck tiles stay as they were.</li></ul></li></ul>
 <p class="sub"><strong>What I checked</strong></p>
 <ul><li>Screenshot looked at: two players with their faces, colors, the host and Ready marks, and two empty seats.</li><li><code>npm test</code> 103 of 103 suites and <code>npm run test:live</code> 114 of 114 (it includes the presence, bot and two-tab checks, which read the seats too). Alone: <code>check-lobby-ui</code> 66 of 66, <code>check-room-live</code> 41 of 41, <code>check-lobby-deck-live</code> 194 of 194.</li><li>Claude's mistake: the first version made the name box a React-controlled field. The room check types a new name by setting the box's value and sending an input event, and React ignores a value set that way. Renaming failed, and the Over limit checks with it. The box now keeps its own value, as before, and React listens to every input event.</li><li><code>check-lobby-deck-live --screenshot</code> stops with &quot;pressStep is not defined&quot;: a bug in the check's own screenshot branch, older than today. Without the flag it passes. Not fixed.</li></ul>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-290" data-n="290">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-290-body">
+    <span class="num">290</span>
+    <span class="head-text"><span class="title">The faces taken back out</span><span class="sum">Remove the avatar generator, then continue.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-290-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>Remove the avatar generator, then continue.</li></ul>
+<p class="sub"><strong>What changed</strong></p>
+<ul><li>The seats are drawn by <code>lobby.js</code> again, exactly as before entry 289. <code>lobby.js</code>, <code>pages.css</code> and the KokonutUI credits were restored from that commit.</li><li>Deleted: <code>frontend/src/react/lobby-seats.jsx</code> and <code>frontend/src/components/kokonutui/avatar-picker.tsx</code>.</li><li>The rest of the React plan is dropped:<ul><li>the seats had no reason to be React without the faces;</li><li>no KokonutUI part fits the deck list (Claude looked at empty-state: it is a demo with its own fake list and a purple gradient).</li><li>React stays only in the home page's hero. <code>CLAUDE.md</code> says so.</li></ul></li></ul>
+<p class="sub"><strong>What I checked</strong></p>
+<ul><li><code>check-lobby-ui</code> 66 of 66, <code>check-room-live</code> 41 of 41, <code>check-lobby-deck-live</code> 194 of 194.</li></ul>
   </div></div></div>
 </article>
 </div>

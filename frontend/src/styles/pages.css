@@ -65,8 +65,3 @@ body[data-screen="start"] { overflow-x: clip; } /* (the field reaches the window
 .hero-card-back { display: grid; place-items: center; width: 100%; height: 100%; padding: 14%; border: 6px solid #111; border-radius: 4.8% / 3.4%; background: radial-gradient(circle at 50% 40%, #2a2a2a, #121212 70%); }
 .hero-card-back img { width: 100%; height: auto; } /* (the logo file is light already; the back is dark in both themes) */
 .hero-card [tabindex]:focus-visible { outline: 2px solid var(--gold); outline-offset: 4px; }
-
-/* each player's face on their seat card (src/react/lobby-seats.jsx: KokonutUI's avatar generator), in a ring of their color; the seat number is a small badge on it */
-.seat.has-face::before { left: 2.55rem; top: 2.45rem; width: 1.25rem; height: 1.25rem; font-size: 0.68rem; font-weight: 800; z-index: 4; box-shadow: 0 0 0 2px var(--surface-1); }
-.seat-face { position: absolute !important; top: 0.7rem; left: 0.7rem; z-index: 3; width: 2.9rem; height: 2.9rem; overflow: hidden; border-radius: 50%; box-shadow: 0 0 0 2px var(--player-color, var(--gold)), 0 4px 12px rgb(0 0 0 / 0.35); }
-.seat-face svg { display: block; width: 100%; height: 100%; }

@@ -5885,6 +5885,22 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 - Claude's mistake: the first version made the name box a React-controlled field. The room check types a new name by setting the box's value and sending an input event, and React ignores a value set that way. Renaming failed, and the Over limit checks with it. The box now keeps its own value, as before, and React listens to every input event.
 - `check-lobby-deck-live --screenshot` stops with "pressStep is not defined": a bug in the check's own screenshot branch, older than today. Without the flag it passes. Not fixed.
 
+## 290. The faces taken back out (2026-11-26)
+
+**What I asked for**
+- Remove the avatar generator, then continue.
+
+**What changed**
+- The seats are drawn by `lobby.js` again, exactly as before entry 289. `lobby.js`, `pages.css` and the KokonutUI credits were restored from that commit.
+- Deleted: `frontend/src/react/lobby-seats.jsx` and `frontend/src/components/kokonutui/avatar-picker.tsx`.
+- The rest of the React plan is dropped:
+  - the seats had no reason to be React without the faces;
+  - no KokonutUI part fits the deck list (Claude looked at empty-state: it is a demo with its own fake list and a purple gradient).
+  - React stays only in the home page's hero. `CLAUDE.md` says so.
+
+**What I checked**
+- `check-lobby-ui` 66 of 66, `check-room-live` 41 of 41, `check-lobby-deck-live` 194 of 194.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-24, entry 277) Claude told me the tool docks remembered their layout (entries 273 and 276) when the code stored "[object Object]"; the audit for the spec found it.
 - (2026-11-23, entry 273) I said "commit and push after every big change" and meant every big prompt; Claude pushed after each of three changes.
