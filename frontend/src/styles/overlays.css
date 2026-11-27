@@ -135,3 +135,6 @@
 .closed-error:empty { display: none; }
 .closed-table .button-link.quiet { border: 1px solid var(--line-strong); background: var(--surface-2); color: var(--text); }
 .closed-table .button-link.quiet:hover { border-color: var(--gold); }
+/* the site's version in Settings > About (Kevin, 2026-11-26), linking to the build log like the home page's footer */
+.settings-version { margin: 4px 0 8px; color: var(--muted); font-size: var(--text-sm); }
+.settings-version a { color: var(--text); font-weight: 600; }

@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.296</span></h1>
-    <p class="lede">296 entries, Oct 25 to Nov 26, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
+    <h1>Build log <span class="version">Version 0.297</span></h1>
+    <p class="lede">297 entries, Oct 25 to Nov 26, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
   </div>
 </header>
 
@@ -25,7 +25,7 @@
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
 <a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">56</span></a>
-<a class="week-link" href="#week-3" data-target="week-3"><span class="wl-name">Week 3</span><span class="wl-range">Nov 23 to Nov 29</span><span class="wl-count">27</span></a>
+<a class="week-link" href="#week-3" data-target="week-3"><span class="wl-name">Week 3</span><span class="wl-range">Nov 23 to Nov 29</span><span class="wl-count">28</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
 <a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">29 things friends asked for</span></a>
 <a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">30 open, 73 done</span></a>
@@ -4572,7 +4572,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-3" aria-labelledby="week-3-title">
-<h2 class="week-head" id="week-3-title"><button type="button" aria-expanded="false" aria-controls="week-3-days"><span class="wname">Week 3</span><span class="range">Nov 23 to Nov 29</span><span class="week-count">27 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-3-title"><button type="button" aria-expanded="false" aria-controls="week-3-days"><span class="wname">Week 3</span><span class="range">Nov 23 to Nov 29</span><span class="week-count">28 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-3-days">
 <div class="day">
 <h3 class="day-title">Monday 23 November <span class="day-count">6</span></h3>
@@ -4835,7 +4835,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Thursday 26 November <span class="day-count">12</span></h3>
+<h3 class="day-title">Thursday 26 November <span class="day-count">13</span></h3>
 <div class="entries">
 <article class="entry" id="entry-285" data-n="285">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-285-body">
@@ -5015,6 +5015,21 @@
 <ul><li><code>STACK_HOLD_MS</code> in <code>shared/stacks.mjs</code> is 220. The circle that fills while you hold uses the same number, so it is faster too.</li><li><code>CLAUDE.md</code> said 500, from before the earlier changes to 350 and then 250; it now says 220.</li></ul>
 <p class="sub"><strong>What I checked</strong></p>
 <ul><li><code>test-stacks</code> 122 (it checks the number), the 92 unit suites, <code>check-solo-ui</code> 470 with its real pile drags.</li><li>The live seats check holds a pile 450 ms, still past the new time; only its comment changed.</li></ul>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-297" data-n="297">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-297-body">
+    <span class="num">297</span>
+    <span class="head-text"><span class="title">The version in Settings, and a 175 ms hold for piles</span><span class="sum">Settings &gt; About should show the site's version too.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-297-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>Settings &gt; About should show the site's version too.</li><li>The hold before a pile moves as a whole: 175 ms (it was 220).</li></ul>
+<p class="sub"><strong>What changed</strong></p>
+<ul><li>About on the solo and live tables has &quot;Version 0.N&quot;, linked to the build log like the home page's footer. It is filled in at build time from <code>log.md</code>, like the footer.</li><li><code>STACK_HOLD_MS</code> in <code>shared/stacks.mjs</code> is 175. The circle that fills while holding uses the same number. <code>CLAUDE.md</code> says 175.</li></ul>
+<p class="sub"><strong>What I checked</strong></p>
+<ul><li><code>check-settings-ui</code> 19, with a new check that About shows &quot;Version 0.N&quot; linked to <code>/logs/</code>. The new check first failed because of Claude's own mistake: its pattern lost its backslashes inside a quoted string.</li><li><code>test-stacks</code> 122 (it checks the number), the 92 unit suites, <code>check-solo-ui</code> 470 with its real pile drags.</li><li>Screenshot of About looked at. My own dev server showed an older version number there because it works the version out once when it starts.</li></ul>
   </div></div></div>
 </article>
 </div>

@@ -6096,6 +6096,21 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 - `test-stacks` 122 (it checks the number), the 92 unit suites, `check-solo-ui` 470 with its real pile drags.
 - The live seats check holds a pile 450 ms, still past the new time; only its comment changed.
 
+## 297. The version in Settings, and a 175 ms hold for piles (2026-11-26)
+
+**What I asked for**
+- Settings > About should show the site's version too.
+- The hold before a pile moves as a whole: 175 ms (it was 220).
+
+**What changed**
+- About on the solo and live tables has "Version 0.N", linked to the build log like the home page's footer. It is filled in at build time from `log.md`, like the footer.
+- `STACK_HOLD_MS` in `shared/stacks.mjs` is 175. The circle that fills while holding uses the same number. `CLAUDE.md` says 175.
+
+**What I checked**
+- `check-settings-ui` 19, with a new check that About shows "Version 0.N" linked to `/logs/`. The new check first failed because of Claude's own mistake: its pattern lost its backslashes inside a quoted string.
+- `test-stacks` 122 (it checks the number), the 92 unit suites, `check-solo-ui` 470 with its real pile drags.
+- Screenshot of About looked at. My own dev server showed an older version number there because it works the version out once when it starts.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-24, entry 277) Claude told me the tool docks remembered their layout (entries 273 and 276) when the code stored "[object Object]"; the audit for the spec found it.
 - (2026-11-23, entry 273) I said "commit and push after every big change" and meant every big prompt; Claude pushed after each of three changes.

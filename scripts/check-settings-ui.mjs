@@ -48,6 +48,8 @@ try {
   await start();
   await ev("document.getElementById('settings-button').click()");
   check('Settings opens as a panel with four tabs: General, Hand sorting, Keybinds and About, General first', (await ev("[...document.querySelectorAll('#settings-menu [role=tab]')].map((t) => t.textContent + ':' + t.getAttribute('aria-selected')).join()")) === 'General:true,Hand sorting:false,Keybinds:false,About:false');
+  await ev("document.getElementById('tab-about').click()");
+  check('About shows the site version, linked to the build log (Kevin, 2026-11-26)', await ev("(() => { const a = document.getElementById('settings-version'); return Boolean(a) && a.getBoundingClientRect().width > 0 && /^Version 0\\.\\d+$/.test(a.textContent) && a.getAttribute('href') === '/logs/'; })()"), await ev("document.getElementById('settings-version')?.textContent ?? 'none'"));
   await ev("document.getElementById('tab-keys').click()");
   check('the Keybinds tab lists the keys: tap on E and Q, flip on F, draw on D, Settings on Tab', (await ev("(() => { const k = (a) => [...document.querySelectorAll('.kb-key[data-action=\"' + a + '\"]')].map((b) => b.textContent).join('/'); return [k('tap'), k('flip'), k('draw'), k('settings')].join(' '); })()")) === 'E/Q F/Add key D/Add key Tab/Add key');
 
