@@ -62,6 +62,7 @@ import { emptyUndo, remember, canUndo, takeBack, undoWords } from '../../../shar
 import { nextStep, PHASES, LAST_PHASE } from '../../../shared/phase.mjs';
 import { mountPhaseStrip } from '../../src/phase-strip.js';
 import { mountTurnPiece } from '../../src/turn-piece.js';
+import { showHelpOnce, mountHelpSettings } from '../../src/view-help.js';
 
 const $ = (id) => document.getElementById(id);
 const store = makeSafeStore();
@@ -417,6 +418,7 @@ function deal({ pause = 0 } = {}) {
   $('game').hidden = false;
   document.body.classList.add('playing', 'solo'); // the one-screen layout (src/style.css)
   shell(true);
+  showHelpOnce('solo'); // (the first time in this browser: the main keys and controls, 2026-11-26 feedback)
   requestAnimationFrame(() => { if (fitBoard()) requestAnimationFrame(() => { if (fitBoard() && game) render(); }); }); // (the board's place and grid, once the table shows)
   $('blocked').hidden = true;
   dealer.start(game.zones.hand.length, { pause }); // draws the table, and deals the hand one card at a time
@@ -636,6 +638,7 @@ const stackWindow = stackWindowRef = mountStackWindow({ root: $('stack-window'),
 floatingBars.push(stackWindow); // (Kevin, 2026-11-17: a window that slides out from the left with copies of cards, text boxes and arrows; a visual aid, the game is not touched)
 mountHandRestSetting($('hand-rest-settings'), { onChange: () => { handView.arrange(); if (fitBoard() && game) render(); } }); // (the hand is made further down, but the slider only works after it is)
 mountHandSizeSetting($('hand-rest-settings'), { onChange: () => handView.arrange() });
+mountHelpSettings($('help-settings'), { views: ['solo'] });
 const viewer = mountPileViewer({ root: $('viewer'), nodeFor: (card) => cardNodes.nodeFor(card, false), onClose: () => { viewing = null; viewTop = null; viewBottom = false; viewReveal = false; if (game) render(); } });
 for (const tab of document.querySelectorAll('#viewer .viewer-tab')) tab.addEventListener('click', () => { if (game) openPile(tab.dataset.view); });
 viewer.onSearch(() => { if (game && viewing) renderViewer(); });

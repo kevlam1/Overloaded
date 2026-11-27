@@ -86,7 +86,7 @@ Step 4, tools that move:
 - **The stack movable and collapsible** like the game history. Done in step 4 (entry 301): a click on its title folds it, a drag moves it out of the rail.
 
 Step 5, help:
-- **A help window when a game starts,** with the keys and basics of that view, and "don't show again" that Settings can undo. Planned, step 5.
+- **A help window when a game starts,** with the keys and basics of that view, and "don't show again" that Settings can undo. Done in step 5 (entry 302): one per view, with switches in Settings > About.
 
 Step 6, multiplayer (one database rules change):
 - **Foil on other players' boards.** Planned, step 6.

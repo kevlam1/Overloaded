@@ -29,7 +29,7 @@ const CONFIRM_MARK = '__overloaded_confirm__:';
 const CONFIRM_ANSWERER = "new MutationObserver(() => { const box = document.querySelector('.confirm-box:not([data-answered])'); if (!box) return; box.dataset.answered = '1'; "
   + "const text = [box.querySelector('.confirm-title')?.textContent, box.querySelector('.confirm-message')?.textContent].filter(Boolean).join(' '); "
   + "console.log('" + CONFIRM_MARK + "' + text); setTimeout(() => box.querySelector('.confirm-yes')?.click(), 0); }).observe(document, { childList: true, subtree: true });";
-export async function openBrowser(label, { width = 1280, height = 800, acceptConfirms = true } = {}) {
+export async function openBrowser(label, { width = 1280, height = 800, acceptConfirms = true, help = false } = {}) { // help: let the first-time help window of a table view show (only the check of that window wants it; it covers the page)
   if (!chromePath) throw new Error('Chrome was not found.');
   const profile = mkdtempSync(join(tmpdir(), `cdp-${label}-`));
   const port = 9300 + Math.floor(Math.random() * 600);
@@ -64,6 +64,7 @@ export async function openBrowser(label, { width = 1280, height = 800, acceptCon
   // mute switch. (A check that records the sounds replaces play() itself and plays nothing at all.)
   await send('Page.addScriptToEvaluateOnNewDocument', { source: 'const __play = HTMLMediaElement.prototype.play; HTMLMediaElement.prototype.play = function () { this.muted = true; this.volume = 0; return __play.apply(this, arguments); };' });
   if (acceptConfirms) await send('Page.addScriptToEvaluateOnNewDocument', { source: CONFIRM_ANSWERER });
+  if (!help) await send('Page.addScriptToEvaluateOnNewDocument', { source: 'window.__overloadedNoHelp = true;' }); // (frontend/src/view-help.js stays quiet)
   await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
   browser.send = send;
   // Calls fn(params) for every DevTools event with this method name (for example 'Fetch.requestPaused').

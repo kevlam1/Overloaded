@@ -56,6 +56,7 @@ import { emptyUndo, remember, canUndo, takeBack, undoWords } from '../../../shar
 import { readPhase, phaseIn, phaseRecord, nextStep, PHASES, LAST_PHASE } from '../../../shared/phase.mjs';
 import { mountPhaseStrip } from '../../src/phase-strip.js';
 import { mountTurnPiece } from '../../src/turn-piece.js';
+import { showHelpOnce, mountHelpSettings } from '../../src/view-help.js';
 import { mountPlayersPanel } from '../../src/players-panel.js';
 import { packStack, readStack } from '../../../shared/stack-sync.mjs';
 import { describeMove, makeEntry, slotFor as logSlotFor, lastK, mergeHistory } from '../../../shared/live-history.mjs';
@@ -1203,6 +1204,7 @@ function layoutSeats() {
   const sidebar = viewNow === 'sidebar';
   const shared = viewNow === 'shared'; // (everyone on one plane: only your area shows, and it holds the plane)
   document.body.dataset.view = viewNow;
+  if (game !== null) showHelpOnce(viewNow); // (the first time this view opens in this browser: its main keys and controls, 2026-11-26 feedback)
   const me = $('seat-me');
   const hand = $('hand-section');
   const areaOf = (uid) => (uid === myUid ? me : opponents.get(uid)?.section ?? null);
@@ -1551,6 +1553,7 @@ function showStoredStack() { stackWindow.replace(readStack(storedStack, lookup ?
 mountFacing($('facing-settings'), { store });
 mountHandRestSetting($('hand-rest-settings'), { onChange: () => handView.arrange() });
 mountHandSizeSetting($('hand-rest-settings'), { onChange: () => handView.arrange() });
+mountHelpSettings($('help-settings'), { views: ['grid', 'sidebar', 'shared'] });
 mountKeybindSettings($('keybind-settings'), { keybinds, page: 'table' });
 $('pile-sideboard').addEventListener('click', () => settings.close()); // the viewer opens over the table; the Settings panel would only be in the way
 

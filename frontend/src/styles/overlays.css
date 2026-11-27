@@ -151,3 +151,12 @@
 .viewer-peek { right: auto; left: 50%; translate: -50% 0; }
 .settings-eye { display: grid; place-items: center; margin-left: auto; margin-right: 0.5rem; } /* (beside the close button, at the right) */
 .settings-eye svg { display: block; }
+
+/* the first-time help of a table view (2026-11-26 feedback, step 5; src/view-help.js): the confirm box, wider, with a list of keys and what they do */
+.confirm-box.view-help { width: min(26rem, 92vw); }
+.confirm-box.view-help .view-help-title { margin: 0 0 0.9rem; font-size: 1.2rem; font-weight: 700; }
+.view-help-list { display: grid; grid-template-columns: auto 1fr; gap: 0.35rem 0.9rem; margin: 0 0 1rem; font-size: 0.9rem; }
+.view-help-list dt { font-weight: 650; white-space: nowrap; }
+.view-help-list dd { margin: 0; color: var(--muted); }
+.help-settings { display: flex; flex-wrap: wrap; gap: 0.4rem 1.2rem; }
+.help-switch { display: inline-flex; align-items: center; gap: 0.35rem; cursor: pointer; }

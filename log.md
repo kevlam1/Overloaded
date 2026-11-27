@@ -6251,6 +6251,29 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 - A general button style gave the stack's new title button extra padding, so the folded stack's title sat out of line with Game history's until a screenshot showed it.
 - The stack check counted the new title button as a fifth action button.
 
+## 302. The 11-26 feedback, step 5: first-time help for each view (2026-11-27)
+
+**What I asked for**
+- My friends' step 5 item: when a game starts, a window with the main keys and controls of that view, with "Don't show again", and a way in Settings to bring it back.
+
+**What changed**
+- **A help window the first time each view opens in this browser:** the solo table, Grid view, Sidebar view and Shared view each have six or seven short lines (`shared/view-help.mjs`, drawn by `frontend/src/view-help.js`).
+  - **Got it** closes it; it shows again on my next visit, never twice in one visit.
+  - **Don't show again** puts it away for good (kept as `overloaded.helpSeen`).
+  - The keys it names are the real defaults (E and Q tap, D draws, Tab opens Settings), and a test checks them against the keybind list.
+- **Settings > About** has a "First-time help" switch per view (the solo page: Solo table; the live table: Grid, Sidebar and Shared) to show a help again.
+- **The browser checks keep it quiet:** the window covers the page, so `scripts/lib/browser.mjs` sets a flag before every page and the help stays away, except in the check of the help itself (`openBrowser(..., { help: true })`).
+- The stack's title row in the rail is as tall as Game history's again (step 4 had left it 8 px shorter).
+
+**What I checked**
+- `test-view-help` 7, `check-view-help-ui` 5 (new: shown the first time, away after Don't show again, back with its switch, closed by Got it).
+- `npm test`: all 107 suites passed; against the real project `check-seats-live` 42 and `check-shared-live` 9.
+- Screenshots looked at: the solo help window and the About switches.
+- **Not checked:** the Grid, Sidebar and Shared windows in a browser (the live checks keep them quiet; their text is only unit-tested).
+
+**Claude's mistakes this step**
+- The help title was small and cramped in the first screenshot, and the stack title row from step 4 was shorter than the other headers; both found in screenshots and fixed.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-24, entry 277) Claude told me the tool docks remembered their layout (entries 273 and 276) when the code stored "[object Object]"; the audit for the spec found it.
 - (2026-11-23, entry 273) I said "commit and push after every big change" and meant every big prompt; Claude pushed after each of three changes.

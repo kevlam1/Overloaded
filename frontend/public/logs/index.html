@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.301</span></h1>
-    <p class="lede">301 entries, Oct 25 to Nov 27, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
+    <h1>Build log <span class="version">Version 0.302</span></h1>
+    <p class="lede">302 entries, Oct 25 to Nov 27, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
   </div>
 </header>
 
@@ -25,7 +25,7 @@
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
 <a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">56</span></a>
-<a class="week-link" href="#week-3" data-target="week-3"><span class="wl-name">Week 3</span><span class="wl-range">Nov 23 to Nov 29</span><span class="wl-count">32</span></a>
+<a class="week-link" href="#week-3" data-target="week-3"><span class="wl-name">Week 3</span><span class="wl-range">Nov 23 to Nov 29</span><span class="wl-count">33</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
 <a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">75 things friends asked for</span></a>
 <a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">30 open, 73 done</span></a>
@@ -4572,7 +4572,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-3" aria-labelledby="week-3-title">
-<h2 class="week-head" id="week-3-title"><button type="button" aria-expanded="false" aria-controls="week-3-days"><span class="wname">Week 3</span><span class="range">Nov 23 to Nov 29</span><span class="week-count">32 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-3-title"><button type="button" aria-expanded="false" aria-controls="week-3-days"><span class="wname">Week 3</span><span class="range">Nov 23 to Nov 29</span><span class="week-count">33 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-3-days">
 <div class="day">
 <h3 class="day-title">Monday 23 November <span class="day-count">6</span></h3>
@@ -5035,7 +5035,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Friday 27 November <span class="day-count">4</span></h3>
+<h3 class="day-title">Friday 27 November <span class="day-count">5</span></h3>
 <div class="entries">
 <article class="entry" id="entry-298" data-n="298">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-298-body">
@@ -5103,6 +5103,23 @@
 <ul><li>The turn piece cannot be folded; only moving it was asked for.</li></ul>
 <p class="sub"><strong>Claude's mistakes this step</strong></p>
 <ul><li>A general button style gave the stack's new title button extra padding, so the folded stack's title sat out of line with Game history's until a screenshot showed it.</li><li>The stack check counted the new title button as a fifth action button.</li></ul>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-302" data-n="302">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-302-body">
+    <span class="num">302</span>
+    <span class="head-text"><span class="title">The 11-26 feedback, step 5: first-time help for each view</span><span class="sum">My friends' step 5 item: when a game starts, a window with the main keys and controls of that view, with &quot;Don't show again&quot;, and a way in Settings to bring it back.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-302-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>My friends' step 5 item: when a game starts, a window with the main keys and controls of that view, with &quot;Don't show again&quot;, and a way in Settings to bring it back.</li></ul>
+<p class="sub"><strong>What changed</strong></p>
+<ul><li><strong>A help window the first time each view opens in this browser:</strong> the solo table, Grid view, Sidebar view and Shared view each have six or seven short lines (<code>shared/view-help.mjs</code>, drawn by <code>frontend/src/view-help.js</code>).<ul><li><strong>Got it</strong> closes it; it shows again on my next visit, never twice in one visit.</li><li><strong>Don't show again</strong> puts it away for good (kept as <code>overloaded.helpSeen</code>).</li><li>The keys it names are the real defaults (E and Q tap, D draws, Tab opens Settings), and a test checks them against the keybind list.</li></ul></li><li><strong>Settings &gt; About</strong> has a &quot;First-time help&quot; switch per view (the solo page: Solo table; the live table: Grid, Sidebar and Shared) to show a help again.</li><li><strong>The browser checks keep it quiet:</strong> the window covers the page, so <code>scripts/lib/browser.mjs</code> sets a flag before every page and the help stays away, except in the check of the help itself (<code>openBrowser(..., { help: true })</code>).</li><li>The stack's title row in the rail is as tall as Game history's again (step 4 had left it 8 px shorter).</li></ul>
+<p class="sub"><strong>What I checked</strong></p>
+<ul><li><code>test-view-help</code> 7, <code>check-view-help-ui</code> 5 (new: shown the first time, away after Don't show again, back with its switch, closed by Got it).</li><li><code>npm test</code>: all 107 suites passed; against the real project <code>check-seats-live</code> 42 and <code>check-shared-live</code> 9.</li><li>Screenshots looked at: the solo help window and the About switches.</li><li><strong>Not checked:</strong> the Grid, Sidebar and Shared windows in a browser (the live checks keep them quiet; their text is only unit-tested).</li></ul>
+<p class="sub"><strong>Claude's mistakes this step</strong></p>
+<ul><li>The help title was small and cramped in the first screenshot, and the stack title row from step 4 was shorter than the other headers; both found in screenshots and fixed.</li></ul>
   </div></div></div>
 </article>
 </div>
@@ -5208,7 +5225,7 @@
 <p>Step 4, tools that move:</p>
 <ul><li><strong>The turn bar movable like the control bar.</strong> Done in step 4 (entry 301): a grip on the turn; it floats and docks like the control bar.</li><li><strong>The stack movable and collapsible</strong> like the game history. Done in step 4 (entry 301): a click on its title folds it, a drag moves it out of the rail.</li></ul>
 <p>Step 5, help:</p>
-<ul><li><strong>A help window when a game starts,</strong> with the keys and basics of that view, and &quot;don't show again&quot; that Settings can undo. Planned, step 5.</li></ul>
+<ul><li><strong>A help window when a game starts,</strong> with the keys and basics of that view, and &quot;don't show again&quot; that Settings can undo. Done in step 5 (entry 302): one per view, with switches in Settings &gt; About.</li></ul>
 <p>Step 6, multiplayer (one database rules change):</p>
 <ul><li><strong>Foil on other players' boards.</strong> Planned, step 6.</li><li><strong>Rotate a card 90 degrees,</strong> separate from tapping. Planned, step 6.</li><li><strong>The pinger closes a ping for everyone,</strong> and the pinged player can acknowledge it. Planned, step 6.</li><li><strong>Choosing who goes first in the lobby,</strong> with a slot-machine animation. Planned, step 6.</li><li><strong>Swapping seats, kicking a player, a &quot;Ready?&quot; ping from the host,</strong> and the lobby's seat order deciding where players sit. Planned, step 6.</li><li><strong>Other players' hand and piles turned like their board.</strong> Planned, step 6.</li><li><strong>&quot;Add a card&quot; from the battlefield's menu,</strong> from the card list. Planned, step 6.</li><li><strong>Random token art,</strong> and choosing an art also changes the token's front. Planned, step 6.</li><li><strong>Flipping cards in the hand,</strong> playing them face down, and face-down exile that others must ask to see. Planned, step 6, last, and the first cut if time runs out.</li></ul>
 <p>Step 7, the Shared view:</p>
