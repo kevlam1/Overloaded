@@ -5901,6 +5901,30 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 **What I checked**
 - `check-lobby-ui` 66 of 66, `check-room-live` 41 of 41, `check-lobby-deck-live` 194 of 194.
 
+## 291. Redesign step 7: the audit (2026-11-26)
+
+**What I asked for**
+- "Continue", after removing the faces: the last step of the redesign, `REDESIGN_AUDIT.md`.
+
+**What changed**
+- **`REDESIGN_AUDIT.md` (new)** checks the redesign (entries 278 to 290) against the spec's feature preservation checklist (section 15) and its list of known problems (section 17). What it found:
+  - **Nothing marked MUST PRESERVE was lost.**
+  - **What changed on purpose:** the look of everything; the rail instead of the tool docks; player colors; the console.
+  - **What is new:** the step of the turn, Undo, a light theme, keyword notes, the Shared view, the commander effects, React on the home page.
+  - **Which of my earlier decisions changed:** the tool docks, "no framework", four sounds.
+  - **Problems:** two are fixed (the light theme on play pages, native popups), one is settled (the rules are published), and the rest are still open.
+  - **New problems from the redesign:** one unexplained failure of the room check, a crash in the screenshot code of one check, 84 KB more JavaScript on the home page, no hot reload for React parts.
+- `PRODUCT_BEHAVIOR_SPEC.md` section 17 has a dated note pointing to the audit, and `CLAUDE.md` names both files.
+
+**What I checked**
+- The rows the redesign could have changed were checked in the code for the audit, not from memory:
+  - no native `confirm()` is left;
+  - Tab still toggles Settings while the focus is inside it;
+  - the history tabs have no arrow keys;
+  - only the home page's footer shows the version;
+  - the docks are one rail in every mode.
+- On the final code: `npm test` 103 of 103 suites, `npm run test:live` 114 of 114, including the published rules matching the file, 145 of 145.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-24, entry 277) Claude told me the tool docks remembered their layout (entries 273 and 276) when the code stored "[object Object]"; the audit for the spec found it.
 - (2026-11-23, entry 273) I said "commit and push after every big change" and meant every big prompt; Claude pushed after each of three changes.

@@ -1111,6 +1111,8 @@ Legend: **MP** MUST PRESERVE, **PI** PRESERVE INTENT (implementation flexible), 
 
 > **Update 2026-11-24, after the audit (log entry 277):** rows 1, 2, 3, 4, 6 and 7 are fixed. The dock layout is saved as JSON text (tested); "Take over as host" is in Settings > Game during a match; other players' "Reconnecting...", "Away N min" and "Conceded" show on their seat and Players row; a save failure is reported once in red in the Messages tab; a whole pile dropped on a pile moves every card (live check); the View library key opens the library on solo. Row 5 is partly fixed: a ping, the spotlight and screen-reader labels no longer name a face-down card, but its name and id are still in public data (a database change is needed). The rows below are kept as the audit found them.
 
+> **Update 2026-11-26, after the redesign (`REDESIGN_AUDIT.md`, log entry 291):** row 17 (light theme) and row 19 (native `confirm()`) are fixed; row 20 is settled (the published rules match the file, 145 of 145); row 23 is partly settled (KokonutUI and anime.js licences recorded; the sounds, now seven, are still unrecorded). Every other row is still open. The redesign's own new issues are listed in `REDESIGN_AUDIT.md` section 3.
+
 Ordered by likely impact. Each was found in this audit; "confirmed" means re-checked in code by the author of this document.
 
 | # | Issue | Evidence | Where |
