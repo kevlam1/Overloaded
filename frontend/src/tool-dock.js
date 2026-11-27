@@ -86,14 +86,21 @@ export function createToolDocks({ elements, stackWindow, onFloat = () => {}, sto
   function save() { store?.set(key, writeDockStore(store?.get(key), mode, lists)); }
 
   // Over which dock, and before which tool, a pointer at (x, y) is: { dock, index } or null. The dragged tool itself does not count.
+  // Made easier on 2026-11-26 (Kevin: docking the control bar under the stack was hard): the dock reaches DOCK_REACH px past its edges (and down to the window's
+  // bottom), and a pointer in the bottom BOTTOM_SHARE of the dock puts the tool at the bottom, under everything (the stack takes the spare height, so its midpoint
+  // was far up the rail).
+  const DOCK_REACH = 48;
+  const BOTTOM_SHARE = 0.35;
   function over(name, x, y) {
     for (const [dockName, dock] of Object.entries(docks)) {
       if (dock.hidden) continue;
       const box = dock.getBoundingClientRect();
-      if (x < box.left || x > box.right || y < box.top || y > box.bottom) continue;
+      if (x < box.left - DOCK_REACH || x > box.right + DOCK_REACH || y < box.top - DOCK_REACH || y > Math.max(box.bottom + DOCK_REACH, window.innerHeight)) continue;
       const others = (lists[dockName] ?? []).filter((tool) => tool !== name);
       let index = others.length;
-      for (let i = 0; i < others.length; i += 1) { const r = elements[others[i]].getBoundingClientRect(); if (y < r.top + r.height / 2) { index = i; break; } }
+      if (y < box.bottom - box.height * BOTTOM_SHARE) {
+        for (let i = 0; i < others.length; i += 1) { const r = elements[others[i]].getBoundingClientRect(); if (y < r.top + r.height / 2) { index = i; break; } }
+      }
       return { dock: dockName, index, others };
     }
     return null;

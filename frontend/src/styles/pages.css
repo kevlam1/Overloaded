@@ -84,3 +84,58 @@ body[data-screen] main { padding-bottom: 2rem; }
 .site-footer .footer-legal { max-width: 46rem; font-size: var(--text-xs); line-height: 1.5; opacity: 0.8; }
 body[data-screen="start"] #who { margin-top: 0; }
 body[data-screen] #status:empty { min-height: 0; margin: 0; padding: 0; } /* (an empty message line takes no room; it stays in the page so screen readers still hear new messages) */
+
+/* ---- The layout of home and the lobby, reorganized (Kevin, 2026-11-26). Home: the hero in two columns (text left, the card right in its own space), then one
+   "Play with friends" row (your name, make a table, join). The lobby's table screen: the seats and your deck on the left, the table's settings and your color in a
+   panel on the right. Narrow windows get one column. ---- */
+body[data-screen] main { max-width: 76rem; }
+
+/* home: the hero */
+.hero-wrap { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 3rem; padding: 2.2rem 0 0.6rem; }
+body:not([data-screen="start"]) .hero-wrap { display: block; padding: 0; }
+body:not([data-screen="start"]) :is(.hero-card, .hero-dots) { display: none; }
+.hero-text { position: relative; z-index: 1; min-width: 0; }
+body[data-screen="start"] #page-title { margin: 0 0 0.7rem; text-align: left; font-size: clamp(2.4rem, 4.8vw, 3.6rem); line-height: 1.04; }
+body[data-screen="start"] .hero { text-align: left; }
+body[data-screen="start"] .hero .lede { max-width: 34rem; margin: 0; font-size: 1.15rem; }
+.hero-actions { justify-content: flex-start; margin: 1.6rem 0 1.1rem; }
+.hero-points { justify-content: flex-start; margin: 0; }
+.hero-card { position: relative; top: auto; right: auto; z-index: 1; margin: 0 2.5rem 0 0; rotate: 5deg; }
+
+/* home: play with friends, one row */
+.friends { margin-top: 2.6rem; }
+.friends-lede { margin: 0 0 0.9rem; }
+.friends-row { display: grid; grid-template-columns: minmax(14rem, 0.9fr) minmax(0, 1.45fr) minmax(0, 1fr); gap: 14px; align-items: stretch; }
+.friends-row .start-pair { display: contents; }
+.friends-row section { margin: 0 !important; }
+body:not([data-screen="start"]) .friends-lede { display: none; }
+body:not([data-screen="start"]) .friends-row { display: block; }
+body:not([data-screen="start"]) .friends { margin-top: 0; }
+
+/* the lobby's table screen */
+.room-layout { display: grid; grid-template-columns: minmax(0, 1fr) 21rem; gap: 1.6rem; align-items: start; }
+.room-main { min-width: 0; }
+.room-side { position: sticky; top: 1rem; display: grid; gap: 1rem; }
+.room-side .room-head { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.1rem; margin: 0; padding: 1.2rem 1.25rem; }
+.room-side .room-share { grid-area: auto; min-width: 0; }
+.room-side .room-head .code { font-size: 2.2rem; }
+.room-side .room-code-line { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.room-side .link { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.room-side .segmented { width: 100%; }
+.room-side .segmented button { flex: 1; }
+.room-side .color-pick { margin: 0; padding: 1.1rem 1.25rem; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-1); }
+.room-main #players.seats { margin-bottom: 1.6rem; }
+.room-main .room-deck { margin-bottom: 0; }
+@media (max-width: 1080px) {
+  .hero-wrap, .friends-row, .room-layout { grid-template-columns: minmax(0, 1fr); }
+  .hero-card { display: none; }
+  .room-side { position: static; }
+}
+/* (fixes after the first screenshot: older rules still centred the hero's parts and indented Format) */
+body[data-screen="start"] .hero > * { margin-left: 0 !important; margin-right: 0 !important; }
+body[data-screen="start"] .hero-actions, body[data-screen="start"] .hero-points { justify-content: flex-start !important; }
+.room-side .room-share { margin: 0 !important; justify-self: stretch; align-items: stretch; text-align: left; }
+.room-side .room-share-link .room-code-line { flex-wrap: nowrap; }
+.room-main #players.seats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+body[data-screen="start"] .hero .lede { padding: 0 !important; text-indent: 0; text-align: left !important; } /* (an older rule centred the text inside its box) */
+.room-side .copy-button { flex: none; white-space: nowrap; }

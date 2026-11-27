@@ -970,7 +970,10 @@ async function renderOpponents() {
 
 // ---- the size of a battlefield's grid (Kevin, 2026-11-20): it fills its room from the far left to the piles with SQUARE cells, 40 rows (cards one size up from the solo table's 50) and as many columns as
 // the room holds. My own board sets the grid used to place and drop my cards (shared/board-grid.mjs setBoardSize); another player's board only sets how many columns it is drawn with. ----
-const TABLE_ROWS = 30; // (40 until 2026-11-23, when Kevin asked for the cards one size up again: 50 on the solo table, then 40, then 30. It must be a whole number of card heights, 10 rows: setBoardSize refuses anything else and the drag would then work in the old size, as 32 did)
+const TABLE_ROWS = 30; // (Grid and Shared views; Sidebar view uses SIDEBAR_ROWS, one card size smaller: Kevin, 2026-11-26)
+const SIDEBAR_ROWS = 40;
+const tableRows = () => (document.body.dataset.view === 'sidebar' ? SIDEBAR_ROWS : TABLE_ROWS);
+// // (40 until 2026-11-23, when Kevin asked for the cards one size up again: 50 on the solo table, then 40, then 30. It must be a whole number of card heights, 10 rows: setBoardSize refuses anything else and the drag would then work in the old size, as 32 did)
 setBoardSize({ cols: 112, rows: TABLE_ROWS });
 function fitBoard(element, mine = false) {
   if (mine && sharedOn) { // the Shared view: one plane of a fixed size (shared/plane.mjs), moved and zoomed by its camera
@@ -980,9 +983,9 @@ function fitBoard(element, mine = false) {
   if (mine) element.style.removeProperty('--rows');
   const width = element?.clientWidth ?? 0; const height = element?.clientHeight ?? 0; // (the size in the layout: a small copy in the Sidebar column is the same size, only scaled)
   if (!width || !height) return { cols: null, changed: false };
-  const cols = Math.max(CARD_COLS, Math.floor(width / (height / TABLE_ROWS) + 0.001));
+  const cols = Math.max(CARD_COLS, Math.floor(width / (height / tableRows()) + 0.001));
   if (element.style.getPropertyValue('--cols') !== String(cols)) element.style.setProperty('--cols', String(cols));
-  return { cols, changed: mine ? setBoardSize({ cols, rows: TABLE_ROWS }) : false };
+  return { cols, changed: mine ? setBoardSize({ cols, rows: tableRows() }) : false };
 }
 const watchedBoards = new WeakSet();
 let refitFrame = 0;

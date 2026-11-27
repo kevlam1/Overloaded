@@ -194,6 +194,15 @@ try {
     await key('keyUp', 'Alt', 0); await sleep(150);
     check('holding Alt over Serra Angel shows what Flying and Vigilance mean, each with its icon', index >= 0 && notes.some(([n, t, i]) => n === 'Flying' && /flying or reach/.test(t) && i) && notes.some(([n, t, i]) => n === 'Vigilance' && /tap/.test(t) && i), JSON.stringify(notes));
   }
+  // ---- docking the control bar under the stack (Kevin, 2026-11-26: it was hard): drag it out onto the battlefield, then let go just left of the rail near the
+  // window's bottom corner; it docks at the bottom of the rail, under the stack ----
+  const barSpot = async () => ev(`(() => { const bar = document.querySelector('.actions-panel'); const rail = document.querySelector('.tool-dock[data-dock="rail"]'); const kids = [...rail.children].filter((c) => !c.hidden && c.offsetParent !== null && !c.classList.contains('dock-drop-line')); return { docked: bar.classList.contains('tool-docked') && rail.contains(bar), last: kids.at(-1) === bar }; })()`);
+  await drag(await rectOf('#bar-grip'), { x: 500, y: 400 });
+  const floated = await barSpot();
+  const rail = await rectOf('.tool-dock[data-dock="rail"]');
+  await drag(await rectOf('#bar-grip'), { x: rail.x - 30, y: rail.bottom - 20 });
+  const docked = await barSpot();
+  check('the control bar dragged out floats, and let go just left of the rail near the bottom corner it docks under the stack', !floated.docked && docked.docked && docked.last, JSON.stringify({ floated, docked }));
   check('no page errors', (await ev('window.__errors || []')).length === 0);
   await closeAllBrowsers();
 } finally {

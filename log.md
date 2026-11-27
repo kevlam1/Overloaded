@@ -6042,6 +6042,47 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
   - One room check read the seats before they were drawn: a race, not a bug, and the check now waits. It is probably also the one unexplained failure in entry 288.
 - **Not checked:** how the colors look on the solo table and deck page in the light theme (only the numbers are tested).
 
+## 295. Bigger piles, smaller cards in Sidebar, easier docking, home and lobby reorganized (2026-11-26)
+
+**What I asked for**
+- The rest of my list: in both views the piles (library to the commanders) should be larger and sit just under the battlefield; Sidebar view one card size smaller; docking the control bar under the stack should be easier.
+- Then: reorganize the layout of the home and lobby pages.
+- Then: Random order, Done and Cancel in the order window closer together.
+- I asked how the home page's commander is chosen. Claude explained the criteria (legendary creatures legal as commanders, Scryfall's `edhrec_rank`, the best 1,000, an even random pick) and their rough edges. I changed nothing there for now.
+- Then I asked to push to main.
+
+**What changed**
+- **The piles:**
+  - each seat has a band under the battlefield (`--band`, about 30% of the area's height);
+  - the piles are sized to fill it (`--sw` from the band; it was capped at 4.8rem by 15% of the height);
+  - the resting hand is capped so it never reaches the battlefield.
+- **Sidebar view:** 40 rows instead of 30, one card size smaller (`SIDEBAR_ROWS` in `table.js`, `--rows: 40` in the style sheet).
+- **Docking** (`tool-dock.js`):
+  - a dock takes a drop up to 48 px outside its edges and down to the window's bottom;
+  - a drop in its bottom 35% puts the tool at the bottom, under the stack (the stack takes the spare height, so its midpoint was far up).
+- **Home:**
+  - the hero is two columns: the title, line, buttons and points on the left, the commander card in its own column on the right;
+  - "Play with friends" is one row: your name, make a table, join.
+- **The lobby's table screen:**
+  - the seats (two by two) and your deck on the left;
+  - one panel on the right with the code, the invite link, format, view, bracket limit and your color, which stays in view;
+  - every id is the same.
+- **The order window:** Random order, Done and Cancel side by side on the right.
+
+**What I checked**
+- `check-table-layout` 165 of 165, at five window sizes: Sidebar view has 40 rows, and no resting hand covers a battlefield.
+- `check-seats-live` 42 of 42. Its Sidebar check now expects my own row in Players, as I asked in entry 294.
+- `check-history-and-select-ui` 29: a real drag of the control bar out and back in, let go 30 px left of the rail near the bottom, docks under the stack. Claude ran it against the old dock code first, where it failed.
+- `npm test` 104 of 104.
+- Screenshots looked at:
+  - Grid and Sidebar tables;
+  - home and the lobby at 1875 by 954 and 1366 by 768;
+  - the order window's buttons.
+- **NOT run before pushing to main:** the live lobby checks (`check-room-live`, `check-lobby-deck-live`) on the new lobby markup. My own `npm run dev` held port 5173, which they need, and I asked to push. The deploy check is run against the live site after the deploy instead.
+- Claude's mistakes:
+  - Old centering rules kept the hero's parts centered; it took three screenshots to find all of them, the last being text centered inside a box that was already in place.
+  - Stopping a test run did not stop a live check it had started. Claude found it holding the port, with 11 test Chrome windows, and stopped only those (their profiles are named `cdp-`).
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-24, entry 277) Claude told me the tool docks remembered their layout (entries 273 and 276) when the code stored "[object Object]"; the audit for the spec found it.
 - (2026-11-23, entry 273) I said "commit and push after every big change" and meant every big prompt; Claude pushed after each of three changes.

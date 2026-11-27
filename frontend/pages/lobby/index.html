@@ -26,10 +26,11 @@
       </div>
     </header>
     <main>
+      <div class="hero-wrap">
+        <div id="hero-dots" class="tw-island hero-dots" aria-hidden="true"></div>
+        <div class="hero-text">
       <h1 id="page-title">Welcome to Overloaded</h1>
       <div id="intro" class="hero">
-        <div id="hero-dots" class="tw-island hero-dots" aria-hidden="true"></div>
-        <div id="hero-card" class="tw-island hero-card"></div>
         <p class="lede">Paste a deck and play in a minute. Free, with no account.</p>
         <div class="hero-actions">
           <a id="play-solo" class="button-link big" href="/solo">Play solo</a>
@@ -41,13 +42,18 @@
           <li><svg class="point-icon" viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true" focusable="false"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm-1.5 6.2 6 3.8-6 3.8z"/></svg><strong>Test it alone</strong></li>
           <li><svg class="point-icon" viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true" focusable="false"><path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm8 0a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM9 13c-3.3 0-6 1.8-6 4v2h12v-2c0-2.2-2.7-4-6-4zm8.2.2c2.4.3 4.8 1.6 4.8 3.8v2h-5v-2c0-1.4-.6-2.7-1.6-3.6z"/></svg><strong>Then play together</strong></li>
         </ul>
-        <p class="friends-lede"><strong>Play with friends</strong>Make a table and share its code, or join a friend's.</p>
         <p id="resume" class="hint" hidden>You are at table <strong id="resume-code"></strong>. The Lobby link above goes back to it.</p>
+      </div>
+        </div>
+        <div id="hero-card" class="tw-island hero-card"></div>
       </div>
 
       <p id="status" class="status" role="status" aria-live="polite"></p>
       <div id="banner" class="banner" role="status" aria-live="polite" hidden></div>
 
+      <div class="friends">
+      <p class="friends-lede"><strong>Play with friends</strong>Make a table and share its code, or join a friend's.</p>
+      <div class="friends-row">
       <section id="who" aria-labelledby="who-heading">
         <h2 id="who-heading">Who are you?</h2>
         <div class="field">
@@ -92,6 +98,8 @@
           <p class="hint">Or just open a friend’s link.</p>
         </section>
       </div>
+      </div>
+      </div>
 
       <section id="room-join" aria-labelledby="room-join-heading" hidden>
         <h2 id="room-join-heading">Join table <span id="room-join-code" class="code"></span></h2>
@@ -104,6 +112,26 @@
       <section id="table" aria-labelledby="table-heading" hidden>
         <h2 id="table-heading" class="sr-only">Your table</h2>
         <p id="connection" class="banner" data-level="urgent" role="status" hidden></p>
+        <div class="room-layout">
+        <div class="room-main">
+        <h3 class="room-title">At the table</h3>
+        <ul id="players" class="seats"></ul>
+        <div class="room-deck">
+          <div class="deck-head">
+            <h3>Your deck</h3>
+            <label for="deck-search" class="sr-only">Search your decks by name or commander</label>
+            <input id="deck-search" type="search" placeholder="Search decks" autocomplete="off" spellcheck="false" hidden>
+          </div>
+          <div class="field sr-only" id="deck-pick-field">
+            <label for="deck-pick">Deck for this table</label>
+            <select id="deck-pick" name="deck-pick" tabindex="-1" aria-hidden="true"></select>
+          </div>
+          <div id="deck-tiles" class="deck-choices" role="group" aria-label="Your saved decks"></div>
+          <p id="deck-note" class="hint"></p>
+        </div>
+
+        </div>
+        <aside class="room-side" aria-label="Table settings">
         <div class="room-head">
           <div class="room-share">
             <span class="eyebrow">Table code</span>
@@ -142,26 +170,13 @@
           </div>
         </div>
 
-        <h3 class="room-title">At the table</h3>
-        <ul id="players" class="seats"></ul>
         <!-- your color at the table (shared/player-colors.mjs): ten swatches; one another player shows is marked taken -->
         <div class="color-pick">
           <p id="color-heading" class="color-title">Your color</p>
           <div id="color-swatches" class="color-swatches" role="group" aria-labelledby="color-heading"></div>
         </div>
 
-        <div class="room-deck">
-          <div class="deck-head">
-            <h3>Your deck</h3>
-            <label for="deck-search" class="sr-only">Search your decks by name or commander</label>
-            <input id="deck-search" type="search" placeholder="Search decks" autocomplete="off" spellcheck="false" hidden>
-          </div>
-          <div class="field sr-only" id="deck-pick-field">
-            <label for="deck-pick">Deck for this table</label>
-            <select id="deck-pick" name="deck-pick" tabindex="-1" aria-hidden="true"></select>
-          </div>
-          <div id="deck-tiles" class="deck-choices" role="group" aria-label="Your saved decks"></div>
-          <p id="deck-note" class="hint"></p>
+        </aside>
         </div>
 
         <div class="room-bar">

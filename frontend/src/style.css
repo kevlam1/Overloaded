@@ -1448,7 +1448,7 @@ body.playing:is(.solo, .seats) .pile-head .pile-caret { width: 1.05rem; height: 
 .order-window .scry-picture { width: 9rem; }
 .order-window .scry-move { display: grid; place-items: center; width: 2.3rem; height: 1.8rem; padding: 0; border-radius: 0.9rem; }
 .order-window .scry-card { will-change: translate; }
-.order-window .scry-random { margin-right: auto; }
+.order-window .scry-random { margin-right: 0; } /* (Kevin, 2026-11-26: Random order, Done and Cancel together on the right, not Random order alone at the far left) */
 /* the pile windows: just the picture of each card, no frame, close together (Kevin, 2026-11-15) */
 .viewer-window { width: min(96rem, 100%); }
 .viewer-grid { gap: 0.4rem; padding: 0.3rem; }
@@ -1968,16 +1968,18 @@ body.playing.seats[data-view="sidebar"] .seat-area.focused { grid-area: main; }
 body.playing.seats .seat-area {
   --T: 2.4rem; /* the head */
   --pad: 0.4rem;
-  --sw: clamp(1.8rem, min(15cqh, 6.5cqw), 4.8rem); /* a pile's width: smaller in a narrow area, so the hand keeps room beside the piles (Alt shows any card large) */
+  /* the band under the battlefield, and the piles sized to fill it (Kevin, 2026-11-26: the piles were too small; --sw was min(15cqh, 6.5cqw) up to 4.8rem and the band came from the hand) */
+  --band: clamp(4.6rem, 30cqh, 11.5rem);
+  --sw: clamp(1.8rem, min(calc((var(--band) - 1.3rem - var(--pad)) / 1.4015), 8cqw), 7rem); /* a pile's width: its short name above (1.2rem) and its picture fill the band; smaller in a narrow area so the hand keeps room */
   --zgap: 0.35rem;
   --Z: calc(5 * (var(--sw) + 0.5rem) + 4 * var(--zgap) + 2 * var(--pad)); /* the width of the piles at the bottom right: library, graveyard, exile and the command zone in ONE row (Kevin, 2026-11-20, second time) */
-  --hh: clamp(7rem, 44cqh, 16rem); /* the box of the hand (its cards are 2.8 rem less, and rest half below the bottom edge: frontend/src/hand-view.js); larger since 2026-11-20 (Kevin) */
+  --hh: min(clamp(7rem, 44cqh, 16rem), calc(2 * var(--band) + 2.8rem - 2 * var(--pad))); /* the box of the hand (its cards are 2.8 rem less, and rest half below the bottom edge: frontend/src/hand-view.js); larger since 2026-11-20 (Kevin) */
   /* the battlefield (Kevin, 2026-11-23: "the grid should expand fully from right to left"): the WHOLE width of the area, over the row of piles, and from the top to just above the taller of the resting
      hand and that row, with SQUARE cells (it stopped before the piles, which left a strip a third of the area wide empty above them). The grid has 40 rows and as many columns as that room holds
      (frontend/pages/table/table.js fitBoard, shared/board-grid.mjs setBoardSize: --cols on the battlefield). The hand still stops before the piles. */
-  --pile-h: calc(var(--sw) * 1.4015 + 1.9rem); /* a pile: its name above, the picture, the count's room */
+  --pile-h: calc(var(--sw) * 1.4015 + 1.3rem); /* a pile: its short name above and the picture */
   --bw: 100cqw; /* flush with the border of the area on three sides: one edge, not the border and then the grid's own outline with a gap between (Kevin, 2026-11-23) */
-  --bh: calc(100cqh - max(0.5 * (var(--hh) - 2.8rem), var(--pile-h) + var(--pad)) - var(--pad));
+  --bh: calc(100cqh - var(--band)); /* (the band holds the piles and the visible half of the resting hand: --hh is capped so the hand never reaches the battlefield) */
   --bl: 0px;
   --hw: calc(100cqw - var(--Z) - var(--pad) - 0.4rem); /* the hand's width: from the left to just before the piles */
   position: relative; container-type: size; min-width: 0; min-height: 0; margin: 0; padding: 0; overflow: hidden;
@@ -2021,6 +2023,7 @@ body.playing.seats #my-board, body.playing.seats .opp-field { position: absolute
 body.playing.seats #my-board > .battlefield, body.playing.seats .opp-field > .battlefield { display: grid; width: 100%; height: 100%; max-width: none; max-height: none; aspect-ratio: auto; margin: 0; }
 /* the outline of the place a carried card would go is the card's own shape, from the left and bottom of its block, like the cards (the block may be wider than the card) */
 /* the grid of a battlefield on the table: 40 rows and --cols columns (as many whole square cells as the width holds, so a column is at most 1/cols wider than a row is tall), a card a quarter of the board's height */
+body.playing.seats[data-view="sidebar"] :is(#my-board, .opp-field) > .battlefield { --rows: 40 !important; } /* (Sidebar view: one card size smaller, 40 rows: TABLE_ROWS in table.js) */
 body.playing.seats :is(#my-board, .opp-field) > .battlefield { --rows: 30; grid-template-columns: repeat(var(--cols, 112), minmax(0, 1fr)); grid-template-rows: repeat(var(--rows), minmax(0, 1fr)); --card-h: calc(100cqh * 10 / var(--rows)); --card-w: calc(var(--card-h) * 0.7);
   background-size: calc(100% / var(--cols, 112)) calc(100% / var(--rows)), calc(100% / var(--cols, 112)) calc(100% / var(--rows)); } /* (the lines of the cells follow THIS grid: the solo table's are drawn for 112 by 50) */
 body.playing.seats .battlefield > .cell-highlight { justify-self: start; align-self: end; width: var(--card-w); height: var(--card-ph); }
