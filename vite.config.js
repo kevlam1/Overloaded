@@ -48,6 +48,9 @@ export default defineConfig(({ command, mode }) => {
       emptyOutDir: true,
       rollupOptions: {
         input: { lobby: page('./frontend/pages/lobby/index.html'), deck: page('./frontend/pages/deck/index.html'), solo: page('./frontend/pages/solo/index.html'), table: page('./frontend/pages/table/index.html') },
+        // React (old-style CommonJS) in a chunk of its own: without this the bundler put its module helper inside the lobby page's chunk, and the deck page,
+        // which needs the same helper, then ran the lobby page's code and crashed (an empty Decks page on the development preview, 2026-11-26).
+        output: { codeSplitting: { groups: [{ name: 'react', test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/ }] } },
       },
     },
     oxc: { jsx: { runtime: 'automatic' } },

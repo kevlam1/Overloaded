@@ -220,6 +220,12 @@ try {
   check('and says what to do next (type a name), without joining anyone and without a code box', /ABC234/.test(await text(host, 'status')) && !(await tableShown(host)) && (await host.eval(`document.getElementById('join-section').hidden`)));
   await host.goto(`${ORIGIN}/lobby/ABCO34`);
   check('a link with an invalid code is just the start page: no join screen, no code filled in', (await host.eval(`document.getElementById('join-code').value === '' && document.getElementById('room-join').hidden && !document.getElementById('make-section').hidden`)));
+  // The BUILT deck page must start (2026-11-26: the bundler once put a helper in the lobby page's chunk, so the deck page ran the lobby's code and stayed empty; the
+  // dev server does not bundle, so only a built site can show it).
+  const errorsBefore = host.logs.filter((line) => /exception/i.test(line)).length;
+  await host.goto(`${ORIGIN}/deck`);
+  const deckReady = await waitFor(async () => (await host.eval(`Boolean(document.getElementById('new-deck'))`)) || null, 15000, 200);
+  check('the built deck page starts: its New deck button is drawn and no page error', Boolean(deckReady) && host.logs.filter((line) => /exception/i.test(line)).length === errorsBefore, host.logs.filter((line) => /exception/i.test(line)).slice(-1).join(''));
   // A link with extra path parts is not a table link at all: no rewrite matches it, so it is a plain 404 and no page loads.
   check('a link with extra path parts is a 404, not the lobby page', (await get('/lobby/ABC234/extra')).status === 404);
 

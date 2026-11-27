@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.291</span></h1>
-    <p class="lede">291 entries, Oct 25 to Nov 26, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
+    <h1>Build log <span class="version">Version 0.292</span></h1>
+    <p class="lede">292 entries, Oct 25 to Nov 26, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
   </div>
 </header>
 
@@ -25,7 +25,7 @@
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
 <a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">56</span></a>
-<a class="week-link" href="#week-3" data-target="week-3"><span class="wl-name">Week 3</span><span class="wl-range">Nov 23 to Nov 29</span><span class="wl-count">22</span></a>
+<a class="week-link" href="#week-3" data-target="week-3"><span class="wl-name">Week 3</span><span class="wl-range">Nov 23 to Nov 29</span><span class="wl-count">23</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
 <a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">29 things friends asked for</span></a>
 <a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">30 open, 73 done</span></a>
@@ -4572,7 +4572,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-3" aria-labelledby="week-3-title">
-<h2 class="week-head" id="week-3-title"><button type="button" aria-expanded="false" aria-controls="week-3-days"><span class="wname">Week 3</span><span class="range">Nov 23 to Nov 29</span><span class="week-count">22 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-3-title"><button type="button" aria-expanded="false" aria-controls="week-3-days"><span class="wname">Week 3</span><span class="range">Nov 23 to Nov 29</span><span class="week-count">23 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-3-days">
 <div class="day">
 <h3 class="day-title">Monday 23 November <span class="day-count">6</span></h3>
@@ -4835,7 +4835,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Thursday 26 November <span class="day-count">7</span></h3>
+<h3 class="day-title">Thursday 26 November <span class="day-count">8</span></h3>
 <div class="entries">
 <article class="entry" id="entry-285" data-n="285">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-285-body">
@@ -4940,6 +4940,21 @@
 <ul><li><strong><code>REDESIGN_AUDIT.md</code> (new)</strong> checks the redesign (entries 278 to 290) against the spec's feature preservation checklist (section 15) and its list of known problems (section 17). What it found:<ul><li><strong>Nothing marked MUST PRESERVE was lost.</strong></li><li><strong>What changed on purpose:</strong> the look of everything; the rail instead of the tool docks; player colors; the console.</li><li><strong>What is new:</strong> the step of the turn, Undo, a light theme, keyword notes, the Shared view, the commander effects, React on the home page.</li><li><strong>Which of my earlier decisions changed:</strong> the tool docks, &quot;no framework&quot;, four sounds.</li><li><strong>Problems:</strong> two are fixed (the light theme on play pages, native popups), one is settled (the rules are published), and the rest are still open.</li><li><strong>New problems from the redesign:</strong> one unexplained failure of the room check, a crash in the screenshot code of one check, 84 KB more JavaScript on the home page, no hot reload for React parts.</li></ul></li><li><code>PRODUCT_BEHAVIOR_SPEC.md</code> section 17 has a dated note pointing to the audit, and <code>CLAUDE.md</code> names both files.</li></ul>
 <p class="sub"><strong>What I checked</strong></p>
 <ul><li>The rows the redesign could have changed were checked in the code for the audit, not from memory:<ul><li>no native <code>confirm()</code> is left;</li><li>Tab still toggles Settings while the focus is inside it;</li><li>the history tabs have no arrow keys;</li><li>only the home page's footer shows the version;</li><li>the docks are one rail in every mode.</li></ul></li><li>On the final code: <code>npm test</code> 103 of 103 suites, <code>npm run test:live</code> 114 of 114, including the published rules matching the file, 145 of 145.</li></ul>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-292" data-n="292">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-292-body">
+    <span class="num">292</span>
+    <span class="head-text"><span class="title">The empty Decks page on the preview</span><span class="sum">After merging the redesign into development, I opened the preview and the Decks page was empty: no decks, no New deck button.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-292-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>After merging the redesign into <code>development</code>, I opened the preview and the Decks page was empty: no decks, no New deck button. I also sent a long list of changes (the next entries).</li></ul>
+<p class="sub"><strong>What changed</strong></p>
+<ul><li><strong>The cause:</strong> React is old-style CommonJS, so the bundler needs a small helper for it, and it put that helper inside the lobby page's own chunk. The deck importer needs the same helper. So opening the deck page also ran the lobby page's startup code, which crashed looking for the seat list. The deck page never drew.</li><li><strong>The fix:</strong> React, React DOM and their scheduler are now their own chunk (<code>codeSplitting</code> in <code>vite.config.js</code>), so the helper is no longer in the lobby chunk.</li><li><strong>A new check</strong> in <code>scripts/check-deploy-config.mjs</code>: the BUILT deck page must start, with its New deck button and no page error. It came in with entry 288 (React).</li></ul>
+<p class="sub"><strong>What I checked</strong></p>
+<ul><li>Reproduced on a local production build: the page threw &quot;Cannot read properties of null (reading 'addEventListener')&quot; inside the lobby chunk.</li><li>The new check fails without the fix (it catches the same error) and passes with it: 55 of 55.</li><li>Claude's mistake: every deck check runs against the dev server, which does not bundle, so this passed all 103 suites and the audit. Only a built site shows it, and only the deploy check builds one.</li></ul>
   </div></div></div>
 </article>
 </div>

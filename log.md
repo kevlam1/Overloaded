@@ -5925,6 +5925,21 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
   - the docks are one rail in every mode.
 - On the final code: `npm test` 103 of 103 suites, `npm run test:live` 114 of 114, including the published rules matching the file, 145 of 145.
 
+## 292. The empty Decks page on the preview (2026-11-26)
+
+**What I asked for**
+- After merging the redesign into `development`, I opened the preview and the Decks page was empty: no decks, no New deck button. I also sent a long list of changes (the next entries).
+
+**What changed**
+- **The cause:** React is old-style CommonJS, so the bundler needs a small helper for it, and it put that helper inside the lobby page's own chunk. The deck importer needs the same helper. So opening the deck page also ran the lobby page's startup code, which crashed looking for the seat list. The deck page never drew.
+- **The fix:** React, React DOM and their scheduler are now their own chunk (`codeSplitting` in `vite.config.js`), so the helper is no longer in the lobby chunk.
+- **A new check** in `scripts/check-deploy-config.mjs`: the BUILT deck page must start, with its New deck button and no page error. It came in with entry 288 (React).
+
+**What I checked**
+- Reproduced on a local production build: the page threw "Cannot read properties of null (reading 'addEventListener')" inside the lobby chunk.
+- The new check fails without the fix (it catches the same error) and passes with it: 55 of 55.
+- Claude's mistake: every deck check runs against the dev server, which does not bundle, so this passed all 103 suites and the audit. Only a built site shows it, and only the deploy check builds one.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-24, entry 277) Claude told me the tool docks remembered their layout (entries 273 and 276) when the code stored "[object Object]"; the audit for the spec found it.
 - (2026-11-23, entry 273) I said "commit and push after every big change" and meant every big prompt; Claude pushed after each of three changes.
