@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.292</span></h1>
-    <p class="lede">292 entries, Oct 25 to Nov 26, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
+    <h1>Build log <span class="version">Version 0.293</span></h1>
+    <p class="lede">293 entries, Oct 25 to Nov 26, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
   </div>
 </header>
 
@@ -25,7 +25,7 @@
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
 <a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">56</span></a>
-<a class="week-link" href="#week-3" data-target="week-3"><span class="wl-name">Week 3</span><span class="wl-range">Nov 23 to Nov 29</span><span class="wl-count">23</span></a>
+<a class="week-link" href="#week-3" data-target="week-3"><span class="wl-name">Week 3</span><span class="wl-range">Nov 23 to Nov 29</span><span class="wl-count">24</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
 <a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">29 things friends asked for</span></a>
 <a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">30 open, 73 done</span></a>
@@ -4572,7 +4572,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-3" aria-labelledby="week-3-title">
-<h2 class="week-head" id="week-3-title"><button type="button" aria-expanded="false" aria-controls="week-3-days"><span class="wname">Week 3</span><span class="range">Nov 23 to Nov 29</span><span class="week-count">23 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-3-title"><button type="button" aria-expanded="false" aria-controls="week-3-days"><span class="wname">Week 3</span><span class="range">Nov 23 to Nov 29</span><span class="week-count">24 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-3-days">
 <div class="day">
 <h3 class="day-title">Monday 23 November <span class="day-count">6</span></h3>
@@ -4835,7 +4835,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Thursday 26 November <span class="day-count">8</span></h3>
+<h3 class="day-title">Thursday 26 November <span class="day-count">9</span></h3>
 <div class="entries">
 <article class="entry" id="entry-285" data-n="285">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-285-body">
@@ -4955,6 +4955,21 @@
 <ul><li><strong>The cause:</strong> React is old-style CommonJS, so the bundler needs a small helper for it, and it put that helper inside the lobby page's own chunk. The deck importer needs the same helper. So opening the deck page also ran the lobby page's startup code, which crashed looking for the seat list. The deck page never drew.</li><li><strong>The fix:</strong> React, React DOM and their scheduler are now their own chunk (<code>codeSplitting</code> in <code>vite.config.js</code>), so the helper is no longer in the lobby chunk.</li><li><strong>A new check</strong> in <code>scripts/check-deploy-config.mjs</code>: the BUILT deck page must start, with its New deck button and no page error. It came in with entry 288 (React).</li></ul>
 <p class="sub"><strong>What I checked</strong></p>
 <ul><li>Reproduced on a local production build: the page threw &quot;Cannot read properties of null (reading 'addEventListener')&quot; inside the lobby chunk.</li><li>The new check fails without the fix (it catches the same error) and passes with it: 55 of 55.</li><li>Claude's mistake: every deck check runs against the dev server, which does not bundle, so this passed all 103 suites and the audit. Only a built site shows it, and only the deploy check builds one.</li></ul>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-293" data-n="293">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-293-body">
+    <span class="num">293</span>
+    <span class="head-text"><span class="title">A window for a closed table, and no more loop</span><span class="sum">When I click Lobby or open a link to a table that reached its 8-hour limit, a popup should say so and let me go Home, make a new table, or join another by code.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-293-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>When I click Lobby or open a link to a table that reached its 8-hour limit, a popup should say so and let me go Home, make a new table, or join another by code.</li><li>A bug: on a closed table, Leave and End the match took me back to the same dead link, over and over, with no way home.</li></ul>
+<p class="sub"><strong>What changed</strong></p>
+<ul><li><strong>A new window,</strong> <code>frontend/src/closed-table.js</code>, says why you cannot be at the table and offers three ways out:<ul><li>Home;</li><li>New table (your last table's seats and format; made at once with a saved name, else the name box is ready);</li><li>a code box to join another table.</li></ul></li><li><strong>It forgets the dead table in this browser first.</strong> That is the fix for the loop: the Lobby link, Leave and End the match can no longer lead back into it.</li><li>It cannot be dismissed, and no key reaches the page behind it.</li><li><strong>Where it shows:</strong><ul><li>when the table closes while you are on the table page or the lobby screen. Keep-alive now tells the page once (<code>onClosed</code>), with &quot;8-hour limit&quot; or &quot;idle&quot;;</li><li>when any action is pressed on a closed table;</li><li>when the table's data is deleted;</li><li>when you open a table page you are not at;</li><li>when a link leads to a table you cannot join. An expired table says &quot;has closed&quot;. A full or started table, or a wrong code, says &quot;full, has started, or does not exist&quot;: the database refuses a stranger both reading and deleting a live table, so a wrong code cannot be told apart.</li></ul></li><li><strong>The Lobby link of your own closed table no longer makes a new table by itself;</strong> it shows the window, and New table does that.</li><li><code>joinTable</code>'s refusal now says whether the table was gone (<code>gone</code>), and <code>closeIfExpired</code> returns whether it deleted the table.</li></ul>
+<p class="sub"><strong>What I checked</strong></p>
+<ul><li><strong>Emulator</strong> (<code>backend/test-table-ops.mjs</code>, 272 checks):<ul><li>an expired table's link is &quot;gone&quot;;</li><li>a started table and a wrong code are not.</li></ul></li><li><strong>Keep-alive</strong> (59 checks): the page is told once, with &quot;idle&quot; or the 8-hour limit.</li><li><strong><code>check-room-live</code>, 43 of 43, real browsers on the real project:</strong><ul><li>a link to a missing table opens the window with its three ways out;</li><li>a mistyped code in its box is refused in words;</li><li>Alice's deleted table shows &quot;This table has closed&quot;, and its New table makes her a four-seat Commander table.</li></ul></li><li><code>check-lobby-ui</code> 66 of 66, <code>check-lobby-deck-live</code> 194 of 194, the 91 unit suites.</li><li>Screenshot of the window looked at.</li><li><strong>Not checked live:</strong> a table that reaches its 8-hour or idle limit while the page is open (it takes 30 minutes at least). That path is covered by the keep-alive unit checks.</li><li>Claude's mistakes:<ul><li>Its first reading of the rules said a wrong code could be deleted like an expired table; the emulator said no, so the wording changed.</li><li>One edit left a stray brace in <code>lobby.js</code>, which broke the whole lobby until the checks caught it.</li></ul></li></ul>
   </div></div></div>
 </article>
 </div>

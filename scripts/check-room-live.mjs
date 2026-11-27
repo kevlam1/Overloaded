@@ -1,6 +1,6 @@
 // A table's own screen (/lobby/CODE), with real browsers against the REAL project (about 1 minute).
 // Alice makes a table. Bob (no saved name) opens its link and sees a one-button join with no code box; Carol (a saved name) opens
-// the link and is joined with no click at all; a link to a table that does not exist says so; the start page of someone at a table
+// the link and is joined with no click at all; a link to a table that does not exist opens the closed-table window; the start page of someone at a table
 // offers a link back to it; the deck page's "Back to the lobby" returns to the table, not the start page; Leave frees the seat.
 // Run: node --env-file=.env scripts/check-room-live.mjs
 // Exit 0 all passed, 1 a check failed. Makes one throwaway table, deletes it, its accounts and the browser profile folders.
@@ -133,9 +133,12 @@ try {
   await dave.goto(START);
   await dave.eval(`localStorage.setItem('overloaded.name', 'Dave')`);
   await dave.goto(`${ORIGIN}/lobby/ZZZZZZ`);
-  const bad = await waitFor(async () => { const s = await dave.eval(`({ words: document.getElementById('status').textContent, error: document.getElementById('status').classList.contains('error') })`); return s.error && s.words ? s : null; }, 25000, 200);
+  // (2026-11-26) it opens the closed-table window: what is wrong, and three ways out (Home, New table, another code)
+  const bad = await waitFor(async () => (await dave.eval(`(() => { const box = document.querySelector('.closed-table .confirm-box'); if (!box) return null; return { title: box.querySelector('h2').textContent, why: box.querySelector('.confirm-message')?.textContent ?? '', links: [...box.querySelectorAll('a')].map((a) => a.getAttribute('href')), box: Boolean(box.querySelector('.closed-join input')) }; })()`)) || null, 25000, 200);
   cleanup.dave = await authOf(dave).catch(() => null);
-  record('a link to a table that does not exist says so in plain words, in the error style, and shows no table', Boolean(bad) && !/Firebase|auth\//.test(bad.words) && !(await shown(dave, 'table')) && (await shown(dave, 'room-join')), JSON.stringify(bad));
+  record('a link to a table that does not exist opens the window: "Can’t join this table", why, Home, New table and a code box, and no table', Boolean(bad) && bad.title === 'Can’t join this table' && /does not exist/.test(bad.why) && JSON.stringify(bad.links) === '["/","/?new"]' && bad.box && !(await shown(dave, 'table')), JSON.stringify(bad));
+  await dave.eval(`(() => { const input = document.querySelector('.closed-join input'); input.value = 'nope'; document.querySelector('.closed-join').requestSubmit(); })()`);
+  record('...a mistyped code in its box is refused in words, and the page stays', /not a table code/.test(await dave.eval(`document.querySelector('.closed-error').textContent`)) && /ZZZZZZ$/.test(await dave.eval('location.pathname')));
 
   // The start page of someone who is at a table offers the way back; the deck page's back link goes to the table too.
   await bob.goto(START);
@@ -155,12 +158,16 @@ try {
   record("...and his start page no longer says he is at a table", !(await shown(bob, 'resume')) || Boolean(await waitFor(async () => !(await shown(bob, 'resume')) ? true : null, 8000, 200)));
   record('no page errors on any page', ![alice, bob, carol, dave].some((b) => b.logs.some((l) => /^exception:/.test(l))), [alice, bob, carol, dave].flatMap((b) => b.logs).filter((l) => /^exception:/.test(l)).join(' | '));
 
-  // The Lobby link of a table that has closed: Alice's table is deleted (as if it had expired), and opening its address gives her a new table with the same seats and format.
+  // The Lobby link of a table that has closed: Alice's table is deleted (as if it had expired). Opening its address shows the closed window (2026-11-26; it used to
+  // make a new table by itself), and its New table makes her one with the same seats and format.
   await rest('DELETE', `tables/${code}`, cleanup.alice.token);
   await alice.goto(`${ORIGIN}/lobby/${code}`);
+  const closedTitle = await waitFor(async () => (await alice.eval(`document.querySelector('.closed-table h2')?.textContent ?? null`)) || null, 25000, 200);
+  record('Alice opens the address of her table after it was deleted: the window says it has closed, and nothing was made by itself', closedTitle === 'This table has closed' && !(await tableShown(alice)), String(closedTitle));
+  await alice.eval(`document.querySelector('.closed-table a[href="/?new"]').click()`);
   const reopened = await waitFor(async () => { const p = await pathOf(alice); return (await tableShown(alice)) && p !== `/lobby/${code}` && /^\/lobby\/[A-HJ-NP-Z2-9]{6}$/.test(p) ? p : null; }, 30000, 250);
   if (reopened) cleanup.code2 = reopened.split('/').pop();
-  record('Alice opens the address of her table after it was deleted: she gets a new table, at a new address, with four seats and Commander', Boolean(reopened) && (await alice.eval(`document.querySelectorAll('#players .seat').length`)) === 4 && (await text(alice, 'table-format')) === 'Commander', String(reopened));
+  record('...its New table gives her a new table, at a new address, with four seats and Commander', Boolean(reopened) && (await alice.eval(`document.querySelectorAll('#players .seat').length`)) === 4 && (await text(alice, 'table-format')) === 'Commander', String(reopened));
   record('...and the old table is gone from the database', await (async () => { const r = await rest('GET', `tables/${code}/meta`, cleanup.alice.token); return r.status === 401 || r.json === null; })());
 } catch (error) {
   record('the check script itself ran without an error', false, error.message); exitCode = 1;

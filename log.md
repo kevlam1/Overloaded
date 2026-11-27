@@ -5940,6 +5940,44 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 - The new check fails without the fix (it catches the same error) and passes with it: 55 of 55.
 - Claude's mistake: every deck check runs against the dev server, which does not bundle, so this passed all 103 suites and the audit. Only a built site shows it, and only the deploy check builds one.
 
+## 293. A window for a closed table, and no more loop (2026-11-26)
+
+**What I asked for**
+- When I click Lobby or open a link to a table that reached its 8-hour limit, a popup should say so and let me go Home, make a new table, or join another by code.
+- A bug: on a closed table, Leave and End the match took me back to the same dead link, over and over, with no way home.
+
+**What changed**
+- **A new window,** `frontend/src/closed-table.js`, says why you cannot be at the table and offers three ways out:
+  - Home;
+  - New table (your last table's seats and format; made at once with a saved name, else the name box is ready);
+  - a code box to join another table.
+- **It forgets the dead table in this browser first.** That is the fix for the loop: the Lobby link, Leave and End the match can no longer lead back into it.
+- It cannot be dismissed, and no key reaches the page behind it.
+- **Where it shows:**
+  - when the table closes while you are on the table page or the lobby screen. Keep-alive now tells the page once (`onClosed`), with "8-hour limit" or "idle";
+  - when any action is pressed on a closed table;
+  - when the table's data is deleted;
+  - when you open a table page you are not at;
+  - when a link leads to a table you cannot join. An expired table says "has closed". A full or started table, or a wrong code, says "full, has started, or does not exist": the database refuses a stranger both reading and deleting a live table, so a wrong code cannot be told apart.
+- **The Lobby link of your own closed table no longer makes a new table by itself;** it shows the window, and New table does that.
+- `joinTable`'s refusal now says whether the table was gone (`gone`), and `closeIfExpired` returns whether it deleted the table.
+
+**What I checked**
+- **Emulator** (`backend/test-table-ops.mjs`, 272 checks):
+  - an expired table's link is "gone";
+  - a started table and a wrong code are not.
+- **Keep-alive** (59 checks): the page is told once, with "idle" or the 8-hour limit.
+- **`check-room-live`, 43 of 43, real browsers on the real project:**
+  - a link to a missing table opens the window with its three ways out;
+  - a mistyped code in its box is refused in words;
+  - Alice's deleted table shows "This table has closed", and its New table makes her a four-seat Commander table.
+- `check-lobby-ui` 66 of 66, `check-lobby-deck-live` 194 of 194, the 91 unit suites.
+- Screenshot of the window looked at.
+- **Not checked live:** a table that reaches its 8-hour or idle limit while the page is open (it takes 30 minutes at least). That path is covered by the keep-alive unit checks.
+- Claude's mistakes:
+  - Its first reading of the rules said a wrong code could be deleted like an expired table; the emulator said no, so the wording changed.
+  - One edit left a stray brace in `lobby.js`, which broke the whole lobby until the checks caught it.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-24, entry 277) Claude told me the tool docks remembered their layout (entries 273 and 276) when the code stored "[object Object]"; the audit for the spec found it.
 - (2026-11-23, entry 273) I said "commit and push after every big change" and meant every big prompt; Claude pushed after each of three changes.

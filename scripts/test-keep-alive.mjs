@@ -65,7 +65,8 @@ function world({ clockSkew = 0, heartbeatResult = 'ok' } = {}) {
     }
   };
   w.start = () => {
-    w.keepAlive = startKeepAlive({ code: 'ABC234', document: w.document, api: w.api, bannerElement: w.element, formatTime: fmt, now: w.local, timers: w.timers });
+    w.closedCalls = [];
+    w.keepAlive = startKeepAlive({ code: 'ABC234', document: w.document, api: w.api, bannerElement: w.element, formatTime: fmt, onClosed: (reason) => w.closedCalls.push(reason), now: w.local, timers: w.timers });
     return w.keepAlive;
   };
   // The table as the database holds it.
@@ -187,7 +188,8 @@ for (const name of ACTIVITY_EVENTS) {
   same('a table idle past its limit shows the closed message', w.element.dataset.level, 'closed');
   await w.advance(2 * M); w.heartbeats.length = 0; // past the one-a-minute throttle, so only "closed" can stop the next one
   w.emit('pointerdown'); await settle();
-  same('and no heartbeat is sent for it', w.heartbeats.length, 0); }
+  same('and no heartbeat is sent for it', w.heartbeats.length, 0);
+  same('the page is told once that it closed for being idle (the page then shows its closed window)', JSON.stringify(w.closedCalls), '["idle"]'); }
 // Activity during a closed spell is not forgotten: if newer data shows the table is open, the next tick reports it
 { const w = world(); w.table.lastActive = w.server - 45 * M; w.start(); w.deliver(); await settle();
   await w.advance(2 * M); w.heartbeats.length = 0;
@@ -197,7 +199,8 @@ for (const name of ACTIVITY_EVENTS) {
   await w.advance(TICK_MS);
   same('but the tap is remembered and goes out on the next tick', w.heartbeats.length, 1); }
 { const w = world(); w.table.createdAt = w.server - 9 * H; w.table.lastActive = w.server - 1 * M; w.table.idleLimit = 60 * M; w.start(); w.deliver(); await settle();
-  same('past 8 hours the closed message says so', w.element.textContent.startsWith('This table reached its 8-hour limit'), true); }
+  same('past 8 hours the closed message says so', w.element.textContent.startsWith('This table reached its 8-hour limit'), true);
+  same('and the page is told it closed at the 8-hour limit', JSON.stringify(w.closedCalls), '["age"]'); }
 
 // ---- Not a one-way door: later data from the database corrects an early judgement ----
 { const w = world(); w.table.lastActive = w.server - 45 * M; w.start(); w.deliver(); await settle();

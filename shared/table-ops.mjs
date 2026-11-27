@@ -24,10 +24,13 @@ export const SEAT_COUNTS = [2, 3, 4];
 export const MAX_SEATS = 4;
 const CREATE_ATTEMPTS = 5;
 
+// gone: true when the table had expired and this join's clean-up deleted it. false otherwise: the table is full or has started, or there never was a table at that
+// code (the database refuses deleting a code with no table, so the page cannot tell a wrong code from a full table).
 export class TableUnavailableError extends Error {
-  constructor() {
-    super('Could not join that table. It may not exist, may be full, may have started, or may have closed.');
+  constructor({ gone = false } = {}) {
+    super(gone ? 'That table has closed.' : 'That table is full, has started, or does not exist.');
     this.name = 'TableUnavailableError';
+    this.gone = gone;
   }
 }
 
@@ -98,13 +101,15 @@ export function createTableOps({ sdk, db, getUid, makeCode = makeTableCode }) {
   // accept a delete from a stranger only for a table past its idle or 8-hour limit and refuse it for a live one, so this is safe to try on any code. It is best effort:
   // any failure is ignored. It is NOT used on a table you belong to: the rules let a host (or the last player standing) delete their table even while it is alive, so a page
   // that wrongly believed its own table had closed could destroy a live one. A code that is your own host slot is skipped for the same reason.
+  // Returns true when the delete went through, which the rules allow only for a table that has expired.
   async function closeIfExpired(code) {
-    if (!isValidCode(code)) return;
+    if (!isValidCode(code)) return false;
     try {
       const uid = await getUid();
-      if ((await get(ref(db, `hosts/${uid}`))).val() === code) return; // your own table
+      if ((await get(ref(db, `hosts/${uid}`))).val() === code) return false; // your own table
       await update(ref(db), { [`tables/${code}`]: null });
-    } catch { /* best effort: a live table refuses the delete, and nothing here needs to succeed */ }
+      return true;
+    } catch { return false; /* best effort: a live table refuses the delete, and nothing here needs to succeed */ }
   }
 
   async function createTable({ name, seats = 4, format = DEFAULT_FORMAT }) {
@@ -220,8 +225,8 @@ export function createTableOps({ sdk, db, getUid, makeCode = makeTableCode }) {
         if (!isPermissionDenied(error)) throw error;
       }
     }
-    await closeIfExpired(code); // a stranger opening an old link to a table that has expired deletes it (a live table, full or started, refuses the delete)
-    throw new TableUnavailableError();
+    const gone = await closeIfExpired(code); // a stranger opening an old link to a table that has expired deletes it (a live table, full or started, refuses the delete)
+    throw new TableUnavailableError({ gone });
   }
 
   // Calls onChange with the table's members ({ uid: { name, seat } }) now and whenever they change.

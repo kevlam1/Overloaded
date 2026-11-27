@@ -4,6 +4,7 @@
 // A refresh puts you back at the game you left. Other players' boards are shown beside it, live and read-only (their public
 // zones only: shared/game-sync.mjs readPublic). All database calls live in ../../src/db.js.
 import { mountLookSettings } from '../../src/look-settings.js';
+import { showClosedTable } from '../../src/closed-table.js';
 import { commanderBurst, sortHop, mountEffectSettings } from '../../src/vfx.js';
 import { commanderArrivals } from '../../../shared/effects.mjs';
 import { askConfirm } from '../../src/confirm-box.js';
@@ -84,6 +85,8 @@ import { placeAll, stepFrom, setBoardSize, CARD_COLS, CARD_ROWS } from '../../..
 const $ = (id) => document.getElementById(id);
 const store = makeSafeStore();
 const TABLE_DECK_KEY = 'overloaded.tableDeck'; // { code, id }: the deck brought to that table (the lobby writes it)
+let keepAlive = null; // (startKeepAlive's handle, once this page is at its table)
+let closedReason = null; // 'age' or 'idle' once the table has closed
 // The news line (hidden during a game) and, once the history bar exists, its Messages tab (Kevin, 2026-11-21)
 let noteMessage = null;
 const say = (message, isError = false) => { $('status').textContent = message; $('status').classList.toggle('error', isError); noteMessage?.(message, { error: isError }); };
@@ -1305,16 +1308,16 @@ async function start() {
     say(friendlyMessage(error), true);
     return;
   }
-  if (!mine) { say('You are not at this table, or it has closed. Go back to the lobby to join it.', true); return; }
+  if (!mine) { showClosedTable({ reason: 'missing' }); return; }
   myUid = mine.uid;
 
-  startKeepAlive({ code: tableCode, document, api: { heartbeat, watchServerOffset, watchMeta, watchActivity }, bannerElement: $('banner'), formatTime });
+  keepAlive = startKeepAlive({ code: tableCode, document, api: { heartbeat, watchServerOffset, watchMeta, watchActivity }, bannerElement: $('banner'), formatTime, onClosed: (reason) => { closedReason = reason; showClosedTable({ reason }); } });
   startPresence(tableCode, { onProblem: () => {} });
   watchMeta(tableCode, (value) => {
     meta = value ?? null;
     host = value?.host ?? null;
     processPings(); // the first snapshot of the pings is remembered once the match number and the public branches are both known, whichever arrives first
-    if (value === null || value === undefined) say('This table has closed.', true);
+    if (value === null || value === undefined) showClosedTable({ reason: closedReason ?? 'gone' }); // (the table was deleted: its host closed it, or it expired and someone cleaned it up)
     renderMatchState();
     renderPlayers();
     checkStart();
@@ -1343,8 +1346,10 @@ async function start() {
 }
 
 // ---- the match: concede, end it (host), leave ----
+// A table that has closed answers every action with the closed window (Kevin, 2026-11-26: Leave and End the match on a closed table led back to it, a loop).
 async function act(task) {
-  try { await task(); } catch (error) { say(friendlyMessage(error), true); }
+  if (closedReason || keepAlive?.state().closed) { showClosedTable({ reason: closedReason ?? 'gone' }); return; }
+  try { await task(); } catch (error) { if (keepAlive?.state().closed) showClosedTable({ reason: closedReason ?? 'gone' }); else say(friendlyMessage(error), true); }
 }
 $('concede').addEventListener('click', () => act(async () => {
   if (!(await askConfirm({ title: 'Concede this match?', message: 'It cannot be taken back. The table will see that you conceded, and you can still look at the table.', confirmLabel: 'Concede', returnFocus: $('concede') }))) return;

@@ -16,7 +16,8 @@ export const ACTIVITY_EVENTS = ['pointerdown', 'keydown', 'input', 'touchstart']
 // (The default timers are wrappers on purpose: a browser throws "Illegal invocation" if setInterval is called as a
 // method of some other object, which `timers.setInterval(...)` would do. Node does not mind, so only a real browser notices.)
 const realTimers = { setInterval: (fn, ms) => setInterval(fn, ms), clearInterval: (id) => clearInterval(id) };
-export function startKeepAlive({ code, document, api, bannerElement, formatTime, now = () => Date.now(), timers = realTimers }) {
+// onClosed(reason): called once when the table is judged closed, with 'age' (the 8-hour limit) or 'idle'.
+export function startKeepAlive({ code, document, api, bannerElement, formatTime, onClosed = () => {}, now = () => Date.now(), timers = realTimers }) {
   let offset = null; // the database's clock minus this computer's; null until it has arrived
   let meta = null;
   let lastActive = null;
@@ -38,7 +39,9 @@ export function startKeepAlive({ code, document, api, bannerElement, formatTime,
     // look closed (or a warning would be missed) in the moments before the offset arrives.
     const table = offset !== null && meta && lastActive !== null ? { createdAt: meta.createdAt, lastActive, idleLimit: meta.idleLimit } : null;
     const state = renderBanner(bannerElement, { now: now() + (offset ?? 0), table, formatTime });
+    const was = closed;
     closed = Boolean(state?.closed);
+    if (closed && !was && !stopped) onClosed(state.ageLeft <= 0 ? 'age' : 'idle');
   };
   const onActivity = () => { beat.activity(now()); };
   const onVisibility = () => { beat.setVisible(document.visibilityState === 'visible', now()); draw(); };

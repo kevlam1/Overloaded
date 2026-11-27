@@ -11,6 +11,7 @@ import { drawDeckTiles } from '../../src/deck-tiles.js';
 import { imageUrl } from '../../../shared/card-image.mjs';
 import { loadCardList } from '../../src/card-list.js';
 import { mountSiteHeader } from '../../src/site-header.js';
+import { showClosedTable } from '../../src/closed-table.js';
 import { makeSafeStore } from '../../src/safe-store.js';
 import { normalizeCode, isValidCode } from '../../../shared/table-code.mjs';
 import { cleanPlayerName } from '../../../shared/player-name.mjs';
@@ -46,7 +47,9 @@ const formatTime = (ms) => new Date(ms).toLocaleTimeString([], { hour: 'numeric'
 // separate so it can be tested with a fake clock). Only one table is kept alive at a time.
 function keepAlive(code) {
   if (stopKeepAlive) stopKeepAlive();
-  stopKeepAlive = startKeepAlive({ code, document, api: { heartbeat, watchServerOffset, watchMeta, watchActivity }, bannerElement, formatTime }).stop;
+  const alive = startKeepAlive({ code, document, api: { heartbeat, watchServerOffset, watchMeta, watchActivity }, bannerElement, formatTime, onClosed: (reason) => { closedReason = reason; showClosedTable({ reason }); } });
+  stopKeepAlive = alive.stop;
+  tableClosed = () => alive.state().closed;
 }
 
 // Cleans the typed name (throws a readable message if it is not a name), shows the cleaned version in the box so the
@@ -719,7 +722,11 @@ $('take-over').addEventListener('click', () => run(async () => {
   say('You are now the host of this table.');
 }));
 
+// The table this screen shows has closed (the closed window is up): every action answers with that window instead (Leave on a closed table looped back into it).
+let closedReason = null;
+let tableClosed = () => false;
 async function run(task) {
+  if (closedReason || tableClosed()) { showClosedTable({ reason: closedReason ?? 'gone' }); return; }
   busy(true);
   try {
     await task();
@@ -767,7 +774,13 @@ const roomCode = codeFromPath(location.pathname); // set on /lobby/CODE, null on
 async function joinHere(code) {
   const name = rememberName();
   say('Joining...');
-  const table = await joinTable({ code, name });
+  let table;
+  try { table = await joinTable({ code, name }); } catch (error) {
+    if (error?.name !== 'TableUnavailableError') throw error;
+    say('');
+    showClosedTable({ reason: error.gone ? 'gone' : 'unavailable' }); // (a link to a table you cannot be at: closed, full, started or no such table)
+    return;
+  }
   say(table.rejoined ? `Back at table ${table.code}.` : `You joined table ${table.code}.`);
   show(table);
 }
@@ -806,31 +819,32 @@ async function startStart() {
   }
 }
 
-// The table this browser was at has closed (it expired, or its host ended it). It is cleared away, and if you were its host you get a new one with the same seats and format; anyone else is taken to the start page.
-function lastTableInfo(code) {
-  try { const info = JSON.parse(store.get(LAST_TABLE_KEY) ?? 'null'); return info && info.code === code ? info : null; } catch { return null; }
+// Your last table's seats and format, whatever its code (for New table).
+function lastTableInfo() {
+  try { const info = JSON.parse(store.get(LAST_TABLE_KEY) ?? 'null'); return info && typeof info === 'object' ? info : null; } catch { return null; }
 }
+// "/?new" (the closed window's New table): a new table with your last table's seats and format, made at once when this browser has a saved name; otherwise the
+// name box is ready and Make table does the rest. It goes through the Make table button, so the one-table warning still applies.
+function newTableFromLink() {
+  if (!new URLSearchParams(location.search).has('new')) return;
+  history.replaceState(null, '', '/');
+  const info = lastTableInfo();
+  if (info && SEAT_CHOICES.includes(info.seats)) seatsSelect.value = String(info.seats);
+  if (info && FORMATS.includes(info.format)) formatSelect.value = info.format;
+  let saved = null;
+  try { saved = store.get(NAME_KEY) ? cleanPlayerName(store.get(NAME_KEY)) : null; } catch { saved = null; }
+  if (saved) { createButton.click(); return; }
+  nameInput.focus();
+  say('Type your name, then Make table.');
+}
+// The table this browser was at has closed (it expired, or its host ended it): it is forgotten here, and the closed window offers the ways out.
 async function reopenMyTable(code) {
-  const info = lastTableInfo(code);
   store.remove(TABLE_KEY);
   store.remove(TABLE_DECK_KEY);
   await closeIfExpired(code);
-  let saved = null;
-  try { saved = store.get(NAME_KEY) ? cleanPlayerName(store.get(NAME_KEY)) : null; } catch { saved = null; }
-  if (info?.host && saved && SEAT_CHOICES.includes(info.seats)) {
-    await run(async () => {
-      say('Making you a new table...');
-      const table = await createTable({ name: saved, seats: info.seats, format: FORMATS.includes(info.format) ? info.format : 'commander' });
-      store.set(LAST_TABLE_KEY, JSON.stringify({ code: table.code, seats: info.seats, format: info.format, host: true }));
-      history.replaceState(null, '', '/');
-      show(table);
-      say('Your old table closed. This is a new one.');
-    });
-    return;
-  }
   history.replaceState(null, '', '/');
   await startStart();
-  say('That table has closed.');
+  showClosedTable({ reason: 'gone' }); // (it offers a new table with the same seats and format: see "?new" below; it used to make one by itself for its host)
 }
 const SEAT_CHOICES = [2, 3, 4];
 
@@ -857,4 +871,4 @@ async function startRoom(code) {
   nameInput.focus();
 }
 
-if (roomCode) startRoom(roomCode); else startStart();
+if (roomCode) startRoom(roomCode); else startStart().then(newTableFromLink);

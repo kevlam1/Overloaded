@@ -89,6 +89,8 @@ await throwsWith('asking for a seat the table does not have (3 of 2) is refused'
 const gusAgain = await gus.ops.joinTable({ code: standardTable.code, name: 'Gus', seat: 2 });
 check('asking again for the seat you hold is a rejoin', gusAgain.rejoined === true && gusAgain.seat === '2');
 await throwsWith('joining a table that does not exist is "unavailable"', di.ops.joinTable({ code: 'ZZZZZZ', name: 'Di' }), 'TableUnavailableError');
+const errorOf = async (promise) => { try { await promise; return null; } catch (error) { return error; } };
+check('...and it is not "gone" (the database refuses deleting a code with no table, so a wrong code reads like a full table)', (await errorOf(di.ops.joinTable({ code: 'ZZZZZZ', name: 'Di' })))?.gone === false);
 check('findMyTable counts all 3 players', (await ann.ops.findMyTable()).players === 3);
 
 console.log('who can see what, as the page sees it');
@@ -121,6 +123,7 @@ console.log('a table that has started, expired or closed');
 await admin((db) => set(ref(db, `tables/${made.code}/meta/status`), 'playing'));
 await admin((db) => set(ref(db, `tables/${made.code}/meta/idleLimit`), 3600000));
 await throwsWith('a new player cannot join a table that has started', di.ops.joinTable({ code: made.code, name: 'Di' }), 'TableUnavailableError');
+check('...and that table is not "gone": it is alive and has started', (await errorOf(di.ops.joinTable({ code: made.code, name: 'Di' })))?.gone === false);
 // Cy's member entry went but the seat is still held (a mid-match leave or a crash), so Cy may come back to that seat.
 const cyBack = await cy.ops.joinTable({ code: made.code, name: 'Cy' });
 check('a player who dropped out of a started table comes back to their own seat', cyBack.rejoined === true && cyBack.seat === '3', JSON.stringify(cyBack));
@@ -183,7 +186,8 @@ console.log('an expired table is cleaned up by whoever finds it (2026-11-06)');
   // 1. a stranger who opens the old link of an expired table deletes it
   const t1 = await makeTable('gchost', 'gcjoiner', { createdAt: old(9) });
   const visitor = person('gcvisitor');
-  await throwsWith('a stranger opening the link of a table past 8 hours is refused as before', visitor.ops.joinTable({ code: t1.code, name: 'Visitor' }), 'TableUnavailableError');
+  const visitError = await errorOf(visitor.ops.joinTable({ code: t1.code, name: 'Visitor' }));
+  check('a stranger opening the link of a table past 8 hours is refused as before, and told it has closed (gone)', visitError?.name === 'TableUnavailableError' && visitError.gone === true, visitError?.message ?? 'no error');
   check('...and that visit deleted the expired table with everything in it', (await readAdmin(`tables/${t1.code}`)) === null);
   await throwsWith('visiting the same link again is still refused (nothing there any more)', visitor.ops.joinTable({ code: t1.code, name: 'Visitor' }), 'TableUnavailableError');
 
