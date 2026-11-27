@@ -139,3 +139,11 @@ body[data-screen="start"] .hero-actions, body[data-screen="start"] .hero-points 
 .room-main #players.seats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 body[data-screen="start"] .hero .lede { padding: 0 !important; text-indent: 0; text-align: left !important; } /* (an older rule centred the text inside its box) */
 .room-side .copy-button { flex: none; white-space: nowrap; }
+/* Edit and Delete beside a deck card in the lobby (2026-11-26 feedback): over the card's top left, shown when the pointer is on it or it has the keyboard focus */
+.deck-choice-wrap { position: relative; display: grid; min-width: 0; }
+.deck-choice-wrap > .deck-face { width: 100%; }
+.deck-choice-tools { position: absolute; z-index: 3; top: 8px; left: 8px; display: flex; gap: 6px; opacity: 0; transition: opacity 0.12s ease; }
+.deck-choice-wrap:hover .deck-choice-tools, .deck-choice-wrap:focus-within .deck-choice-tools { opacity: 1; }
+.deck-tool { min-height: 1.7rem; padding: 0 0.6rem; border-radius: 8px; background: color-mix(in srgb, var(--surface-1) 88%, transparent); font-size: var(--text-xs); font-weight: 700; }
+.deck-tool-delete:hover { border-color: var(--danger); color: var(--danger); }
+@media (prefers-reduced-motion: reduce) { .deck-choice-tools { transition: none; } }

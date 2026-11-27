@@ -28,7 +28,9 @@ export function deckMatches(entry, query) {
 // host: the element to draw in. decks: saved library entries ({ id, format, bracket?, deck }). selectedId: the one chosen now, or null. byName: the card list by name, for the colors (null until it has loaded).
 // onPick(id): a card was clicked or chosen with the keyboard (Tab to a card, Enter or Space). onImport: when given, the first card is "Import a deck" and this is called when it is pressed. query: only decks that match it
 // are drawn (see deckMatches). Returns how many decks are drawn.
-export function drawDeckTiles(host, decks, selectedId, { byName = null, onPick, onImport = null, query = '' }) {
+// onEdit(id) and onDelete(id), when given: an Edit and a Delete button beside each card (Kevin's friends, 2026-11-26: edit and remove decks from the lobby). The card is a
+// button itself, so they sit beside it in a wrapper, not inside it.
+export function drawDeckTiles(host, decks, selectedId, { byName = null, onPick, onImport = null, onEdit = null, onDelete = null, query = '' }) {
   host.replaceChildren();
   if (onImport) {
     const add = document.createElement('button');
@@ -65,7 +67,26 @@ export function drawDeckTiles(host, decks, selectedId, { byName = null, onPick, 
       face.append(badge);
     }
     face.addEventListener('click', () => onPick(entry.id));
-    host.append(face);
+    if (onEdit || onDelete) {
+      const wrap = document.createElement('div');
+      wrap.className = 'deck-choice-wrap';
+      const tools = document.createElement('div');
+      tools.className = 'deck-choice-tools';
+      const tool = (label, action, run) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = `deck-tool secondary deck-tool-${action}`;
+        button.dataset.action = action;
+        button.textContent = label;
+        button.setAttribute('aria-label', `${label}: ${entry.deck.name}`);
+        button.addEventListener('click', (event) => { event.stopPropagation(); run(entry.id, button); });
+        return button;
+      };
+      if (onEdit) tools.append(tool('Edit', 'edit', onEdit));
+      if (onDelete) tools.append(tool('Delete', 'delete', onDelete));
+      wrap.append(face, tools);
+      host.append(wrap);
+    } else host.append(face);
   }
   if (decks.length > 0 && shown === 0) {
     const none = document.createElement('p');

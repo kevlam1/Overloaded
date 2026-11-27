@@ -14,7 +14,7 @@ const fresh = () => makeGame(deck, (c) => ({ t: 'Basic Land', m: '', k: [] }), {
 const uids = (game, zone) => game.zones[zone].map((c) => c.uid);
 const total = (game) => ZONES.reduce((sum, zone) => sum + game.zones[zone].length, 0);
 
-same('the choices of each', SCRY_CHOICES, { scry: ['top', 'bottom'], surveil: ['top', 'bottom', 'graveyard'] });
+same('the choices of each (surveil has no bottom, from the 2026-11-26 feedback)', SCRY_CHOICES, { scry: ['top', 'bottom'], surveil: ['top', 'graveyard'] });
 {
   const game = fresh();
   const library = uids(game, 'library');
@@ -34,21 +34,22 @@ same('the choices of each', SCRY_CHOICES, { scry: ['top', 'bottom'], surveil: ['
   const two = applyScry(game, { kind: 'scry', order: [b, a, c], choices: { [b]: 'bottom', [a]: 'bottom' } });
   same('two cards for the bottom go under the library in the order given (b then a), and c is on top', [uids(two.game, 'library')[0], uids(two.game, 'library').slice(-2)], [c, [b, a]]);
   // surveil
-  const surveilled = applyScry(game, { kind: 'surveil', order: [a, b, c, d], choices: { [a]: 'graveyard', [b]: 'bottom', [c]: 'top', [d]: 'graveyard' } });
-  same('surveil 4: a and d to the graveyard (the one put there last is on top of it), b to the bottom, c on top', [uids(surveilled.game, 'graveyard'), uids(surveilled.game, 'library')[0], uids(surveilled.game, 'library').at(-1), surveilled.game.zones.library.length], [[d, a], c, b, library.length - 2]);
-  same('...and says what it did', surveilled.message, 'Surveilled 4: 1 on top, 1 on the bottom, 2 in the graveyard.');
+  const surveilled = applyScry(game, { kind: 'surveil', order: [a, b, c, d], choices: { [a]: 'graveyard', [b]: 'top', [c]: 'top', [d]: 'graveyard' } });
+  same('surveil 4: a and d to the graveyard (the one put there last is on top of it), b and c stay on top in that order', [uids(surveilled.game, 'graveyard'), uids(surveilled.game, 'library').slice(0, 2), surveilled.game.zones.library.length], [[d, a], [b, c], library.length - 2]);
+  same('...and says what it did', surveilled.message, 'Surveilled 4: 2 on top, 2 in the graveyard.');
   check('...and nothing is lost or copied', checkGame(surveilled.game).length === 0 && total(surveilled.game) === total(game));
   same('scry has no graveyard line and surveil has', [applyScry(surveilled.game, { kind: 'scry', order: topCards(surveilled.game, 1).map((x) => x.uid) }).message], ['Scried 1: 1 on top, 0 on the bottom.']);
   refused('scry does not send a card to the graveyard', () => applyScry(game, { kind: 'scry', order: [a], choices: { [a]: 'graveyard' } }), /top or the bottom/);
-  refused('a choice that is not one is refused', () => applyScry(game, { kind: 'surveil', order: [a], choices: { [a]: 'hand' } }), /top, the bottom or into the graveyard/);
+  refused('a choice that is not one is refused', () => applyScry(game, { kind: 'surveil', order: [a], choices: { [a]: 'hand' } }), /top or into the graveyard/);
+  refused('surveil cannot put a card on the bottom', () => applyScry(game, { kind: 'surveil', order: [a], choices: { [a]: 'bottom' } }), /top or into the graveyard/);
   refused('a kind that is not scry or surveil is refused', () => applyScry(game, { kind: 'mill', order: [a] }), /not scry or surveil/);
   refused('no cards is refused', () => applyScry(game, { kind: 'scry', order: [] }), /no cards/);
   refused('cards that are not the top of the library are refused', () => applyScry(game, { kind: 'scry', order: [b, c] }), /not the top cards/);
   refused('a card twice is refused', () => applyScry(game, { kind: 'scry', order: [a, a] }), /not the top cards/);
   refused('more cards than the library has are refused', () => applyScry({ ...game, zones: { ...game.zones, library: game.zones.library.slice(0, 2) } }, { kind: 'scry', order: [a, b, c] }), /not the top cards/);
   // scrying the whole library puts it in the chosen order
-  const whole = applyScry({ ...game, zones: { ...game.zones, library: game.zones.library.slice(0, 3) } }, { kind: 'surveil', order: [a, b, c], choices: { [b]: 'graveyard', [c]: 'bottom' } });
-  same('surveilling a whole library of three: a on top, c under it, b in the graveyard', [uids(whole.game, 'library'), uids(whole.game, 'graveyard')], [[a, c], [b]]);
+  const whole = applyScry({ ...game, zones: { ...game.zones, library: game.zones.library.slice(0, 3) } }, { kind: 'surveil', order: [a, b, c], choices: { [b]: 'graveyard' } });
+  same('surveilling a whole library of three: a and c stay, b in the graveyard', [uids(whole.game, 'library'), uids(whole.game, 'graveyard')], [[a, c], [b]]);
 }
 // random scrys and surveils never lose or copy a card
 {

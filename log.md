@@ -6111,6 +6111,79 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 - `test-stacks` 122 (it checks the number), the 92 unit suites, `check-solo-ui` 470 with its real pile drags.
 - Screenshot of About looked at. My own dev server showed an older version number there because it works the version out once when it starts.
 
+## 298. The 11-26 feedback, step 1: the bugs (2026-11-27)
+
+**What I asked for**
+- My friends sent 60 points after playing live (`Overloaded_feedback_11-26.txt`). I asked the AI to work through them in steps, like the redesign.
+- In plan mode Claude:
+  - grouped them into seven steps, the safest and most useful first;
+  - sent three read-only searches for the causes of the bugs;
+  - asked me four questions: what goes wrong adding a deck in the lobby; which "board view"; which "return view" button; how the big picture should toggle.
+- All 60 points are in `docs/feedback.md` as List 5, each with its step. This entry is step 1: the bugs.
+
+**What changed**
+- **Commander tax as others see it** (`otherCommandSlots` in `shared/commander-zone.mjs`, `drawOtherSlots` in `frontend/src/command-zone.js`):
+  - another player's command zone is always two slots;
+  - each commander has its own tax badge in that player's color (two taxes were added into one number);
+  - a commander that is out keeps its slot, marked Out, with its tax (the tax was hidden once it left);
+  - an empty slot is an outline.
+- **A new match clears the old tax:** its first save writes no tax (the last match's tax carried over).
+- **The history no longer repeats** "cast 0 times, tax +0": a tax click that changes nothing changes nothing, and says nothing. The count stops at 99, the most the database stores.
+- **Colors:**
+  - other players' highlights use their own color, not mine: whose turn it is, the tag and name on their Players row, their commanders line;
+  - a player's default color is saved as their pick the first time it shows, so it cannot change under them;
+  - when two players pick the same color at once, the lower seat keeps it, the same way on every page.
+- **Foil:** the pass of light no longer stops under the pointer (my decision from entry 237, now reversed by my friends' feedback), and the lifted copy in the hand carries on where the card's pass was.
+- **Stack arrows:**
+  - an arrow attaches to the part of a card still showing in the list;
+  - arrows fade in and out instead of popping;
+  - the list scrolls by itself while an arrow is aimed near its top or bottom;
+  - the wheel scrolls it while aiming, or with Shift held.
+- **The library:** a mouse click on my library no longer opens it at a live table. The menu's Search, the View library key and the keyboard still do.
+- **Surveil** offers only top and graveyard.
+- **Moxfield tags** at the end of a deck line (`#Ramp`, `#!Card Draw`) are ignored. No card name or alternate title has a `#` in it; Claude checked all of them.
+- **The live checks run on port 5199** (`scripts/lib/live-port.mjs`). I allowed it on the web API key in Google Cloud, so my own `npm run dev` can keep 5173 while they run.
+
+**What I checked**
+- **Unit tests:**
+  - `test-commander-zone` 47 (two slots, out, empty, emblems, a hidden taxed commander, the no-op);
+  - `test-player-colors` 11 (duplicate picks);
+  - `test-scry` 23 (surveil cannot use the bottom);
+  - `test-deck-text` with four tag cases, and its stress test 61.
+- **`check-lobby-deck-live` 199 of 199, real browsers on the real database, with new steps:**
+  - Bob sees +2 on EACH of Alice's two commanders, not +4 on one;
+  - after she plays one, he still sees it Out with +2;
+  - in match 2 no tax is stored and none shows.
+- Screenshot looked at: Bob's view of Alice's slots, one of them Out; Alice's highlights in her gold, Bob's in his jade.
+- `npm run test:live` 113 of 115 before the last fixes: the two failures were the `/logs/` page not being rebuilt yet, and a check that did not know a default color is now saved (it does now).
+- `check-room-live` 43, `check-seats-live` 42, `check-shared-live` 9, all on port 5199. `npm test` 102 of 104: the `/logs/` page, rebuilt with this entry, and a foil carry check that failed only under load. That check now waits for the hand to settle instead of a fixed 200 ms.
+- **Not done:** the other player may see my two commanders in the other left-right order from my own screen. Their page cannot read my list of commanders yet; that needs the database rules change of step 6.
+- Claude's mistake: another apostrophe inside a quoted test label broke a test file.
+
+## 299. The 11-26 feedback, step 2: decks in the lobby (2026-11-27)
+
+**What I asked for**
+- Adding a deck in the lobby: I had to press Check deck, because Done did nothing until then. Remove the first Done, give Check deck a clearer name, and stop showing "(typed as ...)": show the card name on the art it was chosen by.
+- Edit and remove decks from the lobby.
+
+**What changed**
+- **The import window:**
+  - "Check deck" is **Add deck**, or **Update deck** while a saved deck's list is changed;
+  - while the list is still in the box to paste into, the window's button reads **Cancel** and closes it with nothing added;
+  - **Done** appears once the deck has been read.
+- **A card typed by another title** (a Secret Lair or Universes Beyond name) shows that title, the name on its art, and its real name is in the tooltip.
+- **Ready with no deck** still opens the importer, and once a deck is added and the window closed, I am Ready too (the press used to be lost).
+- **Each deck tile in the lobby has Edit and Delete,** shown on hover or keyboard focus:
+  - Edit opens that deck in the import window (`openDeck` in `deck-importer.js`);
+  - Delete asks first, and if it was the deck I was bringing, my deck at the table is cleared too;
+  - the import window reads the saved decks again each time it opens, so a deleted deck cannot come back with its next autosave.
+
+**What I checked**
+- `check-deck-ui` 292: the titles shown as typed, with no typed-as note.
+- `test-importer-markup` 57, `check-lobby-ui` 66.
+- The lobby checks (`check-room-live` 43, `check-lobby-deck-live` 199) still pass with the new tiles and the window's button.
+- **Not checked by a test:** Edit and Delete on a lobby tile; only the code was read.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-24, entry 277) Claude told me the tool docks remembered their layout (entries 273 and 276) when the code stored "[object Object]"; the audit for the spec found it.
 - (2026-11-23, entry 273) I said "commit and push after every big change" and meant every big prompt; Claude pushed after each of three changes.

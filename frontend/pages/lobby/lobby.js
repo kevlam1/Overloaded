@@ -19,7 +19,7 @@ import { cleanPlayerName } from '../../../shared/player-name.mjs';
 import { friendlyMessage } from '../../../shared/friendly-error.mjs';
 import { codeFromPath, linkForCode, tablePathForCode } from '../../../shared/lobby-link.mjs';
 import { readFormat, formatTitle, FORMATS } from '../../../shared/formats.mjs';
-import { LIBRARY_KEY, LEGACY_KEY, readLibrary, decksOfFormat } from '../../../shared/deck-library.mjs';
+import { LIBRARY_KEY, LEGACY_KEY, readLibrary, decksOfFormat, removeDeck, serializeLibrary } from '../../../shared/deck-library.mjs';
 import { deckFieldsOf, defaultDeckFor, deckChoiceLabel, isReady, seatDeckText, seatBracket, seatCommander, bracketLimitOf, overBracketLimit } from '../../../shared/lobby-deck.mjs';
 
 const $ = (id) => document.getElementById(id);
@@ -103,6 +103,8 @@ let myUid = null;
 let currentHost = null;
 let currentMembers = {};
 let currentMeta = null;
+let readyAfterImport = false; // Ready was pressed with no deck, which opened the importer
+let savingDefaultColor = null; // the table whose default color is being saved as your pick (once)
 let chosenDeckId = null; // the saved deck (an id in this browser's library) you brought to this table, or null
 let restoringDeck = null; // the promise of putting the remembered deck back (a database write), while it is still going
 let restoredFor = null; // the table whose remembered deck has been looked at already
@@ -291,6 +293,12 @@ function renderColors() {
   const shown = tableColors(currentMembers);
   const taken = takenColors(currentMembers, myUid);
   if (shown[myUid]) setMyColor(shown[myUid]); // (your color becomes the site's accent: src/accent.js)
+  // A player who has not picked a color has a default, worked out from who sits where; it is saved as their pick the first time it is shown, so it cannot change under
+  // them later when someone else picks or leaves (Kevin's friends, 2026-11-26: players were sometimes not the color they chose).
+  if (myUid && currentCode && currentMembers[myUid] && !currentMembers[myUid].color && shown[myUid] && savingDefaultColor !== currentCode) {
+    savingDefaultColor = currentCode;
+    setColor(currentCode, shown[myUid]).catch(() => { savingDefaultColor = null; });
+  }
   if (box.children.length !== PLAYER_COLORS.length) {
     box.replaceChildren(...PLAYER_COLORS.map((color) => {
       const button = document.createElement('button');
@@ -520,8 +528,24 @@ function fillDeckSelect(select, decks, selectedId, withPlaceholder) {
 function drawTiles() {
   const decks = decksOfFormat(readMyLibrary(), currentMeta?.format);
   $('deck-search').hidden = decks.length === 0;
-  drawDeckTiles($('deck-tiles'), decks, chosenDeckId, { byName: cardsByName, query: deckQuery, onImport: () => openImporter(), onPick: (id) => { if (id === chosenDeckId) return; $('deck-pick').value = id; $('deck-pick').dispatchEvent(new Event('change')); } });
+  drawDeckTiles($('deck-tiles'), decks, chosenDeckId, { byName: cardsByName, query: deckQuery, onImport: () => openImporter(), onEdit: (id) => openImporter(id), onDelete: deleteDeck, onPick: (id) => { if (id === chosenDeckId) return; $('deck-pick').value = id; $('deck-pick').dispatchEvent(new Event('change')); } });
   if (decks.length > 0) ensureCards(); // (the card list is 1.4 MB: only fetched when there is something it is needed for)
+}
+// Delete a saved deck from its tile (Kevin's friends, 2026-11-26): asks first, as on the deck page. The deck you are bringing to this table is taken back too.
+async function deleteDeck(id, button) {
+  const library = readMyLibrary();
+  const entry = library.decks.find((candidate) => candidate.id === id);
+  if (!entry) return;
+  if (!(await askConfirm({ title: `Delete "${entry.deck.name}"?`, message: 'It is removed from this browser.', confirmLabel: 'Delete', returnFocus: button }))) return;
+  const result = removeDeck(readMyLibrary(), id);
+  if (!store.set(LIBRARY_KEY, serializeLibrary(result.library ?? result))) { say('Your browser would not save that change.', true); return; }
+  if (chosenDeckId === id) {
+    chosenDeckId = null;
+    store.remove(TABLE_DECK_KEY);
+    if (currentMeta?.status === 'lobby') await run(() => setDeck(currentCode, { commander: '', bracket: null, bracketGuess: false }));
+  }
+  say(`Deleted "${entry.deck.name}".`);
+  refreshDeckPicker();
 }
 function drawDialogTiles() {
   const decks = decksOfFormat(readMyLibrary(), currentMeta?.format);
@@ -593,7 +617,7 @@ function openDeckDialog() {
   const format = currentMeta?.format;
   const library = readMyLibrary();
   const decks = decksOfFormat(library, format);
-  if (decks.length === 0) { openImporter(); return; } // nothing to choose from: go straight to importing one
+  if (decks.length === 0) { readyAfterImport = true; openImporter(); return; } // nothing to choose from: go straight to importing one (and be ready once it is brought)
   $('deck-dialog-field').hidden = false;
   fillDeckSelect($('deck-dialog-pick'), decks, defaultDeckFor(library, format)?.id ?? null, false);
   drawDialogTiles();
@@ -650,7 +674,9 @@ $('start').addEventListener('click', () => run(async () => {
 let importerMounted = false;
 let libraryBeforeImport = null;
 const pageParts = () => [document.querySelector('header.site-header'), document.querySelector('main'), document.querySelector('footer.site-footer')].filter(Boolean);
-async function openImporter() {
+let importerModule = null;
+// editId: open that saved deck (the Edit button on a deck tile) instead of the box to paste into.
+async function openImporter(editId = null) {
   if (!currentCode || !FORMATS.includes(currentMeta?.format)) return;
   if ($('deck-dialog').open) $('deck-dialog').close();
   libraryBeforeImport = new Set(readMyLibrary().decks.map((entry) => entry.id));
@@ -658,11 +684,13 @@ async function openImporter() {
   for (const part of pageParts()) part.inert = true;
   if (!importerMounted) {
     importerMounted = true;
-    const { mountDeckImporter } = await import('../../src/deck-importer.js');
-    mountDeckImporter({ root: $('deck-app'), play: false, startOn: 'paste', format: () => currentMeta?.format, onLibraryChange: () => refreshDeckPicker() });
+    importerModule = await import('../../src/deck-importer.js');
+    importerModule.mountDeckImporter({ root: $('deck-app'), play: false, startOn: 'paste', format: () => currentMeta?.format, onLibraryChange: () => refreshDeckPicker() });
   } else {
-    document.getElementById('new-deck')?.click(); // another import starts on the box to paste into
+    importerModule?.refreshLibrary(); // (the decks may have changed here since: one deleted from a tile must not come back)
+    if (!editId) document.getElementById('new-deck')?.click(); // another import starts on the box to paste into
   }
+  if (editId) { await importerModule?.openDeck(editId); return; }
   ($('deck-text') ?? $('import-close')).focus();
 }
 async function closeImporter() {
@@ -671,13 +699,25 @@ async function closeImporter() {
   for (const part of pageParts()) part.inert = false;
   const before = libraryBeforeImport ?? new Set();
   const added = readMyLibrary().decks.filter((entry) => !before.has(entry.id) && entry.format === currentMeta?.format).at(-1);
+  const wantedReady = readyAfterImport;
+  readyAfterImport = false;
   await run(async () => {
-    if (added && currentMeta?.status === 'lobby') await bringDeck(added.id);
-    else if (chosenDeckId && currentMeta?.status === 'lobby') await bringDeck(chosenDeckId).catch(() => {});
+    if (added && currentMeta?.status === 'lobby') {
+      await bringDeck(added.id);
+      // Ready was pressed with no deck, which opened this window: with the new deck brought, the player is ready, as they asked (2026-11-26 feedback)
+      if (wantedReady) { await setReady(currentCode); say('You are ready.'); }
+    } else if (chosenDeckId && currentMeta?.status === 'lobby') await bringDeck(chosenDeckId).catch(() => {});
   });
   refreshDeckPicker();
 }
 $('import-close').addEventListener('click', closeImporter);
+// While the list is still in the box to paste into, the window's button is Cancel, not Done (Kevin, 2026-11-26: Done did nothing until the deck had been read):
+// "Add deck" reads it, and Done comes back with the deck. The importer marks its screen on #deck-app (data-screen).
+new MutationObserver(() => {
+  const pasting = $('deck-app')?.dataset.screen === 'paste';
+  $('import-close').textContent = pasting ? 'Cancel' : 'Done';
+  $('import-close').classList.toggle('secondary', pasting);
+}).observe($('deck-app'), { attributes: true, attributeFilter: ['data-screen'] });
 document.addEventListener('keydown', (event) => {
   if (event.key !== 'Escape' || $('import-overlay').hidden) return;
   if (document.querySelector('.card-menu, .picker-overlay, .confirm-overlay')) return; // those close first

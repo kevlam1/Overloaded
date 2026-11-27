@@ -2,13 +2,14 @@
 // Alice makes a four-seat table and adds a bot to seats 2, 3 and 4 with the buttons on the empty seats: each bot is its own account, takes the seat it was added to, and is ready; the Start button says
 // who is not ready; a bot is taken away again with Remove bot and its seat is empty; after a refresh the page knows its bots again. Makes one throwaway table, deletes it and every account it made.
 // Run: node --env-file=.env scripts/check-bots-live.mjs     Exit 0 all passed, 1 a check failed.
+import { LIVE_PORT } from './lib/live-port.mjs';
 import { createServer } from 'vite';
 import { openBrowser, closeAllBrowsers, waitFor, sleep, text, tableShown, setValue, click } from './lib/browser.mjs';
 
 const DB = (process.env.FIREBASE_DATABASE_URL ?? '').replace(/\/$/, '');
 const API_KEY = process.env.FIREBASE_API_KEY ?? '';
 if (!DB || !API_KEY) { console.log('The Firebase settings are not in the environment. Run: node --env-file=.env scripts/check-bots-live.mjs'); process.exit(1); }
-const PORT = 5173; // the one local port the web API key allows besides the real sites (Google Cloud > Credentials > website restrictions)
+const PORT = LIVE_PORT; // (scripts/lib/live-port.mjs: the local port the web API key allows for these checks)
 const ORIGIN = `http://127.0.0.1:${PORT}`;
 const rest = async (method, path, token) => {
   const response = await fetch(`${DB}/${path}.json?auth=${encodeURIComponent(token)}`, { method });

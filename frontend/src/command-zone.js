@@ -84,3 +84,27 @@ export function mountCommandZone({ root, place, onTax, showTax = true, keepTaxRo
   }
   return { update };
 }
+
+// ANOTHER player's command zone as two slots (shared/commander-zone.mjs otherCommandSlots), drawn into the row their cards were just placed in (card-nodes place):
+// the two commanders first, in slot order, each with its own tax badge; a slot whose commander is out (or that is empty) is an outline, with the tax of the commander
+// that is out; anything else in their command zone (emblems) comes after. Read-only: the tax is theirs to change.
+export function drawOtherSlots(container, slots) {
+  for (const old of container.querySelectorAll('.opp-cmd-ghost')) old.remove();
+  for (const old of container.querySelectorAll('.slot-tax')) old.remove();
+  const ordered = slots.map((slot, index) => {
+    let element = slot?.inZone ? container.querySelector(`:scope > .card[data-uid="${CSS.escape(slot.uid)}"]`) : null;
+    if (!element) {
+      element = make('div', `opp-cmd-ghost${slot ? ' out' : ''}`);
+      element.dataset.short = 'CMD';
+      element.title = slot ? `${slot.name} (out)` : `Command slot ${index + 1}`;
+    }
+    if (slot && slot.casts > 0) {
+      const badge = make('span', 'slot-tax', `+${slot.tax}`);
+      badge.title = `${slot.name}: tax +${slot.tax}`;
+      element.append(badge);
+    }
+    return element;
+  });
+  const rest = [...container.children].filter((child) => !ordered.includes(child));
+  container.replaceChildren(...ordered, ...rest);
+}

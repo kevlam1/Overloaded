@@ -4,13 +4,14 @@
 // offers a link back to it; the deck page's "Back to the lobby" returns to the table, not the start page; Leave frees the seat.
 // Run: node --env-file=.env scripts/check-room-live.mjs
 // Exit 0 all passed, 1 a check failed. Makes one throwaway table, deletes it, its accounts and the browser profile folders.
+import { LIVE_PORT } from './lib/live-port.mjs';
 import { createServer } from 'vite';
 import { openBrowser, closeAllBrowsers, waitFor, authOf, sleep, text, tableShown, setValue, click, players } from './lib/browser.mjs';
 
 const DB = (process.env.FIREBASE_DATABASE_URL ?? '').replace(/\/$/, '');
 const API_KEY = process.env.FIREBASE_API_KEY ?? '';
 if (!DB || !API_KEY) { console.log('The Firebase settings are not in the environment. Run: node --env-file=.env scripts/check-room-live.mjs'); process.exit(1); }
-const PORT = 5173; // the one local port the web API key allows besides the real sites (Google Cloud > Credentials > website restrictions)
+const PORT = LIVE_PORT; // (scripts/lib/live-port.mjs: the local port the web API key allows for these checks)
 const ORIGIN = `http://127.0.0.1:${PORT}`;
 const START = `${ORIGIN}/pages/lobby/index.html`;
 const rest = async (method, path, token) => {

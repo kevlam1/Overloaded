@@ -265,6 +265,12 @@ export function mountHand({ container, costOf = () => '', restHidden = () => 0.5
     node.style.setProperty('--ha', m ? `${round2(m.ta)}deg` : card.style.getPropertyValue('--ha'));
     node.style.removeProperty('transition');
     layer.append(node);
+    // a foil's pass of light carries on where the card's was, instead of starting again off the card (Kevin's friends, 2026-11-26: the foil seemed to go away under the pointer)
+    if (card.classList.contains('foil')) {
+      const passOf = (element) => element.getAnimations?.({ subtree: true }).find((animation) => animation.animationName === 'foil-pass');
+      const from = passOf(card); const to = passOf(node);
+      if (from && to && from.currentTime !== null) to.currentTime = from.currentTime;
+    }
     void node.offsetWidth; // start from the card's own place, then rise
     node.classList.add('up');
     card.classList.add('lifted');

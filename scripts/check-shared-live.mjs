@@ -2,6 +2,7 @@
 // one plane with a home each; a card Alice plays shows in her home on Bob's page; Bob drags Alice's card into the commons and Alice's page shows it there; Alice drags it back; the
 // camera zooms and a drop still lands on the right cell. Needs the rules with meta/view 'shared' and tables/{code}/plane pasted. Short on purpose: one check per thing a player does.
 // Run: node --env-file=.env scripts/check-shared-live.mjs [--screenshot]. Makes one throwaway table, deletes it and every account it made.
+import { LIVE_PORT } from './lib/live-port.mjs';
 import { createServer } from 'vite';
 import { openBrowser, closeAllBrowsers, waitFor, authOf, sleep, text, tableShown, click } from './lib/browser.mjs';
 import { emptyLibrary, addDeck, serializeLibrary, LIBRARY_KEY } from '../shared/deck-library.mjs';
@@ -9,7 +10,7 @@ import { emptyLibrary, addDeck, serializeLibrary, LIBRARY_KEY } from '../shared/
 const DB = (process.env.FIREBASE_DATABASE_URL ?? '').replace(/\/$/, '');
 const API_KEY = process.env.FIREBASE_API_KEY ?? '';
 if (!DB || !API_KEY) { console.log('The Firebase settings are not in the environment. Run: node --env-file=.env scripts/check-shared-live.mjs'); process.exit(1); }
-const PORT = 5173;
+const PORT = LIVE_PORT; // (scripts/lib/live-port.mjs: the local port the web API key allows for these checks)
 const PAGE = `http://127.0.0.1:${PORT}/pages/lobby/index.html`;
 const REFERER = 'https://overloaded-spell.vercel.app/';
 const rest = async (method, path, token) => { const r = await fetch(`${DB}/${path}.json?auth=${encodeURIComponent(token)}`, { method }); let json = null; try { json = await r.json(); } catch {} return { status: r.status, json }; };

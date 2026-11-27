@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.297</span></h1>
-    <p class="lede">297 entries, Oct 25 to Nov 26, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
+    <h1>Build log <span class="version">Version 0.299</span></h1>
+    <p class="lede">299 entries, Oct 25 to Nov 27, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
   </div>
 </header>
 
@@ -25,9 +25,9 @@
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
 <a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">56</span></a>
-<a class="week-link" href="#week-3" data-target="week-3"><span class="wl-name">Week 3</span><span class="wl-range">Nov 23 to Nov 29</span><span class="wl-count">28</span></a>
+<a class="week-link" href="#week-3" data-target="week-3"><span class="wl-name">Week 3</span><span class="wl-range">Nov 23 to Nov 29</span><span class="wl-count">30</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
-<a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">29 things friends asked for</span></a>
+<a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">75 things friends asked for</span></a>
 <a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">30 open, 73 done</span></a>
     </div>
     <div class="tools">
@@ -4572,7 +4572,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-3" aria-labelledby="week-3-title">
-<h2 class="week-head" id="week-3-title"><button type="button" aria-expanded="false" aria-controls="week-3-days"><span class="wname">Week 3</span><span class="range">Nov 23 to Nov 29</span><span class="week-count">28 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-3-title"><button type="button" aria-expanded="false" aria-controls="week-3-days"><span class="wname">Week 3</span><span class="range">Nov 23 to Nov 29</span><span class="week-count">30 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-3-days">
 <div class="day">
 <h3 class="day-title">Monday 23 November <span class="day-count">6</span></h3>
@@ -5034,6 +5034,41 @@
 </article>
 </div>
 </div>
+<div class="day">
+<h3 class="day-title">Friday 27 November <span class="day-count">2</span></h3>
+<div class="entries">
+<article class="entry" id="entry-298" data-n="298">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-298-body">
+    <span class="num">298</span>
+    <span class="head-text"><span class="title">The 11-26 feedback, step 1: the bugs</span><span class="sum">My friends sent 60 points after playing live (Overloaded_feedback_11-26.txt).</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-298-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>My friends sent 60 points after playing live (<code>Overloaded_feedback_11-26.txt</code>). I asked the AI to work through them in steps, like the redesign.</li><li>In plan mode Claude:<ul><li>grouped them into seven steps, the safest and most useful first;</li><li>sent three read-only searches for the causes of the bugs;</li><li>asked me four questions: what goes wrong adding a deck in the lobby; which &quot;board view&quot;; which &quot;return view&quot; button; how the big picture should toggle.</li></ul></li><li>All 60 points are in <code>docs/feedback.md</code> as List 5, each with its step. This entry is step 1: the bugs.</li></ul>
+<p class="sub"><strong>What changed</strong></p>
+<ul><li><strong>Commander tax as others see it</strong> (<code>otherCommandSlots</code> in <code>shared/commander-zone.mjs</code>, <code>drawOtherSlots</code> in <code>frontend/src/command-zone.js</code>):<ul><li>another player's command zone is always two slots;</li><li>each commander has its own tax badge in that player's color (two taxes were added into one number);</li><li>a commander that is out keeps its slot, marked Out, with its tax (the tax was hidden once it left);</li><li>an empty slot is an outline.</li></ul></li><li><strong>A new match clears the old tax:</strong> its first save writes no tax (the last match's tax carried over).</li><li><strong>The history no longer repeats</strong> &quot;cast 0 times, tax +0&quot;: a tax click that changes nothing changes nothing, and says nothing. The count stops at 99, the most the database stores.</li><li><strong>Colors:</strong><ul><li>other players' highlights use their own color, not mine: whose turn it is, the tag and name on their Players row, their commanders line;</li><li>a player's default color is saved as their pick the first time it shows, so it cannot change under them;</li><li>when two players pick the same color at once, the lower seat keeps it, the same way on every page.</li></ul></li><li><strong>Foil:</strong> the pass of light no longer stops under the pointer (my decision from entry 237, now reversed by my friends' feedback), and the lifted copy in the hand carries on where the card's pass was.</li><li><strong>Stack arrows:</strong><ul><li>an arrow attaches to the part of a card still showing in the list;</li><li>arrows fade in and out instead of popping;</li><li>the list scrolls by itself while an arrow is aimed near its top or bottom;</li><li>the wheel scrolls it while aiming, or with Shift held.</li></ul></li><li><strong>The library:</strong> a mouse click on my library no longer opens it at a live table. The menu's Search, the View library key and the keyboard still do.</li><li><strong>Surveil</strong> offers only top and graveyard.</li><li><strong>Moxfield tags</strong> at the end of a deck line (<code>#Ramp</code>, <code>#!Card Draw</code>) are ignored. No card name or alternate title has a <code>#</code> in it; Claude checked all of them.</li><li><strong>The live checks run on port 5199</strong> (<code>scripts/lib/live-port.mjs</code>). I allowed it on the web API key in Google Cloud, so my own <code>npm run dev</code> can keep 5173 while they run.</li></ul>
+<p class="sub"><strong>What I checked</strong></p>
+<ul><li><strong>Unit tests:</strong><ul><li><code>test-commander-zone</code> 47 (two slots, out, empty, emblems, a hidden taxed commander, the no-op);</li><li><code>test-player-colors</code> 11 (duplicate picks);</li><li><code>test-scry</code> 23 (surveil cannot use the bottom);</li><li><code>test-deck-text</code> with four tag cases, and its stress test 61.</li></ul></li><li><strong><code>check-lobby-deck-live</code> 199 of 199, real browsers on the real database, with new steps:</strong><ul><li>Bob sees +2 on EACH of Alice's two commanders, not +4 on one;</li><li>after she plays one, he still sees it Out with +2;</li><li>in match 2 no tax is stored and none shows.</li></ul></li><li>Screenshot looked at: Bob's view of Alice's slots, one of them Out; Alice's highlights in her gold, Bob's in his jade.</li><li><code>npm run test:live</code> 113 of 115 before the last fixes: the two failures were the <code>/logs/</code> page not being rebuilt yet, and a check that did not know a default color is now saved (it does now).</li><li><code>check-room-live</code> 43, <code>check-seats-live</code> 42, <code>check-shared-live</code> 9, all on port 5199. <code>npm test</code> 102 of 104: the <code>/logs/</code> page, rebuilt with this entry, and a foil carry check that failed only under load. That check now waits for the hand to settle instead of a fixed 200 ms.</li><li><strong>Not done:</strong> the other player may see my two commanders in the other left-right order from my own screen. Their page cannot read my list of commanders yet; that needs the database rules change of step 6.</li><li>Claude's mistake: another apostrophe inside a quoted test label broke a test file.</li></ul>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-299" data-n="299">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-299-body">
+    <span class="num">299</span>
+    <span class="head-text"><span class="title">The 11-26 feedback, step 2: decks in the lobby</span><span class="sum">Adding a deck in the lobby: I had to press Check deck, because Done did nothing until then.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-299-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>Adding a deck in the lobby: I had to press Check deck, because Done did nothing until then. Remove the first Done, give Check deck a clearer name, and stop showing &quot;(typed as ...)&quot;: show the card name on the art it was chosen by.</li><li>Edit and remove decks from the lobby.</li></ul>
+<p class="sub"><strong>What changed</strong></p>
+<ul><li><strong>The import window:</strong><ul><li>&quot;Check deck&quot; is <strong>Add deck</strong>, or <strong>Update deck</strong> while a saved deck's list is changed;</li><li>while the list is still in the box to paste into, the window's button reads <strong>Cancel</strong> and closes it with nothing added;</li><li><strong>Done</strong> appears once the deck has been read.</li></ul></li><li><strong>A card typed by another title</strong> (a Secret Lair or Universes Beyond name) shows that title, the name on its art, and its real name is in the tooltip.</li><li><strong>Ready with no deck</strong> still opens the importer, and once a deck is added and the window closed, I am Ready too (the press used to be lost).</li><li><strong>Each deck tile in the lobby has Edit and Delete,</strong> shown on hover or keyboard focus:<ul><li>Edit opens that deck in the import window (<code>openDeck</code> in <code>deck-importer.js</code>);</li><li>Delete asks first, and if it was the deck I was bringing, my deck at the table is cleared too;</li><li>the import window reads the saved decks again each time it opens, so a deleted deck cannot come back with its next autosave.</li></ul></li></ul>
+<p class="sub"><strong>What I checked</strong></p>
+<ul><li><code>check-deck-ui</code> 292: the titles shown as typed, with no typed-as note.</li><li><code>test-importer-markup</code> 57, <code>check-lobby-ui</code> 66.</li><li>The lobby checks (<code>check-room-live</code> 43, <code>check-lobby-deck-live</code> 199) still pass with the new tiles and the window's button.</li><li><strong>Not checked by a test:</strong> Edit and Delete on a lobby tile; only the code was read.</li></ul>
+  </div></div></div>
+</article>
+</div>
+</div>
 </div>
 </section>
 <section class="week collapsed" id="reflection" aria-labelledby="reflection-title">
@@ -5062,7 +5097,7 @@
 </div></div></div>
 </section>
 <section class="week collapsed" id="feedback" aria-labelledby="feedback-title">
-<h2 class="week-head" id="feedback-title"><button type="button" aria-expanded="false" aria-controls="feedback-days"><span class="wname">Feedback</span><span class="range">29 things my friends asked for, and what changed</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="feedback-title"><button type="button" aria-expanded="false" aria-controls="feedback-days"><span class="wname">Feedback</span><span class="range">75 things my friends asked for, and what changed</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="feedback-days"><div class="day">
 <div class="todo-intro"><p>My friends played the game and gave me feedback, and I passed their lists to the AI as they were written. This page keeps each thing they asked for, what I changed because of it, and the log entry where the change is written up. It answers two comments from my professor: &quot;For Artifact 5, record in the log when someone outside the team plays the game and what they said&quot;, and &quot;When you do the UI overhaul, note in the log which friend feedback led to each change.&quot;</p></div>
 <div class="entries">
@@ -5114,6 +5149,32 @@
   </button></h4>
   <div class="body" id="feedback-5-body"><div class="body-in"><div class="body-pad">
 <ul><li><strong>Rulings in the card details.</strong> They said to add them, and that the storage cost on the player's side is fine. The card details now end with a Rulings section with each ruling's date and author.</li><li><strong>Picked hand cards in a row overlap.</strong> Picked cards that are next to each other should overlap as if resting. They now do.</li><li><strong>Dragged hand cards overlap on the battlefield.</strong> Several cards dragged from the hand should overlap on the battlefield and not go to a corner. The one dragged lands where it is let go and the others sit behind it.</li><li><strong>Missing counters.</strong> They asked me to check the wiki's list for counters I had missed. I compared it with the rules text of our cards and added 119, so there are 218.</li><li><strong>Top and Bottom labels off centre.</strong> The labels in the library window pushed the card off centre. The label is now drawn over the card's top edge and the card keeps its place.</li></ul>
+  </div></div></div>
+</article>
+<article class="entry" id="feedback-6" data-n="•">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="feedback-6-body">
+    <span class="num">•</span>
+    <span class="head-text"><span class="title">List 5, 26 November (log entries 295 to 299, and the steps after)</span><span class="sum">46 items</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="feedback-6-body"><div class="body-in"><div class="body-pad">
+<p>Friends played live tables and the Shared view and sent 60 points, in the file <code>Overloaded_feedback_11-26.txt</code>. I gave it to the AI and asked it to work through them in steps, like the redesign. Each point is listed with what happened to it; &quot;planned, step N&quot; means it is not built yet.</p>
+<p>Done before the steps:</p>
+<ul><li><strong>Piles move faster.</strong> A pile now moves as a whole after 175 ms (entry 297).</li><li><strong>Bigger piles under the battlefield.</strong> The library to the commanders are larger and sit just under the battlefield (entry 295).</li></ul>
+<p>Step 1, bugs:</p>
+<ul><li><strong>Two commander taxes shown as one</strong> for other players (+2 and +2 shown as +4). Done in step 1 (entry 298).</li><li><strong>Tax hidden from others once the commander is out.</strong> Done in step 1 (entry 298).</li><li><strong>Last match's tax still there in a new match.</strong> Done in step 1 (entry 298).</li><li><strong>Both command zones always shown,</strong> also for other players. Done in step 1 (entry 298).</li><li><strong>The moves history repeating the same line</strong> (setting tax to 0). Done in step 1 (entry 298).</li><li><strong>Players not shown in the color they chose,</strong> and everything of theirs (name, tax, highlights) in their color. Done in step 1 (entry 298).</li><li><strong>Foil disappearing under the pointer.</strong> Done in step 1 (entry 298).</li><li><strong>Stack arrows glitching</strong> when cards scroll in and out, and no scrolling while dragging an arrow. Done in step 1 (entry 298).</li><li><strong>A left click on the library should not open it</strong> on the live table. Done in step 1 (entry 298).</li><li><strong>Surveil should offer only top and graveyard.</strong> Done in step 1 (entry 298).</li><li><strong>Moxfield tags in a decklist should be ignored.</strong> Done in step 1 (entry 298).</li></ul>
+<p>Step 2, decks and the lobby:</p>
+<ul><li><strong>Adding a deck in the lobby:</strong> Done did nothing until Check deck was pressed. Done in step 2 (entry 299): Add deck reads the list, Done appears with the deck, and a card shows the name on its art.</li><li><strong>Edit and remove decks from the lobby.</strong> Done in step 2 (entry 299): Edit and Delete on each deck tile.</li></ul>
+<p>Step 3, table controls and settings:</p>
+<ul><li><strong>Buttons for numbers in menus</strong> (Scry, Surveil, Draw X and the rest). Planned, step 3.</li><li><strong>Right-click on Draw draws 3.</strong> Planned, step 3.</li><li><strong>Untap all and Draw move the step of the turn on,</strong> and a button that moves to the next step. Planned, step 3.</li><li><strong>A keybind to send a card to the command zone</strong> (unbound at first). Planned, step 3.</li><li><strong>A key that toggles the big card picture.</strong> Planned, step 3.</li><li><strong>The &quot;Back to your graveyard&quot; pill in the center</strong> instead of the top right. Planned, step 3.</li><li><strong>An eye button in Settings</strong> to look at the board, like the pile windows have. Planned, step 3.</li><li><strong>A hand card size setting.</strong> Planned, step 3.</li><li><strong>Louder sounds and a volume slider.</strong> Planned, step 3.</li><li><strong>A vertical style for untapped piles.</strong> Planned, step 3.</li><li><strong>Easier Shift-picking of hand cards.</strong> Planned, step 3.</li><li><strong>Hand sorting in Settings as columns,</strong> collapsible, with the up and down arrows stacked on the right. Planned, step 3.</li></ul>
+<p>Step 4, tools that move:</p>
+<ul><li><strong>The turn bar movable like the control bar.</strong> Planned, step 4.</li><li><strong>The stack movable and collapsible</strong> like the game history. Planned, step 4.</li></ul>
+<p>Step 5, help:</p>
+<ul><li><strong>A help window when a game starts,</strong> with the keys and basics of that view, and &quot;don't show again&quot; that Settings can undo. Planned, step 5.</li></ul>
+<p>Step 6, multiplayer (one database rules change):</p>
+<ul><li><strong>Foil on other players' boards.</strong> Planned, step 6.</li><li><strong>Rotate a card 90 degrees,</strong> separate from tapping. Planned, step 6.</li><li><strong>The pinger closes a ping for everyone,</strong> and the pinged player can acknowledge it. Planned, step 6.</li><li><strong>Choosing who goes first in the lobby,</strong> with a slot-machine animation. Planned, step 6.</li><li><strong>Swapping seats, kicking a player, a &quot;Ready?&quot; ping from the host,</strong> and the lobby's seat order deciding where players sit. Planned, step 6.</li><li><strong>Other players' hand and piles turned like their board.</strong> Planned, step 6.</li><li><strong>&quot;Add a card&quot; from the battlefield's menu,</strong> from the card list. Planned, step 6.</li><li><strong>Random token art,</strong> and choosing an art also changes the token's front. Planned, step 6.</li><li><strong>Flipping cards in the hand,</strong> playing them face down, and face-down exile that others must ask to see. Planned, step 6, last, and the first cut if time runs out.</li></ul>
+<p>Step 7, the Shared view:</p>
+<ul><li><strong>The table turned to each player's seat,</strong> Ctrl+Q and Ctrl+E to turn it, and clicking a player turns to their board. Planned, step 7.</li><li><strong>A 12-dot gap between the left and right players.</strong> Planned, step 7.</li><li><strong>No &quot;Commons&quot; text.</strong> Planned, step 7.</li><li><strong>Name, life and hand count pills in the middle of each board,</strong> life adjusted there, and Life gone from the control bar. Planned, step 7.</li><li><strong>Each player's hand face down below their board.</strong> Planned, step 7.</li><li><strong>The piles and command zones on the board,</strong> at each player's edge. Planned, step 7.</li><li><strong>Tapping and dragging other players' cards,</strong> several at once. Planned, step 7.</li></ul>
   </div></div></div>
 </article>
 </div></div></div>

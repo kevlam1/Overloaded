@@ -24,8 +24,8 @@ export function openScryWindow({ kind, cards, nodeFor, onDone }) {
   panel.setAttribute('aria-label', `${name} ${cards.length}`);
   const heading = make('h2', 'scry-title', `${name} ${cards.length}`);
   const note = make('p', 'scry-note', kind === 'scry'
-    ? 'The top card is on the left. Put each card on the top or the bottom of your library, and move cards with the arrows to change the order.'
-    : 'The top card is on the left. Put each card on the top or the bottom of your library, or in your graveyard, and move cards with the arrows to change the order.');
+    ? 'The top card is on the left. Put each card on the top or the bottom; the arrows change the order.'
+    : 'The top card is on the left. Keep each card on top or put it in your graveyard; the arrows change the order.');
   const list = make('ol', 'scry-cards');
   const buttons = make('div', 'scry-buttons');
   const done = make('button', 'scry-done', 'Done'); done.type = 'button';

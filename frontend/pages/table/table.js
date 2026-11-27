@@ -21,8 +21,8 @@ import { mountSettingsMenu } from '../../src/settings-menu.js';
 import { keybinds } from '../../src/keybinds.js';
 import { mountKeybindSettings } from '../../src/keybind-settings.js';
 import { mountPileStack } from '../../src/pile-stack.js';
-import { mountCommandZone, drawEmblemCounts } from '../../src/command-zone.js';
-import { taxAction, taxEntries, COMMANDER_TAX_PUBLISHED, TAX_PER_CAST } from '../../../shared/commander-zone.mjs';
+import { mountCommandZone, drawEmblemCounts, drawOtherSlots } from '../../src/command-zone.js';
+import { taxAction, taxEntries, otherCommandSlots, COMMANDER_TAX_PUBLISHED, TAX_PER_CAST } from '../../../shared/commander-zone.mjs';
 import { pileMenuItems, pileAction } from '../../../shared/pile-menu.mjs';
 import { mountCardHover } from '../../src/card-hover.js';
 import { cardNotes } from '../../../shared/card-notes.mjs';
@@ -47,7 +47,7 @@ import { mountHistoryBar } from '../../src/history-bar.js';
 import { mountStackWindow } from '../../src/stack-window.js';
 import { createToolDocks } from '../../src/tool-dock.js';
 import { summarizeBoard } from '../../../shared/board-summary.mjs';
-import { tableColors, colorValue } from '../../../shared/player-colors.mjs';
+import { tableColors, colorValue, inkOn } from '../../../shared/player-colors.mjs';
 import { PLANE_COLS, PLANE_ROWS, HOME_COLS, HOME_ROWS, homeOf, readPlaneEntry, planeCell, entryFor } from '../../../shared/plane.mjs';
 import { mountPlaneCamera } from '../../src/plane-camera.js';
 import { mountPlaneDrag } from '../../src/plane-drag.js';
@@ -408,8 +408,11 @@ function sync() {
     saveState('Saving...');
     try {
       const writes = gameWrites(myUid, lastSaved, target);
-      if (lastSaved === null) { writes[`public/${myUid}/match`] = meta.match; writes[`public/${myUid}/log`] = null; } // which match this game belongs to; a new match starts an empty history
+      const first = lastSaved === null;
+      // which match this game belongs to; a new match starts an empty history and no commander tax (Kevin's friends, 2026-11-26: the last match's tax was still there)
+      if (first) { writes[`public/${myUid}/match`] = meta.match; writes[`public/${myUid}/log`] = null; writes[`public/${myUid}/tax`] = null; }
       await saveGame(tableCode, writes);
+      if (first) savedTax = 'null';
       lastSaved = target;
       if (game === target) saveState('Saved.');
       if (saveFailing) { saveFailing = false; say('Saved again.'); }
@@ -874,7 +877,6 @@ function opponentPanel(uid) {
   // their hand as a fan of card backs along the bottom with its count, and their piles and command zone at the bottom right. Their stats line is for a screen reader.
   const field = make('div', 'opp-field'); field.append(board);
   const commandBox = make('div', 'opp-command-zone'); commandBox.append(command, make('span', 'opp-zone-label', 'CMD'));
-  panel.tax = make('span', 'opp-tax'); panel.tax.hidden = true; commandBox.append(panel.tax); // their commander tax, a number over the zone (hidden at 0)
   const zones = make('div', 'opp-zones'); zones.append(piles.library.button, piles.graveyard.button, piles.exile.button, commandBox);
   const hand = make('div', 'opp-hand'); hand.setAttribute('aria-hidden', 'true'); hand.append(panel.backs);
   panel.body.append(field, hand, panel.handPill, zones);
@@ -916,6 +918,7 @@ async function renderOpponents() {
     const panel = opponentPanel(uid);
     panel.title.textContent = `Seat ${member.seat}: ${member.name}`; // names are other people's text: put in as text, never as markup
     panel.section.style.setProperty('--seat-color', playerColor(uid));
+    panel.section.style.setProperty('--seat-ink', inkOn(playerColor(uid))); // (text on their color: dark or light, whichever reads better)
     const theirTurn = turnNow !== null && turnNow.uid === uid;
     panel.section.classList.toggle('active', theirTurn);
     if (theirTurn) panel.title.append(make('span', 'turn-mark', 'their turn'));
@@ -944,9 +947,7 @@ async function renderOpponents() {
       watchBoardSize(panel.board);
       panel.nodes.place(panel.command, view.zones.command);
       drawEmblemCounts(panel.command, view.zones.command);
-      { const casts = view.zones.command.reduce((sum, card) => sum + (view.tax[card.uid] ?? 0), 0); // (with two commanders in the zone, their taxes are added; the title names each)
-        panel.tax.hidden = casts === 0; panel.tax.textContent = `+${casts * TAX_PER_CAST}`;
-        panel.tax.title = `Commander tax: ${view.zones.command.filter((card) => view.tax[card.uid]).map((card) => `${card.n} +${view.tax[card.uid] * TAX_PER_CAST}`).join(', ')}`; } // (an emblem with a count shows it on the other players' panels too)
+      drawOtherSlots(panel.command, otherCommandSlots(view)); // (two slots, each commander with its own tax, also once it is out: Kevin's friends, 2026-11-26)
       panel.piles.library.stack.update({ count: view.counts.library });
       for (const zone of ['graveyard', 'exile']) panel.piles[zone].stack.update({ count: view.zones[zone].length, top: view.zones[zone][0] ?? null });
       drawBacks(panel, view.counts.hand);
@@ -1334,6 +1335,7 @@ async function start() {
     members = value;
     const mine = tableColors(members)[myUid];
     if (mine) setMyColor(mine); // (your color is the accent on this page and the others: src/accent.js)
+    if (mine) { $('seat-me').style.setProperty('--seat-color', colorValue(mine)); $('seat-me').style.setProperty('--seat-ink', inkOn(colorValue(mine))); } // (your own area's stripe and highlight)
     renderPlayers();
     renderCounters();
     renderTurn();
@@ -1922,7 +1924,9 @@ mountBoardDrag({ board: () => $('battlefield'), onCarry: (info) => { if (!info) 
 floatingBars.push(mountFloatingBar({ bar: document.querySelector('.actions-panel'), grip: $('bar-grip'), store, key: 'overloaded.seatsConsole', defaultPlace: { dock: 'bottom', fx: 0, fy: 1 }, room: columnRoom, docking: toolDocks.dockingFor('bar') }));
 // the life total is the number itself: click, right-click, Shift for 5, hold to set (src/life-control.js)
 mountLifeControl({ button: $('life'), say, onDelta: (delta) => { if (game) apply(() => adjustLife(game, delta), ''); }, onSet: (value) => { if (game) apply(() => adjustLife(game, value - game.life), `Life is ${value}.`); } });
-for (const zone of ['library', 'graveyard', 'exile', 'sideboard']) $(`pile-${zone}`).addEventListener('click', () => { if (!game) return; if (viewing === zone && !viewTop) viewer.close(); else openPile(zone); });
+// (Kevin's friends, 2026-11-26: a mouse click on your library does not open it at a live table, where looking through it by accident is not fair; its menu's Search,
+// the View library key and the keyboard still do. A mouse click has a click count in event.detail; a key's or a script's click has 0.)
+for (const zone of ['library', 'graveyard', 'exile', 'sideboard']) $(`pile-${zone}`).addEventListener('click', (event) => { if (!game) return; if (zone === 'library' && event.detail > 0 && viewing !== 'library') return; if (viewing === zone && !viewTop) viewer.close(); else openPile(zone); });
 $('retry').addEventListener('click', () => { if (meta?.status === 'playing' && !begun) beginGame(); });
 document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && (selected || multi.size > 0) && game) { selected = null; multi.clear(); render(); } });
 

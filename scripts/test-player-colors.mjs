@@ -11,6 +11,7 @@ same('the colors another player shows are taken for me, mine are not', [...taken
 same('only the ten ids are colors', [isColorId('ruby'), isColorId('red'), isColorId(undefined)], [true, false, false]);
 same('an unknown id draws as gold', colorValue('nope'), colorValue('gold'));
 
+same('two players who picked the same color: the lower seat keeps it, the other gets a default (every page agrees)', tableColors({ a: { seat: 2, color: 'azure' }, b: { seat: 1, color: 'azure' } }), { b: 'azure', a: 'jade' });
 // the accent (your color as the site's accent, 2026-11-26)
 same('the accent of every color has readable text on it (4.5:1) in both themes', PLAYER_COLORS.every((c) => ['dark', 'light'].every((theme) => { const a = accentFor(c.id, theme); return contrast(a.accent, a.ink) >= 4.5; })), true);
 same('on the light theme every accent shows on white (3:1)', PLAYER_COLORS.every((c) => contrast(accentFor(c.id, 'light').accent, '#ffffff') >= 3), true);

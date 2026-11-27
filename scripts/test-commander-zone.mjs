@@ -1,6 +1,7 @@
 // Tests for the commander tax: changeTax and commanderUids in shared/zones.mjs and shared/commander-zone.mjs.
 import { makeGame, moveCard, changeTax, commanderUids, checkGame, seededRandom, MAX_COUNT } from '../shared/zones.mjs';
 import { taxEntries, taxAction, taxWords, TAX_PER_CAST, COMMANDER_TAX_PUBLISHED } from '../shared/commander-zone.mjs';
+import { otherCommandSlots } from '../shared/commander-zone.mjs';
 
 let checks = 0;
 const fail = (label, detail) => { console.log(`FAILED CHECK: ${label}: ${detail}`); process.exit(1); };
@@ -33,7 +34,8 @@ const fresh = (commanders = ['Tymna the Weaver', 'Thrasios, Triton Hero']) => ma
   refused('a card that is not a commander has no tax', () => changeTax(game, game.zones.library[0].uid, 1), /not one of your commanders/);
   refused('a made-up uid has no tax', () => changeTax(game, 'zzz', 1), /not one of your commanders/);
   for (const bad of [0, 1.5, NaN, '1', null]) refused(`a step of ${String(bad)}`, () => changeTax(game, 'c1', bad), /whole number/);
-  same('it stops at the limit', changeTax(changeTax(game, 'c1', MAX_COUNT), 'c1', 5).tax, { c1: MAX_COUNT });
+  same('it stops at 99 casts, the most the live table stores', changeTax(changeTax(game, 'c1', 98), 'c1', 5).tax, { c1: 99 });
+  same('a step that changes nothing (back at 0) gives the same game, so nothing is saved or written in the history', changeTax(game, 'c1', -1) === game, true);
   check('the old game is not changed', (() => { const frozen = JSON.stringify(game); changeTax(game, 'c1', 1); return JSON.stringify(game) === frozen; })());
   check('life and the zones are untouched', changeTax(game, 'c1', 1).life === game.life && changeTax(game, 'c1', 1).zones === game.zones);
   check('checkGame accepts a good tax', checkGame(once).length === 0 && checkGame(changeTax(changeTax(game, 'c1', 2), 'c2', 1)).length === 0);
@@ -54,7 +56,7 @@ const fresh = (commanders = ['Tymna the Weaver', 'Thrasios, Triton Hero']) => ma
   const up = taxAction(game, 'c1', 1);
   same('adding a cast changes the game and says so', [up.run(game).tax, up.message], [{ c1: 1 }, 'Tymna the Weaver: cast 1 time, tax +2.']);
   same('and the second one says "times"', taxAction(changeTax(game, 'c1', 1), 'c1', 1).message, 'Tymna the Weaver: cast 2 times, tax +4.');
-  same('taking one back at 0 stays at 0', taxAction(game, 'c1', -1).message, 'Tymna the Weaver: cast 0 times, tax +0.');
+  same('taking one back at 0 does nothing and says nothing (it filled the history with "cast 0 times", 2026-11-26)', taxAction(game, 'c1', -1), null);
   same('not a commander, or a step that is not 1 or more, gives nothing', [taxAction(game, 'c9', 1), taxAction(game, 'c1', 0), taxAction(game, 'c1', 1.5), taxAction(game, 'c1', 'x')], [null, null, null, null]);
   check('the live table has it (stored as its own write, shared/game-sync.mjs taxToStore)', COMMANDER_TAX_PUBLISHED === true);
 }
@@ -72,6 +74,18 @@ const fresh = (commanders = ['Tymna the Weaver', 'Thrasios, Triton Hero']) => ma
     if (problems.length) fail(`random walk step ${step}`, problems.join('; '));
   }
   check('1,000 random moves and tax changes keep the game consistent', true);
+}
+
+// another player's two slots (2026-11-26)
+{
+  const card = (uid, n, extra = {}) => ({ uid, n, ...extra });
+  const two = otherCommandSlots({ zones: { command: [card('c2', 'Thrasios'), card('c1', 'Tymna')], battlefield: [], graveyard: [], exile: [] }, tax: { c1: 1, c2: 1 } });
+  same('two commanders in the zone are two slots in card order, each with its own tax (not +4 on one)', two.map((s) => [s.name, s.tax]), [['Tymna', 2], ['Thrasios', 2]]);
+  const out = otherCommandSlots({ zones: { command: [card('c2', 'Thrasios')], battlefield: [card('c1', 'Tymna')], graveyard: [], exile: [] }, tax: { c1: 2 } });
+  same('a commander out on the battlefield keeps its slot and its tax', out.map((s) => s && [s.name, s.inZone, s.tax]), [['Tymna', false, 4], ['Thrasios', true, 0]]);
+  same('one commander and nothing else: the second slot is empty', otherCommandSlots({ zones: { command: [card('c1', 'Krenko')] }, tax: {} }).map((s) => s && s.name), ['Krenko', null]);
+  same('an emblem in the command zone is not a commander', otherCommandSlots({ zones: { command: [card('c1', 'Krenko'), card('e1', 'Emblem', { emb: true })] }, tax: {} }).map((s) => s && s.name), ['Krenko', null]);
+  same('a taxed commander hidden in the hand or library still has its slot, named only "Commander"', otherCommandSlots({ zones: { command: [] }, tax: { c1: 3 } }).map((s) => s && [s.name, s.tax]), [['Commander', 6], null]);
 }
 
 console.log(`All ${checks} commander zone checks passed.`);

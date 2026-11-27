@@ -6,7 +6,7 @@
 // The cards that stay on top keep that order, the ones for the bottom go under the library in that order, and the graveyard ones go there one after another.
 import { moveCard } from './zones.mjs';
 
-export const SCRY_CHOICES = { scry: ['top', 'bottom'], surveil: ['top', 'bottom', 'graveyard'] };
+export const SCRY_CHOICES = { scry: ['top', 'bottom'], surveil: ['top', 'graveyard'] }; // (surveil: top or graveyard, as the rules say; the bottom was taken out, Kevin's friends, 2026-11-26)
 
 // The cards to look at: the top n of the library (all of it if it is smaller).
 export function topCards(game, n) {
@@ -23,7 +23,7 @@ export function applyScry(game, { kind, order, choices = {} }) {
   const looked = game.zones.library.slice(0, order.length);
   if (new Set(order).size !== order.length || looked.length !== order.length || !looked.every((card) => order.includes(card.uid))) throw new Error('Those are not the top cards of your library any more.');
   const choice = (uid) => choices[uid] ?? 'top';
-  for (const uid of order) if (!allowed.includes(choice(uid))) throw new Error(kind === 'scry' ? 'A scried card goes on the top or the bottom.' : 'A surveilled card goes on the top, the bottom or into the graveyard.');
+  for (const uid of order) if (!allowed.includes(choice(uid))) throw new Error(kind === 'scry' ? 'A scried card goes on the top or the bottom.' : 'A surveilled card goes on the top or into the graveyard.');
   const byUid = new Map(looked.map((card) => [card.uid, card]));
   const to = (place) => order.filter((uid) => choice(uid) === place);
   const top = to('top'); const bottom = to('bottom'); const gone = to('graveyard');
@@ -33,7 +33,6 @@ export function applyScry(game, { kind, order, choices = {} }) {
   const library = [...top.map((uid) => byUid.get(uid)), ...rest, ...bottom.map((uid) => byUid.get(uid))];
   next = { ...next, zones: { ...next.zones, library } };
   const counts = { top: top.length, bottom: bottom.length, graveyard: gone.length };
-  const parts = [`${counts.top} on top`, `${counts.bottom} on the bottom`];
-  if (kind === 'surveil') parts.push(`${counts.graveyard} in the graveyard`);
+  const parts = kind === 'surveil' ? [`${counts.top} on top`, `${counts.graveyard} in the graveyard`] : [`${counts.top} on top`, `${counts.bottom} on the bottom`];
   return { game: next, counts, message: `${kind === 'scry' ? 'Scried' : 'Surveilled'} ${order.length}: ${parts.join(', ')}.` };
 }

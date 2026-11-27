@@ -161,11 +161,17 @@ try {
   for (let n = 0; n < 15 && !(await ev("Boolean(document.querySelector('#hand > .card.foil'))")); n++) { await ev("document.getElementById('new-game').click()"); await sleep(500); } // (a new hand of seven: a hand with many cards overlaps too much to press the one wanted)
   const foilAt = await ev("(() => { const cards = [...document.querySelectorAll('#hand > .card')]; return cards.findIndex((c) => c.classList.contains('foil')); })()");
   await raise(foilAt);
-  const foilFrom = await cardAt(foilAt, 12); // (the left edge: the next card covers the middle of a card of the hand)
+  // (it waits for the hand to settle with the foil card under the press point, and then for the carried picture: on a busy machine a fixed wait was too short)
+  let foilFrom = null;
+  for (let n = 0; n < 20; n++) {
+    foilFrom = await cardAt(foilAt, 12); // (the left edge: the next card covers the middle of a card of the hand)
+    if (foilFrom && (await ev(`document.elementFromPoint(${foilFrom.x}, ${foilFrom.y})?.closest('.card')?.classList.contains('foil') === true`))) break;
+    await sleep(100);
+  }
   await mouse('mousePressed', foilFrom.x, foilFrom.y, 1);
   for (let n = 1; n <= 8; n++) await mouse('mouseMoved', foilFrom.x, foilFrom.y - n * 25, 1);
-  await sleep(200);
-  check('a foil card carried by the pointer is still foil (its picture has the foil layer)', await ev("Boolean(document.querySelector('.drag-ghost .foil-full'))"));
+  const carriedFoil = await waitFor(async () => (await ev("Boolean(document.querySelector('.drag-ghost .foil-full'))")) || null, 3000, 50);
+  check('a foil card carried by the pointer is still foil (its picture has the foil layer)', Boolean(carriedFoil));
   await mouse('mouseReleased', foilFrom.x, foilFrom.y - 200); await sleep(300);
   const foilPlaces = await ev(`(async () => {
     const piles = await import('/src/pile-stack.js'); const orders = await import('/src/order-window.js');

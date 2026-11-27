@@ -8,6 +8,7 @@
 // (the activity read rule of 2026-10-28). Everything made here is deleted at the end.
 // Run from the repo root:  node --env-file=.env scripts/check-heartbeat-live.mjs
 // Exit codes: 0 all passed, 1 a check failed, 2 the rules are not published yet (lastActive could not be read).
+import { LIVE_PORT } from './lib/live-port.mjs';
 import { createServer } from 'vite';
 import { openBrowser, closeAllBrowsers, waitFor, sleep, text, setValue, click, tableShown, authOf } from './lib/browser.mjs';
 
@@ -15,7 +16,7 @@ const DB = (process.env.FIREBASE_DATABASE_URL ?? '').replace(/\/$/, '');
 const API_KEY = process.env.FIREBASE_API_KEY ?? '';
 if (!DB || !API_KEY) { console.log('The Firebase settings are not in the environment. Run: node --env-file=.env scripts/check-heartbeat-live.mjs'); process.exit(1); }
 
-const PORT = 5173; // the one local port the web API key allows besides the real sites (Google Cloud > Credentials > website restrictions)
+const PORT = LIVE_PORT; // (scripts/lib/live-port.mjs: the local port the web API key allows for these checks)
 const ORIGIN = `http://127.0.0.1:${PORT}`;
 let checks = 0;
 const failures = [];

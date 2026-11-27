@@ -42,3 +42,68 @@ My friends played the game and gave me feedback, and I passed their lists to the
 - **Dragged hand cards overlap on the battlefield.** Several cards dragged from the hand should overlap on the battlefield and not go to a corner. The one dragged lands where it is let go and the others sit behind it.
 - **Missing counters.** They asked me to check the wiki's list for counters I had missed. I compared it with the rules text of our cards and added 119, so there are 218.
 - **Top and Bottom labels off centre.** The labels in the library window pushed the card off centre. The label is now drawn over the card's top edge and the card keeps its place.
+
+## List 5, 26 November (log entries 295 to 299, and the steps after)
+Friends played live tables and the Shared view and sent 60 points, in the file `Overloaded_feedback_11-26.txt`. I gave it to the AI and asked it to work through them in steps, like the redesign. Each point is listed with what happened to it; "planned, step N" means it is not built yet.
+
+Done before the steps:
+- **Piles move faster.** A pile now moves as a whole after 175 ms (entry 297).
+- **Bigger piles under the battlefield.** The library to the commanders are larger and sit just under the battlefield (entry 295).
+
+Step 1, bugs:
+- **Two commander taxes shown as one** for other players (+2 and +2 shown as +4). Done in step 1 (entry 298).
+- **Tax hidden from others once the commander is out.** Done in step 1 (entry 298).
+- **Last match's tax still there in a new match.** Done in step 1 (entry 298).
+- **Both command zones always shown,** also for other players. Done in step 1 (entry 298).
+- **The moves history repeating the same line** (setting tax to 0). Done in step 1 (entry 298).
+- **Players not shown in the color they chose,** and everything of theirs (name, tax, highlights) in their color. Done in step 1 (entry 298).
+- **Foil disappearing under the pointer.** Done in step 1 (entry 298).
+- **Stack arrows glitching** when cards scroll in and out, and no scrolling while dragging an arrow. Done in step 1 (entry 298).
+- **A left click on the library should not open it** on the live table. Done in step 1 (entry 298).
+- **Surveil should offer only top and graveyard.** Done in step 1 (entry 298).
+- **Moxfield tags in a decklist should be ignored.** Done in step 1 (entry 298).
+
+Step 2, decks and the lobby:
+- **Adding a deck in the lobby:** Done did nothing until Check deck was pressed. Done in step 2 (entry 299): Add deck reads the list, Done appears with the deck, and a card shows the name on its art.
+- **Edit and remove decks from the lobby.** Done in step 2 (entry 299): Edit and Delete on each deck tile.
+
+Step 3, table controls and settings:
+- **Buttons for numbers in menus** (Scry, Surveil, Draw X and the rest). Planned, step 3.
+- **Right-click on Draw draws 3.** Planned, step 3.
+- **Untap all and Draw move the step of the turn on,** and a button that moves to the next step. Planned, step 3.
+- **A keybind to send a card to the command zone** (unbound at first). Planned, step 3.
+- **A key that toggles the big card picture.** Planned, step 3.
+- **The "Back to your graveyard" pill in the center** instead of the top right. Planned, step 3.
+- **An eye button in Settings** to look at the board, like the pile windows have. Planned, step 3.
+- **A hand card size setting.** Planned, step 3.
+- **Louder sounds and a volume slider.** Planned, step 3.
+- **A vertical style for untapped piles.** Planned, step 3.
+- **Easier Shift-picking of hand cards.** Planned, step 3.
+- **Hand sorting in Settings as columns,** collapsible, with the up and down arrows stacked on the right. Planned, step 3.
+
+Step 4, tools that move:
+- **The turn bar movable like the control bar.** Planned, step 4.
+- **The stack movable and collapsible** like the game history. Planned, step 4.
+
+Step 5, help:
+- **A help window when a game starts,** with the keys and basics of that view, and "don't show again" that Settings can undo. Planned, step 5.
+
+Step 6, multiplayer (one database rules change):
+- **Foil on other players' boards.** Planned, step 6.
+- **Rotate a card 90 degrees,** separate from tapping. Planned, step 6.
+- **The pinger closes a ping for everyone,** and the pinged player can acknowledge it. Planned, step 6.
+- **Choosing who goes first in the lobby,** with a slot-machine animation. Planned, step 6.
+- **Swapping seats, kicking a player, a "Ready?" ping from the host,** and the lobby's seat order deciding where players sit. Planned, step 6.
+- **Other players' hand and piles turned like their board.** Planned, step 6.
+- **"Add a card" from the battlefield's menu,** from the card list. Planned, step 6.
+- **Random token art,** and choosing an art also changes the token's front. Planned, step 6.
+- **Flipping cards in the hand,** playing them face down, and face-down exile that others must ask to see. Planned, step 6, last, and the first cut if time runs out.
+
+Step 7, the Shared view:
+- **The table turned to each player's seat,** Ctrl+Q and Ctrl+E to turn it, and clicking a player turns to their board. Planned, step 7.
+- **A 12-dot gap between the left and right players.** Planned, step 7.
+- **No "Commons" text.** Planned, step 7.
+- **Name, life and hand count pills in the middle of each board,** life adjusted there, and Life gone from the control bar. Planned, step 7.
+- **Each player's hand face down below their board.** Planned, step 7.
+- **The piles and command zones on the board,** at each player's edge. Planned, step 7.
+- **Tapping and dragging other players' cards,** several at once. Planned, step 7.

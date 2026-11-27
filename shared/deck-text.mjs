@@ -14,6 +14,7 @@ export const MAX_LINES = 1000
 const CARD_LINE = /^(?:(\d{1,4})x?\s+)?(.+?)(?:\s+\(([A-Za-z0-9]{3,6})\)\s+(\S+?))?(?:\s+\*[FfEe]\*)?\s*$/
 const FOIL = /\s\*[FfEe]\*\s*$/
 const ETCHED = /\s\*[Ee]\*\s*$/
+const TAGS = /\s+#.*$/ // Moxfield's tags at the end of a line
 
 // A line with no number is taken as a card with a count of 1 unless it looks like something else. These shapes were
 // checked against all 34,743 card names and alternate titles on 2026-10-29: none of them matches a real card, so none of
@@ -88,7 +89,9 @@ export function parseDeckText(text) {
   let waiting = null // a one-card header that has no card yet: { line, text }
   lines.forEach((raw, index) => {
     // \s also covers tabs, non-breaking spaces from a web page copy, and a byte order mark.
-    const line = raw.replace(/\s+/g, ' ').trim()
+    // Moxfield tags ("#Ramp", "#!Card Draw") at the end of a line are dropped: from the first space-and-# to the end (no card name or alternate title has a '#' in it,
+    // checked on all of them on 2026-11-26). A line that STARTS with # is still a comment (NOT_A_CARD). Kevin's friends, 2026-11-26.
+    const line = raw.replace(/\s+/g, ' ').trim().replace(TAGS, '')
     const number = index + 1
     if (!line) {
       if (sectionHasEntries) pendingBreak = true // a blank line right after a header doesn't count

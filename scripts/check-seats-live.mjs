@@ -2,6 +2,7 @@
 // shows her own area like the solo table (battlefield, hand, life piece, action bar) under the other players' areas, which sit side by side across the top; Bob's battlefield is turned to face her, and
 // upright when she chooses that in Settings. Short on purpose: one check per thing a player sees. Run: node --env-file=.env scripts/check-seats-live.mjs [--screenshot]
 // Makes one throwaway table per size, deletes them and every account it made.
+import { LIVE_PORT } from './lib/live-port.mjs';
 import { createServer } from 'vite';
 import { openBrowser, closeAllBrowsers, waitFor, authOf, sleep, text, tableShown, setValue, click } from './lib/browser.mjs';
 import { emptyLibrary, addDeck, serializeLibrary, LIBRARY_KEY } from '../shared/deck-library.mjs';
@@ -9,7 +10,7 @@ import { emptyLibrary, addDeck, serializeLibrary, LIBRARY_KEY } from '../shared/
 const DB = (process.env.FIREBASE_DATABASE_URL ?? '').replace(/\/$/, '');
 const API_KEY = process.env.FIREBASE_API_KEY ?? '';
 if (!DB || !API_KEY) { console.log('The Firebase settings are not in the environment. Run: node --env-file=.env scripts/check-seats-live.mjs'); process.exit(1); }
-const PORT = 5173; // the one local port the web API key allows besides the real sites
+const PORT = LIVE_PORT; // (scripts/lib/live-port.mjs: the local port the web API key allows for these checks)
 const PAGE = `http://127.0.0.1:${PORT}/pages/lobby/index.html`;
 const REFERER = 'https://overloaded-spell.vercel.app/';
 const rest = async (method, path, token) => { const r = await fetch(`${DB}/${path}.json?auth=${encodeURIComponent(token)}`, { method }); let json = null; try { json = await r.json(); } catch {} return { status: r.status, json }; };

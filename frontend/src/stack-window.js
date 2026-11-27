@@ -55,6 +55,8 @@ export function mountStackWindow({ root, printedStats = () => null, say = () => 
   live.setAttribute('role', 'status');
   live.setAttribute('aria-live', 'polite');
   const list = make('ol', 'stack-list');
+  // Shift and the wheel over the list scrolls it up and down (Shift makes the wheel scroll sideways in Chrome, and the list does not scroll sideways)
+  list.addEventListener('wheel', (event) => { if (!event.shiftKey) return; event.preventDefault(); list.scrollTop += event.deltaY || event.deltaX; }, { passive: false });
   panel.append(head, live, list);
   root.replaceChildren(panel, tab);
 
@@ -81,14 +83,21 @@ export function mountStackWindow({ root, printedStats = () => null, say = () => 
 
   const realCardEl = (target) => (realCard ? realCard(target) : document.querySelector(`#battlefield .card[data-uid="${CSS.escape(target.card)}"]`));
   const itemEl = (itemId) => list.querySelector(`li.stack-item[data-id="${CSS.escape(itemId)}"]`);
+  // A card partly scrolled out of the list counts only for the part of it that shows, so an arrow never starts or ends over the window's head or below it
+  // (Kevin's friends, 2026-11-26: the arrows glitched as cards scrolled in and out).
+  const clipTo = (rect, box) => ({ left: rect.left, right: rect.right, width: rect.width, top: Math.max(rect.top, box.top), bottom: Math.min(rect.bottom, box.bottom), height: Math.max(0, Math.min(rect.bottom, box.bottom) - Math.max(rect.top, box.top)) });
   function pathFor(arrow, listBox) {
     const sourceLi = itemEl(arrow.from);
     if (!sourceLi) return null;
-    const source = sourceLi.getBoundingClientRect();
-    if (!visible(source) || !overlaps(source, listBox)) return null;
+    const whole = sourceLi.getBoundingClientRect();
+    if (!visible(whole) || !overlaps(whole, listBox)) return null;
+    const source = clipTo(whole, listBox);
+    if (source.height < 8) return null;
     if (arrow.to.item !== undefined) {
-      const rect = itemEl(arrow.to.item)?.getBoundingClientRect();
-      if (!rect || !visible(rect) || !overlaps(rect, listBox)) return null;
+      const full = itemEl(arrow.to.item)?.getBoundingClientRect();
+      if (!full || !visible(full) || !overlaps(full, listBox)) return null;
+      const rect = clipTo(full, listBox);
+      if (rect.height < 8) return null;
       return arrowPath(source, { kind: 'item', rect });
     }
     const rect = realCardEl(arrow.to)?.getBoundingClientRect();
@@ -103,12 +112,19 @@ export function mountStackWindow({ root, printedStats = () => null, say = () => 
       const parts = groups.get(arrow.id);
       if (!parts) continue;
       const path = pathFor(arrow, listBox);
-      parts.g.style.display = path ? '' : 'none';
+      parts.g.classList.toggle('arrow-gone', !path); // (fades out and in, rather than popping)
       if (path) for (const element of [parts.halo, parts.line, parts.hit]) element.setAttribute('d', path.d);
     }
     if (draft) {
+      // aiming near the list's top or bottom edge scrolls it, faster the closer to the edge (Kevin's friends, 2026-11-26: there was no way to scroll while aiming)
+      const EDGE = 40;
+      if (draft.x >= listBox.left - 60 && draft.x <= listBox.right + 60) {
+        if (draft.y < listBox.top + EDGE && draft.y > listBox.top - 80) list.scrollTop -= Math.ceil((listBox.top + EDGE - draft.y) / 4);
+        else if (draft.y > listBox.bottom - EDGE && draft.y < listBox.bottom + 80) list.scrollTop += Math.ceil((draft.y - (listBox.bottom - EDGE)) / 4);
+      }
       const sourceLi = itemEl(draft.from);
-      const path = sourceLi ? arrowPath(sourceLi.getBoundingClientRect(), { kind: 'point', x: draft.x, y: draft.y }) : null;
+      const whole = sourceLi?.getBoundingClientRect();
+      const path = whole && overlaps(whole, listBox) ? arrowPath(clipTo(whole, listBox), { kind: 'point', x: draft.x, y: draft.y }) : null;
       draftPath.style.display = path ? '' : 'none';
       if (path) draftPath.setAttribute('d', path.d);
     } else draftPath.style.display = 'none';
@@ -169,7 +185,9 @@ export function mountStackWindow({ root, printedStats = () => null, say = () => 
     scheduleFrame();
     const sourceName = nameOfCard(sourceLi.querySelector('.card'));
     const move = (event) => { if (draft !== mine) return; draft.x = event.clientX; draft.y = event.clientY; markTarget(targetAt(event.clientX, event.clientY, fromId)?.element ?? null); scheduleFrame(); };
-    const stop = () => { document.removeEventListener('pointermove', move, true); document.removeEventListener('keydown', key, true); document.removeEventListener('contextmenu', cancel, true); };
+    // while aiming, the wheel scrolls the stack's list wherever the pointer is (Shift turns the wheel sideways in Chrome, which scrolled nothing)
+    const wheel = (event) => { if (draft !== mine) return; event.preventDefault(); list.scrollTop += event.deltaY || event.deltaX; scheduleFrame(); };
+    const stop = () => { document.removeEventListener('wheel', wheel, true); document.removeEventListener('pointermove', move, true); document.removeEventListener('keydown', key, true); document.removeEventListener('contextmenu', cancel, true); };
     const finish = (event) => {
       if (draft !== mine) return false; // (it was cancelled already: Escape, a right click, or the window slid away)
       const hit = targetAt(event.clientX, event.clientY, fromId);
@@ -181,6 +199,7 @@ export function mountStackWindow({ root, printedStats = () => null, say = () => 
     const cancel = () => { if (draft !== mine) return; stop(); endDraft(); };
     const key = (event) => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); cancel(); say('Cancelled.'); } };
     document.addEventListener('pointermove', move, true);
+    document.addEventListener('wheel', wheel, { capture: true, passive: false });
     document.addEventListener('keydown', key, true);
     document.addEventListener('contextmenu', cancel, true);
     return { finish, cancel };

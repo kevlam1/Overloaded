@@ -115,10 +115,11 @@ function foilStar(line) {
 
 function textRow(line, printingCell, withMenu) {
   const item = make('li', line.status === 'matched' ? 'card-line' : 'card-line unmatched');
-  const name = make('span', 'name', line.name);
-  if (line.viaTitle) name.append(make('span', 'typed-as', ` (typed as "${line.viaTitle}")`)); // a card found by another title it was printed under
+  // A card found by another title it was printed under shows THAT title, the name on the art it was chosen by (Kevin, 2026-11-26; it was the real name with
+  // "(typed as ...)" after it); its real name is in the tooltip.
+  const name = make('span', 'name', line.viaTitle ?? line.name);
   describeCard(item, line);
-  if (line.card) { name.tabIndex = 0; name.title = line.card.t; }
+  if (line.card) { name.tabIndex = 0; name.title = line.viaTitle ? `${line.name} · ${line.card.t}` : line.card.t; }
   item.append(make('span', 'qty', String(line.qty)), name);
   if (line.foil) { item.classList.add('foil-line'); item.append(foilStar(line)); } // (from *F* in the list, or a foil-only printing)
   const printing = printingCell(line);

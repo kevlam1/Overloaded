@@ -3,7 +3,7 @@
 //
 // The tax is kept as how many times the commander has been cast from the command zone; each cast makes the next one cost 2 more. It is a counter the player moves by hand,
 // like the paper game: nothing counts a cast for you.
-import { ZONES, changeTax, commanderUids } from './zones.mjs';
+import { ZONES, changeTax, commanderUids, MAX_CASTS } from './zones.mjs';
 
 export const TAX_PER_CAST = 2;
 // Whether the PUBLISHED database rules accept the tax and the list of commanders under public/{uid}. They do not yet, so the live table hides the tax and only the solo table has it.
@@ -33,6 +33,32 @@ export const taxWords = (entry) => `Tax +${entry.tax}`;
 export function taxAction(game, uid, delta) {
   const entry = taxEntries(game).find((candidate) => candidate.uid === uid);
   if (!entry || !Number.isInteger(delta) || delta === 0) return null;
-  const casts = Math.max(0, entry.casts + delta);
+  const casts = Math.min(MAX_CASTS, Math.max(0, entry.casts + delta));
+  if (casts === entry.casts) return null; // (at 0, or at the most: nothing to do, so no message: Kevin's friends saw "cast 0 times" repeated in the history, 2026-11-26)
   return { run: (current) => changeTax(current, uid, delta), message: `${entry.name}: cast ${casts} ${casts === 1 ? 'time' : 'times'}, tax +${casts * TAX_PER_CAST}.` };
+}
+
+// ANOTHER player's two command slots (Kevin's friends, 2026-11-26: two taxes were added into one number, a commander's tax vanished once it was out, and a player with
+// one commander showed one slot). Their list of commanders is not published, so the commanders are the cards in their command zone that are not emblems, plus any of
+// their cards with a tax that is elsewhere (out on the battlefield, in the graveyard or exile, or hidden in their hand or library). In card-number order (c1 before c2:
+// the commanders are dealt first), two slots, each { uid, name, inZone, casts, tax } or null (an empty slot).
+// view: what shared/game-sync.mjs readPublic gives for that player ({ zones, tax }).
+const cardNumber = (uid) => Number(String(uid).replace(/\D/g, '')) || 0;
+export function otherCommandSlots(view) {
+  const tax = view?.tax ?? {};
+  const zones = view?.zones ?? {};
+  const inZone = (zones.command ?? []).filter((card) => card && card.emb !== true);
+  const seen = new Set(inZone.map((card) => card.uid));
+  const elsewhere = ['battlefield', 'graveyard', 'exile'].flatMap((zone) => zones[zone] ?? []);
+  const commanders = inZone.map((card) => ({ uid: card.uid, name: card.n, inZone: true }));
+  for (const uid of Object.keys(tax)) {
+    if (seen.has(uid) || !(tax[uid] > 0)) continue;
+    seen.add(uid);
+    const card = elsewhere.find((each) => each.uid === uid);
+    commanders.push({ uid, name: card?.n ?? 'Commander', inZone: false });
+  }
+  const slots = commanders.sort((a, b) => cardNumber(a.uid) - cardNumber(b.uid)).slice(0, 2)
+    .map((entry) => { const casts = Number.isInteger(tax[entry.uid]) && tax[entry.uid] > 0 ? tax[entry.uid] : 0; return { ...entry, casts, tax: casts * TAX_PER_CAST }; });
+  while (slots.length < 2) slots.push(null);
+  return slots;
 }

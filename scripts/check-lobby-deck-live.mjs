@@ -6,6 +6,7 @@
 // Run: node --env-file=.env scripts/check-lobby-deck-live.mjs
 // Needs the deck fields rules to be published (they were on 2026-10-30). Exit 0 all passed, 1 a check failed. Makes one throwaway
 // table, deletes it and its accounts, and the browser profile folders.
+import { LIVE_PORT } from './lib/live-port.mjs';
 import { createServer } from 'vite';
 import { openBrowser, closeAllBrowsers, waitFor, authOf, sleep, text, tableShown, setValue, click, players } from './lib/browser.mjs';
 import { emptyLibrary, addDeck, serializeLibrary, LIBRARY_KEY } from '../shared/deck-library.mjs';
@@ -13,7 +14,7 @@ import { emptyLibrary, addDeck, serializeLibrary, LIBRARY_KEY } from '../shared/
 const DB = (process.env.FIREBASE_DATABASE_URL ?? '').replace(/\/$/, '');
 const API_KEY = process.env.FIREBASE_API_KEY ?? '';
 if (!DB || !API_KEY) { console.log('The Firebase settings are not in the environment. Run: node --env-file=.env scripts/check-lobby-deck-live.mjs'); process.exit(1); }
-const PORT = 5173; // the one local port the web API key allows besides the real sites (Google Cloud > Credentials > website restrictions)
+const PORT = LIVE_PORT; // (scripts/lib/live-port.mjs: the local port the web API key allows for these checks)
 const PAGE = `http://127.0.0.1:${PORT}/pages/lobby/index.html`;
 const rest = async (method, path, token, body) => {
   const response = await fetch(`${DB}/${path}.json?auth=${encodeURIComponent(token)}`, { method, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
@@ -121,7 +122,7 @@ try {
 
   // The database holds the commander and bracket, never a deck list.
   let entry = await memberEntry(cleanup.alice.token, code, cleanup.alice.uid);
-  record("Alice's member entry holds only name, seat, ready, commander and bracket", entry && Object.keys(entry).sort().join() === 'bracket,commander,name,ready,seat' && entry.commander === 'Krenko, Mob Boss' && entry.bracket === 3 && entry.ready === 1, JSON.stringify(entry));
+  record("Alice's member entry holds only name, seat, ready, commander, bracket and her color (her default is saved as her pick since 2026-11-26, so it cannot shift)", entry && Object.keys(entry).sort().join() === 'bracket,color,commander,name,ready,seat' && entry.commander === 'Krenko, Mob Boss' && entry.bracket === 3 && entry.ready === 1 && entry.color === 'gold', JSON.stringify(entry));
   record("Bob's browser can read it but it holds no card list", !JSON.stringify(await memberEntry(cleanup.bob.token, code, cleanup.alice.uid)).includes('Island'));
 
   // Bob: no deck of this format. The popup says so and offers a link.
@@ -695,6 +696,20 @@ try {
   record('Alice has no counters section any more; a right-click on her life opens a menu with the counters the database accepts and commander damage for the two seats that have a commander (the format is Commander)', Boolean(aliceLifeMenu) && aliceLifeMenu.title === 'Your counters' && JSON.stringify(aliceLifeMenu.items) === JSON.stringify(['Poison: 0', 'Energy: 0', 'Experience: 0', 'Commander damage from Seat 1: Alice: 0', 'Commander damage from Seat 2: Bob: 0']) && (await count(alice, '#counters, #player-counters, #commander-damage-block')) === 0, JSON.stringify(aliceLifeMenu));
   const zonesFacts = await alice.eval(`({ stacks: ['library', 'graveyard', 'exile'].map((z) => document.getElementById('pile-' + z).classList.contains('pile-stack')), libraryBack: document.querySelector('#pile-library .stack-face').classList.contains('back'), slots: document.querySelectorAll('#command .cmd-slot').length, taxShown: [...document.querySelectorAll('#command .tax')].filter((t) => !t.hidden).length, sideboardInSettings: Boolean(document.querySelector('#settings-menu #pile-sideboard')) })`);
   record('on the live table the piles are stacks, the command zone has its two outlined slots, each slot shows its commander tax (stored as its own write since 2026-11-23), and the sideboard is in Settings', zonesFacts.stacks.every(Boolean) && zonesFacts.libraryBack && zonesFacts.slots === 2 && zonesFacts.taxShown === 2 && zonesFacts.sideboardInSettings, JSON.stringify(zonesFacts));
+  // ---- commander tax as the others see it (Kevin's friends, 2026-11-26): each commander its own slot and tax, also once it is out ----
+  const bobSlots = () => bob.eval(`[...document.querySelectorAll('#opponent-list .opponent[data-uid="${cleanup.alice.uid}"] .opp-command > *')].slice(0, 2).map((e) => (e.classList.contains('opp-cmd-ghost') ? (e.classList.contains('out') ? 'out' : 'empty') : 'card') + ':' + (e.querySelector('.slot-tax')?.textContent ?? ''))`);
+  record("on Bob's page Alice's command zone is two slots, each with its own commander and no tax yet", Boolean(await waitFor(async () => ((await bobSlots()).join() === 'card:,card:' ? true : null), 15000, 250)), JSON.stringify(await bobSlots()));
+  for (const slot of ['1', '2']) { await alice.eval(`document.querySelector('#command .cmd-slot[data-slot="${slot}"] .tax button')?.click()`); await sleep(150); }
+  record("Alice adds a cast to each commander: Bob sees +2 on EACH slot, not +4 on one", Boolean(await waitFor(async () => ((await bobSlots()).join() === 'card:+2,card:+2' ? true : null), 15000, 250)), JSON.stringify(await bobSlots()));
+  if (process.argv.includes('--screenshot')) { await bob.eval(`document.querySelector('#opponent-list .opponent[data-uid="${cleanup.alice.uid}"] .opp-command')?.scrollIntoView({ block: 'center' })`); await sleep(400); await bob.screenshot('scratch-tax-two.png'); }
+  await alice.eval(`document.querySelector('#command .cmd-slot[data-slot="1"] .card')?.click()`); await sleep(150);
+  await act(alice, 'To battlefield');
+  // (Bob orders her slots by card number, so they never jump; that can be the other way round from her own page until her list of commanders is published: step 6)
+  record("Alice plays her first commander: Bob still sees its slot with its +2, marked out, and the other commander's +2 beside it", Boolean(await waitFor(async () => ([...(await bobSlots())].sort().join() === 'card:+2,out:+2' ? true : null), 15000, 250)), JSON.stringify(await bobSlots()));
+  if (process.argv.includes('--screenshot')) { await sleep(300); await bob.screenshot('scratch-tax-out.png'); }
+  await alice.eval(`document.querySelector('#battlefield > .card.selected, #battlefield > .card:last-child')?.click()`); await sleep(150);
+  await act(alice, 'To command zone');
+  await waitFor(async () => ((await bobSlots()).join() === 'card:+2,card:+2' ? true : null), 15000, 250);
   await lifeMenuPick(alice, 'Poison: 0', 'Add 1'); await lifeMenuPick(alice, 'Poison: 1', 'Add 1'); await lifeMenuPick(alice, 'Poison: 2', 'Add 1');
   await lifeMenuPick(alice, 'Commander damage from Seat 2: Bob: 0', 'Add 5'); await lifeMenuPick(alice, 'Commander damage from Seat 2: Bob: 5', 'Add 1'); await lifeMenuPick(alice, 'Commander damage from Seat 2: Bob: 6', 'Add 1');
   const countersSaved = await waitFor(async () => { const pc = (await rest('GET', pathOf('public/pc'), cleanup.bob.token)).json; const cd = (await rest('GET', pathOf('public/cd'), cleanup.bob.token)).json; return pc?.poison === 3 && cd?.['2'] === 7 ? { pc, cd } : null; }, 15000, 250);
@@ -827,9 +842,7 @@ try {
   if (process.argv.includes('--screenshot')) {
     await alice.eval(`window.scrollTo(0, 0)`); await sleep(400);
     await alice.screenshot('scratch-table-alice-turn.png'); // Alice's turn: the banner, the turn line and Pass turn
-    await pressStep(alice, `${ownDamage('2')} button[data-step="5"]`, 1); // back to 21, so the picture shows the lethal mark
-    await pressStep(alice, `${ownCounter('energy')} button[data-step="1"]`, 2);
-    await sleep(2500);
+    await sleep(1000);
     await alice.eval(`document.getElementById('life-area').scrollIntoView()`); await sleep(300);
     await alice.screenshot('scratch-table-alice-counters.png');
     await bob.eval(`document.getElementById('opponents').scrollIntoView()`); await sleep(300);
@@ -886,6 +899,7 @@ try {
   record('the second match deals Alice a NEW game: 7 cards and life 40 again (not the life 35 she left), and says the hand is dealt', Boolean(freshDeal) && /dealt/i.test(await text(alice, 'deck-line')) && !/back/i.test(await text(alice, 'deck-line')), `${await text(alice, 'life')} / ${await text(alice, 'deck-line')}`);
   const secondMatch = await waitFor(async () => (await rest('GET', `${pathOf('public')}/match`, cleanup.bob.token)).json === 2 ? true : null, 20000, 250);
   record("...and her saved game is marked as match 2 in the database", Boolean(secondMatch));
+  record("...and the commander tax of match 1 is gone: none stored, and Bob sees no tax on her slots", Boolean(await waitFor(async () => ((await rest('GET', `${pathOf('public')}/tax`, cleanup.bob.token)).json === null && (await bobSlots()).every((t) => t.endsWith(':')) ? true : null), 20000, 250)), JSON.stringify(await bobSlots()));
   record("...and Bob's page does not show Alice's match-1 board as hers (her old battlefield card is gone)", Boolean(await waitFor(async () => { const p = await panelOf(bob, 'Alice'); return p && p.life === '40' && p.onBattlefield === 0 ? p : null; }, 20000, 250)));
 
   await click(bob, 'leave');

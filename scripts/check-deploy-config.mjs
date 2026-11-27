@@ -9,6 +9,7 @@
 // Not covered: the long-polling fallback Firebase uses when WebSockets are blocked, and Vercel itself (confirm the
 // real headers on the deployed site with a plain GET after a deploy).
 // Run from the repo root:  node --env-file=.env scripts/check-deploy-config.mjs
+import { LIVE_PORT } from './lib/live-port.mjs';
 import { shardOf, printingsOf, splitPrints } from '../shared/card-prints.mjs';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync, readdirSync, mkdtempSync, cpSync, rmSync } from 'node:fs';
@@ -112,7 +113,7 @@ const server = LIVE ? null : createServer((request, response) => {
   response.writeHead(200, { 'content-type': TYPES[extname(file)] ?? 'application/octet-stream', ...headers });
   response.end(readFileSync(file));
 });
-if (server) await new Promise((ok) => server.listen(5173, '127.0.0.1', ok) /* the one local port the web API key allows (Google Cloud > Credentials > website restrictions) */);
+if (server) await new Promise((ok) => server.listen(LIVE_PORT, '127.0.0.1', ok) /* the one local port the web API key allows (Google Cloud > Credentials > website restrictions) */);
 const ORIGIN = LIVE || `http://127.0.0.1:${server.address().port}`;
 
 // The server (the stand-in locally, the real Vercel with DEPLOY_URL), checked before anything relies on it

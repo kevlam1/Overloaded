@@ -1,6 +1,7 @@
 // Live check: two tabs of ONE fresh browser profile open the lobby page at the same moment. They must end up as one player
 // (before the Web Lock in src/db.js they became two, and one tab kept acting as an account the browser had lost).
 // Run: node --env-file=.env scripts/check-two-tabs-live.mjs   Makes no tables; deletes the accounts it can reach and its profile folder.
+import { LIVE_PORT } from './lib/live-port.mjs';
 import { createServer } from 'vite';
 import { spawn } from 'node:child_process';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -9,7 +10,7 @@ import { join } from 'node:path';
 import { chromePath, sleep } from './lib/browser.mjs';
 
 const API_KEY = process.env.FIREBASE_API_KEY ?? '';
-const PORT = 5173; // the one local port the web API key allows besides the real sites (Google Cloud > Credentials > website restrictions)
+const PORT = LIVE_PORT; // (scripts/lib/live-port.mjs: the local port the web API key allows for these checks)
 const PAGE = `http://127.0.0.1:${PORT}/pages/lobby/index.html`;
 const profile = mkdtempSync(join(tmpdir(), 'cdp-twotabs-'));
 const dport = 9300 + Math.floor(Math.random() * 600);

@@ -155,7 +155,7 @@ function build() {
   textarea.setAttribute('autocomplete', 'off');
   textarea.setAttribute('autocapitalize', 'off');
   const pasteActions = make('div', 'actions');
-  const check = button('check', 'Check deck');
+  const check = button('check', 'Add deck'); // ("Update deck" while a saved deck's list is being changed: showScreen)
   check.disabled = true;
   const sample = button('sample', 'Try a sample deck', 'secondary');
   sample.disabled = true;
@@ -268,7 +268,7 @@ function showScreen(name) {
   $('preview').hidden = name !== 'deck' || !preview;
   root.dataset.screen = name;
   if (name === 'list') $('saved-heading').focus();
-  else if (name === 'paste') $('deck-text').focus();
+  else if (name === 'paste') { $('deck-text').focus(); $('check').textContent = currentId ? 'Update deck' : 'Add deck'; } // (it was "Check deck": Kevin, 2026-11-26)
   else if (name === 'deck') $('preview-heading').focus();
   $('cancel-paste').hidden = !(preview || library.decks.length > 0 || libraryRead.source === 'damaged');
 }
@@ -283,6 +283,7 @@ async function loadCards() {
   try {
     const cards = await loadCardList();
     index = buildCardIndex(cards);
+    cardsArrived?.();
     cardsByName = new Map(cards.map((card) => [card.n, card]));
     renderSaved(); // the saved decks now get their colors
     $('list-state').textContent = '';
@@ -680,6 +681,22 @@ function renderSaved() {
     item.append(deckCard(entry), actions);
     return item;
   }));
+}
+
+// A promise that settles once the card list has loaded (opening a saved deck needs it), for openDeck below.
+let cardsArrived = null;
+const cardsReady = new Promise((resolve) => { cardsArrived = resolve; });
+// Reads the saved decks again (the lobby changed them: a deck deleted from a lobby tile must not come back with this window's next autosave).
+export function refreshLibrary() { if (!mounted) return; readSavedLibrary(); renderSaved(); }
+// Opens one of the saved decks from outside (the lobby's Edit on a deck tile, 2026-11-26): its deck screen, where "Edit list" changes the list.
+export async function openDeck(id) {
+  if (!mounted) return false;
+  await cardsReady;
+  if (!library.decks.some((candidate) => candidate.id === id)) { readSavedLibrary(); renderSaved(); }
+  if (!library.decks.some((candidate) => candidate.id === id)) return false;
+  await loadSaved(id);
+  showScreen('deck');
+  return true;
 }
 
 async function loadSaved(id) {

@@ -4,6 +4,7 @@
 // Sidebar view (the Focus Table): a click on a card shows that player's board large (onFocus); your own card appears only while someone else is shown large,
 // as the way back. Grid view: the cards are a compact turn-order list (the style sheet hides the summaries) and yours is in it.
 // It is a tool of the rail (src/tool-dock.js): its header is the grip that drags it out to float and back.
+import { inkOn } from '../../shared/player-colors.mjs';
 import { mountFloatingBar } from './floating-bar.js';
 import { mountCounterChips } from './counter-chips.js';
 import { rowName, rowDetail } from '../../shared/board-summary.mjs';
@@ -82,6 +83,7 @@ export function mountPlayersPanel({ root, store, key = 'overloaded.playersBar', 
         item.dataset.focused = String(Boolean(player.focused));
         item.dataset.clickable = String(Boolean(player.clickable));
         item.style.setProperty('--seat-color', player.color ?? `var(--seat-${/^[1-4]$/.test(String(player.seat)) ? player.seat : 1})`); // (the player's color, picked in the lobby)
+        if (/^#[0-9a-f]{6}$/i.test(player.color ?? '')) item.style.setProperty('--seat-ink', inkOn(player.color)); // (text on their color, dark or light)
         if (player.clickable) { item.tabIndex = 0; item.setAttribute('role', 'button'); item.setAttribute('aria-pressed', String(Boolean(player.focused))); item.title = player.focused ? 'Back to your board' : `Show ${player.name}'s board`; }
         else { item.removeAttribute('tabindex'); item.removeAttribute('role'); item.removeAttribute('aria-pressed'); item.removeAttribute('title'); }
         row.name.textContent = player.mine ? `${player.name} (you)` : player.name; // (other people's text: as text, never markup)

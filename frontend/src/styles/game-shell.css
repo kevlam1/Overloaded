@@ -241,3 +241,18 @@ body.playing.seats .seat-head { position: absolute !important; width: 1px !impor
    text baseline), and its chevron sits 0.35 units high in its own 12 by 12 box, so it is moved down a pixel */
 body.playing:is(.solo, .seats) #life-area .life-counters { width: 1.4rem; height: 1.4rem; border-radius: 50%; display: grid; place-items: center; justify-content: center; align-content: center; gap: 0; padding: 0; }
 body.playing:is(.solo, .seats) #life-area .life-counters svg { display: block; margin: 0; translate: 0 1px; }
+/* (Kevin's friends, 2026-11-26) another player's command zone is always two slots, each commander with its own tax badge in that player's color (--seat-color and
+   --seat-ink are set on their area by table.js); a slot whose commander is out, or that is empty, is an outline */
+body.playing.seats .opp-command { gap: 0.35rem; }
+body.playing.seats .opp-command > .card { position: relative; }
+body.playing.seats .opp-cmd-ghost { position: relative; flex: none; width: var(--sw); height: calc(var(--sw) * 1.4015); border: 1px dashed color-mix(in srgb, var(--seat-color, var(--line-strong)) 60%, transparent); border-radius: 0.3rem; }
+body.playing.seats .opp-cmd-ghost::after { content: "CMD"; position: absolute; inset: 0; display: grid; place-items: center; color: var(--text); opacity: 0.32; font-size: calc(var(--sw) * 0.2); font-weight: 800; }
+body.playing.seats .opp-cmd-ghost.out::after { content: "Out"; }
+body.playing.seats .slot-tax { position: absolute; z-index: 3; top: -0.45rem; right: -0.35rem; min-width: 1.15rem; padding: 0 0.3rem; border-radius: 999px; background: var(--seat-color, var(--gold)); color: var(--seat-ink, var(--gold-ink)); font-size: 0.68rem; font-weight: 800; line-height: 1.2rem; text-align: center; box-shadow: 0 0 0 2px var(--surface-1); }
+/* (Kevin's friends, 2026-11-26) each player's things in THEIR color, never in yours (--gold is your own color since entry 294): whose turn it is, the tag on their
+   row in Players, their name and their commanders line there */
+body.playing:is(.solo, .seats) .seat-area.active { border-color: var(--seat-color, var(--gold)); box-shadow: inset 0 0 0 1px var(--seat-color, var(--gold)), 0 0 14px color-mix(in srgb, var(--seat-color, var(--gold)) 28%, transparent); }
+.pp-row.active { border-color: var(--seat-color); box-shadow: inset 0 0 0 1px var(--seat-color); }
+.pp-row.active .pp-tag { background: var(--seat-color); color: var(--seat-ink, var(--gold-ink)); }
+.pp-name { color: color-mix(in srgb, var(--seat-color) 72%, var(--text)); }
+.pp-sub > span:first-child { color: color-mix(in srgb, var(--seat-color) 55%, var(--muted)); }

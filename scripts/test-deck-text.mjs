@@ -192,4 +192,10 @@ assert.deepEqual(one('1 Decree of Pain (CMM) 508 *E*')[0], { qty: 1, name: 'Decr
 assert.equal(one('1 Sol Ring (CMM) 410 *F*')[0].etched, undefined)
 assert.deepEqual(one('1 Mjölnir, Storm Hammer (ACR) 258 *e*').map((e) => [e.name, e.set, e.number, e.etched]), [['Mjölnir, Storm Hammer', 'acr', '258', true]])
 
+// Moxfield tags at the end of a line are dropped (2026-11-26 feedback)
+assert.deepEqual(one('1 Sol Ring (CMM) 410 #Ramp').map((e) => [e.name, e.set, e.number]), [['Sol Ring', 'cmm', '410']])
+assert.deepEqual(one('1 Lightning Bolt *F* #!Removal #Burn spells').map((e) => [e.name, e.foil]), [['Lightning Bolt', true]])
+assert.deepEqual(one('Thrasios, Triton Hero #!Commander').map((e) => [e.qty, e.name]), [[1, 'Thrasios, Triton Hero']])
+assert.equal(one('# a comment').length, 0) // (a line that starts with # is still a comment)
+
 console.log('All deck text checks passed.')

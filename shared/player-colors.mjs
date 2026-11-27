@@ -25,8 +25,10 @@ export const colorById = (id) => PLAYER_COLORS.find((color) => color.id === id) 
 export function tableColors(members) {
   const out = {};
   const entries = Object.entries(members ?? {}).filter(([, m]) => m && typeof m === 'object').sort((a, b) => Number(a[1].seat) - Number(b[1].seat));
-  const taken = new Set(entries.map(([, m]) => m.color).filter(isColorId));
-  for (const [uid, member] of entries) if (isColorId(member.color)) out[uid] = member.color;
+  // A picked color belongs to the lowest seat that picked it (two players can pick one color at the same moment: the database does not stop it); a later seat that
+  // picked the same color gets a default like a player who picked nothing. Every page works this out the same way, so everyone sees the same colors (2026-11-26).
+  const taken = new Set();
+  for (const [uid, member] of entries) if (isColorId(member.color) && !taken.has(member.color)) { out[uid] = member.color; taken.add(member.color); }
   for (const [uid, member] of entries) {
     if (out[uid]) continue;
     const wanted = SEAT_DEFAULTS[member.seat];

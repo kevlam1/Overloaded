@@ -513,9 +513,13 @@ export function changePlayerCounter(game, kind, delta) {
 // The commander tax: how many times each commander has been cast from the command zone (game.tax, by the commander's uid, only counts above 0). Each cast makes the next one cost 2 more.
 // A game from the live table has no cmd (it is not stored there yet), so the commanders are then the cards in the command zone now.
 export const commanderUids = (game) => (Array.isArray(game.cmd) ? game.cmd : (game.zones?.command ?? []).map((card) => card.uid));
+export const MAX_CASTS = 99; // (the live table stores at most 99 casts per commander: shared/game-sync.mjs cleanTax and the database rules)
 export function changeTax(game, uid, delta) {
   if (!commanderUids(game).includes(uid)) throw new Error('That card is not one of your commanders.');
+  const before = game.tax?.[uid] ?? 0;
+  if (Math.min(MAX_CASTS, Math.max(0, before + delta)) === before) { wholeStep(delta, 'a cast count'); return game; } // (no change, the same game: nothing to save, undo or write in the history)
   const tax = bumped(game.tax, uid, delta, 'a cast count');
+  if (tax[uid] > MAX_CASTS) tax[uid] = MAX_CASTS;
   const { tax: _old, ...rest } = game;
   return Object.keys(tax).length ? { ...rest, tax } : rest;
 }

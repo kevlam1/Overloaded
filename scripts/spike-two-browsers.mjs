@@ -9,10 +9,11 @@ const mySeat = (page) => waitFor(async () => (await page.eval(`document.querySel
 // creates are deleted too. Tokens are used for requests but never printed.
 //
 // Exit codes: 0 all checks passed, 1 a check failed, 2 the rules are not published yet (nothing else could run).
+import { LIVE_PORT } from './lib/live-port.mjs';
 import { createServer } from 'vite';
 import { openBrowser, closeAllBrowsers, waitFor, authOf, sleep, median, text, tableShown, setValue, click, players } from './lib/browser.mjs';
 
-const PORT = 5173; // the one local port the web API key allows besides the real sites (Google Cloud > Credentials > website restrictions)
+const PORT = LIVE_PORT; // (scripts/lib/live-port.mjs: the local port the web API key allows for these checks)
 const PAGE = `http://127.0.0.1:${PORT}/pages/lobby/index.html`;
 const DB = (process.env.FIREBASE_DATABASE_URL ?? '').replace(/\/$/, '');
 const API_KEY = process.env.FIREBASE_API_KEY ?? '';
