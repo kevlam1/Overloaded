@@ -87,6 +87,12 @@ try {
   check('a token made from the second printing uses that printing\'s picture', pictures.some((src) => src.includes(second)), second);
 
   await ev("document.querySelector('.picker-back').click()");
+  await sleep(200);
+  const goblinTileArt = await ev("[...document.querySelectorAll('.token-section')[0].querySelectorAll('.token-tile')].find((t) => t.querySelector('strong').textContent === 'Goblin').querySelector('img')?.src ?? ''");
+  check('back in the list, the Goblin tile shows the art that was picked, so it is that token art from now on (2026-11-26 feedback)', goblinTileArt.includes(second), goblinTileArt);
+  await ev("(() => { const r = document.getElementById('token-random-art'); r.checked = true; r.dispatchEvent(new Event('change')); })()");
+  check('the Random art switch is kept in the browser', (await ev("localStorage.getItem('overloaded.tokenRandomArt')")) === '1');
+  await ev("(() => { const r = document.getElementById('token-random-art'); r.checked = false; r.dispatchEvent(new Event('change')); })()");
   await ev("(() => { const f = document.querySelector('.token-picker input[type=search]'); f.value = 'treas'; f.dispatchEvent(new Event('input', { bubbles: true })); })()");
   await sleep(200);
   check('typing in the search bar lists every token that matches instead of the sections', JSON.stringify(await ev("[...document.querySelectorAll('.token-section-title')].map((h) => h.textContent)")) === '["Results for \\"treas\\""]' && (await ev("document.querySelector('.token-tile strong').textContent")) === 'Treasure');
@@ -98,7 +104,7 @@ try {
   // ---- emblems: the same window, and the emblem sits beside the command zone
   const rightClick = async (px, py) => { await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: px, y: py }); await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: px, y: py, button: 'right', clickCount: 1 }); await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: px, y: py, button: 'right', clickCount: 1 }); await sleep(300); };
   await rightClick(x, y);
-  check('the battlefield menu also offers Create emblem', JSON.stringify(await ev("[...document.querySelectorAll('.card-menu [role=menuitem]')].map((x) => x.textContent)")) === '["Create token...","Create emblem..."]');
+  check('the battlefield menu also offers Create emblem', JSON.stringify(await ev("[...document.querySelectorAll('.card-menu [role=menuitem]')].map((x) => x.textContent)")) === '["Create token...","Create emblem...","Add a card..."]');
   await ev("[...document.querySelectorAll('.card-menu [role=menuitem]')][1].click()");
   await waitFor(async () => (await ev("document.querySelectorAll('.token-tile').length")) > 0 || null, 8000, 50);
   check('the emblem window is called Create emblem and has the search bar', (await ev("document.querySelector('.token-picker h2').textContent")) === 'Create emblem' && /emblem/.test(await ev("document.querySelector('.token-picker input[type=search]').placeholder")));
@@ -140,6 +146,18 @@ try {
   await ev("document.querySelector('.card-menu [role=menuitem]').click()");
   await sleep(300);
   check('Remove emblem takes it away and the row hides (the commander stays)', (await emblemBox()) === null && (await ev("document.querySelector('#command-zone .emblem-row').hidden")) === true && (await ev("document.getElementById('command-zone').hidden")) === false);
+  // Add a card (2026-11-26 feedback): any card from the card list onto the battlefield, a real card
+  await browser.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await sleep(150);
+  await rightClick(x, y);
+  await ev("[...document.querySelectorAll('.card-menu [role=menuitem]')].find((b) => b.textContent === 'Add a card...').click()");
+  await waitFor(async () => (await ev("document.getElementById('card-adder-search') !== null")) || null, 5000, 50);
+  await ev("(() => { const f = document.getElementById('card-adder-search'); f.value = 'sol ring'; f.dispatchEvent(new Event('input', { bubbles: true })); })()");
+  await waitFor(async () => (await ev("document.querySelectorAll('.card-adder .token-tile').length")) > 0 || null, 10000, 50);
+  const firstFound = await ev("document.querySelector('.card-adder .token-tile strong').textContent");
+  const added = await ev("document.querySelectorAll('#battlefield > .card').length");
+  await ev("document.querySelector('.card-adder .token-tile').click()"); await sleep(300);
+  const addedCard = await ev("(() => { const c = [...document.querySelectorAll('#battlefield > .card')].find((c) => /^Sol Ring/.test(c.getAttribute('aria-label') ?? '')); return c ? true : false; })()");
+  check('Add a card finds Sol Ring by name and puts it on the battlefield', firstFound === 'Sol Ring' && addedCard && (await ev("document.querySelectorAll('#battlefield > .card').length")) === added + 1, JSON.stringify({ firstFound, addedCard }));
   check('no page errors', (await ev('window.__errors || []')).length === 0);
   if (process.argv.includes('--screenshot')) { /* (the window is closed here; screenshots are taken in the open window below) */ }
   await closeAllBrowsers();

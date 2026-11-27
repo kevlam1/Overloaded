@@ -57,6 +57,7 @@ import { readPhase, phaseIn, phaseRecord, nextStep, PHASES, LAST_PHASE } from '.
 import { mountPhaseStrip } from '../../src/phase-strip.js';
 import { mountTurnPiece } from '../../src/turn-piece.js';
 import { showHelpOnce, mountHelpSettings } from '../../src/view-help.js';
+import { openCardAdder } from '../../src/card-adder.js';
 import { mountPlayersPanel } from '../../src/players-panel.js';
 import { packStack, readStack } from '../../../shared/stack-sync.mjs';
 import { describeMove, makeEntry, slotFor as logSlotFor, lastK, mergeHistory } from '../../../shared/live-history.mjs';
@@ -82,7 +83,7 @@ import { openCardDetails } from '../../src/card-details.js';
 import { makeRulesLoader } from '../../src/card-rules.js';
 import { makeRulingsLoader } from '../../src/card-rulings.js';
 import { friendlyMessage } from '../../../shared/friendly-error.mjs';
-import { setFaceDown, makeGame, draw, moveCard, shuffleLibrary, mulligan, setTapped, turnOver, untapAll, beginTurn, adjustLife, boardCells, settleBoard, isLandCard, placeCard, placeStack, placeGroup, arrangeBoard, zoneCounts, reorderHand, createToken, createEmblem } from '../../../shared/zones.mjs';
+import { addCard, setFaceDown, makeGame, draw, moveCard, shuffleLibrary, mulligan, setTapped, turnOver, untapAll, beginTurn, adjustLife, boardCells, settleBoard, isLandCard, placeCard, placeStack, placeGroup, arrangeBoard, zoneCounts, reorderHand, createToken, createEmblem } from '../../../shared/zones.mjs';
 import { gameWrites, joinGame, readPublic, SERVER_TIME, taxToStore } from '../../../shared/game-sync.mjs';
 import { placeAll, stepFrom, setBoardSize, CARD_COLS, CARD_ROWS } from '../../../shared/board-grid.mjs';
 
@@ -1696,6 +1697,14 @@ document.addEventListener('click', (event) => {
 
 // A right click on empty battlefield offers to make a token (Kevin, 2026-11-19; on the live table 2026-11-20): the window is src/token-picker.js and the list /data/tokens.json. A token is saved like any card (it
 // carries its own type line, power and toughness and colors), so the other players see it. An emblem is saved with its type line and a count (em) and sits in the command zone.
+// "Add a card" (2026-11-26 feedback): any card from the card list onto your battlefield, a real card (src/card-adder.js, shared/zones.mjs addCard).
+function openAdder() {
+  if (!game) return;
+  openCardAdder({ returnFocus: $('battlefield'), onAdd: (card) => {
+    if (!apply(() => addCard(game, card, lookup ?? (() => null)).game, `Added ${card.n}.`)) throw new Error(`Could not add ${card.n}.`);
+    return `Added ${card.n}.`;
+  } });
+}
 async function openTokens(returnFocus, kind = 'token') {
   if (!game) return;
   say(`Loading the ${kind}s...`);
@@ -1716,7 +1725,7 @@ async function openTokens(returnFocus, kind = 'token') {
 $('battlefield').addEventListener('contextmenu', (event) => {
   if (event.defaultPrevented || event.target.closest('.card, [data-mark], [data-badge]') || !game) return;
   event.preventDefault();
-  openCardMenu({ title: 'Battlefield', items: [{ id: 'token', label: 'Create token...' }, { id: 'emblem', label: 'Create emblem...' }], x: event.clientX, y: event.clientY, returnFocus: $('battlefield'), onPick: (id) => { if (id === 'token' || id === 'emblem') openTokens($('battlefield'), id); } });
+  openCardMenu({ title: 'Battlefield', items: [{ id: 'token', label: 'Create token...' }, { id: 'emblem', label: 'Create emblem...' }, { id: 'card', label: 'Add a card...' }], x: event.clientX, y: event.clientY, returnFocus: $('battlefield'), onPick: (id) => { if (id === 'token' || id === 'emblem') openTokens($('battlefield'), id); else if (id === 'card') openAdder(); } });
 });
 // A right click on the command zone (not on a card) offers an emblem too.
 $('command-zone').addEventListener('contextmenu', (event) => {

@@ -56,13 +56,14 @@ import { flyAway, flyDraw, shuffleAnimation, gatherIntoPile, reducedMotion } fro
 import { menuItems, menuAction, turnLabel, turnMessage, playBackLabel, PLAY_BACK_ZONES, noUntapLabel, sickLabel, untapMessage } from '../../../shared/card-menu.mjs';
 import { marksSentence, markClick, printedOf } from '../../../shared/marks.mjs';
 import { chipEntries, playerMenuItems, playerAction, playerAddItems } from '../../../shared/player-counters.mjs';
-import { createToken, createEmblem, changeCounter, setFaceDown, makeGame, draw, moveCard, shuffleLibrary, mulligan, setTapped, turnOver, untapAll, heldTapped, adjustLife, nextTurn, boardCells, placeCard, placeStack, placeGroup, zoneCounts, reorderHand } from '../../../shared/zones.mjs';
+import { addCard, createToken, createEmblem, changeCounter, setFaceDown, makeGame, draw, moveCard, shuffleLibrary, mulligan, setTapped, turnOver, untapAll, heldTapped, adjustLife, nextTurn, boardCells, placeCard, placeStack, placeGroup, zoneCounts, reorderHand } from '../../../shared/zones.mjs';
 import { createToolDocks } from '../../src/tool-dock.js';
 import { emptyUndo, remember, canUndo, takeBack, undoWords } from '../../../shared/undo.mjs';
 import { nextStep, PHASES, LAST_PHASE } from '../../../shared/phase.mjs';
 import { mountPhaseStrip } from '../../src/phase-strip.js';
 import { mountTurnPiece } from '../../src/turn-piece.js';
 import { showHelpOnce, mountHelpSettings } from '../../src/view-help.js';
+import { openCardAdder } from '../../src/card-adder.js';
 
 const $ = (id) => document.getElementById(id);
 const store = makeSafeStore();
@@ -720,6 +721,14 @@ floatingBars.push(mountFloatingBar({ bar: document.querySelector('.actions-panel
 $('pile-sideboard').addEventListener('click', () => settings.close()); // the viewer opens over the table; the Settings panel would only be in the way
 
 // A right click on empty battlefield offers to make a token (Kevin, 2026-11-19): the window of tokens is src/token-picker.js, the list of them /data/tokens.json (shared/card-tokens.mjs).
+// "Add a card" (2026-11-26 feedback): any card from the card list onto your battlefield, a real card (src/card-adder.js, shared/zones.mjs addCard).
+function openAdder() {
+  if (!game) return;
+  openCardAdder({ returnFocus: $('battlefield'), onAdd: (card) => {
+    if (!apply(() => addCard(game, card, lookup ?? (() => null)).game, `Added ${card.n}.`)) throw new Error(`Could not add ${card.n}.`);
+    return `Added ${card.n}.`;
+  } });
+}
 async function openTokens(returnFocus, kind = 'token') {
   if (!game) return;
   say(`Loading the ${kind}s...`);
@@ -740,7 +749,7 @@ async function openTokens(returnFocus, kind = 'token') {
 $('battlefield').addEventListener('contextmenu', (event) => {
   if (event.defaultPrevented || event.target.closest('.card, [data-mark], [data-badge]') || !game) return;
   event.preventDefault();
-  openCardMenu({ title: 'Battlefield', items: [{ id: 'token', label: 'Create token...' }, { id: 'emblem', label: 'Create emblem...' }], x: event.clientX, y: event.clientY, returnFocus: $('battlefield'), onPick: (id) => { if (id === 'token' || id === 'emblem') openTokens($('battlefield'), id); } });
+  openCardMenu({ title: 'Battlefield', items: [{ id: 'token', label: 'Create token...' }, { id: 'emblem', label: 'Create emblem...' }, { id: 'card', label: 'Add a card...' }], x: event.clientX, y: event.clientY, returnFocus: $('battlefield'), onPick: (id) => { if (id === 'token' || id === 'emblem') openTokens($('battlefield'), id); else if (id === 'card') openAdder(); } });
 });
 // A right click on the command zone (not on a card) offers an emblem too.
 $('command-zone').addEventListener('contextmenu', (event) => {

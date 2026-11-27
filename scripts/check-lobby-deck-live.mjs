@@ -617,7 +617,7 @@ try {
     await sleep(300);
   };
   await rightClickEmpty(alice);
-  record('a right click on empty battlefield offers Create token and Create emblem on the table page', JSON.stringify(await alice.eval(`[...document.querySelectorAll('.card-menu [role=menuitem]')].map((x) => x.textContent)`)) === '["Create token...","Create emblem..."]');
+  record('a right click on empty battlefield offers Create token, Create emblem and Add a card on the table page', JSON.stringify(await alice.eval(`[...document.querySelectorAll('.card-menu [role=menuitem]')].map((x) => x.textContent)`)) === '["Create token...","Create emblem...","Add a card..."]');
   await alice.eval(`document.querySelector('.card-menu [role=menuitem]').click()`);
   await waitFor(async () => ((await alice.eval(`document.querySelectorAll('.token-tile').length`)) > 0) || null, 10000, 100);
   await alice.eval(`[...document.querySelectorAll('.token-section')].flatMap((section) => [...section.querySelectorAll('.token-tile')]).find((tile) => tile.querySelector('strong').textContent === 'Goblin' && /1\\/1, red/.test(tile.textContent)).click()`);
@@ -645,7 +645,7 @@ try {
     await sleep(200);
   };
   await rightClickEmpty(alice);
-  record('the empty-battlefield menu on the table page offers Create token and Create emblem', JSON.stringify(await alice.eval(`[...document.querySelectorAll('.card-menu [role=menuitem]')].map((x) => x.textContent)`)) === '["Create token...","Create emblem..."]');
+  record('the empty-battlefield menu on the table page offers Create token, Create emblem and Add a card', JSON.stringify(await alice.eval(`[...document.querySelectorAll('.card-menu [role=menuitem]')].map((x) => x.textContent)`)) === '["Create token...","Create emblem...","Add a card..."]');
   await alice.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
   await alice.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
   await makeEmblem();

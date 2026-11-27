@@ -57,6 +57,7 @@ const suites = [
   { name: 'how much of a card shows when the hand is resting', cmd: node, args: ['scripts/test-hand-rest.mjs'] },
   { name: 'the hand card size setting', cmd: node, args: ['scripts/test-hand-size.mjs'] },
   { name: 'the first-time help of each view', cmd: node, args: ['scripts/test-view-help.mjs'] },
+  { name: 'a card added from the card list', cmd: node, args: ['scripts/test-add-card.mjs'] },
   { name: 'the stack window (a list of card copies and text boxes, with Undo)', cmd: node, args: ['scripts/test-stack.mjs'] },
   { name: 'where the stack window arrows start and end', cmd: node, args: ['scripts/test-arrow-geometry.mjs'] },
   { name: 'the pause between the cards of Draw X', cmd: node, args: ['scripts/test-draw-pace.mjs'] },

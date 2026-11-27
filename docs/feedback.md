@@ -94,9 +94,9 @@ Step 6, multiplayer (one database rules change):
 - **The pinger closes a ping for everyone,** and the pinged player can acknowledge it. Planned, step 6.
 - **Choosing who goes first in the lobby,** with a slot-machine animation. Planned, step 6.
 - **Swapping seats, kicking a player, a "Ready?" ping from the host,** and the lobby's seat order deciding where players sit. Planned, step 6.
-- **Other players' hand and piles turned like their board.** Planned, step 6.
-- **"Add a card" from the battlefield's menu,** from the card list. Planned, step 6.
-- **Random token art,** and choosing an art also changes the token's front. Planned, step 6.
+- **Other players' hand and piles turned like their board.** Done in step 6a (entry 303): "Turned, with hand and piles" in Settings.
+- **"Add a card" from the battlefield's menu,** from the card list. Done in step 6a (entry 303).
+- **Random token art,** and choosing an art also changes the token's front. Done in step 6a (entry 303).
 - **Flipping cards in the hand,** playing them face down, and face-down exile that others must ask to see. Planned, step 6, last, and the first cut if time runs out.
 
 Step 7, the Shared view:

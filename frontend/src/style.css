@@ -2051,6 +2051,10 @@ body.playing.seats .battlefield > .cell-highlight { justify-self: start; align-s
 body.playing.seats .battlefield > .cell-highlight[data-tapped] { width: var(--card-ph); height: var(--card-w); }
 body.playing.seats :is(#my-board, .opp-field) > .battlefield { outline: 0; box-shadow: 0 1px 0 color-mix(in srgb, var(--text) 22%, transparent); } /* (one faint line under the grid, where the hand and the piles begin) */
 body[data-facing="turned"].playing.seats:not([data-view="sidebar"]) .opp-field > .battlefield { rotate: 180deg; } /* as if they sat across from you: their lands along the far edge (Grid view only: in Sidebar view every board is upright, Kevin 2026-11-21) */
+/* (2026-11-26 feedback) "Turned, with hand and piles": the whole of their area turned, as their side of the table across from you (their hand along the top, their piles at the top left);
+   the name strip and the lines of words are turned back upright (the parts of .opp-body are placed one by one in the area, so the area itself is what turns) */
+body[data-facing="turned-all"].playing.seats:not([data-view="sidebar"]):not([data-view="shared"]) .opponent.seat-area { rotate: 180deg; }
+body[data-facing="turned-all"].playing.seats:not([data-view="sidebar"]):not([data-view="shared"]) .opponent.seat-area :is(.seat-head, .opp-stats, .opp-waiting) { rotate: 180deg; }
 
 /* the piles at the bottom right, small (Alt shows any card large): library, graveyard, exile and the command zone in one row */
 body.playing.seats .side-panels { position: absolute; z-index: 4; inset: auto; right: var(--pad); bottom: var(--pad); display: block; }

@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.302</span></h1>
-    <p class="lede">302 entries, Oct 25 to Nov 27, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
+    <h1>Build log <span class="version">Version 0.303</span></h1>
+    <p class="lede">303 entries, Oct 25 to Nov 27, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
   </div>
 </header>
 
@@ -25,7 +25,7 @@
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
 <a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">56</span></a>
-<a class="week-link" href="#week-3" data-target="week-3"><span class="wl-name">Week 3</span><span class="wl-range">Nov 23 to Nov 29</span><span class="wl-count">33</span></a>
+<a class="week-link" href="#week-3" data-target="week-3"><span class="wl-name">Week 3</span><span class="wl-range">Nov 23 to Nov 29</span><span class="wl-count">34</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
 <a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">75 things friends asked for</span></a>
 <a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">30 open, 73 done</span></a>
@@ -4572,7 +4572,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-3" aria-labelledby="week-3-title">
-<h2 class="week-head" id="week-3-title"><button type="button" aria-expanded="false" aria-controls="week-3-days"><span class="wname">Week 3</span><span class="range">Nov 23 to Nov 29</span><span class="week-count">33 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-3-title"><button type="button" aria-expanded="false" aria-controls="week-3-days"><span class="wname">Week 3</span><span class="range">Nov 23 to Nov 29</span><span class="week-count">34 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-3-days">
 <div class="day">
 <h3 class="day-title">Monday 23 November <span class="day-count">6</span></h3>
@@ -5035,7 +5035,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Friday 27 November <span class="day-count">5</span></h3>
+<h3 class="day-title">Friday 27 November <span class="day-count">6</span></h3>
 <div class="entries">
 <article class="entry" id="entry-298" data-n="298">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-298-body">
@@ -5120,6 +5120,23 @@
 <ul><li><code>test-view-help</code> 7, <code>check-view-help-ui</code> 5 (new: shown the first time, away after Don't show again, back with its switch, closed by Got it).</li><li><code>npm test</code>: all 107 suites passed; against the real project <code>check-seats-live</code> 42 and <code>check-shared-live</code> 9.</li><li>Screenshots looked at: the solo help window and the About switches.</li><li><strong>Not checked:</strong> the Grid, Sidebar and Shared windows in a browser (the live checks keep them quiet; their text is only unit-tested).</li></ul>
 <p class="sub"><strong>Claude's mistakes this step</strong></p>
 <ul><li>The help title was small and cramped in the first screenshot, and the stack title row from step 4 was shorter than the other headers; both found in screenshots and fixed.</li></ul>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-303" data-n="303">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-303-body">
+    <span class="num">303</span>
+    <span class="head-text"><span class="title">The 11-26 feedback, step 6a: Add a card, token art, other players turned whole</span><span class="sum">The step 6 items that need no change to the database rules: &quot;Add a card&quot; from the battlefield's right-click menu, random token art and an art choice that becomes the token's front, and an option to turn other players' hand and piles with...</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-303-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>The step 6 items that need no change to the database rules: &quot;Add a card&quot; from the battlefield's right-click menu, random token art and an art choice that becomes the token's front, and an option to turn other players' hand and piles with their board.</li></ul>
+<p class="sub"><strong>What changed</strong></p>
+<ul><li><strong>Add a card</strong> (both tables): the battlefield's right-click menu has &quot;Add a card...&quot;, a window that searches the card list the site already serves (<code>frontend/src/card-adder.js</code>; no Scryfall request). A card pressed goes onto my battlefield as a REAL card (<code>addCard</code> in <code>shared/zones.mjs</code>): its type, cost and keywords from the list, a place on the grid, summoning sickness for a creature; it stays when it leaves the battlefield. Other players see it like any card, so no rules change was needed.</li><li><strong>Token art:</strong> an art picked under &quot;Art&quot; becomes that token's art (its tile shows it and makes it; <code>overloaded.tokenArt</code>), and a <strong>Random art</strong> switch in the token window makes each token with any of its arts (<code>overloaded.tokenRandomArt</code>).</li><li><strong>&quot;Turned, with hand and piles&quot;</strong> is a third choice under Settings &gt; Other players' boards: in Grid view each other player's whole area turns (their hand along the top, their piles at the top left), with their name strip and the lines of words turned back upright.</li></ul>
+<p class="sub"><strong>What I checked</strong></p>
+<ul><li><code>test-add-card</code> 5 (new), <code>check-token-ui</code> 23 (Sol Ring found and added; the picked art on the tile; the Random art switch kept).</li><li>Against the real project: <code>check-seats-live</code> 43 (new: Bob's hand above his board and his name upright with the new choice), <code>check-lobby-deck-live</code> 199.</li><li><code>npm test</code>: all 108 suites passed.</li><li>Screenshots looked at: the turned area with Bob's hand and piles, and the Add a card window.</li></ul>
+<p class="sub"><strong>Claude's mistakes this step</strong></p>
+<ul><li>The first version of the turned area rotated <code>.opp-body</code>, which is <code>display: contents</code> and so cannot turn; the whole area turns instead.</li><li>My first check of it compared the hand's bottom edge with the board's top, but the resting hand overlaps the board by design; it compares their middles now.</li><li>Two lines of <code>check-lobby-deck-live</code> still expected the old two-line battlefield menu.</li></ul>
   </div></div></div>
 </article>
 </div>
@@ -5227,7 +5244,7 @@
 <p>Step 5, help:</p>
 <ul><li><strong>A help window when a game starts,</strong> with the keys and basics of that view, and &quot;don't show again&quot; that Settings can undo. Done in step 5 (entry 302): one per view, with switches in Settings &gt; About.</li></ul>
 <p>Step 6, multiplayer (one database rules change):</p>
-<ul><li><strong>Foil on other players' boards.</strong> Planned, step 6.</li><li><strong>Rotate a card 90 degrees,</strong> separate from tapping. Planned, step 6.</li><li><strong>The pinger closes a ping for everyone,</strong> and the pinged player can acknowledge it. Planned, step 6.</li><li><strong>Choosing who goes first in the lobby,</strong> with a slot-machine animation. Planned, step 6.</li><li><strong>Swapping seats, kicking a player, a &quot;Ready?&quot; ping from the host,</strong> and the lobby's seat order deciding where players sit. Planned, step 6.</li><li><strong>Other players' hand and piles turned like their board.</strong> Planned, step 6.</li><li><strong>&quot;Add a card&quot; from the battlefield's menu,</strong> from the card list. Planned, step 6.</li><li><strong>Random token art,</strong> and choosing an art also changes the token's front. Planned, step 6.</li><li><strong>Flipping cards in the hand,</strong> playing them face down, and face-down exile that others must ask to see. Planned, step 6, last, and the first cut if time runs out.</li></ul>
+<ul><li><strong>Foil on other players' boards.</strong> Planned, step 6.</li><li><strong>Rotate a card 90 degrees,</strong> separate from tapping. Planned, step 6.</li><li><strong>The pinger closes a ping for everyone,</strong> and the pinged player can acknowledge it. Planned, step 6.</li><li><strong>Choosing who goes first in the lobby,</strong> with a slot-machine animation. Planned, step 6.</li><li><strong>Swapping seats, kicking a player, a &quot;Ready?&quot; ping from the host,</strong> and the lobby's seat order deciding where players sit. Planned, step 6.</li><li><strong>Other players' hand and piles turned like their board.</strong> Done in step 6a (entry 303): &quot;Turned, with hand and piles&quot; in Settings.</li><li><strong>&quot;Add a card&quot; from the battlefield's menu,</strong> from the card list. Done in step 6a (entry 303).</li><li><strong>Random token art,</strong> and choosing an art also changes the token's front. Done in step 6a (entry 303).</li><li><strong>Flipping cards in the hand,</strong> playing them face down, and face-down exile that others must ask to see. Planned, step 6, last, and the first cut if time runs out.</li></ul>
 <p>Step 7, the Shared view:</p>
 <ul><li><strong>The table turned to each player's seat,</strong> Ctrl+Q and Ctrl+E to turn it, and clicking a player turns to their board. Planned, step 7.</li><li><strong>A 12-dot gap between the left and right players.</strong> Planned, step 7.</li><li><strong>No &quot;Commons&quot; text.</strong> Planned, step 7.</li><li><strong>Name, life and hand count pills in the middle of each board,</strong> life adjusted there, and Life gone from the control bar. Planned, step 7.</li><li><strong>Each player's hand face down below their board.</strong> Planned, step 7.</li><li><strong>The piles and command zones on the board,</strong> at each player's edge. Planned, step 7.</li><li><strong>Tapping and dragging other players' cards,</strong> several at once. Planned, step 7.</li></ul>
   </div></div></div>

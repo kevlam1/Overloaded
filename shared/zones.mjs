@@ -439,6 +439,20 @@ export function createToken(game, spec) {
   return { game: { ...game, zones: { ...game.zones, battlefield: [...game.zones.battlefield, withCell(game, token)] }, nextUid: game.nextUid + 1 }, uid };
 }
 
+// A card added from the card list onto the battlefield (2026-11-26 feedback, "Add a card"): a REAL card, not a token (it is stored, moved and seen like any card of the deck, and does not vanish
+// when it leaves the battlefield). saved: { i, n } from the card list; lookup(saved) gives its type, cost, keywords and faces as for makeGame. Returns { game, uid }.
+export function addCard(game, saved, lookup = () => null) {
+  if (typeof saved?.i !== 'string' || !SCRYFALL_ID.test(saved.i)) throw new Error('A card needs its Scryfall id.');
+  const n = scrubText(String(saved.n ?? ''));
+  if (!n) throw new Error('A card needs its name.');
+  if (game.zones.battlefield.length >= MAX_ZONE_CARDS) throw new Error(`The battlefield holds at most ${MAX_ZONE_CARDS} cards.`);
+  const known = lookup(saved) ?? {};
+  const t = known.t ?? ''; const k = known.k ?? [];
+  const uid = `c${game.nextUid}`;
+  const card = { uid, i: saved.i, n, t, m: known.m ?? '', k, ...(known.b === 1 ? { b: 1, ...(known.md === 1 ? { md: 1 } : {}) } : {}), ...(entersSick({ t, k }) ? { sick: true } : {}), tapped: false, turnEntered: game.turn };
+  return { game: { ...game, zones: { ...game.zones, battlefield: [...game.zones.battlefield, withCell(game, card)] }, nextUid: game.nextUid + 1 }, uid };
+}
+
 // An emblem (Kevin, 2026-11-19): a marker in the command zone that stays for the rest of the game, made from the emblem list (shared/card-tokens.mjs). It is a card-shaped entry with emb: true, a type line that starts with "Emblem" and the
 // Scryfall id of its picture; it cannot be moved to another zone and is only taken away with removeEmblem. Returns { game, uid }.
 export const isEmblem = (card) => card?.emb === true;

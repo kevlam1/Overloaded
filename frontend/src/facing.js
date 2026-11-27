@@ -3,8 +3,9 @@
 import { makeSafeStore } from './safe-store.js';
 
 export const FACING_KEY = 'overloaded.facing';
-export const FACINGS = [['turned', 'Turned to face you'], ['upright', 'Upright']];
-export const readFacing = (text) => (text === 'upright' ? 'upright' : 'turned');
+// 'turned-all' (2026-11-26 feedback): their hand and piles turn with their board, as if the whole of their side of the table sat across from you (their name strip stays upright).
+export const FACINGS = [['turned', 'Turned to face you'], ['turned-all', 'Turned, with hand and piles'], ['upright', 'Upright']];
+export const readFacing = (text) => (text === 'upright' || text === 'turned-all' ? text : 'turned');
 
 export function mountFacing(host, { store = makeSafeStore(), body = document.body } = {}) {
   let facing = readFacing(store.get(FACING_KEY));

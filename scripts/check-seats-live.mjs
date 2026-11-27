@@ -135,6 +135,10 @@ try {
       record("Bob's battlefield is turned to face her by default", (await facing()) === '180deg', await facing());
       await alice.eval(`(() => { const s = document.getElementById('facing-pick'); s.value = 'upright'; s.dispatchEvent(new Event('change')); })()`);
       record('...and upright when she chooses Upright in Settings (kept in her browser)', (await facing()) === 'none' && (await alice.eval(`localStorage.getItem('overloaded.facing')`)) === 'upright', await facing());
+      await alice.eval(`(() => { const s = document.getElementById('facing-pick'); s.value = 'turned-all'; s.dispatchEvent(new Event('change')); })()`);
+      const whole = await alice.eval(`(() => { const a = document.querySelector('#opponent-list .opponent'); const hand = a.querySelector('.opp-hand').getBoundingClientRect(); const field = a.querySelector('.opp-field').getBoundingClientRect(); return { area: getComputedStyle(a).rotate, head: getComputedStyle(a.querySelector('.seat-head')).rotate, handAbove: hand.top + hand.height / 2 < field.top + field.height / 2 }; })()`);
+      if (process.argv.includes('--screenshot')) await alice.screenshot('scratch-seats-turned-all.png');
+      record('...and with Turned, with hand and piles, his whole side turns (his hand above his board) and his name stays upright (2026-11-26 feedback)', whole.area === '180deg' && whole.head === '180deg' && whole.handAbove, JSON.stringify(whole));
       await alice.eval(`(() => { const s = document.getElementById('facing-pick'); s.value = 'turned'; s.dispatchEvent(new Event('change')); })()`);
       // Real mouse drags between her hand, her battlefield and her piles (Kevin, 2026-11-20: a card let go near the bottom of the battlefield went back into the hand, and a card let go on the graveyard landed on the board)
       const mouse = (type, x, y, buttons = 0) => alice.send('Input.dispatchMouseEvent', { type, x, y, button: type === 'mouseMoved' ? 'none' : 'left', buttons, clickCount: 1 });

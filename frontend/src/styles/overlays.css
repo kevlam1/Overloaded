@@ -160,3 +160,6 @@
 .view-help-list dd { margin: 0; color: var(--muted); }
 .help-settings { display: flex; flex-wrap: wrap; gap: 0.4rem 1.2rem; }
 .help-switch { display: inline-flex; align-items: center; gap: 0.35rem; cursor: pointer; }
+/* the token window's Random art switch, and the art that is the token's own (2026-11-26 feedback) */
+.token-random { display: inline-flex; align-items: center; gap: 0.3rem; margin-right: 0.4rem; font-size: 0.85rem; cursor: pointer; }
+.token-tile[aria-pressed="true"] { outline: 2px solid var(--gold); outline-offset: 2px; }

@@ -6274,6 +6274,27 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 **Claude's mistakes this step**
 - The help title was small and cramped in the first screenshot, and the stack title row from step 4 was shorter than the other headers; both found in screenshots and fixed.
 
+## 303. The 11-26 feedback, step 6a: Add a card, token art, other players turned whole (2026-11-27)
+
+**What I asked for**
+- The step 6 items that need no change to the database rules: "Add a card" from the battlefield's right-click menu, random token art and an art choice that becomes the token's front, and an option to turn other players' hand and piles with their board.
+
+**What changed**
+- **Add a card** (both tables): the battlefield's right-click menu has "Add a card...", a window that searches the card list the site already serves (`frontend/src/card-adder.js`; no Scryfall request). A card pressed goes onto my battlefield as a REAL card (`addCard` in `shared/zones.mjs`): its type, cost and keywords from the list, a place on the grid, summoning sickness for a creature; it stays when it leaves the battlefield. Other players see it like any card, so no rules change was needed.
+- **Token art:** an art picked under "Art" becomes that token's art (its tile shows it and makes it; `overloaded.tokenArt`), and a **Random art** switch in the token window makes each token with any of its arts (`overloaded.tokenRandomArt`).
+- **"Turned, with hand and piles"** is a third choice under Settings > Other players' boards: in Grid view each other player's whole area turns (their hand along the top, their piles at the top left), with their name strip and the lines of words turned back upright.
+
+**What I checked**
+- `test-add-card` 5 (new), `check-token-ui` 23 (Sol Ring found and added; the picked art on the tile; the Random art switch kept).
+- Against the real project: `check-seats-live` 43 (new: Bob's hand above his board and his name upright with the new choice), `check-lobby-deck-live` 199.
+- `npm test`: all 108 suites passed.
+- Screenshots looked at: the turned area with Bob's hand and piles, and the Add a card window.
+
+**Claude's mistakes this step**
+- The first version of the turned area rotated `.opp-body`, which is `display: contents` and so cannot turn; the whole area turns instead.
+- My first check of it compared the hand's bottom edge with the board's top, but the resting hand overlaps the board by design; it compares their middles now.
+- Two lines of `check-lobby-deck-live` still expected the old two-line battlefield menu.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-24, entry 277) Claude told me the tool docks remembered their layout (entries 273 and 276) when the code stored "[object Object]"; the audit for the spec found it.
 - (2026-11-23, entry 273) I said "commit and push after every big change" and meant every big prompt; Claude pushed after each of three changes.
