@@ -5859,6 +5859,32 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
   - the logo on the card's back first came out dark, because the file is already light;
   - the first back was the real Magic card back, against my rule.
 
+## 289. A face for every player on the lobby's seats, drawn by React (2026-11-26)
+
+**What I asked for**
+- "Continue": step 2 of the React plan, the lobby's table screen.
+
+**What changed**
+- **The seats are a React island** (`frontend/src/react/lobby-seats.jsx`):
+  - `lobby.js` still decides everything: who sits where, ready, presence, the bracket warning, bots, renaming. It hands the result to the island, which only draws it.
+  - The markup and class names are the same as before, so the page's listeners and the checks read it as before.
+  - It draws at once (`flushSync`), as the old code did.
+- **Every player has a face:** KokonutUI's avatar generator (`avatar-picker.tsx`) makes one from the player's name.
+  - It sits in a ring of their color, with the seat number as a small badge.
+  - Every page makes the same face from the same name, so nothing new is stored and no rule changed.
+  - A new name morphs into its new face (not under reduced motion).
+  - The generator file is copied from KokonutUI with ONE line added, `export { MorphingFace };`, because the face is not exported on its own. `credits.md` says so.
+- **Cost:** the island and Motion (about 56 KB compressed) are fetched only the first time seats are drawn. The start page, which most visitors see, stays at 92.7 KB of JavaScript.
+- Left out on purpose:
+  - KokonutUI's slide-to-confirm for Start the match: it would change how starting works, and the checks press `#start`;
+  - the color swatches and deck tiles stay as they were.
+
+**What I checked**
+- Screenshot looked at: two players with their faces, colors, the host and Ready marks, and two empty seats.
+- `npm test` 103 of 103 suites and `npm run test:live` 114 of 114 (it includes the presence, bot and two-tab checks, which read the seats too). Alone: `check-lobby-ui` 66 of 66, `check-room-live` 41 of 41, `check-lobby-deck-live` 194 of 194.
+- Claude's mistake: the first version made the name box a React-controlled field. The room check types a new name by setting the box's value and sending an input event, and React ignores a value set that way. Renaming failed, and the Over limit checks with it. The box now keeps its own value, as before, and React listens to every input event.
+- `check-lobby-deck-live --screenshot` stops with "pressStep is not defined": a bug in the check's own screenshot branch, older than today. Without the flag it passes. Not fixed.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-24, entry 277) Claude told me the tool docks remembered their layout (entries 273 and 276) when the code stored "[object Object]"; the audit for the spec found it.
 - (2026-11-23, entry 273) I said "commit and push after every big change" and meant every big prompt; Claude pushed after each of three changes.

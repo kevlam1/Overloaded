@@ -114,17 +114,6 @@ const botName = (seat) => `Bot ${seat}`;
 let serverOffset = null; // until the database's clock is known, no one is judged disconnected
 const REDRAW_MS = 10000;
 
-function botButton(action, seat, label) {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'secondary bot-button';
-  button.dataset.bot = action;
-  button.dataset.seat = seat;
-  button.textContent = label;
-  button.setAttribute('aria-label', `${label} for seat ${seat}`);
-  button.disabled = botWorking.has(seat);
-  return button;
-}
 
 // A bot seat that this page has not met yet (the page was refreshed): if the member is named for the seat and the account of this browser's bot for that seat is the same account, it is that bot again.
 function adoptBots() {
@@ -208,57 +197,6 @@ function seatArt(member) {
   return null;
 }
 
-const PENCIL = 'M11.7 1.8a1.6 1.6 0 0 1 2.3 2.3l-8.4 8.4-3.3.9.9-3.3z';
-function pencilIcon() {
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  for (const [name, value] of [['viewBox', '0 0 16 16'], ['width', '14'], ['height', '14'], ['fill', 'currentColor'], ['aria-hidden', 'true'], ['focusable', 'false']]) svg.setAttribute(name, value);
-  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-  path.setAttribute('d', PENCIL);
-  path.setAttribute('fill', 'currentColor');
-  svg.append(path);
-  return svg;
-}
-
-// Your own name, with a pencil beside it; while it is being changed the name is a small box with a tick and a cross (Enter saves, Escape cancels).
-function nameNode(member, mine) {
-  const wrap = piece('span', 'seat-namerow', '');
-  if (mine && editingName) {
-    const input = document.createElement('input');
-    input.className = 'seat-name-input';
-    input.type = 'text';
-    input.maxLength = 30;
-    input.value = editingName.draft;
-    input.setAttribute('aria-label', 'Your name at the table');
-    input.autocomplete = 'nickname';
-    input.spellcheck = false;
-    input.addEventListener('input', () => { editingName.draft = input.value; });
-    input.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter') { event.preventDefault(); saveName(); }
-      else if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); editingName = null; renderPlayers(); }
-    });
-    const save = piece('button', 'seat-save', 'Save');
-    save.type = 'button';
-    save.addEventListener('click', saveName);
-    const cancel = piece('button', 'seat-cancel secondary', 'Cancel');
-    cancel.type = 'button';
-    cancel.addEventListener('click', () => { editingName = null; renderPlayers(); });
-    wrap.append(input, save, cancel);
-    return wrap;
-  }
-  wrap.append(piece('span', 'seat-name', String(member.name)));
-  if (mine && currentMeta?.status === 'lobby') {
-    const edit = document.createElement('button');
-    edit.type = 'button';
-    edit.className = 'seat-edit';
-    edit.title = 'Change your name';
-    edit.setAttribute('aria-label', 'Change your name');
-    edit.append(pencilIcon());
-    edit.addEventListener('click', () => { editingName = { draft: String(member.name) }; renderPlayers(); document.querySelector('.seat-name-input')?.select(); });
-    wrap.append(edit);
-  }
-  return wrap;
-}
-
 async function saveName() {
   if (!editingName) return;
   const draft = editingName.draft;
@@ -300,81 +238,54 @@ function renderColors() {
   }
 }
 
+// The seats are drawn by a React island (src/react/lobby-seats.jsx, 2026-11-26): this works out what each seat shows and hands it over; the island draws the same
+// markup as before, plus each player's face. Names come from other people: React puts them in as text, never as markup.
+// The island (with React's animation library, about 55 KB compressed) is fetched the first time seats are drawn, so the start page, which most visitors see, never loads it.
+let seatsView = null;
+let seatsLoading = null;
+let pendingSeats = null;
+function showSeats(state) {
+  if (seatsView) { seatsView.set(state); return; }
+  pendingSeats = state; // (drawn as soon as the island has loaded: always the newest state)
+  seatsLoading ??= import('../../src/react/lobby-seats.jsx').then(({ mountSeats }) => { seatsView = mountSeats($('players')); if (pendingSeats) seatsView.set(pendingSeats); pendingSeats = null; });
+}
+const seatHandlers = {
+  onEditStart: () => { editingName = { draft: String(currentMembers[myUid]?.name ?? '') }; renderPlayers(); },
+  onDraft: (draft) => { if (editingName) editingName.draft = draft; }, // (no redraw: the box keeps its own value while it is open)
+  onSave: () => saveName(),
+  onCancel: () => { editingName = null; renderPlayers(); },
+};
 function renderPlayers() {
-  const list = $('players');
-  const keepEditFocus = document.activeElement instanceof HTMLElement && document.activeElement.classList.contains('seat-name-input');
-  list.replaceChildren();
   renderColors();
   if (!cardsByName && Object.values(currentMembers).some((member) => seatCommander(member))) ensureCards(); // art for the seats
   const now = serverOffset === null ? null : Date.now() + serverOffset;
-  // Names come from other people, so they are put in as text, never as markup. A seat is a card of a fixed size: the commander's art behind it, the player's name and what they bring on two lines that never grow
-  // (a long one is cut short with "..."), and the bracket, Ready and connection as pills along the bottom. The number of the seat is drawn by the style sheet.
-  for (const [uid, member] of Object.entries(currentMembers).sort((a, b) => Number(a[1].seat) - Number(b[1].seat))) {
-    const mine = uid === myUid;
-    const item = document.createElement('li');
-    item.className = mine ? 'seat mine' : 'seat';
-    item.dataset.uid = uid;
-    item.dataset.seat = String(member.seat);
-    item.style.setProperty('--player-color', colorValue(tableColors(currentMembers)[uid])); // (the number's circle in their color)
-    const art = seatArt(member);
-    if (art) { item.classList.add('has-art'); item.style.setProperty('--seat-art', `url("${art}")`); }
-    item.append(piece('span', 'seat-label', `Seat ${member.seat}: `));
-    if (uid === currentHost) item.append(piece('span', 'seat-host', 'Host'));
-    const body = piece('span', 'seat-body', '');
-    const nameLine = nameNode(member, mine);
-    if (overBracketLimit(member, currentMeta)) { // a warning only: it never stops anyone readying up or playing
-      const limit = bracketLimitOf(currentMeta);
-      const warn = piece('span', 'seat-warn', 'Over limit');
-      warn.title = `This deck is bracket ${member.bracket}; the table limit is ${limit}. It is only a warning: you can still play.`;
-      nameLine.append(warn);
-      item.classList.add('over-limit');
-    }
-    body.append(nameLine);
-    const commander = seatCommander(member);
-    body.append(commander ? piece('span', 'seat-deck', commander) : piece('span', 'seat-deck seat-nodeck', 'No deck yet'));
-    item.append(body);
-    const pills = piece('span', 'seat-pills', '');
-    const bracket = seatBracket(member);
-    if (bracket) {
-      const pill = piece('span', 'bracket-pill', `Bracket ${bracket.number}`);
-      if (bracket.guess) { pill.classList.add('guessed'); pill.title = 'Guessed from the Game Changers in the deck'; }
-      pills.append(pill);
-    }
-    if (isReady(member, currentMeta)) {
-      item.dataset.ready = '1';
-      pills.append(piece('span', 'ready-mark', 'Ready'));
-    }
-    const status = presenceStatus(currentPresence[uid], now);
-    const words = presenceText(status);
-    if (words) {
-      const note = piece('span', 'presence', words);
-      note.dataset.state = status.state;
-      pills.append(note);
-    }
-    item.append(pills);
-    list.append(item);
-  }
-  // Empty seats and the bots: the host (in the lobby) can add a bot to an empty seat and take a bot away again.
+  const colors = tableColors(currentMembers);
   const seatsTotal = Number(currentMeta?.seats) || 0;
   const canManageBots = Boolean(myUid) && currentHost === myUid && currentMeta?.status === 'lobby';
-  const taken = new Set(Object.values(currentMembers).map((member) => String(member.seat)));
+  const seats = [];
+  // A seat is a card of a fixed size: the commander's art behind it, the player's face, name and what they bring, and the bracket, Ready and connection as pills.
+  for (const [uid, member] of Object.entries(currentMembers)) {
+    const seat = String(member.seat);
+    const status = presenceStatus(currentPresence[uid], now);
+    const words = presenceText(status);
+    const bracket = seatBracket(member);
+    seats.push({
+      uid, seat, mine: uid === myUid, name: String(member.name), host: uid === currentHost, color: colorValue(colors[uid]), art: seatArt(member),
+      canRename: currentMeta?.status === 'lobby',
+      overLimit: overBracketLimit(member, currentMeta) ? { bracket: member.bracket, limit: bracketLimitOf(currentMeta) } : null, // a warning only: it never stops anyone
+      commander: seatCommander(member) || '', bracket: bracket ? { number: bracket.number, guess: Boolean(bracket.guess) } : null,
+      ready: isReady(member, currentMeta), presence: words ? { words, state: status.state } : null,
+      bot: canManageBots && botSeats.has(seat) ? 'remove' : null, botBusy: botWorking.has(seat),
+    });
+  }
+  // Empty seats: the host (in the lobby) can add a bot to one.
+  const taken = new Set(seats.map((entry) => entry.seat));
   for (let n = 1; n <= seatsTotal; n++) {
     const seat = String(n);
-    const member = Object.entries(currentMembers).find(([, m]) => String(m.seat) === seat);
-    if (member) {
-      const item = [...list.children].find((li) => li.dataset.uid === member[0]);
-      if (item && canManageBots && botSeats.has(seat)) item.append(botButton('remove', seat, 'Remove bot'));
-    } else if (!taken.has(seat)) {
-      const item = document.createElement('li');
-      item.className = 'seat empty-seat';
-      item.dataset.seat = seat;
-      item.append(piece('span', 'seat-label', `Seat ${seat}: `), piece('span', 'seat-empty', 'Empty seat'));
-      if (canManageBots) item.append(botButton('add', seat, 'Add bot'));
-      list.append(item);
-    }
+    if (!taken.has(seat)) seats.push({ empty: true, seat, bot: canManageBots ? 'add' : null, botBusy: botWorking.has(seat) });
   }
-  [...list.children].sort((a, b) => Number(a.dataset.seat) - Number(b.dataset.seat)).forEach((li) => list.append(li)); // (seats in order, the empty ones where they are)
-  if (keepEditFocus) { const input = list.querySelector('.seat-name-input'); if (input) { const at = input.value.length; input.focus(); input.setSelectionRange(at, at); } }
+  seats.sort((a, b) => Number(a.seat) - Number(b.seat)); // (seats in order, the empty ones where they are)
+  showSeats({ seats, editing: editingName, handlers: seatHandlers });
   // Offer the takeover only to someone else at the table, and only when the host has really been gone for 5 minutes
   // (the database makes the same judgement and refuses otherwise).
   const canTakeOver = Boolean(currentHost) && currentHost !== myUid && myUid in currentMembers && hostIsGone(currentPresence[currentHost], now);

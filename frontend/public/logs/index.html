@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.288</span></h1>
-    <p class="lede">288 entries, Oct 25 to Nov 26, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
+    <h1>Build log <span class="version">Version 0.289</span></h1>
+    <p class="lede">289 entries, Oct 25 to Nov 26, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
   </div>
 </header>
 
@@ -25,7 +25,7 @@
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
 <a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">56</span></a>
-<a class="week-link" href="#week-3" data-target="week-3"><span class="wl-name">Week 3</span><span class="wl-range">Nov 23 to Nov 29</span><span class="wl-count">19</span></a>
+<a class="week-link" href="#week-3" data-target="week-3"><span class="wl-name">Week 3</span><span class="wl-range">Nov 23 to Nov 29</span><span class="wl-count">20</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
 <a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">29 things friends asked for</span></a>
 <a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">30 open, 73 done</span></a>
@@ -4572,7 +4572,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-3" aria-labelledby="week-3-title">
-<h2 class="week-head" id="week-3-title"><button type="button" aria-expanded="false" aria-controls="week-3-days"><span class="wname">Week 3</span><span class="range">Nov 23 to Nov 29</span><span class="week-count">19 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-3-title"><button type="button" aria-expanded="false" aria-controls="week-3-days"><span class="wname">Week 3</span><span class="range">Nov 23 to Nov 29</span><span class="week-count">20 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-3-days">
 <div class="day">
 <h3 class="day-title">Monday 23 November <span class="day-count">6</span></h3>
@@ -4835,7 +4835,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Thursday 26 November <span class="day-count">4</span></h3>
+<h3 class="day-title">Thursday 26 November <span class="day-count">5</span></h3>
 <div class="entries">
 <article class="entry" id="entry-285" data-n="285">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-285-body">
@@ -4895,6 +4895,21 @@
 <ul><li><strong>New packages,</strong> each licence file read after installing:<ul><li>React and React DOM 19.3.1 (MIT);</li><li>Motion 14.14.0 (MIT);</li><li>lucide-react 1.81.0 (ISC);</li><li>clsx and tailwind-merge (MIT);</li><li>for the build, Tailwind CSS 4.3.5 and its Vite plugin (MIT).</li><li>The React plugin for Vite was installed and then taken out again: in the dev server it puts an inline script on every page, which the deck page's check caught. Vite compiles JSX by itself (the <code>oxc</code> option), and the built site was byte for byte the same without the plugin. The only loss is hot reload while editing a React part.</li></ul></li><li><strong>Setup:</strong><ul><li><code>vite.config.js</code> has the Tailwind plugin, JSX compiled by Vite, and the <code>@</code> shortcut for <code>frontend/src</code>;</li><li><code>tsconfig.json</code> and <code>components.json</code> are for the editor and the shadcn tool only;</li><li><code>frontend/src/lib/utils.ts</code> is shadcn's <code>cn()</code>.</li></ul></li><li><strong>Tailwind without its reset</strong> (<code>frontend/src/styles/tw.css</code>): only its theme and utilities, in layers, so the site's own rules always win. The reset would have restyled every button and heading of the plain pages. Its colors point at our tokens, so they follow Dark and Light.</li><li><strong>The first island,</strong> <code>frontend/src/react/hero.jsx</code>, draws into two empty elements of the home page's hero. Nothing of the page's own markup, ids or script changed.<ul><li><strong>Dot Field</strong> behind the hero: dots that move away from the pointer, the same dots as the battlefields, faint in both themes.</li><li><strong>Flick Card</strong> beside the title: a face-down card that turns over to Krenko, the sample deck's commander. Drag it, click it or press Enter to turn it over.</li><li>Its face-down side is our logo, not the Magic card back: my rules allow that picture only for face-down cards in play.</li><li>Krenko's picture is fetched from Scryfall only when the pointer comes over the card, it gets focus or it is turned. Loading the home page must contact no other site, and the lobby check caught the first version, which showed Krenko at once.</li><li>Hidden on windows narrower than 1100 px.</li><li>Both stop moving under reduced motion (the components check it themselves).</li></ul></li><li><strong>Credits:</strong> the two components are copied unchanged from KokonutUI's registry, with their MIT licence in <code>frontend/src/components/kokonutui/credits.md</code>. Claude wrote the files from the registry's JSON instead of running the shadcn tool, because the tool can rewrite config and style files.</li><li><code>CLAUDE.md</code>'s Stack section records all of this.</li></ul>
 <p class="sub"><strong>What I checked</strong></p>
 <ul><li>Screenshots looked at, desktop width: dark, light, reduced motion, and the card turned over with the keyboard.</li><li><code>npm test</code> 103 of 103 suites, after the two fixes above. <code>check-lobby-deck-live</code> 194 of 194.</li><li><code>check-room-live</code>: 41 of 41 three times out of four. The first run failed at &quot;Alice makes a table and is on its own screen&quot;, and the cause is not known: it could be the island, or the flakiness this check already had.</li><li><code>check-deploy-config</code> 54 of 54: the built home page, nothing blocked by the content policy (React and Motion set styles from script, which the policy allows).</li><li><strong>Cost of the home page</strong> (<code>measure-lobby-load</code>, cache off):<ul><li>JavaScript went from 93,649 to 177,650 bytes;</li><li>everything went from 250,545 to 339,168 bytes;</li><li>requests went from 11 to 12;</li><li>the load event went from 96 to 100 ms on this machine.</li><li>Claude's plan had guessed about 60 KB more JavaScript; it is 84 KB.</li></ul></li><li>Claude's mistakes, each found by a screenshot:<ul><li>the dots were too bright, then invisible in the light theme (the color Claude passed overrode the CSS), so they now take one faint color from the page;</li><li>the logo on the card's back first came out dark, because the file is already light;</li><li>the first back was the real Magic card back, against my rule.</li></ul></li></ul>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-289" data-n="289">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-289-body">
+    <span class="num">289</span>
+    <span class="head-text"><span class="title">A face for every player on the lobby's seats, drawn by React</span><span class="sum">&quot;Continue&quot;: step 2 of the React plan, the lobby's table screen.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-289-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>&quot;Continue&quot;: step 2 of the React plan, the lobby's table screen.</li></ul>
+<p class="sub"><strong>What changed</strong></p>
+<ul><li><strong>The seats are a React island</strong> (<code>frontend/src/react/lobby-seats.jsx</code>):<ul><li><code>lobby.js</code> still decides everything: who sits where, ready, presence, the bracket warning, bots, renaming. It hands the result to the island, which only draws it.</li><li>The markup and class names are the same as before, so the page's listeners and the checks read it as before.</li><li>It draws at once (<code>flushSync</code>), as the old code did.</li></ul></li><li><strong>Every player has a face:</strong> KokonutUI's avatar generator (<code>avatar-picker.tsx</code>) makes one from the player's name.<ul><li>It sits in a ring of their color, with the seat number as a small badge.</li><li>Every page makes the same face from the same name, so nothing new is stored and no rule changed.</li><li>A new name morphs into its new face (not under reduced motion).</li><li>The generator file is copied from KokonutUI with ONE line added, <code>export { MorphingFace };</code>, because the face is not exported on its own. <code>credits.md</code> says so.</li></ul></li><li><strong>Cost:</strong> the island and Motion (about 56 KB compressed) are fetched only the first time seats are drawn. The start page, which most visitors see, stays at 92.7 KB of JavaScript.</li><li>Left out on purpose:<ul><li>KokonutUI's slide-to-confirm for Start the match: it would change how starting works, and the checks press <code>#start</code>;</li><li>the color swatches and deck tiles stay as they were.</li></ul></li></ul>
+<p class="sub"><strong>What I checked</strong></p>
+<ul><li>Screenshot looked at: two players with their faces, colors, the host and Ready marks, and two empty seats.</li><li><code>npm test</code> 103 of 103 suites and <code>npm run test:live</code> 114 of 114 (it includes the presence, bot and two-tab checks, which read the seats too). Alone: <code>check-lobby-ui</code> 66 of 66, <code>check-room-live</code> 41 of 41, <code>check-lobby-deck-live</code> 194 of 194.</li><li>Claude's mistake: the first version made the name box a React-controlled field. The room check types a new name by setting the box's value and sending an input event, and React ignores a value set that way. Renaming failed, and the Over limit checks with it. The box now keeps its own value, as before, and React listens to every input event.</li><li><code>check-lobby-deck-live --screenshot</code> stops with &quot;pressStep is not defined&quot;: a bug in the check's own screenshot branch, older than today. Without the flag it passes. Not fixed.</li></ul>
   </div></div></div>
 </article>
 </div>

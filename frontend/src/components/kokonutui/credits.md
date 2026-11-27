@@ -1,12 +1,13 @@
 # KokonutUI components
 
-The `.tsx` files in this folder are copied unchanged from KokonutUI (https://kokonutui.com, https://github.com/kokonut-labs/kokonutui), each from its registry entry
-(`https://kokonutui.com/r/NAME.json`), on 2026-11-26. Each file's header names its author. Pro components (a paid product) are not used.
+The `.tsx` files in this folder are copied from KokonutUI (https://kokonutui.com, https://github.com/kokonut-labs/kokonutui), each from its registry entry
+(`https://kokonutui.com/r/NAME.json`), on 2026-11-26. Each file's header names its author. They are unchanged except where the table says so. Pro components (a paid product) are not used.
 
 | File | Component | Copied |
 |---|---|---|
 | `dot-field.tsx` | Dot Field 1.0.0 | 2026-11-26 |
 | `card-flip.tsx` | Flick Card 2.0.0 | 2026-11-26 |
+| `avatar-picker.tsx` | Avatar Picker 2.0.0 | 2026-11-26; ONE change: an `export { MorphingFace };` line added at the end, so a face can be shown on its own |
 
 KokonutUI's licence (its LICENSE file):
 
