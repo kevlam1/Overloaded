@@ -115,3 +115,12 @@
 .settings-menu .settings-card #look-settings label { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin: 0; }
 /* the logo is white: dark on the light theme */
 :root[data-theme="light"] .brand-logo { filter: invert(1) brightness(0.25); }
+
+/* ---- Effects (frontend/src/vfx.js, anime.js, 2026-11-26): the commander burst. One fixed layer over the page that takes no pointer; each piece is placed by the script
+   and removed when its animation ends. Under 80 so menus and windows stay above it. ---- */
+.vfx-layer { position: fixed; inset: 0; z-index: 60; pointer-events: none; overflow: hidden; }
+.vfx-layer > * { position: absolute; pointer-events: none; }
+.vfx-glow { border-radius: 6%; box-shadow: 0 0 0 2px var(--vfx-color), 0 0 28px 6px color-mix(in srgb, var(--vfx-color) 70%, transparent), inset 0 0 24px color-mix(in srgb, var(--vfx-color) 45%, transparent); opacity: 0; }
+.vfx-ring { border: 6px solid var(--vfx-color); border-radius: 50%; box-shadow: 0 0 18px color-mix(in srgb, var(--vfx-color) 60%, transparent); opacity: 0; }
+.vfx-spark { width: 16px; height: 3px; margin: -1.5px 0 0; border-radius: 3px; transform-origin: 0 50%; background: linear-gradient(90deg, transparent, var(--vfx-color) 40%, #fff); }
+.vfx-name { padding: 4px 12px; border: 1px solid var(--vfx-color); border-radius: 999px; background: color-mix(in srgb, var(--surface-1) 88%, transparent); color: var(--text); font-weight: 700; font-size: var(--text-sm); white-space: nowrap; translate: -50% 0; opacity: 0; box-shadow: 0 6px 20px rgb(0 0 0 / 0.35); }

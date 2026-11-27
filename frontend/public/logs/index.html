@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.286</span></h1>
-    <p class="lede">286 entries, Oct 25 to Nov 26, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
+    <h1>Build log <span class="version">Version 0.287</span></h1>
+    <p class="lede">287 entries, Oct 25 to Nov 26, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
   </div>
 </header>
 
@@ -25,7 +25,7 @@
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
 <a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">56</span></a>
-<a class="week-link" href="#week-3" data-target="week-3"><span class="wl-name">Week 3</span><span class="wl-range">Nov 23 to Nov 29</span><span class="wl-count">17</span></a>
+<a class="week-link" href="#week-3" data-target="week-3"><span class="wl-name">Week 3</span><span class="wl-range">Nov 23 to Nov 29</span><span class="wl-count">18</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
 <a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">29 things friends asked for</span></a>
 <a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">30 open, 73 done</span></a>
@@ -4572,7 +4572,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-3" aria-labelledby="week-3-title">
-<h2 class="week-head" id="week-3-title"><button type="button" aria-expanded="false" aria-controls="week-3-days"><span class="wname">Week 3</span><span class="range">Nov 23 to Nov 29</span><span class="week-count">17 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-3-title"><button type="button" aria-expanded="false" aria-controls="week-3-days"><span class="wname">Week 3</span><span class="range">Nov 23 to Nov 29</span><span class="week-count">18 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-3-days">
 <div class="day">
 <h3 class="day-title">Monday 23 November <span class="day-count">6</span></h3>
@@ -4835,7 +4835,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Thursday 26 November <span class="day-count">2</span></h3>
+<h3 class="day-title">Thursday 26 November <span class="day-count">3</span></h3>
 <div class="entries">
 <article class="entry" id="entry-285" data-n="285">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-285-body">
@@ -4865,6 +4865,21 @@
 <ul><li><strong>One style sheet for them,</strong> <code>frontend/src/styles/pages.css</code> (new), loaded last on the lobby and deck pages:<ul><li>the neutral greys and one gold, flat panels with a thin edge, the same fields and buttons as the tables;</li><li>the current page in the header is a pill with a gold line under it.</li></ul></li><li><strong>Home:</strong><ul><li>a shorter, solid hero (no gold-to-pink gradient, no purple glow), so &quot;Play with friends&quot; is on the first screen;</li><li>the three feature cards are now three small pills with their titles only;</li><li>shorter texts: &quot;Paste a deck and play in a minute. Free, with no account.&quot; and &quot;Make a table and share its code, or join a friend's.&quot;</li></ul></li><li><strong>Lobby table screen:</strong> the code in the number font, the seats and the bottom bar on the same panels.</li><li><strong>Deck page:</strong><ul><li>a Build log link in the header, like the home page;</li><li>an &quot;Add a deck&quot; tile after the last saved deck (it does what New deck does), so a short list no longer leaves an empty page.</li></ul></li></ul>
 <p class="sub"><strong>What I checked</strong></p>
 <ul><li>Screenshots looked at, desktop width, dark and light: home, the lobby with two players, the deck list, a deck open.</li><li><code>npm test</code> 100 of 101 suites at first. The failure was Claude's: the deck page check listed the header links, and the new Build log link was not in it. Updated; the deck check passes 292 of 292.</li><li>Live: <code>check-room-live</code> 41 of 41, <code>check-lobby-deck-live</code> 193 of 193, <code>check-seats-live</code> 42 of 42.</li></ul>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-287" data-n="287">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-287-body">
+    <span class="num">287</span>
+    <span class="head-text"><span class="title">Commander effects with anime.js, and a hop when the hand is sorted</span><span class="sum">Animated effects with anime.js when you play cards or your commander, using the commander sounds I added, with customization.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-287-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>Animated effects with anime.js when you play cards or your commander, using the commander sounds I added, with customization. I also asked for KokonutUI in the redesign.</li><li>Claude asked first, because both are new dependencies. My answers:<ul><li>yes to anime.js;</li><li>&quot;sorts&quot; meant both the sounds and an animated hand sort;</li><li>first version: the commander cast, seen by the other players too;</li><li>adopt React and Tailwind for KokonutUI, against Claude's advice.</li></ul></li></ul>
+<p class="sub"><strong>What changed</strong></p>
+<ul><li><strong>anime.js 4.5.0</strong> (MIT, Julian Garnier) is a dependency now. I checked its license file before it went in. Only the <code>animate</code> function is imported.</li><li><strong>The commander burst</strong> (<code>frontend/src/vfx.js</code>, styles at the end of <code>src/styles/overlays.css</code>):<ul><li>when a commander goes from the command zone to the battlefield: two rings, sparks, a glow the shape of the card, its name, and the card landing a little larger;</li><li>in the player's color on the live table;</li><li>drawn on its own layer and removed afterwards. It never touches a card's <code>transform</code> or a battlefield card's <code>translate</code>, because the hand fan, tapping and pile offsets use them.</li></ul></li><li><strong>Every player sees it:</strong> each page compares a player's public zones with the last ones it saw (<code>commanderArrivals</code> in <code>shared/effects.mjs</code>). Nothing new is written, so no database rule changed. A refresh never replays an old cast.</li><li><strong>Sound:</strong> one of my three commander sounds, chosen at random or by name. Claude measured them in Chrome (boom -12.8, piano -15.8, smash -19.2 dBFS) and gave them gains that put them at the same level as the other sounds (<code>SOUND_GAIN</code>). The four old sounds measured the same as on 2026-11-06.</li><li><strong>The hand sort:</strong> when the hand is sorted, each card hops, one after another from the left.</li><li><strong>Settings &gt; General:</strong> &quot;Effects&quot; (on or off) and &quot;Commander sound&quot; (Random, Boom, Piano, Smash, None), kept in this browser.</li><li>Under reduced motion nothing moves; the commander sound still plays.</li><li>The three sounds have lines in <code>frontend/public/sfx/credits.md</code>. Their source and licence are not recorded, like the others.</li></ul>
+<p class="sub"><strong>What I checked</strong></p>
+<ul><li><code>npm test</code> 103 of 103 suites, with the two new ones: <code>scripts/test-effects.mjs</code> (15 checks) and the browser check below.</li><li><code>scripts/check-effects-ui.mjs</code> (new, 6 checks, real Chrome on the solo table):<ul><li>the burst and one commander sound on a cast, and nothing left after;</li><li>only the sound under reduced motion;</li><li>nothing with Effects off;</li><li>the hand hop on a sort.</li></ul></li><li><code>check-lobby-deck-live</code> 194 of 194, with a new step: Alice casts her commander and Bob's page shows the burst and plays the sound.</li><li>Screenshot looked at, mid-burst.</li><li>Claude's mistakes, caught before anything ran:<ul><li>the sparks would all have flown sideways (the CSS <code>translate</code> property moves on the screen, not along the turned spark);</li><li>the colour variable was set in a way that does nothing.</li></ul></li><li>The first screenshot showed the name cut off at the window's edge for a commander that lands in the top corner. It now stays inside the window and goes under the card at the top.</li><li>Not checked: the Shared view's plane (the code looks there for the other player's card, but no test casts on it), and how it sounds.</li></ul>
   </div></div></div>
 </article>
 </div>

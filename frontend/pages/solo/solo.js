@@ -3,6 +3,8 @@
 // (shared/card-image.mjs) and are only requested when a card is on the page. Card names go into the page as text, never as
 // markup. Nothing here is saved: a refresh deals a new game.
 import { mountLookSettings } from '../../src/look-settings.js';
+import { commanderBurst, sortHop, mountEffectSettings } from '../../src/vfx.js';
+import { commanderArrivals } from '../../../shared/effects.mjs';
 import { askConfirm } from '../../src/confirm-box.js';
 import { makeSafeStore } from '../../src/safe-store.js';
 import { play, mountSoundSettings } from '../../src/sound.js';
@@ -274,8 +276,17 @@ function apply(run, message = '') {
     say(error.message, true);
   }
   render();
+  if (made && before) celebrate(before, game);
   return made;
 }
+// A commander came from the command zone onto the battlefield: its effect and sound (src/vfx.js), once the card is drawn in its place.
+function celebrate(before, after) {
+  for (const uid of commanderArrivals(before.zones, after.zones)) {
+    const card = after.zones.battlefield.find((each) => each.uid === uid);
+    commanderBurst(document.querySelector(`#battlefield > .card[data-uid="${uid}"]`), { name: card?.n ?? '' });
+  }
+}
+const hopHand = () => sortHop([...document.querySelectorAll('#hand > .card')]); // (the hand was sorted: the cards hop one after another)
 
 // Shift and a click on a card of the hand adds it to the picked cards or takes it out again (Kevin, 2026-11-15); a right-click on a picked card then acts on all of them (openGroupMenu). A click without Shift on a card of
 // the hand picks just that card. The picked cards of the battlefield (a rectangle) and of the hand are never mixed.
@@ -525,6 +536,7 @@ $('draw').addEventListener('click', drawOne);
 $('next-turn').addEventListener('click', goNextTurn);
 $('untap-all').addEventListener('click', () => { play('tap'); apply(() => untapAll(game), untapMessage(game)); });
 mountLookSettings($('look-settings'));
+mountEffectSettings($('look-settings'));
 mountSoundSettings($('sound-settings'));
 // ---- piles drawn diagonally or horizontally (shared/pile-style.mjs), a double click taps a card, a click on empty space deselects ----
 mountPileStyle($('pile-style-settings'));
@@ -1003,8 +1015,9 @@ function sortNow() {
   if (sorted.every((card, index) => card.uid === hand[index].uid)) { say('The hand is already in that order.'); return; }
   pins.clear();
   apply(() => { let next = game; sorted.forEach((card, index) => { next = reorderHand(next, card.uid, index); }); return next; }, 'Sorted the hand.');
+  hopHand();
 }
-const handSort = createHandSort({ onSortNow: sortNow, onChange: () => { if (!anySortOn(handSort.sorts())) keepShownOrder(); pins.clear(); if (game) render(); } }); // (changing the sorts lets the cards moved by hand go back to being sorted)
+const handSort = createHandSort({ onSortNow: sortNow, onChange: () => { if (!anySortOn(handSort.sorts())) keepShownOrder(); pins.clear(); if (game) { render(); if (anySortOn(handSort.sorts())) hopHand(); } } }); // (changing the sorts lets the cards moved by hand go back to being sorted)
 handSort.mountButtons(handView.bar);
 // The menu of the hand (Kevin, 2026-11-15): an arrow next to the hand count, or a right-click on the bar. Mulligan, Shuffle hand into library, Discard X at random, Discard hand (shared/hand-menu.mjs).
 function openHandMenu(where) {

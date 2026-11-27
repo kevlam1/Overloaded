@@ -247,6 +247,20 @@ try {
   record("...and none of her hand's card numbers is in what he can read", !JSON.stringify(publicFirst).includes(Object.values(savedFirst?.hand ?? {})[0]?.u ?? 'no-hand'));
   const handBefore = Object.values(savedFirst.hand).map((card) => card.u);
 
+  // The commander effect (src/vfx.js, 2026-11-26): Alice casts a commander and BOB's page draws the burst on her card and plays a commander sound, from her public branch alone.
+  // Then she puts it back, so everything after this sees the game as dealt.
+  await bob.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] });
+  await bob.eval(`window.__plays = []; HTMLMediaElement.prototype.play = function () { window.__plays.push(new URL(this.src).pathname); return Promise.resolve(); };`);
+  const menuPick = (page, selector, words) => page.eval(`(() => { const card = document.querySelector(${JSON.stringify(selector)}); if (!card) return 'no card'; card.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 500, clientY: 400 })); const item = [...document.querySelectorAll('[role="menuitem"]')].find((b) => ${JSON.stringify(words)}.includes(b.textContent.trim())); if (!item) return [...document.querySelectorAll('[role="menuitem"]')].map((b) => b.textContent.trim()).join('|'); item.click(); return true; })()`);
+  const castPick = await menuPick(alice, '#command .card', ['Play', 'Battlefield', 'Cast']);
+  const bobSaw = await waitFor(async () => (await bob.eval(`document.querySelector('.vfx-ring') ? getComputedStyle(document.querySelector('.vfx-ring')).borderTopColor : null`)) ?? null, 15000, 30);
+  const bobHeard = await bob.eval(`window.__plays.filter((p) => p.startsWith('/sfx/commander-play-'))`);
+  record("Alice casts her commander and Bob's page shows the burst on her card in her color and plays a commander sound", castPick === true && Boolean(bobSaw) && bobHeard.length === 1, JSON.stringify({ castPick, bobSaw, bobHeard }));
+  await sleep(1800);
+  await menuPick(alice, '#battlefield > .card', ['Move to command zone', 'Command zone']);
+  await waitFor(async () => (await count(alice, '#command .card')) === 2 ? true : null, 10000, 100);
+  await bob.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
+
   // The sound wiring on the table page (the check records the call; it cannot hear it): Draw plays the draw sound, Shuffle the shuffle sound.
   await alice.eval(`window.__plays = []; HTMLMediaElement.prototype.play = function () { window.__plays.push(new URL(this.src).pathname); return Promise.resolve(); };`);
   await click(alice, 'draw');

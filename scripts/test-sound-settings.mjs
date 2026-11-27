@@ -9,11 +9,11 @@ const same = (label, actual, expected) => {
 
 same('the key', SOUND_KEY, 'overloaded.sound');
 same('sound is on by default at a volume of 1', DEFAULT_SOUND, { on: true, volume: 1 });
-same('the four sounds and their files', SOUND_FILES, { draw: '/sfx/draw.mp3', shuffle: '/sfx/shuffle.mp3', tap: '/sfx/tap.mp3', yourturn: '/sfx/yourturn.mp3' });
-same('the gain of each sound (chosen so all four have the same average level, see the note in sound-settings.mjs)', SOUND_GAIN, { draw: 0.1, shuffle: 0.095, tap: 1, yourturn: 0.047 });
+same('the sounds and their files', SOUND_FILES, { draw: '/sfx/draw.mp3', shuffle: '/sfx/shuffle.mp3', tap: '/sfx/tap.mp3', yourturn: '/sfx/yourturn.mp3', 'commander-boom': '/sfx/commander-play-impact-bass-boom.mp3', 'commander-piano': '/sfx/commander-play-piano-hit.mp3', 'commander-smash': '/sfx/commander-play-smash.mp3' });
+same('the gain of each sound (chosen so all have the same average level, see the note in sound-settings.mjs)', SOUND_GAIN, { draw: 0.1, shuffle: 0.095, tap: 1, yourturn: 0.047, 'commander-boom': 0.0115, 'commander-piano': 0.0162, 'commander-smash': 0.024 });
 same('no gain is above 1 (an audio element cannot play louder than full)', Object.values(SOUND_GAIN).every((g) => g > 0 && g <= 1), true);
 // the files' measured average levels in dBFS (decoded in a browser on 2026-11-06): with each gain the four come out within half a dB of each other
-const AVERAGE_DB = { draw: -31.4, shuffle: -31.2, tap: -51.6, yourturn: -24.9 };
+const AVERAGE_DB = { draw: -31.4, shuffle: -31.2, tap: -51.6, yourturn: -24.9, 'commander-boom': -12.8, 'commander-piano': -15.8, 'commander-smash': -19.2 }; // (the commander sounds measured 2026-11-26)
 const atFull = Object.keys(AVERAGE_DB).map((name) => AVERAGE_DB[name] + 20 * Math.log10(SOUND_GAIN[name]));
 same('at a slider of 100% all four sounds have the same average level to within half a dB', Math.max(...atFull) - Math.min(...atFull) < 0.5, true);
 same('...and that level is no louder than -51 dBFS', Math.max(...atFull) < -51, true);
@@ -55,7 +55,7 @@ same('on at volume 0 plays at 0', soundVolume({ on: true, volume: 0 }), 0);
 
 // how loud a named sound plays: the slider times the sound's own gain
 same('at the default slider (100%) a sound plays at its gain', soundLevel(DEFAULT_SOUND, 'draw'), 0.1);
-same('every sound plays at its own gain at the default', Object.keys(SOUND_FILES).map((name) => soundLevel(DEFAULT_SOUND, name)), [0.1, 0.095, 1, 0.047]);
+same('every sound plays at its own gain at the default', Object.keys(SOUND_FILES).map((name) => soundLevel(DEFAULT_SOUND, name)), [0.1, 0.095, 1, 0.047, 0.0115, 0.0162, 0.024]);
 same('a slider at 30% plays at 0.3 for a sound with gain 1', soundLevel({ on: true, volume: 0.3 }, 'tap'), 0.3);
 same('a slider at 0 plays nothing', soundLevel({ on: true, volume: 0 }, 'tap'), 0);
 same('Sound off plays nothing at any slider', soundLevel({ on: false, volume: 1 }, 'yourturn'), 0);

@@ -4,6 +4,8 @@
 // A refresh puts you back at the game you left. Other players' boards are shown beside it, live and read-only (their public
 // zones only: shared/game-sync.mjs readPublic). All database calls live in ../../src/db.js.
 import { mountLookSettings } from '../../src/look-settings.js';
+import { commanderBurst, sortHop, mountEffectSettings } from '../../src/vfx.js';
+import { commanderArrivals } from '../../../shared/effects.mjs';
 import { askConfirm } from '../../src/confirm-box.js';
 import { rejoinTable, watchMembers, watchMeta, watchPresence, watchServerOffset, watchConnection, startPresence, heartbeat, watchActivity, saveGame, loadGame, watchPublic, saveStack, watchStack, savePlaneMove, clearPlaneEntries, watchPlane, setCarry, armCarry, watchCarry, concede, endMatch, leaveTable, takeOverHost } from '../../src/db.js';
 import { startKeepAlive } from '../../src/keep-alive.js';
@@ -459,8 +461,24 @@ function apply(run, message = '', { note = null } = {}) {
   render();
   sync();
   if (made) logMove(before, game, note);
+  if (made && before && game) celebrate(myUid, before.zones, game.zones);
   return made;
 }
+// A commander came from the command zone onto the battlefield: its effect and sound for everyone at the table (src/vfx.js). My own moves are seen here in apply(); another
+// player's are seen when their public branch changes (renderOpponents), by comparing it with the last one this page saw: nothing extra is written, so no rule is needed.
+function cardElement(owner, uid) {
+  if (owner === myUid) return document.querySelector(`#battlefield > .card[data-uid="${uid}"]`);
+  return document.querySelector(`.plane-layer[data-owner="${owner}"] > .card[data-uid="${uid}"]`) // (the Shared view: their cards are on the plane)
+    ?? document.querySelector(`.opponent[data-uid="${owner}"] .card[data-uid="${uid}"]`);
+}
+function celebrate(owner, before, after) {
+  for (const uid of commanderArrivals(before, after)) {
+    const card = after.battlefield.find((each) => each.uid === uid);
+    commanderBurst(cardElement(owner, uid), { color: playerColor(owner), name: card?.n ?? '' });
+  }
+}
+const seenZones = new Map(); // another player's uid -> { match, zones } as last drawn
+const hopHand = () => sortHop([...document.querySelectorAll('#hand > .card')]);
 
 // Shift and a click on a card of the hand adds it to the picked cards or takes it out again; a right-click on a picked card then acts on all of them (openGroupMenu). A click without Shift picks just that card.
 // The picked cards of the battlefield (a rectangle) and of the hand are never mixed. (As on the solo table.)
@@ -888,6 +906,7 @@ async function renderOpponents() {
   $('opponents').style.setProperty('--opp-n', String(Math.max(1, Math.min(others.length, 3)))); // (the Seats table: one area per other player, side by side)
   document.body.dataset.seats = String(Math.min(others.length, 3) + 1); // 2, 3 or 4: the layout of the Seats table
   const panels = [];
+  const arrivals = []; // [uid, zones before, zones now] of players whose public branch changed
   const turnNow = game !== null ? currentTurnInfo() : null; // worked out once for all the panels, not once per player
   for (const [uid, member] of others) {
     const panel = opponentPanel(uid);
@@ -930,6 +949,11 @@ async function renderOpponents() {
     }
     if (viewingOther?.uid === uid) renderViewer(); // their pile is open in the window: show it as it is now
     panels.push(panel.section);
+    if (dealt) { // (only a real game of this match; the first one this page sees is only remembered, so a refresh never replays an old cast)
+      const seen = seenZones.get(uid);
+      if (seen?.match === meta.match) arrivals.push([uid, seen.zones, dealt.zones]);
+      seenZones.set(uid, { match: meta.match, zones: dealt.zones });
+    }
   }
   for (const [uid, panel] of opponents) if (!others.some(([other]) => other === uid)) { opponents.delete(uid); panel.section.remove(); }
   renderMyHead(turnNow);
@@ -937,6 +961,7 @@ async function renderOpponents() {
   renderHistory(); // (everyone's entries come with their public branches)
   layoutSeats();
   if (sharedOn && game) renderPlane(); // (the other players' cards on the Shared view's plane come with their public branches)
+  for (const [uid, before, after] of arrivals) celebrate(uid, before, after); // (after everything is drawn, so the effect is on the card where it now is)
 }
 
 // ---- the size of a battlefield's grid (Kevin, 2026-11-20): it fills its room from the far left to the piles with SQUARE cells, 40 rows (cards one size up from the solo table's 50) and as many columns as
@@ -1363,6 +1388,7 @@ $('pass-turn').addEventListener('click', async () => {
 $('take-back').addEventListener('click', () => { if (game) { const action = takeBackAction(currentTurnInfo()); apply(() => action.run(game), action.message); } });
 $('untap-all').addEventListener('click', () => { if (game) { play('tap'); apply(() => untapAll(game), untapMessage(game)); } });
 mountLookSettings($('look-settings'));
+mountEffectSettings($('look-settings'));
 mountSoundSettings($('sound-settings'));
 const turnClock = mountTurnClock({ element: $('turn-clock'), store, serverOffset: () => serverOffset });
 turnClock.mountSetting($('turn-clock-settings'));
@@ -1826,8 +1852,9 @@ function sortNow() {
   if (sorted.every((card, index) => card.uid === hand[index].uid)) { say('The hand is already in that order.'); return; }
   pins.clear();
   apply(() => { let next = game; sorted.forEach((card, index) => { next = reorderHand(next, card.uid, index); }); return next; }, 'Sorted the hand.');
+  hopHand();
 }
-const handSort = createHandSort({ onSortNow: sortNow, onChange: () => { if (!anySortOn(handSort.sorts())) keepShownOrder(); pins.clear(); if (game) render(); } });
+const handSort = createHandSort({ onSortNow: sortNow, onChange: () => { if (!anySortOn(handSort.sorts())) keepShownOrder(); pins.clear(); if (game) { render(); if (anySortOn(handSort.sorts())) hopHand(); } } });
 handSort.mountButtons(handView.bar);
 handSort.mountOrders($('hand-order-settings'));
 // The menu of the hand: an arrow next to the hand count, or a right-click on the bar under the hand. Mulligan, Shuffle hand into library, Move all to, Discard X at random, Discard hand (shared/hand-menu.mjs).

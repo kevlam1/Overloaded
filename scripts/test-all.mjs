@@ -42,6 +42,7 @@ const suites = [
   { name: 'the Mana icons and their credits', cmd: node, args: ['scripts/test-mana-icons.mjs'] },
   { name: 'the version number from log.md', cmd: node, args: ['scripts/test-version.mjs'] },
   { name: 'sound settings', cmd: node, args: ['scripts/test-sound-settings.mjs'] },
+  { name: 'effects', cmd: node, args: ['scripts/test-effects.mjs'] },
   { name: 'keybinds: which keys, swapping, saving, matching an event', cmd: node, args: ['scripts/test-keybinds.mjs'] },
   { name: 'dealing a hand one card at a time', cmd: node, args: ['scripts/test-deal-sequence.mjs'] },
   { name: 'pinging a card: the record, reading it back, which pings show', cmd: node, args: ['scripts/test-ping.mjs'] },
@@ -111,6 +112,7 @@ if (!quick) {
   suites.push({ name: 'solo table in headless Chrome (needs the card list)', cmd: node, args: ['scripts/check-solo-ui.mjs'] });
   suites.push({ name: 'stack window in headless Chrome (needs the card list)', cmd: node, args: ['scripts/check-stack-ui.mjs'] });
   suites.push({ name: 'history bar and hand selection in headless Chrome (needs the card list)', cmd: node, args: ['scripts/check-history-and-select-ui.mjs'] });
+  suites.push({ name: 'effects in headless Chrome: the commander burst and the hand hop (needs the card list)', cmd: node, args: ['scripts/check-effects-ui.mjs'] });
   suites.push({ name: 'the Settings menu and keybinds in headless Chrome (needs the card list)', cmd: node, args: ['scripts/check-settings-ui.mjs'] });
   suites.push({ name: 'Create token on the solo table in headless Chrome (needs the card list and tokens file)', cmd: node, args: ['scripts/check-token-ui.mjs'] });
   suites.push({ name: 'database rules (local emulator)', cmd: process.platform === 'win32' ? 'npm.cmd' : 'npm', args: ['test'], cwd: 'backend', shell: true });

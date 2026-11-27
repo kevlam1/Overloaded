@@ -3,14 +3,17 @@
 export const SOUND_KEY = 'overloaded.sound';
 export const DEFAULT_SOUND = { on: true, volume: 1 }; // sound is on by default and the slider starts at 100% (Kevin, 2026-11-06)
 // The sounds the pages know. The files are in frontend/public/sfx/ and served at /sfx/NAME.mp3 (credits.md there says where each came from).
-export const SOUND_FILES = { draw: '/sfx/draw.mp3', shuffle: '/sfx/shuffle.mp3', tap: '/sfx/tap.mp3', yourturn: '/sfx/yourturn.mp3' };
+export const SOUND_FILES = { draw: '/sfx/draw.mp3', shuffle: '/sfx/shuffle.mp3', tap: '/sfx/tap.mp3', yourturn: '/sfx/yourturn.mp3',
+  'commander-boom': '/sfx/commander-play-impact-bass-boom.mp3', 'commander-piano': '/sfx/commander-play-piano-hit.mp3', 'commander-smash': '/sfx/commander-play-smash.mp3' };
 // How loud each sound is at a slider of 100% (an audio element's volume, 0 to 1). The files differ a lot in loudness, so each has its own gain, chosen so that all
 // four have the SAME average level, and quiet: about -51.6 dBFS at a slider of 100% (Kevin, 2026-11-06: even them out and lower them all, draw was still loud).
 // Measured in a browser (average level of the whole file, dBFS) on 2026-11-06, after the last file swap (tap 17:42, draw 17:55, yourturn 17:57): draw -31.4, shuffle -31.2, tap -51.6, yourturn -24.9.
 // The gain that gives -51.6 is 10 ^ ((-51.6 - average) / 20): draw 0.10, shuffle 0.095, tap 1, yourturn 0.047. A sound cannot have a gain above 1, so the quietest file
 // (tap) sets the target; a louder tap file would allow a louder set. RE-MEASURE AND RECOMPUTE whenever a sound file is replaced.
 // A short sharp click (draw) can still feel punchier than its average says. Change one number to tune one sound.
-export const SOUND_GAIN = { draw: 0.1, shuffle: 0.095, tap: 1, yourturn: 0.047 };
+// The three commander sounds (Kevin added them 2026-11-26) measured the same way that day: boom -12.8, piano -15.8, smash -19.2 (and the four above measured again: unchanged),
+// so they sit at the same level too: 0.0115, 0.0162, 0.024 (four digits: 0.011 put boom over half a dB off the rest).
+export const SOUND_GAIN = { draw: 0.1, shuffle: 0.095, tap: 1, yourturn: 0.047, 'commander-boom': 0.0115, 'commander-piano': 0.0162, 'commander-smash': 0.024 };
 
 const cleanVolume = (value) => (typeof value === 'number' && Number.isFinite(value) ? Math.round(Math.min(1, Math.max(0, value)) * 100) / 100 : DEFAULT_SOUND.volume);
 

@@ -5772,6 +5772,44 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 - `npm test` 100 of 101 suites at first. The failure was Claude's: the deck page check listed the header links, and the new Build log link was not in it. Updated; the deck check passes 292 of 292.
 - Live: `check-room-live` 41 of 41, `check-lobby-deck-live` 193 of 193, `check-seats-live` 42 of 42.
 
+## 287. Commander effects with anime.js, and a hop when the hand is sorted (2026-11-26)
+
+**What I asked for**
+- Animated effects with anime.js when you play cards or your commander, using the commander sounds I added, with customization. I also asked for KokonutUI in the redesign.
+- Claude asked first, because both are new dependencies. My answers:
+  - yes to anime.js;
+  - "sorts" meant both the sounds and an animated hand sort;
+  - first version: the commander cast, seen by the other players too;
+  - adopt React and Tailwind for KokonutUI, against Claude's advice.
+
+**What changed**
+- **anime.js 4.5.0** (MIT, Julian Garnier) is a dependency now. I checked its license file before it went in. Only the `animate` function is imported.
+- **The commander burst** (`frontend/src/vfx.js`, styles at the end of `src/styles/overlays.css`):
+  - when a commander goes from the command zone to the battlefield: two rings, sparks, a glow the shape of the card, its name, and the card landing a little larger;
+  - in the player's color on the live table;
+  - drawn on its own layer and removed afterwards. It never touches a card's `transform` or a battlefield card's `translate`, because the hand fan, tapping and pile offsets use them.
+- **Every player sees it:** each page compares a player's public zones with the last ones it saw (`commanderArrivals` in `shared/effects.mjs`). Nothing new is written, so no database rule changed. A refresh never replays an old cast.
+- **Sound:** one of my three commander sounds, chosen at random or by name. Claude measured them in Chrome (boom -12.8, piano -15.8, smash -19.2 dBFS) and gave them gains that put them at the same level as the other sounds (`SOUND_GAIN`). The four old sounds measured the same as on 2026-11-06.
+- **The hand sort:** when the hand is sorted, each card hops, one after another from the left.
+- **Settings > General:** "Effects" (on or off) and "Commander sound" (Random, Boom, Piano, Smash, None), kept in this browser.
+- Under reduced motion nothing moves; the commander sound still plays.
+- The three sounds have lines in `frontend/public/sfx/credits.md`. Their source and licence are not recorded, like the others.
+
+**What I checked**
+- `npm test` 103 of 103 suites, with the two new ones: `scripts/test-effects.mjs` (15 checks) and the browser check below.
+- `scripts/check-effects-ui.mjs` (new, 6 checks, real Chrome on the solo table):
+  - the burst and one commander sound on a cast, and nothing left after;
+  - only the sound under reduced motion;
+  - nothing with Effects off;
+  - the hand hop on a sort.
+- `check-lobby-deck-live` 194 of 194, with a new step: Alice casts her commander and Bob's page shows the burst and plays the sound.
+- Screenshot looked at, mid-burst.
+- Claude's mistakes, caught before anything ran:
+  - the sparks would all have flown sideways (the CSS `translate` property moves on the screen, not along the turned spark);
+  - the colour variable was set in a way that does nothing.
+- The first screenshot showed the name cut off at the window's edge for a commander that lands in the top corner. It now stays inside the window and goes under the card at the top.
+- Not checked: the Shared view's plane (the code looks there for the other player's card, but no test casts on it), and how it sounds.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-24, entry 277) Claude told me the tool docks remembered their layout (entries 273 and 276) when the code stored "[object Object]"; the audit for the spec found it.
 - (2026-11-23, entry 273) I said "commit and push after every big change" and meant every big prompt; Claude pushed after each of three changes.

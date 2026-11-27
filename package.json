@@ -16,6 +16,7 @@
     "node": "24.x"
   },
   "dependencies": {
+    "animejs": "4.5.0",
     "firebase": "^13.1.0"
   },
   "devDependencies": {
