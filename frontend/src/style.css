@@ -1719,7 +1719,7 @@ body[data-screen="room"] section#table { padding: 0; border: 0; background: none
 .seat-sep { display: none; }
 .seat-name { font-weight: 700; overflow-wrap: anywhere; }
 .seat-host { font-size: 0; }
-.seat-host::after { content: "Host"; padding: 0.05rem 0.5rem; border-radius: 1rem; background: color-mix(in srgb, #f0b429 28%, transparent); color: var(--text); font-size: 0.7rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+.seat-host::after { content: "Host"; padding: 0.05rem 0.5rem; border-radius: 1rem; background: color-mix(in srgb, var(--gold) 28%, transparent); color: var(--text); font-size: 0.7rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
 .seat-deck { flex-basis: 100%; color: var(--muted); font-size: 0.85rem; }
 .seat .ready-mark { padding: 0.05rem 0.55rem; border-radius: 1rem; background: color-mix(in srgb, var(--ok) 22%, transparent); color: var(--ok); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
 .seat .presence { margin-left: 0; font-size: 0.78rem; }
@@ -1817,7 +1817,7 @@ body[data-screen="room"] section#table { padding: 0; border: 0; background: none
 /* Reset buttons that must be held (Keybinds): the fill shows how long is left. */
 .kb-reset, #kb-reset-all { position: relative; overflow: hidden; }
 .kb-reset::after, #kb-reset-all::after { content: ''; position: absolute; inset: 0; background: color-mix(in srgb, var(--accent, #6aa0ff) 45%, transparent); transform: scaleX(0); transform-origin: left; transition: transform 0s; pointer-events: none; }
-.kb-reset[data-holding="1"]::after, #kb-reset-all[data-holding="1"]::after { transform: scaleX(1); transition: transform 2s linear; }
+.kb-reset[data-holding="1"]::after, #kb-reset-all[data-holding="1"]::after { transform: scaleX(1); transition: transform 1s linear; /* (HOLD_MS in src/keybind-settings.js: change both together) */ }
 .kb-reset > *, #kb-reset-all > * { position: relative; z-index: 1; }
 .kb-section-title { margin-top: 0.4rem; }
 @media (prefers-reduced-motion: reduce) { .kb-reset[data-holding="1"]::after, #kb-reset-all[data-holding="1"]::after { transition: none; } }
@@ -1871,7 +1871,7 @@ body[data-screen] .segmented button:not(.secondary) { box-shadow: none; border-r
 .seat.mine { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 .seat[data-ready="1"] { border-color: color-mix(in srgb, var(--ok) 75%, var(--line)); }
 .seat[data-ready="1"]::before { background: var(--ok); color: #0c1a12; }
-.seat .seat-host { position: absolute; top: 0.75rem; right: 0.75rem; z-index: 3; padding: 0.1rem 0.6rem; border-radius: 1rem; background: color-mix(in srgb, #f0b429 80%, #000); color: #1b1300; font-size: 0.68rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
+.seat .seat-host { position: absolute; top: 0.75rem; right: 0.75rem; z-index: 3; padding: 0.1rem 0.6rem; border-radius: 1rem; background: color-mix(in srgb, var(--gold) 80%, #000); color: #1b1300; font-size: 0.68rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
 .seat .seat-host::after { content: none; }
 .seat .bot-button { position: absolute; top: 0.6rem; right: 0.6rem; z-index: 3; margin: 0; min-height: 1.9rem; padding: 0 0.65rem; font-size: 0.78rem; }
 .seat-body { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }

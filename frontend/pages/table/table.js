@@ -5,6 +5,7 @@
 // zones only: shared/game-sync.mjs readPublic). All database calls live in ../../src/db.js.
 import { mountLookSettings } from '../../src/look-settings.js';
 import { showClosedTable } from '../../src/closed-table.js';
+import { setMyColor } from '../../src/accent.js';
 import { commanderBurst, sortHop, mountEffectSettings } from '../../src/vfx.js';
 import { commanderArrivals } from '../../../shared/effects.mjs';
 import { askConfirm } from '../../src/confirm-box.js';
@@ -1292,14 +1293,14 @@ async function sendPing(card, zone) {
     await saveGame(tableCode, { [`public/${myUid}/ping`]: record });
     say(`Pinged ${card.n}.`);
   } catch (error) {
-    say(`The ping could not be sent to the other players (${friendlyMessage(error)}).`, true);
+    say(`Ping not sent (${friendlyMessage(error)}).`, true);
   }
 }
 
 // ---- starting the page ----
 async function start() {
   tableCode = tableCodeFromPath(location.pathname);
-  if (!tableCode) { say('That is not a table address. Go back to the lobby and join with a code.', true); return; }
+  if (!tableCode) { say('Not a table address.', true); return; }
   $('code').textContent = tableCode;
   let mine;
   try {
@@ -1328,6 +1329,8 @@ async function start() {
   watchMembers(tableCode, (value, error) => {
     if (!value) { members = {}; renderPlayers(); if (error) say('Lost sight of the table. It may have closed.', true); return; }
     members = value;
+    const mine = tableColors(members)[myUid];
+    if (mine) setMyColor(mine); // (your color is the accent on this page and the others: src/accent.js)
     renderPlayers();
     renderCounters();
     renderTurn();
@@ -1494,7 +1497,7 @@ const toolDocks = createToolDocks({
 playersPanel = mountPlayersPanel({ root: $('players-panel'), store, room: columnRoom, docking: toolDocks.dockingFor('players'), onFocus: (uid) => { if (sharedOn) showHomeOf(uid ?? myUid); else focusSeat(uid ?? myUid); } });
 floatingBars.push(playersPanel);
 // The Players section of the rail (the redesign, Kevin 2026-11-24): a seat card per player in turn order from you, with their life, commanders and tax, cards held,
-// counters and a summary of their battlefield. Sidebar view: a click on a card shows that board large; your card appears only while someone else is large (the way back).
+// counters and a summary of their battlefield. Sidebar view: a click on a card shows that board large; your own card is always there (Kevin, 2026-11-26), marked while your board is large.
 function renderPlayersPanel() {
   if (!playersPanel || $('players-panel').hidden || !myUid) return;
   const turnNow = game !== null ? currentTurnInfo() : null;
@@ -1502,7 +1505,7 @@ function renderPlayersPanel() {
   const sidebar = document.body.dataset.view === 'sidebar';
   const jump = sidebar || sharedOn; // (a click on a seat card: Sidebar shows that area large, Shared glides the camera to it)
   const rows = [];
-  if (members[myUid] && (sharedOn || !sidebar || focusUid !== null)) rows.push({ uid: myUid, seat: members[myUid].seat, color: playerColor(myUid), mine: true, name: members[myUid].name, life: game?.life, active: turnNow?.uid === myUid, next: turnNow?.uid !== myUid && members[myUid].seat === nextSeat, clickable: jump, focused: false,
+  if (members[myUid]) rows.push({ uid: myUid, seat: members[myUid].seat, color: playerColor(myUid), mine: true, name: members[myUid].name, life: game?.life, active: turnNow?.uid === myUid, next: turnNow?.uid !== myUid && members[myUid].seat === nextSeat, clickable: jump, focused: sidebar && !sharedOn && focusUid === null, chips: game ? chipEntries(game.pc, game.cd, commanderDamageSeatsFor(members, game.cd, meta?.format)) : [],
     commanders: game ? taxEntries(game).map((entry) => ({ name: entry.name, tax: entry.tax })) : [] });
   for (const uid of othersInOrder()) {
     const member = members[uid]; const view = opponents.get(uid)?.view;
@@ -1526,7 +1529,7 @@ const stackWindow = mountStackWindow({
   realCardSelector: '.battlefield .card[data-uid]',
   targetOf: (element) => ({ card: element.dataset.uid, owner: element.closest('.opponent')?.dataset.uid ?? myUid }),
   realCard: (target) => (!target.owner || target.owner === myUid ? $('battlefield') : opponents.get(target.owner)?.board)?.querySelector(`.card[data-uid="${CSS.escape(target.card)}"]`) ?? null,
-  onChange: (stack) => { if (tableCode && myUid && meta) saveStack(tableCode, packStack(stack, myUid, meta.match)).catch((error) => say(`The stack could not be saved (${friendlyMessage(error)}).`, true)); },
+  onChange: (stack) => { if (tableCode && myUid && meta) saveStack(tableCode, packStack(stack, myUid, meta.match)).catch((error) => say(`Stack not saved (${friendlyMessage(error)}).`, true)); },
 });
 stackWindowRef = stackWindow;
 function showStoredStack() { stackWindow.replace(readStack(storedStack, lookup ?? (() => null), meta?.match ?? null)); }
@@ -1669,7 +1672,7 @@ async function openTokens(returnFocus, kind = 'token') {
   if (!game) return;
   say(`Loading the ${kind}s...`);
   const data = await loadTokens();
-  if (!data) { say('The tokens could not be loaded. Check your connection and try again.', true); return; }
+  if (!data) { say('Tokens didn’t load. Check your connection.', true); return; }
   say('');
   const deckNames = Object.values(game.zones).flat().filter((card) => !card.tok).map((card) => card.n);
   openTokenPicker({ data, deckNames, kind, returnFocus, onCreate: ({ token, printing }) => {
@@ -1851,7 +1854,7 @@ function reorderInHand({ uid, x, picture }) {
 function sortNow() {
   if (!game) return;
   const sorts = handSort.buttons();
-  if (!anySortOn(sorts)) { say('Press Type, Color, Cost or A-Z first.'); return; }
+  if (!anySortOn(sorts)) { say('Pick a sort first.'); return; }
   const hand = game.zones.hand;
   const sorted = sortHand(hand, sorts, { typeOrder: handSort.typeOrder(), colorOrder: handSort.colorOrder(), landOrder: handSort.landOrder(), info: (card) => lookup?.(card) ?? null });
   if (sorted.every((card, index) => card.uid === hand[index].uid)) { say('The hand is already in that order.'); return; }

@@ -2,6 +2,7 @@
 // Graph paper: one mark on every cell, so a card that sits off the card-sized blocks and the cut edge of a board never look out of place). Kept in this browser.
 // applyLook() puts them on the page (html[data-theme], body[data-board-pattern]); mountLookSettings(host) draws the two choices in Settings.
 import { makeSafeStore } from './safe-store.js';
+import { applyAccent } from './accent.js';
 
 const store = makeSafeStore();
 export const THEME_KEY = 'overloaded.theme';
@@ -17,6 +18,7 @@ export function applyLook() {
   const pattern = readPattern(store.get(PATTERN_KEY));
   document.documentElement.dataset.theme = theme;
   if (document.body) document.body.dataset.boardPattern = pattern;
+  applyAccent(); // (your color as the accent; it depends on the theme)
   return { theme, pattern };
 }
 

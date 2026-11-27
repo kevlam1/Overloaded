@@ -95,8 +95,8 @@ try {
   const holdBtn = async (selector, ms) => { const [x, y] = await ev("(() => { document.querySelector('" + selector + "').scrollIntoView({ block: 'center' }); const b = document.querySelector('" + selector + "').getBoundingClientRect(); return [b.x + b.width / 2, b.y + b.height / 2]; })()"); await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y }); await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', clickCount: 1 }); await sleep(ms); await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', clickCount: 1 }); await sleep(150); };
   await holdBtn('#kb-reset-all', 500);
   check('a short press on Reset all does nothing', (await keyOf('settings')) === 'G');
-  await holdBtn('#kb-reset-all', 2300);
-  check('Reset all keybinds brings every default key back after a 2 second hold', (await keyOf('draw')) === 'D' && (await keyOf('settings')) === 'Tab' && (await keyOf('tap', 1)) === 'Q', await keyOf('draw') + await keyOf('settings') + await keyOf('tap', 1));
+  await holdBtn('#kb-reset-all', 1300); // (1 second since 2026-11-26: a 1.3 s hold would not have been enough before)
+  check('Reset all keybinds brings every default key back after a 1 second hold', (await keyOf('draw')) === 'D' && (await keyOf('settings')) === 'Tab' && (await keyOf('tap', 1)) === 'Q', await keyOf('draw') + await keyOf('settings') + await keyOf('tap', 1));
 
   await choose('mulligan', 'm');
   await choose('shuffle', 'h');

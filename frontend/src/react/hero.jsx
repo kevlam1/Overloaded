@@ -1,15 +1,16 @@
 // The first React island (Kevin, 2026-11-26: React and Tailwind as islands so KokonutUI components can be used). Two KokonutUI components on the home page's hero,
 // drawn into their own empty elements, so the page's own markup, ids and script (pages/lobby/lobby.js) are untouched:
 // - DotField behind the hero: a field of dots that moves away from the pointer (the battlefields use the same dots);
-// - CardFlip beside it: a card that starts face down (the site's own logo, NOT the Magic card back: the rules allow that picture only for face-down cards in play)
-//   and turns over to Krenko. Krenko's picture is fetched from Scryfall only once the visitor shows interest (the pointer over the card, focus, or a flip), because
-//   loading the home page must contact no other site (scripts/check-lobby-ui.mjs).
+// - CardFlip beside it: a random commander from the top 1,000 (/data/commanders.json, shared/top-commanders.mjs) face up, which turns over to the real card back
+//   (Kevin, 2026-11-26: he asked for both, so the home page now loads a Scryfall picture on arrival, and its check allows that one host). Until the list
+//   arrives, or if it cannot load, the card shows Krenko, the sample deck's commander.
 // Both stop moving under prefers-reduced-motion (the components check it themselves). Pictures come from Scryfall like every card on the site.
-import { StrictMode, useState } from 'react';
+import { StrictMode, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import DotField from '@/components/kokonutui/dot-field';
 import CardFlip from '@/components/kokonutui/card-flip';
-import { imageUrl } from '../../../shared/card-image.mjs';
+import { imageUrl, cardBackUrl } from '../../../shared/card-image.mjs';
+import { pickCommander } from '../../../shared/top-commanders.mjs';
 
 const KRENKO = '824b2d73-2151-4e5e-9f05-8f63e2bdcaa9'; // Krenko, Mob Boss: the commander of the sample deck (shared/sample-decks.mjs)
 const picture = (src, alt) => <img src={src} alt={alt} draggable={false} className="block h-full w-full rounded-[4.8%/3.4%] object-cover" />;
@@ -23,22 +24,22 @@ if (dots) {
   );
 }
 
-const logoFace = <div className="hero-card-back"><img src="/brand/logo.png" alt="" width="432" height="96" draggable={false} /></div>;
-
 function HeroCard() {
-  const [wanted, setWanted] = useState(false); // (Krenko's picture is asked for only from here on)
-  const want = () => setWanted(true);
+  const [commander, setCommander] = useState(null); // [id, name] once the list has arrived
+  useEffect(() => {
+    let live = true;
+    fetch('/data/commanders.json').then((response) => (response.ok ? response.json() : null)).then((rows) => { if (live) setCommander(pickCommander(rows)); }).catch(() => {});
+    return () => { live = false; };
+  }, []);
+  const [id, name] = commander ?? [KRENKO, 'Krenko, Mob Boss'];
   return (
-    <div onPointerEnter={want} onFocus={want}>
-      <CardFlip
-        label="A face-down card. Drag or press to turn it over."
-        className="!w-[170px]"
-        faceClassName="rounded-[4.8%/3.4%] overflow-hidden shadow-2xl"
-        front={logoFace}
-        back={wanted ? picture(imageUrl(KRENKO, 'normal'), 'Krenko, Mob Boss') : logoFace}
-        onFlippedChange={want}
-      />
-    </div>
+    <CardFlip
+      label={`${name}. Drag or press to turn it over.`}
+      className="!w-[170px]"
+      faceClassName="rounded-[4.8%/3.4%] overflow-hidden shadow-2xl"
+      front={picture(imageUrl(id, 'normal'), name)}
+      back={picture(cardBackUrl('normal'), 'The back of a card')}
+    />
   );
 }
 

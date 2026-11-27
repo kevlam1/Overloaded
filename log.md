@@ -5978,6 +5978,70 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
   - Its first reading of the rules said a wrong code could be deleted like an expired table; the emulator said no, so the wording changed.
   - One edit left a stray brace in `lobby.js`, which broke the whole lobby until the checks caught it.
 
+## 294. My list from the preview, part 2: the home card, spacing, shorter texts, my color everywhere (2026-11-26)
+
+**What I asked for** (the rest of my list from the preview; the table layout items are the next entry)
+- The home page's card should show its front, a random commander from the top 1000 or so, with the real card back.
+- The home and lobby pages felt cramped, and the footer was weird everywhere.
+- Fewer verbose texts.
+- My own seat card in the lobby should show the printing my deck uses.
+- My color should be the color of everything, not gold.
+- In Sidebar view my own name should always be in Players.
+- Counters for everyone in the Players corner, a skull for poison, the counters arrow aligned.
+- No lighting up of the battlefield while dragging, no names and life over the battlefields.
+- Holding a keybind reset for 1 second instead of 2.
+
+**What changed**
+- **Top commanders:**
+  - Scryfall has no list of top commanders. Its field `edhrec_rank` ranks how often a card is played in any Commander deck (Claude printed it raw first: Krenko is 1089).
+  - The card list build marks the best 1,000 legendary creatures legal as commanders with `cr` (list format 15, so Vercel rebuilds the list once).
+  - Publishing writes their ids and names to `/data/commanders.json` (67 KB, 37.5 KB compressed). Logic in `shared/top-commanders.mjs`.
+  - The home card picks one at random and shows it face up, with the real card back behind it.
+  - So the home page now loads two pictures from Scryfall on arrival, and its check allows exactly those two hosts.
+- **Spacing:**
+  - home: room under the hero, panels right under "Play with friends";
+  - the lobby: room between the table's settings, the seats, the color and the deck;
+  - an empty message line takes no room.
+- **The footer** is one centered column on every page. The fan content notice keeps its exact words.
+- **Shorter texts:**
+  - home: "The format decides which decks you can bring.", "Or just open a friend's link.";
+  - the take-over note;
+  - the table's hidden-hand note;
+  - connection errors, "Ping not sent", "Stack not saved", "Pick a sort first.", "Pinned until the sorts change.", "Not saved yet: fix the problems first."
+- **My seat card's art** is the printing my deck names for its commander. Other players' decks are not shared, so their seats keep the default art.
+- **My color is the accent everywhere** (`frontend/src/accent.js`, `accentFor` in `shared/player-colors.mjs`):
+  - the lobby and the table remember it in this browser, and every page shows it;
+  - on the light theme it is darkened until it shows on white (3:1);
+  - the text on it is dark or light, whichever reads better (4.5:1 or more for all ten colors);
+  - the Host pill follows it, and the Over limit warning stays amber.
+- **Players corner:** my own row is always there, also in Sidebar view while my board is large (then it is marked), and it shows my counters like everyone else's.
+- **Poison** is a skull, drawn for the site (eyes, nose and teeth cut out).
+- **The counters arrow** is a circle like − and +, with its chevron centered.
+- **The battlefield no longer lights up** while a card is carried.
+- **The names and life over each battlefield are hidden.** They stay for screen readers, which use them to name each area.
+- **Keybind reset:** held 1 second (`HOLD_MS` and the CSS fill together).
+
+**What I checked**
+- **Data:** the marked list against the raw data (the first four commanders match Scryfall's ranks exactly; 1,000 marked); `test-top-commanders` (10, new), `test-card-list` 246, `test-card-list-build` 191.
+- **Colors:** `test-player-colors` (10): readable text on every accent in both themes, every light-theme accent at 3:1 on white.
+- `check-settings-ui` 18: a 1.3-second hold resets, which was not enough before.
+- **Live checks:**
+  - `check-lobby-deck-live` 195 of 195, with a new check that Bob's own seat shows his deck's Ezuri printing (it first failed: the seats were drawn before the page knew which deck was chosen, and now redraw);
+  - `check-room-live` 43 of 43, three times;
+  - `check-seats-live` 42 of 42.
+- `npm test` 104 of 104.
+- **Screenshots looked at:**
+  - home and the lobby at 1875 by 954;
+  - Grid and Sidebar tables;
+  - the counters arrow at 4x;
+  - the skull.
+- Claude's mistakes:
+  - Its first spacing fix padded the hero, but "Play with friends" is inside the hero, so the gap grew.
+  - An apostrophe broke two test files.
+  - Edits made while `npm test` ran made two checks fail; they passed alone.
+  - One room check read the seats before they were drawn: a race, not a bug, and the check now waits. It is probably also the one unexplained failure in entry 288.
+- **Not checked:** how the colors look on the solo table and deck page in the light theme (only the numbers are tested).
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-24, entry 277) Claude told me the tool docks remembered their layout (entries 273 and 276) when the code stored "[object Object]"; the audit for the spec found it.
 - (2026-11-23, entry 273) I said "commit and push after every big change" and meant every big prompt; Claude pushed after each of three changes.

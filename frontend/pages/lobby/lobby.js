@@ -12,6 +12,7 @@ import { imageUrl } from '../../../shared/card-image.mjs';
 import { loadCardList } from '../../src/card-list.js';
 import { mountSiteHeader } from '../../src/site-header.js';
 import { showClosedTable } from '../../src/closed-table.js';
+import { setMyColor } from '../../src/accent.js';
 import { makeSafeStore } from '../../src/safe-store.js';
 import { normalizeCode, isValidCode } from '../../../shared/table-code.mjs';
 import { cleanPlayerName } from '../../../shared/player-name.mjs';
@@ -204,8 +205,16 @@ function ensureCards() {
   loadCardList().then((cards) => { cardsByName = new Map(cards.map((card) => [card.n, card])); renderPlayers(); drawTiles(); if ($('deck-dialog').open) drawDialogTiles(); }).catch(() => { loadingCards = false; /* seats stay without art; the next table or refresh tries again */ });
 }
 // The art of the first commander a player named: the whole text first (one name may hold an ampersand), then each name split at " & ". Only our own card list ever gives the picture id.
-function seatArt(member) {
+// Your OWN seat uses the printing your saved deck names for its commander (Kevin, 2026-11-26), from this browser's deck library; other players' decks are
+// not shared, so their seats show the commander's default art.
+function myCommanderArt() {
+  const entry = chosenDeckId ? readMyLibrary().decks.find((candidate) => candidate.id === chosenDeckId) : null;
+  const commander = entry?.deck.cards.find((card) => card.section === 'commander');
+  return commander?.p ? imageUrl(commander.p, 'art_crop') : null;
+}
+function seatArt(member, uid = null) {
   const text = seatCommander(member);
+  if (text && uid !== null && uid === myUid) { const mine = myCommanderArt(); if (mine) return mine; }
   if (!text || !cardsByName) return null;
   for (const name of [text, ...text.split(' & ')]) { const card = cardsByName.get(name); if (card) return imageUrl(card.i, 'art_crop'); }
   return null;
@@ -281,6 +290,7 @@ function renderColors() {
   if (!box) return;
   const shown = tableColors(currentMembers);
   const taken = takenColors(currentMembers, myUid);
+  if (shown[myUid]) setMyColor(shown[myUid]); // (your color becomes the site's accent: src/accent.js)
   if (box.children.length !== PLAYER_COLORS.length) {
     box.replaceChildren(...PLAYER_COLORS.map((color) => {
       const button = document.createElement('button');
@@ -319,7 +329,7 @@ function renderPlayers() {
     item.dataset.uid = uid;
     item.dataset.seat = String(member.seat);
     item.style.setProperty('--player-color', colorValue(tableColors(currentMembers)[uid])); // (the number's circle in their color)
-    const art = seatArt(member);
+    const art = seatArt(member, uid);
     if (art) { item.classList.add('has-art'); item.style.setProperty('--seat-art', `url("${art}")`); }
     item.append(piece('span', 'seat-label', `Seat ${member.seat}: `));
     if (uid === currentHost) item.append(piece('span', 'seat-host', 'Host'));
@@ -539,6 +549,7 @@ async function bringDeck(id) {
   const { changed } = await setDeck(currentCode, deckFieldsOf(entry));
   chosenDeckId = id;
   store.set(TABLE_DECK_KEY, JSON.stringify({ code: currentCode, id }));
+  renderPlayers(); // (the seats were drawn when the database echoed the deck, before this page knew which deck it was: your seat's art comes from its printing)
   return { entry, changed };
 }
 
@@ -815,7 +826,7 @@ async function startStart() {
       store.remove(TABLE_KEY);
     }
   } catch {
-    say('Could not reach the server to check your last table. Check your connection.', true);
+    say('Can’t reach the server. Check your connection.', true);
   }
 }
 
@@ -859,7 +870,7 @@ async function startRoom(code) {
   try {
     table = await rejoinTable(code);
   } catch {
-    say('Could not reach the server. Check your connection and reload.', true);
+    say('Can’t reach the server. Check your connection and reload.', true);
     return;
   }
   if (table) { say(`Back at table ${table.code}.`); show(table); return; }

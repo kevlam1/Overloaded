@@ -209,7 +209,7 @@ export function createHandSort({ onChange = () => {}, onSortNow = () => {} } = {
       sortNow.hidden = enabled; // (while the hand is kept sorted there is nothing to press)
       const anyChosen = SORT_KEYS.some((key) => sortState[key] !== 0);
       sortNow.disabled = !anyChosen;
-      sortNow.title = anyChosen ? 'Sort the hand once with the buttons as they are now.' : 'Press Type, Color, Cost or A-Z first, to say how to sort.';
+      sortNow.title = anyChosen ? 'Sort the hand once.' : 'Pick a sort first.';
     }
     for (const [key, button] of buttons) {
       const value = sortState[key];

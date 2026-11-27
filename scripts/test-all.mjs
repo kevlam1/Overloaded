@@ -43,6 +43,7 @@ const suites = [
   { name: 'the version number from log.md', cmd: node, args: ['scripts/test-version.mjs'] },
   { name: 'sound settings', cmd: node, args: ['scripts/test-sound-settings.mjs'] },
   { name: 'effects', cmd: node, args: ['scripts/test-effects.mjs'] },
+  { name: 'top commanders for the home page card', cmd: node, args: ['scripts/test-top-commanders.mjs'] },
   { name: 'keybinds: which keys, swapping, saving, matching an event', cmd: node, args: ['scripts/test-keybinds.mjs'] },
   { name: 'dealing a hand one card at a time', cmd: node, args: ['scripts/test-deal-sequence.mjs'] },
   { name: 'pinging a card: the record, reading it back, which pings show', cmd: node, args: ['scripts/test-ping.mjs'] },

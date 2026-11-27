@@ -636,7 +636,7 @@ function commit(next, message) {
   library = next;
   if (!writeLibrary()) {
     library = before;
-    say('Your browser would not save that change. Its storage may be full or switched off.', true);
+    say('Your browser would not save that change: storage is full or off.', true);
     return false;
   }
   renderSaved();
@@ -765,7 +765,7 @@ export function mountDeckImporter({ root: container, sampleId, autoPlay = false,
   $('edit-list').addEventListener('click', () => { say(''); showScreen('paste'); });
   $('deck-play-solo')?.addEventListener('click', () => {
     const entry = library.decks.find((candidate) => candidate.id === currentId);
-    if (!entry) { say('This deck is not saved yet: fix what needs attention in the list first.', true); return; }
+    if (!entry) { say('Not saved yet: fix the problems first.', true); return; }
     if (commit(selectDeck(library, entry.id), `"${entry.deck.name}" is now the deck for the solo table.`)) location.assign('/solo');
   });
   $('deck-text').addEventListener('keydown', (event) => { if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) runCheck(); });

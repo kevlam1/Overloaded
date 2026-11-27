@@ -297,7 +297,7 @@ function select(uid, event = null) {
     multiZone = 'hand';
     if (multi.size === 0 && selected && selected !== uid && inHand(selected)) multi.add(selected);
     if (multi.has(uid)) multi.delete(uid); else multi.add(uid);
-    if (multi.size <= 1) { selected = multi.size === 1 ? [...multi][0] : null; multi.clear(); say(''); } else { selected = multi.has(uid) ? uid : [...multi].at(-1); say(`${multi.size} cards picked. Right-click one of them for what to do with all of them.`); }
+    if (multi.size <= 1) { selected = multi.size === 1 ? [...multi][0] : null; multi.clear(); say(''); } else { selected = multi.has(uid) ? uid : [...multi].at(-1); say(`${multi.size} cards picked. Right-click one for all of them.`); }
     modifyOpen = false;
     render();
     return;
@@ -711,7 +711,7 @@ async function openTokens(returnFocus, kind = 'token') {
   if (!game) return;
   say(`Loading the ${kind}s...`);
   const data = await loadTokens();
-  if (!data) { say('The tokens could not be loaded. Check your connection and try again.', true); return; }
+  if (!data) { say('Tokens didn’t load. Check your connection.', true); return; }
   say('');
   const deckNames = Object.values(game.zones).flat().filter((card) => !card.tok).map((card) => card.n);
   openTokenPicker({ data, deckNames, kind, returnFocus, onCreate: ({ token, printing }) => {
@@ -998,7 +998,7 @@ const handView = mountHand({ container: $('hand'), restHidden, costOf: (uid) => 
 function reorderInHand({ uid, x, picture }) {
   if (!game || !game.zones.hand.some((c) => c.uid === uid)) return;
   const to = handView.holeFor(uid, x); // the place it was last shown over
-  if (anySortOn(handSort.sorts())) { handView.noteDrop(uid, picture); pins.set(uid, to); render(); say('That card stays where you put it until you change the sorts.'); return; } // (in a sorted hand a card moved by hand is pinned there)
+  if (anySortOn(handSort.sorts())) { handView.noteDrop(uid, picture); pins.set(uid, to); render(); say('Pinned until the sorts change.'); return; } // (in a sorted hand a card moved by hand is pinned there)
   handView.noteDrop(uid, picture); // the card starts from where its picture was let go and eases into its place
   const next = reorderHand(game, uid, to);
   if (next === game) { handView.arrange(); return; }
@@ -1009,7 +1009,7 @@ function reorderInHand({ uid, x, picture }) {
 function sortNow() {
   if (!game) return;
   const sorts = handSort.buttons();
-  if (!anySortOn(sorts)) { say('Press Type, Color, Cost or A-Z first, to say how to sort.'); return; }
+  if (!anySortOn(sorts)) { say('Pick a sort first.'); return; }
   const hand = game.zones.hand;
   const sorted = sortHand(hand, sorts, { typeOrder: handSort.typeOrder(), colorOrder: handSort.colorOrder(), landOrder: handSort.landOrder(), info: (card) => lookup?.(card) ?? null });
   if (sorted.every((card, index) => card.uid === hand[index].uid)) { say('The hand is already in that order.'); return; }

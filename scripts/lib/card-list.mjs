@@ -3,6 +3,7 @@
 // cards, sorted by name so unchanged data gives identical bytes). A card in the list is { n, t, m, k, i }:
 // name, type line, mana cost, keywords, and the Scryfall id of the default printing, the shape shared/card-match.mjs expects.
 // A card that was printed under another title (Scryfall's flavor_name) also has `f`: the list of those titles.
+import { TOP_COMMANDERS, rankedCommander } from '../../shared/top-commanders.mjs';
 import { createReadStream } from 'node:fs';
 import { createGunzip } from 'node:zlib';
 import { createInterface } from 'node:readline';
@@ -182,11 +183,21 @@ const byNameThenId = (a, b) => (a.n < b.n ? -1 : a.n > b.n ? 1 : a.i < b.i ? -1 
 // oracleRecords: the Oracle Cards records (any order). printings: a PrintingSummary. Returns the sorted list.
 export function buildList(oracleRecords, printings) {
   const list = [];
+  const ranked = []; // [edhrec_rank, entry] of the commander candidates (shared/top-commanders.mjs)
   for (const record of oracleRecords) {
     if (!isDeckCandidate(record) || printings.isOnlineOnly(oracleIdOf(record))) continue;
-    list.push(toEntry(record, printings.alternateNames(oracleIdOf(record)), printings.alternateIds(oracleIdOf(record))));
+    const entry = toEntry(record, printings.alternateNames(oracleIdOf(record)), printings.alternateIds(oracleIdOf(record)));
+    list.push(entry);
+    if (rankedCommander(record)) ranked.push([record.edhrec_rank, entry]);
   }
+  markTopCommanders(ranked);
   return list.sort(byNameThenId);
+}
+
+// `cr` (list format 15): the best TOP_COMMANDERS legendary creatures by Scryfall's edhrec_rank, 1 the most played (ties by name, so the same data is the same bytes).
+// ranked: [edhrec_rank, entry] of every commander candidate (shared/top-commanders.mjs rankedCommander). Used by buildList and by the build from the bulk files.
+export function markTopCommanders(ranked) {
+  ranked.sort((a, b) => a[0] - b[0] || byNameThenId(a[1], b[1])).slice(0, TOP_COMMANDERS).forEach(([, entry], index) => { entry.cr = index + 1; });
 }
 
 // The exact bytes served. No spaces, so the same list is always the same bytes (and gets the same ETag).
@@ -250,6 +261,8 @@ export function validateList(list, { minCards = MIN_CARDS, previousCount = null,
     // `ci` and `gc` (format 9): the color identity and the Game Changers mark. A list in format 8 has neither, and is still fine.
     if ('ci' in e && !(typeof e.ci === 'string' && /^W?U?B?R?G?$/.test(e.ci) && e.ci.length > 0)) { badEntries++; continue; }
     if ('gc' in e && e.gc !== 1) { badEntries++; continue; }
+    // `cr` (format 15): a top commander's rank, a whole number from 1 to TOP_COMMANDERS. A list in format 14 has none, and is still fine.
+    if ('cr' in e && !(Number.isInteger(e.cr) && e.cr >= 1 && e.cr <= TOP_COMMANDERS)) { badEntries++; continue; }
     // `md` (format 6): a modal card, always together with `b`. A list in format 5 has none, and is still fine.
     if ('md' in e && !(e.md === 1 && e.b === 1)) { badEntries++; continue; }
     if ('f' in e && !(Array.isArray(e.f) && e.f.length > 0 && e.f.every((title) => typeof title === 'string' && title.length > 0))) { badEntries++; continue; }
@@ -291,16 +304,20 @@ export async function buildFromFiles(oraclePath, defaultPath, rulingsPath = null
   const list = [];
   const names = new Map(); // the oracle id of each kept card to its name in the list, for the printing files
   const rulesByName = new Map(); // the rules of each kept card (shared/card-rules.mjs), for the details window
+  const ranked = []; // the commander candidates, for `cr` (markTopCommanders)
   for await (const record of readJsonLines(oraclePath)) {
     counts.oracleRecords++;
     if (!isDeckCandidate(record)) { counts.notCandidates++; continue; }
     const id = oracleIdOf(record);
     if (printings.isOnlineOnly(id)) { counts.onlineOnly++; continue; }
     if (!printings.seen.has(id)) counts.noPrintingsKept++;
-    list.push(toEntry(record, printings.alternateNames(id), printings.alternateIds(id)));
+    const entry = toEntry(record, printings.alternateNames(id), printings.alternateIds(id));
+    list.push(entry);
+    if (rankedCommander(record)) ranked.push([record.edhrec_rank, entry]);
     names.set(id, record.name);
     rulesByName.set(record.name, entryFromRecord(record));
   }
+  markTopCommanders(ranked);
   list.sort(byNameThenId);
   counts.kept = list.length;
   counts.withAlternateNames = list.filter((entry) => entry.f).length;

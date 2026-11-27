@@ -3,7 +3,7 @@
 import { SECTIONS, SLOTS, actionById, actionsFor, bindKey, clearKey, resetAction, resetAll, isDefault, keyLabel, normalizeKey } from '../../shared/keybinds.mjs';
 import { askConfirm } from './confirm-box.js';
 
-export const HOLD_MS = 2000; // a Reset button works only when it is held this long
+export const HOLD_MS = 1000; // a Reset button works only when it is held this long (2 seconds until 2026-11-26; Kevin: 1 second)
 
 
 const make = (tag, className, text) => { const element = document.createElement(tag); if (className) element.className = className; if (text !== undefined) element.textContent = text; return element; };
@@ -137,8 +137,8 @@ export function mountKeybindSettings(host, { keybinds, page = 'solo' }) {
         reset.type = 'button';
         reset.dataset.action = action.id;
         reset.disabled = isDefault(keybinds.binds(), action.id);
-        reset.title = reset.disabled ? 'Already the default keys' : 'Hold 2 seconds: back to the default keys';
-        reset.setAttribute('aria-label', `Reset ${action.label} to its default keys (hold 2 seconds)`);
+        reset.title = reset.disabled ? 'Already the default keys' : 'Hold 1 second: back to the default keys';
+        reset.setAttribute('aria-label', `Reset ${action.label} to its default keys (hold 1 second)`);
         reset.append(resetIcon());
         holdToConfirm(reset, () => { keybinds.set(resetAction(keybinds.binds(), action.id)); say(`${action.label} is back to its default keys.`); draw(); });
         row.append(name, keys, reset);
@@ -147,13 +147,13 @@ export function mountKeybindSettings(host, { keybinds, page = 'solo' }) {
       section.append(list);
       return section;
     }).filter(Boolean);
-    const intro = make('p', 'kb-intro', 'Click a key, then press the one you want. Backspace empties a key, Escape cancels. Hold a reset button for 2 seconds.');
+    const intro = make('p', 'kb-intro', 'Click a key, then press the one you want. Backspace empties a key, Escape cancels. Hold a reset button for 1 second.');
     const foot = make('div', 'kb-foot');
     const all = make('button', 'secondary', 'Reset all keybinds (hold)');
     all.type = 'button';
     all.id = 'kb-reset-all';
     all.disabled = ACTIONS.every((action) => isDefault(keybinds.binds(), action.id));
-    all.title = 'Hold 2 seconds';
+    all.title = 'Hold 1 second';
     holdToConfirm(all, () => { keybinds.set(resetAll()); say('Every key is back to its default.'); draw(); });
     foot.append(all, status);
     host.replaceChildren(intro, ...groups, foot);

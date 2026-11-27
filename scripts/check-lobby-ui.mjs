@@ -73,8 +73,9 @@ try {
 
   // ---- loading: nothing from anyone else, and nothing sent to the database yet ----
   const loadRequests = browser.events.filter((e) => e.method === 'Network.requestWillBeSent').map((e) => e.params.request.url);
-  const thirdParty = loadRequests.filter((url) => !url.startsWith(ORIGIN) && !url.startsWith('data:'));
-  check('loading the page contacts only this site (no third parties, no database)', thirdParty.length === 0, thirdParty.join(' '));
+  // (2026-11-26, Kevin: the home page's card shows a random commander face up, so its picture and the card back come from Scryfall's picture servers on load; nothing else may)
+  const thirdParty = loadRequests.filter((url) => !url.startsWith(ORIGIN) && !url.startsWith('data:') && !url.startsWith('https://cards.scryfall.io/') && !url.startsWith('https://backs.scryfall.io/'));
+  check('loading the page contacts only this site and the Scryfall picture servers (no other third party, no database)', thirdParty.length === 0, thirdParty.join(' '));
   check('the page has no console errors after loading', browser.logs.filter((l) => /^(exception|error)/.test(l)).length === 0, browser.logs.filter((l) => /^(exception|error)/.test(l)).join(' | '));
 
   // ---- messages for bad input: shown, in the error style, and with no network request ----

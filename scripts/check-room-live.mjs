@@ -167,7 +167,8 @@ try {
   await alice.eval(`document.querySelector('.closed-table a[href="/?new"]').click()`);
   const reopened = await waitFor(async () => { const p = await pathOf(alice); return (await tableShown(alice)) && p !== `/lobby/${code}` && /^\/lobby\/[A-HJ-NP-Z2-9]{6}$/.test(p) ? p : null; }, 30000, 250);
   if (reopened) cleanup.code2 = reopened.split('/').pop();
-  record('...its New table gives her a new table, at a new address, with four seats and Commander', Boolean(reopened) && (await alice.eval(`document.querySelectorAll('#players .seat').length`)) === 4 && (await text(alice, 'table-format')) === 'Commander', String(reopened));
+  if (reopened) await waitFor(async () => ((await alice.eval(`document.querySelectorAll('#players .seat').length`)) === 4 ? true : null), 10000, 200).catch(() => null); // (the seats are drawn a moment after the table shows)
+  record('...its New table gives her a new table, at a new address, with four seats and Commander', Boolean(reopened) && (await alice.eval(`document.querySelectorAll('#players .seat').length`)) === 4 && (await text(alice, 'table-format')) === 'Commander', `${reopened} seats ${await alice.eval("document.querySelectorAll('#players .seat').length")} format ${await text(alice, 'table-format')}`);
   record('...and the old table is gone from the database', await (async () => { const r = await rest('GET', `tables/${code}/meta`, cleanup.alice.token); return r.status === 401 || r.json === null; })());
 } catch (error) {
   record('the check script itself ran without an error', false, error.message); exitCode = 1;

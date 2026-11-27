@@ -28,10 +28,11 @@ const record = (name, pass, detail = '') => { results.push({ name, pass }); cons
 // Saved decks written the way the deck page writes them (the strict reader of shared/deck-preview.mjs accepts these).
 const uuid = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 // sideboard: names of cards for the sideboard (always in the sideboard, never dealt: a way to get a given card on the table with no luck).
-const savedDeck = (name, commanders, sideboard = []) => ({
+// commanderPrinting: a printing id for the first commander (its own art on the player's own seat card, 2026-11-26)
+const savedDeck = (name, commanders, sideboard = [], commanderPrinting = null) => ({
   version: 1, name, savedAt: new Date().toISOString(), skipped: 0, text: '',
   commander: commanders.map((_, n) => uuid(100 + n)),
-  cards: [...commanders.map((c, n) => ({ i: uuid(100 + n), n: c, qty: 1, section: 'commander' })), { i: uuid(1), n: 'Island', qty: 30, section: 'main' },
+  cards: [...commanders.map((c, n) => ({ i: uuid(100 + n), n: c, qty: 1, section: 'commander', ...(n === 0 && commanderPrinting ? { p: commanderPrinting } : {}) })), { i: uuid(1), n: 'Island', qty: 30, section: 'main' },
     ...sideboard.map((c, n) => ({ i: uuid(300 + n), n: c, qty: 1, section: 'sideboard' }))],
 });
 const TWO_SIDED = 'Delver of Secrets // Insectile Aberration'; // a real transform card: the page finds it by NAME in the real card list (the id above is made up)
@@ -39,7 +40,8 @@ let idNumber = 0;
 const newId = () => `d${String(++idNumber).padStart(10, '0')}`;
 const libraryWith = (...decks) => decks.reduce((library, [deck, format, bracket]) => addDeck(library, deck, { format, bracket: bracket ?? null, newId }).library, emptyLibrary());
 const aliceLibrary = libraryWith([savedDeck('Goblins', ['Krenko, Mob Boss']), 'commander', 3], [savedDeck('Partners', ['Tymna the Weaver', 'Thrasios, Triton Hero'], [TWO_SIDED]), 'commander'], [savedDeck('Burn', []), 'standard']);
-const bobLibrary = libraryWith([savedDeck('Elves', ['Ezuri, Renegade Leader']), 'commander', 2]);
+const EZURI_PRINTING = uuid(900); // (made up: only the address of the art is checked, not the picture)
+const bobLibrary = libraryWith([savedDeck('Elves', ['Ezuri, Renegade Leader'], [], EZURI_PRINTING), 'commander', 2]);
 const goblinsId = aliceLibrary.decks[0].id;
 const partnersId = aliceLibrary.decks[1].id;
 
@@ -141,6 +143,8 @@ try {
   await choose(bob, 'deck-pick', bobLibrary.decks[0].id);
   const bobRow = await rowHas(alice, 'Bob', 'Ezuri, Renegade Leader', 'Bracket 2');
   record("choosing a deck in the picker shows Bob's commander on Alice's page, and he is not ready yet", Boolean(bobRow) && !bobRow.includes('Ready'), bobRow ?? await row(alice, 'Bob'));
+  const bobArt = await waitFor(async () => (await bob.eval(`document.querySelector('#players .seat.mine')?.style.getPropertyValue('--seat-art') || null`)), 10000, 200);
+  record("on Bob's own page his seat shows the art of the printing his deck names for Ezuri", String(bobArt).includes(`${EZURI_PRINTING}.jpg`) && String(bobArt).includes('/art_crop/'), String(bobArt));
   await click(bob, 'ready');
   const bobReady = await rowHas(alice, 'Bob', 'Ready');
   record('Ready with a deck chosen needs no popup and shows Bob as ready on Alice\'s page', Boolean(bobReady) && !(await dialogOpen(bob)));

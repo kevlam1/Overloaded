@@ -4,7 +4,7 @@
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 const PATHS = {
-  poison: 'M12 2C12 2 5 10 5 15a7 7 0 0 0 14 0c0-5-7-13-7-13z', // a drop
+  poison: 'M12 2C7 2 4 5.5 4 10c0 2.6 1.2 4.6 3 5.8V19a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-3.2c1.8-1.2 3-3.2 3-5.8C20 5.5 17 2 12 2Z M7 11a2 2 0 1 0 4 0a2 2 0 1 0-4 0Z M13 11a2 2 0 1 0 4 0a2 2 0 1 0-4 0Z M12 13.5l-1.1 2.2h2.2Z M10 17.6h1v2.4h-1Z M13 17.6h1v2.4h-1Z', // a skull (Kevin, 2026-11-26; it was a drop): eyes, nose and the gaps between the teeth are holes (evenodd)
   energy: 'M13 2L4 14h6l-1 8 9-12h-6z', // a bolt
   experience: 'M12 2l3 7 7 .6-5.3 4.7 1.6 7.2L12 17.8 5.7 21.5l1.6-7.2L2 9.6 9 9z', // a star
   rad: 'M12 12L7.5 4.2A9 9 0 0 1 16.5 4.2Z M12 12L21 12A9 9 0 0 1 16.5 19.8Z M12 12L7.5 19.8A9 9 0 0 1 3 12Z', // three wedges

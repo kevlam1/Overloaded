@@ -62,6 +62,25 @@ body[data-screen="start"] .hero > :not(.hero-dots):not(.hero-card) { position: r
 body[data-screen="start"] { overflow-x: clip; } /* (the field reaches the window edges; never a sideways scroll) */
 .hero-card { position: absolute; z-index: 2; top: -1.6rem; right: 0.5rem; rotate: 6deg; }
 @media (max-width: 1100px) { .hero-card { display: none; } }
-.hero-card-back { display: grid; place-items: center; width: 100%; height: 100%; padding: 14%; border: 6px solid #111; border-radius: 4.8% / 3.4%; background: radial-gradient(circle at 50% 40%, #2a2a2a, #121212 70%); }
-.hero-card-back img { width: 100%; height: auto; } /* (the logo file is light already; the back is dark in both themes) */
 .hero-card [tabindex]:focus-visible { outline: 2px solid var(--gold); outline-offset: 4px; }
+
+/* ---- Spacing and the footer (Kevin, 2026-11-26: "bad cramping" on home and the lobby, "the weird footer everywhere") ---- */
+/* home: the hero gets room below it, so the card and the points never crowd Play with friends */
+body[data-screen="start"] .hero { padding-bottom: 0; } /* ("Play with friends" is inside the hero: its own top margin gives the room) */
+.hero-points { margin-bottom: 0.4rem; }
+.friends-lede { margin: 2.6rem 0 1rem; }
+.start-pair { gap: 16px; margin-top: 16px; }
+.hero-card { top: -2.4rem; }
+/* the lobby's table screen: each block on its own, with space between */
+.room-head { margin-bottom: 2rem; }
+.room-title { margin: 0 0 0.9rem; }
+#players.seats { margin-bottom: 2rem; }
+.color-pick { margin: 0 0 2rem; }
+.color-pick .color-title { margin: 0 0 0.7rem; }
+.room-deck { margin-bottom: 1.4rem; padding-bottom: 1.6rem; }
+body[data-screen] main { padding-bottom: 2rem; }
+/* the footer: one quiet centered column on every page (it was two halves at the far ends of a wide window) */
+.site-footer-inner { flex-direction: column; align-items: center; justify-content: center; gap: 6px; max-width: 52rem; padding: 18px 24px 22px; text-align: center; }
+.site-footer .footer-legal { max-width: 46rem; font-size: var(--text-xs); line-height: 1.5; opacity: 0.8; }
+body[data-screen="start"] #who { margin-top: 0; }
+body[data-screen] #status:empty { min-height: 0; margin: 0; padding: 0; } /* (an empty message line takes no room; it stays in the page so screen readers still hear new messages) */

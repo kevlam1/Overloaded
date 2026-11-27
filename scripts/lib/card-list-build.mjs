@@ -9,6 +9,7 @@
 //  - when anything goes wrong, the last good list is reused for up to 30 days (MAX_STALE_MS), so a Scryfall outage
 //    cannot block a deploy; only a build with no usable list at all fails;
 //  - a list is written only after it passed its checks, whole and in one step, so a failed rebuild leaves the cache as it was.
+import { commandersFromList } from '../../shared/top-commanders.mjs';
 import { createHash } from 'node:crypto';
 import { createWriteStream } from 'node:fs';
 import { mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
@@ -31,7 +32,7 @@ export const MAX_STALE_MS = 30 * DAY_MS; // a failed rebuild falls back to a lis
 // is rebuilt once instead of being reused for up to a week. 6 added `md`, a modal card (playable as either face). 7 added the printings grouped by card (prints.json in the cache, the files
 // under /data/prints/ on the site: shared/card-prints.mjs), which the deck page reads to let a player change a card's art. 8 added the year of each of those printings. 9 added `ci`, a card's color identity, and `gc`, the Game Changers mark (for the deck colors and the bracket guess).
 // 10 added the rules of every card (rules.json in the cache, the files under /data/rules/ on the site: shared/card-rules.mjs), which the details window reads. 11 added the rulings (rulings.json, /data/rulings/: shared/card-rulings.mjs).
-export const LIST_FORMAT = 14; // (14 added the tokens and emblems, tokens.json in the cache and /data/tokens.json on the site: shared/card-tokens.mjs) // (13: a printing that is not the usual nonfoil-and-foil traditional has a foil suffix after its key in the set files and as a fifth item in the per-card rows: shared/foil-kinds.mjs; 12 had only an "f" for foil only)
+export const LIST_FORMAT = 15; // (15 added `cr`, the top 1,000 commanders by Scryfall's edhrec_rank, and /data/commanders.json: shared/top-commanders.mjs) // (14 added the tokens and emblems, tokens.json in the cache and /data/tokens.json on the site: shared/card-tokens.mjs) // (13: a printing that is not the usual nonfoil-and-foil traditional has a foil suffix after its key in the set files and as a fifth item in the per-card rows: shared/foil-kinds.mjs; 12 had only an "f" for foil only)
 export const BULK_DATA_URL = 'https://api.scryfall.com/bulk-data';
 // Scryfall's rules (docs/scryfall.md): every request names the app and says what it accepts.
 export const HEADERS = { 'User-Agent': 'Overloaded/0.1 (+https://github.com/kevlam1/Overloaded)', Accept: 'application/json' };
@@ -203,6 +204,11 @@ export async function publish(publicFile, bytes, printingBytes = null, printsByt
   // The tokens and emblems, one file (data/tokens.json). A list in an older format has none, and a file of an earlier build is not left behind.
   const tokensFile = join(dirname(publicFile), 'tokens.json');
   if (tokensBytes) await writeWhole(tokensFile, tokensBytes); else await rm(tokensFile, { force: true });
+  // The top commanders for the home page's card (data/commanders.json, [[id, name], ...]: shared/top-commanders.mjs), taken from the list's `cr` marks, so they need
+  // no file of their own in the cache. A list in an older format has no marks, and then there is no file.
+  const commanders = commandersFromList(JSON.parse(bytes.toString('utf8')));
+  const commandersFile = join(dirname(publicFile), 'commanders.json');
+  if (commanders.length) await writeWhole(commandersFile, Buffer.from(JSON.stringify(commanders))); else await rm(commandersFile, { force: true });
 }
 
 // One try at a full rebuild. Throws, leaving the cache untouched, if anything is wrong.

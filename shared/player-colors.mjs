@@ -45,3 +45,24 @@ export function takenColors(members, myUid) {
 
 // The CSS value of a color id (the default gold for anything else).
 export const colorValue = (id) => colorById(id)?.value ?? colorById('gold').value;
+
+// ---- The accent (Kevin, 2026-11-26: "the UI is still yellow even if I chose Azure; color should follow everywhere") ----
+// The site's accent is the player's own color. On the light theme it is darkened (a light color such as Pearl would not show on white), and the text on it is
+// dark or light, whichever reads better (WCAG contrast). All plain math, so Node tests can check it.
+const channels = (hex) => [1, 3, 5].map((at) => parseInt(hex.slice(at, at + 2), 16));
+const toHex = (rgb) => `#${rgb.map((v) => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, '0')).join('')}`;
+const luminance = (hex) => {
+  const [r, g, b] = channels(hex).map((v) => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+};
+export const contrast = (a, b) => { const [x, y] = [luminance(a), luminance(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+const DARK_INK = '#16120a';
+const LIGHT_INK = '#ffffff';
+export const inkOn = (hex) => (contrast(hex, DARK_INK) >= contrast(hex, LIGHT_INK) ? DARK_INK : LIGHT_INK);
+// The accent for a color id and a theme: { accent, ink }. The light theme darkens the color until it has at least 3:1 against white (the WCAG level for large text
+// and parts of the interface), in small steps so a color keeps its hue.
+export function accentFor(id, theme = 'dark') {
+  let accent = colorById(id)?.value ?? colorById('gold').value;
+  if (theme === 'light') { let rgb = channels(accent); while (contrast(toHex(rgb), '#ffffff') < 3) rgb = rgb.map((v) => v * 0.92); accent = toHex(rgb); }
+  return { accent, ink: inkOn(accent) };
+}
