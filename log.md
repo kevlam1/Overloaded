@@ -6083,6 +6083,19 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
   - Old centering rules kept the hero's parts centered; it took three screenshots to find all of them, the last being text centered inside a box that was already in place.
   - Stopping a test run did not stop a live check it had started. Claude found it holding the port, with 11 test Chrome windows, and stopped only those (their profiles are named `cdp-`).
 
+## 296. A pile is held 220 ms before it moves whole (2026-11-26)
+
+**What I asked for**
+- How long a pile is held before it moves as a whole (it was 250 ms), then: make it 220 ms and push to main.
+
+**What changed**
+- `STACK_HOLD_MS` in `shared/stacks.mjs` is 220. The circle that fills while you hold uses the same number, so it is faster too.
+- `CLAUDE.md` said 500, from before the earlier changes to 350 and then 250; it now says 220.
+
+**What I checked**
+- `test-stacks` 122 (it checks the number), the 92 unit suites, `check-solo-ui` 470 with its real pile drags.
+- The live seats check holds a pile 450 ms, still past the new time; only its comment changed.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-24, entry 277) Claude told me the tool docks remembered their layout (entries 273 and 276) when the code stored "[object Object]"; the audit for the spec found it.
 - (2026-11-23, entry 273) I said "commit and push after every big change" and meant every big prompt; Claude pushed after each of three changes.

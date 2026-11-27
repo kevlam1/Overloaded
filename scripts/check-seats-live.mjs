@@ -237,7 +237,7 @@ try {
         const before = await counts();
         const size = await alice.eval(`Number(document.querySelector('#battlefield > .card[data-uid="${pair?.[1]}"]')?.dataset.stackSize ?? 0)`);
         const top = await centre(`#battlefield > .card[data-uid="${pair?.[1]}"]`); const grave = await centre('#pile-graveyard');
-        await mouse('mouseMoved', top.x, top.y); await sleep(60); await mouse('mousePressed', top.x, top.y, 1); await sleep(450); // (held past the 250 ms ring: the whole pile)
+        await mouse('mouseMoved', top.x, top.y); await sleep(60); await mouse('mousePressed', top.x, top.y, 1); await sleep(450); // (held past the ring, STACK_HOLD_MS: the whole pile)
         for (let n = 1; n <= 12; n++) { await mouse('mouseMoved', top.x + ((grave.x - top.x) * n) / 12, top.y + ((grave.y - top.y) * n) / 12, 1); await sleep(16); }
         await mouse('mouseReleased', grave.x, grave.y); await sleep(500);
         const after = await counts();

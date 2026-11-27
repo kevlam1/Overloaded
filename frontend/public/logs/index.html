@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.295</span></h1>
-    <p class="lede">295 entries, Oct 25 to Nov 26, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
+    <h1>Build log <span class="version">Version 0.296</span></h1>
+    <p class="lede">296 entries, Oct 25 to Nov 26, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
   </div>
 </header>
 
@@ -25,7 +25,7 @@
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
 <a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">56</span></a>
-<a class="week-link" href="#week-3" data-target="week-3"><span class="wl-name">Week 3</span><span class="wl-range">Nov 23 to Nov 29</span><span class="wl-count">26</span></a>
+<a class="week-link" href="#week-3" data-target="week-3"><span class="wl-name">Week 3</span><span class="wl-range">Nov 23 to Nov 29</span><span class="wl-count">27</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
 <a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">29 things friends asked for</span></a>
 <a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">30 open, 73 done</span></a>
@@ -4572,7 +4572,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-3" aria-labelledby="week-3-title">
-<h2 class="week-head" id="week-3-title"><button type="button" aria-expanded="false" aria-controls="week-3-days"><span class="wname">Week 3</span><span class="range">Nov 23 to Nov 29</span><span class="week-count">26 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-3-title"><button type="button" aria-expanded="false" aria-controls="week-3-days"><span class="wname">Week 3</span><span class="range">Nov 23 to Nov 29</span><span class="week-count">27 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-3-days">
 <div class="day">
 <h3 class="day-title">Monday 23 November <span class="day-count">6</span></h3>
@@ -4835,7 +4835,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Thursday 26 November <span class="day-count">11</span></h3>
+<h3 class="day-title">Thursday 26 November <span class="day-count">12</span></h3>
 <div class="entries">
 <article class="entry" id="entry-285" data-n="285">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-285-body">
@@ -5000,6 +5000,21 @@
 <ul><li><strong>The piles:</strong><ul><li>each seat has a band under the battlefield (<code>--band</code>, about 30% of the area's height);</li><li>the piles are sized to fill it (<code>--sw</code> from the band; it was capped at 4.8rem by 15% of the height);</li><li>the resting hand is capped so it never reaches the battlefield.</li></ul></li><li><strong>Sidebar view:</strong> 40 rows instead of 30, one card size smaller (<code>SIDEBAR_ROWS</code> in <code>table.js</code>, <code>--rows: 40</code> in the style sheet).</li><li><strong>Docking</strong> (<code>tool-dock.js</code>):<ul><li>a dock takes a drop up to 48 px outside its edges and down to the window's bottom;</li><li>a drop in its bottom 35% puts the tool at the bottom, under the stack (the stack takes the spare height, so its midpoint was far up).</li></ul></li><li><strong>Home:</strong><ul><li>the hero is two columns: the title, line, buttons and points on the left, the commander card in its own column on the right;</li><li>&quot;Play with friends&quot; is one row: your name, make a table, join.</li></ul></li><li><strong>The lobby's table screen:</strong><ul><li>the seats (two by two) and your deck on the left;</li><li>one panel on the right with the code, the invite link, format, view, bracket limit and your color, which stays in view;</li><li>every id is the same.</li></ul></li><li><strong>The order window:</strong> Random order, Done and Cancel side by side on the right.</li></ul>
 <p class="sub"><strong>What I checked</strong></p>
 <ul><li><code>check-table-layout</code> 165 of 165, at five window sizes: Sidebar view has 40 rows, and no resting hand covers a battlefield.</li><li><code>check-seats-live</code> 42 of 42. Its Sidebar check now expects my own row in Players, as I asked in entry 294.</li><li><code>check-history-and-select-ui</code> 29: a real drag of the control bar out and back in, let go 30 px left of the rail near the bottom, docks under the stack. Claude ran it against the old dock code first, where it failed.</li><li><code>npm test</code> 104 of 104.</li><li>Screenshots looked at:<ul><li>Grid and Sidebar tables;</li><li>home and the lobby at 1875 by 954 and 1366 by 768;</li><li>the order window's buttons.</li></ul></li><li><strong>NOT run before pushing to main:</strong> the live lobby checks (<code>check-room-live</code>, <code>check-lobby-deck-live</code>) on the new lobby markup. My own <code>npm run dev</code> held port 5173, which they need, and I asked to push. The deploy check is run against the live site after the deploy instead.</li><li>Claude's mistakes:<ul><li>Old centering rules kept the hero's parts centered; it took three screenshots to find all of them, the last being text centered inside a box that was already in place.</li><li>Stopping a test run did not stop a live check it had started. Claude found it holding the port, with 11 test Chrome windows, and stopped only those (their profiles are named <code>cdp-</code>).</li></ul></li></ul>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-296" data-n="296">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-296-body">
+    <span class="num">296</span>
+    <span class="head-text"><span class="title">A pile is held 220 ms before it moves whole</span><span class="sum">How long a pile is held before it moves as a whole (it was 250 ms), then: make it 220 ms and push to main.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-296-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>How long a pile is held before it moves as a whole (it was 250 ms), then: make it 220 ms and push to main.</li></ul>
+<p class="sub"><strong>What changed</strong></p>
+<ul><li><code>STACK_HOLD_MS</code> in <code>shared/stacks.mjs</code> is 220. The circle that fills while you hold uses the same number, so it is faster too.</li><li><code>CLAUDE.md</code> said 500, from before the earlier changes to 350 and then 250; it now says 220.</li></ul>
+<p class="sub"><strong>What I checked</strong></p>
+<ul><li><code>test-stacks</code> 122 (it checks the number), the 92 unit suites, <code>check-solo-ui</code> 470 with its real pile drags.</li><li>The live seats check holds a pile 450 ms, still past the new time; only its comment changed.</li></ul>
   </div></div></div>
 </article>
 </div>
