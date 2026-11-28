@@ -121,7 +121,8 @@
           "$uid": {
             ".write": "auth != null && auth.uid === $uid && root.child('tables').child($code).child('members').child(auth.uid).exists() && root.child('tables').child($code).child('meta').child('createdAt').val() + 28800000 > now && root.child('tables').child($code).child('activity').child('lastActive').val() + root.child('tables').child($code).child('meta').child('idleLimit').val() > now",
             "life": {
-              ".validate": "newData.isNumber() && newData.val() % 1 === 0 && newData.val() >= -1000000000000 && newData.val() <= 1000000000000"
+              ".validate": "newData.isNumber() && newData.val() % 1 === 0 && newData.val() >= -1000000000000 && newData.val() <= 1000000000000",
+              ".write": "auth != null && auth.uid !== $uid && root.child('tables').child($code).child('members').child(auth.uid).exists() && root.child('tables').child($code).child('meta').child('status').val() === 'playing' && root.child('tables').child($code).child('meta').child('view').val() === 'shared' && root.child('tables').child($code).child('meta').child('createdAt').val() + 28800000 > now && root.child('tables').child($code).child('activity').child('lastActive').val() + root.child('tables').child($code).child('meta').child('idleLimit').val() > now && data.exists() && newData.exists()"
             },
             "turn": {
               ".validate": "newData.isNumber() && newData.val() % 1 === 0 && newData.val() >= 1 && newData.val() <= 100000"
@@ -266,7 +267,8 @@
                   ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 200"
                 },
                 "x": {
-                  ".validate": "newData.val() === 1"
+                  ".validate": "newData.val() === 1",
+                  ".write": "auth != null && auth.uid !== $uid && root.child('tables').child($code).child('members').child(auth.uid).exists() && root.child('tables').child($code).child('meta').child('status').val() === 'playing' && root.child('tables').child($code).child('meta').child('view').val() === 'shared' && root.child('tables').child($code).child('meta').child('createdAt').val() + 28800000 > now && root.child('tables').child($code).child('activity').child('lastActive').val() + root.child('tables').child($code).child('meta').child('idleLimit').val() > now && data.parent().exists()"
                 },
                 "e": {
                   ".validate": "newData.isNumber() && newData.val() % 1 === 0 && newData.val() >= 0 && newData.val() <= 100000"
@@ -1273,10 +1275,10 @@
               ".write": "auth != null && root.child('tables').child($code).child('members').child(auth.uid).exists() && root.child('tables').child($code).child('meta').child('createdAt').val() + 28800000 > now && root.child('tables').child($code).child('activity').child('lastActive').val() + root.child('tables').child($code).child('meta').child('idleLimit').val() > now && root.child('tables').child($code).child('meta').child('status').val() === 'playing'",
               ".validate": "$card.matches(/^c[1-9][0-9]{0,5}$/) && newData.hasChildren(['x', 'y', 'z', 'by', 'm'])",
               "x": {
-                ".validate": "newData.isNumber() && newData.val() % 1 === 0 && newData.val() >= 0 && newData.val() <= 229"
+                ".validate": "newData.isNumber() && newData.val() % 1 === 0 && newData.val() >= 0 && newData.val() <= 400"
               },
               "y": {
-                ".validate": "newData.isNumber() && newData.val() % 1 === 0 && newData.val() >= 0 && newData.val() <= 120"
+                ".validate": "newData.isNumber() && newData.val() % 1 === 0 && newData.val() >= 0 && newData.val() <= 200"
               },
               "z": {
                 ".validate": "newData.isNumber() && newData.val() % 1 === 0 && newData.val() >= 0 && newData.val() <= 1000000"
@@ -1305,10 +1307,10 @@
               ".validate": "newData.isString() && newData.val().matches(/^c[1-9][0-9]{0,5}$/)"
             },
             "x": {
-              ".validate": "newData.isNumber() && newData.val() % 1 === 0 && newData.val() >= 0 && newData.val() <= 229"
+              ".validate": "newData.isNumber() && newData.val() % 1 === 0 && newData.val() >= 0 && newData.val() <= 400"
             },
             "y": {
-              ".validate": "newData.isNumber() && newData.val() % 1 === 0 && newData.val() >= 0 && newData.val() <= 120"
+              ".validate": "newData.isNumber() && newData.val() % 1 === 0 && newData.val() >= 0 && newData.val() <= 200"
             },
             "m": {
               ".validate": "newData.val() === root.child('tables').child($code).child('meta').child('match').val()"

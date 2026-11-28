@@ -1080,6 +1080,40 @@ function dropOnPlane({ uid, col, row, whole, group, name }) {
   say(uids.length > 1 ? `Moved ${uids.length} cards.` : `Moved ${name}.`);
   render();
 }
+// ---- the Shared view: anyone taps any card and changes anyone's life (2026-11-26 feedback; the rules allow it only in the Shared view during a match) ----
+// Another player's change lands on MY stored branch; my page takes it into my game (it is stored already, so nothing is saved again). My own writes are seen by the
+// database's local copy at once, so a stored value that differs from my game is someone else's.
+function adoptRemoteChanges() {
+  if (!game || !sharedOn || !myUid) return;
+  const mine = publicAll[myUid];
+  if (!mine || mine.match !== meta?.match) return;
+  let changed = false;
+  let next = game;
+  if (Number.isSafeInteger(mine.life) && mine.life !== game.life) { next = { ...next, life: mine.life }; changed = true; }
+  const stored = Object.values(mine.battlefield && typeof mine.battlefield === 'object' ? mine.battlefield : {});
+  const battlefield = next.zones.battlefield.map((card) => {
+    const there = stored.find((each) => each?.u === card.uid);
+    if (!there || (there.x === 1) === Boolean(card.tapped)) return card;
+    changed = true;
+    return { ...card, tapped: there.x === 1 };
+  });
+  if (!changed) return;
+  game = { ...next, zones: { ...next.zones, battlefield } };
+  render();
+}
+// Taps or untaps another player's card (its place in their stored battlefield), or changes their life by `delta`.
+function tapOthersCard(owner, uid) {
+  const list = publicAll[owner]?.battlefield;
+  const key = list && typeof list === 'object' ? Object.keys(list).find((k) => list[k]?.u === uid) : null;
+  if (key === null || key === undefined) return;
+  const tapped = list[key].x === 1;
+  saveGame(tableCode, { [`public/${owner}/battlefield/${key}/x`]: tapped ? null : 1 }).then(() => say(`${tapped ? 'Untapped' : 'Tapped'} ${members[owner]?.name ?? 'their'}’s ${list[key].n ?? 'card'}.`)).catch(() => say('Not tapped: the database rules need updating.', true));
+}
+function changeOthersLife(owner, delta) {
+  const life = publicAll[owner]?.life;
+  if (!Number.isSafeInteger(life)) return;
+  saveGame(tableCode, { [`public/${owner}/life`]: life + delta }).catch(() => say('Not changed: the database rules need updating.', true));
+}
 // The homes, the commons and the other players' cards, drawn into the plane (under your own cards).
 function renderPlane() {
   const board = $('battlefield');
@@ -1102,16 +1136,18 @@ function renderPlane() {
     frame.dataset.facing = String(facing);
     const plate = make('div', 'plane-plate');
     const lifeBox = make('span', 'plane-plate-lifebox');
-    if (uid === myUid) {
-      for (const [sign, words] of [[-1, '−'], [1, '+']]) {
-        const button = make('button', 'plane-life-step', words);
-        button.type = 'button';
-        button.setAttribute('aria-label', sign < 0 ? 'Lose 1 life (Shift: 5)' : 'Gain 1 life (Shift: 5)');
-        button.addEventListener('click', (event) => { if (game) apply(() => adjustLife(game, sign * (event.shiftKey ? 5 : 1)), ''); });
-        lifeBox.append(button);
-      }
-      lifeBox.insertBefore(make('span', 'plane-plate-life num', String(life ?? '')), lifeBox.lastChild);
-    } else lifeBox.append(make('span', 'plane-plate-life num', String(life ?? '')));
+    // every pill has - and + (2026-11-26 feedback: change anyone's life on the table); yours changes your game, another player's writes their stored life
+    for (const [sign, words] of [[-1, '−'], [1, '+']]) {
+      const button = make('button', 'plane-life-step', words);
+      button.type = 'button';
+      button.setAttribute('aria-label', `${sign < 0 ? 'Lose' : 'Gain'} 1 life${uid === myUid ? '' : ` for ${member.name}`} (Shift: 5)`);
+      button.addEventListener('click', (event) => {
+        const step = sign * (event.shiftKey ? 5 : 1);
+        if (uid === myUid) { if (game) apply(() => adjustLife(game, step), ''); } else changeOthersLife(uid, step);
+      });
+      lifeBox.append(button);
+    }
+    lifeBox.insertBefore(make('span', 'plane-plate-life num', String(life ?? '')), lifeBox.lastChild);
     plate.append(make('span', 'plate-dot'), make('strong', 'plane-plate-name', uid === myUid ? `${member.name} (you)` : member.name), lifeBox, make('span', 'plane-plate-hand', hand === undefined ? '' : `Hand ${hand}`));
     frame.append(plate);
     const backs = make('div', 'plane-hand');
@@ -1140,7 +1176,7 @@ function renderPlane() {
     entry.layer.style.setProperty('--seat-color', playerColor(uid));
     entry.layer.dataset.facing = String(facingOf(seat, seats)); // (their cards face them: 2026-11-26 feedback)
     entry.nodes.place(entry.layer, byPlaneZ(view.zones.battlefield, seat), { battlefield: true, cells, sharp: true });
-    for (const button of entry.layer.children) { button.disabled = false; button.tabIndex = -1; button.title = `${member.name}'s. Drag to move it.`; } // (another player's card: it can be moved, nothing else)
+    for (const button of entry.layer.children) { button.disabled = false; button.tabIndex = -1; button.title = `${member.name}'s. Drag to move it, double-click to tap it.`; } // (another player's card: it can be moved and tapped, nothing else)
   }
   for (const [uid, entry] of planeLayers) if (!opponents.has(uid)) { entry.layer.remove(); planeLayers.delete(uid); }
   // the entries of your cards that left the battlefield are cleared (only by you, the owner)
@@ -1149,6 +1185,15 @@ function renderPlane() {
   if (gone.length) { planeRaw = { ...planeRaw, [mySeatNow()]: Object.fromEntries(Object.entries(mine).filter(([uid]) => !gone.includes(uid))) }; clearPlaneEntries(tableCode, mySeatNow(), gone).catch(() => {}); }
   renderCarries();
 }
+// a double click on another player's card taps or untaps it (2026-11-26 feedback)
+$('battlefield').addEventListener('dblclick', (event) => {
+  if (!sharedOn || !game) return;
+  const button = event.target.closest?.('.plane-layer > .card');
+  const owner = button?.closest('.plane-layer')?.dataset.owner;
+  if (!button || !owner) return;
+  event.preventDefault();
+  tapOthersCard(owner, button.dataset.uid);
+});
 // The Shared view on or off: the plane's size, its camera, the watch of the plane, and its layers taken away again when it goes.
 function setShared(on) {
   if (on === sharedOn) return;
@@ -1412,7 +1457,7 @@ async function start() {
     renderTurn();
     renderOpponents();
   });
-  watchPublic(tableCode, (value) => { publicAll = value && typeof value === 'object' ? value : {}; publicSeen = true; processPings(); renderTurn(); renderOpponents(); });
+  watchPublic(tableCode, (value) => { publicAll = value && typeof value === 'object' ? value : {}; publicSeen = true; adoptRemoteChanges(); processPings(); renderTurn(); renderOpponents(); });
   watchStack(tableCode, (value) => { storedStack = value; showStoredStack(); }); // the table's one stack: any player's change shows on every page
   watchPresence(tableCode, (value) => { if (value) { presence = value; renderPlayers(); } });
   watchServerOffset((offset) => { serverOffset = offset; renderPlayers(); });

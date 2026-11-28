@@ -6373,6 +6373,35 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 - The last version put the four seats in one row, which loses the seating arrangement.
 - I tried putting the news line beside the "Lobby" title with a grid, but the title is inside the page header block, so it split them apart; taken back out after the screenshot.
 
+## 307. The 11-26 feedback, step 7: the Shared view from your own seat (2026-11-27)
+
+**What I asked for**
+- My friends' Shared view items: the table turned to where you sit, Ctrl+Q and Ctrl+E to turn it a quarter turn, a click on a player turning to their board, a 12-dot gap between the left and right players, no "Commons" text, the name, life and hand pills in the middle of each board facing that player with life changed there (anyone's) and Life gone from the control bar, each hand face down outside the table, tapping other players' cards, the piles on the table, and dragging several of anyone's cards.
+- Keep the tests light.
+
+**What changed**
+- **The table from your seat:** the areas along the top face the top edge, so their cards are drawn turned half a turn (`facingOf` in `shared/plane.mjs`), and a player sitting there sees the whole table turned half a turn: their own area at the bottom, their cards upright. Ctrl+Q and Ctrl+E turn it a quarter turn about the middle of the window, and a click on a player in Players turns the table to their seat and shows their area (`frontend/src/plane-camera.js`).
+- **Dragging on a turned table:** the camera takes a pointer back to the table as it is not turned (`flatten`, `flatRect`), and both drags count cells there (`frontend/src/board-drag.js`, `frontend/src/plane-drag.js`), so a card goes where the pointer is.
+- **The table is 236 cells wide:** a 12-cell gap between the left and right areas.
+- **The pills** are in the middle of each area, turned to face their player, with - and + beside the life; your Life piece is gone from the console in the Shared view.
+- **Each hand** lies face down just outside its side of the table (up to 15 backs), and Fit shows it.
+- **No "Commons" word**; the band is still there.
+- **Anyone taps anyone's card** with a double click, and **anyone changes anyone's life** with the - and + of their pill. Both write the other player's stored tapped mark or life, and the owner's page takes the change into their game.
+- **Rules (one paste, waiting):** in the Shared view during a match, another member may write a battlefield card's tapped mark and a player's life; a card's place may go to column 400 and row 200 (it was 217 and 120), so the piles on the table (next) need no further paste.
+
+**What I checked**
+- `test-plane` 11 (the gap and the facing), `backend/test-rules-batch2` 53 (12 new for the shared tap and life and the wider table), the whole backend suite (578, 2,409, 282 and 3,349 flow steps).
+- `check-shared-live` 9 of 9 against the real project before the new rules, with screenshots looked at: Bob, sitting along the top, sees the table turned with his area at the bottom and Alice's pill and cards facing her; both hands lie outside the table.
+- The quick suites (97). Nothing else, to keep the usage down.
+- **Not checked yet:** tapping another player's card and changing their life on the real project (the two new checks in `check-shared-live` need the rules pasted), Ctrl+Q and Ctrl+E in a browser (Chrome may keep Ctrl+E for its address bar), a quarter-turned table with a drag, and four players.
+
+**Decisions**
+- A seat along the top sees the table turned half a turn; quarter turns are only by hand (Ctrl+Q and Ctrl+E), because the areas are wider than they are tall.
+- Not done yet: the piles and command zones on the table, and dragging several of anyone's cards at once.
+
+**Claude's mistakes this step**
+- My first change to the seven card lists' rules made one guard test fail: only the battlefield lets another player tap, so the test now compares the lists without that one permission and checks it is only on the battlefield.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-24, entry 277) Claude told me the tool docks remembered their layout (entries 273 and 276) when the code stored "[object Object]"; the audit for the spec found it.
 - (2026-11-23, entry 273) I said "commit and push after every big change" and meant every big prompt; Claude pushed after each of three changes.

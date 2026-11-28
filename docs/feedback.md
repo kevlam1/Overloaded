@@ -100,10 +100,10 @@ Step 6, multiplayer (one database rules change):
 - **Flipping cards in the hand,** playing them face down, and face-down exile that others must ask to see. Cut from step 6 (entry 304): the largest item; still on the to-do list.
 
 Step 7, the Shared view:
-- **The table turned to each player's seat,** Ctrl+Q and Ctrl+E to turn it, and clicking a player turns to their board. Planned, step 7.
-- **A 12-dot gap between the left and right players.** Planned, step 7.
-- **No "Commons" text.** Planned, step 7.
-- **Name, life and hand count pills in the middle of each board,** life adjusted there, and Life gone from the control bar. Planned, step 7.
-- **Each player's hand face down below their board.** Planned, step 7.
-- **The piles and command zones on the board,** at each player's edge. Planned, step 7.
-- **Tapping and dragging other players' cards,** several at once. Planned, step 7.
+- **The table turned to each player's seat,** Ctrl+Q and Ctrl+E to turn it, and clicking a player turns to their board. Done in step 7 (entry 307): a top seat sees the table turned half a turn, and cards face their owner.
+- **A 12-dot gap between the left and right players.** Done in step 7 (entry 307).
+- **No "Commons" text.** Done in step 7 (entry 307).
+- **Name, life and hand count pills in the middle of each board,** life adjusted there, and Life gone from the control bar. Done in step 7 (entry 307): every pill has - and +, another player's after the rules paste.
+- **Each player's hand face down below their board.** Done in step 7 (entry 307).
+- **The piles and command zones on the board,** at each player's edge. Planned, step 7b (the rules already allow the wider table).
+- **Tapping and dragging other players' cards,** several at once. Tapping done in step 7 (entry 307, after the rules paste); dragging several of anyone's at once still planned.

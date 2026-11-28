@@ -74,9 +74,12 @@ const structureChecks = () => {
   const acceptedCounters = Object.keys(rules.public.$uid.pc).filter((key) => !key.startsWith('.') && !key.startsWith('$'));
   check('the counters the live table offers are exactly the player counters these rules accept', JSON.stringify([...PUBLISHED_COUNTERS].sort()) === JSON.stringify([...acceptedCounters].sort()), `offered ${PUBLISHED_COUNTERS} / accepted ${acceptedCounters}`);
   check('and every other player counter is still waiting for a rules change (so the list above is the only place to change)', PLAYER_COUNTERS.filter((kind) => !PUBLISHED_COUNTERS.includes(kind)).every((kind) => !acceptedCounters.includes(kind)));
-  const blocks = ALL_LISTS.map((zone) => JSON.stringify(rules[branchOf(zone)].$uid[zone]));
+  // (2026-11-27) the battlefield's tapped mark alone may also be written by another player in the Shared view; apart from that one permission the seven lists are the same
+  const withoutTapWrite = (zone) => { const copy = structuredClone(rules[branchOf(zone)].$uid[zone]); delete copy.$i?.x?.['.write']; return JSON.stringify(copy); };
+  const blocks = ALL_LISTS.map(withoutTapWrite);
   check('the seven list rules exist', blocks.every((block) => block && block.length > 500));
-  check('the seven list rules are identical', blocks.every((block) => block === blocks[0]));
+  check('the seven list rules are identical, but for the Shared view tap on the battlefield', blocks.every((block) => block === blocks[0]));
+  check('...which only the battlefield has', ALL_LISTS.filter((zone) => rules[branchOf(zone)].$uid[zone].$i?.x?.['.write']).join() === 'battlefield');
   check('a list has only its own object check and the card rule (so nothing else can hide in one)', Object.keys(JSON.parse(blocks[0])).join() === '.validate,$i' && JSON.parse(blocks[0])['.validate'] === 'newData.hasChildren()');
   check('the public branch has exactly the keys the pages write', Object.keys(rules.public.$uid).filter((key) => !key.startsWith('.') && key !== '$other').sort().join() === 'ack,battlefield,cd,command,counts,exile,graveyard,life,log,match,mulligans,next,pass,pc,phase,ping,tax,turn');
   check('the private branch has exactly the three hidden lists', Object.keys(rules.private.$uid).filter((key) => !key.startsWith('.') && key !== '$other').sort().join() === 'hand,library,sideboard');

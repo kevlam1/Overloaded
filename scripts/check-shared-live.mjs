@@ -119,6 +119,16 @@ try {
   const landed = await alice.eval(`(() => { const c = document.querySelector('#battlefield > .card[data-uid="${aliceCard}"]'); return c ? { col: Number(c.dataset.col), row: Number(c.dataset.row) } : null; })()`);
   record(`zoomed to ${zoom}, Alice drags it back into her home and it lands on the cell under the pointer`, zoom !== '100%' && visible && Boolean(landed) && Math.abs(landed.col - target.col) <= 1 && Math.abs(landed.row - target.row) <= 1 && landed.row >= 80, JSON.stringify({ zoom, visible, landed, target }));
   if (process.argv.includes('--screenshot')) await alice.screenshot('scratch-shared-zoom.png');
+  // (2026-11-26 feedback, step 7) Bob taps Alice's card and gives her a life: both land in her game
+  await bob.eval(`document.querySelector('.plane-button[aria-label="See the whole table"]').click()`); await sleep(500);
+  const hers = await cardCentre(bob, `#battlefield .plane-layer > .card[data-uid="${aliceCard}"]`);
+  if (hers) { await mouse(bob, 'mouseMoved', hers.x, hers.y); await bob.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: hers.x, y: hers.y, button: 'left', buttons: 1, clickCount: 1 }); await bob.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: hers.x, y: hers.y, button: 'left', buttons: 0, clickCount: 1 }); await bob.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: hers.x, y: hers.y, button: 'left', buttons: 1, clickCount: 2 }); await bob.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: hers.x, y: hers.y, button: 'left', buttons: 0, clickCount: 2 }); }
+  const tappedForAlice = await waitFor(async () => (await alice.eval(`Boolean(document.querySelector('#battlefield > .card.tapped[data-uid="${aliceCard}"]'))`)) || null, 15000, 250).catch(() => null);
+  record("Bob double-clicks Alice's card on the table: it is tapped in Alice's own game", Boolean(tappedForAlice));
+  const lifeBefore = await alice.eval(`document.querySelector('.plane-home.mine .plane-plate-life')?.textContent ?? ''`);
+  await bob.eval(`(() => { const home = [...document.querySelectorAll('#battlefield .plane-home')].find((h) => h.textContent.includes('Alice')); home?.querySelectorAll('.plane-life-step')[1]?.click(); })()`);
+  const lifeAfter = await waitFor(async () => { const t = await alice.eval(`document.querySelector('.plane-home.mine .plane-plate-life')?.textContent ?? ''`); return Number(t) === Number(lifeBefore) + 1 ? t : null; }, 15000, 250).catch(() => null);
+  record("Bob presses + on Alice's pill: her life goes up by 1 on her own page", Boolean(lifeAfter), `${lifeBefore} -> ${lifeAfter}`);
   record('no page errors', ![alice, bob].some((b) => b.logs.some((l) => /^exception:/.test(l))), [alice, bob].flatMap((b) => b.logs).filter((l) => /^exception:/.test(l)).join(' | ').slice(0, 300));
   accounts.push(...(await accountsOf(alice)), ...(await accountsOf(bob)));
   await closeAllBrowsers();

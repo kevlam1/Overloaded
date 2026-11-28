@@ -95,5 +95,28 @@ await denied('Bob cannot ask anyone', set(ref(bob, 'tables/NUDGE1/nudge/alice'),
 await denied('the host cannot ask someone not at the table', set(ref(alice, 'tables/NUDGE1/nudge/carol'), Date.now()));
 await denied('a stranger cannot read it', get(ref(carol, 'tables/NUDGE1/nudge')));
 
+console.log('the Shared view: anyone taps any card and changes anyone’s life (2026-11-26 feedback, step 7)');
+async function sharedTable(code, view) {
+  await seed(code, { status: 'playing' });
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    const db = ctx.database();
+    if (view) await set(ref(db, `tables/${code}/meta/view`), view);
+    await set(ref(db, `tables/${code}/public/alice`), { life: 40, match: 1, battlefield: [{ u: 'c1', i: ID, n: 'Island' }] });
+  });
+}
+await sharedTable('SHARE1', 'shared');
+await ok('Bob taps Alice’s card', set(ref(bob, 'tables/SHARE1/public/alice/battlefield/0/x'), 1));
+await ok('...and untaps it', set(ref(bob, 'tables/SHARE1/public/alice/battlefield/0/x'), null));
+await denied('Bob cannot tap a card that is not there', set(ref(bob, 'tables/SHARE1/public/alice/battlefield/5/x'), 1));
+await ok('Bob sets Alice’s life', set(ref(bob, 'tables/SHARE1/public/alice/life'), 37));
+await denied('...but not to junk', set(ref(bob, 'tables/SHARE1/public/alice/life'), 'lots'));
+await denied('Bob cannot write anything else of Alice’s', set(ref(bob, 'tables/SHARE1/public/alice/battlefield/0/n'), 'Mox'));
+await denied('a stranger cannot tap it', set(ref(carol, 'tables/SHARE1/public/alice/battlefield/0/x'), 1));
+await sharedTable('SHARE2', 'grid');
+await denied('in Grid view Bob cannot tap Alice’s card', set(ref(bob, 'tables/SHARE2/public/alice/battlefield/0/x'), 1));
+await denied('...nor change her life', set(ref(bob, 'tables/SHARE2/public/alice/life'), 37));
+await env.withSecurityRulesDisabled(async (ctx) => { await set(ref(ctx.database(), 'tables/SHARE1/meta/view'), 'shared'); });
+await ok('a card can be placed in the far right column, 229, of the wider table', set(ref(bob, 'tables/SHARE1/plane/1/c1'), { x: 229, y: 60, z: 1, by: 'bob', m: 1 }));
+
 await env.cleanup();
 console.log(`All ${checks} batch-2 rule checks passed.`);
