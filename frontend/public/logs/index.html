@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.309</span></h1>
-    <p class="lede">309 entries, Oct 25 to Nov 28, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
+    <h1>Build log <span class="version">Version 0.310</span></h1>
+    <p class="lede">310 entries, Oct 25 to Nov 28, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
   </div>
 </header>
 
@@ -25,7 +25,7 @@
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
 <a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">56</span></a>
-<a class="week-link" href="#week-3" data-target="week-3"><span class="wl-name">Week 3</span><span class="wl-range">Nov 23 to Nov 29</span><span class="wl-count">40</span></a>
+<a class="week-link" href="#week-3" data-target="week-3"><span class="wl-name">Week 3</span><span class="wl-range">Nov 23 to Nov 29</span><span class="wl-count">41</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
 <a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">75 things friends asked for</span></a>
 <a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">33 open, 73 done</span></a>
@@ -4572,7 +4572,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-3" aria-labelledby="week-3-title">
-<h2 class="week-head" id="week-3-title"><button type="button" aria-expanded="false" aria-controls="week-3-days"><span class="wname">Week 3</span><span class="range">Nov 23 to Nov 29</span><span class="week-count">40 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-3-title"><button type="button" aria-expanded="false" aria-controls="week-3-days"><span class="wname">Week 3</span><span class="range">Nov 23 to Nov 29</span><span class="week-count">41 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-3-days">
 <div class="day">
 <h3 class="day-title">Monday 23 November <span class="day-count">6</span></h3>
@@ -5229,7 +5229,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Saturday 28 November <span class="day-count">1</span></h3>
+<h3 class="day-title">Saturday 28 November <span class="day-count">2</span></h3>
 <div class="entries">
 <article class="entry" id="entry-309" data-n="309">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-309-body">
@@ -5244,6 +5244,23 @@
 <ul><li>The lobby's 2 by 2 seats are 1 2 / 4 3: still clockwise in turn order, now starting at the top left (<code>frontend/src/styles/pages.css</code>).</li></ul>
 <p class="sub"><strong>What I checked</strong></p>
 <ul><li><code>check-lobby-ui</code> 66, and a screenshot of a throwaway table on the real project (deleted afterwards).</li></ul>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-310" data-n="310">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-310-body">
+    <span class="num">310</span>
+    <span class="head-text"><span class="title">Seats 1 and 2 side by side at the tables</span><span class="sum">The multiplayer tables should follow the lobby's order.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-310-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>The multiplayer tables should follow the lobby's order. When Claude asked, I chose the same circle with each player at the bottom; then I said players 1 and 2 should sit next to each other, and 1 and 3 across.</li></ul>
+<p class="sub"><strong>What changed</strong></p>
+<ul><li><strong>The Shared view</strong> seats 1 bottom left, 2 bottom right, 3 top right and 4 top left (<code>shared/plane.mjs</code>): 1 and 2 share a side, 3 is across from 1, and 4 across from 2. Seats 3 and 4 still see the table turned so their side is at the bottom.</li><li><strong>The Grid view with four players</strong> uses the same seating (<code>cornerOf</code> in <code>shared/plane.mjs</code>, <code>data-corner</code> on each area in <code>table.js</code>, the grid areas in <code>frontend/src/styles/game-shell.css</code>), with your side at the bottom. Without corners it keeps the old turn-order layout. Two and three players are unchanged.</li></ul>
+<p class="sub"><strong>What I checked</strong></p>
+<ul><li><code>test-plane</code> 14 (the seating, the facing, both corners for seats 1 and 3), <code>check-table-layout</code> 165 (its stand-in tables now carry corners like the page's), <code>check-shared-live --seats=4</code> 11 against the real project with a screenshot looked at (Alice bottom left, Bob beside her, Bot 3 across from Alice, Bot 4 across from Bob), the quick suites (97).</li><li><strong>Not looked at:</strong> a real four-player Grid view (only the layout check's stand-in tables).</li></ul>
+<p class="sub"><strong>Claude's mistakes this step</strong></p>
+<ul><li>My first answer said the tables already followed the lobby, because the turn order was clockwise in both; but 1 and 2 sat across from each other at the table, not side by side.</li><li>The new grid had no place for an area without a corner, which broke 35 layout checks until the new layout applied only when corners are set.</li></ul>
   </div></div></div>
 </article>
 </div>

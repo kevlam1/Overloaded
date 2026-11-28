@@ -49,7 +49,7 @@ import { mountStackWindow } from '../../src/stack-window.js';
 import { createToolDocks } from '../../src/tool-dock.js';
 import { summarizeBoard } from '../../../shared/board-summary.mjs';
 import { tableColors, colorValue, inkOn } from '../../../shared/player-colors.mjs';
-import { PLANE_COLS, PLANE_ROWS, HOME_COLS, HOME_ROWS, homeOf, facingOf, readPlaneEntry, planeCell, entryFor } from '../../../shared/plane.mjs';
+import { PLANE_COLS, PLANE_ROWS, HOME_COLS, HOME_ROWS, homeOf, facingOf, cornerOf, readPlaneEntry, planeCell, entryFor } from '../../../shared/plane.mjs';
 import { mountPlaneCamera } from '../../src/plane-camera.js';
 import { mountPlaneDrag } from '../../src/plane-drag.js';
 import { emptyUndo, remember, canUndo, takeBack, undoWords } from '../../../shared/undo.mjs';
@@ -1278,6 +1278,12 @@ function focusSeat(uid) {
 function layoutSeats() {
   const others = othersInOrder();
   others.forEach((uid, index) => { opponents.get(uid).section.dataset.slot = `o${index + 1}`; });
+  // four players in Grid view sit as in the Shared view (Kevin, 2026-11-28): 1 and 2 side by side, 3 and 4 across, your own side at the bottom (shared/plane.mjs cornerOf)
+  const seatsNow = seatList();
+  for (const [uid, area] of [[myUid, $('seat-me')], ...others.map((uid) => [uid, opponents.get(uid).section])]) {
+    const corner = others.length === 3 ? cornerOf(String(members[uid]?.seat ?? ''), seatsNow, mySeatNow()) : null;
+    if (corner) area.dataset.corner = corner; else delete area.dataset.corner;
+  }
   const viewNow = game !== null ? seatsView() : 'grid';
   const sidebar = viewNow === 'sidebar';
   const shared = viewNow === 'shared'; // (everyone on one plane: only your area shows, and it holds the plane)

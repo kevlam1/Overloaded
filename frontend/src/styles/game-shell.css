@@ -312,3 +312,11 @@ body.playing:is(.solo, .seats) .stack-window .stack-grip { height: 32px; flex: n
 .plane-back:first-child { margin-left: 0; }
 body.playing.seats[data-view="shared"] #my-board > .battlefield { overflow: visible; }
 body.playing.seats[data-view="shared"] #life-area { display: none; }
+
+/* four players in Grid view (Kevin, 2026-11-28): seated as in the Shared view and the lobby's pairs, 1 and 2 side by side, 3 and 4 across, your side at the bottom
+   (data-corner from shared/plane.mjs cornerOf, set by table.js) */
+body.playing.seats[data-view="grid"][data-seats="4"] .seats-stage:has(.seat-area[data-corner]) { grid-template-areas: "tl tr" "bl br"; } /* (only when the areas have their corners: without them the turn-order layout stays) */
+body.playing.seats[data-view="grid"][data-seats="4"] .seat-area[data-corner="tl"] { grid-area: tl; }
+body.playing.seats[data-view="grid"][data-seats="4"] .seat-area[data-corner="tr"] { grid-area: tr; }
+body.playing.seats[data-view="grid"][data-seats="4"] .seat-area[data-corner="bl"] { grid-area: bl; }
+body.playing.seats[data-view="grid"][data-seats="4"] .seat-area[data-corner="br"] { grid-area: br; }

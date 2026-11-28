@@ -6427,6 +6427,23 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 **What I checked**
 - `check-lobby-ui` 66, and a screenshot of a throwaway table on the real project (deleted afterwards).
 
+## 310. Seats 1 and 2 side by side at the tables (2026-11-28)
+
+**What I asked for**
+- The multiplayer tables should follow the lobby's order. When Claude asked, I chose the same circle with each player at the bottom; then I said players 1 and 2 should sit next to each other, and 1 and 3 across.
+
+**What changed**
+- **The Shared view** seats 1 bottom left, 2 bottom right, 3 top right and 4 top left (`shared/plane.mjs`): 1 and 2 share a side, 3 is across from 1, and 4 across from 2. Seats 3 and 4 still see the table turned so their side is at the bottom.
+- **The Grid view with four players** uses the same seating (`cornerOf` in `shared/plane.mjs`, `data-corner` on each area in `table.js`, the grid areas in `frontend/src/styles/game-shell.css`), with your side at the bottom. Without corners it keeps the old turn-order layout. Two and three players are unchanged.
+
+**What I checked**
+- `test-plane` 14 (the seating, the facing, both corners for seats 1 and 3), `check-table-layout` 165 (its stand-in tables now carry corners like the page's), `check-shared-live --seats=4` 11 against the real project with a screenshot looked at (Alice bottom left, Bob beside her, Bot 3 across from Alice, Bot 4 across from Bob), the quick suites (97).
+- **Not looked at:** a real four-player Grid view (only the layout check's stand-in tables).
+
+**Claude's mistakes this step**
+- My first answer said the tables already followed the lobby, because the turn order was clockwise in both; but 1 and 2 sat across from each other at the table, not side by side.
+- The new grid had no place for an area without a corner, which broke 35 layout checks until the new layout applied only when corners are set.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-24, entry 277) Claude told me the tool docks remembered their layout (entries 273 and 276) when the code stored "[object Object]"; the audit for the spec found it.
 - (2026-11-23, entry 273) I said "commit and push after every big change" and meant every big prompt; Claude pushed after each of three changes.

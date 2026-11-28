@@ -1,6 +1,6 @@
 // The Shared view's plane (Kevin, 2026-11-25): every player's battlefield on ONE grid of square cells, where anyone may move any card.
 // The plane is 236 by 130 cells. Each player has a home of 112 by 50 (the solo board's size): with 2 players one at the bottom and one at the top, centred; with 3 or 4,
-// the four corners (seat order: bottom left, top left, top right, bottom right), with a gap of 12 cells between the left and right homes (2026-11-26 feedback; it was 224
+// the four corners (seat order: bottom left, bottom right, top right, top left: seats 1 and 2 on one side, 3 and 4 on the other, Kevin 2026-11-28), with a gap of 12 cells between the left and right homes (2026-11-26 feedback; it was 224
 // with none). The band between them, rows 50 to 80, is the commons: no one's. The homes along the top face the top edge: their cards are drawn turned (facingOf), and a
 // player sitting there sees the plane turned so their home is at the bottom.
 // A card's place on the plane is its plane entry (tables/{code}/plane/{seat}/{uid}: { x, y, z, by, m }) when it has one for this match, else its owner's home plus its own
@@ -16,7 +16,7 @@ export const COMMONS = { top: 50, bottom: 80 };
 export const MAX_X = PLANE_COLS - CARD_COLS;
 export const MAX_Y = PLANE_ROWS - CARD_ROWS;
 const RIGHT = HOME_COLS + SIDE_GAP;
-const CORNERS = [[0, 80], [0, 0], [RIGHT, 0], [RIGHT, 80]]; // bottom left, top left, top right, bottom right
+const CORNERS = [[0, 80], [RIGHT, 80], [RIGHT, 0], [0, 0]]; // bottom left, bottom right, top right, top left: 1 and 2 side by side, 3 across from 1 (Kevin, 2026-11-28)
 
 const whole = (n, low, high) => Number.isInteger(n) && n >= low && n <= high;
 
@@ -56,5 +56,15 @@ export function entryFor(cell, z, by, match) {
 export function facingOf(seat, seats) {
   const home = homeOf(seat, seats);
   return home && home.y === 0 ? 2 : 0;
+}
+
+// The corner of a seat's area as one player sees the table, for the 2 by 2 of the Grid view with four players (Kevin, 2026-11-28: the same seating as the Shared view):
+// 'bl', 'br', 'tr' or 'tl'. The viewer's own side is at the bottom: seats 3 and 4 see the table turned half a turn.
+export function cornerOf(seat, seats, viewerSeat) {
+  const home = homeOf(seat, seats);
+  if (!home) return null;
+  let left = home.x === 0; let bottom = home.y !== 0;
+  if (facingOf(viewerSeat, seats) === 2) { left = !left; bottom = !bottom; }
+  return `${bottom ? 'b' : 't'}${left ? 'l' : 'r'}`;
 }
 
