@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.312</span></h1>
-    <p class="lede">312 entries, Oct 25 to Nov 28, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
+    <h1>Build log <span class="version">Version 0.313</span></h1>
+    <p class="lede">313 entries, Oct 25 to Nov 28, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
   </div>
 </header>
 
@@ -25,7 +25,7 @@
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
 <a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">56</span></a>
-<a class="week-link" href="#week-3" data-target="week-3"><span class="wl-name">Week 3</span><span class="wl-range">Nov 23 to Nov 29</span><span class="wl-count">43</span></a>
+<a class="week-link" href="#week-3" data-target="week-3"><span class="wl-name">Week 3</span><span class="wl-range">Nov 23 to Nov 29</span><span class="wl-count">44</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
 <a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">75 things friends asked for</span></a>
 <a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">33 open, 73 done</span></a>
@@ -4572,7 +4572,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-3" aria-labelledby="week-3-title">
-<h2 class="week-head" id="week-3-title"><button type="button" aria-expanded="false" aria-controls="week-3-days"><span class="wname">Week 3</span><span class="range">Nov 23 to Nov 29</span><span class="week-count">43 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-3-title"><button type="button" aria-expanded="false" aria-controls="week-3-days"><span class="wname">Week 3</span><span class="range">Nov 23 to Nov 29</span><span class="week-count">44 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-3-days">
 <div class="day">
 <h3 class="day-title">Monday 23 November <span class="day-count">6</span></h3>
@@ -5229,7 +5229,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Saturday 28 November <span class="day-count">4</span></h3>
+<h3 class="day-title">Saturday 28 November <span class="day-count">5</span></h3>
 <div class="entries">
 <article class="entry" id="entry-309" data-n="309">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-309-body">
@@ -5295,6 +5295,21 @@
 <ul><li><code>check-shared-live</code> 11 against the real project (two seats), and a four-seat run with a screenshot looked at: the four pills in the middle, each facing its player, the counts by the hands.</li><li>The quick suites (97).</li><li><strong>Not seen:</strong> a commander damage chip on the table (no damage was dealt in the runs); the hand counts are small when zoomed far out.</li></ul>
 <p class="sub"><strong>Claude's mistakes this step</strong></p>
 <ul><li>My edit of the live check replaced the shared beginning of three lines at once, so two of them still looked for Alice's pill inside her area; one failed run before I fixed them.</li></ul>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-313" data-n="313">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-313-body">
+    <span class="num">313</span>
+    <span class="head-text"><span class="title">Bigger pills, damage at 0, the step button acts, bots with decks, card flips</span><span class="sum">Commander damage shown at 0 too; larger life pills and numbers; larger hands on the table.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-313-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>Commander damage shown at 0 too; larger life pills and numbers; larger hands on the table.</li><li>The &quot;Untap »&quot; button should untap too, and draw in the Draw step; its &quot;»&quot; text centered.</li><li>No &quot;(you)&quot;: my name should shine a little instead.</li><li>More prominent playmat edges.</li><li>Bots with decks, even of blank cards, for debugging and testing.</li><li>No default card (Krenko) on the home page.</li><li>Card flips in the game like the home page card's.</li></ul>
+<p class="sub"><strong>What changed</strong></p>
+<ul><li><strong>Pills:</strong> bigger, with bigger numbers; every commander that could deal damage shows a chip beside it, at 0 too, in that commander's player's color (<code>commanderDamageSeatsFor</code>).</li><li><strong>Hands on the table</strong> are card-sized backs, with a bigger count.</li><li><strong>Next step</strong> does its step on both tables: in Untap it presses Untap all, in Draw it presses Draw (both then move the step on), otherwise it moves on; its label is centered.</li><li><strong>&quot;(you)&quot;</strong> is gone from the Players list and the seat title; your own name glows in your color (<code>.me</code>).</li><li><strong>Playmat edges:</strong> each area on the shared table has a thicker border in its player's color with a soft glow, and the battlefields in Grid and Sidebar view a colored edge.</li><li><strong>Bots get a deck:</strong> the host's table page deals each of its test bots a game of 99 blank cards and a blank commander once per match, saved as the bot (<code>dealBots</code> in <code>table.js</code>; <code>save</code> on <code>botClient</code> in <code>frontend/src/db.js</code>). The bot does not play.</li><li><strong>Home page:</strong> no card shows until a random commander has loaded (<code>frontend/src/react/hero.jsx</code>).</li><li><strong>Card flips:</strong> a card turned over or flipped face down turns edge on, shows the other face and turns back (<code>showFace</code> in <code>frontend/src/card-nodes.js</code>); at once under reduced motion.</li></ul>
+<p class="sub"><strong>What I checked</strong></p>
+<ul><li><code>check-shared-live --seats=4</code> 11 against the real project with a screenshot looked at: the bots with hand 7, library 92 and their blank commander, the larger pills with 0 chips in the right colors, the hands, the edges, my name glowing.</li><li>The quick suites (97) and <code>check-lobby-ui</code> 66.</li><li><strong>Not checked:</strong> the flip animation itself (the checks run with reduced motion, so they see the instant swap), Next step pressing Untap all and Draw in a browser, the home page without a card, and a bot's commander damage chip (a bot has no commander on its seat in the lobby).</li></ul>
   </div></div></div>
 </article>
 </div>

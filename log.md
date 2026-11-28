@@ -6484,6 +6484,32 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 **Claude's mistakes this step**
 - My edit of the live check replaced the shared beginning of three lines at once, so two of them still looked for Alice's pill inside her area; one failed run before I fixed them.
 
+## 313. Bigger pills, damage at 0, the step button acts, bots with decks, card flips (2026-11-28)
+
+**What I asked for**
+- Commander damage shown at 0 too; larger life pills and numbers; larger hands on the table.
+- The "Untap »" button should untap too, and draw in the Draw step; its "»" text centered.
+- No "(you)": my name should shine a little instead.
+- More prominent playmat edges.
+- Bots with decks, even of blank cards, for debugging and testing.
+- No default card (Krenko) on the home page.
+- Card flips in the game like the home page card's.
+
+**What changed**
+- **Pills:** bigger, with bigger numbers; every commander that could deal damage shows a chip beside it, at 0 too, in that commander's player's color (`commanderDamageSeatsFor`).
+- **Hands on the table** are card-sized backs, with a bigger count.
+- **Next step** does its step on both tables: in Untap it presses Untap all, in Draw it presses Draw (both then move the step on), otherwise it moves on; its label is centered.
+- **"(you)"** is gone from the Players list and the seat title; your own name glows in your color (`.me`).
+- **Playmat edges:** each area on the shared table has a thicker border in its player's color with a soft glow, and the battlefields in Grid and Sidebar view a colored edge.
+- **Bots get a deck:** the host's table page deals each of its test bots a game of 99 blank cards and a blank commander once per match, saved as the bot (`dealBots` in `table.js`; `save` on `botClient` in `frontend/src/db.js`). The bot does not play.
+- **Home page:** no card shows until a random commander has loaded (`frontend/src/react/hero.jsx`).
+- **Card flips:** a card turned over or flipped face down turns edge on, shows the other face and turns back (`showFace` in `frontend/src/card-nodes.js`); at once under reduced motion.
+
+**What I checked**
+- `check-shared-live --seats=4` 11 against the real project with a screenshot looked at: the bots with hand 7, library 92 and their blank commander, the larger pills with 0 chips in the right colors, the hands, the edges, my name glowing.
+- The quick suites (97) and `check-lobby-ui` 66.
+- **Not checked:** the flip animation itself (the checks run with reduced motion, so they see the instant swap), Next step pressing Untap all and Draw in a browser, the home page without a card, and a bot's commander damage chip (a bot has no commander on its seat in the lobby).
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-24, entry 277) Claude told me the tool docks remembered their layout (entries 273 and 276) when the code stored "[object Object]"; the audit for the spec found it.
 - (2026-11-23, entry 273) I said "commit and push after every big change" and meant every big prompt; Claude pushed after each of three changes.

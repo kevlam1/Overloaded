@@ -544,7 +544,7 @@ $('draw').addEventListener('contextmenu', (event) => { event.preventDefault(); d
 $('draw').title = 'Draw. Right-click: draw 3';
 $('next-turn').addEventListener('click', goNextTurn);
 $('untap-all').addEventListener('click', () => { const step = phaseStep; play('tap'); apply(() => untapAll(game), untapMessage(game)); if (step === 0) { phaseStep = 1; render(); } }); // (Untap all during Untap moves on to Upkeep: Kevin's friends, 2026-11-26)
-$('next-step').addEventListener('click', () => { phaseStep = nextStep(phaseStep); if (game) render(); });
+$('next-step').addEventListener('click', () => { if (phaseStep === 0 && game) { $('untap-all').click(); return; } if (phaseStep === 2 && game) { $('draw').click(); return; } phaseStep = nextStep(phaseStep); if (game) render(); }); // (in Untap it untaps, in Draw it draws: Kevin 2026-11-28)
 mountLookSettings($('look-settings'));
 mountEffectSettings($('look-settings'));
 mountSoundSettings($('sound-settings'));

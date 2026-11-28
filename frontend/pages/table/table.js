@@ -1030,7 +1030,7 @@ function othersInOrder() {
   const mine = Number(members[myUid]?.seat ?? 1);
   return [...opponents.keys()].sort((a, b) => ((Number(members[a]?.seat ?? 0) - mine + 8) % 4) - ((Number(members[b]?.seat ?? 0) - mine + 8) % 4));
 }
-function mySeatTitle() { const me = members[myUid]; return me ? `Seat ${me.seat}: ${me.name} (You)` : 'You'; }
+function mySeatTitle() { const me = members[myUid]; return me ? `Seat ${me.seat}: ${me.name}` : 'You'; } // (no "(You)": your own name glows instead, Kevin 2026-11-28)
 function renderMyHead(turnNow = game !== null ? currentTurnInfo() : null) {
   $('my-name').textContent = mySeatTitle();
   $('my-plate-life').textContent = game ? String(game.life) : '';
@@ -1080,6 +1080,32 @@ function dropOnPlane({ uid, col, row, whole, group, name }) {
   say(uids.length > 1 ? `Moved ${uids.length} cards.` : `Moved ${name}.`);
   render();
 }
+// ---- test bots get a deck (Kevin, 2026-11-28: for debugging and testing): the host's page, which signed its bots in from the lobby, deals each of them a game of blank
+// cards once per match and saves it as that bot (the same first save as a player's). The bot then sits still: nobody plays its cards.
+const BLANK_CARD = '00000000-0000-4000-8000-0000000000b1';
+const BLANK_COMMANDER = '00000000-0000-4000-8000-0000000000b2';
+const BLANK_DECK = { cards: [{ i: BLANK_COMMANDER, n: 'Blank commander', qty: 1, section: 'commander' }, { i: BLANK_CARD, n: 'Blank card', qty: 99, section: 'main' }], commander: [BLANK_COMMANDER] };
+const botsDealt = new Set(); // uid:match already dealt (or being dealt) by this page
+function dealBots() {
+  if (!meta || meta.status !== 'playing' || meta.host !== myUid || !tableCode) return;
+  for (const [uid, member] of Object.entries(members)) {
+    const seat = String(member?.seat ?? '');
+    if (uid === myUid || member?.name !== `Bot ${seat}` || publicAll[uid]?.match === meta.match) continue;
+    const key = `${uid}:${meta.match}`;
+    if (botsDealt.has(key)) continue;
+    botsDealt.add(key);
+    const match = meta.match;
+    import('../../src/db.js').then(async ({ botClient }) => {
+      const bot = botClient(seat);
+      if ((await bot.uid()) !== uid) return; // (not a bot of this browser)
+      const dealt = makeGame(BLANK_DECK, () => ({ t: '', m: '', k: [] }));
+      const writes = gameWrites(uid, null, dealt);
+      writes[`public/${uid}/match`] = match; writes[`public/${uid}/log`] = null; writes[`public/${uid}/tax`] = null;
+      await bot.save(tableCode, writes);
+    }).catch(() => { botsDealt.delete(key); });
+  }
+}
+
 // ---- the Shared view: anyone taps any card and changes anyone's life (2026-11-26 feedback; the rules allow it only in the Shared view during a match) ----
 // Another player's change lands on MY stored branch; my page takes it into my game (it is stored already, so nothing is saved again). My own writes are seen by the
 // database's local copy at once, so a stored value that differs from my game is someone else's.
@@ -1162,10 +1188,11 @@ function planePill(uid, member, life, home, seats) {
   number.title = `${member.name}: ${life ?? ''} life`;
   lifeBox.insertBefore(number, lifeBox.lastChild);
   pill.append(make('span', 'plate-dot'), lifeBox);
-  // commander damage taken: game.cd / view.cd is { seat: damage }
+  // commander damage taken: game.cd / view.cd is { seat: damage }; every commander that could deal it is shown, at 0 too (Kevin, 2026-11-28)
   const cd = (uid === myUid ? game?.cd : opponents.get(uid)?.view?.cd) ?? {};
-  for (const [seat, damage] of Object.entries(cd)) {
-    if (!(Number(damage) > 0)) continue;
+  for (const { seat } of commanderDamageSeatsFor(members, cd, meta?.format)) {
+    if (String(seat) === String(member.seat)) continue; // (not your own commander)
+    const damage = Number(cd?.[seat]) || 0;
     const from = Object.entries(members).find(([, m]) => String(m.seat) === String(seat));
     const chip = make('span', 'plane-cd num', String(damage));
     chip.style.setProperty('--cd-color', from ? playerColor(from[0]) : 'var(--muted)');
@@ -1516,7 +1543,7 @@ async function start() {
     renderTurn();
     renderOpponents();
   });
-  watchPublic(tableCode, (value) => { publicAll = value && typeof value === 'object' ? value : {}; publicSeen = true; adoptRemoteChanges(); processPings(); renderTurn(); renderOpponents(); });
+  watchPublic(tableCode, (value) => { publicAll = value && typeof value === 'object' ? value : {}; publicSeen = true; adoptRemoteChanges(); dealBots(); processPings(); renderTurn(); renderOpponents(); });
   watchStack(tableCode, (value) => { storedStack = value; showStoredStack(); }); // the table's one stack: any player's change shows on every page
   watchPresence(tableCode, (value) => { if (value) { presence = value; renderPlayers(); } });
   watchServerOffset((offset) => { serverOffset = offset; renderPlayers(); });
@@ -1577,7 +1604,8 @@ $('pass-turn').addEventListener('click', async () => {
 });
 $('take-back').addEventListener('click', () => { if (game) { const action = takeBackAction(currentTurnInfo()); apply(() => action.run(game), action.message); } });
 $('untap-all').addEventListener('click', () => { if (game) { const info = currentTurnInfo(); const step = info.uid === myUid ? phaseNow(info) : null; play('tap'); apply(() => untapAll(game), untapMessage(game)); if (step === 0) setStep(1); } }); // (on your turn, Untap all during Untap moves on to Upkeep)
-$('next-step').addEventListener('click', () => { if (!game) return; const info = currentTurnInfo(); if (info.uid === myUid) setStep(nextStep(phaseNow(info))); });
+// Next step does what its step does (Kevin, 2026-11-28): in Untap it untaps everything and in Draw it draws a card (those buttons move the step on themselves); otherwise it moves on
+$('next-step').addEventListener('click', () => { if (!game) return; const info = currentTurnInfo(); if (info.uid !== myUid) return; const step = phaseNow(info); if (step === 0) $('untap-all').click(); else if (step === 2) $('draw').click(); else setStep(nextStep(step)); });
 mountLookSettings($('look-settings'));
 mountEffectSettings($('look-settings'));
 mountSoundSettings($('sound-settings'));

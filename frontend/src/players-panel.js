@@ -86,7 +86,8 @@ export function mountPlayersPanel({ root, store, key = 'overloaded.playersBar', 
         if (/^#[0-9a-f]{6}$/i.test(player.color ?? '')) item.style.setProperty('--seat-ink', inkOn(player.color)); // (text on their color, dark or light)
         if (player.clickable) { item.tabIndex = 0; item.setAttribute('role', 'button'); item.setAttribute('aria-pressed', String(Boolean(player.focused))); item.title = player.focused ? 'Back to your board' : `Show ${player.name}'s board`; }
         else { item.removeAttribute('tabindex'); item.removeAttribute('role'); item.removeAttribute('aria-pressed'); item.removeAttribute('title'); }
-        row.name.textContent = player.mine ? `${player.name} (you)` : player.name; // (other people's text: as text, never markup)
+        row.name.textContent = player.name; // (other people's text: as text, never markup; your own name glows instead of saying "(you)", Kevin 2026-11-28)
+        row.name.classList.toggle('me', Boolean(player.mine));
         row.status.textContent = player.status?.short ?? ''; row.status.title = player.status?.long ?? ''; row.status.hidden = !player.status?.short;
         row.tag.textContent = player.active ? 'Their turn' : player.next ? 'Next' : '';
         if (player.mine && player.active) row.tag.textContent = 'Your turn';

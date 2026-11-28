@@ -90,7 +90,7 @@ export function botClient(seat) {
       return (await signInAnonymously(auth)).user.uid;
     };
     const botOps = createTableOps({ sdk: { ref, get, update, onValue, onDisconnect, serverTimestamp }, db: getDatabase(app), getUid: uid });
-    bot = { uid, join: (code, name) => botOps.joinTable({ code, name, seat }), ready: (code) => botOps.setReady(code), leave: (code) => botOps.leaveTable(code), startPresence: (code) => botOps.startPresence(code, { onProblem: () => {} }) };
+    bot = { uid, save: (code, writes) => botOps.saveGame(code, writes), join: (code, name) => botOps.joinTable({ code, name, seat }), ready: (code) => botOps.setReady(code), leave: (code) => botOps.leaveTable(code), startPresence: (code) => botOps.startPresence(code, { onProblem: () => {} }) };
     bots.set(String(seat), bot);
   }
   return bot;

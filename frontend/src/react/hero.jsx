@@ -3,7 +3,7 @@
 // - DotField behind the hero: a field of dots that moves away from the pointer (the battlefields use the same dots);
 // - CardFlip beside it: a random commander from the top 1,000 (/data/commanders.json, shared/top-commanders.mjs) face up, which turns over to the real card back
 //   (Kevin, 2026-11-26: he asked for both, so the home page now loads a Scryfall picture on arrival, and its check allows that one host). Until the list
-//   arrives, or if it cannot load, the card shows Krenko, the sample deck's commander.
+//   arrives, or if it cannot load, there is no card (Kevin, 2026-11-28: no Krenko by default).
 // Both stop moving under prefers-reduced-motion (the components check it themselves). Pictures come from Scryfall like every card on the site.
 import { StrictMode, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -12,7 +12,6 @@ import CardFlip from '@/components/kokonutui/card-flip';
 import { imageUrl, cardBackUrl } from '../../../shared/card-image.mjs';
 import { pickCommander } from '../../../shared/top-commanders.mjs';
 
-const KRENKO = '824b2d73-2151-4e5e-9f05-8f63e2bdcaa9'; // Krenko, Mob Boss: the commander of the sample deck (shared/sample-decks.mjs)
 const picture = (src, alt) => <img src={src} alt={alt} draggable={false} className="block h-full w-full rounded-[4.8%/3.4%] object-cover" />;
 
 const dots = document.getElementById('hero-dots');
@@ -31,7 +30,8 @@ function HeroCard() {
     fetch('/data/commanders.json').then((response) => (response.ok ? response.json() : null)).then((rows) => { if (live) setCommander(pickCommander(rows)); }).catch(() => {});
     return () => { live = false; };
   }, []);
-  const [id, name] = commander ?? [KRENKO, 'Krenko, Mob Boss'];
+  if (!commander) return null;
+  const [id, name] = commander;
   return (
     <CardFlip
       label={`${name}. Drag or press to turn it over.`}

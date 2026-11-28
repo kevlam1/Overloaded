@@ -146,11 +146,21 @@ function showFace(button, card) {
   setFoilLook(button, cardLookGroup(card)); // (which foil: data-foil, one of the 8 looks)
   button.classList.toggle('exiled-down', card.xd === true); // (exiled face down: you see the card with a label, an opponent would not)
   if (!picture || picture.dataset.side === side) return;
+  const before = picture.dataset.side; // (none the first time the card is drawn: no turn then)
   picture.dataset.side = side;
   picture.dataset.tried = '';
   picture.dataset.sharp = ''; // (the small picture again: the hand asks for the normal size when it needs it)
   button.classList.remove('noimage'); // the other face may have a picture even if this one had none
-  picture.src = pictureAddress(card, side, false) ?? '';
+  const next = pictureAddress(card, side, false) ?? '';
+  // A card turned over or flipped face down turns like the card on the home page (Kevin, 2026-11-28): edge on, the other face, and back; at once under reduced motion.
+  const still = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!before || still || typeof picture.animate !== 'function') { picture.src = next; return; }
+  const away = picture.animate([{ transform: 'perspective(700px) rotateY(0deg)' }, { transform: 'perspective(700px) rotateY(90deg)' }], { duration: 140, easing: 'ease-in' });
+  away.onfinish = () => {
+    if (picture.dataset.side !== side) return; // (turned again meanwhile: the newer turn shows)
+    picture.src = next;
+    picture.animate([{ transform: 'perspective(700px) rotateY(-90deg)' }, { transform: 'perspective(700px) rotateY(0deg)' }], { duration: 200, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' });
+  };
 }
 
 export function makeCardNodes({ onSelect = () => {}, isSelected = () => false, readOnly = false, onMark = null, onMenu = null, onBadge = null, printedStats = () => null } = {}) {
