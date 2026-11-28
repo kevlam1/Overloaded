@@ -35,7 +35,7 @@ export function readPing(stored, lookup) {
   if (!stored || typeof stored !== 'object' || Array.isArray(stored)) return null;
   if (!Number.isSafeInteger(stored.k) || stored.k < 1 || stored.k > NUMBER_LIMIT) return null;
   const card = unpackCard(stored.card, lookup);
-  return card ? { k: stored.k, card } : null;
+  return card ? { k: stored.k, card, ...(stored.x === 1 ? { closed: true } : {}) } : null; // (closed: the pinger closed it for everyone, 2026-11-26 feedback)
 }
 
 // Which pings are new. branches: every player's stored public branch ({ uid: branch }). seen: { uid: k } of what was seen before, or null for the FIRST snapshot after
@@ -58,3 +58,12 @@ export function newPings(branches, seen, lookup) {
 // The words for a ping, for the spotlight and for a screen reader: who pinged which card. seat is the player's seat ('1' to '4') or ''.
 // (a face-down card is not named: the other players must not learn it; Kevin 2026-11-24)
 export const pingSentence = (name, seat, card) => `${seat ? `Seat ${seat}: ` : ''}${name} pinged ${card.faceDown ? 'a face-down card' : card.n}.`;
+
+// The pinger's ping closed for everyone (2026-11-26 feedback): the same record with x: 1, so no page takes it for a new ping.
+export const closedPing = (record) => ({ ...record, x: 1 });
+// Who saw a ping (2026-11-26 feedback): the players whose public branch has ack[pinger] equal to the ping's number. branches: { uid: branch }. Returns their uids, in key order, never the pinger.
+export function seenBy(branches, pinger, k) {
+  return Object.entries(branches && typeof branches === 'object' ? branches : {})
+    .filter(([uid, branch]) => uid !== pinger && branch?.ack && typeof branch.ack === 'object' && branch.ack[pinger] === k)
+    .map(([uid]) => uid);
+}

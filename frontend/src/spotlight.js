@@ -28,8 +28,11 @@ export function createSpotlight(root, { onClose = () => {}, persistent = false, 
   const close = make('button', 'secondary spot-close', 'Close');
   close.type = 'button';
   close.setAttribute('aria-label', 'Close the pinged card');
+  const note = make('p', 'spot-note'); // (who saw your ping: 2026-11-26 feedback)
+  note.hidden = true;
+  const extra = make('div', 'spot-actions'); // (Close for all, Seen)
   const text = make('div', 'spot-text');
-  text.append(line, name, type, detail, close);
+  text.append(line, name, type, detail, note, extra, close);
   const empty = make('p', 'spot-empty', emptyText);
   root.replaceChildren(picture, text, empty);
   root.classList.add('spotlight');
@@ -46,7 +49,9 @@ export function createSpotlight(root, { onClose = () => {}, persistent = false, 
   close.addEventListener('click', () => { hide(); onClose(); });
 
   return {
-    show({ card, sentence = '', detail: more = '', closable = true, key = null }) {
+    setNote(textNow) { note.textContent = textNow; note.hidden = !textNow; },
+    // actions: [{ label, onClick, id? }] buttons beside Close (a ping: Close for all, or Seen); note: a line under the details (setNote changes it later)
+    show({ card, sentence = '', detail: more = '', closable = true, key = null, actions = [], note: noteText = '' }) {
       if (key !== null && key === lastKey) return;
       lastKey = key;
       root.classList.remove('is-empty');
@@ -72,6 +77,9 @@ export function createSpotlight(root, { onClose = () => {}, persistent = false, 
       detail.textContent = more;
       detail.hidden = !more;
       close.hidden = !closable;
+      note.textContent = noteText; note.hidden = !noteText;
+      extra.replaceChildren(...actions.map(({ label, onClick, id }) => { const button = make('button', 'secondary spot-action', label); button.type = 'button'; if (id) button.id = id; button.addEventListener('click', () => onClick(button)); return button; }));
+      extra.hidden = actions.length === 0;
       root.hidden = false;
       // a short entrance (off under prefers-reduced-motion in the style sheet): remove and add the class again so a new card replays it
       root.classList.remove('enter');

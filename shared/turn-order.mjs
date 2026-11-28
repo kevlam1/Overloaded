@@ -58,10 +58,12 @@ export function latestPass(publicByUid) {
 
 // The turn now: { turn, seat, uid, name, last } where last is the newest pass (or null at the start of the match, turn 1, the lowest seat).
 // uid and name are the active player's, or null when no one at the table has that seat (they left).
-export function currentTurn(publicByUid, members) {
+// opener (2026-11-26 feedback): the seat that goes first this match (meta/opener, chosen at Start: shared/first-player.mjs); without one, or if no one sits there, the lowest seat.
+export function currentTurn(publicByUid, members, opener = null) {
   const order = seatOrder(members);
   const last = latestPass(publicByUid);
-  const seat = last ? last.to : (order[0]?.seat ?? '1');
+  const first = order.some((player) => player.seat === opener) ? opener : (order[0]?.seat ?? '1');
+  const seat = last ? last.to : first;
   const who = order.find((player) => player.seat === seat) ?? null;
   return { turn: last ? last.n : 1, seat, uid: who?.uid ?? null, name: who?.name ?? null, last };
 }

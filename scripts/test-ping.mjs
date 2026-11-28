@@ -1,5 +1,5 @@
 // Tests for shared/ping.mjs: which cards can be pinged, the record that is written, how a stored ping is read back (strictly), and which pings a page shows.
-import { PING_ZONES, canPing, pingKey, makePing, readPing, newPings, pingSentence } from '../shared/ping.mjs';
+import { PING_ZONES, canPing, pingKey, makePing, readPing, newPings, pingSentence, closedPing, seenBy } from '../shared/ping.mjs';
 import { packCard, unpackCard } from '../shared/game-sync.mjs';
 import { NUMBER_LIMIT } from '../shared/zones.mjs';
 
@@ -124,5 +124,14 @@ refused('a previous ping at the limit leaves no new number', () => pingKey(NUMBE
 same('the sentence names the seat, the player and the card', pingSentence('Alice', '2', { n: 'Sol Ring' }), 'Seat 2: Alice pinged Sol Ring.');
 same('without a seat it leaves the seat out', pingSentence('Alice', '', { n: 'Sol Ring' }), 'Alice pinged Sol Ring.');
 same('a face-down card is not named', pingSentence('Alice', '2', { n: 'Sol Ring', faceDown: true }), 'Seat 2: Alice pinged a face-down card.');
+
+// closing for everyone and "Seen" (2026-11-26 feedback)
+{
+  const record = makePing({ uid: 'c4', i: '00000000-0000-4000-8000-000000000004', n: 'Sol Ring', t: 'Artifact', m: '', k: [], tapped: false, turnEntered: null }, 'battlefield', { previous: 0, now: 1000 });
+  const closed = closedPing(record);
+  same('a ping closed for everyone keeps its number and is read as closed', [closed.k === record.k, readPing(closed, () => null).closed], [true, true]);
+  same('...and is not a new ping for a page that saw it', newPings({ alice: { ping: closed } }, { alice: record.k }, () => null).shown.length, 0);
+  same('the players who saw a ping are those whose ack for the pinger is its number', seenBy({ alice: { ping: record }, bob: { ack: { alice: record.k } }, carol: { ack: { alice: record.k - 1 } }, dave: {} }, 'alice', record.k), ['bob']);
+}
 
 console.log(`All ${checks} ping checks passed.`);

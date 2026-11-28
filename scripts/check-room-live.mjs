@@ -130,6 +130,33 @@ try {
   record('Carol opens the link with a name saved in her browser: she is joined with no click at all, in seat 3', Boolean(carolIn) && (await carol.eval(`document.querySelector('#players .seat.mine')?.dataset.seat`)) === '3', String((await carol.eval(`document.querySelector('#players .seat.mine')?.dataset.seat`))));
   record("...and Alice's page lists Carol", Boolean(await waitFor(async () => (await players(alice)).some((t) => t.includes('Carol')) || null, 20000, 200)));
 
+  // Seats, Ready? and removing a player (2026-11-26 feedback, rules batch 2)
+  const seatIn = async (uid) => (await members(code, cleanup.alice.token))[uid]?.seat ?? null;
+  await carol.eval(`document.querySelector('#players .empty-seat[data-seat="4"] [data-seat-action="sit"]')?.click()`);
+  record('Carol presses Sit here on the empty seat 4 and moves there', Boolean(await waitFor(async () => ((await seatIn(cleanup.carol.uid)) === '4' ? true : null), 20000, 250)));
+  if (process.argv.includes('--screenshot')) { await sleep(800); await alice.screenshot('scratch-lobby-seat-tools.png'); }
+  await waitFor(async () => ((await alice.eval(`Boolean(document.querySelector('#players select.seat-move[data-uid="${cleanup.bob.uid}"] option[value="4"]'))`)) ? true : null), 15000, 200).catch(() => null);
+  await alice.eval(`(() => { const s = document.querySelector('#players select.seat-move[data-uid="${cleanup.bob.uid}"]'); s.value = '4'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+  record('the host swaps Bob (seat 2) with Carol (seat 4) from his seat menu', Boolean(await waitFor(async () => ((await seatIn(cleanup.bob.uid)) === '4' && (await seatIn(cleanup.carol.uid)) === '2' ? true : null), 20000, 250)));
+  await waitFor(async () => ((await alice.eval(`Boolean(document.querySelector('#players select.seat-move[data-uid="${cleanup.bob.uid}"] option[value="2"]'))`)) ? true : null), 15000, 200).catch(() => null);
+  await alice.eval(`(() => { const s = document.querySelector('#players select.seat-move[data-uid="${cleanup.bob.uid}"]'); s.value = '2'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+  await waitFor(async () => ((await seatIn(cleanup.bob.uid)) === '2' ? true : null), 20000, 250);
+  await waitFor(async () => ((await alice.eval(`Boolean(document.querySelector('#players [data-seat-action="ask"][data-target="${cleanup.carol.uid}"]'))`)) ? true : null), 15000, 200).catch(() => null);
+  await alice.eval(`document.querySelector('#players [data-seat-action="ask"][data-target="${cleanup.carol.uid}"]')?.click()`);
+  // (the test browser answers every confirm box Yes and keeps its words in dialogs: Yes presses her Ready button, which opens her deck window, as she has no deck)
+  const asked = await waitFor(async () => carol.dialogs.find((words) => words.startsWith('Are you ready?')) ?? null, 20000, 250);
+  record('the host asks Carol "Ready?": a popup asks her', Boolean(asked), JSON.stringify(carol.dialogs));
+  await carol.eval(`document.getElementById('deck-dialog')?.open && document.getElementById('deck-dialog').close()`);
+  await alice.eval(`document.querySelector('#first-switch button[data-first="2"]').click()`);
+  record('the host picks seat 2 to go first, and it is stored', Boolean(await waitFor(async () => ((await rest('GET', `tables/${code}/meta/first`, cleanup.alice.token)).json === '2' ? true : null), 20000, 250)));
+  await alice.eval(`document.querySelector('#first-switch button[data-first="random"]').click()`);
+  await alice.eval(`document.querySelector('#players [data-seat-action="remove"][data-target="${cleanup.carol.uid}"]')?.click()`);
+  await waitFor(async () => ((await alice.eval(`Boolean(document.querySelector('.confirm-overlay .confirm-yes'))`)) ? true : null), 5000, 100).catch(() => null);
+  await alice.eval(`document.querySelector('.confirm-overlay .confirm-yes')?.click()`);
+  record('the host removes Carol: her seat is free', Boolean(await waitFor(async () => (!(cleanup.carol.uid in (await members(code, cleanup.alice.token))) ? true : null), 20000, 250)));
+  const removedTitle = await waitFor(async () => (await carol.eval(`document.querySelector('.closed-table h2')?.textContent ?? null`)) || null, 20000, 250);
+  record('...and her page says she was removed', removedTitle === 'You were removed', String(removedTitle));
+
   // A link to a table that does not exist.
   await dave.goto(START);
   await dave.eval(`localStorage.setItem('overloaded.name', 'Dave')`);

@@ -58,6 +58,8 @@ const suites = [
   { name: 'the hand card size setting', cmd: node, args: ['scripts/test-hand-size.mjs'] },
   { name: 'the first-time help of each view', cmd: node, args: ['scripts/test-view-help.mjs'] },
   { name: 'a card added from the card list', cmd: node, args: ['scripts/test-add-card.mjs'] },
+  { name: 'rotating a card a quarter turn', cmd: node, args: ['scripts/test-rotate.mjs'] },
+  { name: 'who goes first', cmd: node, args: ['scripts/test-first-player.mjs'] },
   { name: 'the stack window (a list of card copies and text boxes, with Undo)', cmd: node, args: ['scripts/test-stack.mjs'] },
   { name: 'where the stack window arrows start and end', cmd: node, args: ['scripts/test-arrow-geometry.mjs'] },
   { name: 'the pause between the cards of Draw X', cmd: node, args: ['scripts/test-draw-pace.mjs'] },

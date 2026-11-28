@@ -2161,3 +2161,17 @@ body.playing.seats .cmd-slot .tax-words { min-width: 1.1rem; min-height: 0; heig
 @media (prefers-reduced-motion: reduce) { .stack-arrows > g { transition: none; } }
 /* the Next step button keeps one width whatever step it names, so the bar does not change size (and move) as the steps go by */
 #next-step .act-label { display: inline-block; min-width: 8.5ch; text-align: left; }
+/* Rotate 90 degrees (2026-11-26 feedback): the whole card turns by quarter turns clockwise, apart from tapping (a tapped card is a landscape box; this turns the box itself) */
+.battlefield > .card[data-rt="1"] { rotate: 90deg; }
+.battlefield > .card[data-rt="2"] { rotate: 180deg; }
+.battlefield > .card[data-rt="3"] { rotate: 270deg; }
+/* a ping's buttons beside Close (Close for all on your own ping, Seen on another player's) and who saw yours (2026-11-26 feedback) */
+.spotlight .spot-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.4rem; margin-top: 0.75rem; }
+.spotlight .spot-actions[hidden], .spotlight .spot-note[hidden] { display: none; }
+.spotlight .spot-actions + .spot-close { margin-top: 0.4rem; }
+.spotlight .spot-note { margin: 0.35rem 0 0; color: var(--gold); font-size: 0.85rem; font-weight: 600; }
+/* the lobby's seat tools (2026-11-26 feedback): the host's seat menu, Ready? and Remove on another player's seat, and Sit here on an empty seat */
+.seat-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem; margin-top: 0.4rem; position: relative; z-index: 1; }
+.seat-tools .seat-move { min-height: 0; height: 1.8rem; padding: 0 0.4rem; font-size: 0.78rem; }
+.seat-action { min-height: 0; height: 1.8rem; padding: 0 0.6rem; font-size: 0.78rem; position: relative; z-index: 1; }
+.seat-action.seat-remove { color: var(--danger); }

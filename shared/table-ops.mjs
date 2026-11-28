@@ -9,6 +9,7 @@
 // - a person who is not at the table cannot read it, so joining tries seats one at a time;
 // - a host holds one table at a time: making a new one deletes the old one in the same write.
 // No browser-only or server-only code here, so Node tests can load it.
+import { FIRST_CHOICES, pickOpener } from './first-player.mjs';
 import { isColorId, takenColors } from './player-colors.mjs';
 import { makeTableCode, isValidCode } from './table-code.mjs';
 import { cleanPlayerName } from './player-name.mjs';
@@ -366,7 +367,89 @@ export function createTableOps({ sdk, db, getUid, makeCode = makeTableCode }) {
     const players = Object.values(members);
     if (players.length < 2) refuse('You need at least two players to start.');
     if (!players.every((p) => p.ready === meta.match)) refuse('Everyone needs to be ready first.');
-    await update(ref(db), { [`tables/${code}/meta/status`]: 'playing', [`tables/${code}/meta/idleLimit`]: PLAYING_IDLE_MS });
+    // who goes first (2026-11-26 feedback): the seat is picked once, here, and stored with the start so every page agrees. Rules published before that change refuse
+    // meta/opener: then the match starts without it, as before (the lowest seat goes first).
+    const opener = pickOpener(meta.first, players.map((p) => p.seat));
+    const start = { [`tables/${code}/meta/status`]: 'playing', [`tables/${code}/meta/idleLimit`]: PLAYING_IDLE_MS };
+    try { await update(ref(db), opener ? { ...start, [`tables/${code}/meta/opener`]: opener } : start); } catch (error) { if (!opener || !isPermissionDenied(error)) throw error; await update(ref(db), start); }
+  }
+
+  // ---- seats, removing a player and "Ready?" (2026-11-26 feedback) ----
+  const seatsOf = (meta) => ['1', '2', '3', '4'].slice(0, Math.min(4, Math.max(2, Number(meta?.seats) || 4)));
+  // You move to an empty seat (only in the lobby): one write frees your old seat, takes the new one and changes your seat.
+  async function moveSeat(code, to) {
+    const { uid, meta, members, mine } = await look(code);
+    if (!meta || !mine) refuse('You are not at that table.');
+    if (meta.status !== 'lobby') refuse('Seats can only change in the lobby.');
+    if (!seatsOf(meta).includes(to)) refuse('That seat is not at this table.');
+    if (mine.seat === to) return { changed: false };
+    if (Object.values(members).some((member) => member.seat === to)) refuse('Someone sits there.');
+    await update(ref(db), { [`tables/${code}/seats/${mine.seat}`]: null, [`tables/${code}/seats/${to}`]: uid, [`tables/${code}/members/${uid}/seat`]: to });
+    return { changed: true };
+  }
+  // The host puts a player in a seat (only in the lobby): an empty seat is a move, a seat someone sits in is a swap of the two.
+  async function placePlayer(code, who, to) {
+    const { uid, meta, members } = await look(code);
+    if (!meta) refuse('That table is not available.');
+    if (meta.host !== uid) refuse('Only the host can move other players.');
+    if (meta.status !== 'lobby') refuse('Seats can only change in the lobby.');
+    const player = members[who];
+    if (!player) refuse('That player is not at the table.');
+    if (!seatsOf(meta).includes(to)) refuse('That seat is not at this table.');
+    if (player.seat === to) return { changed: false };
+    const other = Object.entries(members).find(([, member]) => member.seat === to)?.[0] ?? null;
+    const at = (path) => `tables/${code}/${path}`;
+    await update(ref(db), other
+      ? { [at(`seats/${to}`)]: who, [at(`seats/${player.seat}`)]: other, [at(`members/${who}/seat`)]: to, [at(`members/${other}/seat`)]: player.seat }
+      : { [at(`seats/${player.seat}`)]: null, [at(`seats/${to}`)]: who, [at(`members/${who}/seat`)]: to });
+    return { changed: true, swapped: Boolean(other) };
+  }
+  // The host removes a player (only in the lobby): their entry and seat go, and they cannot join this table again.
+  async function removePlayer(code, who) {
+    const { uid, meta, members } = await look(code);
+    if (!meta) refuse('That table is not available.');
+    if (meta.host !== uid) refuse('Only the host can remove a player.');
+    if (meta.status !== 'lobby') refuse('Players can only be removed in the lobby.');
+    if (who === uid) refuse('You cannot remove yourself; leave instead.');
+    const player = members[who];
+    if (!player) return { changed: false };
+    await update(ref(db), { [`tables/${code}/members/${who}`]: null, [`tables/${code}/seats/${player.seat}`]: null, [`tables/${code}/kicked/${who}`]: true });
+    return { changed: true };
+  }
+  // The host asks a player "Ready?" (only in the lobby): a new number under nudge/{uid}; that player's page shows a popup.
+  async function askReady(code, who) {
+    const { uid, meta, members } = await look(code);
+    if (!meta) refuse('That table is not available.');
+    if (meta.host !== uid) refuse('Only the host can ask.');
+    if (meta.status !== 'lobby') refuse('The match has started.');
+    if (!members[who]) refuse('That player is not at the table.');
+    await update(ref(db), { [`tables/${code}/nudge/${who}`]: Date.now() });
+  }
+  // Whether this player was removed from a table by its host (their own mark is the one thing about the table they can still read).
+  async function wasRemoved(code) {
+    const uid = await getUid();
+    try { return (await get(ref(db, `tables/${code}/kicked/${uid}`))).val() === true; } catch { return false; }
+  }
+  // Calls onAsk(number) each time the host asks this player "Ready?" after the watch began (the number that was there before is only remembered).
+  function watchAsked(code, uid, onAsk) {
+    let first = true; let last = null;
+    return onValue(ref(db, `tables/${code}/nudge/${uid}`), (snapshot) => {
+      const value = snapshot.val();
+      if (first) { first = false; last = value; return; }
+      if (Number.isInteger(value) && value !== last) { last = value; onAsk(value); }
+    }, () => {});
+  }
+
+  // The host picks who goes first (2026-11-26 feedback): 'random' or a seat '1' to '4'. Only in the lobby. Returns { first, changed }.
+  async function setFirst(code, first) {
+    if (!FIRST_CHOICES.includes(first)) refuse('Who goes first is Random or a seat.');
+    const { uid, meta, mine } = await look(code);
+    if (!meta || !mine) refuse('You are not at that table.');
+    if (meta.host !== uid) refuse('Only the host can choose who goes first.');
+    if (meta.status !== 'lobby') refuse('The match has started.');
+    if ((meta.first ?? 'random') === first) return { first, changed: false };
+    await update(ref(db), { [`tables/${code}/meta/first`]: first });
+    return { first, changed: true };
   }
 
   // You give up the current match. It cannot be taken back during the match.
@@ -626,5 +709,5 @@ export function createTableOps({ sdk, db, getUid, makeCode = makeTableCode }) {
     );
   }
 
-  return { findMyTable, createTable, closeIfExpired, rejoinTable, joinTable, watchMembers, setReady, clearReady, setName, setColor, setFormat, setView, setBracketLimit, setDeck, startMatch, concede, endMatch, endTable, leaveTable, passHost, takeOverHost, claimHostSlot, heartbeat, watchActivity, watchMeta, watchServerOffset, watchConnection, startPresence, watchPresence, saveGame, loadGame, watchPublic, saveStack, watchStack, savePlaneMove, clearPlaneEntries, watchPlane, setCarry, armCarry, watchCarry };
+  return { findMyTable, createTable, closeIfExpired, rejoinTable, joinTable, watchMembers, setReady, clearReady, setName, setColor, setFormat, setView, setFirst, moveSeat, placePlayer, removePlayer, askReady, watchAsked, wasRemoved, setBracketLimit, setDeck, startMatch, concede, endMatch, endTable, leaveTable, passHost, takeOverHost, claimHostSlot, heartbeat, watchActivity, watchMeta, watchServerOffset, watchConnection, startPresence, watchPresence, saveGame, loadGame, watchPublic, saveStack, watchStack, savePlaneMove, clearPlaneEntries, watchPlane, setCarry, armCarry, watchCarry };
 }

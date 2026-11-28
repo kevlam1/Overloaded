@@ -50,7 +50,7 @@ const seed = async (browser, library) => {
   await browser.goto(PAGE);
   await browser.eval(`localStorage.setItem(${JSON.stringify(LIBRARY_KEY)}, ${JSON.stringify(serializeLibrary(library))})`);
 };
-const row = (browser, who) => browser.eval(`(Array.from(document.querySelectorAll('#players li')).find((x) => x.textContent.includes(${JSON.stringify(who)})) ?? { textContent: '' }).textContent`);
+const row = (browser, who) => browser.eval(`(() => { const li = Array.from(document.querySelectorAll('#players li')).find((x) => x.textContent.includes(${JSON.stringify(who)})); if (!li) return ''; const copy = li.cloneNode(true); copy.querySelector('.seat-tools')?.remove(); return copy.textContent; })()`); // (without the host's seat tools: their Ready? button is not a Ready mark)
 const rowHas = (browser, who, ...parts) => waitFor(async () => { const t = await row(browser, who); return parts.every((p) => t.includes(p)) ? t : null; }, 15000, 200);
 const choose = (browser, id, value) => browser.eval(`(() => { const s = document.getElementById(${JSON.stringify(id)}); s.value = ${JSON.stringify(value)}; s.dispatchEvent(new Event('change')); })()`);
 const dialogOpen = (browser) => browser.eval(`document.getElementById('deck-dialog').open`);
@@ -205,6 +205,8 @@ try {
   await click(alice, 'ready');
   const enabled = await waitFor(async () => { const s = await startState(alice); return !s.disabled ? s : null; }, 10000, 200);
   record('once everyone is ready the Start button turns on and says so', Boolean(enabled) && /Everyone is ready/.test(enabled.note), JSON.stringify(enabled));
+  await alice.eval(`document.querySelector('#first-switch button[data-first="1"]').click()`); // (who goes first: Random by default since 2026-11-27; the turn checks below expect seat 1)
+  await waitFor(async () => ((await rest('GET', `tables/${code}/meta/first`, cleanup.alice.token)).json === '1' ? true : null), 15000, 250);
   await click(alice, 'start');
   const onTable = (browser) => waitFor(async () => (new RegExp(`^/table/${code}$`).test(await browser.eval('location.pathname')) ? true : null), 20000, 200);
   record("Alice's browser is taken to the table page when the match starts", Boolean(await onTable(alice)));
@@ -453,7 +455,7 @@ try {
   await alice.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: cardAt.x, y: cardAt.y, button: 'right', buttons: 0, clickCount: 1 });
   await sleep(150);
   const aliceMenu = await menuOf(alice);
-  record("a right click on Alice's card opens its menu on the table page (Modify, Tap, Flip, the two marks, the counters, Create copy, Add to the stack, View details, Ping card, Move to)", Boolean(aliceMenu) && JSON.stringify(aliceMenu.items) === JSON.stringify(['Modify...', 'Tap', 'Flip', "Doesn't untap", 'Summoning sick', '+1/+1 counter', '+1/+1 counters X...', 'Create copy', 'Add to the stack', 'View details', 'Ping card', 'Move to']), JSON.stringify(aliceMenu));
+  record("a right click on Alice's card opens its menu on the table page (Modify, Tap, Flip, Rotate 90, the two marks, the counters, Create copy, Add to the stack, View details, Ping card, Move to)", Boolean(aliceMenu) && JSON.stringify(aliceMenu.items) === JSON.stringify(['Modify...', 'Tap', 'Flip', 'Rotate 90°', "Doesn't untap", 'Summoning sick', '+1/+1 counter', '+1/+1 counters X...', 'Create copy', 'Add to the stack', 'View details', 'Ping card', 'Move to']), JSON.stringify(aliceMenu));
   await clickMenuText(alice, 'Tap');
   record('Tap from the menu is saved: the card is tapped in the database that Bob can read', Boolean(await waitFor(async () => (await tappedInDb()) === true ? true : null, 15000, 250)));
   record("...and Bob's page shows Alice's card tapped, without a refresh", Boolean(await waitFor(async () => (await bob.eval(`Array.from(document.querySelectorAll('#opponent-list .opponent')).some((p) => p.querySelector('h3').textContent.includes('Alice') && p.querySelector('.card.tapped'))`)) ? true : null, 20000, 250)));
@@ -544,6 +546,15 @@ try {
     record('pinging from the menu writes a record with a DIFFERENT number', Boolean(second) && second.k > stored.k, JSON.stringify([stored?.k, second?.k]));
     const bobAgain = await waitFor(async () => { const v = await spot(bob); return v.hidden ? null : v; }, 20000, 250);
     record('and Bob\'s page shows it again, after he had closed the first', Boolean(bobAgain) && bobAgain.name === first?.n);
+    // Seen and Close for all (2026-11-26 feedback, rules batch 2): Bob says he saw it, Alice's ping lists him, and Alice closes it for everyone
+    await bob.eval(`document.getElementById('ping-seen')?.click()`);
+    const ack = await waitFor(async () => { const r = (await rest('GET', `tables/${code}/public/${cleanup.bob.uid}/ack`, cleanup.bob.token)).json; return r ? r : null; }, 15000, 250);
+    record('Bob presses Seen: his own branch says he saw Alice\'s ping (its number)', Boolean(ack) && Object.values(ack)[0] === second?.k, JSON.stringify(ack));
+    const seenNote = await waitFor(async () => { const t = await alice.eval(`document.querySelector('#spotlight .spot-note')?.textContent ?? ''`); return /Seen by Bob/.test(t) ? t : null; }, 15000, 250);
+    record('...and Alice\'s ping says Seen by Bob', Boolean(seenNote), String(seenNote));
+    await alice.eval(`document.getElementById('ping-close-all')?.click()`);
+    const goneForBob = await waitFor(async () => ((await spot(bob)).hidden ? true : null), 15000, 250);
+    record('Alice presses Close for all: the ping goes from Bob\'s screen too', Boolean(goneForBob));
 
     // a refresh does not bring an old ping back
     await bob.eval(`location.reload()`);

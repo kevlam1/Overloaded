@@ -78,12 +78,12 @@ const structureChecks = () => {
   check('the seven list rules exist', blocks.every((block) => block && block.length > 500));
   check('the seven list rules are identical', blocks.every((block) => block === blocks[0]));
   check('a list has only its own object check and the card rule (so nothing else can hide in one)', Object.keys(JSON.parse(blocks[0])).join() === '.validate,$i' && JSON.parse(blocks[0])['.validate'] === 'newData.hasChildren()');
-  check('the public branch has exactly the keys the pages write', Object.keys(rules.public.$uid).filter((key) => !key.startsWith('.') && key !== '$other').sort().join() === 'battlefield,cd,command,counts,exile,graveyard,life,log,match,mulligans,next,pass,pc,phase,ping,tax,turn');
+  check('the public branch has exactly the keys the pages write', Object.keys(rules.public.$uid).filter((key) => !key.startsWith('.') && key !== '$other').sort().join() === 'ack,battlefield,cd,command,counts,exile,graveyard,life,log,match,mulligans,next,pass,pc,phase,ping,tax,turn');
   check('the private branch has exactly the three hidden lists', Object.keys(rules.private.$uid).filter((key) => !key.startsWith('.') && key !== '$other').sort().join() === 'hand,library,sideboard');
   const listCard = { ...JSON.parse(blocks[0]).$i }; delete listCard['.validate'];
   const pingCard = { ...rules.public.$uid.ping.card }; delete pingCard['.validate'];
   check('the card inside a ping has exactly the rules of a card in a list (the same generated block)', JSON.stringify(pingCard) === JSON.stringify(listCard));
-  check('a ping needs a number and a card, and nothing else is allowed in it', rules.public.$uid.ping['.validate'] === "newData.hasChildren(['k', 'card'])" && rules.public.$uid.ping.$other['.validate'] === false && Object.keys(rules.public.$uid.ping).filter((key) => !key.startsWith('.') && key !== '$other').sort().join() === 'card,k');
+  check('a ping needs a number and a card, may be marked closed (x), and nothing else is allowed in it', rules.public.$uid.ping['.validate'] === "newData.hasChildren(['k', 'card'])" && rules.public.$uid.ping.$other['.validate'] === false && Object.keys(rules.public.$uid.ping).filter((key) => !key.startsWith('.') && key !== '$other').sort().join() === 'card,k,x');
   check('both branches refuse any other key', rules.public.$uid.$other['.validate'] === false && rules.private.$uid.$other['.validate'] === false);
 };
 

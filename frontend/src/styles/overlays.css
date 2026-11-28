@@ -163,3 +163,16 @@
 /* the token window's Random art switch, and the art that is the token's own (2026-11-26 feedback) */
 .token-random { display: inline-flex; align-items: center; gap: 0.3rem; margin-right: 0.4rem; font-size: 0.85rem; cursor: pointer; }
 .token-tile[aria-pressed="true"] { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+/* the reveal of who goes first (2026-11-26 feedback; src/first-reveal.js) */
+.first-reveal { position: fixed; inset: 0; z-index: 75; display: grid; place-items: center; background: rgba(0, 0, 0, 0.55); cursor: pointer; }
+.first-box { min-width: min(22rem, 90vw); padding: 1.2rem 1.6rem 1.3rem; border: 1px solid var(--line); border-radius: 1rem; background: var(--bg); text-align: center; box-shadow: 0 1rem 2.4rem rgba(0, 0, 0, 0.5); }
+.first-title { margin: 0 0 0.7rem; color: var(--muted); font-size: 0.85rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.first-window { overflow: hidden; padding: 0.6rem 1rem; border: 2px solid var(--line); border-radius: 0.8rem; background: var(--surface-0, var(--card)); }
+.first-name { margin: 0; font-size: 2rem; font-weight: 800; line-height: 1.2; }
+.first-name.tick { animation: first-tick 0.12s ease-out; }
+.first-name.settled { animation: first-land 0.45s ease-out; }
+.first-result { min-height: 1.4em; margin: 0.8rem 0 0; font-weight: 650; }
+@keyframes first-tick { from { translate: 0 -40%; opacity: 0.3; } to { translate: 0 0; opacity: 1; } }
+@keyframes first-land { 0% { scale: 1.25; } 60% { scale: 0.95; } 100% { scale: 1; } }
+@media (prefers-reduced-motion: reduce) { .first-name.tick, .first-name.settled { animation: none; } }

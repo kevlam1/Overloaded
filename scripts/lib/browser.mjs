@@ -137,4 +137,4 @@ export const text = (browser, id) => browser.eval(`document.getElementById(${JSO
 export const tableShown = (browser) => browser.eval(`!document.getElementById('table').hidden`);
 export const setValue = (browser, id, value) => browser.eval(`(() => { const el = document.getElementById(${JSON.stringify(id)}); el.value = ${JSON.stringify(value)}; el.dispatchEvent(new Event('input')); })()`);
 export const click = (browser, id) => browser.eval(`document.getElementById(${JSON.stringify(id)}).click()`);
-export const players = (browser) => browser.eval(`Array.from(document.querySelectorAll('#players li:not(.empty-seat)')).map((li) => li.textContent)`);
+export const players = (browser) => browser.eval(`Array.from(document.querySelectorAll('#players li:not(.empty-seat)')).map((li) => { const copy = li.cloneNode(true); copy.querySelector('.seat-tools')?.remove(); return copy.textContent; })`); // (without the host's seat tools, 2026-11-26 feedback)

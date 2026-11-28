@@ -1,7 +1,7 @@
 // What the right-click menu of a card offers and what each choice does. Plain data in, plain data out, no browser code, so Node
 // tests can load it (scripts/test-card-menu.mjs). The menu itself is drawn by frontend/src/card-menu.js; the pages run the
 // action with their own apply() so a refused move leaves the game as it was.
-import { removeEmblem, isEmblem, emblemCount, moveCard, setTapped, setFaceDown, changeCounter, turnOver, copyAsToken, faceName, setNoUntap, setSick, markSickByFace, heldTapped } from './zones.mjs';
+import { removeEmblem, isEmblem, emblemCount, moveCard, setTapped, setFaceDown, changeCounter, turnOver, rotateCard, copyAsToken, faceName, setNoUntap, setSick, markSickByFace, heldTapped } from './zones.mjs';
 import { canPing } from './ping.mjs';
 import { counterMenuItems, counterLabel } from './counter-catalog.mjs';
 
@@ -49,6 +49,7 @@ export function menuItems(card, zone, { live = false, peek = false, details = fa
     items.push({ id: 'tap', label: card?.tapped ? 'Untap' : 'Tap' });
     items.push({ id: 'flip', label: flipLabel(card) });
     if (card?.b === 1) items.push({ id: 'turn', label: turnLabel(card) }); // only a card with a back face (transform and modal cards)
+    items.push({ id: 'rotate', label: 'Rotate 90°' }); // (2026-11-26 feedback) a quarter turn clockwise, apart from tapping
     items.push({ id: 'nountap', label: noUntapLabel(card) });
     items.push({ id: 'sick', label: sickLabel(card) });
     items.push({ id: 'counter', label: '+1/+1 counter' });
@@ -109,6 +110,7 @@ export function menuAction(id, card, amount = 1, { printed = null } = {}) {
   if (id === 'tap') return { run: (game) => setTapped(game, card.uid, !card.tapped), message: `${card.tapped ? 'Untapped' : 'Tapped'} ${name}.` };
   if (id === 'flip') return { run: (game) => setFaceDown(game, card.uid, !card.faceDown), message: flipMessage(card) };
   if (id === 'turn') return { run: (game) => turnOver(game, card.uid), message: turnMessage(card) };
+  if (id === 'rotate') return { run: (game) => rotateCard(game, card.uid), message: `Rotated ${name}.` };
   if (id === 'counter') {
     if (!Number.isInteger(amount) || amount < 1 || amount > COUNTER_ASK.max) throw new Error(`Add from 1 to ${COUNTER_ASK.max} counters from the menu.`);
     return {

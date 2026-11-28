@@ -29,7 +29,7 @@ import { cardNotes } from '../../../shared/card-notes.mjs';
 import { mountBoardDrag } from '../../src/board-drag.js';
 import { mountHand } from '../../src/hand-view.js';
 import { createSpotlight } from '../../src/spotlight.js';
-import { canPing, makePing, newPings, pingSentence } from '../../../shared/ping.mjs';
+import { canPing, makePing, newPings, pingSentence, readPing, closedPing, seenBy } from '../../../shared/ping.mjs';
 import { createDealer, SHUFFLE_PAUSE_MS } from '../../../shared/deal-sequence.mjs';
 import { loadCardList } from '../../src/card-list.js';
 import { makeCardNodes } from '../../src/card-nodes.js';
@@ -57,6 +57,7 @@ import { readPhase, phaseIn, phaseRecord, nextStep, PHASES, LAST_PHASE } from '.
 import { mountPhaseStrip } from '../../src/phase-strip.js';
 import { mountTurnPiece } from '../../src/turn-piece.js';
 import { showHelpOnce, mountHelpSettings } from '../../src/view-help.js';
+import { showFirstReveal } from '../../src/first-reveal.js';
 import { openCardAdder } from '../../src/card-adder.js';
 import { mountPlayersPanel } from '../../src/players-panel.js';
 import { packStack, readStack } from '../../../shared/stack-sync.mjs';
@@ -653,7 +654,7 @@ function currentTurnInfo() {
     const echoed = publicAll[myUid]?.pass;
     byUid[myUid] = { pass: game.pass && echoed && echoed.n === game.pass.n && echoed.to === game.pass.to && game.pass.at === undefined ? { ...game.pass, at: echoed.at } : game.pass }; // (the database time of my pass, once it has come back)
   }
-  return currentTurn(byUid, members);
+  return currentTurn(byUid, members, meta?.opener ?? null);
 }
 const conceded = (uid) => hasConceded(members[uid], meta);
 const baseTitle = document.title;
@@ -699,10 +700,20 @@ function doUndo() {
 }
 $('undo').addEventListener('click', doUndo);
 
+// Who goes first, revealed once per match on every page (2026-11-26 feedback; src/first-reveal.js): only while nobody has passed yet, and remembered for this tab so a refresh does not replay it.
+function maybeRevealFirst(info) {
+  if (!meta?.opener || meta.status !== 'playing' || info.last || !tableCode) return;
+  const key = `overloaded.firstShown.${tableCode}.${meta.match}`;
+  try { if (sessionStorage.getItem(key)) return; sessionStorage.setItem(key, '1'); } catch { /* without storage it may show again after a refresh */ }
+  const players = Object.entries(members).filter(([, m]) => ['1', '2', '3', '4'].includes(String(m?.seat))).sort((a, b) => Number(a[1].seat) - Number(b[1].seat))
+    .map(([uid, m]) => ({ seat: String(m.seat), name: typeof m.name === 'string' ? m.name : '', color: playerColor(uid) }));
+  showFirstReveal({ players, opener: meta.opener, mine: members[myUid]?.seat === meta.opener });
+}
 function renderTurn() {
   if (!game) return;
   if (lastStartMatch !== (meta?.match ?? null)) { lastStartMatch = meta?.match ?? null; lastStartTried = null; }
   const info = currentTurnInfo();
+  maybeRevealFirst(info);
   const mine = Boolean(myUid) && info.uid === myUid;
   const wanted = turnToStart(info, members[myUid]?.seat, game);
   // A player who has conceded does not start turns (a pass can only name them if they conceded after it was written).
@@ -1273,13 +1284,38 @@ function glowCard(ownerUid, cardUid) {
   setTimeout(() => node.classList.remove('pinged'), 4000);
 }
 
-function showPing({ uid, card }) {
+// The ping on show ({ uid, k }) and my own last ping record (to close it for everyone). 2026-11-26 feedback: the pinger can close a ping for everyone (the others can still close
+// it on their own screen), and the others can say they saw it; the pinger sees who did.
+let pingShown = null;
+let myPingRecord = null;
+const nameOf = (uid) => (typeof members[uid]?.name === 'string' ? members[uid].name : 'A player');
+function seenWords() {
+  if (!myPingRecord) return '';
+  const who = seenBy(publicAll, myUid, myPingRecord.k).map(nameOf);
+  return who.length ? `Seen by ${who.join(', ')}` : '';
+}
+function showPing({ uid, k, card }) {
   const member = members[uid];
-  const sentence = pingSentence(typeof member?.name === 'string' ? member.name : 'A player', typeof member?.seat === 'string' ? member.seat : '', card);
+  const sentence = pingSentence(nameOf(uid), typeof member?.seat === 'string' ? member.seat : '', card);
   cornerMode = 'ping';
   $('spotlight').dataset.mode = 'ping';
-  spotlight.show({ card, sentence, detail: marksSentence(card, printedOf(card, lookup)), closable: true });
+  pingShown = { uid, k };
+  const actions = uid === myUid
+    ? [{ id: 'ping-close-all', label: 'Close for all', onClick: () => closeMyPing() }]
+    : [{ id: 'ping-seen', label: 'Seen', onClick: (button) => ackPing(uid, k, button) }];
+  spotlight.show({ card, sentence, detail: marksSentence(card, printedOf(card, lookup)), closable: true, actions, note: uid === myUid ? seenWords() : '' });
   glowCard(uid, card.uid);
+}
+async function closeMyPing() {
+  if (!myPingRecord) return;
+  pingShown = null;
+  spotlight.hide();
+  bringBackSelectionToCorner();
+  try { await saveGame(tableCode, { [`public/${myUid}/ping`]: closedPing(myPingRecord) }); say('Ping closed for everyone.'); } catch (error) { say(`Not closed (${friendlyMessage(error)}).`, true); }
+}
+async function ackPing(uid, k, button) {
+  button.disabled = true;
+  try { await saveGame(tableCode, { [`public/${myUid}/ack/${uid}`]: k }); button.textContent = 'Seen ✓'; } catch (error) { button.disabled = false; say(`Not sent (${friendlyMessage(error)}).`, true); }
 }
 
 // Shows the pings that are new in the table's public branches (this match's branches only: one left over from an earlier match does not count).
@@ -1289,7 +1325,12 @@ function processPings() {
   for (const [uid, branch] of Object.entries(publicAll)) if (branch?.match === meta.match) branches[uid] = branch;
   const result = newPings(branches, pingSeen, lookup ?? (() => null));
   pingSeen = result.seen;
-  for (const ping of result.shown) if (ping.uid !== myUid) showPing(ping); // my own ping was shown when I sent it
+  for (const ping of result.shown) if (ping.uid !== myUid && !readPing(branches[ping.uid]?.ping, () => null)?.closed) showPing(ping); // my own ping was shown when I sent it; one already closed is not shown
+  // the ping on show: closed by its pinger (it goes, here too), or mine (who saw it)
+  if (pingShown && cornerMode === 'ping') {
+    if (pingShown.uid === myUid) spotlight.setNote(seenWords());
+    else { const now = readPing(publicAll[pingShown.uid]?.ping, () => null); if (now && now.k === pingShown.k && now.closed) { pingShown = null; spotlight.hide(); bringBackSelectionToCorner(); } }
+  }
 }
 
 async function sendPing(card, zone) {
@@ -1299,6 +1340,7 @@ async function sendPing(card, zone) {
   try { record = makePing(card, zone, { previous: lastPingKey }); } catch (error) { say(error.message, true); return; }
   lastPingAt = Date.now();
   lastPingKey = record.k;
+  myPingRecord = record;
   if (pingSeen) pingSeen = { ...pingSeen, [myUid]: record.k }; // so the copy that comes back from the database is not shown a second time
   showPing({ uid: myUid, k: record.k, card });
   try {

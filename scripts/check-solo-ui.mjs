@@ -758,7 +758,7 @@ try {
   check('there is no menu before a right click', (await menuState()) === null);
   await mouse('#battlefield .card[data-kind="other"]', { button: 'right', dy: 64 });
   let menu = await menuState();
-  check('a right click on a creature opens its menu: its name, then Modify, Tap, the counter and the counters X..., Create copy and Move to (with the two marks after Tap: Elves came in sick)', menu && menu.title === 'Llanowar Elves' && menu.role === 'menu' && JSON.stringify(menu.items) === JSON.stringify(['Modify...', 'Tap', 'Flip', "Doesn't untap", 'Not summoning sick', '+1/+1 counter', '+1/+1 counters X...', 'Add counter', 'Create copy', 'Add to the stack', 'View details', 'Move to']), JSON.stringify(menu));
+  check('a right click on a creature opens its menu: its name, then Modify, Tap, the counter and the counters X..., Create copy and Move to (with the two marks after Tap: Elves came in sick)', menu && menu.title === 'Llanowar Elves' && menu.role === 'menu' && JSON.stringify(menu.items) === JSON.stringify(['Modify...', 'Tap', 'Flip', 'Rotate 90°', "Doesn't untap", 'Not summoning sick', '+1/+1 counter', '+1/+1 counters X...', 'Add counter', 'Create copy', 'Add to the stack', 'View details', 'Move to']), JSON.stringify(menu));
   check('the menu is inside the window and the first item has the focus', menu.inside && menu.focused === 'Modify...', JSON.stringify(menu));
   check('the right click also selected the card', (await $text('selected-line')).startsWith('Llanowar Elves'), await $text('selected-line'));
   await ev(`window.__plays = []; HTMLMediaElement.prototype.play = function () { window.__plays.push({ src: new URL(this.src).pathname, volume: Math.round(this.volume * 10000) / 10000 }); return Promise.resolve(); };`);
@@ -810,7 +810,7 @@ try {
   await mouse(cardSelector, { button: 'right', dy: 64 });
   check('the card on the battlefield again offers Tap', (await menuState()).items.includes('Tap'));
   {
-    for (let n = 0; n < 5; n++) await key('ArrowDown', 'ArrowDown', 40); // Tap, Flip, the two marks, then the counter
+    for (let n = 0; n < 6; n++) await key('ArrowDown', 'ArrowDown', 40); // Tap, Flip, Rotate 90, the two marks, then the counter
     await key('ArrowDown', 'ArrowDown', 40);
     check('Down moves from the counter line to the line that asks for a number', (await menuState()).focused === '+1/+1 counters X...', JSON.stringify(await menuState()));
     await key('Enter', 'Enter', 13, '\r'); await sleep(150);
@@ -1177,7 +1177,7 @@ try {
   await clickCard(cardAt('Sephiroth'));
   await mouse(cardAt('Delver'), { button: 'right', dy: 64 });
   const delverMenu = await menuState();
-  check('the menu for Delver lists Flip double-faced card between Tap and the counter', delverMenu && JSON.stringify(delverMenu.items.slice(0, 5)) === JSON.stringify(['Modify...', 'Tap', 'Flip', 'Flip double-faced card', "Doesn't untap"]), JSON.stringify(delverMenu?.items));
+  check('the menu for Delver lists Flip double-faced card between Tap and the counter', delverMenu && JSON.stringify(delverMenu.items.slice(0, 6)) === JSON.stringify(['Modify...', 'Tap', 'Flip', 'Flip double-faced card', 'Rotate 90°', "Doesn't untap"]), JSON.stringify(delverMenu?.items));
   await sleep(500);
   check('the menu is still open half a second later (it must not close by itself after a right click on a card that was not selected)', Boolean(await menuState()), JSON.stringify(await menuState()));
   await clickMenuItem('Flip double-faced card');
@@ -1394,7 +1394,7 @@ try {
   check('the card no longer says summoning sick', !/summoning sick/.test(await labelOf('Llanowar Elves')));
   await mouse(cardAt('Goblin Guide'), { button: 'right', dy: 64 });
   const guideMenu = await menuState();
-  check('a card that is not sick offers "Summoning sick" (for haste lost, or control gained), and "Doesn\'t untap"', guideMenu && guideMenu.items[3] === "Doesn't untap" && guideMenu.items[4] === 'Summoning sick', JSON.stringify(guideMenu?.items));
+  check('a card that is not sick offers "Summoning sick" (for haste lost, or control gained), and "Doesn\'t untap"', guideMenu && guideMenu.items[4] === "Doesn't untap" && guideMenu.items[5] === 'Summoning sick', JSON.stringify(guideMenu?.items));
   await clickMenuItem('Summoning sick');
   check('choosing it marks the Goblin Guide (a mark by hand is never refused)', (await count(`${cardAt('Goblin Guide')} .badge-sick`)) === 1 && (await $text('status')) === 'Goblin Guide is marked summoning sick.', await $text('status'));
   await clickAction('Create copy');

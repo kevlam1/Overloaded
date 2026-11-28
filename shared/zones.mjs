@@ -55,7 +55,7 @@ export const MAX_ZONE_CARDS = 250;
 export const PLAYER_FLAGS = ['monarch', 'initiative', 'blessing'];
 export const PLAYER_COUNTERS = ['poison', 'energy', 'experience', 'rad', 'ticket', 'speed', 'ring', ...PLAYER_FLAGS];
 export const COMMANDER_SEATS = ['1', '2', '3', '4'];
-const BATTLEFIELD_STATE = ['ct', 'mp', 'mt', 'faceDown', 'turned', 'nt', 'sick', 'noUntap', 'px', 'py']; // px and py: the cell on the battlefield grid (shared/board-grid.mjs)
+const BATTLEFIELD_STATE = ['ct', 'mp', 'mt', 'faceDown', 'turned', 'nt', 'sick', 'noUntap', 'px', 'py', 'rt']; // px and py: the cell on the battlefield grid (shared/board-grid.mjs)
 export const MAX_TURN = 100000; // the largest turn number a game or a saved game may have
 export const TOKEN_POWER_TOUGHNESS = /^[0-9*+-]{1,3}\/[0-9*+-]{1,3}$/;
 export const TOKEN_COLORS = /^[WUBRG]{1,5}$/;
@@ -418,6 +418,15 @@ export function turnOver(game, uid) {
   const { card, at } = onBattlefield(game, uid, 'a turned-over face');
   if (card.b !== 1) throw new Error(`${card.n} has no back face to turn over.`);
   return putBattlefield(game, at, with_(card, 'turned', true, card.turned === true));
+}
+
+// Rotate 90 degrees (2026-11-26 feedback): a quarter turn clockwise, apart from tapping (a battlefield card read sideways, or turned to show who controls it).
+// rt is 1, 2 or 3 quarter turns; a fourth turn takes it off. Cleared when the card leaves the battlefield.
+export function rotateCard(game, uid) {
+  const { card, at } = onBattlefield(game, uid, 'a rotation');
+  const next = ((card.rt ?? 0) + 1) % 4;
+  const { rt, ...rest } = card;
+  return putBattlefield(game, at, next ? { ...rest, rt: next } : rest);
 }
 
 // Makes a token on the battlefield. spec: { n: name, i: the Scryfall id of the token (its picture), tt: its type line, pt: 'P/T'

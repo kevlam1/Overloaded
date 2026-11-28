@@ -89,15 +89,15 @@ Step 5, help:
 - **A help window when a game starts,** with the keys and basics of that view, and "don't show again" that Settings can undo. Done in step 5 (entry 302): one per view, with switches in Settings > About.
 
 Step 6, multiplayer (one database rules change):
-- **Foil on other players' boards.** Planned, step 6.
-- **Rotate a card 90 degrees,** separate from tapping. Planned, step 6.
-- **The pinger closes a ping for everyone,** and the pinged player can acknowledge it. Planned, step 6.
-- **Choosing who goes first in the lobby,** with a slot-machine animation. Planned, step 6.
-- **Swapping seats, kicking a player, a "Ready?" ping from the host,** and the lobby's seat order deciding where players sit. Planned, step 6.
+- **Foil on other players' boards.** Done in step 6b (entry 304): foil is stored with the card, so others see it and a reload keeps it.
+- **Rotate a card 90 degrees,** separate from tapping. Done in step 6b (entry 304).
+- **The pinger closes a ping for everyone,** and the pinged player can acknowledge it. Done in step 6b (entry 304): Close for all, and Seen.
+- **Choosing who goes first in the lobby,** with a slot-machine animation. Done in step 6b (entry 304).
+- **Swapping seats, kicking a player, a "Ready?" ping from the host,** and the lobby's seat order deciding where players sit. Done in step 6b (entry 304): Sit here, the host's seat menu (move or swap), Ready? and Remove.
 - **Other players' hand and piles turned like their board.** Done in step 6a (entry 303): "Turned, with hand and piles" in Settings.
 - **"Add a card" from the battlefield's menu,** from the card list. Done in step 6a (entry 303).
 - **Random token art,** and choosing an art also changes the token's front. Done in step 6a (entry 303).
-- **Flipping cards in the hand,** playing them face down, and face-down exile that others must ask to see. Planned, step 6, last, and the first cut if time runs out.
+- **Flipping cards in the hand,** playing them face down, and face-down exile that others must ask to see. Cut from step 6 (entry 304): the largest item; still on the to-do list.
 
 Step 7, the Shared view:
 - **The table turned to each player's seat,** Ctrl+Q and Ctrl+E to turn it, and clicking a player turns to their board. Planned, step 7.

@@ -224,6 +224,7 @@ export function makeCardNodes({ onSelect = () => {}, isSelected = () => false, r
     }
     const selected = !readOnly && isSelected(card.uid);
     button.classList.toggle('tapped', card.tapped);
+    if (card.rt) button.dataset.rt = String(card.rt); else delete button.dataset.rt; // (Rotate 90 degrees: quarter turns, apart from tapping; style.css)
     // a tapped card is greyed (the style sheet) and has the tap symbol in the middle of it; in a pile of tapped cards only the top one shows it (the style sheet hides the others')
     const tapMark = button.querySelector(':scope > .tap-mark');
     if (card.tapped && !tapMark) { const mark = manaIcon('tap', { className: 'tap-mark' }); if (mark) button.append(mark); } else if (!card.tapped) tapMark?.remove();

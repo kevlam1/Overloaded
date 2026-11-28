@@ -23,6 +23,9 @@ const UID = /^c[1-9][0-9]{0,5}$/;
 const SCRYFALL_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const MAX_NAME = 200;
 
+const LOOK = /^[a-z][a-z-]{0,23}$/; // a foil kind (shared/foil-kinds.mjs) or etched, as the rules accept it
+const ROTATIONS = [1, 2, 3]; // quarter turns clockwise (Rotate 90 degrees in the card menu)
+
 export function packCard(card) {
   return {
     u: card.uid,
@@ -44,6 +47,9 @@ export function packCard(card) {
     ...(card.noUntap ? { nu: 1 } : {}), // the untap step skips it
     ...(card.nt ? { nt: card.nt } : {}),
     ...(Number.isInteger(card.px) && Number.isInteger(card.py) ? { px: card.px, py: card.py } : {}), // the cell on the battlefield grid (shared/board-grid.mjs)
+    // (2026-11-26 feedback, rules batch 2) foil and its kind, so other players see it and a reload keeps it; a rotation of 90, 180 or 270 degrees, apart from tapping
+    ...(card.foil === true ? { fo: 1, ...(typeof card.look === 'string' && LOOK.test(card.look) ? { lk: card.look } : {}) } : {}),
+    ...(ROTATIONS.includes(card.rt) ? { rt: card.rt } : {}),
   };
 }
 
@@ -91,6 +97,9 @@ export function unpackCard(raw, lookup = () => null) {
   if ('sk' in raw && raw.sk !== 1) return null;
   if ('nu' in raw && raw.nu !== 1) return null;
   if ('nt' in raw && !(typeof raw.nt === 'string' && raw.nt.length > 0 && raw.nt.length <= MAX_NOTE)) return null;
+  if ('fo' in raw && raw.fo !== 1) return null;
+  if ('lk' in raw && !(typeof raw.lk === 'string' && LOOK.test(raw.lk))) return null;
+  if ('rt' in raw && !ROTATIONS.includes(raw.rt)) return null;
   for (const key of ['px', 'py']) if (key in raw && !(Number.isInteger(raw[key]) && raw[key] >= 0 && raw[key] <= 4000)) return null; // 0 to 4000 is what the database accepts; the page only uses a cell that is on the grid
   // A real card's type, cost and keywords come from the card list. A token's type line is stored with it (a token is not in the list),
   // but its cost and keywords are still looked up BY ID ONLY: a copy of a real card has that card's id and so keeps them, a token picture
@@ -120,6 +129,8 @@ export function unpackCard(raw, lookup = () => null) {
     ...(raw.nu === 1 ? { noUntap: true } : {}),
     ...(raw.nt ? { nt: raw.nt } : {}),
     ...('px' in raw && 'py' in raw ? { px: raw.px, py: raw.py } : {}),
+    ...(raw.fo === 1 ? { foil: true, ...(raw.lk ? { look: raw.lk } : {}) } : {}),
+    ...(raw.rt ? { rt: raw.rt } : {}),
     tapped: raw.x === 1,
     turnEntered: 'e' in raw ? raw.e : null,
   };

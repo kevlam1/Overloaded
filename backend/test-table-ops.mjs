@@ -726,5 +726,40 @@ console.log('the game: saving, loading and watching (2026-10-30)');
   check('...and wrote nothing', (await adminPath('public/gameoutsider')) === null);
 }
 
+console.log('seats, removing a player, Ready? and who goes first (2026-11-26 feedback)');
+{
+  const ho = person('seathost');
+  const p1 = person('seatp1');
+  const p2 = person('seatp2');
+  const table = await ho.ops.createTable({ name: 'Host', seats: 4 });
+  const T = table.code;
+  await p1.ops.joinTable({ code: T, name: 'P1' });
+  await p2.ops.joinTable({ code: T, name: 'P2' });
+  const seatOf = async (uid) => (await readAdmin(`tables/${T}/members/${uid}`))?.seat ?? null;
+  check('they sit in seats 1, 2 and 3', [await seatOf('seathost'), await seatOf('seatp1'), await seatOf('seatp2')].join() === '1,2,3');
+  await p2.ops.moveSeat(T, '4');
+  check('P2 moves to the empty seat 4: his entry and the seat slots agree', (await seatOf('seatp2')) === '4' && (await readAdmin(`tables/${T}/seats/4`)) === 'seatp2' && (await readAdmin(`tables/${T}/seats/3`)) === null);
+  await throwsWith('P1 cannot move onto a seat someone sits in', p1.ops.moveSeat(T, '1'), 'FlowRefusedError');
+  await throwsWith('P1 cannot move other players', p1.ops.placePlayer(T, 'seatp2', '3'), 'FlowRefusedError');
+  const swapped = await ho.ops.placePlayer(T, 'seatp1', '4');
+  check('the host swaps P1 and P2', swapped.swapped && (await seatOf('seatp1')) === '4' && (await seatOf('seatp2')) === '2' && (await readAdmin(`tables/${T}/seats/2`)) === 'seatp2');
+  await ho.ops.placePlayer(T, 'seatp2', '3');
+  check('the host moves P2 to the empty seat 3', (await seatOf('seatp2')) === '3' && (await readAdmin(`tables/${T}/seats/2`)) === null);
+  let asked = 0;
+  const stop = p1.ops.watchAsked(T, 'seatp1', () => { asked += 1; });
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  await ho.ops.askReady(T, 'seatp1');
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  stop();
+  check('the host asks P1 "Ready?" and P1’s watch hears it once', asked === 1, String(asked));
+  await ho.ops.removePlayer(T, 'seatp2');
+  check('the host removes P2: his entry and seat are gone', (await seatOf('seatp2')) === null && (await readAdmin(`tables/${T}/seats/3`)) === null);
+  await throwsWith('P2 cannot join again', p2.ops.joinTable({ code: T, name: 'P2' }));
+  await ho.ops.setFirst(T, '4');
+  await ho.ops.setReady(T); await p1.ops.setReady(T);
+  await ho.ops.startMatch(T);
+  check('the host picked seat 4 to go first, and the match opens with seat 4 (P1 sits there)', (await readAdmin(`tables/${T}/meta/opener`)) === '4');
+}
+
 await env.cleanup();
 console.log(`All ${checks} table logic checks passed.`);

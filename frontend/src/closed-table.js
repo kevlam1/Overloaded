@@ -1,7 +1,7 @@
 // The window for a table you cannot be at any more (Kevin, 2026-11-26): it closed (the 8-hour limit, or idle), or a link leads to a table that is gone, full or started.
 // It offers three ways out: Home, a new table, or another table's code. It forgets the dead table in this browser first, so the Lobby link, Leave and End the match
 // can never lead back into it (that was a loop). It cannot be closed without choosing: there is nothing left to do on the page behind it.
-// showClosedTable({ reason }): reason 'age' | 'idle' | 'gone' | 'unavailable' | 'missing'.
+// showClosedTable({ reason }): reason 'age' | 'idle' | 'gone' | 'unavailable' | 'missing' | 'removed' (the host took you off it, 2026-11-26 feedback).
 import { makeSafeStore } from './safe-store.js';
 import { normalizeCode, isValidCode } from '../../shared/table-code.mjs';
 
@@ -13,6 +13,7 @@ const WHY = {
   gone: '',
   unavailable: 'It is full, has started, or does not exist.',
   missing: 'You are not at this table, or it has closed.',
+  removed: 'The host took you off this table.',
 };
 let shown = false;
 
@@ -25,7 +26,7 @@ export function showClosedTable({ reason = 'gone' } = {}) {
   const box = make('div', 'confirm-box');
   box.setAttribute('role', 'alertdialog');
   box.setAttribute('aria-modal', 'true');
-  const title = reason === 'unavailable' ? 'Can’t join this table' : reason === 'missing' ? 'Can’t open this table' : 'This table has closed';
+  const title = reason === 'removed' ? 'You were removed' : reason === 'unavailable' ? 'Can’t join this table' : reason === 'missing' ? 'Can’t open this table' : 'This table has closed';
   box.setAttribute('aria-label', title);
   box.append(make('h2', 'confirm-title', title));
   if (WHY[reason]) box.append(make('p', 'confirm-message', WHY[reason]));

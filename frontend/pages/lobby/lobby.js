@@ -3,7 +3,8 @@
 // saved name), the seats, your deck, Ready and Start. All database calls live in ../../src/db.js.
 import '../../src/look-settings.js'; // (the theme chosen in Settings)
 import { askConfirm } from '../../src/confirm-box.js';
-import { botClient, createTable, joinTable, rejoinTable, findMyTable, watchMembers, heartbeat, watchActivity, watchMeta, watchServerOffset, startPresence, watchPresence, watchConnection, takeOverHost, setDeck, setName, setColor, setFormat, setView, setBracketLimit, closeIfExpired, setReady, clearReady, startMatch, leaveTable } from '../../src/db.js';
+import { readFirst } from '../../../shared/first-player.mjs';
+import { botClient, createTable, joinTable, rejoinTable, findMyTable, watchMembers, heartbeat, watchActivity, watchMeta, setFirst, moveSeat, placePlayer, removePlayer, askReady, watchAsked, wasRemoved, watchServerOffset, startPresence, watchPresence, watchConnection, takeOverHost, setDeck, setName, setColor, setFormat, setView, setBracketLimit, closeIfExpired, setReady, clearReady, startMatch, leaveTable } from '../../src/db.js';
 import { PLAYER_COLORS, tableColors, takenColors, colorValue } from '../../../shared/player-colors.mjs';
 import { presenceStatus, presenceText, ownConnectionText, hostIsGone } from '../../../shared/presence.mjs';
 import { startKeepAlive } from '../../src/keep-alive.js';
@@ -40,6 +41,7 @@ const TABLE_DECK_KEY = 'overloaded.tableDeck'; // { code, id }: the saved deck y
 const store = makeSafeStore();
 
 let stopWatching = null;
+let stopAsked = null; // the watch of the host asking "Ready?"
 let stopKeepAlive = null;
 const bannerElement = $('banner');
 const formatTime = (ms) => new Date(ms).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
@@ -190,6 +192,26 @@ async function removeBot(seat) {
   }
 }
 
+// The seat buttons (2026-11-26 feedback): Sit here on an empty seat, and the host's Ready? and Remove on another player's seat; the host's seat menu moves or swaps.
+const seatAction = (action, target, label, title) => { const button = piece('button', `secondary seat-action seat-${action}`, label); button.type = 'button'; button.dataset.seatAction = action; button.dataset.target = target; button.title = title; return button; };
+$('players').addEventListener('click', (event) => {
+  const button = event.target instanceof Element ? event.target.closest('button[data-seat-action]') : null;
+  if (!button || button.disabled || !currentCode) return;
+  const { seatAction: action, target } = button.dataset;
+  const name = currentMembers[target]?.name ?? 'this player';
+  if (action === 'sit') run(async () => { await moveSeat(currentCode, target); say(''); });
+  else if (action === 'ask') run(async () => { await askReady(currentCode, target); say(`Asked ${name}.`); });
+  else if (action === 'remove') run(async () => {
+    if (!(await askConfirm({ title: `Remove ${name}?`, message: 'They cannot join this table again.', confirmLabel: 'Remove', returnFocus: button }))) return;
+    await removePlayer(currentCode, target); say(`Removed ${name}.`);
+  });
+});
+$('players').addEventListener('change', (event) => {
+  const select = event.target instanceof Element ? event.target.closest('select.seat-move') : null;
+  if (!select || !select.value || !currentCode) return;
+  const to = select.value; select.value = '';
+  run(async () => { const result = await placePlayer(currentCode, select.dataset.uid, to); say(result.swapped ? 'Swapped seats.' : ''); });
+});
 $('players').addEventListener('click', (event) => {
   const button = event.target instanceof Element ? event.target.closest('button[data-bot]') : null;
   if (!button || button.disabled || !currentCode) return;
@@ -330,6 +352,7 @@ function renderPlayers() {
   const now = serverOffset === null ? null : Date.now() + serverOffset;
   // Names come from other people, so they are put in as text, never as markup. A seat is a card of a fixed size: the commander's art behind it, the player's name and what they bring on two lines that never grow
   // (a long one is cut short with "..."), and the bracket, Ready and connection as pills along the bottom. The number of the seat is drawn by the style sheet.
+  const canManageSeats = Boolean(myUid) && currentHost === myUid && currentMeta?.status === 'lobby'; // (the host's seat tools, 2026-11-26 feedback)
   for (const [uid, member] of Object.entries(currentMembers).sort((a, b) => Number(a[1].seat) - Number(b[1].seat))) {
     const mine = uid === myUid;
     const item = document.createElement('li');
@@ -373,6 +396,20 @@ function renderPlayers() {
       pills.append(note);
     }
     item.append(pills);
+    // the host's tools (2026-11-26 feedback, lobby only): put this player in another seat (a swap when it is taken), ask them "Ready?", or remove them
+    if (canManageSeats && !mine) {
+      const tools = piece('span', 'seat-tools', '');
+      const move = document.createElement('select');
+      move.className = 'seat-move';
+      move.dataset.uid = uid;
+      move.setAttribute('aria-label', `Move ${member.name} to another seat`);
+      move.append(new Option('Seat...', ''));
+      for (let n = 1; n <= (Number(currentMeta?.seats) || 4); n++) if (String(n) !== String(member.seat)) move.append(new Option(Object.values(currentMembers).some((m) => String(m.seat) === String(n)) ? `Swap with seat ${n}` : `Move to seat ${n}`, String(n)));
+      tools.append(move);
+      if (!isReady(member, currentMeta) && !botSeats.has(String(member.seat))) tools.append(seatAction('ask', uid, 'Ready?', `Ask ${member.name} if they are ready`));
+      tools.append(seatAction('remove', uid, 'Remove', `Remove ${member.name} from the table`));
+      item.append(tools);
+    }
     list.append(item);
   }
   // Empty seats and the bots: the host (in the lobby) can add a bot to an empty seat and take a bot away again.
@@ -391,6 +428,7 @@ function renderPlayers() {
       item.dataset.seat = seat;
       item.append(piece('span', 'seat-label', `Seat ${seat}: `), piece('span', 'seat-empty', 'Empty seat'));
       if (canManageBots) item.append(botButton('add', seat, 'Add bot'));
+      if (myUid in currentMembers && currentMeta?.status === 'lobby') item.append(seatAction('sit', seat, 'Sit here', `Move to seat ${seat}`)); // (2026-11-26 feedback: pick your own seat)
       list.append(item);
     }
   }
@@ -404,6 +442,7 @@ function renderPlayers() {
   $('ready').textContent = isReady(currentMembers[myUid], currentMeta) ? 'Not ready' : 'Ready';
   renderFormat();
   renderView();
+  renderFirst();
   renderLimit();
   renderStart();
 }
@@ -433,6 +472,22 @@ $('view-switch').addEventListener('click', (event) => {
   const button = event.target instanceof Element ? event.target.closest('button[data-view]') : null;
   if (!button || button.disabled || !currentCode || button.dataset.view === viewOf(currentMeta)) return;
   run(async () => { await setView(currentCode, button.dataset.view); say(''); });
+});
+// Who goes first (2026-11-26 feedback): the host picks Random or a seat; the seat is decided at Start (shared/first-player.mjs) and revealed on the table page.
+function renderFirst() {
+  const first = readFirst(currentMeta?.first);
+  const canChange = Boolean(myUid) && currentHost === myUid && currentMeta?.status === 'lobby';
+  const seats = Number(currentMeta?.seats) || 4;
+  for (const button of $('first-switch').querySelectorAll('button[data-first]')) {
+    button.setAttribute('aria-pressed', String(button.dataset.first === first));
+    button.hidden = button.dataset.first !== 'random' && Number(button.dataset.first) > seats;
+    button.disabled = !canChange && button.dataset.first !== first;
+  }
+}
+$('first-switch').addEventListener('click', (event) => {
+  const button = event.target instanceof Element ? event.target.closest('button[data-first]') : null;
+  if (!button || button.disabled || !currentCode || button.dataset.first === readFirst(currentMeta?.first)) return;
+  run(async () => { await setFirst(currentCode, button.dataset.first); say(''); });
 });
 // The bracket limit: the host picks Any or 1 to 5 in a Commander lobby; everyone else sees it. It only warns beside the name of a player whose deck is above it.
 function renderLimit() {
@@ -739,11 +794,18 @@ function show(table) {
   keepAlive(table.code);
   startPresenceParts(table.code, table.uid);
   if (stopWatching) stopWatching();
+  if (stopAsked) stopAsked();
+  stopAsked = watchAsked(table.code, table.uid, () => {
+    // the host asks "Ready?" (2026-11-26 feedback): a popup; Ready presses this page's own Ready button (a player with no deck gets the deck window)
+    if (isReady(currentMembers[myUid], currentMeta)) return;
+    askConfirm({ title: 'Are you ready?', message: 'The host is asking.', confirmLabel: 'Ready' }).then((yes) => { if (yes && !isReady(currentMembers[myUid], currentMeta)) $('ready').click(); });
+  });
   stopWatching = watchMembers(table.code, (members, error) => {
     if (!members) {
       currentMembers = {};
       renderPlayers();
       say(error ? 'Lost sight of the table. It may have closed.' : '', Boolean(error));
+      if (error) wasRemoved(table.code).then((removed) => { if (removed) showClosedTable({ reason: 'removed' }); }); // (2026-11-26 feedback: the host removed you)
       return;
     }
     currentMembers = members;

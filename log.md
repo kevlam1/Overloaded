@@ -6295,6 +6295,42 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 - My first check of it compared the hand's bottom edge with the board's top, but the resting hand overlaps the board by design; it compares their middles now.
 - Two lines of `check-lobby-deck-live` still expected the old two-line battlefield menu.
 
+## 304. The 11-26 feedback, step 6b: the second batched rules change (2026-11-27)
+
+**What I asked for**
+- The step 6 items that need the database rules: foil seen on other players' boards, Rotate 90 degrees, closing a ping for everyone and saying I saw one, choosing who goes first with a slot-machine reveal, swapping seats, removing a player, a "Ready?" ping from the host, and the lobby's seat order deciding where players sit.
+
+**What changed**
+- **One rules change, which I pasted into the Firebase console** (`backend/database.rules.json`):
+  - every stored card may have `fo` (foil), `lk` (its kind) and `rt` (1 to 3 quarter turns);
+  - a ping may be marked `x` (closed by its pinger), and `public/{me}/ack/{pinger}` says which of their pings I saw;
+  - `meta/first` (Random or a seat, the host's lobby choice) and `meta/opener` (the seat that opens the match, written by the host at Start);
+  - a member may change their own seat in the lobby when the new seat slot names them, and the host may set, swap or free seat slots in the lobby as long as every slot names a member whose seat it is;
+  - the host may remove a member in the lobby and mark them in `kicked`, which stops them joining again (they can read only their own mark);
+  - `nudge/{uid}`: the host's "Ready?".
+- **Foil** is stored with each card (`shared/game-sync.mjs`), so other players see my foils and a reload keeps them.
+- **Rotate 90 degrees** in a battlefield card's menu (`rotateCard` in `shared/zones.mjs`): a quarter turn clockwise, apart from tapping; a fourth turn takes it off, and it goes when the card leaves the battlefield.
+- **Pings:** my own ping has "Close for all", and it says "Seen by Bob" once Bob presses "Seen" on his (`closedPing`, `seenBy` in `shared/ping.mjs`). The others' own Close still closes it only for them.
+- **Who goes first:** a "First" switch in the lobby (Random, 1 to 4). The seat is picked once at Start (`shared/first-player.mjs`) and the table opens with a slot-machine run through the names that stops on it (`frontend/src/first-reveal.js`; at once under reduced motion). Before the rules were pasted, Start would have started without it, as before.
+- **Seats:** "Sit here" on an empty seat; for the host, a seat menu on each other player's card (move, or swap with whoever sits there), "Ready?" (a popup whose Ready presses that player's own Ready button) and "Remove" (asks first; that player's page says "You were removed"). The seat order of the lobby is the turn order, so choosing a seat decides where a player sits.
+- **Cut:** flipping cards in the hand and face-down exile (item 33), the largest item, stays on the to-do list.
+
+**What I checked**
+- Rules in the emulator: `backend/test-rules-batch2.mjs` 43 (new), `test-rules` 578, `test-rules-game` 2,408, `test-table-ops` 282 (10 new: moving, swapping, removing, Ready? and the opener with the page's own code), the flow model 3,349 steps.
+- Unit: `test-rotate` 6, `test-first-player` 9, `test-ping` 98, `test-game-sync` 84, `test-card-menu` 253.
+- Against the real project after my paste: `check-live-rules` 145 of 145 match the file, `check-room-live` 49 (Sit here, the swap, Ready?, the First switch, Remove and "You were removed"), `check-lobby-deck-live` 202 (Seen and Close for all), `check-seats-live` 43.
+- Screenshots looked at: the lobby with the seat tools and the First switch, and the reveal.
+- **Not checked:** foil and Rotate 90 degrees on another player's screen in a browser (stored and read back in unit tests, and accepted by the live rules), and the reveal on a real table (it is quiet in the browser checks; looked at on its own). No mutation run for the new rules.
+
+**Decisions**
+- **First starts as Random.** Before, the lowest seat always went first; the live check now picks seat 1 itself.
+
+**Claude's mistakes this step**
+- My first version let the host only swap: moving someone into an empty seat needed one more rule, added before the paste.
+- "Close for all" did not clear the other player's screen when they had no card selected: it did not hide the display first, as the local Close does. Found by the live check.
+- I spent three runs of the room check finding why Carol's "Ready?" popup never showed: the test browser answers every confirm box itself, so the popup had opened and been answered at once. The feature worked; the check now reads the answered popup's words.
+- Three checks still read the whole seat card's text, which now holds the host's tools (a "Ready?" button read as a Ready mark), and the solo check still expected the menu without Rotate 90 degrees.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-24, entry 277) Claude told me the tool docks remembered their layout (entries 273 and 276) when the code stored "[object Object]"; the audit for the spec found it.
 - (2026-11-23, entry 273) I said "commit and push after every big change" and meant every big prompt; Claude pushed after each of three changes.

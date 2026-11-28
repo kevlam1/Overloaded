@@ -156,4 +156,14 @@ check('taxToStore gives null when no commander has been cast', taxToStore({}) ==
   same('a refresh keeps the tax of a commander on the battlefield and counts it as a commander (a uid not in the game is not one)', [back?.cmd, back?.tax], [['c1', 'c2'], { c2: 3, c9: 1 }]);
 }
 
+// foil, its kind and a rotation (rules batch 2, 2026-11-27): stored so other players see them and a reload keeps them
+{
+  const id7 = '00000000-0000-4000-8000-000000000007';
+  const base = { uid: 'c7', i: id7, n: 'Sol Ring', t: 'Artifact', m: '', k: [], tapped: false, turnEntered: null };
+  same('a foil card with its kind and a quarter turn is stored as fo, lk and rt', packCard({ ...base, foil: true, look: 'etched', rt: 1 }), { u: 'c7', i: id7, n: 'Sol Ring', fo: 1, lk: 'etched', rt: 1 });
+  const back = unpackCard({ u: 'c7', i: id7, n: 'Sol Ring', fo: 1, lk: 'etched', rt: 3 });
+  same('...and read back as foil, its look and the rotation', [back.foil, back.look, back.rt], [true, 'etched', 3]);
+  same('a damaged foil, kind or rotation drops the card', ['{"fo":true}', '{"lk":"Bad Kind"}', '{"rt":4}'].map((extra) => unpackCard({ u: 'c7', i: id7, n: 'Sol Ring', ...JSON.parse(extra) })), [null, null, null]);
+}
+
 console.log(`All ${checks} game sync checks passed.`);
