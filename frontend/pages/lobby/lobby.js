@@ -80,6 +80,12 @@ const START_TITLE = 'Welcome to Overloaded';
 // at the table). The name box is shared: it is on the start screen and on the join screen, not once you are at the table.
 function setScreen(screen) {
   document.body.dataset.screen = screen; // (the style sheet gives the start page its larger title)
+  // the header marks the page you are on (Kevin, 2026-11-27: it stayed on Home in a lobby): Lobby on a table's screen, shown with its link, else Home
+  const homeLink = document.querySelector('.site-nav a[href="/"]:not(#site-lobby)');
+  const lobbyLink = document.getElementById('site-lobby');
+  const inRoom = screen === 'room' || screen === 'room-join';
+  if (lobbyLink && inRoom) { lobbyLink.hidden = false; lobbyLink.href = location.pathname; lobbyLink.setAttribute('aria-current', 'page'); } else lobbyLink?.removeAttribute('aria-current');
+  if (homeLink) { if (inRoom) homeLink.removeAttribute('aria-current'); else homeLink.setAttribute('aria-current', 'page'); }
   $('page-title').textContent = screen === 'start' ? START_TITLE : 'Lobby';
   $('intro').hidden = screen !== 'start';
   $('who').hidden = screen === 'room';
@@ -428,7 +434,7 @@ function renderPlayers() {
       item.dataset.seat = seat;
       item.append(piece('span', 'seat-label', `Seat ${seat}: `), piece('span', 'seat-empty', 'Empty seat'));
       if (canManageBots) item.append(botButton('add', seat, 'Add bot'));
-      if (myUid in currentMembers && currentMeta?.status === 'lobby') item.append(seatAction('sit', seat, 'Sit here', `Move to seat ${seat}`)); // (2026-11-26 feedback: pick your own seat)
+      if (myUid in currentMembers && currentMeta?.status === 'lobby') item.append(seatAction('sit', seat, 'Swap', `Move to seat ${seat}`)); // (2026-11-26 feedback: pick your own seat; called Swap, Kevin 2026-11-27)
       list.append(item);
     }
   }
@@ -735,6 +741,7 @@ async function openImporter(editId = null) {
   if (!currentCode || !FORMATS.includes(currentMeta?.format)) return;
   if ($('deck-dialog').open) $('deck-dialog').close();
   libraryBeforeImport = new Set(readMyLibrary().decks.map((entry) => entry.id));
+  if (editId) $('import-overlay').dataset.opening = '1'; else delete $('import-overlay').dataset.opening; // (Edit: the panel stays hidden until the deck shows, so the box to paste into does not flash first; Kevin 2026-11-27)
   $('import-overlay').hidden = false;
   for (const part of pageParts()) part.inert = true;
   if (!importerMounted) {
@@ -745,7 +752,7 @@ async function openImporter(editId = null) {
     importerModule?.refreshLibrary(); // (the decks may have changed here since: one deleted from a tile must not come back)
     if (!editId) document.getElementById('new-deck')?.click(); // another import starts on the box to paste into
   }
-  if (editId) { await importerModule?.openDeck(editId); return; }
+  if (editId) { try { await importerModule?.openDeck(editId); } finally { delete $('import-overlay').dataset.opening; } return; }
   ($('deck-text') ?? $('import-close')).focus();
 }
 async function closeImporter() {

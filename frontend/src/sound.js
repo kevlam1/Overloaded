@@ -72,7 +72,12 @@ export function mountSoundSettings(host) {
   volume.value = String(Math.round(settings.volume * 100));
   volume.disabled = !settings.on;
   volume.setAttribute('aria-label', 'Sound volume');
-  volumeLabel.append('Volume ', volume);
+  const percent = document.createElement('output');
+  percent.id = 'sound-volume-words';
+  percent.htmlFor = 'sound-volume';
+  percent.className = 'slider-value';
+  percent.textContent = `${volume.value}%`; // (Kevin, 2026-11-27: the slider shows its percentage)
+  volumeLabel.append('Volume ', volume, ' ', percent);
 
   const save = () => store.set(SOUND_KEY, writeSoundSettings(settings));
   on.addEventListener('change', () => {
@@ -80,7 +85,7 @@ export function mountSoundSettings(host) {
     volume.disabled = !settings.on;
     save();
   });
-  volume.addEventListener('input', () => { settings = { ...settings, volume: Number(volume.value) / 100 }; save(); });
+  volume.addEventListener('input', () => { settings = { ...settings, volume: Number(volume.value) / 100 }; percent.textContent = `${volume.value}%`; save(); });
 
   group.append(onLabel, volumeLabel);
   host.replaceChildren(group);

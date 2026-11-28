@@ -176,3 +176,5 @@
 @keyframes first-tick { from { translate: 0 -40%; opacity: 0.3; } to { translate: 0 0; opacity: 1; } }
 @keyframes first-land { 0% { scale: 1.25; } 60% { scale: 0.95; } 100% { scale: 1; } }
 @media (prefers-reduced-motion: reduce) { .first-name.tick, .first-name.settled { animation: none; } }
+/* the import window while a deck opens for editing: nothing shows until the deck does (no flash of the box to paste into) */
+.import-overlay[data-opening] .import-panel { visibility: hidden; }

@@ -40,7 +40,7 @@ export function mountFloatingBar({ bar, grip, store, key = 'overloaded.actionBar
   };
   const current = () => ({ left: bar.offsetLeft, top: bar.offsetTop });
   const save = () => store?.set(key, writePlace(place));
-  const orient = () => { bar.dataset.vertical = String(isVertical(place)); }; // (a column on the left and the right: its size changes, so it is set before the size is read)
+  const orient = () => { bar.dataset.vertical = String(isVertical(place) && !docking?.isDocked()); }; // (a column on the left and the right: its size changes, so it is set before the size is read; never in a dock, Kevin 2026-11-27: the console in the rail showed as a column of icons after it had once been docked to a side)
   const show = () => { orient(); bar.dataset.dock = flush && place.dock && !docking?.isDocked() ? place.dock : ''; put(pixelsFor(place)); };
 
   function hideHints() { snapHint.hidden = true; centerHint.hidden = true; cornerHint.hidden = true; }

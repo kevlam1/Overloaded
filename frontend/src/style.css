@@ -2175,3 +2175,5 @@ body.playing.seats .cmd-slot .tax-words { min-width: 1.1rem; min-height: 0; heig
 .seat-tools .seat-move { min-height: 0; height: 1.8rem; padding: 0 0.4rem; font-size: 0.78rem; }
 .seat-action { min-height: 0; height: 1.8rem; padding: 0 0.6rem; font-size: 0.78rem; position: relative; z-index: 1; }
 .seat-action.seat-remove { color: var(--danger); }
+/* a slider's value beside it (the Volume slider shows its percentage) */
+.slider-value { min-width: 2.8rem; text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }

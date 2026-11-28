@@ -6331,6 +6331,31 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 - I spent three runs of the room check finding why Carol's "Ready?" popup never showed: the test browser answers every confirm box itself, so the popup had opened and been answered at once. The feature worked; the check now reads the answered popup's words.
 - Three checks still read the whole seat card's text, which now holds the host's tools (a "Ready?" button read as a Ready mark), and the solo check still expected the menu without Rotate 90 degrees.
 
+## 305. The lobby fits the window, the console in the rail, shorter home text (2026-11-27)
+
+**What I asked for**
+- Hold back on tests if they use up a lot of my usage.
+- The lobby: the text was clipped and the sections too far apart, the seats were against the left edge, parts moved when I scrolled (the page should not scroll; the deck section may), the footer was cut short, and the button at the top stayed on Home in the lobby.
+- Less wordy text on the home page ("Who are you?" had to go).
+- Editing a deck from the lobby flashed the "Import a deck" box first.
+- The Volume slider should show its percentage.
+- The control bar in the rail looked broken.
+- Call "Sit here" "Swap" and move it a little lower.
+- Commit and push to main.
+
+**What changed**
+- **The lobby fits the window** (desktop sizes): no page scroll and nothing sticky; only the deck list scrolls (the settings column scrolls on its own only on a short window, about 768 pixels tall). The table screen lost the frame with no padding that clipped "At the table" and put the seats on its edge (a later rule in `pages.css` brought the border back over the one that removed it). The four seats are one row, in turn order, the settings are tighter, your color is a row of dots (names in the tooltip), and the footer spans the page.
+- **The header marks Lobby** on a table's screen (it stayed on Home).
+- **Home page text:** "Who are you?" is "Your name", the three chips under the buttons and the hints under Make and Join are gone, and the tagline is shorter.
+- **Edit a deck** keeps the import window empty until the deck shows.
+- **Volume** shows its percentage.
+- **The console in the rail:** once it had been docked to a side of the window, it stayed a column of icons even back in the rail (`frontend/src/floating-bar.js` now never draws a tool in a dock as a side column). Reproduced with the old code (the same picture as my screenshot) and checked fixed.
+- **"Sit here" is "Swap"** and sits a little lower on an empty seat.
+
+**What I checked**
+- Screenshots of a throwaway table on the real project at 1366 by 768 and 1440 by 900 (deleted afterwards), and of the solo table with a side-docked console before and after the fix.
+- Only the quick suites (97), `check-lobby-ui` 66 and `check-settings-ui` 19, to save usage; the live checks were not run again for these style changes.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-24, entry 277) Claude told me the tool docks remembered their layout (entries 273 and 276) when the code stored "[object Object]"; the audit for the spec found it.
 - (2026-11-23, entry 273) I said "commit and push after every big change" and meant every big prompt; Claude pushed after each of three changes.

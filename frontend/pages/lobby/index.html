@@ -31,17 +31,12 @@
         <div class="hero-text">
       <h1 id="page-title">Welcome to Overloaded</h1>
       <div id="intro" class="hero">
-        <p class="lede">Paste a deck and play in a minute. Free, with no account.</p>
+        <p class="lede">Paste a deck and play. Free, no account.</p>
         <div class="hero-actions">
           <a id="play-solo" class="button-link big" href="/solo">Play solo</a>
           <a id="try-sample" class="button-link quiet" href="/deck?sample">Try a sample deck</a>
           <a id="import-deck" class="button-link quiet" href="/deck">Import your deck</a>
         </div>
-        <ul class="hero-points">
-          <li><svg class="point-icon" viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true" focusable="false"><path d="M4 3h11a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm14.5 2.2 2.7 1a2 2 0 0 1 1.2 2.5l-3.4 11.4V5.2z"/></svg><strong>Bring your own deck</strong></li>
-          <li><svg class="point-icon" viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true" focusable="false"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm-1.5 6.2 6 3.8-6 3.8z"/></svg><strong>Test it alone</strong></li>
-          <li><svg class="point-icon" viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true" focusable="false"><path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm8 0a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM9 13c-3.3 0-6 1.8-6 4v2h12v-2c0-2.2-2.7-4-6-4zm8.2.2c2.4.3 4.8 1.6 4.8 3.8v2h-5v-2c0-1.4-.6-2.7-1.6-3.6z"/></svg><strong>Then play together</strong></li>
-        </ul>
         <p id="resume" class="hint" hidden>You are at table <strong id="resume-code"></strong>. The Lobby link above goes back to it.</p>
       </div>
         </div>
@@ -52,13 +47,13 @@
       <div id="banner" class="banner" role="status" aria-live="polite" hidden></div>
 
       <div class="friends">
-      <p class="friends-lede"><strong>Play with friends</strong>Make a table and share its code, or join a friend's.</p>
+      <p class="friends-lede"><strong>Play with friends</strong></p>
       <div class="friends-row">
       <section id="who" aria-labelledby="who-heading">
-        <h2 id="who-heading">Who are you?</h2>
+        <h2 id="who-heading">Your name</h2>
         <div class="field">
-          <label for="name">Your name at the table</label>
-          <input id="name" name="name" type="text" maxlength="30" autocomplete="nickname" spellcheck="false" placeholder="What should friends call you?">
+          <label for="name" class="sr-only">Your name</label>
+          <input id="name" name="name" type="text" maxlength="30" autocomplete="nickname" spellcheck="false" placeholder="Name">
         </div>
       </section>
 
@@ -83,7 +78,6 @@
             </div>
             <button id="create" type="button">Make table</button>
           </div>
-          <p class="hint">The format decides which decks you can bring.</p>
         </section>
 
         <section id="join-section" aria-labelledby="join-heading">
@@ -95,7 +89,6 @@
             </div>
             <button id="join" type="button">Join</button>
           </div>
-          <p class="hint">Or just open a friend’s link.</p>
         </section>
       </div>
       </div>
