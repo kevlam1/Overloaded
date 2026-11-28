@@ -608,6 +608,16 @@ export function createTableOps({ sdk, db, getUid, makeCode = makeTableCode }) {
     return { written: paths.length };
   }
 
+  // The Shared view (2026-11-26 feedback): another player's life, or the tapped mark of a card on their battlefield. Only those two paths, nothing of your own and
+  // nothing hidden; the rules allow them only in the Shared view during a match.
+  const SHARED_PATH = /^public\/[^/]+\/(life|battlefield\/(\d{1,3})\/x)$/;
+  async function writeShared(code, writes) {
+    if (!isValidCode(code)) throw new FlowRefusedError('That does not look like a table code.');
+    const paths = Object.keys(writes ?? {});
+    if (!paths.length || !paths.every((path) => SHARED_PATH.test(path))) throw new FlowRefusedError('Only a life total or a tapped card can be changed for another player.');
+    await update(ref(db), Object.fromEntries(paths.map((path) => [`tables/${code}/${path}`, writes[path]])));
+  }
+
   // Your own game as stored: { public, private } (each null when nothing was saved), for coming back after a refresh.
   async function loadGame(code) {
     if (!isValidCode(code)) return { public: null, private: null };
@@ -709,5 +719,5 @@ export function createTableOps({ sdk, db, getUid, makeCode = makeTableCode }) {
     );
   }
 
-  return { findMyTable, createTable, closeIfExpired, rejoinTable, joinTable, watchMembers, setReady, clearReady, setName, setColor, setFormat, setView, setFirst, moveSeat, placePlayer, removePlayer, askReady, watchAsked, wasRemoved, setBracketLimit, setDeck, startMatch, concede, endMatch, endTable, leaveTable, passHost, takeOverHost, claimHostSlot, heartbeat, watchActivity, watchMeta, watchServerOffset, watchConnection, startPresence, watchPresence, saveGame, loadGame, watchPublic, saveStack, watchStack, savePlaneMove, clearPlaneEntries, watchPlane, setCarry, armCarry, watchCarry };
+  return { findMyTable, createTable, closeIfExpired, rejoinTable, joinTable, watchMembers, setReady, clearReady, setName, setColor, setFormat, setView, setFirst, moveSeat, placePlayer, removePlayer, askReady, watchAsked, wasRemoved, writeShared, setBracketLimit, setDeck, startMatch, concede, endMatch, endTable, leaveTable, passHost, takeOverHost, claimHostSlot, heartbeat, watchActivity, watchMeta, watchServerOffset, watchConnection, startPresence, watchPresence, saveGame, loadGame, watchPublic, saveStack, watchStack, savePlaneMove, clearPlaneEntries, watchPlane, setCarry, armCarry, watchCarry };
 }

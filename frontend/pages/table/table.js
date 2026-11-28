@@ -9,7 +9,7 @@ import { setMyColor } from '../../src/accent.js';
 import { commanderBurst, sortHop, mountEffectSettings } from '../../src/vfx.js';
 import { commanderArrivals } from '../../../shared/effects.mjs';
 import { askConfirm } from '../../src/confirm-box.js';
-import { rejoinTable, watchMembers, watchMeta, watchPresence, watchServerOffset, watchConnection, startPresence, heartbeat, watchActivity, saveGame, loadGame, watchPublic, saveStack, watchStack, savePlaneMove, clearPlaneEntries, watchPlane, setCarry, armCarry, watchCarry, concede, endMatch, leaveTable, takeOverHost } from '../../src/db.js';
+import { rejoinTable, watchMembers, watchMeta, watchPresence, watchServerOffset, watchConnection, startPresence, heartbeat, watchActivity, saveGame, writeShared, loadGame, watchPublic, saveStack, watchStack, savePlaneMove, clearPlaneEntries, watchPlane, setCarry, armCarry, watchCarry, concede, endMatch, leaveTable, takeOverHost } from '../../src/db.js';
 import { startKeepAlive } from '../../src/keep-alive.js';
 import { makeSafeStore } from '../../src/safe-store.js';
 import { cardBackUrl } from '../../../shared/card-image.mjs';
@@ -1107,12 +1107,12 @@ function tapOthersCard(owner, uid) {
   const key = list && typeof list === 'object' ? Object.keys(list).find((k) => list[k]?.u === uid) : null;
   if (key === null || key === undefined) return;
   const tapped = list[key].x === 1;
-  saveGame(tableCode, { [`public/${owner}/battlefield/${key}/x`]: tapped ? null : 1 }).then(() => say(`${tapped ? 'Untapped' : 'Tapped'} ${members[owner]?.name ?? 'their'}’s ${list[key].n ?? 'card'}.`)).catch(() => say('Not tapped: the database rules need updating.', true));
+  writeShared(tableCode, { [`public/${owner}/battlefield/${key}/x`]: tapped ? null : 1 }).then(() => say(`${tapped ? 'Untapped' : 'Tapped'} ${members[owner]?.name ?? 'their'}’s ${list[key].n ?? 'card'}.`)).catch((error) => say(`Not tapped (${friendlyMessage(error)}).`, true));
 }
 function changeOthersLife(owner, delta) {
   const life = publicAll[owner]?.life;
   if (!Number.isSafeInteger(life)) return;
-  saveGame(tableCode, { [`public/${owner}/life`]: life + delta }).catch(() => say('Not changed: the database rules need updating.', true));
+  writeShared(tableCode, { [`public/${owner}/life`]: life + delta }).catch((error) => say(`Not changed (${friendlyMessage(error)}).`, true));
 }
 // The homes, the commons and the other players' cards, drawn into the plane (under your own cards).
 function renderPlane() {

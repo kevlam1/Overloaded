@@ -115,6 +115,7 @@ export const removePlayer = (...args) => tableOps().removePlayer(...args);
 export const askReady = (...args) => tableOps().askReady(...args);
 export const watchAsked = (...args) => tableOps().watchAsked(...args);
 export const wasRemoved = (...args) => tableOps().wasRemoved(...args);
+export const writeShared = (...args) => tableOps().writeShared(...args);
 export const setBracketLimit = (...args) => tableOps().setBracketLimit(...args);
 export const closeIfExpired = (...args) => tableOps().closeIfExpired(...args);
 export const startMatch = (...args) => tableOps().startMatch(...args);

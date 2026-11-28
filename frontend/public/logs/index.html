@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.307</span></h1>
-    <p class="lede">307 entries, Oct 25 to Nov 27, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
+    <h1>Build log <span class="version">Version 0.308</span></h1>
+    <p class="lede">308 entries, Oct 25 to Nov 27, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
   </div>
 </header>
 
@@ -25,7 +25,7 @@
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
 <a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">56</span></a>
-<a class="week-link" href="#week-3" data-target="week-3"><span class="wl-name">Week 3</span><span class="wl-range">Nov 23 to Nov 29</span><span class="wl-count">38</span></a>
+<a class="week-link" href="#week-3" data-target="week-3"><span class="wl-name">Week 3</span><span class="wl-range">Nov 23 to Nov 29</span><span class="wl-count">39</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
 <a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">75 things friends asked for</span></a>
 <a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">33 open, 73 done</span></a>
@@ -4572,7 +4572,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-3" aria-labelledby="week-3-title">
-<h2 class="week-head" id="week-3-title"><button type="button" aria-expanded="false" aria-controls="week-3-days"><span class="wname">Week 3</span><span class="range">Nov 23 to Nov 29</span><span class="week-count">38 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-3-title"><button type="button" aria-expanded="false" aria-controls="week-3-days"><span class="wname">Week 3</span><span class="range">Nov 23 to Nov 29</span><span class="week-count">39 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-3-days">
 <div class="day">
 <h3 class="day-title">Monday 23 November <span class="day-count">6</span></h3>
@@ -5035,7 +5035,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Friday 27 November <span class="day-count">10</span></h3>
+<h3 class="day-title">Friday 27 November <span class="day-count">11</span></h3>
 <div class="entries">
 <article class="entry" id="entry-298" data-n="298">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-298-body">
@@ -5207,6 +5207,23 @@
 <ul><li>A seat along the top sees the table turned half a turn; quarter turns are only by hand (Ctrl+Q and Ctrl+E), because the areas are wider than they are tall.</li><li>Not done yet: the piles and command zones on the table, and dragging several of anyone's cards at once.</li></ul>
 <p class="sub"><strong>Claude's mistakes this step</strong></p>
 <ul><li>My first change to the seven card lists' rules made one guard test fail: only the battlefield lets another player tap, so the test now compares the lists without that one permission and checks it is only on the battlefield.</li></ul>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-308" data-n="308">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-308-body">
+    <span class="num">308</span>
+    <span class="head-text"><span class="title">The rules pasted: tapping and life for other players work</span><span class="sum">I pasted the rules for step 7.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-308-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>I pasted the rules for step 7.</li></ul>
+<p class="sub"><strong>What changed</strong></p>
+<ul><li>After the paste, Bob's double click and + on Alice's pill were still refused, by the page itself: <code>saveGame</code> only writes your own branch, and the message wrongly blamed the rules. They now go through <code>writeShared</code> in <code>shared/table-ops.mjs</code>, which writes only another player's life or a battlefield card's tapped mark (the rules allow those two in the Shared view during a match), and a refusal says the real reason.</li></ul>
+<p class="sub"><strong>What I checked</strong></p>
+<ul><li>Against the real project: <code>check-live-rules</code> 145 of 145 match the file, <code>check-shared-live</code> 11 of 11 (new: Bob taps Alice's card and it is tapped in her own game; Bob's + on her pill raises her life on her own page). The quick suites (97).</li></ul>
+<p class="sub"><strong>Claude's mistakes this step</strong></p>
+<ul><li>I tested the new rules in the emulator but not the page's own path to them, so the first live run failed, and my error message pointed at the rules instead of the page.</li></ul>
   </div></div></div>
 </article>
 </div>
