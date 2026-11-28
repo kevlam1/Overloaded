@@ -61,6 +61,7 @@ try {
   const seen = await waitFor(async () => (await bob.eval(`document.querySelector('#view-switch button[data-view="shared"]').getAttribute('aria-pressed')`)) === 'true' || null, 15000, 250).catch(() => false);
   record('the host picks Shared in the lobby and Bob sees it', Boolean(seen));
   await waitFor(async () => (await alice.eval(`!document.getElementById('start').disabled`)) || null, 20000, 250);
+  await alice.eval(`document.querySelector('#first-switch button[data-first="1"]').click()`); await sleep(400); // (Alice goes first)
   await click(alice, 'start');
   for (const page of [alice, bob]) await waitFor(async () => ((await page.eval(`document.querySelectorAll('#hand .card').length`)) === 7) || null, 40000, 300);
   await sleep(800);
@@ -79,7 +80,8 @@ try {
   // Bob drags Alice's card into the commons (rows 50 to 80): a real mouse drag
   const mouse = (page, type, x, y, buttons = 0) => page.send('Input.dispatchMouseEvent', { type, x, y, button: type === 'mouseMoved' ? 'none' : 'left', buttons, clickCount: 1 });
   const drag = async (page, from, to) => { await mouse(page, 'mouseMoved', from.x, from.y); await sleep(60); await mouse(page, 'mousePressed', from.x, from.y, 1); for (let n = 1; n <= 14; n++) { await mouse(page, 'mouseMoved', from.x + ((to.x - from.x) * n) / 14, from.y + ((to.y - from.y) * n) / 14, 1); await sleep(16); } await mouse(page, 'mouseReleased', to.x, to.y); await sleep(700); };
-  const cellPoint = (page, col, row) => page.eval(`(() => { const r = document.getElementById('battlefield').getBoundingClientRect(); return { x: r.left + (${col} + 3.5) * r.width / 224, y: r.top + (${row} + 5) * r.height / 130 }; })()`);
+  // (the plane is 236 by 130 since 2026-11-27, and a player sitting along the top sees it turned half a turn: the point is then mirrored through the middle)
+  const cellPoint = (page, col, row) => page.eval(`(() => { const b = document.getElementById('battlefield'); const r = b.getBoundingClientRect(); const x = r.left + (${col} + 3.5) * r.width / 236; const y = r.top + (${row} + 5) * r.height / 130; return b.dataset.turn === '2' ? { x: r.left + r.right - x, y: r.top + r.bottom - y } : { x, y }; })()`);
   const cardCentre = (page, selector) => page.eval(`(() => { const c = document.querySelector(${JSON.stringify(selector)}); if (!c) return null; const r = c.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
   await bob.eval(`document.querySelector('.plane-button[aria-label="See the whole table"]').click()`); await sleep(500);
   const from = await cardCentre(bob, `#battlefield .plane-layer > .card[data-uid="${aliceCard}"]`);

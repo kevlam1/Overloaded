@@ -201,7 +201,7 @@ body.playing.seats[data-view="shared"] #seat-me > .seat-head { display: none; } 
 body.playing.seats[data-view="shared"] #my-board { overflow: hidden; background: var(--surface-0); }
 body.playing.seats[data-view="shared"] #my-board.can-pan { cursor: grab; }
 body.playing.seats[data-view="shared"] #my-board.panning, body.playing.seats[data-view="shared"] #my-board.panning * { cursor: grabbing !important; }
-body.playing.seats[data-view="shared"] #my-board > .battlefield { position: relative; width: calc(224 * 16px); height: calc(130 * 16px); max-width: none; max-height: none; aspect-ratio: auto; border-radius: 14px; box-shadow: 0 0 0 1px var(--line-strong), 0 30px 80px rgba(0, 0, 0, 0.45); }
+body.playing.seats[data-view="shared"] #my-board > .battlefield { position: relative; width: calc(236 * 16px); height: calc(130 * 16px); max-width: none; max-height: none; aspect-ratio: auto; border-radius: 14px; box-shadow: 0 0 0 1px var(--line-strong), 0 30px 80px rgba(0, 0, 0, 0.45); }
 .plane-homes, .plane-layer { grid-column: 1 / -1; grid-row: 1 / -1; display: grid; grid-template-columns: subgrid; grid-template-rows: subgrid; pointer-events: none; }
 body.playing.seats .plane-layer.battlefield { position: static; min-height: 0; width: auto; height: auto; aspect-ratio: auto; container-type: normal; background: none; box-shadow: none; outline: 0; --card-h: inherit; --card-w: inherit; }
 .plane-layer > .card { pointer-events: auto; cursor: grab; }
@@ -298,3 +298,17 @@ body.playing:is(.solo, .seats) .turn-piece.floating[data-vertical="true"] .phase
 /* the top bar while the piece is carried over it: letting go puts it back there */
 body.playing:is(.solo, .seats) .game-bar.turn-drop { box-shadow: inset 0 -3px 0 var(--gold); }
 body.playing:is(.solo, .seats) .stack-window .stack-grip { height: 32px; flex: none; } /* (the same height as the other headers in the rail) */
+
+/* ---- the Shared view, 2026-11-26 feedback (step 7a): each player's pill in the middle of their area, turned to face them, with their life (yours with - and +);
+   each hand face down just outside their side of the table; the commons band has no word; Life is not in the console (it is on your pill) ---- */
+.plane-plate { left: 50%; top: 50%; translate: -50% -50%; transform-origin: 50% 50%; pointer-events: auto; }
+.plane-home[data-facing="2"] .plane-plate { rotate: 180deg; }
+.plane-plate-lifebox { display: inline-flex; align-items: center; gap: 6px; }
+.plane-life-step { display: grid; place-items: center; width: 26px; height: 26px; min-height: 0; padding: 0; border: 1px solid var(--line); border-radius: 50%; background: var(--surface-2, var(--card)); color: var(--text); font-size: 16px; font-weight: 700; line-height: 1; box-shadow: none; }
+.plane-life-step:hover { background: var(--surface-3); }
+.plane-hand { position: absolute; left: 50%; top: calc(100% + 12px); translate: -50% 0; display: flex; pointer-events: none; }
+.plane-home[data-facing="2"] .plane-hand { top: auto; bottom: calc(100% + 12px); rotate: 180deg; }
+.plane-back { flex: none; width: 70px; height: 98px; margin-left: -38px; border-radius: 4.8% / 3.4%; background: #1a1a1a url('https://backs.scryfall.io/normal/0/a/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg') center / 100% 100% no-repeat; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.45); }
+.plane-back:first-child { margin-left: 0; }
+body.playing.seats[data-view="shared"] #my-board > .battlefield { overflow: visible; }
+body.playing.seats[data-view="shared"] #life-area { display: none; }

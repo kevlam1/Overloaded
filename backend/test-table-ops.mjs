@@ -648,7 +648,7 @@ console.log("the Shared view's plane: anyone at the table moves any card (2026-1
   const match = await readAdmin(`tables/${code}/meta/match`);
   await guest.ops.savePlaneMove(code, { seat: '1', uid: 'c1', entry: make('planeguest', match) });
   check("during the match the guest moves the host's card c1 into the commons", (({ x, y, z, by, m }) => x === 120 && y === 60 && z === 1 && by === 'planeguest' && m === match)((await entryOf('1', 'c1')) ?? {}), JSON.stringify(await entryOf('1', 'c1')));
-  check('a place off the plane is refused', await refused(() => guest.ops.savePlaneMove(code, { seat: '1', uid: 'c1', entry: make('planeguest', match, 218) })));
+  check('a place off the plane is refused', await refused(() => guest.ops.savePlaneMove(code, { seat: '1', uid: 'c1', entry: make('planeguest', match, 230) })));
   check('writing as someone else is refused', await refused(() => guest.ops.savePlaneMove(code, { seat: '1', uid: 'c1', entry: make('planehost', match) })));
   check('another match number is refused', await refused(() => guest.ops.savePlaneMove(code, { seat: '1', uid: 'c1', entry: make('planeguest', match + 1) })));
   check('someone not at the table can neither write nor read the plane', (await refused(() => outsider.ops.savePlaneMove(code, { seat: '1', uid: 'c1', entry: make('planeoutsider', match) }))) && (await readAs(outsider, `tables/${code}/plane`)) === 'denied');

@@ -49,7 +49,7 @@ import { mountStackWindow } from '../../src/stack-window.js';
 import { createToolDocks } from '../../src/tool-dock.js';
 import { summarizeBoard } from '../../../shared/board-summary.mjs';
 import { tableColors, colorValue, inkOn } from '../../../shared/player-colors.mjs';
-import { PLANE_COLS, PLANE_ROWS, HOME_COLS, HOME_ROWS, homeOf, readPlaneEntry, planeCell, entryFor } from '../../../shared/plane.mjs';
+import { PLANE_COLS, PLANE_ROWS, HOME_COLS, HOME_ROWS, homeOf, facingOf, readPlaneEntry, planeCell, entryFor } from '../../../shared/plane.mjs';
 import { mountPlaneCamera } from '../../src/plane-camera.js';
 import { mountPlaneDrag } from '../../src/plane-drag.js';
 import { emptyUndo, remember, canUndo, takeBack, undoWords } from '../../../shared/undo.mjs';
@@ -1086,7 +1086,7 @@ function renderPlane() {
   const seats = seatList();
   let homes = board.querySelector(':scope > .plane-homes');
   if (!homes) { homes = make('div', 'plane-homes plane-keep'); homes.setAttribute('aria-hidden', 'true'); board.prepend(homes); }
-  const commons = make('div', 'plane-commons', 'Commons');
+  const commons = make('div', 'plane-commons'); // (no word in it: 2026-11-26 feedback)
   commons.style.gridRow = '51 / span 30'; commons.style.gridColumn = '1 / -1';
   const frames = Object.entries(members).map(([uid, member]) => {
     const home = homeOf(String(member.seat), seats);
@@ -1096,12 +1096,31 @@ function renderPlane() {
     frame.style.setProperty('--seat-color', playerColor(uid));
     const life = uid === myUid ? game?.life : opponents.get(uid)?.view?.life;
     const hand = uid === myUid ? game?.zones.hand.length : opponents.get(uid)?.view?.counts.hand;
+    // (2026-11-26 feedback) the player's pill in the middle of their area, turned to face them: their name, life (your own with - and +) and cards in hand;
+    // and their hand face down just outside their side of the table
+    const facing = facingOf(String(member.seat), seats);
+    frame.dataset.facing = String(facing);
     const plate = make('div', 'plane-plate');
-    plate.append(make('span', 'plate-dot'), make('strong', 'plane-plate-name', uid === myUid ? `${member.name} (you)` : member.name), make('span', 'plane-plate-life num', String(life ?? '')), make('span', 'plane-plate-hand', hand === undefined ? '' : `Hand ${hand}`));
+    const lifeBox = make('span', 'plane-plate-lifebox');
+    if (uid === myUid) {
+      for (const [sign, words] of [[-1, '−'], [1, '+']]) {
+        const button = make('button', 'plane-life-step', words);
+        button.type = 'button';
+        button.setAttribute('aria-label', sign < 0 ? 'Lose 1 life (Shift: 5)' : 'Gain 1 life (Shift: 5)');
+        button.addEventListener('click', (event) => { if (game) apply(() => adjustLife(game, sign * (event.shiftKey ? 5 : 1)), ''); });
+        lifeBox.append(button);
+      }
+      lifeBox.insertBefore(make('span', 'plane-plate-life num', String(life ?? '')), lifeBox.lastChild);
+    } else lifeBox.append(make('span', 'plane-plate-life num', String(life ?? '')));
+    plate.append(make('span', 'plate-dot'), make('strong', 'plane-plate-name', uid === myUid ? `${member.name} (you)` : member.name), lifeBox, make('span', 'plane-plate-hand', hand === undefined ? '' : `Hand ${hand}`));
     frame.append(plate);
+    const backs = make('div', 'plane-hand');
+    for (let n = 0; n < Math.min(Number(hand) || 0, 15); n++) backs.append(make('span', 'plane-back'));
+    frame.append(backs);
     return frame;
   }).filter(Boolean);
   homes.replaceChildren(commons, ...frames);
+  board.dataset.facing = String(facingOf(mySeatNow(), seats)); // (your own cards face your edge of the table)
   for (const uid of othersInOrder()) {
     const member = members[uid];
     const view = opponents.get(uid)?.view;
@@ -1119,6 +1138,7 @@ function renderPlane() {
     const base = placeAll(view.zones.battlefield, isLandCard);
     const cells = new Map(view.zones.battlefield.map((card) => [card.uid, planeCell(base.get(card.uid), planeEntry(seat, card.uid), home)]));
     entry.layer.style.setProperty('--seat-color', playerColor(uid));
+    entry.layer.dataset.facing = String(facingOf(seat, seats)); // (their cards face them: 2026-11-26 feedback)
     entry.nodes.place(entry.layer, byPlaneZ(view.zones.battlefield, seat), { battlefield: true, cells, sharp: true });
     for (const button of entry.layer.children) { button.disabled = false; button.tabIndex = -1; button.title = `${member.name}'s. Drag to move it.`; } // (another player's card: it can be moved, nothing else)
   }
@@ -1136,13 +1156,14 @@ function setShared(on) {
   document.body.classList.toggle('plane-on', on);
   if (on && !planeWatching && tableCode) { planeWatching = true; watchPlane(tableCode, (value) => { planeRaw = value && typeof value === 'object' ? value : {}; if (sharedOn && game) render(); }); watchCarry(tableCode, (value) => { carryRaw = value && typeof value === 'object' ? value : {}; if (sharedOn) renderCarries(); }); }
   if (on && !carryArmed && tableCode) { carryArmed = true; armCarry(tableCode).catch(() => { carryArmed = false; }); }
-  if (!on) { for (const element of $('battlefield').querySelectorAll(':scope > .plane-keep')) element.remove(); planeLayers.clear(); }
+  if (!on) { for (const element of $('battlefield').querySelectorAll(':scope > .plane-keep')) element.remove(); planeLayers.clear(); delete $('battlefield').dataset.facing; }
   fitBoard($('battlefield'), true);
   planeCamera?.setActive(on);
   if (game) render();
 }
 const homeBox = (uid) => { const home = homeOf(String(members[uid]?.seat ?? ''), seatList()); return home ? { x: home.x * PLANE_CELL_PX, y: home.y * PLANE_CELL_PX, w: home.w * PLANE_CELL_PX, h: home.h * PLANE_CELL_PX } : null; };
-function showHomeOf(uid) { const box = homeBox(uid); if (box) planeCamera?.show(box); }
+// a click on a player turns the table to their seat and shows their area (2026-11-26 feedback)
+function showHomeOf(uid) { const seat = String(members[uid]?.seat ?? ''); const home = homeOf(seat, seatList()); if (home) planeCamera?.turnTo(facingOf(seat, seatList()), home, PLANE_CELL_PX); }
 let planeCamera = null;
 
 // ---- a card being carried, seen by the other players (Kevin, 2026-11-26) ----
@@ -1980,7 +2001,9 @@ function pickFromHandMenu(id, amount) {
     openHandMenu({ x: fromKeyboard ? box.left + box.width / 2 : event.clientX, y: fromKeyboard ? box.top : event.clientY, element: handCaret });
   });
 }
-planeCamera = mountPlaneCamera({ viewport: $('my-board'), plane: $('battlefield'), controls: $('plane-controls'), key: () => `overloaded.camera.${tableCode}`, mine: () => homeBox(myUid) });
+planeCamera = mountPlaneCamera({ viewport: $('my-board'), plane: $('battlefield'), controls: $('plane-controls'), key: () => `overloaded.camera.${tableCode}`, mine: () => homeBox(myUid), baseTurn: () => facingOf(mySeatNow(), seatList()) }); // (the table seen from your seat: 2026-11-26 feedback)
+const planeFlatten = (x, y) => (sharedOn && planeCamera ? planeCamera.flatten(x, y) : { x, y });
+const planeFlatRect = () => (sharedOn && planeCamera ? planeCamera.flatRect() : null);
 document.addEventListener('pointerdown', (event) => { // (before the drags: a card another player is carrying cannot be picked up)
   if (!sharedOn) return;
   const button = event.target.closest?.('#battlefield .card.carried-remote');
@@ -1990,8 +2013,8 @@ document.addEventListener('pointerdown', (event) => { // (before the drags: a ca
   event.preventDefault(); event.stopImmediatePropagation();
   say(`${members[carrier]?.name ?? 'Someone'} is moving that card.`);
 }, true);
-mountPlaneDrag({ plane: () => $('battlefield'), isActive: () => sharedOn && Boolean(game), onCarry: (info) => { if (!info) { sendCarry(null, null, null); return; } const member = members[info.owner]; if (member) sendCarry(member.seat, info.uid, info.cell); }, onMove: ({ owner, uid, cell }) => { const member = members[owner]; if (!member) return; movePlane(String(member.seat), uid, cell); say(`Moved ${member.name}'s card.`); } });
-mountBoardDrag({ board: () => $('battlefield'), onCarry: (info) => { if (!info) sendCarry(null, null, null); else sendCarry(mySeatNow(), info.uid, info.cell); }, onDrop: dropOnBoard, groupOf: (uid) => (multi.size > 1 && multi.has(uid) ? [...multi] : null), hand: () => $('hand-section'), onDropHand: dropOnHand, onHandOver: (over) => handView.carry(over), onReorderHand: reorderInHand, handZone: () => handView.zone(), handHit: (x, y) => handView.over(x, y), zoneSource, pileAt, onDropPile: dropOnPile, isEnabled: () => Boolean(game), boardFirst: true });
+mountPlaneDrag({ plane: () => $('battlefield'), isActive: () => sharedOn && Boolean(game), flatten: planeFlatten, flatRect: planeFlatRect, onCarry: (info) => { if (!info) { sendCarry(null, null, null); return; } const member = members[info.owner]; if (member) sendCarry(member.seat, info.uid, info.cell); }, onMove: ({ owner, uid, cell }) => { const member = members[owner]; if (!member) return; movePlane(String(member.seat), uid, cell); say(`Moved ${member.name}'s card.`); } });
+mountBoardDrag({ board: () => $('battlefield'), flatten: planeFlatten, flatRect: () => planeFlatRect(), onCarry: (info) => { if (!info) sendCarry(null, null, null); else sendCarry(mySeatNow(), info.uid, info.cell); }, onDrop: dropOnBoard, groupOf: (uid) => (multi.size > 1 && multi.has(uid) ? [...multi] : null), hand: () => $('hand-section'), onDropHand: dropOnHand, onHandOver: (over) => handView.carry(over), onReorderHand: reorderInHand, handZone: () => handView.zone(), handHit: (x, y) => handView.over(x, y), zoneSource, pileAt, onDropPile: dropOnPile, isEnabled: () => Boolean(game), boardFirst: true });
 
 // (Mulligan is in the hand's menu, the arrow next to the hand count: the bar has Draw, Untap all and Next turn only, Kevin 2026-11-20)
 // The action bar floats like the solo table's (src/floating-bar.js); it starts as a row in the bottom left corner, in the strip under the battlefield left of the hand (docked to a side it is a column of icons).

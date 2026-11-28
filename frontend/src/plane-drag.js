@@ -3,11 +3,11 @@
 // A press and a move of more than 6 px picks the card up; a copy of it follows the pointer at its size on screen (so the zoom is respected), the place it would land is
 // outlined, and letting go on the plane calls onMove({ owner, uid, cell }) with the cell of the card's top left. Escape, or letting go off the plane, puts it back.
 // Only the card's place changes: tapping, counters and moving it to a pile stay with its owner.
-import { cellAtPoint } from '../../shared/board-grid.mjs';
+import { cellAtPoint, shiftedAnchor } from '../../shared/board-grid.mjs';
 
 const DRAG_PX = 6;
 
-export function mountPlaneDrag({ plane, isActive, onMove, onCarry = () => {} }) { // onCarry({ owner, uid, cell } | null): where the card is being carried, for the other players
+export function mountPlaneDrag({ plane, isActive, onMove, onCarry = () => {}, flatten = (x, y) => ({ x, y }), flatRect = null }) { // flatten, flatRect: the camera's, for a turned table // onCarry({ owner, uid, cell } | null): where the card is being carried, for the other players
   let press = null;
   let drag = null;
 
@@ -16,8 +16,11 @@ export function mountPlaneDrag({ plane, isActive, onMove, onCarry = () => {} }) 
     return button && plane().contains(button) ? button : null;
   };
   const cellFor = (event) => {
-    const rect = plane().getBoundingClientRect();
-    return cellAtPoint(rect, event.clientX - drag.dx + 1, event.clientY - drag.dy + 1); // (the cell under the card's top left corner)
+    // the card moves by as many cells as the pointer has moved, counted on the table as it is not turned (src/plane-camera.js flatten), so a turned table moves it the right way
+    const rect = flatRect?.() ?? plane().getBoundingClientRect();
+    const now = flatten(event.clientX, event.clientY);
+    if (!cellAtPoint(rect, now.x, now.y)) return null;
+    return shiftedAnchor(rect, drag.startCell, now.x - drag.startFlat.x, now.y - drag.startFlat.y);
   };
   function start(event) {
     const box = press.button.getBoundingClientRect();
@@ -29,7 +32,8 @@ export function mountPlaneDrag({ plane, isActive, onMove, onCarry = () => {} }) 
     const outline = document.createElement('div');
     outline.className = 'plane-target';
     plane().append(outline);
-    drag = { button: press.button, ghost, outline, dx: press.x - box.left, dy: press.y - box.top };
+    const startCell = { col: Math.max(0, Number(press.button.style.gridColumnStart) - 1 || 0), row: Math.max(0, Number(press.button.style.gridRowStart) - 1 || 0) };
+    drag = { button: press.button, ghost, outline, dx: press.x - box.left, dy: press.y - box.top, startCell, startFlat: flatten(press.x, press.y) };
     press.button.classList.add('plane-lifted');
     document.body.classList.add('dragging-card');
     move(event);

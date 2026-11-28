@@ -25,7 +25,7 @@ const AXIS_STICK_PX = 12; // ...and it changes from the row to the column (or ba
 // Piles and the command zone (Kevin, 2026-11-12): a card can be taken from the top of the library, the graveyard or the exile, or from the command zone, and a card can be dropped on any of them. The page says
 // what is a pile: zoneSource(target) gives { button, uid, from, picture? } for the element pressed (the top card of a pile, or a card of the command zone; picture: an address for the picture carried, for a
 // library, whose top card is not shown), pileAt(x, y) gives { zone, element } for the pile under a point, and onDropPile({ uid, from, to }) is called when a card is let go over one.
-export function mountBoardDrag({ doc = document, board, onDrop, onCarry = () => {}, hand = () => null, onDropHand = () => {}, onHandOver = () => {}, onReorderHand = () => {}, handZone = () => null, handHit = null, zoneSource = () => null, pileAt = () => null, onDropPile = () => {}, groupOf = () => null, isEnabled = () => true, boardFirst = false }) {
+export function mountBoardDrag({ doc = document, board, onDrop, onCarry = () => {}, hand = () => null, onDropHand = () => {}, onHandOver = () => {}, onReorderHand = () => {}, handZone = () => null, handHit = null, zoneSource = () => null, pileAt = () => null, onDropPile = () => {}, groupOf = () => null, isEnabled = () => true, boardFirst = false, flatten = null, flatRect = null }) { // flatten(x, y) and flatRect(): the Shared view's camera, when the table is turned (src/plane-camera.js); none means the screen as it is
   // groupOf(uid) (optional): the uids of the cards picked up together (by a rectangle) when the card pressed is one of them, or null. Pressing one of them carries all of them, each keeping its place relative to
   // the others, and onDrop is called with { group } (Kevin, 2026-11-14). A group is carried over the board or into the hand (all its cards go there), not onto a pile.
   let press = null; // the card the pointer went down on, before it has moved far enough to be a drag
@@ -257,9 +257,12 @@ export function mountBoardDrag({ doc = document, board, onDrop, onCarry = () => 
     if (drag.smooth) { drag.smooth.tx = left; drag.smooth.ty = top; } // (the picture follows these)
     else { drag.pos = { x: Math.round(left), y: Math.round(top) }; drag.ghost.style.transform = `translate(${drag.pos.x}px, ${drag.pos.y}px)${drag.tapped ? ' rotate(90deg)' : ''}`; } // (a tapped card is turned on its side about its middle, after the move) the card is held where it was taken
     const boardElement = board();
-    const rect = boardElement ? boardElement.getBoundingClientRect() : null;
+    const rect = boardElement ? (flatRect?.() ?? boardElement.getBoundingClientRect()) : null;
     // a card from the battlefield moves by as many cells as the pointer has moved; a card from the hand is put with the pointer in the middle of it. Outside the board there is no place.
-    const cell = !rect || !cellAtPoint(rect, x, y) ? null : drag.start ? shiftedAnchor(rect, drag.start, x - drag.startX, y - drag.startY) : anchorAtPoint(rect, x, y);
+    // (on a turned table the points are first taken back to the table as it is not turned: the cells are counted there)
+    const f = flatten ? flatten(x, y) : { x, y };
+    const fs = flatten ? flatten(drag.startX, drag.startY) : { x: drag.startX, y: drag.startY };
+    const cell = !rect || !cellAtPoint(rect, f.x, f.y) ? null : drag.start ? shiftedAnchor(rect, drag.start, f.x - fs.x, f.y - fs.y) : anchorAtPoint(rect, f.x, f.y);
     // a card from the battlefield can go back into the hand: over the hand there is no place on the board, and the hand is marked
     const handElement = hand();
     const handRect = handZone() ?? (handElement ? handElement.getBoundingClientRect() : null); // handZone: where the cards of the hand are (the hand floats over the battlefield, so its whole box is not the hand)

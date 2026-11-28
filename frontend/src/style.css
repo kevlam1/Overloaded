@@ -2162,9 +2162,12 @@ body.playing.seats .cmd-slot .tax-words { min-width: 1.1rem; min-height: 0; heig
 /* the Next step button keeps one width whatever step it names, so the bar does not change size (and move) as the steps go by */
 #next-step .act-label { display: inline-block; min-width: 8.5ch; text-align: left; }
 /* Rotate 90 degrees (2026-11-26 feedback): the whole card turns by quarter turns clockwise, apart from tapping (a tapped card is a landscape box; this turns the box itself) */
-.battlefield > .card[data-rt="1"] { rotate: 90deg; }
-.battlefield > .card[data-rt="2"] { rotate: 180deg; }
-.battlefield > .card[data-rt="3"] { rotate: 270deg; }
+.battlefield > .card[data-rt="1"] { --rt-turn: 90deg; }
+.battlefield > .card[data-rt="2"] { --rt-turn: 180deg; }
+.battlefield > .card[data-rt="3"] { --rt-turn: 270deg; }
+/* on the Shared view's table every card faces its owner (2026-11-26 feedback): the cards of an area along the top are turned half a turn (data-facing, shared/plane.mjs facingOf) */
+body.plane-on #battlefield[data-facing="2"] > .card, .plane-layer[data-facing="2"] > .card { --own-turn: 180deg; }
+.battlefield > .card[data-rt], body.plane-on #battlefield[data-facing="2"] > .card, .plane-layer[data-facing="2"] > .card { rotate: calc(var(--rt-turn, 0deg) + var(--own-turn, 0deg)); }
 /* a ping's buttons beside Close (Close for all on your own ping, Seen on another player's) and who saw yours (2026-11-26 feedback) */
 .spotlight .spot-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.4rem; margin-top: 0.75rem; }
 .spotlight .spot-actions[hidden], .spotlight .spot-note[hidden] { display: none; }
