@@ -105,5 +105,5 @@ Step 7, the Shared view:
 - **No "Commons" text.** Done in step 7 (entry 307).
 - **Name, life and hand count pills in the middle of each board,** life adjusted there, and Life gone from the control bar. Done in step 7 (entry 307): every pill has - and +, another player's after the rules paste.
 - **Each player's hand face down below their board.** Done in step 7 (entry 307).
-- **The piles and command zones on the board,** at each player's edge. Planned, step 7b (the rules already allow the wider table).
+- **The piles and command zones on the board,** at each player's edge. Done (entry 311): a column at each player's outer edge, the command zones on top, then exile, library and graveyard; the strip under the table is gone and the hand rests over it.
 - **Tapping and dragging other players' cards,** several at once. Tapping done in step 7 (entry 307, after the rules paste); dragging several of anyone's at once still planned.

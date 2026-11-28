@@ -6444,6 +6444,26 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 - My first answer said the tables already followed the lobby, because the turn order was clockwise in both; but 1 and 2 sat across from each other at the table, not side by side.
 - The new grid had no place for an area without a corner, which broke 35 layout checks until the new layout applied only when corners are set.
 
+## 311. Seat 1 bottom right, pills in the commons, piles on the table (2026-11-28)
+
+**What I asked for**
+- Seat 1 in the bottom right, so turns go clockwise.
+- The player pills in the commons, not in the middle of each battlefield.
+- The feedback to move the library, graveyard, exile and command zones onto the table was skipped: the strip with the hand and the piles should be gone, and the hand stays.
+
+**What changed**
+- **Seating** (`shared/plane.mjs`): 1 bottom right, 2 bottom left, 3 top left, 4 top right. Turns go clockwise round the table, 1 and 2 share a side, 3 is across from 1. The four-player Grid view follows it (`cornerOf`), your side at the bottom.
+- **The pills** are in the commons, over each player's own area and facing them.
+- **The piles on the table:** the table has a column at each outer edge (272 cells wide now; the pasted rules allow up to 400). Each player's piles stand there (`pilesOf`): the two command zones side by side at the top, then exile, library and graveyard. Yours are your real piles moved onto the table (`placePlanePiles` in `table.js`), so clicks, menus and drops work as before; they go back when the Shared view ends. The strip under the table is gone in the Shared view, and your hand rests over the bottom of the table, across its whole width.
+
+**What I checked**
+- `test-plane` 16 (the seating, the pile columns on the table and off every area), `check-table-layout` 165, `check-shared-live --seats=4` 11 against the real project, with screenshots looked at: Alice bottom right, Bob beside her, Bot 3 across from Alice; every column at its outer edge with the top players' columns facing them; the hand over the bottom.
+- **Not checked:** dragging a card onto or out of a pile on the table, a turned table's piles under the pointer, and the pile right-click menus there.
+
+**Claude's mistakes this step**
+- I had listed the piles on the table as still open (step 7b), and said so, but it read as skipped: I should have done it with the rest of step 7.
+- The first try of the column lost to the table's own pile styles (they are more specific), so the piles came out as a small row over the edge; and setting the strip's height to zero made the hand vanish, because its height comes from the strip.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-24, entry 277) Claude told me the tool docks remembered their layout (entries 273 and 276) when the code stored "[object Object]"; the audit for the spec found it.
 - (2026-11-23, entry 273) I said "commit and push after every big change" and meant every big prompt; Claude pushed after each of three changes.

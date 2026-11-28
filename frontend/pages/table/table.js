@@ -49,7 +49,7 @@ import { mountStackWindow } from '../../src/stack-window.js';
 import { createToolDocks } from '../../src/tool-dock.js';
 import { summarizeBoard } from '../../../shared/board-summary.mjs';
 import { tableColors, colorValue, inkOn } from '../../../shared/player-colors.mjs';
-import { PLANE_COLS, PLANE_ROWS, HOME_COLS, HOME_ROWS, homeOf, facingOf, cornerOf, readPlaneEntry, planeCell, entryFor } from '../../../shared/plane.mjs';
+import { PLANE_COLS, PLANE_ROWS, HOME_COLS, HOME_ROWS, homeOf, facingOf, cornerOf, pilesOf, readPlaneEntry, planeCell, entryFor } from '../../../shared/plane.mjs';
 import { mountPlaneCamera } from '../../src/plane-camera.js';
 import { mountPlaneDrag } from '../../src/plane-drag.js';
 import { emptyUndo, remember, canUndo, takeBack, undoWords } from '../../../shared/undo.mjs';
@@ -1114,6 +1114,28 @@ function changeOthersLife(owner, delta) {
   if (!Number.isSafeInteger(life)) return;
   writeShared(tableCode, { [`public/${owner}/life`]: life + delta }).catch((error) => say(`Not changed (${friendlyMessage(error)}).`, true));
 }
+// The piles on the plane: each block is moved into a wrapper placed on its seat's pile column (shared/plane.mjs pilesOf), and put back where it was when the Shared view goes.
+const planePileWraps = new Map(); // key ('me' or a uid) -> { wrap, element, parent, next }
+function placePlanePiles(key, element, seat, seats) {
+  const box = pilesOf(seat, seats);
+  if (!element || !box) return;
+  let entry = planePileWraps.get(key);
+  if (!entry) {
+    const wrap = make('div', `plane-piles plane-keep${key === 'me' ? ' mine' : ''}`);
+    entry = { wrap, element, parent: element.parentElement, next: element.nextSibling };
+    planePileWraps.set(key, entry);
+  }
+  if (entry.element.parentElement !== entry.wrap) entry.wrap.append(entry.element);
+  const board = $('battlefield');
+  if (entry.wrap.parentElement !== board) board.append(entry.wrap);
+  entry.wrap.style.gridColumn = `${box.x + 1} / span ${box.w}`;
+  entry.wrap.style.gridRow = `${box.y + 1} / span ${box.h}`;
+  entry.wrap.dataset.facing = String(facingOf(seat, seats));
+}
+function returnPlanePiles() {
+  for (const [, entry] of planePileWraps) { const next = entry.next && entry.next.parentElement === entry.parent ? entry.next : null; entry.parent.insertBefore(entry.element, next); entry.wrap.remove(); }
+  planePileWraps.clear();
+}
 // The homes, the commons and the other players' cards, drawn into the plane (under your own cards).
 function renderPlane() {
   const board = $('battlefield');
@@ -1157,6 +1179,9 @@ function renderPlane() {
   }).filter(Boolean);
   homes.replaceChildren(commons, ...frames);
   board.dataset.facing = String(facingOf(mySeatNow(), seats)); // (your own cards face your edge of the table)
+  // (Kevin, 2026-11-28) every player's piles on the table, in a column at their outer edge: yours are your real piles (the same elements, so clicks, menus and drops work)
+  placePlanePiles('me', $('piles-section'), mySeatNow(), seats);
+  for (const uid of othersInOrder()) { const zones = opponents.get(uid)?.section.querySelector('.opp-zones') ?? planePileWraps.get(uid)?.wrap.firstElementChild; if (zones && members[uid]) placePlanePiles(uid, zones, String(members[uid].seat), seats); }
   for (const uid of othersInOrder()) {
     const member = members[uid];
     const view = opponents.get(uid)?.view;
@@ -1201,7 +1226,7 @@ function setShared(on) {
   document.body.classList.toggle('plane-on', on);
   if (on && !planeWatching && tableCode) { planeWatching = true; watchPlane(tableCode, (value) => { planeRaw = value && typeof value === 'object' ? value : {}; if (sharedOn && game) render(); }); watchCarry(tableCode, (value) => { carryRaw = value && typeof value === 'object' ? value : {}; if (sharedOn) renderCarries(); }); }
   if (on && !carryArmed && tableCode) { carryArmed = true; armCarry(tableCode).catch(() => { carryArmed = false; }); }
-  if (!on) { for (const element of $('battlefield').querySelectorAll(':scope > .plane-keep')) element.remove(); planeLayers.clear(); delete $('battlefield').dataset.facing; }
+  if (!on) { returnPlanePiles(); for (const element of $('battlefield').querySelectorAll(':scope > .plane-keep')) element.remove(); planeLayers.clear(); delete $('battlefield').dataset.facing; }
   fitBoard($('battlefield'), true);
   planeCamera?.setActive(on);
   if (game) render();

@@ -36,11 +36,11 @@ const FILL = (opponents) => `(() => {
   document.getElementById('blocked').hidden = true;
   const list = document.getElementById('opponent-list');
   list.replaceChildren();
-  if (${opponents} === 3) document.getElementById('seat-me').dataset.corner = 'bl'; else delete document.getElementById('seat-me').dataset.corner;
+  if (${opponents} === 3) document.getElementById('seat-me').dataset.corner = 'br'; else delete document.getElementById('seat-me').dataset.corner;
   for (let n = 1; n <= ${opponents}; n++) {
     const section = make('section', 'opponent seat-area' + (n === 1 ? ' active' : ''));
     section.dataset.slot = 'o' + n;
-    if (${opponents} === 3) section.dataset.corner = ['br', 'tr', 'tl'][n - 1]; // (four players sit as the page seats them: you, seat 1, bottom left; seat 2 beside you; 3 and 4 across; Kevin 2026-11-28)
+    if (${opponents} === 3) section.dataset.corner = ['bl', 'tl', 'tr'][n - 1]; // (four players sit as the page seats them: you, seat 1, bottom right; seat 2 beside you; 3 across from you, 4 across from 2; Kevin 2026-11-28)
     const title = make('h3', 'seat-name', 'Seat ' + (n + 1) + ': Opponent number ' + n);
     const life = make('strong', 'opp-life', '40');
     const counters = make('div', 'opponent-counters counter-chips'); for (const text of ['3', '21']) { const chip = make('span', 'counter-chip'); chip.append(make('strong', 'chip-count', text)); counters.append(chip); }

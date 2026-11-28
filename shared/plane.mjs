@@ -1,6 +1,6 @@
 // The Shared view's plane (Kevin, 2026-11-25): every player's battlefield on ONE grid of square cells, where anyone may move any card.
 // The plane is 236 by 130 cells. Each player has a home of 112 by 50 (the solo board's size): with 2 players one at the bottom and one at the top, centred; with 3 or 4,
-// the four corners (seat order: bottom left, bottom right, top right, top left: seats 1 and 2 on one side, 3 and 4 on the other, Kevin 2026-11-28), with a gap of 12 cells between the left and right homes (2026-11-26 feedback; it was 224
+// the four corners (seat order: bottom right, bottom left, top left, top right, so turns go clockwise and seats 1 and 2 share a side, Kevin 2026-11-28), with a gap of 12 cells between the left and right homes (2026-11-26 feedback; it was 224
 // with none). The band between them, rows 50 to 80, is the commons: no one's. The homes along the top face the top edge: their cards are drawn turned (facingOf), and a
 // player sitting there sees the plane turned so their home is at the bottom.
 // A card's place on the plane is its plane entry (tables/{code}/plane/{seat}/{uid}: { x, y, z, by, m }) when it has one for this match, else its owner's home plus its own
@@ -8,15 +8,20 @@
 import { CARD_COLS, CARD_ROWS } from './board-grid.mjs';
 
 export const SIDE_GAP = 12;
-export const PLANE_COLS = 224 + SIDE_GAP;
+export const PILE_COLS = 16; // (Kevin, 2026-11-28) a column of piles at each outer edge: the two command zones side by side, then exile, library and graveyard
+export const PILE_ROWS = 50;
+export const EDGE = PILE_COLS + 2; // the pile column and 2 cells between it and the area
+export const PLANE_COLS = 2 * EDGE + 224 + SIDE_GAP;
 export const PLANE_ROWS = 130;
 export const HOME_COLS = 112;
 export const HOME_ROWS = 50;
 export const COMMONS = { top: 50, bottom: 80 };
 export const MAX_X = PLANE_COLS - CARD_COLS;
 export const MAX_Y = PLANE_ROWS - CARD_ROWS;
-const RIGHT = HOME_COLS + SIDE_GAP;
-const CORNERS = [[0, 80], [RIGHT, 80], [RIGHT, 0], [0, 0]]; // bottom left, bottom right, top right, top left: 1 and 2 side by side, 3 across from 1 (Kevin, 2026-11-28)
+const LEFT = EDGE;
+const RIGHT = EDGE + HOME_COLS + SIDE_GAP;
+// bottom right, bottom left, top left, top right: turns go clockwise round the table, 1 and 2 side by side, 3 across from 1 (Kevin, 2026-11-28)
+const CORNERS = [[RIGHT, 80], [LEFT, 80], [LEFT, 0], [RIGHT, 0]];
 
 const whole = (n, low, high) => Number.isInteger(n) && n >= low && n <= high;
 
@@ -63,8 +68,19 @@ export function facingOf(seat, seats) {
 export function cornerOf(seat, seats, viewerSeat) {
   const home = homeOf(seat, seats);
   if (!home) return null;
-  let left = home.x === 0; let bottom = home.y !== 0;
+  let left = home.x < PLANE_COLS / 2 - HOME_COLS / 2; let bottom = home.y !== 0;
   if (facingOf(viewerSeat, seats) === 2) { left = !left; bottom = !bottom; }
   return `${bottom ? 'b' : 't'}${left ? 'l' : 'r'}`;
+}
+
+// Where a seat's piles lie on the plane (Kevin, 2026-11-28): a column of PILE_COLS by PILE_ROWS beside its area, at the outer edge of the table (the left edge for an area on
+// the left, the right edge for one on the right; with two players, to the right of the area). { x, y, w, h } in cells, or null for a seat that is not there.
+export function pilesOf(seat, seats) {
+  const home = homeOf(seat, seats);
+  if (!home) return null;
+  const onLeft = home.x + HOME_COLS / 2 < PLANE_COLS / 2;
+  const twoPlayers = [...new Set((seats ?? []).map(String))].length <= 2;
+  const x = onLeft && !twoPlayers ? home.x - EDGE : home.x + HOME_COLS + 2;
+  return { x, y: home.y, w: PILE_COLS, h: PILE_ROWS };
 }
 

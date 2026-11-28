@@ -201,7 +201,7 @@ body.playing.seats[data-view="shared"] #seat-me > .seat-head { display: none; } 
 body.playing.seats[data-view="shared"] #my-board { overflow: hidden; background: var(--surface-0); }
 body.playing.seats[data-view="shared"] #my-board.can-pan { cursor: grab; }
 body.playing.seats[data-view="shared"] #my-board.panning, body.playing.seats[data-view="shared"] #my-board.panning * { cursor: grabbing !important; }
-body.playing.seats[data-view="shared"] #my-board > .battlefield { position: relative; width: calc(236 * 16px); height: calc(130 * 16px); max-width: none; max-height: none; aspect-ratio: auto; border-radius: 14px; box-shadow: 0 0 0 1px var(--line-strong), 0 30px 80px rgba(0, 0, 0, 0.45); }
+body.playing.seats[data-view="shared"] #my-board > .battlefield { position: relative; width: calc(272 * 16px); height: calc(130 * 16px); max-width: none; max-height: none; aspect-ratio: auto; border-radius: 14px; box-shadow: 0 0 0 1px var(--line-strong), 0 30px 80px rgba(0, 0, 0, 0.45); }
 .plane-homes, .plane-layer { grid-column: 1 / -1; grid-row: 1 / -1; display: grid; grid-template-columns: subgrid; grid-template-rows: subgrid; pointer-events: none; }
 body.playing.seats .plane-layer.battlefield { position: static; min-height: 0; width: auto; height: auto; aspect-ratio: auto; container-type: normal; background: none; box-shadow: none; outline: 0; --card-h: inherit; --card-w: inherit; }
 .plane-layer > .card { pointer-events: auto; cursor: grab; }
@@ -320,3 +320,22 @@ body.playing.seats[data-view="grid"][data-seats="4"] .seat-area[data-corner="tl"
 body.playing.seats[data-view="grid"][data-seats="4"] .seat-area[data-corner="tr"] { grid-area: tr; }
 body.playing.seats[data-view="grid"][data-seats="4"] .seat-area[data-corner="bl"] { grid-area: bl; }
 body.playing.seats[data-view="grid"][data-seats="4"] .seat-area[data-corner="br"] { grid-area: br; }
+
+/* ---- the Shared view, 2026-11-28 (Kevin): the pills in the commons, over each player's own area and facing them; each player's piles in a column on the table at
+   their outer edge (shared/plane.mjs pilesOf): the two command zones side by side at the top, then exile, library and graveyard; the strip under the table is gone,
+   and the hand rests over the bottom of the table as on the solo table ---- */
+.plane-home .plane-plate { top: auto; bottom: calc(100% + 100px); translate: -50% 0; }
+.plane-home[data-facing="2"] .plane-plate { bottom: auto; top: calc(100% + 100px); }
+body.playing.seats .plane-piles { position: relative; z-index: 1; display: flex; justify-content: center; align-items: center; pointer-events: auto; --sw: 96px; --zones-sw: 96px; }
+body.playing.seats .plane-piles[data-facing="2"] { rotate: 180deg; }
+body.playing.seats .plane-piles :is(.piles-section, .opp-zones) { display: grid; grid-template-areas: "cmd" "exile" "library" "graveyard"; justify-items: center; row-gap: 28px; position: static; inset: auto; width: auto; height: auto; padding: 0; border: 0; background: none; box-shadow: none; }
+body.playing.seats .plane-piles .zone-stacks { display: contents; }
+body.playing.seats .plane-piles .pile-slot:has([data-zone="exile"]), body.playing.seats .plane-piles .opp-pile[data-zone="exile"] { grid-area: exile; }
+body.playing.seats .plane-piles .pile-slot:has([data-zone="library"]), body.playing.seats .plane-piles .opp-pile[data-zone="library"] { grid-area: library; }
+body.playing.seats .plane-piles .pile-slot:has([data-zone="graveyard"]), body.playing.seats .plane-piles .opp-pile[data-zone="graveyard"] { grid-area: graveyard; }
+body.playing.seats .plane-piles :is(.command-zone, .opp-command-zone) { grid-area: cmd; display: flex; flex-direction: column; align-items: center; margin: 0; }
+body.playing.seats .plane-piles .command-slots { flex-wrap: nowrap; gap: 28px; }
+body.playing.seats .plane-piles .pile-head, body.playing.seats .plane-piles .command-zone > h3, body.playing.seats .plane-piles .opp-zone-label { display: none; }
+body.playing.seats[data-view="shared"] #seat-me > .side-panels { display: none; }
+body.playing.seats[data-view="shared"] #seat-me #my-board { bottom: 0; height: auto; }
+body.playing.seats[data-view="shared"] #seat-me > .hand-section:not(.docked) { left: 0; width: 100%; } /* (the piles are on the table now: the hand takes the whole width, in the middle) */
