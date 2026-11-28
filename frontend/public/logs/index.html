@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.308</span></h1>
-    <p class="lede">308 entries, Oct 25 to Nov 27, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
+    <h1>Build log <span class="version">Version 0.309</span></h1>
+    <p class="lede">309 entries, Oct 25 to Nov 28, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
   </div>
 </header>
 
@@ -25,7 +25,7 @@
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
 <a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">56</span></a>
-<a class="week-link" href="#week-3" data-target="week-3"><span class="wl-name">Week 3</span><span class="wl-range">Nov 23 to Nov 29</span><span class="wl-count">39</span></a>
+<a class="week-link" href="#week-3" data-target="week-3"><span class="wl-name">Week 3</span><span class="wl-range">Nov 23 to Nov 29</span><span class="wl-count">40</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
 <a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">75 things friends asked for</span></a>
 <a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">33 open, 73 done</span></a>
@@ -4572,7 +4572,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-3" aria-labelledby="week-3-title">
-<h2 class="week-head" id="week-3-title"><button type="button" aria-expanded="false" aria-controls="week-3-days"><span class="wname">Week 3</span><span class="range">Nov 23 to Nov 29</span><span class="week-count">39 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-3-title"><button type="button" aria-expanded="false" aria-controls="week-3-days"><span class="wname">Week 3</span><span class="range">Nov 23 to Nov 29</span><span class="week-count">40 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-3-days">
 <div class="day">
 <h3 class="day-title">Monday 23 November <span class="day-count">6</span></h3>
@@ -5224,6 +5224,26 @@
 <ul><li>Against the real project: <code>check-live-rules</code> 145 of 145 match the file, <code>check-shared-live</code> 11 of 11 (new: Bob taps Alice's card and it is tapped in her own game; Bob's + on her pill raises her life on her own page). The quick suites (97).</li></ul>
 <p class="sub"><strong>Claude's mistakes this step</strong></p>
 <ul><li>I tested the new rules in the emulator but not the page's own path to them, so the first live run failed, and my error message pointed at the rules instead of the page.</li></ul>
+  </div></div></div>
+</article>
+</div>
+</div>
+<div class="day">
+<h3 class="day-title">Saturday 28 November <span class="day-count">1</span></h3>
+<div class="entries">
+<article class="entry" id="entry-309" data-n="309">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-309-body">
+    <span class="num">309</span>
+    <span class="head-text"><span class="title">Seat 1 at the top left of the lobby</span><span class="sum">Player 1 in the top left of the lobby: 1 2 on top, 4 3 below.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-309-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>Player 1 in the top left of the lobby: 1 2 on top, 4 3 below.</li></ul>
+<p class="sub"><strong>What changed</strong></p>
+<ul><li>The lobby's 2 by 2 seats are 1 2 / 4 3: still clockwise in turn order, now starting at the top left (<code>frontend/src/styles/pages.css</code>).</li></ul>
+<p class="sub"><strong>What I checked</strong></p>
+<ul><li><code>check-lobby-ui</code> 66, and a screenshot of a throwaway table on the real project (deleted afterwards).</li></ul>
   </div></div></div>
 </article>
 </div>

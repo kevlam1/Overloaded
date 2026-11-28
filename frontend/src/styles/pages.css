@@ -189,9 +189,9 @@ body[data-screen="room"] .seat-sit { margin-top: 0.7rem; } /* (Swap on an empty 
   body[data-screen="room"] > main > #status { margin: 0 0 0.5rem; font-size: 0.9rem; color: var(--muted); }
 }
 
-/* The seats are always 2 by 2 (Kevin, 2026-11-27), placed as the players sit at the table: clockwise from the bottom left, as the Shared view seats them
-   (shared/plane.mjs: seat 1 bottom left, 2 top left, 3 top right, 4 bottom right). Each seat has its own place, so an empty seat keeps its spot. */
-body[data-screen="room"] #players.seats { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-areas: "s2 s3" "s1 s4"; }
+/* The seats are always 2 by 2 (Kevin, 2026-11-27), clockwise in turn order from seat 1 at the top left (Kevin, 2026-11-28: "1 2 / 4 3").
+   Each seat has its own place, so an empty seat keeps its spot. */
+body[data-screen="room"] #players.seats { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-areas: "s1 s2" "s4 s3"; }
 body[data-screen="room"] #players .seat[data-seat="1"] { grid-area: s1; }
 body[data-screen="room"] #players .seat[data-seat="2"] { grid-area: s2; }
 body[data-screen="room"] #players .seat[data-seat="3"] { grid-area: s3; }

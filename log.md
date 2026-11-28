@@ -6416,6 +6416,17 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 **Claude's mistakes this step**
 - I tested the new rules in the emulator but not the page's own path to them, so the first live run failed, and my error message pointed at the rules instead of the page.
 
+## 309. Seat 1 at the top left of the lobby (2026-11-28)
+
+**What I asked for**
+- Player 1 in the top left of the lobby: 1 2 on top, 4 3 below.
+
+**What changed**
+- The lobby's 2 by 2 seats are 1 2 / 4 3: still clockwise in turn order, now starting at the top left (`frontend/src/styles/pages.css`).
+
+**What I checked**
+- `check-lobby-ui` 66, and a screenshot of a throwaway table on the real project (deleted afterwards).
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-24, entry 277) Claude told me the tool docks remembered their layout (entries 273 and 276) when the code stored "[object Object]"; the audit for the spec found it.
 - (2026-11-23, entry 273) I said "commit and push after every big change" and meant every big prompt; Claude pushed after each of three changes.
