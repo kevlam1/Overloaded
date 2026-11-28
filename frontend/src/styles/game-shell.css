@@ -339,3 +339,25 @@ body.playing.seats .plane-piles .pile-head, body.playing.seats .plane-piles .com
 body.playing.seats[data-view="shared"] #seat-me > .side-panels { display: none; }
 body.playing.seats[data-view="shared"] #seat-me #my-board { bottom: 0; height: auto; }
 body.playing.seats[data-view="shared"] #seat-me > .hand-section:not(.docked) { left: 0; width: 100%; } /* (the piles are on the table now: the hand takes the whole width, in the middle) */
+
+/* ---- the life pills, 2026-11-28 (Kevin): small, only the player's color and life, all in the middle of the table about 4 cells (2 x 32 px) apart, each toward its
+   player's corner and turned to face them; - and + show when the pointer is on one; commander damage taken beside it in the commander's player's color; the count of
+   each hand beside its cards outside the table. The cluster grows when zoomed out, about the middle of the table, so it stays readable. ---- */
+.plane-centre { position: relative; grid-column: 1 / -1; grid-row: 1 / -1; pointer-events: none; transform-origin: 50% 50%; scale: max(1, calc(0.45 / var(--zoom, 1))); }
+.plane-pill { position: absolute; left: 50%; top: 50%; display: flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid color-mix(in srgb, var(--seat-color) 55%, var(--line)); border-radius: 999px; background: var(--surface-glass, var(--card)); color: var(--text); white-space: nowrap; pointer-events: auto; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35); }
+.plane-pill .plate-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--seat-color); }
+.plane-pill-lifebox { display: inline-flex; align-items: center; gap: 4px; }
+.plane-pill-life { min-width: 1.6em; font-family: var(--font-num); font-size: 22px; font-weight: 700; line-height: 1; text-align: center; }
+.plane-pill .plane-life-step { display: none; width: 22px; height: 22px; font-size: 14px; }
+.plane-pill:hover .plane-life-step, .plane-pill:focus-within .plane-life-step { display: grid; }
+.plane-cd { padding: 1px 7px; border-radius: 999px; background: var(--cd-color); color: #111; font-family: var(--font-num); font-size: 14px; font-weight: 700; line-height: 1.3; }
+.plane-cd.lethal { outline: 2px solid var(--danger); }
+.plane-pill[data-side="bottom-right"] { translate: 32px 32px; }
+.plane-pill[data-side="bottom-left"] { translate: calc(-100% - 32px) 32px; }
+.plane-pill[data-side="top-left"] { translate: calc(-100% - 32px) calc(-100% - 32px); }
+.plane-pill[data-side="top-right"] { translate: 32px calc(-100% - 32px); }
+.plane-pill[data-side="bottom-middle"] { translate: -50% 32px; }
+.plane-pill[data-side="top-middle"] { translate: -50% calc(-100% - 32px); }
+.plane-pill[data-facing="2"] { rotate: 180deg; }
+.plane-hand { align-items: center; }
+.plane-hand-count { margin-left: 10px; padding: 2px 9px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-glass, var(--card)); color: var(--text); font-size: 18px; font-weight: 700; }

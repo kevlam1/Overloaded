@@ -1136,6 +1136,45 @@ function returnPlanePiles() {
   for (const [, entry] of planePileWraps) { const next = entry.next && entry.next.parentElement === entry.parent ? entry.next : null; entry.parent.insertBefore(entry.element, next); entry.wrap.remove(); }
   planePileWraps.clear();
 }
+// A player's life pill (Kevin, 2026-11-28): their color and life only, - and + when the pointer is on it, and beside it the commander damage they have taken, one chip per
+// commander in that commander's player's color. The pills sit in a cluster in the middle of the table, about 4 cells apart, each toward its player's corner and turned to face them.
+const PILL_GAP_PX = 32; // half of the 4 cells between two pills
+function planePill(uid, member, life, home, seats) {
+  const pill = make('div', `plane-pill${uid === myUid ? ' mine' : ''}`);
+  pill.dataset.name = member.name;
+  pill.style.setProperty('--seat-color', playerColor(uid));
+  const facing = facingOf(String(member.seat), seats);
+  const right = home.x + HOME_COLS / 2 > PLANE_COLS / 2 + 1; const left = home.x + HOME_COLS / 2 < PLANE_COLS / 2 - 1;
+  pill.dataset.side = `${home.y === 0 ? 'top' : 'bottom'}-${right ? 'right' : left ? 'left' : 'middle'}`;
+  pill.dataset.facing = String(facing);
+  const lifeBox = make('span', 'plane-pill-lifebox');
+  for (const [sign, words] of [[-1, '−'], [1, '+']]) {
+    const button = make('button', 'plane-life-step', words);
+    button.type = 'button';
+    button.setAttribute('aria-label', `${sign < 0 ? 'Lose' : 'Gain'} 1 life${uid === myUid ? '' : ` for ${member.name}`} (Shift: 5)`);
+    button.addEventListener('click', (event) => {
+      const step = sign * (event.shiftKey ? 5 : 1);
+      if (uid === myUid) { if (game) apply(() => adjustLife(game, step), ''); } else changeOthersLife(uid, step);
+    });
+    lifeBox.append(button);
+  }
+  const number = make('span', 'plane-pill-life num', String(life ?? ''));
+  number.title = `${member.name}: ${life ?? ''} life`;
+  lifeBox.insertBefore(number, lifeBox.lastChild);
+  pill.append(make('span', 'plate-dot'), lifeBox);
+  // commander damage taken: game.cd / view.cd is { seat: damage }
+  const cd = (uid === myUid ? game?.cd : opponents.get(uid)?.view?.cd) ?? {};
+  for (const [seat, damage] of Object.entries(cd)) {
+    if (!(Number(damage) > 0)) continue;
+    const from = Object.entries(members).find(([, m]) => String(m.seat) === String(seat));
+    const chip = make('span', 'plane-cd num', String(damage));
+    chip.style.setProperty('--cd-color', from ? playerColor(from[0]) : 'var(--muted)');
+    chip.title = `Commander damage from ${from ? from[1].name : `seat ${seat}`}: ${damage}`;
+    if (Number(damage) >= 21) chip.classList.add('lethal');
+    pill.append(chip);
+  }
+  return pill;
+}
 // The homes, the commons and the other players' cards, drawn into the plane (under your own cards).
 function renderPlane() {
   const board = $('battlefield');
@@ -1144,6 +1183,7 @@ function renderPlane() {
   if (!homes) { homes = make('div', 'plane-homes plane-keep'); homes.setAttribute('aria-hidden', 'true'); board.prepend(homes); }
   const commons = make('div', 'plane-commons'); // (no word in it: 2026-11-26 feedback)
   commons.style.gridRow = '51 / span 30'; commons.style.gridColumn = '1 / -1';
+  const pills = [];
   const frames = Object.entries(members).map(([uid, member]) => {
     const home = homeOf(String(member.seat), seats);
     if (!home) return null;
@@ -1152,32 +1192,20 @@ function renderPlane() {
     frame.style.setProperty('--seat-color', playerColor(uid));
     const life = uid === myUid ? game?.life : opponents.get(uid)?.view?.life;
     const hand = uid === myUid ? game?.zones.hand.length : opponents.get(uid)?.view?.counts.hand;
-    // (2026-11-26 feedback) the player's pill in the middle of their area, turned to face them: their name, life (your own with - and +) and cards in hand;
-    // and their hand face down just outside their side of the table
+    // (Kevin, 2026-11-28) the player's life pill is in a cluster in the middle of the table (pills below); here only their hand: face down just outside their side of the table, with its count
     const facing = facingOf(String(member.seat), seats);
     frame.dataset.facing = String(facing);
-    const plate = make('div', 'plane-plate');
-    const lifeBox = make('span', 'plane-plate-lifebox');
-    // every pill has - and + (2026-11-26 feedback: change anyone's life on the table); yours changes your game, another player's writes their stored life
-    for (const [sign, words] of [[-1, '−'], [1, '+']]) {
-      const button = make('button', 'plane-life-step', words);
-      button.type = 'button';
-      button.setAttribute('aria-label', `${sign < 0 ? 'Lose' : 'Gain'} 1 life${uid === myUid ? '' : ` for ${member.name}`} (Shift: 5)`);
-      button.addEventListener('click', (event) => {
-        const step = sign * (event.shiftKey ? 5 : 1);
-        if (uid === myUid) { if (game) apply(() => adjustLife(game, step), ''); } else changeOthersLife(uid, step);
-      });
-      lifeBox.append(button);
-    }
-    lifeBox.insertBefore(make('span', 'plane-plate-life num', String(life ?? '')), lifeBox.lastChild);
-    plate.append(make('span', 'plate-dot'), make('strong', 'plane-plate-name', uid === myUid ? `${member.name} (you)` : member.name), lifeBox, make('span', 'plane-plate-hand', hand === undefined ? '' : `Hand ${hand}`));
-    frame.append(plate);
+    frame.dataset.name = member.name;
     const backs = make('div', 'plane-hand');
     for (let n = 0; n < Math.min(Number(hand) || 0, 15); n++) backs.append(make('span', 'plane-back'));
+    if (hand !== undefined) backs.append(make('span', 'plane-hand-count num', String(hand)));
     frame.append(backs);
+    pills.push(planePill(uid, member, life, home, seats));
     return frame;
   }).filter(Boolean);
-  homes.replaceChildren(commons, ...frames);
+  const centre = make('div', 'plane-centre'); // (the life pills, all together in the middle of the table)
+  centre.append(...pills);
+  homes.replaceChildren(commons, ...frames, centre);
   board.dataset.facing = String(facingOf(mySeatNow(), seats)); // (your own cards face your edge of the table)
   // (Kevin, 2026-11-28) every player's piles on the table, in a column at their outer edge: yours are your real piles (the same elements, so clicks, menus and drops work)
   placePlanePiles('me', $('piles-section'), mySeatNow(), seats);

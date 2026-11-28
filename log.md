@@ -6464,6 +6464,26 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 - I had listed the piles on the table as still open (step 7b), and said so, but it read as skipped: I should have done it with the rest of step 7.
 - The first try of the column lost to the table's own pile styles (they are more specific), so the piles came out as a small row over the edge; and setting the strip's height to zero made the hand vanish, because its height comes from the strip.
 
+## 312. Small life pills in the middle, hand counts by the hands, commander damage (2026-11-28)
+
+**What I asked for**
+- Much smaller life pills, about 4 dots apart in the center of the table, showing only the color and the life.
+- The hand count near each player's cards in hand outside the table.
+- Commander damage beside each life pill, in the color of the commander's player.
+
+**What changed**
+- **The pills** are a cluster in the middle of the table (`planePill` in `table.js`): each shows its player's color and life, sits toward that player's corner with about 4 cells between pills, and faces them; - and + appear when the pointer is on a pill (or it has keyboard focus), so life can still be changed there. The cluster grows a little when zoomed out so it stays readable.
+- **Commander damage** taken shows as small chips beside the pill, one per commander, in that commander's player's color (21 or more is outlined).
+- **The hand count** is beside each face-down hand outside the table; the names are no longer on the table (the Players list has them).
+
+**What I checked**
+- `check-shared-live` 11 against the real project (two seats), and a four-seat run with a screenshot looked at: the four pills in the middle, each facing its player, the counts by the hands.
+- The quick suites (97).
+- **Not seen:** a commander damage chip on the table (no damage was dealt in the runs); the hand counts are small when zoomed far out.
+
+**Claude's mistakes this step**
+- My edit of the live check replaced the shared beginning of three lines at once, so two of them still looked for Alice's pill inside her area; one failed run before I fixed them.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-24, entry 277) Claude told me the tool docks remembered their layout (entries 273 and 276) when the code stored "[object Object]"; the audit for the spec found it.
 - (2026-11-23, entry 273) I said "commit and push after every big change" and meant every big prompt; Claude pushed after each of three changes.
