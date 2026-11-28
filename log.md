@@ -6356,6 +6356,23 @@ I did not try a group dropped at the right edge in the browser (the logic is tes
 - Screenshots of a throwaway table on the real project at 1366 by 768 and 1440 by 900 (deleted afterwards), and of the solo table with a side-docked console before and after the fix.
 - Only the quick suites (97), `check-lobby-ui` 66 and `check-settings-ui` 19, to save usage; the live checks were not run again for these style changes.
 
+## 306. The lobby seats are always 2 by 2, as the players sit (2026-11-27)
+
+**What I asked for**
+- The seats in the lobby always 2 by 2, because that is the seating arrangement in 3 and 4 player games, and even more for the Shared view.
+
+**What changed**
+- The seats are a fixed 2 by 2 placed as the players sit at the table, clockwise from the bottom left: seat 2 top left, seat 3 top right, seat 1 bottom left, seat 4 bottom right. That is how the Shared view seats them (`shared/plane.mjs`), and Grid view seats the others clockwise from you at the bottom left, so seat 1 sees the same picture. Each seat has its own place, so an empty seat keeps its spot (`frontend/src/styles/pages.css`).
+- The seat cards are a little shorter so the deck list keeps some room.
+
+**What I checked**
+- A screenshot of a throwaway table on the real project at 1366 by 768 (deleted afterwards), and `check-lobby-ui` 66.
+- **Open:** at 768 pixels tall "Your deck" is only about 96 pixels high (it scrolls); at 900 pixels or more it has room.
+
+**Claude's mistakes this step**
+- The last version put the four seats in one row, which loses the seating arrangement.
+- I tried putting the news line beside the "Lobby" title with a grid, but the title is inside the page header block, so it split them apart; taken back out after the screenshot.
+
 ## Where AI misread me, or I had to correct course
 - (2026-11-24, entry 277) Claude told me the tool docks remembered their layout (entries 273 and 276) when the code stored "[object Object]"; the audit for the spec found it.
 - (2026-11-23, entry 273) I said "commit and push after every big change" and meant every big prompt; Claude pushed after each of three changes.

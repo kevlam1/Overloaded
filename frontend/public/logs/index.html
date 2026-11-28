@@ -13,8 +13,8 @@
 <header class="top">
   <div class="wrap">
     <p class="crumb"><a href="/">Overloaded</a> / build log</p>
-    <h1>Build log <span class="version">Version 0.305</span></h1>
-    <p class="lede">305 entries, Oct 25 to Nov 27, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
+    <h1>Build log <span class="version">Version 0.306</span></h1>
+    <p class="lede">306 entries, Oct 25 to Nov 27, 2026. Written as I went, in my own words, grouped into weeks (Monday to Sunday). Each line is a summary: open an entry to read all of it. The last two sections are the feedback my friends gave me, with what it changed, and my to-do list.</p>
   </div>
 </header>
 
@@ -25,7 +25,7 @@
 <a class="week-link" href="#week-0" data-target="week-0"><span class="wl-name">Week 0</span><span class="wl-range">Nov 2 to Nov 8</span><span class="wl-count">26</span></a>
 <a class="week-link" href="#week-1" data-target="week-1"><span class="wl-name">Week 1</span><span class="wl-range">Nov 9 to Nov 15</span><span class="wl-count">103</span></a>
 <a class="week-link" href="#week-2" data-target="week-2"><span class="wl-name">Week 2</span><span class="wl-range">Nov 16 to Nov 22</span><span class="wl-count">56</span></a>
-<a class="week-link" href="#week-3" data-target="week-3"><span class="wl-name">Week 3</span><span class="wl-range">Nov 23 to Nov 29</span><span class="wl-count">36</span></a>
+<a class="week-link" href="#week-3" data-target="week-3"><span class="wl-name">Week 3</span><span class="wl-range">Nov 23 to Nov 29</span><span class="wl-count">37</span></a>
 <a class="week-link" href="#reflection" data-target="reflection"><span class="wl-name">Reflection</span><span class="wl-range">misreads and decisions</span></a>
 <a class="week-link" href="#feedback" data-target="feedback"><span class="wl-name">Feedback</span><span class="wl-range">75 things friends asked for</span></a>
 <a class="week-link" href="#todo" data-target="todo"><span class="wl-name">To-do list</span><span class="wl-range">33 open, 73 done</span></a>
@@ -4572,7 +4572,7 @@
 </div>
 </section>
 <section class="week collapsed" id="week-3" aria-labelledby="week-3-title">
-<h2 class="week-head" id="week-3-title"><button type="button" aria-expanded="false" aria-controls="week-3-days"><span class="wname">Week 3</span><span class="range">Nov 23 to Nov 29</span><span class="week-count">36 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
+<h2 class="week-head" id="week-3-title"><button type="button" aria-expanded="false" aria-controls="week-3-days"><span class="wname">Week 3</span><span class="range">Nov 23 to Nov 29</span><span class="week-count">37 entries</span><span class="caret" aria-hidden="true"></span></button></h2>
 <div class="days" id="week-3-days">
 <div class="day">
 <h3 class="day-title">Monday 23 November <span class="day-count">6</span></h3>
@@ -5035,7 +5035,7 @@
 </div>
 </div>
 <div class="day">
-<h3 class="day-title">Friday 27 November <span class="day-count">8</span></h3>
+<h3 class="day-title">Friday 27 November <span class="day-count">9</span></h3>
 <div class="entries">
 <article class="entry" id="entry-298" data-n="298">
   <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-298-body">
@@ -5171,6 +5171,23 @@
 <ul><li><strong>The lobby fits the window</strong> (desktop sizes): no page scroll and nothing sticky; only the deck list scrolls (the settings column scrolls on its own only on a short window, about 768 pixels tall). The table screen lost the frame with no padding that clipped &quot;At the table&quot; and put the seats on its edge (a later rule in <code>pages.css</code> brought the border back over the one that removed it). The four seats are one row, in turn order, the settings are tighter, your color is a row of dots (names in the tooltip), and the footer spans the page.</li><li><strong>The header marks Lobby</strong> on a table's screen (it stayed on Home).</li><li><strong>Home page text:</strong> &quot;Who are you?&quot; is &quot;Your name&quot;, the three chips under the buttons and the hints under Make and Join are gone, and the tagline is shorter.</li><li><strong>Edit a deck</strong> keeps the import window empty until the deck shows.</li><li><strong>Volume</strong> shows its percentage.</li><li><strong>The console in the rail:</strong> once it had been docked to a side of the window, it stayed a column of icons even back in the rail (<code>frontend/src/floating-bar.js</code> now never draws a tool in a dock as a side column). Reproduced with the old code (the same picture as my screenshot) and checked fixed.</li><li><strong>&quot;Sit here&quot; is &quot;Swap&quot;</strong> and sits a little lower on an empty seat.</li></ul>
 <p class="sub"><strong>What I checked</strong></p>
 <ul><li>Screenshots of a throwaway table on the real project at 1366 by 768 and 1440 by 900 (deleted afterwards), and of the solo table with a side-docked console before and after the fix.</li><li>Only the quick suites (97), <code>check-lobby-ui</code> 66 and <code>check-settings-ui</code> 19, to save usage; the live checks were not run again for these style changes.</li></ul>
+  </div></div></div>
+</article>
+<article class="entry" id="entry-306" data-n="306">
+  <h4 class="entry-head"><button type="button" aria-expanded="false" aria-controls="entry-306-body">
+    <span class="num">306</span>
+    <span class="head-text"><span class="title">The lobby seats are always 2 by 2, as the players sit</span><span class="sum">The seats in the lobby always 2 by 2, because that is the seating arrangement in 3 and 4 player games, and even more for the Shared view.</span></span>
+    <span class="caret" aria-hidden="true"></span>
+  </button></h4>
+  <div class="body" id="entry-306-body"><div class="body-in"><div class="body-pad">
+<p class="sub"><strong>What I asked for</strong></p>
+<ul><li>The seats in the lobby always 2 by 2, because that is the seating arrangement in 3 and 4 player games, and even more for the Shared view.</li></ul>
+<p class="sub"><strong>What changed</strong></p>
+<ul><li>The seats are a fixed 2 by 2 placed as the players sit at the table, clockwise from the bottom left: seat 2 top left, seat 3 top right, seat 1 bottom left, seat 4 bottom right. That is how the Shared view seats them (<code>shared/plane.mjs</code>), and Grid view seats the others clockwise from you at the bottom left, so seat 1 sees the same picture. Each seat has its own place, so an empty seat keeps its spot (<code>frontend/src/styles/pages.css</code>).</li><li>The seat cards are a little shorter so the deck list keeps some room.</li></ul>
+<p class="sub"><strong>What I checked</strong></p>
+<ul><li>A screenshot of a throwaway table on the real project at 1366 by 768 (deleted afterwards), and <code>check-lobby-ui</code> 66.</li><li><strong>Open:</strong> at 768 pixels tall &quot;Your deck&quot; is only about 96 pixels high (it scrolls); at 900 pixels or more it has room.</li></ul>
+<p class="sub"><strong>Claude's mistakes this step</strong></p>
+<ul><li>The last version put the four seats in one row, which loses the seating arrangement.</li><li>I tried putting the news line beside the &quot;Lobby&quot; title with a grid, but the title is inside the page header block, so it split them apart; taken back out after the screenshot.</li></ul>
   </div></div></div>
 </article>
 </div>
